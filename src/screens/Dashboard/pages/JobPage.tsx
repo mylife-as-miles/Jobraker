@@ -2248,500 +2248,6 @@ export const JobPage = (): JSX.Element => {
     safeInfo,
   ]);
 
-  // Apply all jobs by delegating to automation workflow, then prune applied rows
-  const _legacyApplyAllJobs = useCallback(
-    async (saveAsDraftOnly: boolean = false) => {
-      if (applyingAll) return;
-      if (!hasAutoApplyAccess) {
-        setError({
-          message:
-            "Auto apply requires a Basics, Pro, or Ultimate subscription.",
-          link: "/dashboard/billing",
-        });
-        safeInfo(
-          "Upgrade required",
-          "Upgrade to Basics or above to unlock auto apply.",
-        );
-        return;
-      }
-      const targetJobs = jobToAutoApply ? [jobToAutoApply] : jobs;
-      if (!targetJobs.length) return;
-
-      const jobsWithTargets = targetJobs
-        .map((job) => ({ job, target: getJobApplyTarget(job) }))
-        .filter((item): item is { job: Job; target: string } =>
-          Boolean(item.target),
-        );
-
-      if (!jobsWithTargets.length) {
-        safeInfo(
-          "No automation targets",
-          "This job is missing an apply link. Refresh your queue or open the job detail to locate one manually.",
-        );
-        return;
-      }
-
-      const skipped = jobs.length - jobsWithTargets.length;
-      if (skipped > 0) {
-        jobs
-          .filter(
-            (job) => !jobsWithTargets.some((entry) => entry.job.id === job.id),
-          )
-          .forEach((job) => {
-            events.autoApplyJobFailed(
-              job.id,
-              job.status || job.remote_type || "unknown",
-              "missing_apply_url",
-            );
-          });
-      }
-
-      const pushLog = (
-        message: string,
-        status: "info" | "success" | "error" = "info",
-      ) => {
-        const time = new Date().toLocaleTimeString("en-US", {
-          hour12: false,
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-        setAutomationLogs((prev) => [...prev, { time, message, status }]);
-      };
-
-      let success = 0;
-      let fail = 0;
-      let done = 0;
-      const appliedIds: string[] = [];
-      let executionStarted = false;
-
-      try {
-        // Check if user has enough credits for auto apply (5 credits per job)
-        const { data: authData } = await supabase.auth.getUser();
-        const userId = authData?.user?.id;
-        const userEmail = authData?.user?.email;
-
-        if (userId) {
-          const { data: creditCheck, error: checkError } = await supabase.rpc(
-            "check_credits_available",
-            {
-              p_user_id: userId,
-              p_feature_type: "auto_apply",
-              p_quantity: jobsWithTargets.length,
-            },
-          );
-
-          if (checkError) {
-            toastError("Credit Check Failed", "Unable to verify credits.");
-            setError({
-              message: "Failed to verify credits. Please try again.",
-              link: "/dashboard/billing",
-            });
-            setApplyingAll(false);
-            return;
-          }
-
-          if (!creditCheck?.available) {
-            const required =
-              creditCheck?.required || jobsWithTargets.length * 5;
-            const available = creditCheck?.current_balance || 0;
-            setError({
-              message: `Insufficient credits. Auto apply requires ${required} credits (5 per job × ${jobsWithTargets.length} jobs) but you only have ${available}.`,
-              link: "/dashboard/billing",
-            });
-            safeInfo(
-              "Not enough credits",
-              `Upgrade or purchase credits to use auto apply.`,
-            );
-            setApplyingAll(false);
-            return;
-          }
-        }
-
-        // --- AI Decision Boundary Check (Only for single job apply currently) ---
-        let matchedKeywords: string[] = aiEvaluation?.matched_keywords || [];
-        if (jobsWithTargets.length === 1 && !forceSubmit && !applyingAll) {
-          const targetJob = jobsWithTargets[0].job;
-          setEvaluatingJob(true);
-          try {
-            const evaluation = await evaluateJobFit(
-              targetJob.id,
-              targetJob.title,
-              targetJob.company,
-              targetJob.description || "",
-              profileSnapshot || "No profile provided.",
-              activeResumeText || "No resume content provided.",
-            );
-
-            matchedKeywords = evaluation.matched_keywords || [];
-            setEvaluationReports((prev) => ({
-              ...prev,
-              [targetJob.id]: {
-                ...evaluation,
-                candidate_memory: prev[targetJob.id]?.candidate_memory ?? null,
-              },
-            }));
-
-            if (
-              (evaluation.missing_requirements &&
-                evaluation.missing_requirements.length > 0) ||
-              evaluation.confidence_score < 70
-            ) {
-              setAiEvaluation(evaluation);
-              setAutoApplyStep(2);
-              return; // Stop execution here and wait for user response
-            }
-          } catch (evalErr) {
-            console.error("Failed to evaluate job fit", evalErr);
-            toastError(
-              "Job Evaluation Failed",
-              "The AI model encountered an error evaluating this job.",
-            );
-            toastError(
-              "Job Evaluation Failed",
-              "The AI model encountered an error evaluating this job.",
-            );
-            // If the AI evaluation fails completely, deciding whether to block or proceed is tricky.
-            // For now, we'll log it and proceed to let them apply anyway so we don't completely break the flow if Gemini is down.
-            safeInfo(
-              "AI Evaluation Failed",
-              "Could not complete confidence check, proceeding with submission.",
-            );
-          } finally {
-            setEvaluatingJob(false);
-          }
-        }
-        // ------------------------------------------------------------------------
-
-        const targetJob = jobsWithTargets[0]?.job;
-        if (jobsWithTargets.length === 1 && !draftData) {
-          const draftCreated = await generateAutoApplyDraft(targetJob);
-          if (draftCreated) {
-            return; // Pause auto-apply to wait for user to review Draft step
-          }
-          safeInfo(
-            "Draft Generation Failed",
-            "Skipping draft mode and falling back to base materials.",
-          );
-        }
-
-        const finalCoverLetterPayload = draftData
-          ? draftData.coverLetterText
-          : composeCoverLetterPayload(selectedCoverLetter);
-
-        let jobsToAutoApply = jobsWithTargets;
-        let jobsToDraft: typeof jobsWithTargets = [];
-
-        if (saveAsDraftOnly) {
-          jobsToAutoApply = [];
-          jobsToDraft = jobsWithTargets;
-        } else if (trueAutonomyEnabled && jobsWithTargets.length > 1) {
-          // Enforce Phase 2.0 True Autonomy: Only auto-apply trusted sources with >90% match. Draft the rest.
-          jobsToAutoApply = jobsWithTargets.filter(
-            (item) =>
-              isTrustedSource(item.target) && (item.job.matchScore ?? 0) >= 90,
-          );
-          jobsToDraft = jobsWithTargets.filter(
-            (item) =>
-              !isTrustedSource(item.target) || (item.job.matchScore ?? 0) < 90,
-          );
-        }
-
-        setApplyingAll(true);
-        setAutomationLogs([]);
-        setAutomationFinished(false);
-        setAutoApplyStep(3);
-        executionStarted = true;
-        pushLog(
-          `Initializing automation for ${jobsWithTargets.length} job(s)...`,
-        );
-        setApplyProgress({
-          done: 0,
-          total: jobsWithTargets.length,
-          success: 0,
-          fail: 0,
-        });
-
-        events.autoApplyStarted(
-          jobsToAutoApply.length,
-          selectedResumeId || undefined,
-          selectedCoverLetterId || undefined,
-        );
-
-        const launchedAt = new Date();
-        let resumeSignedUrl: string | undefined;
-        if (selectedResume?.file_path) {
-          try {
-            const { data: signed, error: signErr } = await supabase.storage
-              .from("resumes")
-              .createSignedUrl(selectedResume.file_path, 60 * 60);
-            if (!signErr && signed?.signedUrl) {
-              resumeSignedUrl = signed.signedUrl;
-            } else if (signErr) {
-              console.error(
-                "auto-apply resume signing failed",
-                signErr.message,
-              );
-            }
-          } catch (signErr) {
-            console.error("auto-apply resume signing threw", signErr);
-          }
-        }
-
-        const applicationsToInsert: any[] = [];
-        const appliedTimestamp = new Date().toISOString();
-
-        if (jobsToAutoApply.length > 0) {
-          safeInfo(
-            "Automation launching",
-            `Dispatching ${jobsToAutoApply.length} job(s) individually to the automation runner.`,
-          );
-        }
-        if (jobsToDraft.length > 0) {
-          safeInfo(
-            "Drafts saved",
-            `Saved ${jobsToDraft.length} application(s) as draft (untrusted source or <90% match).`,
-          );
-        }
-
-        // Counters already initialized outside try block
-
-        for (const { job, target } of jobsWithTargets) {
-          try {
-            const isDraft = jobsToDraft.some((d) => d.job.id === job.id);
-            const isLaunch = jobsToAutoApply.some((d) => d.job.id === job.id);
-            pushLog(
-              `Processing: ${job.title || "Untitled"} @ ${job.company || "Unknown"}`,
-            );
-
-            let runId = null;
-            let workflowId = null;
-            let providerStatus = "Draft saved";
-            let recordingUrl = null;
-
-            // Dispatch to Skyvern INDIVIDUALLY to isolate batch failures
-            if (isLaunch) {
-              pushLog(
-                `Dispatching automation to ${new URL(target).hostname}...`,
-              );
-              const automationResult = await applyToJobs({
-                jobs: [
-                  {
-                    sourceUrl: target,
-                    url: job.apply_url ?? target,
-                    source_url: job.source_id ?? target,
-                  },
-                ],
-                title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
-                cover_letter: finalCoverLetterPayload,
-                ...(profileSnapshot
-                  ? { additional_information: profileSnapshot }
-                  : {}),
-                ...(draftData
-                  ? { resume: draftData.resumeText }
-                  : resumeSignedUrl
-                    ? { resume: resumeSignedUrl }
-                    : {}),
-                ...(userEmail ? { email: userEmail } : {}),
-              });
-
-              const metadata = extractAutomationMetadata(automationResult);
-              runId = metadata.runId;
-              workflowId = metadata.workflowId;
-              providerStatus = metadata.providerStatus ?? "Automation launched";
-              recordingUrl = metadata.recordingUrl;
-            }
-
-            const { error } = await supabase
-              .from("jobs")
-              .delete()
-              .eq("id", job.id);
-            done += 1;
-            if (error) {
-              fail += 1;
-              setApplyProgress((prev) => ({ ...prev, done, fail }));
-              events.autoApplyJobFailed(
-                job.id,
-                job.status || "unknown",
-                "delete_failed",
-              );
-            } else {
-              success += 1;
-              appliedIds.push(job.id);
-              setApplyProgress((prev) => ({ ...prev, done, success }));
-              events.autoApplyJobSuccess(job.id, job.status || "unknown", 0);
-              pushLog(
-                `✓ ${job.title} — ${isDraft ? "Saved as draft" : "Applied successfully"}`,
-                "success",
-              );
-              // Gamification: award XP for each successful application
-              try {
-                gamificationHook.recordEvent("job_applied", {
-                  jobId: job.id,
-                  title: job.title,
-                });
-              } catch {}
-              if (userId) {
-                const matchScore =
-                  typeof job.matchScore === "number"
-                    ? Math.round(job.matchScore)
-                    : null;
-                const matchNote = job.matchSummary
-                  ? `Match summary: ${job.matchSummary}`
-                  : null;
-                applicationsToInsert.push({
-                  user_id: userId,
-                  job_title: job.title,
-                  company: job.company,
-                  location: job.location ?? "",
-                  applied_date: appliedTimestamp,
-                  status: isDraft ? "Saved" : "Applied",
-                  draft_status: isDraft ? "draft" : "sent",
-                  salary: formatSalaryRange(job),
-                  notes: matchNote,
-                  match_score: matchScore,
-                  next_step: null,
-                  interview_date: null,
-                  logo: job.logoUrl ?? null,
-                  run_id: runId,
-                  workflow_id: workflowId,
-                  app_url: job.apply_url ?? target ?? null,
-                  provider_status: providerStatus ?? "Automation launched",
-                  recording_url: recordingUrl,
-                  failure_reason: null,
-                  match_reasons:
-                    matchedKeywords.length > 0 ? matchedKeywords : null,
-                  ai_confidence_score: aiEvaluation?.confidence_score ?? null,
-                });
-              }
-            }
-          } catch (inner) {
-            done += 1;
-            fail += 1;
-            setApplyProgress((prev) => ({ ...prev, done, fail }));
-            pushLog(
-              `✗ ${job.title} — Failed: ${inner instanceof Error ? inner.message : "Unknown error"}`,
-              "error",
-            );
-            events.autoApplyJobFailed(
-              job.id,
-              job.status || "unknown",
-              "exception_delete",
-            );
-          }
-        }
-
-        if (applicationsToInsert.length) {
-          try {
-            await supabase.from("applications").insert(applicationsToInsert);
-          } catch (appErr) {
-            console.error("Failed to insert application records", appErr);
-            toastError(
-              "Database Error",
-              "Failed to record your application in the history.",
-            );
-            toastError(
-              "Database Error",
-              "Failed to record your application in the history.",
-            );
-          }
-        } else if (!userId) {
-          console.warn(
-            "Skipping application inserts because user id is unavailable",
-          );
-        }
-
-        // Deduct credits for auto apply (5 credits per job)
-        if (userId && success > 0) {
-          try {
-            const { data: deductResult, error: deductError } =
-              await supabase.rpc("deduct_auto_apply_credits", {
-                p_user_id: userId,
-                p_jobs_count: success,
-              });
-
-            if (deductError) {
-              console.error(
-                "Failed to deduct auto apply credits:",
-                deductError,
-              );
-              safeInfo(
-                "Credit deduction failed",
-                "There was an issue processing your credits.",
-              );
-            } else if (deductResult && !deductResult.success) {
-              console.warn("Credit deduction failed:", deductResult.message);
-              safeInfo("Credit deduction failed", deductResult.message);
-            } else if (deductResult?.success) {
-              safeInfo(
-                "Credits deducted",
-                `Used ${deductResult.credits_deducted} credits. ${deductResult.remaining_balance} remaining.`,
-              );
-            }
-          } catch (creditErr) {
-            console.error("Error deducting auto apply credits:", creditErr);
-            toastError(
-              "Credit Error",
-              "Failed to deduct credits after auto-applying.",
-            );
-            toastError(
-              "Credit Error",
-              "Failed to deduct credits after auto-applying.",
-            );
-          }
-        }
-
-        events.autoApplyFinished(success, fail);
-
-        if (appliedIds.length) {
-          const appliedSet = new Set(appliedIds);
-          const remaining = jobs.filter((job) => !appliedSet.has(job.id));
-          setJobs(remaining);
-          if (remaining.length === 0) {
-            setQueueStatus("empty");
-            setSelectedJob(null);
-          } else {
-            setQueueStatus("ready");
-            if (
-              selectedJob &&
-              !remaining.some((job) => job.id === selectedJob)
-            ) {
-              setSelectedJob(remaining[0].id);
-            }
-          }
-        }
-      } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        setError({ message: `Failed to launch automation: ${message}` });
-        events.autoApplyFinished(0, jobsWithTargets.length);
-      } finally {
-        setApplyingAll(false);
-        if (executionStarted) {
-          setApplyProgress((prev) => ({ ...prev, done, success, fail }));
-          setAutomationFinished(true);
-          pushLog(
-            `Automation complete. ${success} succeeded, ${fail} failed.`,
-            success > 0 ? "success" : "error",
-          );
-        }
-      }
-    },
-    [
-      applyingAll,
-      generateAutoApplyDraft,
-      hasAutoApplyAccess,
-      jobs,
-      profileSnapshot,
-      selectedCoverLetter,
-      selectedCoverLetterId,
-      selectedJob,
-      safeInfo,
-      setError,
-      forceSubmit,
-      aiEvaluation,
-    ],
-  );
 
   const applyAllJobs = useCallback(
     async (saveAsDraftOnly: boolean = false) => {
@@ -5946,20 +5452,22 @@ export const JobPage = (): JSX.Element => {
                 </div>
               )}
 
-              <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-foreground/12'>
-                <p className='text-xs text-foreground/50 flex items-center gap-2'>
-                  <ShieldCheck className='w-3.5 h-3.5 text-[#1dff00]' />
-                  Automation respects existing filters and logs telemetry for
-                  audit trails.
-                </p>
-                <div className='flex items-center gap-2'>
+              <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t border-foreground/12'>
+                <div className='flex items-center gap-3'>
+                  <p className='text-[11px] leading-tight text-foreground/50 flex items-center gap-2 max-w-[280px]'>
+                    <ShieldCheck className='w-3.5 h-3.5 text-[#1dff00] shrink-0' />
+                    <span>Automation respects existing filters and logs telemetry for audit trails.</span>
+                  </p>
+                </div>
+                <div className='flex flex-wrap items-center justify-end gap-2'>
                   {autoApplyStep === 3 ? (
                     <Button
-                      className={
+                      className={cn(
+                        "whitespace-nowrap shrink-0",
                         automationFinished
                           ? "border border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25"
                           : "border border-foreground/20 text-foreground/40 cursor-not-allowed opacity-50"
-                      }
+                      )}
                       disabled={!automationFinished}
                       onClick={() => {
                         setResumeDialogOpen(false);
@@ -5984,7 +5492,7 @@ export const JobPage = (): JSX.Element => {
                     <>
                       <Button
                         variant='ghost'
-                        className='border border-transparent text-foreground/60 hover:text-foreground'
+                        className='border border-transparent text-foreground/60 hover:text-foreground whitespace-nowrap shrink-0'
                         onClick={() => {
                           setResumeDialogOpen(false);
                           setAutoApplyStep(1);
@@ -5994,19 +5502,14 @@ export const JobPage = (): JSX.Element => {
                         Close
                       </Button>
                       {(autoApplyStep === 2 ||
-                        autoApplyStep === 3 ||
                         autoApplyStep === 4) && (
                         <Button
                           variant='outline'
-                          className='border-foreground/20 text-foreground hover:border-foreground/40 hover:bg-foreground/10'
+                          className='border-foreground/20 text-foreground hover:border-foreground/40 hover:bg-foreground/10 whitespace-nowrap shrink-0'
                           onClick={() => {
                             if (autoApplyStep === 4) {
                               setAutoApplyStep(1);
                               setDraftData(null);
-                            } else if (autoApplyStep === 3) {
-                              // We don't really have a 'back' from execution once started
-                              // but if they click it, maybe go to 2
-                              setAutoApplyStep(2);
                             } else {
                               setAutoApplyStep(1);
                               setAiEvaluation(null);
@@ -6021,7 +5524,7 @@ export const JobPage = (): JSX.Element => {
                       aiEvaluation.missing_requirements.length > 0 ? (
                         <div className='flex items-center gap-2'>
                           <Button
-                            className='border border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25'
+                            className='border border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25 whitespace-nowrap shrink-0'
                             onClick={handleDecisionBoundaryAutoFix}
                             disabled={
                               generatingDraft || evaluatingJob || !canAutoFixDecisionBoundary
@@ -6037,7 +5540,7 @@ export const JobPage = (): JSX.Element => {
                             )}
                           </Button>
                           <Button
-                            className='border border-[#ff4747]/50 text-[#ff4747] bg-[#ff4747]/15 hover:bg-[#ff4747]/25'
+                            className='border border-[#ff4747]/50 text-[#ff4747] bg-[#ff4747]/15 hover:bg-[#ff4747]/25 whitespace-nowrap shrink-0'
                             onClick={() => {
                               setResumeDialogOpen(false);
                             }}
@@ -6048,7 +5551,7 @@ export const JobPage = (): JSX.Element => {
                       ) : autoApplyStep === 4 ? (
                         <div className='flex items-center gap-2'>
                           <Button
-                            className='bg-foreground/10 hover:bg-foreground/20 text-foreground'
+                            className='bg-foreground/10 hover:bg-foreground/20 text-foreground whitespace-nowrap shrink-0'
                             onClick={() => applyAllJobs(true)}
                             disabled={applyingAll}
                           >
@@ -6059,7 +5562,7 @@ export const JobPage = (): JSX.Element => {
                             )}
                           </Button>
                           <Button
-                            className='border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25'
+                            className='border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25 whitespace-nowrap shrink-0'
                             onClick={() => applyAllJobs(false)}
                             disabled={applyingAll}
                           >
@@ -6072,7 +5575,15 @@ export const JobPage = (): JSX.Element => {
                         </div>
                       ) : (
                         <Button
-                          className={`border ${evaluatingJob || generatingDraft ? "border-[#1dff00]/50" : aiEvaluation ? "border-[#ffb347]/50 text-[#ffb347] bg-[#ffb347]/15 hover:bg-[#ffb347]/25" : "border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25"} ${autoApplyPrimaryDisabled || evaluatingJob || generatingDraft ? "opacity-50 cursor-not-allowed" : ""}`}
+                          className={cn(
+                            "border whitespace-nowrap shrink-0",
+                            evaluatingJob || generatingDraft 
+                              ? "border-[#1dff00]/50" 
+                              : aiEvaluation 
+                                ? "border-[#ffb347]/50 text-[#ffb347] bg-[#ffb347]/15 hover:bg-[#ffb347]/25" 
+                                : "border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25",
+                            (autoApplyPrimaryDisabled || evaluatingJob || generatingDraft) && "opacity-50 cursor-not-allowed"
+                          )}
                           disabled={
                             autoApplyPrimaryDisabled ||
                             evaluatingJob ||
