@@ -4,6 +4,7 @@ import {
   createGeminiClient,
   createGeminiConfig,
   extractGeminiText,
+  GEMINI_MODEL,
 } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -70,7 +71,7 @@ serve(async (req) => {
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: GEMINI_MODEL,
         config: createGeminiConfig({
           systemInstruction: systemPrompt,
           responseMimeType: "text/plain",

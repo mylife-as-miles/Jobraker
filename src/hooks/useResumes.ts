@@ -9,7 +9,12 @@ import { useToast } from "../components/ui/toast";
 import { createResumeVersion, latestResumeVersion } from '@/lib/resumeVersions';
 import { validateParsedResume } from '@/types/resume-parse-schemas';
 import { persistParsedResume } from "@/lib/parsedResume";
-import { parseResumeWithAI } from "@/services/ai/parseResumeProfile";
+import {
+  buildFallbackParsedProfileData,
+  parseResumeWithAI,
+} from "@/services/ai/parseResumeProfile";
+import { initialResumeState } from "@/store/artboard";
+import { mapParsedDataToResume } from "@/lib/resume-mapper";
 
 export type ResumeStatus = "Active" | "Draft" | "Archived";
 
@@ -42,15 +47,17 @@ async function parseAndPersistResumeSnapshot({
   resumeId,
   userId,
   supabase,
+  resumeName,
 }: {
   file: File;
   ext: string;
   resumeId: string;
   userId: string;
   supabase: any;
-}) {
+  resumeName?: string;
+}): Promise<ResumeRecord["data"] | null> {
   if (ext !== "pdf") {
-    return;
+    return null;
   }
 
   try {
@@ -96,6 +103,30 @@ async function parseAndPersistResumeSnapshot({
       embedding,
     });
 
+    const parsedProfile =
+      aiParsedData ??
+      buildFallbackParsedProfileData(
+        parsed.text,
+        resumeName ?? file.name.replace(/\.[^.]+$/, ""),
+      );
+    const mappedResumeData = mapParsedDataToResume(
+      parsedProfile,
+      structuredClone(initialResumeState.data),
+    );
+
+    const { error: resumeUpdateError } = await (supabase as any)
+      .from("resumes")
+      .update({
+        data: mappedResumeData,
+        name: mappedResumeData.title || resumeName || file.name.replace(/\.[^.]+$/, ""),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", resumeId);
+
+    if (resumeUpdateError) {
+      console.warn("Failed to persist mapped resume data", resumeUpdateError);
+    }
+
     events.resumeParsedSuccess({
       duration_ms: Math.round(performance.now() - t0),
       skills_count: aiParsedData?.skills?.length ?? analyzed.skills.length,
@@ -105,8 +136,10 @@ async function parseAndPersistResumeSnapshot({
           : 0
       ),
     });
+    return mappedResumeData;
   } catch (err: any) {
     events.resumeParsedFailure(err?.name || err?.message || "parse_error");
+    return null;
   }
 }
 
@@ -338,22 +371,33 @@ export function useResumes() {
       };
       const { data, error: insErr } = await (supabase as any).from('resumes').insert(insertPayload).select('*').single();
       if (insErr) throw insErr;
-      const rec = normalizeResumeRecordName(data as ResumeRecord);
+      let rec = normalizeResumeRecordName(data as ResumeRecord);
       setResumes((prev) => [rec, ...prev]);
       success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
       events.resumeUploaded(file, hashPrefix);
-      if (progressTimers.current.has(tempId)) {
-        clearInterval(progressTimers.current.get(tempId)!);
-        progressTimers.current.delete(tempId);
-      }
-      setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done', progress: 100, completedAt: Date.now() } : st));
-      void parseAndPersistResumeSnapshot({
+      const mappedResumeData = await parseAndPersistResumeSnapshot({
         file,
         ext,
         resumeId: rec.id,
         userId,
         supabase,
+        resumeName: inferredName,
       });
+      if (mappedResumeData) {
+        rec = normalizeResumeRecordName({
+          ...rec,
+          data: mappedResumeData,
+          name: mappedResumeData.title || rec.name,
+        } as ResumeRecord);
+        setResumes((prev) =>
+          prev.map((item) => (item.id === rec.id ? rec : item)),
+        );
+      }
+      if (progressTimers.current.has(tempId)) {
+        clearInterval(progressTimers.current.get(tempId)!);
+        progressTimers.current.delete(tempId);
+      }
+      setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done', progress: 100, completedAt: Date.now() } : st));
       return rec;
     } catch (e: any) {
       const msg = e.message || 'Import failed';
@@ -414,18 +458,29 @@ export function useResumes() {
       };
       const { data, error: insErr } = await (supabase as any).from('resumes').insert(insertPayload).select('*').single();
       if (insErr) throw insErr;
-      const rec = normalizeResumeRecordName(data as ResumeRecord);
+      let rec = normalizeResumeRecordName(data as ResumeRecord);
       setResumes((prev) => [rec, ...prev]);
       success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
       events.resumeUploaded(file, hashPrefix);
-      setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done', completedAt: Date.now(), progress: 100 } : st));
-      void parseAndPersistResumeSnapshot({
+      const mappedResumeData = await parseAndPersistResumeSnapshot({
         file,
         ext,
         resumeId: rec.id,
         userId,
         supabase,
+        resumeName: inferredName,
       });
+      if (mappedResumeData) {
+        rec = normalizeResumeRecordName({
+          ...rec,
+          data: mappedResumeData,
+          name: mappedResumeData.title || rec.name,
+        } as ResumeRecord);
+        setResumes((prev) =>
+          prev.map((item) => (item.id === rec.id ? rec : item)),
+        );
+      }
+      setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done', completedAt: Date.now(), progress: 100 } : st));
       return rec;
     } catch (e: any) {
       const msg = e.message || 'Import failed';

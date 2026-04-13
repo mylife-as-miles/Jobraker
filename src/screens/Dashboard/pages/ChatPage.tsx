@@ -540,7 +540,7 @@ export const ChatPage = () => {
       concise: "You are a concise and direct assistant.",
       friendly: "You are a friendly and encouraging assistant.",
       analyst:
-        "You are a professional analyst who provides structured, data-driven answers.",
+        "You are JobRaker Agent, a high-performance career assistant with full access to your profile, resume, and job applications. Use your tools to search for jobs, analyze fit, generate documents, and track applications. Be proactive, professional, and data-driven.",
       coach: "You are a career coach who gives actionable advice.",
     }[persona];
 
@@ -1185,7 +1185,7 @@ export const ChatPage = () => {
                             }`}
                         >
                           <BookOpen size={12} />
-                          Agent
+                          Agent Mode
                         </button>
                       </div>
                       <div className='flex gap-2'>

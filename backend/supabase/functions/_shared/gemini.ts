@@ -50,14 +50,10 @@ export const isGeminiAccessDeniedError = (error: unknown): boolean => {
 export const getGeminiAccessDeniedMessage = (feature: string): string =>
   `${feature} is temporarily unavailable because the configured Gemini project no longer has model access. Re-enable Gemini access or switch this feature to another provider.`;
 
-// Cost-aware model defaults:
-// - day-to-day generation uses Flash by default
-// - premium evaluation flows can opt into the heavier model explicitly
-export const GEMINI_FAST_MODEL =
-  Deno.env.get("GEMINI_FAST_MODEL") ?? "gemini-3-flash-preview";
-export const GEMINI_PREMIUM_MODEL =
-  Deno.env.get("GEMINI_PREMIUM_MODEL") ?? "gemini-3.1-pro-preview";
-export const GEMINI_MODEL = GEMINI_FAST_MODEL;
+// Keep all standard Edge Function Gemini calls on a single model for predictable behavior.
+export const GEMINI_MODEL = "gemini-3-flash-preview";
+export const GEMINI_FAST_MODEL = GEMINI_MODEL;
+export const GEMINI_PREMIUM_MODEL = GEMINI_MODEL;
 
 // Standard tools configuration
 export const GEMINI_TOOLS = [

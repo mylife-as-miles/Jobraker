@@ -2,7 +2,7 @@ import {
   createGeminiClient,
   createGeminiConfig,
   extractGeminiText,
-  GEMINI_PREMIUM_MODEL,
+  GEMINI_MODEL,
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
 } from "./gemini.ts";
@@ -547,7 +547,7 @@ export async function evaluateAndPersistJobFit(
   try {
     const ai = createGeminiClient();
     const response = await ai.models.generateContent({
-      model: GEMINI_PREMIUM_MODEL,
+      model: GEMINI_MODEL,
       config: createGeminiConfig({
         systemInstruction:
           "You are Jobraker's structured evaluation engine. Reply with JSON only.",

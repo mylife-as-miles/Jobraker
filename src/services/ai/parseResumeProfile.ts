@@ -28,6 +28,34 @@ export interface ParsedProfileData {
   }>;
 }
 
+function splitFullName(fullName: string) {
+  const tokens = fullName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  return {
+    firstName: tokens[0] || "",
+    lastName: tokens.slice(1).join(" "),
+  };
+}
+
+function parseLegacyRange(range: string) {
+  const cleaned = range.trim();
+  if (!cleaned) return { start: "", end: "" };
+
+  const parts = cleaned
+    .split(/\s+[—-]\s+|\s+to\s+/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    return { start: parts[0], end: parts.slice(1).join(" - ") };
+  }
+
+  return { start: cleaned, end: "" };
+}
+
 export interface ParseResumeRequest {
   resumeText: string;
   apiKey?: string; // Deprecated/Unused but kept for signature compatibility if needed
@@ -164,10 +192,69 @@ export function buildFallbackParsedProfileData(
 
 // Helper to ensure data matches the interface (sanitize nulls etc)
 export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
+    const record = raw && typeof raw === "object" ? raw : {};
     const str = (v: any) => typeof v === 'string' ? v.trim() : "";
     const num = (v: any) => typeof v === 'number' ? v : null;
     const arr = (v: any) => Array.isArray(v) ? v.filter(i => typeof i === 'string') : [];
-    
+
+    const legacyBasics =
+      record.basics && typeof record.basics === "object" ? record.basics : null;
+    const legacySummary =
+      record.summary && typeof record.summary === "object" ? record.summary : null;
+    const legacySections =
+      record.sections && typeof record.sections === "object" ? record.sections : null;
+
+    if (legacyBasics || legacySections || legacySummary) {
+        const { firstName, lastName } = splitFullName(str(legacyBasics?.name));
+        const legacyExperience = Array.isArray(legacySections?.experience?.items)
+          ? legacySections.experience.items
+          : [];
+        const legacyEducation = Array.isArray(legacySections?.education?.items)
+          ? legacySections.education.items
+          : [];
+        const legacySkills = Array.isArray(legacySections?.skills?.items)
+          ? legacySections.skills.items
+          : [];
+
+        return {
+            firstName,
+            lastName,
+            email: str(legacyBasics?.email),
+            phone: str(legacyBasics?.phone),
+            location: str(legacyBasics?.location),
+            jobTitle: str(legacyBasics?.headline),
+            experienceYears: null,
+            about: str(legacySummary?.content),
+            skills: legacySkills
+              .map((item: any) => str(item?.name))
+              .filter(Boolean),
+            education: legacyEducation.map((item: any) => {
+              const { start, end } = parseLegacyRange(
+                str(item?.date || item?.period),
+              );
+              return {
+                school: str(item?.school || item?.company || item?.institution),
+                degree: str(item?.degree || item?.title || item?.name),
+                start,
+                end,
+              };
+            }).filter((item) => item.school || item.degree),
+            experience: legacyExperience.map((item: any) => {
+              const { start, end } = parseLegacyRange(
+                str(item?.date || item?.period),
+              );
+              return {
+                company: str(item?.company),
+                title: str(item?.position || item?.title || item?.name),
+                location: str(item?.location),
+                startDate: start,
+                endDate: end,
+                description: str(item?.summary || item?.description),
+              };
+            }).filter((item) => item.company || item.title || item.description),
+        };
+    }
+
     return {
         firstName: str(raw.firstName || raw.first_name),
         lastName: str(raw.lastName || raw.last_name),

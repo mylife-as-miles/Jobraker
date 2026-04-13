@@ -1,6 +1,7 @@
 import { parsePdfFile } from "@/utils/parsePdf";
 import {
   buildFallbackParsedProfileData,
+  parseResumeWithAI,
   type ParsedProfileData,
   sanitizeParsedProfileData,
 } from "@/services/ai/parseResumeProfile";
@@ -26,6 +27,7 @@ type LoadParsedResumeTextInput = {
 };
 
 type ParsedResumeSnapshot = {
+  id?: string;
   raw_text: string;
   json?: Record<string, unknown> | null;
   structured?: unknown;
@@ -120,6 +122,11 @@ function snapshotToParsedProfileData(
   return hasContent ? profileData : null;
 }
 
+function hasStoredAiParsedData(snapshot: ParsedResumeSnapshot) {
+  const jsonRecord = isRecord(snapshot.json) ? snapshot.json : null;
+  return isRecord(jsonRecord?.aiParsedData);
+}
+
 export function isParsedResumesMissingTableError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const record = error as Record<string, unknown>;
@@ -190,7 +197,7 @@ export async function loadParsedResumeProfileData({
   try {
     const { data, error } = await supabase
       .from("parsed_resumes")
-      .select("raw_text, json, structured, skills, extracted_at")
+      .select("id, raw_text, json, structured, skills, extracted_at")
       .eq("resume_id", resumeId)
       .order("extracted_at", { ascending: false })
       .limit(1)
@@ -200,10 +207,44 @@ export async function loadParsedResumeProfileData({
     if (!data) return null;
 
     parsedResumesTableState = "available";
-    return snapshotToParsedProfileData(
+    let parsedProfile = snapshotToParsedProfileData(
       data as ParsedResumeSnapshot,
       fallbackName,
     );
+
+    const snapshot = data as ParsedResumeSnapshot;
+    if (!hasStoredAiParsedData(snapshot) && snapshot.raw_text.trim()) {
+      try {
+        const aiParsedData = await parseResumeWithAI({
+          resumeText: snapshot.raw_text,
+        });
+
+        parsedProfile = parsedProfile
+          ? mergeParsedProfileData(parsedProfile, aiParsedData)
+          : aiParsedData;
+
+        if (snapshot.id) {
+          const jsonRecord = isRecord(snapshot.json) ? snapshot.json : {};
+          const nextJson = { ...jsonRecord, aiParsedData };
+          await supabase
+            .from("parsed_resumes")
+            .update({
+              json: nextJson,
+              skills: aiParsedData.skills.length > 0
+                ? aiParsedData.skills
+                : snapshot.skills,
+            })
+            .eq("id", snapshot.id);
+        }
+      } catch (enrichmentError) {
+        console.warn(
+          "load parsed resume profile AI enrichment failed",
+          enrichmentError,
+        );
+      }
+    }
+
+    return parsedProfile;
   } catch (error) {
     if (isParsedResumesMissingTableError(error)) {
       parsedResumesTableState = "missing";

@@ -13,7 +13,7 @@ import {
   createGeminiClient,
   createGeminiConfig,
   extractGeminiText,
-  GEMINI_FAST_MODEL,
+  GEMINI_MODEL,
 } from "../_shared/gemini.ts";
 import {
   evaluateAndPersistJobFit,
@@ -273,7 +273,7 @@ ${clipText(markdown, 18_000)}
 
   try {
     const response = await ai.models.generateContent({
-      model: GEMINI_FAST_MODEL,
+      model: GEMINI_MODEL,
       config: createGeminiConfig({
         systemInstruction:
           "You are a structured extraction engine for job postings. Respond with JSON only.",

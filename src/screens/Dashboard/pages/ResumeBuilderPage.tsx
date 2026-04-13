@@ -165,18 +165,6 @@ const ResumeBuilderPage = () => {
         serverUpdatedAtRef.current = remoteResume.updated_at ?? null;
         lastDraftSignatureRef.current = JSON.stringify(remoteState);
         setResume(remoteState);
-      } else if (localDraft?.resume) {
-        serverUpdatedAtRef.current = localDraft.sourceUpdatedAt ?? null;
-        lastDraftSignatureRef.current = JSON.stringify(localDraft.resume);
-        setResume(localDraft.resume);
-        setResumeId(localDraft.resume.id);
-        if (!restoredDraftNoticeRef.current) {
-          restoredDraftNoticeRef.current = true;
-          info(
-            "Draft restored",
-            "We restored your unsaved resume draft from this device.",
-          );
-        }
       } else if (remoteResume) {
         const parsedProfile = await loadParsedResumeProfileData({
           supabase,
@@ -204,6 +192,20 @@ const ResumeBuilderPage = () => {
             "Resume imported",
             "We populated the resume editor with details parsed from your uploaded file.",
           );
+          await removeResumeDraft(draftStorageKey);
+          setLastDraftSavedAt(null);
+        } else if (localDraft?.resume) {
+          serverUpdatedAtRef.current = localDraft.sourceUpdatedAt ?? null;
+          lastDraftSignatureRef.current = JSON.stringify(localDraft.resume);
+          setResume(localDraft.resume);
+          setResumeId(localDraft.resume.id);
+          if (!restoredDraftNoticeRef.current) {
+            restoredDraftNoticeRef.current = true;
+            info(
+              "Draft restored",
+              "We restored your unsaved resume draft from this device.",
+            );
+          }
         }
       }
       draftHydratedRef.current = true;
