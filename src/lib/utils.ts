@@ -21,11 +21,13 @@ export const getProxiedLogoUrl = (url: string | null | undefined): string | unde
     targetUrl = `https:${targetUrl}`;
   }
 
-  // If it's already a data URL, placeholder, google favicon, or local path, don't proxy
+  // If it's already a data URL, placeholder, or local path, don't proxy
+  // 2. Skip already proxied URLs
+  if (targetUrl.includes('/functions/v1/proxy-image')) return targetUrl;
+
   if (
     targetUrl.startsWith("data:") ||
-    targetUrl.startsWith("/") ||
-    targetUrl.startsWith("https://www.google.com/s2/favicons")
+    targetUrl.startsWith("/")
   ) {
     return targetUrl;
   }
