@@ -5459,7 +5459,7 @@ export const JobPage = (): JSX.Element => {
                     <span>Automation respects existing filters and logs telemetry for audit trails.</span>
                   </p>
                 </div>
-                <div className='flex flex-wrap items-center justify-end gap-2'>
+                <div className='flex flex-wrap items-center justify-end gap-4'>
                   {autoApplyStep === 3 ? (
                     <Button
                       className={cn(
@@ -5522,7 +5522,7 @@ export const JobPage = (): JSX.Element => {
                       )}
                       {aiEvaluation &&
                       aiEvaluation.missing_requirements.length > 0 ? (
-                        <div className='flex items-center gap-2'>
+                        <div className='flex items-center gap-4'>
                           <Button
                             className='border border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25 whitespace-nowrap shrink-0'
                             onClick={handleDecisionBoundaryAutoFix}
@@ -5549,7 +5549,7 @@ export const JobPage = (): JSX.Element => {
                           </Button>
                         </div>
                       ) : autoApplyStep === 4 ? (
-                        <div className='flex items-center gap-2'>
+                        <div className='flex items-center gap-4'>
                           <Button
                             className='bg-foreground/10 hover:bg-foreground/20 text-foreground whitespace-nowrap shrink-0'
                             onClick={() => applyAllJobs(true)}
