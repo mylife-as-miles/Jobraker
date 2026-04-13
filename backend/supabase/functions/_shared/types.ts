@@ -27,7 +27,7 @@ export interface JobListing {
 // Dynamic CORS headers that support multiple allowed origins
 export function getCorsHeaders(origin?: string): Record<string, string> {
   const allowedOrigins = [
-    'https://jobraker-six.vercel.app',
+    'https://jobraker-tau.vercel.app',
     'https://jobraker.vercel.app',
     'http://127.0.0.1:3000',
     'http://localhost:3000',
