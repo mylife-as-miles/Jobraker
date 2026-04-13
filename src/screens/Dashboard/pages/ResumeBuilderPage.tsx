@@ -70,6 +70,99 @@ function buildHydratedResumeState(remoteResume: any, data = initialResumeState.d
   };
 }
 
+function normalizeHydrationValue(value: unknown) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function isPlaceholderField(value: unknown, fallback: string) {
+  const normalizedValue = normalizeHydrationValue(value);
+  return !normalizedValue || normalizedValue === normalizeHydrationValue(fallback);
+}
+
+function matchesTemplateFields(
+  item: Record<string, unknown> | undefined,
+  template: Record<string, unknown> | undefined,
+  fields: string[],
+) {
+  if (!item || !template) return false;
+
+  return fields.every(
+    (field) =>
+      normalizeHydrationValue(item[field]) ===
+      normalizeHydrationValue(template[field]),
+  );
+}
+
+function looksLikePlaceholderResumeData(data: any) {
+  if (!data || typeof data !== "object") {
+    return true;
+  }
+
+  const basics = data.basics ?? {};
+  const summary = data.summary ?? {};
+  const experienceItems = Array.isArray(data.sections?.experience?.items)
+    ? data.sections.experience.items
+    : [];
+  const educationItems = Array.isArray(data.sections?.education?.items)
+    ? data.sections.education.items
+    : [];
+  const skillItems = Array.isArray(data.sections?.skills?.items)
+    ? data.sections.skills.items
+    : [];
+  const defaultData = initialResumeState.data;
+  const defaultExperienceItems = defaultData.sections.experience.items;
+  const defaultEducationItems = defaultData.sections.education.items;
+  const defaultSkillItems = defaultData.sections.skills.items;
+  const placeholderBasicsCount = [
+    isPlaceholderField(basics.name, defaultData.basics.name),
+    isPlaceholderField(basics.headline, defaultData.basics.headline),
+    isPlaceholderField(basics.email, defaultData.basics.email),
+    isPlaceholderField(basics.phone, defaultData.basics.phone),
+    isPlaceholderField(basics.location, defaultData.basics.location),
+  ].filter(Boolean).length;
+
+  const titleLooksPlaceholder = isPlaceholderField(
+    data.title,
+    defaultData.title,
+  );
+  const summaryLooksPlaceholder = isPlaceholderField(
+    summary.content,
+    defaultData.summary.content || "",
+  );
+  const experienceLooksPlaceholder = experienceItems.some((item, index) => {
+    const defaultItem = defaultExperienceItems[index];
+    return matchesTemplateFields(item, defaultItem, ["company", "position"]);
+  });
+  const educationLooksPlaceholder = educationItems.some((item, index) => {
+    const defaultItem = defaultEducationItems[index];
+    return matchesTemplateFields(item, defaultItem, ["school", "degree"]);
+  });
+  const skillsLookPlaceholder =
+    skillItems.length > 0 &&
+    skillItems.every((item, index) =>
+      matchesTemplateFields(item, defaultSkillItems[index], ["name"]),
+    );
+  const websiteLooksPlaceholder =
+    isPlaceholderField(basics.website?.url, defaultData.basics.website.url) &&
+    isPlaceholderField(
+      basics.website?.label,
+      defaultData.basics.website.label,
+    );
+  const structuralPlaceholderCount = [
+    titleLooksPlaceholder,
+    summaryLooksPlaceholder,
+    experienceLooksPlaceholder,
+    educationLooksPlaceholder,
+    skillsLookPlaceholder,
+    websiteLooksPlaceholder,
+  ].filter(Boolean).length;
+
+  return (
+    (placeholderBasicsCount >= 4 && structuralPlaceholderCount >= 1) ||
+    structuralPlaceholderCount >= 2
+  );
+}
+
 const ResumeBuilderPage = () => {
   const supabase = createClient();
   const navigate = useNavigate();
@@ -102,6 +195,7 @@ const ResumeBuilderPage = () => {
   const [zoom, setZoom] = useState(0.85);
   const [previewScale, setPreviewScale] = useState(1);
   const [lastDraftSavedAt, setLastDraftSavedAt] = useState<number | null>(null);
+  const [hydrationReady, setHydrationReady] = useState(false);
 
   const previewPanelRef = useRef<HTMLDivElement>(null);
   const autosaveTimerRef = useRef<number | null>(null);
@@ -131,9 +225,13 @@ const ResumeBuilderPage = () => {
   useEffect(() => {
     let cancelled = false;
     const hydrateResume = async () => {
+      draftHydratedRef.current = false;
+      setHydrationReady(false);
+
       if (!urlId) {
         setResume(initialResumeState);
         draftHydratedRef.current = true;
+        setHydrationReady(true);
         return;
       }
 
@@ -160,7 +258,7 @@ const ResumeBuilderPage = () => {
             "We couldn't load this resume. You'll be using a fresh template.",
           );
         }
-      } else if (remoteResume?.data) {
+      } else if (remoteResume?.data && !looksLikePlaceholderResumeData(remoteResume.data)) {
         const remoteState = buildHydratedResumeState(remoteResume, remoteResume.data);
         serverUpdatedAtRef.current = remoteResume.updated_at ?? null;
         lastDraftSignatureRef.current = JSON.stringify(remoteState);
@@ -175,7 +273,10 @@ const ResumeBuilderPage = () => {
         if (cancelled) return;
 
         const hydratedData = parsedProfile
-          ? mapParsedDataToResume(parsedProfile, initialResumeState.data)
+          ? mapParsedDataToResume(
+              parsedProfile,
+              structuredClone(remoteResume.data ?? initialResumeState.data),
+            )
           : {
               ...structuredClone(initialResumeState.data),
               title: remoteResume.name || initialResumeState.data.title,
@@ -188,6 +289,24 @@ const ResumeBuilderPage = () => {
         setResumeId(remoteResume.id);
 
         if (parsedProfile) {
+          if (looksLikePlaceholderResumeData(remoteResume.data)) {
+            const repairTimestamp = new Date().toISOString();
+            serverUpdatedAtRef.current = repairTimestamp;
+
+            const { error: repairError } = await supabase
+              .from("resumes")
+              .update({
+                data: hydratedData,
+                name: hydratedData.title || remoteResume.name,
+                updated_at: repairTimestamp,
+              })
+              .eq("id", remoteResume.id);
+
+            if (repairError) {
+              console.warn("Failed to repair placeholder resume data", repairError);
+            }
+          }
+
           info(
             "Resume imported",
             "We populated the resume editor with details parsed from your uploaded file.",
@@ -209,6 +328,7 @@ const ResumeBuilderPage = () => {
         }
       }
       draftHydratedRef.current = true;
+      setHydrationReady(true);
     };
 
     void hydrateResume();
@@ -358,6 +478,8 @@ const ResumeBuilderPage = () => {
   };
 
   useEffect(() => {
+    if (!hydrationReady) return;
+
     const profileName = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim();
     const profileHeadline =
       profile?.job_title?.trim() ||
@@ -407,6 +529,7 @@ const ResumeBuilderPage = () => {
   }, [
     defaultBasics.email,
     defaultBasics.headline,
+    hydrationReady,
     defaultBasics.location,
     defaultBasics.name,
     defaultBasics.phone,

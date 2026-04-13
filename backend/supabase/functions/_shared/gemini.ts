@@ -50,9 +50,9 @@ export const isGeminiAccessDeniedError = (error: unknown): boolean => {
 export const getGeminiAccessDeniedMessage = (feature: string): string =>
   `${feature} is temporarily unavailable because the configured Gemini project no longer has model access. Re-enable Gemini access or switch this feature to another provider.`;
 
-// Use gemini-1.5-flash for stable function calling and context handling
-export const GEMINI_MODEL = "gemini-1.5-flash";
-export const GEMINI_FAST_MODEL = "gemini-1.5-flash";
+// Standardize default text/function-calling work on the current shared Gemini model.
+export const GEMINI_MODEL = "gemini-3-flash-preview";
+export const GEMINI_FAST_MODEL = "gemini-3-flash-preview";
 export const GEMINI_PREMIUM_MODEL = "gemini-1.5-pro";
 
 // Standard tools configuration

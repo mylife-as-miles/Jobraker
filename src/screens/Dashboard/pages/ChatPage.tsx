@@ -58,6 +58,13 @@ const customStyles = `
 
 // Real-deal streaming useChat hook
 type Persona = "concise" | "friendly" | "analyst" | "coach";
+type ChatMode = "ask" | "agent";
+type ChatRequestOptions = {
+  model?: string;
+  webSearch?: boolean;
+  system?: string;
+  mode?: ChatMode;
+};
 interface BasicMessage {
   id: string;
   role: "user" | "assistant";
@@ -75,20 +82,88 @@ interface UseChatOptions {
 interface UseChatReturn {
   messages: BasicMessage[];
   status: "idle" | "in_progress";
-  append: (
-    m: { role: "user"; content: string },
-    opts?: {
-      model?: string;
-      webSearch?: boolean;
-      system?: string;
-      mode?: "ask" | "agent";
-    },
-  ) => void;
+  append: (m: { role: "user"; content: string }, opts?: ChatRequestOptions) => void;
   regenerate: () => void;
   setMessages: (m: BasicMessage[]) => void;
   responseId: string | null;
   setResponseId: (id: string | null) => void;
 }
+
+type ChatSessionRecord = {
+  id: string;
+  title?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  messages?: unknown;
+  response_id?: string | null;
+  responseId?: string | null;
+  persona?: string | null;
+  model?: string | null;
+};
+
+type ChatSessionState = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  created_at?: string;
+  updated_at?: string;
+  messages: BasicMessage[];
+  responseId?: string | null;
+  persona?: string | null;
+  model?: string | null;
+};
+
+const DEFAULT_CHAT_MODEL = "gemini-3-flash-preview";
+
+const normalizeBasicMessage = (message: any): BasicMessage => ({
+  id: typeof message?.id === "string" ? message.id : nanoid(),
+  role: message?.role === "assistant" ? "assistant" : "user",
+  content: typeof message?.content === "string" ? message.content : "",
+  parts:
+    Array.isArray(message?.parts) && message.parts.length > 0
+      ? message.parts
+      : [
+          {
+            type: "text" as const,
+            text: typeof message?.content === "string" ? message.content : "",
+          },
+        ],
+  streaming: Boolean(message?.streaming),
+  createdAt:
+    typeof message?.createdAt === "number"
+      ? message.createdAt
+      : Date.now(),
+  meta:
+    message?.meta && typeof message.meta === "object" ? message.meta : undefined,
+});
+
+const normalizeChatSession = (session: ChatSessionRecord): ChatSessionState => {
+  const createdAtMs = session.created_at
+    ? new Date(session.created_at).getTime()
+    : Date.now();
+  const updatedAtMs = session.updated_at
+    ? new Date(session.updated_at).getTime()
+    : createdAtMs;
+
+  return {
+    id: session.id,
+    title:
+      typeof session.title === "string" && session.title.trim()
+        ? session.title
+        : "New Chat",
+    createdAt: createdAtMs,
+    updatedAt: updatedAtMs,
+    created_at: session.created_at ?? undefined,
+    updated_at: session.updated_at ?? undefined,
+    messages: Array.isArray(session.messages)
+      ? session.messages.map(normalizeBasicMessage)
+      : [],
+    responseId: session.responseId ?? session.response_id ?? null,
+    persona: session.persona ?? null,
+    model: session.model ?? null,
+  };
+};
 
 const useChat = (opts: UseChatOptions): UseChatReturn => {
   const [messages, setMessages] = useState<BasicMessage[]>(
@@ -97,16 +172,18 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
   const [status, setStatus] = useState<"idle" | "in_progress">("idle");
   const [responseId, setResponseId] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const lastTurnRef = useRef<{
+    message: { role: "user"; content: string };
+    chatOpts?: ChatRequestOptions;
+    historyBeforeUser: BasicMessage[];
+  } | null>(null);
 
-  const append = useCallback(
+  const sendMessage = useCallback(
     async (
+      baseMessages: BasicMessage[],
       m: { role: "user"; content: string },
-      chatOpts?: {
-        model?: string;
-        webSearch?: boolean;
-        system?: string;
-        mode?: "ask" | "agent";
-      },
+      chatOpts?: ChatRequestOptions,
+      previousResponseId?: string | null,
     ) => {
       if (status === "in_progress") return;
 
@@ -117,7 +194,12 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         createdAt: Date.now(),
         parts: [{ type: "text", text: m.content }],
       };
-      const history = [...messages, userMessage];
+      const history = [...baseMessages, userMessage];
+      lastTurnRef.current = {
+        message: m,
+        chatOpts,
+        historyBeforeUser: baseMessages,
+      };
       setMessages(history);
       setStatus("in_progress");
 
@@ -151,7 +233,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             Authorization: `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({
-            model: chatOpts?.model || "gemini-1.5-flash",
+            model: chatOpts?.model || DEFAULT_CHAT_MODEL,
             messages: history
               .filter((m) => m.content.trim() !== "")
               .map((m) => ({
@@ -161,13 +243,14 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             mode: chatOpts?.mode || "ask",
             webSearch: chatOpts?.webSearch,
             system: chatOpts?.system,
-            previous_response_id: responseId,
+            previous_response_id: previousResponseId ?? responseId,
           }),
           signal: abortControllerRef.current.signal,
         });
 
         if (!response.ok) {
-          throw new Error(`Error: ${response.statusText}`);
+          const errorBody = await response.text().catch(() => "");
+          throw new Error(errorBody || response.statusText || "Chat request failed");
         }
 
         if (!response.body) throw new Error("No response body");
@@ -271,7 +354,10 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         });
         setStatus("idle");
       } catch (err: any) {
-        if (err.name === "AbortError") return;
+        if (err.name === "AbortError") {
+          setStatus("idle");
+          return;
+        }
         const errorText = `Fetch Error: ${err.message || "Could not connect to the chat function."}`;
         setMessages((prev) =>
           prev.map((msg) =>
@@ -290,22 +376,27 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         abortControllerRef.current = null;
       }
     },
-    [messages, status, responseId, opts.onFinish],
+    [responseId, status, opts.onFinish],
+  );
+
+  const append = useCallback(
+    (m: { role: "user"; content: string }, chatOpts?: ChatRequestOptions) => {
+      void sendMessage(messages, m, chatOpts, responseId);
+    },
+    [messages, responseId, sendMessage],
   );
 
   const regenerate = () => {
-    if (status === "in_progress" || messages.length === 0) return;
-    const lastUserMessage = [...messages]
-      .reverse()
-      .find((m) => m.role === "user");
-    if (lastUserMessage) {
-      const messagesWithoutLastAssistant = messages.filter(
-        (m) =>
-          m.role !== "assistant" || m.id !== messages[messages.length - 1].id,
-      );
-      setMessages(messagesWithoutLastAssistant);
-      append({ role: "user", content: lastUserMessage.content });
-    }
+    if (status === "in_progress" || !lastTurnRef.current) return;
+    const lastTurn = lastTurnRef.current;
+    setMessages(lastTurn.historyBeforeUser);
+    setResponseId(null);
+    void sendMessage(
+      lastTurn.historyBeforeUser,
+      lastTurn.message,
+      lastTurn.chatOpts,
+      null,
+    );
   };
 
   return {
@@ -324,17 +415,7 @@ export const ChatPage = () => {
   // UI state
   const [text, setText] = useState("");
   const [persona, setPersona] = useState<Persona>("analyst");
-  const [sessions, setSessions] = useState<
-    {
-      id: string;
-      title: string;
-      createdAt: number;
-      updatedAt: number;
-      updated_at?: string;
-      messages: BasicMessage[];
-      responseId?: string | null;
-    }[]
-  >([]);
+  const [sessions, setSessions] = useState<ChatSessionState[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -360,6 +441,40 @@ export const ChatPage = () => {
   const sessionsRef = useRef(sessions);
   sessionsRef.current = sessions;
 
+  const createSession = useCallback(
+    async (activate = true) => {
+      const sessionMode: ChatMode = persona === "analyst" ? "agent" : "ask";
+      const { data, error } = await supabase
+        .from("chat_sessions")
+        .insert({
+          title: "New Chat",
+          persona: sessionMode,
+          model: DEFAULT_CHAT_MODEL,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        toastError("Could not create chat", error.message);
+        return null;
+      }
+      if (data) {
+        const normalized = normalizeChatSession(data as ChatSessionRecord);
+        setSessions((prev) =>
+          [normalized, ...prev].sort(
+            (a, b) =>
+              new Date(b.updated_at || 0).getTime() -
+              new Date(a.updated_at || 0).getTime(),
+          ),
+        );
+        if (activate) setActiveSessionId(normalized.id);
+        return normalized.id;
+      }
+      return null;
+    },
+    [persona, supabase, toastError],
+  );
+
   const loadSessions = useCallback(async () => {
     const { data, error } = await supabase
       .from("chat_sessions")
@@ -371,13 +486,16 @@ export const ChatPage = () => {
       return;
     }
     if (data && data.length > 0) {
-      setSessions(data as any);
-      setActiveSessionId(data[0].id);
+      const normalizedSessions = (data as ChatSessionRecord[]).map(
+        normalizeChatSession,
+      );
+      setSessions(normalizedSessions);
+      setActiveSessionId(normalizedSessions[0]?.id || null);
     } else {
       // No sessions, create one
       await createSession(true);
     }
-  }, [supabase, toastError]);
+  }, [createSession, supabase, toastError]);
 
   useEffect(() => {
     loadSessions();
@@ -389,6 +507,11 @@ export const ChatPage = () => {
     if (active) {
       setMessages(active.messages || []);
       setResponseId(active.responseId || null);
+      if (active.persona === "agent") {
+        setPersona("analyst");
+      } else if (active.persona === "ask") {
+        setPersona("concise");
+      }
     }
   }, [activeSessionId, sessions, setMessages, setResponseId]);
 
@@ -426,6 +549,8 @@ export const ChatPage = () => {
                   ...s,
                   messages: currentMessages,
                   responseId: currentResponseId,
+                  persona: s.persona || (persona === "analyst" ? "agent" : "ask"),
+                  model: s.model || DEFAULT_CHAT_MODEL,
                   updated_at: new Date().toISOString(),
                 }
                 : s,
@@ -438,31 +563,7 @@ export const ChatPage = () => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [messages, responseId, activeSessionId, status, supabase]);
-
-  const createSession = async (activate = true) => {
-    const { data, error } = await supabase
-      .from("chat_sessions")
-      .insert({ title: "New Chat" })
-      .select()
-      .single();
-
-    if (error) {
-      toastError("Could not create chat", error.message);
-      return null;
-    }
-    if (data) {
-      setSessions((prev) =>
-        [data as any, ...prev].sort(
-          (a, b) =>
-            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-        ),
-      );
-      if (activate) setActiveSessionId(data.id);
-      return data.id;
-    }
-    return null;
-  };
+  }, [messages, persona, responseId, activeSessionId, status, supabase]);
 
   const deleteSession = async (id: string) => {
     const originalSessions = sessions;
@@ -495,7 +596,7 @@ export const ChatPage = () => {
 
     setText("");
     setAttachment(null);
-    const textarea = document.querySelector("textarea");
+    const textarea = textareaRef.current;
     if (textarea) textarea.style.height = "auto";
 
     let content = message.text || "";
@@ -533,19 +634,38 @@ export const ChatPage = () => {
       concise: "You are a concise and direct assistant.",
       friendly: "You are a friendly and encouraging assistant.",
       analyst:
-        "You are JobRaker Agent, a high-performance career assistant with full access to your profile, resume, and job applications. Use your tools to search for jobs, analyze fit, generate documents, and track applications. Be proactive, professional, and data-driven.",
+        "You are JobRaker Agent, a high-performance career assistant with access to the user's JobRaker profile, resume, tracked jobs, and applications. Use your tools to search for jobs, analyze fit, generate documents, and track applications. Be proactive, professional, and data-driven.",
       coach: "You are a career coach who gives actionable advice.",
     }[persona];
 
+    const sessionId = activeSessionId || (await createSession(true));
+    if (!sessionId) {
+      toastError("Could not start chat", "Please try again.");
+      return;
+    }
+
     const currentMessages =
-      sessions.find((s) => s.id === activeSessionId)?.messages || [];
+      sessions.find((s) => s.id === sessionId)?.messages || [];
 
     const mode = persona === "analyst" ? "agent" : "ask";
+    const model = DEFAULT_CHAT_MODEL;
+
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === sessionId
+          ? { ...s, persona: mode, model }
+          : s,
+      ),
+    );
+    void supabase
+      .from("chat_sessions")
+      .update({ persona: mode, model })
+      .eq("id", sessionId);
 
     append(
       { role: "user", content: content },
       {
-        model: "gemini-1.5-flash",
+        model,
         webSearch: false,
         system: currentMessages.length === 0 ? systemInstruction : undefined,
         mode,
@@ -555,11 +675,11 @@ export const ChatPage = () => {
     const isFirstMessage =
       currentMessages.filter((m) => m.role === "user").length === 0;
 
-    if (isFirstMessage && activeSessionId) {
+    if (isFirstMessage && sessionId) {
       const optimisticTitle = (message.text || "New Chat").slice(0, 40);
       setSessions((prev) =>
         prev.map((s) =>
-          s.id === activeSessionId ? { ...s, title: optimisticTitle } : s,
+          s.id === sessionId ? { ...s, title: optimisticTitle } : s,
         ),
       );
 
@@ -586,13 +706,13 @@ export const ChatPage = () => {
             if (title) {
               setSessions((prev) =>
                 prev.map((s) =>
-                  s.id === activeSessionId ? { ...s, title } : s,
+                  s.id === sessionId ? { ...s, title } : s,
                 ),
               );
               await supabase
                 .from("chat_sessions")
                 .update({ title })
-                .eq("id", activeSessionId);
+                .eq("id", sessionId);
             }
           }
         } catch (error) {

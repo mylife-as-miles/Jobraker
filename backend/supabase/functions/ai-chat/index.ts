@@ -4,23 +4,41 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   createGeminiClient,
   GEMINI_MODEL,
-  GEMINI_TOOLS,
-  getGeminiAccessDeniedMessage,
-  isGeminiAccessDeniedError,
-  extractGeminiText
 } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { fetchUserContext, formatUserContextForPrompt } from "../_shared/user-context.ts";
 import { APP_INTERFACE_GUIDE } from "../_shared/app-map.ts";
 import {
-  SubscriptionAccessError,
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 
 console.log("JobRaker AI Chat Starting...");
 
+const ACCOUNT_ACCESS_RULES = `
+You are inside the authenticated user's JobRaker workspace.
+You DO have access to the user's JobRaker account data provided in this prompt and, in agent mode, through the available tools.
+Do not claim that you lack access to the user's JobRaker profile, resumes, tracked jobs, applications, credits, cover letters, or recent conversations when that information is present in context or retrievable through tools.
+Only describe limitations for external systems that are not connected here, such as LinkedIn dashboards, Indeed, external inboxes, or third-party job boards.
+When the user asks for totals, counts, lists, or recent activity inside JobRaker, answer from the account context or tools first before giving generic advice.
+`;
+
+const createAuthedSupabaseClient = (authHeader: string) =>
+  createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    auth: { persistSession: false },
+    global: {
+      headers: {
+        Authorization: authHeader,
+      },
+    },
+  });
+
 const AGENT_FUNCTION_DECLARATIONS = [
+  {
+    name: "get_account_snapshot",
+    description: "Get a summary of the user's JobRaker account, including counts for applications, tracked jobs, resumes, credits, and recent activity.",
+    parameters: { type: "object", properties: {} },
+  },
   {
     name: "run_job_search",
     description: "Search for job listings based on a query and location.",
@@ -106,29 +124,60 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { messages, system, mode = "ask" } = await req.json();
-    const { authHeader, user } = await requireSubscriptionTier(req, "Pro", "AI chat");
+    const {
+      messages,
+      system,
+      mode = "ask",
+      model: requestedModel,
+      webSearch = false,
+    } = await req.json();
+    const { authHeader, user, subscriptionTier } = await requireSubscriptionTier(req, "Pro", "AI chat");
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return new Response(JSON.stringify({ error: "Messages are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const genAI = createGeminiClient();
     const userId = user.id;
-    const userContext = await fetchUserContext(user.id, authHeader);
+    let userContext = null;
+    try {
+      userContext = await fetchUserContext(user.id, authHeader);
+      if (userContext) {
+        userContext.email = user.email ?? "";
+        userContext.subscriptionTier = subscriptionTier;
+      }
+    } catch (contextError) {
+      console.error("Failed to fetch AI chat user context:", contextError);
+    }
 
-    let systemInstruction = system || "";
-    systemInstruction += `\n\n${APP_INTERFACE_GUIDE}`;
+    let systemInstruction = [ACCOUNT_ACCESS_RULES.trim(), APP_INTERFACE_GUIDE.trim()]
+      .filter(Boolean)
+      .join("\n\n");
+
+    if (system) {
+      systemInstruction = `${systemInstruction}\n\n${system}`;
+    }
     
     if (userContext) {
       const contextStr = formatUserContextForPrompt(userContext);
       systemInstruction = `User Info:\n${contextStr}\n\n${systemInstruction}`;
-      if (mode === "agent") {
-          systemInstruction = `You are JobRaker Agent. Be proactive, use tools to help the user. Confirm before applying.\n\n${systemInstruction}`;
-      }
     }
 
-    const modelParams: any = { model: GEMINI_MODEL, systemInstruction };
+    if (mode === "agent") {
+      systemInstruction = `You are JobRaker Agent. Be proactive, use tools to help the user, and answer from JobRaker data before falling back to general advice. Confirm before applying, deleting, or triggering any side-effectful workflow.\n\n${systemInstruction}`;
+    }
+
+    const modelParams: any = {
+      model: requestedModel || GEMINI_MODEL,
+      systemInstruction,
+    };
     if (mode === "agent") {
       modelParams.tools = [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }];
-    } else {
-      modelParams.tools = [{ googleSearchRetrieval: {} }];
+    } else if (webSearch) {
+      modelParams.tools = [{ googleSearch: {} }];
     }
 
     const model = genAI.getGenerativeModel(modelParams);
@@ -168,27 +217,57 @@ serve(async (req) => {
                   console.log(`[Agent] Executing: ${fn.name}`);
                   let result;
                   try {
-                    const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+                    const supabaseUser = createAuthedSupabaseClient(authHeader!);
                     
-                    if (fn.name === "run_job_search") {
+                    if (fn.name === "get_account_snapshot") {
+                      result = {
+                        success: true,
+                        snapshot: {
+                          name: userContext?.name || "User",
+                          email: userContext?.email || "",
+                          headline: userContext?.headline || null,
+                          credits: userContext?.credits || 0,
+                          subscriptionTier: userContext?.subscriptionTier || subscriptionTier,
+                          applicationCount: userContext?.applicationCount || 0,
+                          jobCount: userContext?.jobCount || 0,
+                          resumeCount: userContext?.resumeCount || 0,
+                          recentApplications: userContext?.recentApplications || [],
+                          recentJobs: userContext?.recentJobs || [],
+                          resumes: userContext?.resumes || [],
+                        },
+                      };
+                    } else if (fn.name === "run_job_search") {
                       const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/jobs-search`, {
                         method: "POST", headers: { "Content-Type": "application/json", Authorization: authHeader! },
                         body: JSON.stringify({ searchQuery: fn.args.query, location: fn.args.location })
                       });
                       result = await res.json();
                     } else if (fn.name === "get_credits_balance") {
-                      const { data } = await supabaseAdmin.from("user_credits").select("balance").eq("user_id", userId).single();
+                      const { data } = await supabaseUser.from("user_credits").select("balance").eq("user_id", userId).maybeSingle();
                       result = { success: true, balance: data?.balance || 0 };
                     } else if (fn.name === "get_user_profile") {
                         result = { success: true, profile: userContext };
                     } else if (fn.name === "list_applications") {
-                        const { data } = await supabaseAdmin.from("applications").select("*, jobs(*)").eq("user_id", userId).order("created_at", { ascending: false });
+                        const { data } = await supabaseUser
+                          .from("applications")
+                          .select("id, job_title, company, status, created_at, updated_at")
+                          .eq("user_id", userId)
+                          .order("created_at", { ascending: false });
                         result = { success: true, applications: data || [] };
                     } else if (fn.name === "list_resumes") {
-                        const { data } = await supabaseAdmin.from("resumes").select("*").eq("user_id", userId).order("created_at", { ascending: false });
+                        const { data } = await supabaseUser
+                          .from("resumes")
+                          .select("id, name, status, updated_at, is_favorite")
+                          .eq("user_id", userId)
+                          .order("created_at", { ascending: false });
                         result = { success: true, resumes: data || [] };
                     } else if (fn.name === "list_recent_jobs") {
-                        const { data } = await supabaseAdmin.from("jobs").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(fn.args.limit || 10);
+                        const { data } = await supabaseUser
+                          .from("jobs")
+                          .select("id, title, company, location, url, created_at, status, canonical_status")
+                          .eq("user_id", userId)
+                          .order("created_at", { ascending: false })
+                          .limit(fn.args.limit || 10);
                         result = { success: true, jobs: data || [] };
                     } else {
                       const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/${fn.name.replace(/_/g, "-")}`, {
@@ -210,7 +289,10 @@ serve(async (req) => {
             }
           } else {
             const result = await model.generateContentStream({
-              contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+              contents: [
+                ...history,
+                { role: "user", parts: [{ text: userPrompt }] },
+              ],
             });
             for await (const chunk of result.stream) {
               const text = chunk.text();
@@ -233,8 +315,6 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error("Outer Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500
-    });
+    return subscriptionErrorResponse(error, corsHeaders);
   }
 });
