@@ -71,6 +71,9 @@ JobRaker is an enterprise-grade autonomous job application platform that revolut
 - **Interview Preparation**: Practice questions and feedback
 - **Salary Negotiation**: Data-driven compensation insights
 - **Career Path Planning**: Strategic guidance for professional growth
+- **Agent Mode (User-Scoped Context)**: The assistant can be upgraded to read the signed-in user's full context across profile, resumes, jobs, applications, credits, subscriptions, settings, and interview artifacts.
+- **Supabase Function Calling**: In Agent mode, user-facing Supabase Edge Functions can be invoked with the active user's JWT so reads and writes respect RLS, plan checks, and per-user policies.
+- **Safe Access Boundary**: Agent mode should have deep access to the authenticated user's data across their records, not unrestricted access to every user's data in the database.
 
 ### Advanced Features
 
@@ -230,6 +233,23 @@ Function environment variables live in `supabase/functions/.env.example`. Set th
 - `JOBS_CRON_EXPR` (cron): schedule for `jobs-cron`
 - `FIRECRAWL_API_KEY` (optional; enables deep research)
 - `INCLUDE_LINKEDIN`, `INCLUDE_SEARCH` (booleans; control LinkedIn/search parsing)
+
+### Agent Mode Access Model
+
+The AI Assistant has two intended operating modes:
+
+- **Ask mode**: general chat, guidance, and lightweight AI help without broad account retrieval.
+- **Agent mode**: authenticated, tool-using assistance that can load the current user's account context and execute allowlisted Supabase functions on the user's behalf.
+
+For Agent mode, the intended backend contract is:
+
+- Load the signed-in user's data across all user-owned tables and artifacts, including profile fields, resumes, parsed resume data, jobs, applications, credits, subscription state, settings, and interview history.
+- Pass the user's Supabase JWT when invoking Edge Functions so function calls execute as that user and continue to respect RLS and subscription enforcement.
+- Keep `SUPABASE_SERVICE_ROLE_KEY` server-side only. The model/browser should never receive raw service-role credentials.
+- Expose an allowlisted function-calling surface for user-facing workflows such as job intake, evaluation, resume parsing, cover-letter generation, resume tailoring, interview prep, and automation triggers.
+- Treat cross-user or admin-wide reads as a separate admin capability. They must not be part of default Agent mode for normal users.
+
+This means the assistant should be able to answer questions like "Which jobs do I have in my profile?" by retrieving the authenticated user's records directly, instead of asking the user to paste them into chat.
 
 ## 🛠 Tech Stack
 
