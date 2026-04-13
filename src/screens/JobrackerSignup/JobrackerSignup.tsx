@@ -8,7 +8,8 @@ import {
   CheckCircle2,
   Loader2,
 } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -24,6 +25,9 @@ export const JobrackerSignup = (): JSX.Element => {
   const navigate = useNavigate();
   const location = useLocation();
   const supabase = useMemo(() => createClient(), []);
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY?.trim() ?? "";
+  const turnstileEnabled = turnstileSiteKey.length > 0;
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
   const { success, error: toastError } = useToast();
   const [isSignUp, setIsSignUp] = useState<boolean>(
     () => location.pathname !== ROUTES.SIGNIN,
@@ -49,6 +53,7 @@ export const JobrackerSignup = (): JSX.Element => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [resending, setResending] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -63,17 +68,49 @@ export const JobrackerSignup = (): JSX.Element => {
     const v = (formData.email || "").trim();
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   }, [formData.email]);
+  const captchaAction = showForgotPassword
+    ? "password_reset"
+    : isSignUp
+      ? "sign_up"
+      : "sign_in";
+
+  const resetCaptcha = useCallback(() => {
+    setCaptchaToken(null);
+    turnstileRef.current?.reset();
+  }, []);
+
+  const ensureCaptchaToken = useCallback(() => {
+    if (!turnstileEnabled || captchaToken) {
+      return true;
+    }
+
+    toastError(
+      "Complete the security check",
+      "Please complete the CAPTCHA before continuing.",
+    );
+    return false;
+  }, [captchaToken, toastError, turnstileEnabled]);
+
+  useEffect(() => {
+    setCaptchaToken(null);
+  }, [captchaAction]);
 
   const handleOAuth = useCallback(
     async (provider: "google" | "linkedin_oidc") => {
+      if (!ensureCaptchaToken()) {
+        return;
+      }
+
       try {
         setSubmitting(true);
         localStorage.setItem("lastUsedProvider", provider);
         setLastUsedProvider(provider);
-        const { error } = await supabase.auth.signInWithOAuth({
+        const authApi = (supabase as any).auth;
+        const { error } = await authApi.signInWithOAuth({
           provider,
           options: {
             redirectTo: `${window.location.origin}${ROUTES.DASHBOARD}`,
+            captchaToken,
           },
         });
         if (error) throw error;
@@ -85,21 +122,27 @@ export const JobrackerSignup = (): JSX.Element => {
         );
       } finally {
         setSubmitting(false);
+        resetCaptcha();
       }
     },
-    [supabase, toastError],
+    [captchaToken, ensureCaptchaToken, resetCaptcha, supabase, toastError],
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
 
     try {
       if (showForgotPassword) {
+        if (!ensureCaptchaToken()) {
+          return;
+        }
+
+        setSubmitting(true);
         const { error } = await supabase.auth.resetPasswordForEmail(
           formData.email,
           {
             redirectTo: `${window.location.origin}/reset-password`,
+            captchaToken: captchaToken ?? undefined,
           },
         );
         if (error) throw error;
@@ -125,11 +168,17 @@ export const JobrackerSignup = (): JSX.Element => {
           return;
         }
 
+        if (!ensureCaptchaToken()) {
+          return;
+        }
+
+        setSubmitting(true);
         const { error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
             emailRedirectTo: `${window.location.origin}${ROUTES.SIGNIN}`,
+            captchaToken: captchaToken ?? undefined,
           },
         });
         if (error) throw error;
@@ -141,10 +190,18 @@ export const JobrackerSignup = (): JSX.Element => {
         );
         setShowVerifyModal(true);
       } else {
+        if (!ensureCaptchaToken()) {
+          return;
+        }
+
+        setSubmitting(true);
         const { data: signInData, error } =
           await supabase.auth.signInWithPassword({
             email: formData.email,
             password: formData.password,
+            options: {
+              captchaToken: captchaToken ?? undefined,
+            },
           });
         if (error) throw error;
 
@@ -206,6 +263,9 @@ export const JobrackerSignup = (): JSX.Element => {
       );
     } finally {
       setSubmitting(false);
+      if (turnstileEnabled) {
+        resetCaptcha();
+      }
     }
   };
 
@@ -297,6 +357,46 @@ export const JobrackerSignup = (): JSX.Element => {
               </p>
             </motion.div>
 
+            {turnstileEnabled && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.08, duration: 0.45 }}
+                className='space-y-2'
+              >
+                <div className='rounded-xl border border-foreground/10 bg-foreground/5 p-3'>
+                  <p className='text-[10px] uppercase tracking-[0.22em] text-gray-500'>
+                    Security check
+                  </p>
+                  <div className='mt-2'>
+                    <Turnstile
+                      key={captchaAction}
+                      ref={turnstileRef}
+                      siteKey={turnstileSiteKey}
+                      options={{
+                        action: captchaAction,
+                        size: "flexible",
+                        theme: "dark",
+                      }}
+                      onSuccess={(token) => setCaptchaToken(token)}
+                      onExpire={() => setCaptchaToken(null)}
+                      onError={() => {
+                        setCaptchaToken(null);
+                        toastError(
+                          "Security check failed",
+                          "We couldn't verify the CAPTCHA. Please try again.",
+                        );
+                      }}
+                    />
+                  </div>
+                </div>
+                <p className='text-[10px] text-gray-500'>
+                  Complete the CAPTCHA before signing in, signing up, or
+                  requesting a password reset.
+                </p>
+              </motion.div>
+            )}
+
             {/* Social Login Buttons */}
             {!showForgotPassword && (
               <motion.div
@@ -309,7 +409,7 @@ export const JobrackerSignup = (): JSX.Element => {
                   variant='ghost'
                   className='flex items-center justify-center h-9 bg-foreground/5 hover:bg-foreground/10 border border-foreground/10 rounded-lg transition-all duration-300 group text-xs'
                   type='button'
-                  disabled={submitting}
+                  disabled={submitting || (turnstileEnabled && !captchaToken)}
                   onClick={() => handleOAuth("google")}
                 >
                   <img
@@ -326,7 +426,7 @@ export const JobrackerSignup = (): JSX.Element => {
                   variant='ghost'
                   className='flex items-center justify-center h-9 bg-foreground/5 hover:bg-foreground/10 border border-foreground/10 rounded-lg transition-all duration-300 group text-xs'
                   type='button'
-                  disabled={submitting}
+                  disabled={submitting || (turnstileEnabled && !captchaToken)}
                   onClick={() => handleOAuth("linkedin_oidc")}
                 >
                   <img
@@ -485,7 +585,13 @@ export const JobrackerSignup = (): JSX.Element => {
 
               <Button
                 type='submit'
-                disabled={submitting || (isSignUp && (!passwordCheck.valid || formData.password !== formData.confirmPassword))}
+                disabled={
+                  submitting ||
+                  (turnstileEnabled && !captchaToken) ||
+                  (isSignUp &&
+                    (!passwordCheck.valid ||
+                      formData.password !== formData.confirmPassword))
+                }
                 className='w-full h-9 bg-[#1dff00] hover:bg-[#1dff00]/90 text-background font-semibold rounded-lg text-xs transition-all shadow-[0_0_15px_rgba(29,255,0,0.2)] hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] mt-1'
               >
                 {submitting ? (

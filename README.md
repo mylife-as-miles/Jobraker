@@ -351,6 +351,7 @@ Create a `.env.local` file in the root directory with the following variables:
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 VITE_SITE_URL=https://jobraker-tau.vercel.app
+VITE_TURNSTILE_SITE_KEY=your_cloudflare_turnstile_site_key
 
 # Backend API Configuration
 VITE_API_BASE_URL=https://jobraker-backend.onrender.com/api/v1
@@ -416,6 +417,20 @@ The `.env` file will contain variables such as:
 - `JOBS_CRON_EXPR` (optional, for scheduling jobs)
 
 See the `.env.example` file for a full list and detailed comments.
+
+### CAPTCHA Protection (Cloudflare Turnstile)
+
+JobRaker's auth screen forwards a Turnstile token to Supabase for email/password sign up, email/password sign in, password reset requests, and OAuth entrypoints from the auth screen.
+
+To enable it end to end:
+
+1. Create a Cloudflare Turnstile widget and allow:
+   - `jobraker-tau.vercel.app`
+   - `localhost`
+   - `127.0.0.1`
+2. In Supabase Dashboard, go to Authentication -> Bot and Abuse Protection, enable CAPTCHA protection, choose Turnstile, and paste the Turnstile secret key.
+3. Set `VITE_TURNSTILE_SITE_KEY` in your local `.env` files and in Vercel project environment variables.
+4. Rebuild and redeploy the frontend after changing the site key.
 
 ### Supabase Setup
 
@@ -904,6 +919,7 @@ describe('Button Component', () => {
 # Production Environment
 VITE_SUPABASE_URL=your_production_supabase_url
 VITE_SUPABASE_ANON_KEY=your_production_anon_key
+VITE_TURNSTILE_SITE_KEY=your_cloudflare_turnstile_site_key
 VITE_API_BASE_URL=https://api.jobraker.com/v1
 VITE_APP_ENVIRONMENT=production
 VITE_ENABLE_ANALYTICS=true
