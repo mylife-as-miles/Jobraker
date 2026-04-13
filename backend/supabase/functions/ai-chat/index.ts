@@ -7,6 +7,8 @@ import {
   GEMINI_TOOLS,
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
+  createGeminiConfig,
+  extractGeminiText
 } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { fetchUserContext, formatUserContextForPrompt } from "../_shared/user-context.ts";
@@ -194,10 +196,8 @@ serve(async (req) => {
     if (userContext) {
       const contextStr = formatUserContextForPrompt(userContext);
       if (mode === "ask") {
-        // RAG mode: inject user context
         systemInstruction = `You are JobRaker AI, a helpful career assistant. You know the following about the user you are helping:\n\n${contextStr}\n\nUse this information to personalize your responses. Address the user by name when appropriate.\n\n${systemInstruction}`;
       } else if (mode === "agent") {
-        // Agent mode: enable function calling AND provide context
         systemInstruction = `You are JobRaker Agent, an autonomous AI assistant that can take actions on behalf of the user. You have access to tools to search for jobs, apply to positions, analyze resumes, and more. 
         
         You know the following about the user:\n\n${contextStr}\n\nUse this information to be proactive. Always confirm before taking irreversible actions. Be proactive and helpful.\n\n${systemInstruction}`;
@@ -218,16 +218,16 @@ serve(async (req) => {
     }
 
     // Configure based on mode
-    const config: any = {
-      thinkingConfig: { thinkingLevel: 'HIGH' },
-      ...(systemInstruction ? { systemInstruction } : {}),
-    };
+    const config = createGeminiConfig({
+      systemInstruction,
+      includeTools: true,
+      thinkingLevel: 'HIGH',
+      responseMimeType: 'text/plain'
+    });
 
     if (mode === "agent") {
-      // Enable function calling for agent mode
       config.tools = [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }];
     } else {
-      // Ask mode uses web search tools
       config.tools = GEMINI_TOOLS;
     }
 
@@ -235,182 +235,93 @@ serve(async (req) => {
       async start(controller) {
         const encoder = new TextEncoder();
         const enqueueEvent = (event: string, payload: unknown) => {
-          const data =
-            typeof payload === "string" ? payload : JSON.stringify(payload);
-          controller.enqueue(
-            encoder.encode(`event: ${event}\ndata: ${data}\n\n`),
-          );
+          const data = typeof payload === "string" ? payload : JSON.stringify(payload);
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${data}\n\n`));
         };
 
         try {
-          const stream = await ai.models.generateContentStream({
-            model: GEMINI_MODEL,
-            config,
-            contents: geminiContent,
-          });
+          if (mode === "agent") {
+            console.log(`[ai-chat] Agent mode starting for user ${userId}`);
+            let currentContent = [...geminiContent];
+            let turnLimit = 5;
+            
+            while (turnLimit > 0) {
+              turnLimit--;
+              const response = await ai.models.generateContent({
+                model: GEMINI_MODEL,
+                config,
+                contents: currentContent,
+              });
 
-          for await (const chunk of stream) {
-            // Handle text responses
-            const text = typeof chunk.text === 'function' ? (typeof chunk.text === 'function' ? chunk.text() : chunk.text) : chunk.text;
-            if (text) {
-              enqueueEvent("message", { delta: text });
-            }
+              const candidate = response.candidates?.[0];
+              const parts = candidate?.content?.parts || [];
+              const text = extractGeminiText(response);
+              const functionCalls = parts.filter((p: any) => p.functionCall);
 
-            // Handle function calls (Agent mode)
-            const functionCalls = chunk.candidates?.[0]?.content?.parts?.filter(
-              (p: any) => p.functionCall
-            );
-
-            if (functionCalls?.length > 0 && userId) {
-              for (const part of functionCalls) {
-                const fn = part.functionCall;
-                console.log(`[Agent] Function call: ${fn.name}`, fn.args);
-
-                let result = { success: false, message: "Unknown function" };
-
-                try {
-                  if (fn.name === "run_job_search") {
-                    // Call jobs-search function
-                    const searchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/jobs-search`;
-                    const searchRes = await fetch(searchUrl, {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        Authorization: authHeader!,
-                      },
-                      body: JSON.stringify({
-                        searchQuery: fn.args.query,
-                        location: fn.args.location || "",
-                      }),
-                    });
-                    result = await searchRes.json();
-                  } else if (fn.name === "apply_to_job") {
-                    // Insert application
-                    const supabaseAdmin = createClient(
-                      Deno.env.get("SUPABASE_URL")!,
-                      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-                    );
-                    const { error } = await supabaseAdmin.from("applications").insert({
-                      user_id: userId,
-                      job_listing_id: fn.args.job_id,
-                      status: "applied",
-                      cover_letter: fn.args.cover_letter || null,
-                    });
-                    result = error 
-                      ? { success: false, message: error.message }
-                      : { success: true, message: "Application submitted successfully!" };
-                  } else if (fn.name === "analyze_resume") {
-                    // Call analyze-resume function
-                    const analyzeUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-resume`;
-                    
-                    let resumeText = fn.args.resume_text;
-                    if (!resumeText) {
+              if (functionCalls.length > 0) {
+                console.log(`[ai-chat] Agent executing ${functionCalls.length} tools...`);
+                currentContent.push({ role: 'model', parts });
+                
+                const toolResults = [];
+                for (const fc of functionCalls) {
+                  const fn = fc.functionCall;
+                  let result;
+                  try {
+                    if (fn.name === "run_job_search") {
+                      const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/jobs-search`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: authHeader! },
+                        body: JSON.stringify({ searchQuery: fn.args.query, location: fn.args.location }),
+                      });
+                      result = await res.json();
+                    } else if (fn.name === "get_credits_balance") {
                       const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-                      const { data } = await supabaseAdmin.from("parsed_resumes").select("content").eq("user_id", userId).order("extracted_at", { ascending: false }).limit(1).single();
-                      resumeText = data?.content || "";
-                    }
-
-                    const res = await fetch(analyzeUrl, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json", Authorization: authHeader! },
-                      body: JSON.stringify({ 
-                        resumeText, 
-                        profileSummary: JSON.stringify(userContext) 
-                      }),
-                    });
-                    result = await res.json();
-                  } else if (fn.name === "get_job_matches") {
-                    // Fetch job matches from DB
-                    const supabaseAdmin = createClient(
-                      Deno.env.get("SUPABASE_URL")!,
-                      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-                    );
-                    const { data: matches } = await supabaseAdmin
-                      .from("job_matches")
-                      .select("job_listings(title, company, location)")
-                      .eq("user_id", userId)
-                      .order("match_score", { ascending: false })
-                      .limit(fn.args.limit || 10);
-                    result = { success: true, matches: matches || [] };
-                  } else if (fn.name === "get_user_profile") {
-                    result = { success: true, profile: userContext };
-                  } else if (fn.name === "list_applications") {
-                    const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-                    const { data: apps } = await supabaseAdmin.from("applications").select("*").eq("user_id", userId).order("updated_at", { ascending: false });
-                    result = { success: true, applications: apps || [] };
-                  } else if (fn.name === "list_resumes") {
-                    const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-                    const { data: resumes } = await supabaseAdmin.from("resumes").select("*").eq("user_id", userId).order("updated_at", { ascending: false });
-                    result = { success: true, resumes: resumes || [] };
-                  } else if (fn.name === "generate_cover_letter" || fn.name === "tailor_resume" || fn.name === "evaluate_job_fit") {
-                    // Proxy call to sibling functions
-                    const functionName = fn.name.replace(/_/g, "-");
-                    const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/${functionName}`;
-                    
-                    // Most documents need the resume text. We fetch the latest parsed resume if not provided.
-                    let resumeText = fn.args.resume_text;
-                    if (!resumeText) {
+                      const { data } = await supabaseAdmin.from("user_credits").select("balance").eq("user_id", userId).single();
+                      result = { success: true, balance: data?.balance || 0 };
+                    } else if (fn.name === "list_recent_jobs") {
                       const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-                      const { data } = await supabaseAdmin.from("parsed_resumes").select("content").eq("user_id", userId).order("extracted_at", { ascending: false }).limit(1).single();
-                      resumeText = data?.content || "";
+                      const { data } = await supabaseAdmin.from("jobs").select("id, title, company, location, status").eq("user_id", userId).order("created_at", { ascending: false }).limit(fn.args.limit || 10);
+                      result = { success: true, jobs: data || [] };
+                    } else if (fn.name === "get_user_profile") {
+                      result = { success: true, profile: userContext || {} };
+                    } else {
+                      const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/${fn.name.replace(/_/g, '-')}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: authHeader! },
+                        body: JSON.stringify(fn.args),
+                      });
+                      result = await res.json();
                     }
-
-                    const res = await fetch(url, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json", Authorization: authHeader! },
-                      body: JSON.stringify({
-                        jobDescription: fn.args.job_description,
-                        resumeText: resumeText,
-                        instructions: fn.args.instructions,
-                      }),
-                    });
-                    result = await res.json();
-                  } else if (fn.name === "schedule_interview") {
-                    const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/schedule-interview`;
-                    const res = await fetch(url, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json", Authorization: authHeader! },
-                      body: JSON.stringify({
-                        application_id: fn.args.application_id,
-                        date_time: fn.args.date_time,
-                        notes: fn.args.notes,
-                      }),
-                    });
-                    result = await res.json();
-                  } else if (fn.name === "get_credits_balance") {
-                    const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-                    const { data } = await supabaseAdmin.from("user_credits").select("balance").eq("user_id", userId).single();
-                    result = { success: true, balance: data?.balance || 0 };
-                  } else if (fn.name === "intake_job_url") {
-                    const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/intake-job-url`;
-                    const res = await fetch(url, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json", Authorization: authHeader! },
-                      body: JSON.stringify({ url: fn.args.url }),
-                    });
-                    result = await res.json();
-                  } else if (fn.name === "list_recent_jobs") {
-                    const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-                    const { data: jobs } = await supabaseAdmin.from("jobs").select("id, title, company, location, status, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(fn.args.limit || 10);
-                    result = { success: true, jobs: jobs || [] };
-                  } else if (fn.name === "polish_content") {
-                    const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/polish-content`;
-                    const res = await fetch(url, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json", Authorization: authHeader! },
-                      body: JSON.stringify({ content: fn.args.content, instruction: fn.args.instruction }),
-                    });
-                    result = await res.json();
+                  } catch (e: any) {
+                    result = { error: e.message };
                   }
-                } catch (e: any) {
-                  result = { success: false, message: e.message };
+                  
+                  toolResults.push({
+                    functionResponse: { name: fn.name, response: result }
+                  });
+                  enqueueEvent("tool_call", { name: fn.name, args: fn.args, result });
                 }
+                
+                currentContent.push({ role: 'user', parts: toolResults });
+                continue;
+              }
 
-                // Send function result back to stream
-                enqueueEvent("function_result", {
-                  functionCall: fn.name,
-                  result,
-                });
+              if (text) {
+                enqueueEvent("message", { delta: text });
+              }
+              break;
+            }
+          } else {
+            const stream = await ai.models.generateContentStream({
+              model: GEMINI_MODEL,
+              config,
+              contents: geminiContent,
+            });
+
+            for await (const chunk of stream) {
+              const text = extractGeminiText(chunk);
+              if (text) {
+                enqueueEvent("message", { delta: text });
               }
             }
           }
@@ -418,10 +329,8 @@ serve(async (req) => {
           enqueueEvent("done", "[DONE]");
           controller.close();
         } catch (e: any) {
-          const errorMessage = isGeminiAccessDeniedError(e)
-            ? getGeminiAccessDeniedMessage("AI chat")
-            : e?.message || "Could not complete the chat request.";
-          enqueueEvent("error", { error: errorMessage });
+          console.error("ai-chat execution error:", e);
+          enqueueEvent("error", { error: e.message });
           controller.close();
         }
       },
@@ -441,12 +350,9 @@ serve(async (req) => {
       return subscriptionErrorResponse(error, corsHeaders);
     }
     console.error("AI Chat Error:", error);
-    const message = isGeminiAccessDeniedError(error)
-      ? getGeminiAccessDeniedMessage("AI chat")
-      : error.message;
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: isGeminiAccessDeniedError(error) ? 503 : 500,
+      status: 500,
     });
   }
 });

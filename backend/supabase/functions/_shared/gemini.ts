@@ -50,10 +50,10 @@ export const isGeminiAccessDeniedError = (error: unknown): boolean => {
 export const getGeminiAccessDeniedMessage = (feature: string): string =>
   `${feature} is temporarily unavailable because the configured Gemini project no longer has model access. Re-enable Gemini access or switch this feature to another provider.`;
 
-// Keep all standard Edge Function Gemini calls on a single model for predictable behavior.
-export const GEMINI_MODEL = "gemini-3-flash-preview";
-export const GEMINI_FAST_MODEL = GEMINI_MODEL;
-export const GEMINI_PREMIUM_MODEL = GEMINI_MODEL;
+// Use gemini-1.5-flash for stable function calling and context handling
+export const GEMINI_MODEL = "gemini-1.5-flash";
+export const GEMINI_FAST_MODEL = "gemini-1.5-flash";
+export const GEMINI_PREMIUM_MODEL = "gemini-1.5-pro";
 
 // Standard tools configuration
 export const GEMINI_TOOLS = [
@@ -73,7 +73,12 @@ export const createGeminiConfig = (options?: {
     },
     ...(options?.includeTools ? { tools: GEMINI_TOOLS } : {}),
     responseMimeType: options?.responseMimeType || 'application/json',
-    ...(options?.systemInstruction ? { systemInstruction: options.systemInstruction } : {}),
+    ...(options?.systemInstruction ? {
+      systemInstruction: {
+        role: "system",
+        parts: [{ text: options.systemInstruction }]
+      }
+    } : {}),
 });
 
 /**
