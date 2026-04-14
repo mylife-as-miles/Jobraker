@@ -12,7 +12,7 @@ const GEMINI_MODEL = 'gemini-3-pro-preview';
 function trim(s: any): string { return (typeof s === 'string' ? s : '').trim(); }
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
   
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { ...corsHeaders, 'content-type': 'application/json' } });

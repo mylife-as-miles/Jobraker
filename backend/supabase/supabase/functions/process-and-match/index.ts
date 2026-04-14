@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 );
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
   
   // Immediately handle CORS preflight requests.
   if (req.method === 'OPTIONS') {

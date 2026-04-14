@@ -263,6 +263,23 @@ Deno.serve({
     const filtered: any[] = [];
     const seen = new Set<string>();
     
+    const isProfileUrl = (url: string): boolean => {
+      const lower = url.toLowerCase();
+      if (lower.includes('upwork.com')) {
+        if (/upwork\.com\/(freelancers|fl|agencies|o|search\/profiles)/i.test(lower)) return true;
+        if (!lower.includes('/jobs/') && !lower.includes('/freelance-jobs/')) return true;
+      }
+      if (lower.includes('linkedin.com') && /linkedin\.com\/in\//i.test(lower)) return true;
+      if (/\/(freelancers?|profiles?|users?|people|team|about-us)(\/|$)/i.test(lower)) return true;
+      return false;
+    };
+
+    const titleLooksLikeProfile = (title: string): boolean => {
+      if (/^[A-Z][a-z]+\s+[A-Z]\.?\s*[-–—|]/.test(title) && /upwork|freelancer|fiverr|toptal|guru\.com/i.test(title)) return true;
+      if (/- upwork$/i.test(title.trim())) return true;
+      return false;
+    };
+
     // Helper to check if URL looks like an individual job posting
     const isJobPostingUrl = (url: string): boolean => {
       const lower = url.toLowerCase();
@@ -318,6 +335,17 @@ Deno.serve({
           clean.toLowerCase().includes('/q-') ||
           clean.toLowerCase().match(/jobs\.html?$/)) {
         console.log('jobs-search.skipping_search_page', { url: clean });
+        continue;
+      }
+
+      // Skip freelancer/profile pages
+      if (isProfileUrl(clean)) {
+        console.log('jobs-search.skipping_profile_url', { url: clean });
+        continue;
+      }
+      const rawTitle: string = item?.title || item?.metadata?.title || '';
+      if (rawTitle && titleLooksLikeProfile(rawTitle)) {
+        console.log('jobs-search.skipping_profile_title', { url: clean, title: rawTitle });
         continue;
       }
       

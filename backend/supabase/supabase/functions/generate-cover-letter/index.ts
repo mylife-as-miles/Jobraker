@@ -22,7 +22,7 @@ function trimText(s: any): string {
 }
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
   
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });

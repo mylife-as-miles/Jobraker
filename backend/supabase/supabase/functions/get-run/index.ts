@@ -22,7 +22,7 @@ function pick<T extends Record<string, any>>(obj: T | null | undefined, keys: st
 }
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
   
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: { ...corsHeaders, 'Access-Control-Allow-Methods': 'GET, OPTIONS' } });
