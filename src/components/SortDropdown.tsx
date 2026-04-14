@@ -67,14 +67,14 @@ export default function SortDropdown({ value, onChange }: SortDropdownProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 bottom-full mb-1 w-[180px] bg-neutral-900 border border-neutral-700 rounded-md shadow-lg">
+        <div className="absolute z-50 top-full mt-1 w-[180px] bg-neutral-900 border border-neutral-700 rounded-md shadow-lg">
           <div role="listbox" aria-label="Sort options" className="p-1">
             {options.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => handleSelect(opt)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded text-left text-sm text-white bg-transparent hover:bg-neutral-800"
+                className="w-full flex items-center justify-between px-3 py-2 rounded text-left text-sm text-white bg-neutral-900 hover:bg-neutral-800"
               >
                 <span className="truncate">{opt.label}</span>
                 {value === opt.value && <Check className="h-4 w-4" />}
