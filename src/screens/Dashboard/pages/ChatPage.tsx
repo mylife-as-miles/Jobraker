@@ -2,7 +2,28 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { nanoid } from "nanoid";
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
-import atomOneDarkStyle from "react-syntax-highlighter/dist/styles/atom-one-dark";
+import atomOneDarkStyle from "react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark";
+import js from "react-syntax-highlighter/dist/esm/languages/hljs/javascript";
+import ts from "react-syntax-highlighter/dist/esm/languages/hljs/typescript";
+import python from "react-syntax-highlighter/dist/esm/languages/hljs/python";
+import bash from "react-syntax-highlighter/dist/esm/languages/hljs/bash";
+import json from "react-syntax-highlighter/dist/esm/languages/hljs/json";
+import css from "react-syntax-highlighter/dist/esm/languages/hljs/css";
+import sql from "react-syntax-highlighter/dist/esm/languages/hljs/sql";
+import xml from "react-syntax-highlighter/dist/esm/languages/hljs/xml";
+
+SyntaxHighlighter.registerLanguage("javascript", js);
+SyntaxHighlighter.registerLanguage("js", js);
+SyntaxHighlighter.registerLanguage("typescript", ts);
+SyntaxHighlighter.registerLanguage("ts", ts);
+SyntaxHighlighter.registerLanguage("python", python);
+SyntaxHighlighter.registerLanguage("bash", bash);
+SyntaxHighlighter.registerLanguage("shell", bash);
+SyntaxHighlighter.registerLanguage("json", json);
+SyntaxHighlighter.registerLanguage("css", css);
+SyntaxHighlighter.registerLanguage("sql", sql);
+SyntaxHighlighter.registerLanguage("html", xml);
+SyntaxHighlighter.registerLanguage("xml", xml);
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { createClient } from "../../../lib/supabaseClient";
@@ -501,8 +522,12 @@ export const ChatPage = () => {
     loadSessions();
   }, [loadSessions]);
 
+  const prevSessionIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!activeSessionId) return;
+    if (activeSessionId === prevSessionIdRef.current) return;
+    prevSessionIdRef.current = activeSessionId;
+
     const active = sessions.find((s) => s.id === activeSessionId);
     if (active) {
       setMessages(active.messages || []);
@@ -1031,7 +1056,7 @@ export const ChatPage = () => {
                             }`}
                         >
                           {m.role === "user" ? (
-                            <div className='text-sm break-words foregroundspace-pre-wrap'>
+                            <div className='text-sm break-words whitespace-pre-wrap'>
                               {m.content}
                             </div>
                           ) : (
