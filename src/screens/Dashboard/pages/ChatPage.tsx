@@ -1115,6 +1115,7 @@ export const ChatPage = () => {
                                           remove_skill: `Removed skill: ${tc.args?.name || ""}`,
                                           add_experience: `Added experience: ${tc.args?.title || ""} @ ${tc.args?.company || ""}`,
                                           save_cover_letter: `Saved cover letter: ${tc.args?.name || ""}`,
+                                          update_resume: `Updated resume: ${(tc.args as any)?.display_name || (tc.args as any)?.full_name || ""}`,
                                           update_application_status: `Updated application status to ${tc.args?.status || ""}`,
                                           bookmark_job: tc.args?.bookmarked ? "Bookmarked job" : "Removed bookmark",
                                           hide_job: "Dismissed job from queue",

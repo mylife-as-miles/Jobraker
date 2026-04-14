@@ -230,6 +230,24 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "update_resume",
+    description: "Update a resume's content. Can change the name displayed on the resume, headline, summary, contact info, or the resume's display name. Fetch list_resumes first to get the resume ID.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        resume_id: { type: "STRING" as const, description: "The resume UUID (get from list_resumes)" },
+        display_name: { type: "STRING" as const, description: "Rename the resume in the list, e.g. 'Osita Miles - Senior AI Developer'" },
+        full_name: { type: "STRING" as const, description: "The person's full name shown on the resume" },
+        headline: { type: "STRING" as const, description: "Professional headline on the resume" },
+        email: { type: "STRING" as const, description: "Contact email on the resume" },
+        phone: { type: "STRING" as const, description: "Contact phone on the resume" },
+        location: { type: "STRING" as const, description: "Location shown on the resume" },
+        summary: { type: "STRING" as const, description: "Professional summary paragraph on the resume" },
+      },
+      required: ["resume_id"],
+    },
+  },
+  {
     name: "update_application_status",
     description: "Update the status of a job application (e.g. Applied, Interview, Offer, Rejected).",
     parameters: {
@@ -467,6 +485,35 @@ async function executeTool(
       });
       if (error) return { success: false, error: error.message };
       return { success: true, action: "saved", name: args.name };
+    }
+
+    case "update_resume": {
+      const { data: resume, error: fetchErr } = await sb
+        .from("resumes")
+        .select("id, name, data")
+        .eq("id", args.resume_id)
+        .maybeSingle();
+      if (fetchErr || !resume) return { success: false, error: fetchErr?.message || "Resume not found" };
+
+      const currentData = (resume.data && typeof resume.data === "object" ? resume.data : {}) as Record<string, any>;
+      const basics = { ...(currentData.basics || {}) };
+      const summary = { ...(currentData.summary || {}) };
+      const changed: string[] = [];
+
+      if (args.full_name) { basics.name = args.full_name; changed.push("name on resume"); }
+      if (args.headline) { basics.headline = args.headline; changed.push("headline"); }
+      if (args.email) { basics.email = args.email; changed.push("email"); }
+      if (args.phone) { basics.phone = args.phone; changed.push("phone"); }
+      if (args.location) { basics.location = args.location; changed.push("location"); }
+      if (args.summary) { summary.content = args.summary; summary.hidden = false; changed.push("summary"); }
+
+      const newData = { ...currentData, basics, summary };
+      const patch: Record<string, any> = { data: newData, updated_at: new Date().toISOString() };
+      if (args.display_name) { patch.name = args.display_name; changed.push("display name"); }
+
+      const { error: updateErr } = await sb.from("resumes").update(patch).eq("id", args.resume_id);
+      if (updateErr) return { success: false, error: updateErr.message };
+      return { success: true, updated: changed, resume_id: args.resume_id };
     }
 
     case "update_application_status": {
