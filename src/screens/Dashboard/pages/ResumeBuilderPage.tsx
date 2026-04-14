@@ -346,6 +346,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const latestResumeStateRef = useRef(resumeStateData);
   const lastDraftSignatureRef = useRef<string>("");
   const serverUpdatedAtRef = useRef<string | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const draftStorageKey = `resume_draft_${resumeId || 'new'}`;
 
@@ -889,13 +890,20 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             <span>Back</span>
           </button>
           <div className='h-6 w-px shrink-0 bg-border/60' />
-          <div className='group flex min-w-0 flex-1 items-center gap-2'>
+          <div className='group relative flex min-w-0 flex-1 items-center gap-2'>
             <input
-              value={resumeData.title || "Untitled Resume"}
+              ref={titleInputRef}
+              value={resumeData.title || ""}
               onChange={(e) => setResumeTitle(e.target.value)}
-              className='product-page-title w-full min-w-0 rounded bg-transparent px-1 text-base font-semibold outline-none focus:ring-1 focus:ring-[#ffd700] md:text-lg'
+              placeholder="Untitled Resume"
+              className='product-page-title w-full min-w-0 rounded-md bg-transparent px-2 py-1 text-base font-semibold outline-none transition-all hover:bg-muted/30 focus:bg-muted/50 focus:ring-1 focus:ring-[#1dff00]/50 md:text-lg'
             />
-            <Edit2 className='product-helper-text w-3.5 h-3.5 opacity-0 transition-opacity group-hover:opacity-100' />
+            <button
+              onClick={() => titleInputRef.current?.focus()}
+              className='product-helper-text p-1 hover:text-[#1dff00] transition-all opacity-60 hover:opacity-100 transition-opacity focus:opacity-100'
+            >
+              <Edit2 className='w-3.5 h-3.5' />
+            </button>
           </div>
         </div>
 
