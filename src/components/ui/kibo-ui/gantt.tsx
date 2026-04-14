@@ -109,8 +109,20 @@ export const Gantt: React.FC<GanttProps> = ({
   const todayPercent = showToday && min && max ? percent(new Date()) : null;
   const showTodayMarker = showToday && todayPercent != null && todayPercent >= 0 && todayPercent <= 1;
 
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const hasScrolledRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (hasScrolledRef.current || !scrollRef.current || todayPercent == null || todayPercent < 0 || todayPercent > 1) return;
+    const sidebarWidth = 256;
+    const todayPx = todayPercent * timelineWidth + sidebarWidth;
+    const containerWidth = scrollRef.current.clientWidth;
+    scrollRef.current.scrollLeft = Math.max(0, todayPx - containerWidth * 0.7);
+    hasScrolledRef.current = true;
+  }, [todayPercent, timelineWidth]);
+
   return (
-    <div className={"relative w-full overflow-auto rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] " + className} style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div ref={scrollRef} className={"relative w-full overflow-auto rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] " + className} style={{ WebkitOverflowScrolling: 'touch' }}>
       {/* Ambient glow effect */}
       <div className="pointer-events-none absolute -top-20 right-0 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40" />
       
