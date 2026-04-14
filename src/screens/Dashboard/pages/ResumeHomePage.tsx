@@ -181,7 +181,7 @@ export const ResumeHomePage = () => {
                 className='flex-1 bg-white relative cursor-pointer overflow-hidden'
               >
                 {/* Mini Resume Preview */}
-                <ResumePreviewCard data={resume.data} />
+                <ResumePreviewCard data={resume.data} templateId={resume.template} />
 
                 {/* Overlay on hover */}
                 <div className='absolute inset-0 bg-foreground/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>

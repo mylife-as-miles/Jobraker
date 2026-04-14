@@ -1,12 +1,12 @@
 import React from 'react';
 import { Envelope, Globe, MapPin, Phone } from "@phosphor-icons/react";
-import { useArtboardStore } from "../../store/artboard";
 import { cn } from "../../lib/utils";
 import { getSectionComponent } from "../shared/get-section-component";
 import { PageIcon } from "../shared/page-icon";
 import { PageLink } from "../shared/page-link";
 import { PagePicture } from "../shared/page-picture";
 import type { TemplateProps } from "../azurill/types";
+import { useResumeTemplateData } from "../use-resume-template-data";
 
 const sectionClassName = cn(
   "[&>h6]:text-xs [&>h6]:font-bold [&>h6]:uppercase [&>h6]:tracking-wider [&>h6]:mb-3 [&>h6]:pb-1 [&>h6]:border-b [&>h6]:border-gray-300",
@@ -17,18 +17,17 @@ const sectionClassName = cn(
  * Template: Eevee - Boxed Header and Clean Layout
  * A professional template with a distinctive boxed header and organized sidebar.
  */
-export function EeveeTemplate({ pageIndex = 0, pageLayout, metadataOverride }: TemplateProps) {
+export function EeveeTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
   const defaultLayout = {
     fullWidth: false,
     sidebar: ['skills', 'interests', 'languages'],
     main: ['summary', 'experience', 'education', 'volunteer', 'projects', 'certifications', 'awards', 'references'],
   };
 
-  const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-  const storeMetadata = useArtboardStore((state) => state.resume.data.metadata);
-  const basics = useArtboardStore((state) => state.resume.data.basics);
-
-  const metadata = metadataOverride || storeMetadata;
+  const resumeData = useResumeTemplateData();
+  const storeLayout = resumeData.metadata.layout.pages[pageIndex];
+  const metadata = resumeData.metadata;
+  const basics = resumeData.basics;
   const themePrimary = metadata.theme?.primary || '#000000';
   const typography = metadata.typography.font;
   const layout = pageLayout || storeLayout || defaultLayout;

@@ -1,14 +1,15 @@
 import { FC } from 'react';
-import { useArtboardStore } from '../../store/artboard';
 import { cn } from '../../lib/utils';
+import { useResumeTemplateData } from '../use-resume-template-data';
 
 interface PagePictureProps {
     className?: string;
 }
 
 export const PagePicture: FC<PagePictureProps> = ({ className }) => {
-    const picture = useArtboardStore((state) => state.resume.data.basics.picture);
-    const name = useArtboardStore((state) => state.resume.data.basics.name);
+    const basics = useResumeTemplateData().basics;
+    const picture = basics.picture;
+    const name = basics.name;
 
     if (!picture || !picture.url || picture.effects?.hidden) return null;
 

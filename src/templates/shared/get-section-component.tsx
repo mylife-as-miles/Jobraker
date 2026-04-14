@@ -1,6 +1,6 @@
 import type { ResumeSectionItem } from '../../store/artboard';
-import { useArtboardStore } from '../../store/artboard';
 import { cn } from '../../lib/utils';
+import { useResumeTemplateValue } from '../use-resume-template-data';
 
 const sectionHeadingClass =
   'text-[0.68rem] font-black uppercase tracking-[0.24em] text-gray-900 mb-3 pb-1.5 group-data-[layout=sidebar]:text-white/95';
@@ -277,8 +277,8 @@ const SectionPlaceholder = ({
   id: string;
   className?: string;
 }) => {
-  const summary = useArtboardStore((state) => state.resume.data.summary);
-  const section = useArtboardStore((state) => state.resume.data.sections[id]);
+  const summary = useResumeTemplateValue((resumeData) => resumeData.summary);
+  const section = useResumeTemplateValue((resumeData) => resumeData.sections[id]);
 
   if (id === 'summary') {
     if (!summary || !summary.content || summary.hidden) return null;

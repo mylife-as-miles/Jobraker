@@ -3,8 +3,8 @@ import { getSectionComponent } from "../shared/get-section-component";
 import { PageIcon } from "../shared/page-icon";
 import { PageLink } from "../shared/page-link";
 import { PagePicture } from "../shared/page-picture";
-import { useArtboardStore } from "../../store/artboard";
 import type { TemplateProps } from "../azurill/types";
+import { useResumeTemplateData } from "../use-resume-template-data";
 
 const sectionClassName = cn(
 	// Section Heading with bottom accent
@@ -29,8 +29,9 @@ export function GengarTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 		main: ['summary', 'experience', 'education', 'projects'],
 		sidebar: ['skills']
 	};
-	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#7c3aed';
+	const resumeData = useResumeTemplateData();
+	const storeLayout = resumeData.metadata.layout.pages[pageIndex];
+	const themePrimary = resumeData.metadata.theme?.primary || '#7c3aed';
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
@@ -99,7 +100,7 @@ export function GengarTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 }
 
 function Header() {
-	const basics = useArtboardStore((state) => state.resume.data.basics);
+	const basics = useResumeTemplateData().basics;
 
 	return (
 		<div className="page-header relative flex">

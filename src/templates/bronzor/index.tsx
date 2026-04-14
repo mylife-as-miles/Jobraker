@@ -4,8 +4,8 @@ import { getSectionComponent } from "../shared/get-section-component";
 import { PageIcon } from "../shared/page-icon";
 import { PageLink } from "../shared/page-link";
 import { PagePicture } from "../shared/page-picture";
-import { useArtboardStore } from "../../store/artboard";
 import type { TemplateProps } from "../azurill/types";
+import { useResumeTemplateData } from "../use-resume-template-data";
 
 const sectionClassName = cn(
 	// Grid layout: heading on left column, content on right
@@ -25,8 +25,9 @@ export function BronzorTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 		sidebar: ['skills']
 	};
 
-	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#111827';
+	const resumeData = useResumeTemplateData();
+	const storeLayout = resumeData.metadata.layout.pages[pageIndex];
+	const themePrimary = resumeData.metadata.theme?.primary || '#111827';
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
@@ -65,7 +66,7 @@ export function BronzorTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 }
 
 function Header() {
-	const basics = useArtboardStore((state) => state.resume.data.basics);
+	const basics = useResumeTemplateData().basics;
 
 	return (
 		<div className="page-header flex flex-col items-center gap-y-4 rounded-[2rem] border border-gray-200/80 bg-slate-50/80 px-8 py-7 shadow-[0_16px_30px_rgba(15,23,42,0.06)]">

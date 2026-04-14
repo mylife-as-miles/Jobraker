@@ -4,8 +4,8 @@ import { getSectionComponent } from "../shared/get-section-component";
 import { PageIcon } from "../shared/page-icon";
 import { PageLink } from "../shared/page-link";
 import { PagePicture } from "../shared/page-picture";
-import { useArtboardStore } from "../../store/artboard";
 import type { TemplateProps } from "../azurill/types";
+import { useResumeTemplateData } from "../use-resume-template-data";
 
 const sectionClassName = cn(
 	// Section Heading with accent underline
@@ -26,8 +26,9 @@ export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 		main: ['summary', 'experience', 'education', 'projects'],
 		sidebar: ['skills']
 	};
-	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#f59e0b';
+	const resumeData = useResumeTemplateData();
+	const storeLayout = resumeData.metadata.layout.pages[pageIndex];
+	const themePrimary = resumeData.metadata.theme?.primary || '#f59e0b';
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
@@ -88,7 +89,7 @@ export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 }
 
 function Header() {
-	const basics = useArtboardStore((state) => state.resume.data.basics);
+	const basics = useResumeTemplateData().basics;
 
 	return (
 		<div className="page-header w-full space-y-4 rounded-[2rem] bg-[color:var(--page-primary-color)] px-[var(--page-margin-x)] py-7 text-gray-900 shadow-[0_18px_32px_rgba(15,23,42,0.12)]">

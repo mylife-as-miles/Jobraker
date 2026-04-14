@@ -5,8 +5,8 @@ import { getSectionComponent } from "../shared/get-section-component";
 import { PageIcon } from "../shared/page-icon";
 import { PageLink } from "../shared/page-link";
 import { PagePicture } from "../shared/page-picture";
-import { useArtboardStore } from "../../store/artboard";
 import type { TemplateProps } from "../azurill/types";
+import { useResumeTemplateData } from "../use-resume-template-data";
 
 const sectionClassName = cn(
 	// Card container
@@ -29,15 +29,20 @@ export function LaprasTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 		main: ['summary', 'experience', 'education', 'projects'],
 		sidebar: ['skills']
 	};
-	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
+	const resumeData = useResumeTemplateData();
+	const storeLayout = resumeData.metadata.layout.pages[pageIndex];
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
 	const { main, sidebar, fullWidth } = layout;
 
-	const containerBorderRadius = useArtboardStore((state) => Math.min(state.resume.data.basics.picture?.borderRadius || 0, 30));
-	const headingNegativeMargin = useArtboardStore((state) => (state.resume.data.metadata.typography.font.size || 16) + 6);
-	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#0369a1';
+	const containerBorderRadius = Math.min(
+		resumeData.basics.picture?.borderRadius || 0,
+		30,
+	);
+	const headingNegativeMargin =
+		(resumeData.metadata.typography.font.size || 16) + 6;
+	const themePrimary = resumeData.metadata.theme?.primary || '#0369a1';
 
 	const style = useMemo(() => {
 		return {
@@ -82,7 +87,7 @@ export function LaprasTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 }
 
 function Header() {
-	const basics = useArtboardStore((state) => state.resume.data.basics);
+	const basics = useResumeTemplateData().basics;
 
 	return (
 		<div

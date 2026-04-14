@@ -12,9 +12,12 @@ import { OnyxTemplate } from "./onyx";
 import { PikachuTemplate } from "./pikachu";
 import { RhyhornTemplate } from "./rhyhorn";
 import type { TemplateProps } from "./azurill/types";
+import type { ResumeData } from "@/store/artboard";
+import { ResumeTemplateDataProvider } from "./use-resume-template-data";
 
 interface ResumeTemplateRendererProps extends TemplateProps {
   templateId: string;
+  resumeDataOverride?: ResumeData;
 }
 
 export function ResumeTemplateRenderer({
@@ -22,35 +25,148 @@ export function ResumeTemplateRenderer({
   pageIndex = 0,
   pageLayout,
   metadataOverride,
+  resumeDataOverride,
 }: ResumeTemplateRendererProps) {
+  let templateNode: JSX.Element;
+
   switch (templateId) {
     case "azurill":
-      return <AzurillTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <AzurillTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
     case "onyx":
-      return <OnyxTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <OnyxTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
     case "bronzor":
-      return <BronzorTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <BronzorTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
     case "chikorita":
-      return <ChikoritaTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <ChikoritaTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
     case "ditgar":
-      return <DitgarTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <DitgarTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
     case "ditto":
-      return <DittoTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <DittoTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
     case "eevee":
-      return <EeveeTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <EeveeTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
     case "gengar":
-      return <GengarTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <GengarTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
     case "glalie":
-      return <GlalieTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <GlalieTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
     case "kakuna":
-      return <KakunaTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <KakunaTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
     case "lapras":
-      return <LaprasTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <LaprasTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
     case "pikachu":
-      return <PikachuTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <PikachuTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
     case "rhyhorn":
-      return <RhyhornTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <RhyhornTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
     default:
-      return <AzurillTemplate pageIndex={pageIndex} pageLayout={pageLayout} metadataOverride={metadataOverride} />;
+      templateNode = (
+        <AzurillTemplate
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      );
+      break;
   }
+
+  return (
+    <ResumeTemplateDataProvider
+      value={
+        resumeDataOverride || metadataOverride
+          ? { resumeDataOverride, metadataOverride }
+          : null
+      }
+    >
+      {templateNode}
+    </ResumeTemplateDataProvider>
+  );
 }

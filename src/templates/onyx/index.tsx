@@ -1,10 +1,10 @@
-import { useArtboardStore } from "../../store/artboard";
 import { cn } from "../../lib/utils";
 import { getSectionComponent } from "../shared/get-section-component";
 import { PageLink } from "../shared/page-link";
 import { PageIcon } from "../shared/page-icon";
 import { PagePicture } from "../shared/page-picture";
 import type { TemplateProps } from "../azurill/types";
+import { useResumeTemplateData } from "../use-resume-template-data";
 
 const sectionClassName = cn(
     "mb-5",
@@ -17,10 +17,11 @@ const sectionClassName = cn(
  * A clean, minimal single-column template with strong typographic hierarchy.
  */
 export function OnyxTemplate({ pageIndex = 0 }: TemplateProps) {
-    const basics = useArtboardStore((state) => state.resume.data.basics);
-    const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#111';
+    const resumeData = useResumeTemplateData();
+    const basics = resumeData.basics;
+    const themePrimary = resumeData.metadata.theme?.primary || '#111';
 
-    const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
+    const storeLayout = resumeData.metadata.layout.pages[pageIndex];
     const defaultOrder = ['summary', 'experience', 'education', 'skills', 'projects'];
     const layoutSections = storeLayout ? [...storeLayout.main, ...storeLayout.sidebar] : defaultOrder;
 

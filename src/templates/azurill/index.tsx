@@ -3,8 +3,8 @@ import { getSectionComponent } from "../shared/get-section-component";
 import { PageIcon } from "../shared/page-icon";
 import { PageLink } from "../shared/page-link";
 import { PagePicture } from "../shared/page-picture";
-import { useArtboardStore } from "../../store/artboard";
 import type { TemplateProps } from "./types";
+import { useResumeTemplateData } from "../use-resume-template-data";
 
 const sectionClassName = cn(
   // Heading Decoration in Sidebar Layout
@@ -59,10 +59,9 @@ export function AzurillTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
     sidebar: ["skills"],
   };
 
-  const storeLayout = useArtboardStore(
-    (state) => state.resume.data.metadata.layout.pages[pageIndex],
-  );
-  const metadata = useArtboardStore((state) => state.resume.data.metadata);
+  const resumeData = useResumeTemplateData();
+  const storeLayout = resumeData.metadata.layout.pages[pageIndex];
+  const metadata = resumeData.metadata;
   const theme = metadata.theme;
   const typography = metadata.typography.font;
   const page = metadata.page;
@@ -122,7 +121,7 @@ export function AzurillTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 }
 
 function Header() {
-  const basics = useArtboardStore((state) => state.resume.data.basics);
+  const basics = useResumeTemplateData().basics;
   // Inherit colors from parent CSS variables or context, but for explicit classes we might need store or use 'text-[var(--page-primary-color)]'
   // Since we set CSS variable in parent, we can use it here.
 
