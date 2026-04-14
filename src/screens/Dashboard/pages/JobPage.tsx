@@ -2068,15 +2068,16 @@ export const JobPage = (): JSX.Element => {
     setCurrentSource(null);
   }, [jobs.length]);
 
-  const openAutoApplyFlow = useCallback(() => {
+  const openAutoApplyFlow = useCallback((targetJob: Job | null = jobToAutoApply ?? null) => {
     setAiEvaluation(null);
     setForceSubmit(false);
+    setJobToAutoApply(targetJob);
     const preferredResumeId = getPreferredResumeId(
       Array.isArray(resumes) ? resumes : [],
       selectedResumeId,
     );
-    const existingDraft = getStoredDraftData(jobToAutoApply, preferredResumeId);
-    const hasStoredDraft = Boolean(getStoredDraftData(jobToAutoApply));
+    const existingDraft = getStoredDraftData(targetJob, preferredResumeId);
+    const hasStoredDraft = Boolean(getStoredDraftData(targetJob));
     if (hasStoredDraft && !existingDraft && preferredResumeId) {
       safeInfo(
         "Draft reset",
@@ -3100,8 +3101,7 @@ export const JobPage = (): JSX.Element => {
                   <Button
                     variant='ghost'
                     onClick={() => {
-                      setJobToAutoApply(null);
-                      openAutoApplyFlow();
+                      openAutoApplyFlow(null);
                     }}
                     className={`relative flex-1 sm:flex-none overflow-hidden border border-[#1dff00]/40 text-foreground px-3 py-2 sm:px-4 sm:py-2 md:px-5 rounded-xl transition-all duration-300 text-xs sm:text-sm ${applyingAll ? "bg-[#1dff00]/20 text-[#1dff00]" : "bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 hover:from-[#1dff00]/20 hover:to-[#1dff00]/5"}`}
                     title='Auto apply all visible jobs'
@@ -4370,14 +4370,12 @@ export const JobPage = (): JSX.Element => {
                                   )}
                                   <Button
                                     variant='ghost'
-                                    onClick={() => {
-                                      setJobToAutoApply(job);
-                                      openAutoApplyFlow();
-                                    }}
-                                    className='inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-foreground/20 bg-foreground/10 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/20'
+                                    onClick={() => openAutoApplyFlow(job)}
+                                    className='inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-[#1dff00]/40 bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 px-4 py-2 text-sm font-medium text-foreground transition hover:from-[#1dff00]/20 hover:to-[#1dff00]/5'
+                                    title='Launch auto apply suite for this job'
                                   >
                                     <Briefcase className='w-4 h-4' />
-                                    Auto Apply
+                                    Auto Apply Suite
                                     {!hasAutoApplyAccess && (
                                       <Lock className='w-3 h-3 opacity-60' />
                                     )}
@@ -4639,17 +4637,18 @@ export const JobPage = (): JSX.Element => {
                 <div className='space-y-3 max-w-xl'>
                   <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#1dff00]/80'>
                     <Sparkles className='w-3 h-3' />
-                    Auto Apply
+                    Auto Apply Suite
                   </div>
                   <h3 className='text-xl sm:text-2xl font-semibold'>
                     {jobToAutoApply
-                      ? "Auto Apply to specific job"
+                      ? "Launch suite for selected job"
                       : "Launch enterprise-grade automation"}
                   </h3>
                   <p className='text-sm text-foreground/60'>
                     {jobToAutoApply ? (
                       <>
-                        Applying to <strong>{jobToAutoApply.title}</strong>
+                        Run the same governed auto apply suite against{" "}
+                        <strong>{jobToAutoApply.title}</strong>.
                       </>
                     ) : (
                       <>
@@ -5005,7 +5004,9 @@ export const JobPage = (): JSX.Element => {
                           {autoApplyTargetCount}
                         </span>
                         <span className='text-sm text-foreground/75'>
-                          jobs targeted
+                          {autoApplyTargetCount === 1
+                            ? "job targeted"
+                            : "jobs targeted"}
                         </span>
                       </div>
                       <p className='mt-3 text-xs text-foreground/70'>
@@ -5569,7 +5570,7 @@ export const JobPage = (): JSX.Element => {
                             {applyingAll ? (
                               <Loader2 className='w-4 h-4 mr-2 animate-spin' />
                             ) : (
-                              "Launch automation"
+                              jobToAutoApply ? "Launch suite" : "Launch automation"
                             )}
                           </Button>
                         </div>
@@ -5818,14 +5819,12 @@ export const JobPage = (): JSX.Element => {
                           )}
                           <Button
                             variant='ghost'
-                            onClick={() => {
-                              setJobToAutoApply(j);
-                              openAutoApplyFlow();
-                            }}
-                            className='inline-flex items-center justify-center gap-2 rounded-lg border border-foreground/20 bg-foreground/10 px-3 py-2 text-[13px] font-medium text-foreground transition hover:bg-foreground/20'
+                            onClick={() => openAutoApplyFlow(j)}
+                            className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#1dff00]/40 bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 px-3 py-2 text-[13px] font-medium text-foreground transition hover:from-[#1dff00]/20 hover:to-[#1dff00]/5'
+                            title='Launch auto apply suite for this job'
                           >
                             <Briefcase className='w-4 h-4' />
-                            Auto Apply
+                            Auto Apply Suite
                             {!hasAutoApplyAccess && (
                               <Lock className='w-3 h-3 opacity-60' />
                             )}
