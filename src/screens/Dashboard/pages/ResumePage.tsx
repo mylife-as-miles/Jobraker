@@ -4,10 +4,11 @@ import { ResumeHomePage } from './ResumeHomePage';
 
 export const ResumePage = () => {
     const location = useLocation();
+    const editMatch = matchPath('/dashboard/resume/edit/:id', location.pathname);
     const isBuilderRoute = Boolean(
         matchPath('/dashboard/resume/edit', location.pathname) ||
-        matchPath('/dashboard/resume/edit/:id', location.pathname)
+        editMatch
     );
 
-    return isBuilderRoute ? <ResumeBuilderPage /> : <ResumeHomePage />;
+    return isBuilderRoute ? <ResumeBuilderPage resumeId={editMatch?.params.id} /> : <ResumeHomePage />;
 };

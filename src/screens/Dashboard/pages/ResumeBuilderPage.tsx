@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ChevronDown,
@@ -28,6 +29,7 @@ import { useToast } from "@/components/ui/toast";
 import { useResumeProfilePhoto } from "@/hooks/useResumeProfilePhoto";
 import { useProfileSettings } from "@/hooks/useProfileSettings";
 import { createClient } from "@/lib/supabaseClient";
+import { useResumeRecord } from "@/hooks/useResumeRecord";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { TemplateSelector } from "../components/TemplateSelector";
@@ -295,13 +297,22 @@ function looksLikePlaceholderResumeData(data: any) {
   );
 }
 
-const ResumeBuilderPage = () => {
+interface ResumeBuilderPageProps {
+  resumeId?: string | null;
+}
+
+const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const supabase = createClient();
   const navigate = useNavigate();
-  const { id: urlId } = useParams();
+  const queryClient = useQueryClient();
   const { success, error: toastError, info } = useToast();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, 'Basics');
+  const {
+    data: remoteResume,
+    error: remoteResumeError,
+    isPending: isRemoteResumePending,
+  } = useResumeRecord(resumeId);
 
 
   // Store actions/state
@@ -336,7 +347,7 @@ const ResumeBuilderPage = () => {
   const lastDraftSignatureRef = useRef<string>("");
   const serverUpdatedAtRef = useRef<string | null>(null);
 
-  const draftStorageKey = `resume_draft_${urlId || 'new'}`;
+  const draftStorageKey = `resume_draft_${resumeId || 'new'}`;
 
   // Keep latest ref updated for autosave
   useEffect(() => {
@@ -360,21 +371,20 @@ const ResumeBuilderPage = () => {
       draftHydratedRef.current = false;
       setHydrationReady(false);
 
-      if (!urlId) {
+      if (!resumeId) {
         setResume(initialResumeState);
         draftHydratedRef.current = true;
         setHydrationReady(true);
         return;
       }
 
-      const [remoteResumeResult, localDraft] = await Promise.all([
-        supabase.from("resumes").select("*").eq("id", urlId).single(),
-        loadResumeDraft(draftStorageKey),
-      ]);
+      if (isRemoteResumePending) {
+        return;
+      }
 
+      const localDraft = await loadResumeDraft(draftStorageKey);
       if (cancelled) return;
 
-      const remoteResume = remoteResumeResult.data;
       const normalizedRemoteData = remoteResume
         ? normalizeResumeDataForEditor(
             remoteResume.data,
@@ -382,7 +392,7 @@ const ResumeBuilderPage = () => {
           )
         : null;
 
-      if (remoteResumeResult.error) {
+      if (remoteResumeError || !remoteResume) {
         if (localDraft?.resume) {
           setResume(localDraft.resume);
           setResumeId(localDraft.resume.id);
@@ -459,6 +469,10 @@ const ResumeBuilderPage = () => {
 
             if (repairError) {
               console.warn("Failed to repair placeholder resume data", repairError);
+            } else {
+              void queryClient.invalidateQueries({
+                queryKey: ["resume", remoteResume.id],
+              });
             }
           }
 
@@ -491,7 +505,19 @@ const ResumeBuilderPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [draftStorageKey, info, setResume, setResumeId, supabase, urlId]);
+  }, [
+    draftStorageKey,
+    info,
+    isRemoteResumePending,
+    queryClient,
+    remoteResume,
+    remoteResumeError,
+    resumeId,
+    setResume,
+    setResumeId,
+    supabase,
+    toastError,
+  ]);
 
   const restoredDraftNoticeRef = useRef(false);
 
@@ -794,7 +820,7 @@ const ResumeBuilderPage = () => {
       : "Ready";
 
   const handleSave = async () => {
-    if (!urlId) return;
+    if (!resumeId) return;
     setSaving(true);
     try {
       const pictureSnapshot = await syncProfilePicture(false);
@@ -813,14 +839,15 @@ const ResumeBuilderPage = () => {
           tags: dataToSave.tags,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", urlId);
+        .eq("id", resumeId);
       if (error) throw error;
       serverUpdatedAtRef.current = new Date().toISOString();
       lastDraftSignatureRef.current = JSON.stringify({
         ...latestResumeStateRef.current,
-        id: urlId,
+        id: resumeId,
         data: dataToSave,
       });
+      await queryClient.invalidateQueries({ queryKey: ["resume", resumeId] });
       await removeResumeDraft(draftStorageKey);
       setLastDraftSavedAt(null);
       success("Resume saved", "Your latest resume changes have been saved.");
@@ -916,7 +943,7 @@ const ResumeBuilderPage = () => {
 
           <button
             onClick={handleSave}
-            disabled={saving || !urlId}
+            disabled={saving || !resumeId}
             className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-bold whitespace-nowrap disabled:opacity-50'
           >
             <FileText
