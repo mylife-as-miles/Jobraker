@@ -86,6 +86,11 @@ type ChatRequestOptions = {
   system?: string;
   mode?: ChatMode;
 };
+interface ToolCallEntry {
+  name: string;
+  args?: Record<string, unknown>;
+  status: "running" | "done" | "error";
+}
 interface BasicMessage {
   id: string;
   role: "user" | "assistant";
@@ -94,6 +99,7 @@ interface BasicMessage {
   streaming?: boolean;
   createdAt: number;
   meta?: { persona?: Persona; parent?: string };
+  toolCalls?: ToolCallEntry[];
 }
 interface UseChatOptions {
   api: string;
@@ -348,8 +354,21 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                     ),
                   );
                 } else if (currentEvent === "tool_call") {
-                   // Optional: visualize the tool call in the UI
-                   console.log("[Chat] Agent tool call:", data.name, data.args);
+                  const toolEntry: ToolCallEntry = {
+                    name: data.name,
+                    args: data.args,
+                    status: data.result?.error ? "error" : "done",
+                  };
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? {
+                            ...msg,
+                            toolCalls: [...(msg.toolCalls || []), toolEntry],
+                          }
+                        : msg,
+                    ),
+                  );
                 }
               } catch (e) {
                 // Ignore parse errors for partial lines
@@ -1061,6 +1080,42 @@ export const ChatPage = () => {
                             </div>
                           ) : (
                             <div className='text-sm prose prose-invert max-w-none overflow-hidden'>
+                              {m.toolCalls && m.toolCalls.length > 0 && (
+                                <div className='mb-3 space-y-1.5'>
+                                  {m.toolCalls.map((tc, idx) => (
+                                    <div
+                                      key={`${tc.name}-${idx}`}
+                                      className='flex items-center gap-2 text-[11px] font-medium px-2.5 py-1.5 rounded-lg bg-brand/5 border border-brand/10'
+                                    >
+                                      <span
+                                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                          tc.status === "running"
+                                            ? "bg-brand animate-pulse"
+                                            : tc.status === "error"
+                                              ? "bg-red-400"
+                                              : "bg-emerald-400"
+                                        }`}
+                                      />
+                                      <span className='text-muted-foreground'>
+                                        {({
+                                          get_account_snapshot: "Checked account data",
+                                          run_job_search: `Searched jobs: "${tc.args?.query || ""}"`,
+                                          get_user_profile: "Retrieved profile",
+                                          list_applications: "Listed applications",
+                                          list_resumes: "Listed resumes",
+                                          get_credits_balance: "Checked credits",
+                                          list_recent_jobs: "Listed recent jobs",
+                                          apply_to_job: "Submitting application...",
+                                          analyze_resume: "Analyzing resume",
+                                          generate_cover_letter: "Generating cover letter",
+                                          evaluate_job_fit: "Evaluating job fit",
+                                          intake_job_url: "Importing job from URL",
+                                        } as Record<string, string>)[tc.name] || tc.name.replace(/_/g, " ")}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={{
@@ -1210,7 +1265,7 @@ export const ChatPage = () => {
                                   <span className='inline-block w-1.5 h-4 ml-1 align-middle bg-brand animate-pulse' />
                                 ) : (
                                   <span className='text-sm font-medium text-muted-foreground animate-pulse'>
-                                    Thinking...
+                                    {m.toolCalls && m.toolCalls.length > 0 ? "Working..." : "Thinking..."}
                                   </span>
                                 ))}
                             </div>

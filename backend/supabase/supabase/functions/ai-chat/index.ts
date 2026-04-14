@@ -1,6 +1,21 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { createGeminiClient, GEMINI_MODEL } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/types.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  fetchUserContext,
+  formatUserContextForPrompt,
+  type UserContext,
+} from "../_shared/user-context.ts";
+import { APP_INTERFACE_GUIDE } from "../_shared/app-map.ts";
+import {
+  requireSubscriptionTier,
+  resolveSubscriptionTier,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface UIMessagePart { text?: string }
 interface UIMessage { id?: string; role: string; content?: string; parts?: UIMessagePart[] }
@@ -13,108 +28,273 @@ interface ChatBody {
   previous_response_id?: string;
 }
 
-function createSupabaseClient(authHeader: string) {
-  const url = Deno.env.get("SUPABASE_URL") || "";
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
-  if (!url || !anonKey) return null;
-  return createClient(url, anonKey, {
+// ---------------------------------------------------------------------------
+// Supabase helper
+// ---------------------------------------------------------------------------
+
+const createAuthedSupabaseClient = (authHeader: string) =>
+  createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    auth: { persistSession: false },
     global: { headers: { Authorization: authHeader } },
   });
+
+// ---------------------------------------------------------------------------
+// System prompts
+// ---------------------------------------------------------------------------
+
+const ACCOUNT_ACCESS_RULES = `
+You are inside the authenticated user's JobRaker workspace.
+You DO have access to the user's JobRaker account data provided in this prompt and, in agent mode, through the available tools.
+Do not claim that you lack access to the user's JobRaker profile, resumes, tracked jobs, applications, credits, cover letters, or recent conversations when that information is present in context or retrievable through tools.
+Only describe limitations for external systems that are not connected here, such as LinkedIn dashboards, Indeed, external inboxes, or third-party job boards.
+When the user asks for totals, counts, lists, or recent activity inside JobRaker, answer from the account context or tools first before giving generic advice.
+`;
+
+// ---------------------------------------------------------------------------
+// Agent function declarations (Gemini function-calling schema)
+// ---------------------------------------------------------------------------
+
+const AGENT_FUNCTION_DECLARATIONS = [
+  {
+    name: "get_account_snapshot",
+    description: "Get a summary of the user's JobRaker account, including counts for applications, tracked jobs, resumes, credits, and recent activity.",
+    parameters: { type: "OBJECT" as const, properties: {} },
+  },
+  {
+    name: "run_job_search",
+    description: "Search for job listings based on a query and location.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        query: { type: "STRING" as const, description: "Job search query, e.g. 'software engineer'" },
+        location: { type: "STRING" as const, description: "Location, e.g. 'Remote' or 'New York'" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "get_user_profile",
+    description: "Get the user's career profile (skills, experience, headline).",
+    parameters: { type: "OBJECT" as const, properties: {} },
+  },
+  {
+    name: "list_applications",
+    description: "List the user's job applications and their statuses.",
+    parameters: { type: "OBJECT" as const, properties: {} },
+  },
+  {
+    name: "list_resumes",
+    description: "List all resumes uploaded by the user.",
+    parameters: { type: "OBJECT" as const, properties: {} },
+  },
+  {
+    name: "get_credits_balance",
+    description: "Check remaining AI credits.",
+    parameters: { type: "OBJECT" as const, properties: {} },
+  },
+  {
+    name: "list_recent_jobs",
+    description: "Get the latest discovered job listings.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        limit: { type: "NUMBER" as const, description: "Default 10" },
+      },
+    },
+  },
+  {
+    name: "apply_to_job",
+    description: "Apply to a job using a job URL or job ID. Requires confirmation from the user first.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        job_id: { type: "STRING" as const, description: "The job UUID" },
+        cover_letter: { type: "STRING" as const, description: "Optional cover letter text" },
+      },
+      required: ["job_id"],
+    },
+  },
+  {
+    name: "analyze_resume",
+    description: "Analyze a resume for improvements.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        target_role: { type: "STRING" as const, description: "Target role for resume optimization" },
+      },
+    },
+  },
+  {
+    name: "generate_cover_letter",
+    description: "Generate a tailored cover letter.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        job_description: { type: "STRING" as const, description: "The job description to tailor to" },
+        instructions: { type: "STRING" as const, description: "Additional instructions for tone or content" },
+      },
+      required: ["job_description"],
+    },
+  },
+  {
+    name: "evaluate_job_fit",
+    description: "Evaluate how well the user matches a job.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        job_description: { type: "STRING" as const, description: "The job description to evaluate against" },
+      },
+      required: ["job_description"],
+    },
+  },
+  {
+    name: "intake_job_url",
+    description: "Import a job from a URL into the user's tracked jobs.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        url: { type: "STRING" as const, description: "The job posting URL" },
+      },
+      required: ["url"],
+    },
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Tool executor
+// ---------------------------------------------------------------------------
+
+async function executeTool(
+  name: string,
+  args: Record<string, any>,
+  authHeader: string,
+  userId: string,
+  userContext: UserContext | null,
+): Promise<any> {
+  const sb = createAuthedSupabaseClient(authHeader);
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+
+  const callEdgeFunction = async (fnName: string, body: Record<string, any>) => {
+    const res = await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: authHeader },
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  };
+
+  switch (name) {
+    case "get_account_snapshot":
+      return {
+        success: true,
+        snapshot: {
+          name: userContext?.name || "User",
+          email: userContext?.email || "",
+          headline: userContext?.headline || null,
+          credits: userContext?.credits || 0,
+          subscriptionTier: userContext?.subscriptionTier || "Free",
+          applicationCount: userContext?.applicationCount || 0,
+          jobCount: userContext?.jobCount || 0,
+          resumeCount: userContext?.resumeCount || 0,
+          recentApplications: userContext?.recentApplications || [],
+          recentJobs: userContext?.recentJobs || [],
+          resumes: userContext?.resumes || [],
+        },
+      };
+
+    case "run_job_search":
+      return callEdgeFunction("jobs-search", {
+        searchQuery: args.query,
+        location: args.location,
+      });
+
+    case "get_user_profile":
+      return { success: true, profile: userContext };
+
+    case "list_applications": {
+      const { data } = await sb
+        .from("applications")
+        .select("id, job_title, company, status, applied_date, created_at, updated_at")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return { success: true, applications: data || [] };
+    }
+
+    case "list_resumes": {
+      const { data } = await sb
+        .from("resumes")
+        .select("id, name, status, updated_at, is_favorite")
+        .order("created_at", { ascending: false });
+      return { success: true, resumes: data || [] };
+    }
+
+    case "get_credits_balance": {
+      const { data } = await sb
+        .from("user_credits")
+        .select("balance")
+        .eq("user_id", userId)
+        .maybeSingle();
+      return { success: true, balance: data?.balance || 0 };
+    }
+
+    case "list_recent_jobs": {
+      const limit = args.limit || 10;
+      const { data } = await sb
+        .from("jobs")
+        .select("id, title, company, location, apply_url, created_at, canonical_status, bookmarked, salary_min, salary_max, salary_currency")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      return { success: true, jobs: data || [] };
+    }
+
+    case "apply_to_job": {
+      const { data: job } = await sb
+        .from("jobs")
+        .select("id, title, company, apply_url, source_id")
+        .eq("id", args.job_id)
+        .maybeSingle();
+      if (!job) return { success: false, error: "Job not found" };
+      return callEdgeFunction("apply-to-jobs", {
+        jobs: [{
+          job_id: job.id,
+          job_title: job.title,
+          company: job.company,
+          url: job.apply_url || job.source_id,
+          sourceUrl: job.apply_url || job.source_id,
+        }],
+        ...(args.cover_letter ? { cover_letter: args.cover_letter } : {}),
+      });
+    }
+
+    case "analyze_resume":
+      return callEdgeFunction("analyze-resume", {
+        targetRole: args.target_role,
+      });
+
+    case "generate_cover_letter":
+      return callEdgeFunction("generate-cover-letter", {
+        jobDescription: args.job_description,
+        instructions: args.instructions,
+      });
+
+    case "evaluate_job_fit":
+      return callEdgeFunction("evaluate-job-fit", {
+        job_description: args.job_description,
+      });
+
+    case "intake_job_url":
+      return callEdgeFunction("intake-job-url", {
+        url: args.url,
+      });
+
+    default:
+      return callEdgeFunction(name.replace(/_/g, "-"), args);
+  }
 }
 
-async function fetchUserContext(sb: ReturnType<typeof createClient>): Promise<string> {
-  const sections: string[] = [];
-
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("first_name, last_name, job_title, location, experience_years, skills, goals, about, subscription_tier")
-    .single();
-
-  if (profile) {
-    const name = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unknown";
-    sections.push(
-      `## User Profile\n- Name: ${name}\n- Title: ${profile.job_title || "N/A"}\n- Location: ${profile.location || "N/A"}` +
-      `\n- Experience: ${profile.experience_years ?? "N/A"} years\n- Skills: ${(profile.skills || []).join(", ") || "None listed"}` +
-      `\n- Goals: ${(profile.goals || []).join(", ") || "None listed"}\n- Plan: ${profile.subscription_tier || "Free"}` +
-      (profile.about ? `\n- About: ${profile.about}` : ""),
-    );
-  }
-
-  const { count: totalJobs } = await sb.from("jobs").select("id", { count: "exact", head: true });
-  const { data: statusCounts } = await sb.rpc("get_job_status_counts").catch(() => ({ data: null }));
-
-  let jobSummary = `## Jobs\n- Total tracked jobs: ${totalJobs ?? 0}`;
-
-  if (!statusCounts) {
-    const statuses = ["discovered", "evaluated", "draft_ready", "queued", "submitted", "interview", "offer", "rejected", "failed"];
-    for (const s of statuses) {
-      const { count } = await sb.from("jobs").select("id", { count: "exact", head: true }).eq("canonical_status", s);
-      if (count && count > 0) jobSummary += `\n- ${s}: ${count}`;
-    }
-  } else if (Array.isArray(statusCounts)) {
-    for (const row of statusCounts) {
-      if (row.count > 0) jobSummary += `\n- ${row.canonical_status}: ${row.count}`;
-    }
-  }
-
-  const { data: recentJobs } = await sb
-    .from("jobs")
-    .select("title, company, location, canonical_status, created_at, salary_min, salary_max, salary_currency, bookmarked")
-    .order("created_at", { ascending: false })
-    .limit(10);
-
-  if (recentJobs && recentJobs.length > 0) {
-    jobSummary += "\n\n### 10 Most Recent Jobs";
-    for (const j of recentJobs) {
-      const salary = j.salary_min || j.salary_max
-        ? ` | ${j.salary_currency || "USD"} ${j.salary_min ?? "?"}–${j.salary_max ?? "?"}`
-        : "";
-      jobSummary += `\n- ${j.title} @ ${j.company} (${j.canonical_status})${salary}${j.bookmarked ? " ★" : ""}`;
-    }
-  }
-  sections.push(jobSummary);
-
-  const { count: totalApps } = await sb.from("applications").select("id", { count: "exact", head: true });
-  if (totalApps && totalApps > 0) {
-    let appSummary = `## Applications\n- Total applications: ${totalApps}`;
-    const appStatuses = ["Applied", "Interview", "Offer", "Rejected", "Pending", "Draft", "Failed", "Withdrawn"];
-    for (const s of appStatuses) {
-      const { count } = await sb.from("applications").select("id", { count: "exact", head: true }).eq("status", s);
-      if (count && count > 0) appSummary += `\n- ${s}: ${count}`;
-    }
-    const { data: recentApps } = await sb
-      .from("applications")
-      .select("job_title, company, status, applied_date")
-      .order("applied_date", { ascending: false })
-      .limit(5);
-    if (recentApps && recentApps.length > 0) {
-      appSummary += "\n\n### Recent Applications";
-      for (const a of recentApps) {
-        appSummary += `\n- ${a.job_title} @ ${a.company} — ${a.status} (${new Date(a.applied_date).toLocaleDateString()})`;
-      }
-    }
-    sections.push(appSummary);
-  }
-
-  const { data: resumes } = await sb
-    .from("resumes")
-    .select("name, status, updated_at")
-    .order("updated_at", { ascending: false })
-    .limit(5);
-  if (resumes && resumes.length > 0) {
-    let resumeSummary = "## Resumes";
-    for (const r of resumes) {
-      resumeSummary += `\n- ${r.name} (${r.status})`;
-    }
-    sections.push(resumeSummary);
-  }
-
-  return sections.join("\n\n");
-}
-
-const ASK_SYSTEM = `You are JobRaker AI, a helpful career assistant. You have access to the user's real profile, tracked jobs, applications, and resumes from their JobRaker account. Use this data to give accurate, personalized answers. When the user asks about their jobs, applications, or profile, refer to the actual data provided below. Be concise and helpful.`;
-
-const AGENT_SYSTEM = `You are JobRaker Agent, a high-performance autonomous career assistant. You have full access to the user's JobRaker data (profile, jobs, applications, resumes) shown below. You also have web search capabilities to find new information. Be proactive, data-driven, and actionable. When discussing the user's data, always reference their actual numbers and details.`;
+// ---------------------------------------------------------------------------
+// Main handler
+// ---------------------------------------------------------------------------
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -126,82 +306,167 @@ Deno.serve(async (req) => {
 
   try {
     const body: ChatBody = await req.json();
-    const { messages, system, mode = "ask", webSearch } = body;
+    const {
+      messages,
+      system,
+      mode = "ask",
+      webSearch = false,
+    } = body;
 
-    const authHeader = req.headers.get("authorization") || "";
+    const { authHeader, user, subscriptionTier } = await requireSubscriptionTier(req, "Pro", "AI chat");
+    const userId = user.id;
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return new Response(JSON.stringify({ error: "Messages are required" }), {
+        status: 400,
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
 
     const ai = createGeminiClient();
-    const sb = createSupabaseClient(authHeader);
 
-    let userContext = "";
-    if (sb) {
-      try {
-        userContext = await fetchUserContext(sb);
-      } catch (e) {
-        console.error("Failed to fetch user context:", e);
+    // Fetch user context
+    let userContext: UserContext | null = null;
+    try {
+      userContext = await fetchUserContext(userId, authHeader);
+      if (userContext) {
+        userContext.email = user.email ?? "";
+        userContext.subscriptionTier = subscriptionTier;
       }
+    } catch (e) {
+      console.error("Failed to fetch user context:", e);
     }
 
-    const baseSystem = mode === "agent" ? AGENT_SYSTEM : ASK_SYSTEM;
-    const providedSystem = system ? `\n\n${system}` : "";
-    const contextBlock = userContext ? `\n\n---\n# YOUR JOBRAKER DATA (live from database)\n\n${userContext}\n---` : "";
-    const fullSystem = `${baseSystem}${providedSystem}${contextBlock}`;
+    // Build system instruction
+    let systemInstruction = [ACCOUNT_ACCESS_RULES.trim(), APP_INTERFACE_GUIDE.trim()]
+      .filter(Boolean)
+      .join("\n\n");
 
-    const geminiContent: { role: string; parts: { text: string }[] }[] = [];
-
-    if (Array.isArray(messages)) {
-      for (const msg of messages) {
-        const role = msg.role === "assistant" ? "model" : "user";
-        const text = (msg.parts?.map((p) => p.text).join("\n") || msg.content || "").trim();
-
-        if (msg.role === "system") continue;
-        if (text) {
-          geminiContent.push({ role, parts: [{ text }] });
-        }
-      }
+    if (system) {
+      systemInstruction = `${systemInstruction}\n\n${system}`;
     }
 
-    const useTools = mode === "agent" || webSearch;
-    const tools = useTools ? [{ googleSearch: {} }] : undefined;
+    if (userContext) {
+      const contextStr = formatUserContextForPrompt(userContext);
+      systemInstruction = `User Info:\n${contextStr}\n\n${systemInstruction}`;
+    }
 
-    const config: Record<string, unknown> = {
-      ...(tools ? { tools } : {}),
-      systemInstruction: fullSystem,
-    };
+    if (mode === "agent") {
+      systemInstruction = `You are JobRaker Agent. Be proactive, use tools to help the user, and answer from JobRaker data before falling back to general advice. Confirm before applying, deleting, or triggering any side-effectful workflow.\n\n${systemInstruction}`;
+    } else {
+      systemInstruction = `You are JobRaker AI, a helpful and concise career assistant. Answer from the user's JobRaker data when possible.\n\n${systemInstruction}`;
+    }
 
-    const stream = await ai.models.generateContentStream({
-      model: GEMINI_MODEL,
-      config,
-      contents: geminiContent,
-    });
+    // Build message history
+    const history = messages.slice(0, -1).map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content || m.parts?.map((p) => p.text).join("\n") || "" }],
+    })).filter((m) => m.parts[0].text.trim() !== "");
+    const userPrompt = messages[messages.length - 1].content ||
+      messages[messages.length - 1].parts?.map((p) => p.text).join("\n") || "";
 
+    // SSE stream response
     const bodyStream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-        let sentAny = false;
-
-        const send = (event: string, payload: string) => {
+        const send = (event: string, data: any) => {
+          const payload = typeof data === "string" ? data : JSON.stringify(data);
           controller.enqueue(encoder.encode(`event: ${event}\ndata: ${payload}\n\n`));
         };
 
         try {
-          for await (const chunk of stream) {
-            const text = typeof chunk.text === "function" ? chunk.text() : chunk.text;
-            if (text) {
-              send("message", JSON.stringify({ delta: text }));
-              sentAny = true;
+          if (mode === "agent") {
+            // --- AGENT MODE: non-streaming with function-calling loop ---
+            const contents = [
+              ...history,
+              { role: "user", parts: [{ text: userPrompt }] },
+            ];
+
+            let turnCount = 0;
+            while (turnCount < 5) {
+              turnCount++;
+
+              const response = await ai.models.generateContent({
+                model: GEMINI_MODEL,
+                config: {
+                  tools: [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }],
+                  systemInstruction,
+                },
+                contents,
+              });
+
+              const parts = response.candidates?.[0]?.content?.parts || [];
+              const textParts = parts.filter((p: any) => p.text);
+              const functionCalls = parts.filter((p: any) => p.functionCall);
+
+              // Emit any text from this turn
+              for (const part of textParts) {
+                if (part.text) {
+                  send("message", { delta: part.text });
+                }
+              }
+
+              if (functionCalls.length === 0) break;
+
+              // Execute each function call
+              const functionResponses: any[] = [];
+              for (const fc of functionCalls) {
+                const fn = fc.functionCall;
+                console.log(`[Agent] Executing tool: ${fn.name}`, fn.args);
+
+                let result: any;
+                try {
+                  result = await executeTool(fn.name, fn.args || {}, authHeader, userId, userContext);
+                } catch (e: any) {
+                  result = { error: e.message };
+                }
+
+                send("tool_call", { name: fn.name, args: fn.args, result });
+                functionResponses.push({
+                  functionResponse: { name: fn.name, response: result },
+                });
+              }
+
+              // Append model response + function results to conversation
+              contents.push({ role: "model", parts });
+              contents.push({ role: "user", parts: functionResponses });
+            }
+          } else {
+            // --- ASK MODE: streaming with pre-loaded context ---
+            const config: Record<string, any> = {
+              systemInstruction,
+              ...(webSearch ? { tools: [{ googleSearch: {} }] } : {}),
+            };
+
+            const stream = await ai.models.generateContentStream({
+              model: GEMINI_MODEL,
+              config,
+              contents: [
+                ...history,
+                { role: "user", parts: [{ text: userPrompt }] },
+              ],
+            });
+
+            let sentAny = false;
+            for await (const chunk of stream) {
+              const text = typeof chunk.text === "function" ? chunk.text() : chunk.text;
+              if (text) {
+                send("message", { delta: text });
+                sentAny = true;
+              }
+            }
+
+            if (!sentAny) {
+              send("message", { delta: "I wasn't able to generate a response. Please try rephrasing your question." });
             }
           }
 
-          if (!sentAny) {
-            send("message", JSON.stringify({ delta: "I wasn't able to generate a response. Please try rephrasing your question." }));
-          }
           send("done", "[DONE]");
           controller.close();
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
-          console.error("ai-chat stream error:", msg);
-          send("error", JSON.stringify({ error: msg }));
+          console.error("ai-chat stream/agent error:", msg);
+          send("error", { error: msg });
           controller.close();
         }
       },
@@ -215,11 +480,7 @@ Deno.serve(async (req) => {
       },
     });
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error("AI Chat Error:", msg);
-    return new Response(JSON.stringify({ error: msg }), {
-      headers: { ...cors, "Content-Type": "application/json" },
-      status: 500,
-    });
+    console.error("Outer error:", error);
+    return subscriptionErrorResponse(error, cors);
   }
 });
