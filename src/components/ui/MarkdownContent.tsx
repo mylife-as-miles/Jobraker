@@ -1,6 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { cn } from "../../lib/utils";
+import { cn, getProxiedLogoUrl } from "../../lib/utils";
 
 type MarkdownContentProps = {
   content?: string | null;
@@ -44,15 +44,19 @@ export function MarkdownContent({
           a: ({ node: _node, ...props }) => (
             <a {...props} target="_blank" rel="noreferrer" />
           ),
-          img: ({ node: _node, ...props }) => (
+          img: ({ node: _node, src, ...props }) => (
             <img
               {...props}
+              src={getProxiedLogoUrl(src) ?? src}
               alt={props.alt ?? ""}
               loading="lazy"
               className={cn(
                 "max-h-32 w-auto max-w-full object-contain",
                 props.className,
               )}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
             />
           ),
           code: ({ node: _node, className: codeClassName, ...props }) => (
