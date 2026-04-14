@@ -36,7 +36,9 @@ Deno.serve(async (req) => {
     const role = trimText(body?.role);
     const company = trimText(body?.company);
     const recipient = trimText(body?.recipient);
-    const job_description = trimText(body?.job_description);
+    const job_description = trimText(body?.job_description) || trimText(body?.jobDescription);
+    const resumeText = trimText(body?.resumeText);
+    const instructions = trimText(body?.instructions);
     const tone = trimText(body?.tone) || 'professional';
     const length = trimText(body?.length) || 'medium';
     const mode = String(body?.mode || '').toLowerCase() === 'full' ? 'full' : 'polish';
@@ -128,6 +130,7 @@ Deno.serve(async (req) => {
       skillsLine && `Skills: ${skillsLine}`,
       expBullets && `Experience:\n${expBullets}`,
       eduBullets && `Education:\n${eduBullets}`,
+      resumeText && `Resume:\n${resumeText.slice(0, 12000)}`,
       '',
       'Job:',
       jobCtx,
@@ -142,6 +145,7 @@ Deno.serve(async (req) => {
       `- Close with a confident call to action.`,
       `- Do not include addresses, headers, or dates. Only the letter content.`,
       `- Return plain text only, no markdown.`,
+      instructions && `Additional instructions from the candidate: ${instructions}`,
     ].filter(Boolean).join('\n');
 
     const apiKey = Deno.env.get('GEMINI_API_KEY') || '';
@@ -168,7 +172,7 @@ Deno.serve(async (req) => {
 
     const text = (typeof response.text === 'function' ? response.text() : response.text)?.trim() || '';
 
-    return new Response(JSON.stringify({ text }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ text, cover_letter: text }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
   } catch (e: any) {
     const msg = e?.message ? String(e.message) : 'Unknown error';
     console.error('generate-cover-letter error', msg);
