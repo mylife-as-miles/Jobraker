@@ -54,6 +54,11 @@
     .mermaid svg {
       max-width: 100%;
     }
+    @media print {
+      body { padding: 0.5rem; background: #1e1e2e !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .diagram-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 1rem; }
+      .mermaid svg { max-width: 100% !important; width: 100% !important; }
+    }
     .legend {
       display: flex;
       flex-wrap: wrap;
