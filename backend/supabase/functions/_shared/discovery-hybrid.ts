@@ -71,6 +71,58 @@ const asString = (value: unknown): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+/**
+ * Returns true when the URL points to a person/freelancer profile rather than
+ * a job posting.  Used to reject false positives from web search results.
+ */
+const isProfileUrl = (url: string): boolean => {
+  const lower = url.toLowerCase();
+
+  // Upwork freelancer / agency / talent pages (NOT /jobs/)
+  if (lower.includes("upwork.com")) {
+    if (
+      /upwork\.com\/(freelancers|fl|agencies|o|search\/profiles)/i.test(lower)
+    )
+      return true;
+    if (!lower.includes("/jobs/") && !lower.includes("/freelance-jobs/"))
+      return true;
+  }
+
+  // LinkedIn personal profiles or company overview (no /jobs/ segment)
+  if (lower.includes("linkedin.com")) {
+    if (/linkedin\.com\/in\//i.test(lower)) return true;
+    if (
+      /linkedin\.com\/company\/[^/]+\/?$/i.test(lower) &&
+      !lower.includes("/jobs")
+    )
+      return true;
+  }
+
+  // Generic profile / user / people pages
+  if (
+    /\/(freelancers?|profiles?|users?|people|team|about-us)(\/|$)/i.test(lower)
+  )
+    return true;
+
+  return false;
+};
+
+/**
+ * Returns true when the search-result title looks like a freelancer or
+ * personal profile rather than a job posting (e.g. "John D. - Senior
+ * Engineer | Upwork").
+ */
+const titleLooksLikeProfile = (title: string): boolean => {
+  // "FirstName L. - Title | Platform"  or "FirstName LastName - Role - Upwork"
+  if (
+    /^[A-Z][a-z]+\s+[A-Z]\.?\s*[-–—|]/.test(title) &&
+    /upwork|freelancer|fiverr|toptal|guru\.com/i.test(title)
+  )
+    return true;
+  if (/- upwork$/i.test(title.trim())) return true;
+  return false;
+};
+
 const stripHtmlTags = (value: string): string =>
   value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
@@ -569,11 +621,13 @@ const fallbackFirecrawlSearch = async (
           asString((item.metadata as Record<string, unknown> | undefined)?.sourceURL),
         );
       if (!url) return null;
+      if (isProfileUrl(url)) return null;
       const sourceKind = inferSourceKind(url, null);
       const rawTitle =
         asString(item.title) ||
         asString((item.metadata as Record<string, unknown> | undefined)?.title) ||
         "Job opening";
+      if (titleLooksLikeProfile(rawTitle)) return null;
       const company =
         rawTitle.split(/[|:-]| at /i).slice(-1)[0]?.trim() ||
         hostFromUrl(url) ||

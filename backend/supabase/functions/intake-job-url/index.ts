@@ -91,6 +91,31 @@ const normalizeUrl = (value: string): string | null => {
   return parsed?.toString() ?? null;
 };
 
+const isProfileUrl = (url: string): boolean => {
+  const lower = url.toLowerCase();
+  if (lower.includes("upwork.com")) {
+    if (
+      /upwork\.com\/(freelancers|fl|agencies|o|search\/profiles)/i.test(lower)
+    )
+      return true;
+    if (!lower.includes("/jobs/") && !lower.includes("/freelance-jobs/"))
+      return true;
+  }
+  if (lower.includes("linkedin.com")) {
+    if (/linkedin\.com\/in\//i.test(lower)) return true;
+    if (
+      /linkedin\.com\/company\/[^/]+\/?$/i.test(lower) &&
+      !lower.includes("/jobs")
+    )
+      return true;
+  }
+  if (
+    /\/(freelancers?|profiles?|users?|people|team|about-us)(\/|$)/i.test(lower)
+  )
+    return true;
+  return false;
+};
+
 const hostFromUrl = (value: string | null | undefined): string | null => {
   if (!value) return null;
   const parsed = safeUrl(value);
@@ -347,6 +372,19 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "A valid job posting URL is required." }),
         {
           status: 400,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        },
+      );
+    }
+
+    if (isProfileUrl(normalizedUrl)) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "That URL looks like a freelancer or personal profile, not a job posting. Please paste the link to the actual job listing.",
+        }),
+        {
+          status: 422,
           headers: { ...corsHeaders, "content-type": "application/json" },
         },
       );
