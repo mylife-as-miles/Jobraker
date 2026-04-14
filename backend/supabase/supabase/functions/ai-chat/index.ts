@@ -1,53 +1,54 @@
-
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createGeminiClient, GEMINI_MODEL, GEMINI_TOOLS } from "../_shared/gemini.ts";
-import { corsHeaders } from "../_shared/cors.ts";
-
-/**
- * Supabase Edge Function: ai-chat
- * Streaming chat completion using Gemini 3 Pro.
- */
+import { createGeminiClient, GEMINI_MODEL } from "../_shared/gemini.ts";
+import { getCorsHeaders } from "../_shared/types.ts";
 
 interface UIMessagePart { text?: string }
 interface UIMessage { id?: string; role: string; content?: string; parts?: UIMessagePart[] }
-interface ChatBody { model?: string; messages: UIMessage[]; webSearch?: boolean; system?: string; previous_response_id?: string }
+interface ChatBody {
+  model?: string;
+  messages: UIMessage[];
+  webSearch?: boolean;
+  system?: string;
+  mode?: "ask" | "agent";
+  previous_response_id?: string;
+}
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+    const origin = req.headers.get("origin");
+    const cors = getCorsHeaders(origin || undefined);
+
     if (req.method === "OPTIONS") {
-        return new Response("ok", { headers: corsHeaders });
+        return new Response("ok", { headers: cors });
     }
 
     try {
         const body: ChatBody = await req.json();
-        const { messages, system } = body;
+        const { messages, system, mode = "ask", webSearch } = body;
 
         const ai = createGeminiClient();
 
-        // Separate system instruction from messages
         let systemInstruction = system;
-        const geminiContent = [];
+        const geminiContent: { role: string; parts: { text: string }[] }[] = [];
 
         if (Array.isArray(messages)) {
             for (const msg of messages) {
-                const role = msg.role === 'assistant' ? 'model' : 'user';
-                const text = (msg.parts?.map(p => p.text).join('\n') || msg.content || '').trim();
-                
-                if (msg.role === 'system') {
+                const role = msg.role === "assistant" ? "model" : "user";
+                const text = (msg.parts?.map((p) => p.text).join("\n") || msg.content || "").trim();
+
+                if (msg.role === "system") {
                     systemInstruction = systemInstruction ? `${systemInstruction}\n${text}` : text;
                 } else if (text) {
-                    geminiContent.push({
-                        role,
-                        parts: [{ text }]
-                    });
+                    geminiContent.push({ role, parts: [{ text }] });
                 }
             }
         }
 
-        const config = {
-            thinkingConfig: {
-                thinkingLevel: 'HIGH',
-            },
-            tools: GEMINI_TOOLS,
+        const useTools = mode === "agent" || webSearch;
+        const tools = useTools
+            ? [{ googleSearch: {} }]
+            : undefined;
+
+        const config: Record<string, unknown> = {
+            ...(tools ? { tools } : {}),
             ...(systemInstruction ? { systemInstruction } : {}),
         };
 
@@ -60,24 +61,30 @@ serve(async (req) => {
         const bodyStream = new ReadableStream({
             async start(controller) {
                 const encoder = new TextEncoder();
+                let sentAny = false;
+
+                const send = (event: string, payload: string) => {
+                    controller.enqueue(encoder.encode(`event: ${event}\ndata: ${payload}\n\n`));
+                };
 
                 try {
                     for await (const chunk of stream) {
-                        const text = (typeof chunk.text === 'function' ? chunk.text() : chunk.text);
+                        const text = typeof chunk.text === "function" ? chunk.text() : chunk.text;
                         if (text) {
-                            const data = JSON.stringify({ delta: text });
-                            const message = `event: message\ndata: ${data}\n\n`;
-                            controller.enqueue(encoder.encode(message));
+                            send("message", JSON.stringify({ delta: text }));
+                            sentAny = true;
                         }
                     }
 
-                    const doneMessage = `event: done\ndata: [DONE]\n\n`;
-                    controller.enqueue(encoder.encode(doneMessage));
+                    if (!sentAny) {
+                        send("message", JSON.stringify({ delta: "I wasn't able to generate a response. Please try rephrasing your question." }));
+                    }
+                    send("done", "[DONE]");
                     controller.close();
-                } catch (e: any) {
-                    const errorData = JSON.stringify({ error: e.message });
-                    const errorMessage = `event: error\ndata: ${errorData}\n\n`;
-                    controller.enqueue(encoder.encode(errorMessage));
+                } catch (e: unknown) {
+                    const msg = e instanceof Error ? e.message : String(e);
+                    console.error("ai-chat stream error:", msg);
+                    send("error", JSON.stringify({ error: msg }));
                     controller.close();
                 }
             },
@@ -85,17 +92,16 @@ serve(async (req) => {
 
         return new Response(bodyStream, {
             headers: {
-                ...corsHeaders,
+                ...cors,
                 "Content-Type": "text/event-stream",
                 "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
             },
         });
-
-    } catch (error: any) {
-        console.error("AI Chat Error:", error);
-        return new Response(JSON.stringify({ error: error.message }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error("AI Chat Error:", msg);
+        return new Response(JSON.stringify({ error: msg }), {
+            headers: { ...cors, "Content-Type": "application/json" },
             status: 500,
         });
     }
