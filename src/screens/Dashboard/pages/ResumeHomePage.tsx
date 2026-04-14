@@ -16,16 +16,21 @@ import { Button } from "../../../components/ui/button";
 import { motion } from "framer-motion";
 import { ResumeCreationModal } from "../components/ResumeCreationModal";
 import { ResumePreviewCard } from "../components/ResumePreviewCard";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { getResumeDisplayName } from "@/lib/resumeDisplay";
-import { useResumes } from "@/hooks/useResumes";
+import { useResumes, type ResumeRecord } from "@/hooks/useResumes";
 
 export const ResumeHomePage = () => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [resumeToDelete, setResumeToDelete] = useState<{
+    record: ResumeRecord;
+    displayName: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { resumes, loading, importResume } = useResumes();
+  const { resumes, loading, importResume, remove: removeResume } = useResumes();
 
   const setResumeId = useArtboardStore((state) => state.setResumeId);
   const setResumeTitle = useArtboardStore((state) => state.setResumeTitle);
@@ -52,6 +57,22 @@ export const ResumeHomePage = () => {
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleDeleteRequest = (
+    resume: ResumeRecord,
+    displayName: string,
+    event?: React.MouseEvent,
+  ) => {
+    event?.stopPropagation();
+    setResumeToDelete({ record: resume, displayName });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!resumeToDelete) return;
+
+    await removeResume(resumeToDelete.record);
+    setResumeToDelete(null);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -204,9 +225,17 @@ export const ResumeHomePage = () => {
                       {new Date(resume.updated_at).toLocaleDateString()}
                     </p>
                   </div>
-                  {/* <button className='text-foreground/60 hover:text-foreground/60 p-1 rounded hover:bg-[#ffffff10]'>
-                    <MoreVertical className='w-4 h-4' />
-                  </button> */}
+                  <button
+                    type='button'
+                    onClick={(event) =>
+                      handleDeleteRequest(resume, displayName, event)
+                    }
+                    className='rounded-lg p-2 text-foreground/45 transition-colors hover:bg-red-500/10 hover:text-red-400'
+                    title='Delete resume'
+                    aria-label={`Delete ${displayName}`}
+                  >
+                    <Trash2 className='w-4 h-4' />
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -294,8 +323,10 @@ export const ResumeHomePage = () => {
                   <Download className='w-4 h-4' />
                 </button>
                 <button
+                  type='button'
                   className='p-2 text-foreground/60 hover:text-red-400 hover:bg-red-500/10 rounded-lg'
                   title='Delete'
+                  onClick={() => handleDeleteRequest(resume, displayName)}
                 >
                   <Trash2 className='w-4 h-4' />
                 </button>
@@ -322,6 +353,19 @@ export const ResumeHomePage = () => {
       <ResumeCreationModal
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
+      />
+      <ConfirmDialog
+        open={Boolean(resumeToDelete)}
+        onCancel={() => setResumeToDelete(null)}
+        onConfirm={handleDeleteConfirm}
+        title='Delete Resume'
+        message={
+          resumeToDelete
+            ? `Delete "${resumeToDelete.displayName}"? This action cannot be undone.`
+            : "This action cannot be undone."
+        }
+        confirmText='Delete'
+        cancelText='Cancel'
       />
     </div>
   );

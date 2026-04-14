@@ -23,8 +23,18 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
     const togglePublicSharing = useArtboardStore((state) => state.togglePublicSharing);
 
     const [loading, setLoading] = useState(false);
+    const canShare = Boolean(resumeId?.trim());
 
     const handleToggle = async (checked: boolean) => {
+        if (!canShare) {
+            addToast({
+                title: "Save resume first",
+                description: "This resume needs to be created before you can share it publicly.",
+                variant: "info"
+            });
+            return;
+        }
+
         setLoading(true);
         try {
             const { error } = await supabase
@@ -52,9 +62,17 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
         }
     };
 
-    const publicUrl = `${window.location.origin}/r/${resumeId}`;
+    const publicUrl = canShare ? `${window.location.origin}/r/${resumeId}` : "";
 
     const copyToClipboard = () => {
+        if (!canShare) {
+            addToast({
+                title: "Unavailable",
+                description: "Save this resume before copying a public link.",
+                variant: "info"
+            });
+            return;
+        }
         navigator.clipboard.writeText(publicUrl);
         addToast({
             title: "Copied",
@@ -77,18 +95,20 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
                         <div className="flex flex-col gap-0.5">
                             <span className="font-semibold text-sm">Public Access</span>
                             <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                                Share your resume via a public URL.
+                                {canShare
+                                    ? "Share your resume via a public URL."
+                                    : "Save this resume first to generate a public link."}
                             </p>
                         </div>
                         <Switch
                             checked={!!isPublic}
                             onCheckedChange={handleToggle}
-                            disabled={loading}
+                            disabled={loading || !canShare}
                             className="data-[state=checked]:bg-[#1dff00] data-[state=checked]:dark:bg-[#1dff00]"
                         />
                     </div>
 
-                    {isPublic && (
+                    {canShare && isPublic && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider ml-1">Share Link</label>
