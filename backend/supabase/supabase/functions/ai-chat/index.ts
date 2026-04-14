@@ -158,6 +158,112 @@ const AGENT_FUNCTION_DECLARATIONS = [
       required: ["url"],
     },
   },
+  {
+    name: "update_profile",
+    description: "Update the user's profile fields such as headline (job_title), location, about, goals, first_name, last_name, or experience_years. Use this when the user asks you to change their profile info.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        job_title: { type: "STRING" as const, description: "Professional headline, e.g. 'Senior AI & Backend Developer'" },
+        location: { type: "STRING" as const, description: "Location, e.g. 'San Francisco, CA'" },
+        about: { type: "STRING" as const, description: "Professional summary / bio" },
+        goals: { type: "STRING" as const, description: "Career goals" },
+        first_name: { type: "STRING" as const, description: "First name" },
+        last_name: { type: "STRING" as const, description: "Last name" },
+        experience_years: { type: "NUMBER" as const, description: "Years of experience" },
+      },
+    },
+  },
+  {
+    name: "add_skill",
+    description: "Add a skill to the user's profile. Use when the user asks to add or update their skills.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        name: { type: "STRING" as const, description: "Skill name, e.g. 'Python' or 'Project Management'" },
+        level: { type: "STRING" as const, description: "Proficiency: Beginner, Intermediate, Advanced, or Expert" },
+        category: { type: "STRING" as const, description: "Category, e.g. 'Programming', 'Soft Skills', 'Tools'" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "remove_skill",
+    description: "Remove a skill from the user's profile by name.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        name: { type: "STRING" as const, description: "Exact skill name to remove" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "add_experience",
+    description: "Add a work experience entry to the user's profile.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        title: { type: "STRING" as const, description: "Job title, e.g. 'Software Engineer'" },
+        company: { type: "STRING" as const, description: "Company name" },
+        location: { type: "STRING" as const, description: "Work location" },
+        start_date: { type: "STRING" as const, description: "Start date in YYYY-MM-DD format" },
+        end_date: { type: "STRING" as const, description: "End date in YYYY-MM-DD format, omit if current" },
+        is_current: { type: "BOOLEAN" as const, description: "Whether this is the current role" },
+        description: { type: "STRING" as const, description: "Role description and achievements" },
+      },
+      required: ["title", "company", "start_date"],
+    },
+  },
+  {
+    name: "save_cover_letter",
+    description: "Save a cover letter to the user's account so they can access it later from the Cover Letters page.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        name: { type: "STRING" as const, description: "Name for the cover letter, e.g. 'Cover Letter - Google SWE'" },
+        content: { type: "STRING" as const, description: "The full cover letter text" },
+        role: { type: "STRING" as const, description: "Target role" },
+        company: { type: "STRING" as const, description: "Target company" },
+      },
+      required: ["name", "content"],
+    },
+  },
+  {
+    name: "update_application_status",
+    description: "Update the status of a job application (e.g. Applied, Interview, Offer, Rejected).",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        application_id: { type: "STRING" as const, description: "The application UUID" },
+        status: { type: "STRING" as const, description: "New status: Applied, Interview, Offer, Rejected, Withdrawn" },
+      },
+      required: ["application_id", "status"],
+    },
+  },
+  {
+    name: "bookmark_job",
+    description: "Bookmark or unbookmark a tracked job.",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        job_id: { type: "STRING" as const, description: "The job UUID" },
+        bookmarked: { type: "BOOLEAN" as const, description: "true to bookmark, false to unbookmark" },
+      },
+      required: ["job_id", "bookmarked"],
+    },
+  },
+  {
+    name: "hide_job",
+    description: "Hide a job from the job queue (dismiss/archive it).",
+    parameters: {
+      type: "OBJECT" as const,
+      properties: {
+        job_id: { type: "STRING" as const, description: "The job UUID" },
+      },
+      required: ["job_id"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -286,6 +392,109 @@ async function executeTool(
       return callEdgeFunction("intake-job-url", {
         url: args.url,
       });
+
+    case "update_profile": {
+      const patch: Record<string, any> = {};
+      const allowed = ["job_title", "location", "about", "goals", "first_name", "last_name", "experience_years"];
+      for (const key of allowed) {
+        if (args[key] !== undefined && args[key] !== null) patch[key] = args[key];
+      }
+      if (Object.keys(patch).length === 0) return { success: false, error: "No fields to update" };
+      patch.updated_at = new Date().toISOString();
+      const { error } = await sb.from("profiles").update(patch).eq("id", userId);
+      if (error) return { success: false, error: error.message };
+      return { success: true, updated_fields: Object.keys(patch).filter(k => k !== "updated_at") };
+    }
+
+    case "add_skill": {
+      const { data: existing } = await sb
+        .from("profile_skills")
+        .select("id")
+        .ilike("name", args.name)
+        .maybeSingle();
+      if (existing) {
+        const updatePatch: Record<string, any> = { updated_at: new Date().toISOString() };
+        if (args.level) updatePatch.level = args.level;
+        if (args.category) updatePatch.category = args.category;
+        await sb.from("profile_skills").update(updatePatch).eq("id", existing.id);
+        return { success: true, action: "updated", skill: args.name };
+      }
+      const { error } = await sb.from("profile_skills").insert({
+        user_id: userId,
+        name: args.name,
+        level: args.level || "Intermediate",
+        category: args.category || "",
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: true, action: "added", skill: args.name };
+    }
+
+    case "remove_skill": {
+      const { data: skill } = await sb
+        .from("profile_skills")
+        .select("id")
+        .ilike("name", args.name)
+        .maybeSingle();
+      if (!skill) return { success: false, error: `Skill "${args.name}" not found` };
+      const { error } = await sb.from("profile_skills").delete().eq("id", skill.id);
+      if (error) return { success: false, error: error.message };
+      return { success: true, removed: args.name };
+    }
+
+    case "add_experience": {
+      const row: Record<string, any> = {
+        user_id: userId,
+        title: args.title,
+        company: args.company,
+        start_date: args.start_date,
+        location: args.location || "",
+        description: args.description || "",
+        is_current: args.is_current || false,
+      };
+      if (args.end_date) row.end_date = args.end_date;
+      const { error } = await sb.from("profile_experiences").insert(row);
+      if (error) return { success: false, error: error.message };
+      return { success: true, action: "added", title: args.title, company: args.company };
+    }
+
+    case "save_cover_letter": {
+      const { error } = await sb.from("cover_letters").insert({
+        user_id: userId,
+        name: args.name,
+        content: args.content,
+        role: args.role || null,
+        company: args.company || null,
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: true, action: "saved", name: args.name };
+    }
+
+    case "update_application_status": {
+      const { error } = await sb
+        .from("applications")
+        .update({ status: args.status, updated_at: new Date().toISOString() })
+        .eq("id", args.application_id);
+      if (error) return { success: false, error: error.message };
+      return { success: true, application_id: args.application_id, new_status: args.status };
+    }
+
+    case "bookmark_job": {
+      const { error } = await sb
+        .from("jobs")
+        .update({ bookmarked: args.bookmarked })
+        .eq("id", args.job_id);
+      if (error) return { success: false, error: error.message };
+      return { success: true, job_id: args.job_id, bookmarked: args.bookmarked };
+    }
+
+    case "hide_job": {
+      const { error } = await sb
+        .from("jobs")
+        .update({ hidden: true })
+        .eq("id", args.job_id);
+      if (error) return { success: false, error: error.message };
+      return { success: true, job_id: args.job_id, hidden: true };
+    }
 
     default:
       return callEdgeFunction(name.replace(/_/g, "-"), args);

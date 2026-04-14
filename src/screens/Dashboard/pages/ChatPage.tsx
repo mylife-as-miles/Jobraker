@@ -1110,6 +1110,14 @@ export const ChatPage = () => {
                                           generate_cover_letter: "Generating cover letter",
                                           evaluate_job_fit: "Evaluating job fit",
                                           intake_job_url: "Importing job from URL",
+                                          update_profile: `Updated profile: ${Object.keys(tc.args || {}).join(", ")}`,
+                                          add_skill: `Added skill: ${tc.args?.name || ""}`,
+                                          remove_skill: `Removed skill: ${tc.args?.name || ""}`,
+                                          add_experience: `Added experience: ${tc.args?.title || ""} @ ${tc.args?.company || ""}`,
+                                          save_cover_letter: `Saved cover letter: ${tc.args?.name || ""}`,
+                                          update_application_status: `Updated application status to ${tc.args?.status || ""}`,
+                                          bookmark_job: tc.args?.bookmarked ? "Bookmarked job" : "Removed bookmark",
+                                          hide_job: "Dismissed job from queue",
                                         } as Record<string, string>)[tc.name] || tc.name.replace(/_/g, " ")}
                                       </span>
                                     </div>
