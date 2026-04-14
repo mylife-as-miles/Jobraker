@@ -21,7 +21,7 @@ import {
   ZoomOut,
   PenLine,
 } from "lucide-react";
-import { useArtboardStore, initialResumeState } from "@/store/artboard";
+import { useArtboardStore, initialResumeState, type ResumeData } from "@/store/artboard";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 import { polishContent } from "@/services/ai/polishContent";
@@ -227,7 +227,7 @@ function matchesTemplateFields(
   );
 }
 
-function looksLikePlaceholderResumeData(data: any) {
+function looksLikePlaceholderResumeData(data: ResumeData | null | undefined) {
   if (!data || typeof data !== "object") {
     return true;
   }
@@ -263,17 +263,17 @@ function looksLikePlaceholderResumeData(data: any) {
     summary.content,
     defaultData.summary.content || "",
   );
-  const experienceLooksPlaceholder = experienceItems.some((item, index) => {
+  const experienceLooksPlaceholder = experienceItems.some((item: any, index: number) => {
     const defaultItem = defaultExperienceItems[index];
     return matchesTemplateFields(item, defaultItem, ["company", "position"]);
   });
-  const educationLooksPlaceholder = educationItems.some((item, index) => {
+  const educationLooksPlaceholder = educationItems.some((item: any, index: number) => {
     const defaultItem = defaultEducationItems[index];
     return matchesTemplateFields(item, defaultItem, ["school", "degree"]);
   });
   const skillsLookPlaceholder =
     skillItems.length > 0 &&
-    skillItems.every((item, index) =>
+    skillItems.every((item: any, index: number) =>
       matchesTemplateFields(item, defaultSkillItems[index], ["name"]),
     );
   const websiteLooksPlaceholder =
