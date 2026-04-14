@@ -24,12 +24,19 @@ import {
   Lock,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import Modal from "../../../components/ui/modal";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { MarkdownContent } from "../../../components/ui/MarkdownContent";
+import {
+  getJobsQueueQueryOptions,
+  jobsQueueKeys,
+  useJobsQueue,
+  type JobsQueueScope,
+} from "../../../hooks/useJobsQueue";
 import { useResumes } from "../../../hooks/useResumes";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -124,12 +131,6 @@ type MatchContext = {
   selectedLocation: string;
   profile?: Profile | null;
 };
-
-type JobQueueScope = {
-  searchQuery: string;
-  location: string;
-  limit?: number;
-} | null;
 
 type MatchScoreRequestJob = {
   id: string;
@@ -816,6 +817,7 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
 export const JobPage = (): JSX.Element => {
   const isMobile = useMediaQuery("(max-width: 1023px)");
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const gamificationHook = useGamification();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("Remote");
@@ -880,6 +882,8 @@ export const JobPage = (): JSX.Element => {
     string | null
   >(null);
   const [jobToAutoApply, setJobToAutoApply] = useState<Job | null>(null);
+  const [activeSearchScope, setActiveSearchScope] =
+    useState<JobsQueueScope>(null);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasMatchScoreAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
   const hasAutoApplyAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
@@ -1322,6 +1326,76 @@ export const JobPage = (): JSX.Element => {
     decorateJobsRef.current = decorateJobs;
   }, [decorateJobs]);
 
+  useEffect(() => {
+    activeSearchScopeRef.current = activeSearchScope;
+  }, [activeSearchScope]);
+
+  const {
+    data: queriedJobs = [],
+    error: jobsQueryError,
+    isPending: jobsQueryPending,
+    isFetched: jobsQueryFetched,
+  } = useJobsQueue<Job>({
+    scope: activeSearchScope,
+    enabled: !profileLoading && !incrementalMode,
+    mapJob: mapDbJobToUiJob,
+    decorateJobs,
+  });
+
+  useEffect(() => {
+    if (profileLoading) {
+      setQueueStatus("loading");
+      return;
+    }
+
+    if (incrementalMode) {
+      return;
+    }
+
+    if (jobsQueryPending && !jobsQueryFetched) {
+      setQueueStatus("loading");
+      return;
+    }
+
+    if (jobsQueryError) {
+      setJobs([]);
+      setSelectedJob(null);
+      setErrorDedup({
+        message: (jobsQueryError as any)?.message || "Failed to load jobs.",
+      });
+      setQueueStatus("idle");
+      return;
+    }
+
+    if (!jobsQueryFetched) {
+      return;
+    }
+
+    setError(null);
+    setJobs(queriedJobs);
+
+    if (queriedJobs.length > 0) {
+      setQueueStatus("ready");
+      setSelectedJob((prev) => {
+        if (prev && queriedJobs.some((job) => job.id === prev)) return prev;
+        if (isMobile) return null;
+        return queriedJobs[0].id;
+      });
+    } else {
+      setSelectedJob(null);
+      setQueueStatus("empty");
+    }
+  }, [
+    incrementalMode,
+    isMobile,
+    jobsQueryError,
+    jobsQueryFetched,
+    jobsQueryPending,
+    profileLoading,
+    queriedJobs,
+    setErrorDedup,
+  ]);
+
   // Re-decorate jobs when context changes
   useEffect(() => {
     let active = true;
@@ -1618,9 +1692,18 @@ export const JobPage = (): JSX.Element => {
     [profile?.story_bank, safeInfo, updateProfile],
   );
 
-  const fetchJobQueue = useCallback(async (scope: JobQueueScope = activeSearchScopeRef.current): Promise<Job[]> => {
-    setQueueStatus("loading");
-    setError(null);
+  const fetchJobQueue = useCallback(
+    async (
+      scope: JobQueueScope = activeSearchScopeRef.current,
+    ): Promise<Job[]> => {
+      const nextScope = scope ?? null;
+      activeSearchScopeRef.current = nextScope;
+      setActiveSearchScope(nextScope);
+      setError(null);
+
+      if (!incrementalMode) {
+        setQueueStatus("loading");
+      }
     try {
       const {
         data: { user },
@@ -1697,7 +1780,7 @@ export const JobPage = (): JSX.Element => {
       setQueueStatus("idle");
       return [];
     }
-  }, []);
+  }, [incrementalMode, isMobile]);
 
   const runBackgroundEvaluations = useCallback(async () => {
     if (backgroundEvaluationRunnerRef.current || !hasMatchScoreAccess) return;
@@ -1775,6 +1858,7 @@ export const JobPage = (): JSX.Element => {
     setClearingJobs(true);
     setError(null);
     activeSearchScopeRef.current = null;
+    setActiveSearchScope(null);
 
     try {
       const { data: authData } = await supabase.auth.getUser();
@@ -1799,6 +1883,7 @@ export const JobPage = (): JSX.Element => {
       setSelectedJob(null);
       setQueueStatus("empty");
       setCurrentPage(1);
+      await queryClient.invalidateQueries({ queryKey: jobsQueueKeys.all });
 
       safeInfo(
         "All jobs cleared",
@@ -1809,7 +1894,7 @@ export const JobPage = (): JSX.Element => {
     } finally {
       setClearingJobs(false);
     }
-  }, [supabase, safeInfo, setErrorDedup]);
+  }, [queryClient, safeInfo, setErrorDedup, supabase]);
 
   const populateQueue = useCallback(
     async (query: string, _location?: string) => {
@@ -1941,6 +2026,7 @@ export const JobPage = (): JSX.Element => {
 
         if (searchData?.error) {
           activeSearchScopeRef.current = null;
+          setActiveSearchScope(null);
           if (searchData.error === "missing_api_key") {
             setErrorDedup({
               message:
@@ -2007,6 +2093,7 @@ export const JobPage = (): JSX.Element => {
         setStepIndex(1); // Stage 1: Saving Results
         setInsertedThisRun(inserted);
         activeSearchScopeRef.current = currentSearchScope;
+        setActiveSearchScope(currentSearchScope);
 
         // Transition to Finalizing
         if (inserted > 0) {
@@ -2038,6 +2125,7 @@ export const JobPage = (): JSX.Element => {
         setCurrentSource(null);
       } catch (e: any) {
         activeSearchScopeRef.current = null;
+        setActiveSearchScope(null);
         const fallbackJobs = await fetchJobQueue(null);
         setError({ message: `Failed to search jobs: ${e.message}` });
         if (fallbackJobs.length === 0) {
@@ -2753,14 +2841,6 @@ export const JobPage = (): JSX.Element => {
       return;
     }
 
-    // Define the initial loading sequence - only fetch existing jobs, don't auto-populate
-    const initialLoad = async () => {
-      await fetchJobQueue();
-      // Auto-population removed - users must explicitly click "Find Job"
-    };
-
-    initialLoad();
-
     // Set up the real-time subscription
     const channel = supabase
       .channel("jobs-queue-changes")
@@ -2770,7 +2850,7 @@ export const JobPage = (): JSX.Element => {
         () => {
           // During an active search/extraction run, avoid thrashing the UI
           if (incrementalMode) return;
-          fetchJobQueue();
+          void queryClient.invalidateQueries({ queryKey: jobsQueueKeys.all });
         },
       )
       .subscribe();
@@ -2778,7 +2858,7 @@ export const JobPage = (): JSX.Element => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profileLoading, fetchJobQueue, supabase, incrementalMode]);
+  }, [incrementalMode, profileLoading, queryClient, supabase]);
 
   // Effect to pre-fill search query from profile
   useEffect(() => {

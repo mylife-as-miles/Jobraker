@@ -82,8 +82,8 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[480px] bg-white dark:bg-background border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-50 rounded-2xl shadow-2xl p-0 overflow-hidden">
-                <div className="p-6">
+            <DialogContent className="sm:max-w-[520px] bg-white dark:bg-[#09090b] border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-50 rounded-3xl shadow-2xl p-0 overflow-visible">
+                <div className="p-8">
                     <DialogHeader className="mb-6">
                         <DialogTitle className="text-xl font-bold tracking-tight">Share Resume</DialogTitle>
                         <DialogDescription className="text-zinc-500 dark:text-zinc-400">
@@ -91,12 +91,12 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800/50 mb-6">
-                        <div className="flex flex-col gap-0.5">
-                            <span className="font-semibold text-sm">Public Access</span>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                    <div className="flex items-center justify-between p-5 bg-zinc-50 dark:bg-white/5 rounded-2xl border border-zinc-200 dark:border-white/10 mb-8">
+                        <div className="flex flex-col gap-1">
+                            <span className="font-bold text-sm tracking-tight text-zinc-900 dark:text-zinc-100">Public Access</span>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-[240px]">
                                 {canShare
-                                    ? "Share your resume via a public URL."
+                                    ? "Visible to anyone with the link. Track performance."
                                     : "Save this resume first to generate a public link."}
                             </p>
                         </div>
@@ -110,19 +110,21 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
 
                     {canShare && isPublic && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                            <div className="space-y-2">
-                                <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider ml-1">Share Link</label>
-                                <div className="flex items-center gap-2 p-3 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl group transition-all hover:border-zinc-300 dark:hover:border-zinc-700">
-                                    <Globe className="w-4 h-4 text-[#1dff00] shrink-0" />
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] ml-1">Share Link</label>
+                                <div className="flex items-center gap-3 p-4 bg-zinc-100/50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-2xl group transition-all hover:border-zinc-300 dark:hover:border-white/20">
+                                    <div className="w-8 h-8 rounded-lg bg-[#1dff00]/10 flex items-center justify-center shrink-0">
+                                        <Globe className="w-4 h-4 text-[#1dff00]" />
+                                    </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300 truncate select-all">
+                                        <p className="text-xs font-mono text-zinc-500 dark:text-zinc-400 truncate">
                                             {publicUrl}
                                         </p>
                                     </div>
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="h-8 px-3 text-xs gap-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                                        className="h-9 px-4 text-xs font-bold gap-2 hover:bg-zinc-200 dark:hover:bg-white/10 transition-all rounded-xl border border-transparent dark:border-zinc-800"
                                         onClick={copyToClipboard}
                                     >
                                         <Copy className="w-3.5 h-3.5" />
@@ -132,18 +134,18 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="relative overflow-hidden group p-5 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent dark:from-blue-500/5 rounded-2xl border border-blue-500/20 dark:border-blue-500/10 flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02]">
-                                    <div className="absolute -right-4 -top-4 w-12 h-12 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all" />
-                                    <Eye className="w-6 h-6 text-blue-500 mb-1" />
-                                    <span className="text-3xl font-black tracking-tight">{views || 0}</span>
-                                    <span className="text-[10px] text-blue-600/70 dark:text-blue-400/70 font-bold uppercase tracking-[0.1em]">Total Views</span>
+                                <div className="relative overflow-hidden group p-6 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center gap-1 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/80">
+                                    <div className="absolute -right-2 -top-2 w-16 h-16 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all" />
+                                    <Eye className="w-5 h-5 text-blue-500 mb-1" />
+                                    <span className="text-3xl font-bold tabular-nums">{views || 0}</span>
+                                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest">Total Views</span>
                                 </div>
 
-                                <div className="relative overflow-hidden group p-5 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent dark:from-emerald-500/5 rounded-2xl border border-emerald-500/20 dark:border-emerald-500/10 flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02]">
-                                    <div className="absolute -right-4 -top-4 w-12 h-12 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all" />
-                                    <Download className="w-6 h-6 text-emerald-500 mb-1" />
-                                    <span className="text-3xl font-black tracking-tight">{downloads || 0}</span>
-                                    <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 font-bold uppercase tracking-[0.1em]">Downloads</span>
+                                <div className="relative overflow-hidden group p-6 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center gap-1 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/80">
+                                    <div className="absolute -right-2 -top-2 w-16 h-16 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all" />
+                                    <Download className="w-5 h-5 text-emerald-500 mb-1" />
+                                    <span className="text-3xl font-bold tabular-nums">{downloads || 0}</span>
+                                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest">Downloads</span>
                                 </div>
                             </div>
                         </div>
