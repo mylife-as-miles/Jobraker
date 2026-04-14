@@ -248,11 +248,12 @@ const AGENT_FUNCTION_DECLARATIONS = [
   },
   {
     name: "update_resume",
-    description: "Update a resume's content. Can change the name displayed on the resume, headline, summary, contact info, or the resume's display name. Fetch list_resumes first to get the resume ID.",
+    description: "Update one or all resumes. Can change the person's name, headline, summary, contact info, or the display name. Pass resume_id to update one specific resume, OR set update_all=true to update ALL resumes at once. No need to call list_resumes first.",
     parameters: {
       type: "OBJECT" as const,
       properties: {
-        resume_id: { type: "STRING" as const, description: "The resume UUID (get from list_resumes)" },
+        resume_id: { type: "STRING" as const, description: "Optional: specific resume UUID. If omitted and update_all is true, all resumes are updated." },
+        update_all: { type: "BOOLEAN" as const, description: "If true, apply changes to ALL of the user's resumes." },
         display_name: { type: "STRING" as const, description: "Rename the resume in the list, e.g. 'Osita Miles - Senior AI Developer'" },
         full_name: { type: "STRING" as const, description: "The person's full name shown on the resume" },
         headline: { type: "STRING" as const, description: "Professional headline on the resume" },
@@ -261,7 +262,6 @@ const AGENT_FUNCTION_DECLARATIONS = [
         location: { type: "STRING" as const, description: "Location shown on the resume" },
         summary: { type: "STRING" as const, description: "Professional summary paragraph on the resume" },
       },
-      required: ["resume_id"],
     },
   },
   {
@@ -505,32 +505,49 @@ async function executeTool(
     }
 
     case "update_resume": {
-      const { data: resume, error: fetchErr } = await sb
-        .from("resumes")
-        .select("id, name, data")
-        .eq("id", args.resume_id)
-        .maybeSingle();
-      if (fetchErr || !resume) return { success: false, error: fetchErr?.message || "Resume not found" };
+      let resumes: any[] = [];
+      if (args.resume_id) {
+        const { data, error } = await sb.from("resumes").select("id, name, data").eq("id", args.resume_id);
+        if (error) return { success: false, error: error.message };
+        resumes = data || [];
+      } else {
+        const { data, error } = await sb.from("resumes").select("id, name, data").order("updated_at", { ascending: false });
+        if (error) return { success: false, error: error.message };
+        resumes = data || [];
+        if (!args.update_all && resumes.length > 1) {
+          resumes = [resumes[0]];
+        }
+      }
+      if (resumes.length === 0) return { success: false, error: "No resumes found" };
 
-      const currentData = (resume.data && typeof resume.data === "object" ? resume.data : {}) as Record<string, any>;
-      const basics = { ...(currentData.basics || {}) };
-      const summary = { ...(currentData.summary || {}) };
-      const changed: string[] = [];
+      const results: string[] = [];
+      for (const resume of resumes) {
+        const currentData = (resume.data && typeof resume.data === "object" ? resume.data : {}) as Record<string, any>;
+        const basics = { ...(currentData.basics || {}) };
+        const summary = { ...(currentData.summary || {}) };
+        const changed: string[] = [];
 
-      if (args.full_name) { basics.name = args.full_name; changed.push("name on resume"); }
-      if (args.headline) { basics.headline = args.headline; changed.push("headline"); }
-      if (args.email) { basics.email = args.email; changed.push("email"); }
-      if (args.phone) { basics.phone = args.phone; changed.push("phone"); }
-      if (args.location) { basics.location = args.location; changed.push("location"); }
-      if (args.summary) { summary.content = args.summary; summary.hidden = false; changed.push("summary"); }
+        if (args.full_name) { basics.name = args.full_name; changed.push("name"); }
+        if (args.headline) { basics.headline = args.headline; changed.push("headline"); }
+        if (args.email) { basics.email = args.email; changed.push("email"); }
+        if (args.phone) { basics.phone = args.phone; changed.push("phone"); }
+        if (args.location) { basics.location = args.location; changed.push("location"); }
+        if (args.summary) { summary.content = args.summary; summary.hidden = false; changed.push("summary"); }
 
-      const newData = { ...currentData, basics, summary };
-      const patch: Record<string, any> = { data: newData, updated_at: new Date().toISOString() };
-      if (args.display_name) { patch.name = args.display_name; changed.push("display name"); }
+        const newData = { ...currentData, basics, summary };
+        const patch: Record<string, any> = { data: newData, updated_at: new Date().toISOString() };
+        if (args.display_name) { patch.name = args.display_name; changed.push("display name"); }
 
-      const { error: updateErr } = await sb.from("resumes").update(patch).eq("id", args.resume_id);
-      if (updateErr) return { success: false, error: updateErr.message };
-      return { success: true, updated: changed, resume_id: args.resume_id };
+        if (changed.length === 0) continue;
+
+        const { error: updateErr } = await sb.from("resumes").update(patch).eq("id", resume.id);
+        if (updateErr) {
+          results.push(`Failed to update "${resume.name}": ${updateErr.message}`);
+        } else {
+          results.push(`Updated "${resume.name}" (${changed.join(", ")})`);
+        }
+      }
+      return { success: true, results, updated_count: results.length };
     }
 
     case "update_application_status": {
