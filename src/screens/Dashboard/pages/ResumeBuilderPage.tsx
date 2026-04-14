@@ -70,6 +70,138 @@ function buildHydratedResumeState(remoteResume: any, data = initialResumeState.d
   };
 }
 
+function fallbackSection(sectionId: string, section?: Record<string, any>) {
+  return {
+    id: section?.id || sectionId,
+    title:
+      section?.title ||
+      sectionId.charAt(0).toUpperCase() + sectionId.slice(1).replace(/-/g, " "),
+    columns: 1,
+    hidden: false,
+    items: [],
+    type: "basic" as const,
+  };
+}
+
+function mergeResumeSection(
+  baseSection: any,
+  sectionId: string,
+  section?: Record<string, any>,
+) {
+  const fallback = baseSection ?? fallbackSection(sectionId, section);
+
+  return {
+    ...fallback,
+    ...section,
+    id: section?.id || fallback.id,
+    title: section?.title || fallback.title,
+    columns: section?.columns ?? fallback.columns,
+    hidden: section?.hidden ?? fallback.hidden,
+    items: Array.isArray(section?.items) ? section.items : fallback.items,
+    type: section?.type ?? fallback.type,
+  };
+}
+
+function normalizeResumeDataForEditor(data: unknown, fallbackTitle?: string) {
+  const base = structuredClone(initialResumeState.data);
+
+  if (!data || typeof data !== "object") {
+    return {
+      ...base,
+      title: fallbackTitle || base.title,
+    };
+  }
+
+  const source = data as Record<string, any>;
+  const mergedSections = { ...base.sections } as typeof base.sections;
+
+  for (const [sectionId, section] of Object.entries(
+    (source.sections as Record<string, Record<string, any>>) ?? {},
+  )) {
+    mergedSections[sectionId] = mergeResumeSection(
+      mergedSections[sectionId],
+      sectionId,
+      section,
+    );
+  }
+
+  return {
+    ...base,
+    ...source,
+    title:
+      typeof source.title === "string" && source.title.trim()
+        ? source.title
+        : fallbackTitle || base.title,
+    basics: {
+      ...base.basics,
+      ...(source.basics as Record<string, any> | undefined),
+      website: {
+        ...base.basics.website,
+        ...((source.basics as Record<string, any> | undefined)?.website ?? {}),
+      },
+      customFields: Array.isArray(
+        (source.basics as Record<string, any> | undefined)?.customFields,
+      )
+        ? (source.basics as Record<string, any>).customFields
+        : base.basics.customFields,
+      profiles: Array.isArray(
+        (source.basics as Record<string, any> | undefined)?.profiles,
+      )
+        ? (source.basics as Record<string, any>).profiles
+        : base.basics.profiles,
+      picture:
+        (source.basics as Record<string, any> | undefined)?.picture ??
+        base.basics.picture,
+    },
+    summary: {
+      ...base.summary,
+      ...(source.summary as Record<string, any> | undefined),
+      items: Array.isArray(
+        (source.summary as Record<string, any> | undefined)?.items,
+      )
+        ? (source.summary as Record<string, any>).items
+        : base.summary.items,
+    },
+    sections: mergedSections,
+    metadata: {
+      ...base.metadata,
+      ...(source.metadata as Record<string, any> | undefined),
+      layout: {
+        ...base.metadata.layout,
+        ...((source.metadata as Record<string, any> | undefined)?.layout ?? {}),
+        pages: Array.isArray(
+          (source.metadata as Record<string, any> | undefined)?.layout?.pages,
+        )
+          ? (source.metadata as Record<string, any>).layout.pages
+          : base.metadata.layout.pages,
+      },
+      page: {
+        ...base.metadata.page,
+        ...((source.metadata as Record<string, any> | undefined)?.page ?? {}),
+        options: {
+          ...base.metadata.page.options,
+          ...((source.metadata as Record<string, any> | undefined)?.page
+            ?.options ?? {}),
+        },
+      },
+      typography: {
+        ...base.metadata.typography,
+        ...((source.metadata as Record<string, any> | undefined)?.typography ??
+          {}),
+        font: {
+          ...base.metadata.typography.font,
+          ...((source.metadata as Record<string, any> | undefined)?.typography
+            ?.font ?? {}),
+        },
+      },
+      theme: {
+        ...base.metadata.theme,
+        ...((source.metadata as Record<string, any> | undefined)?.theme ?? {}),
+      },
+    },
+  };
+}
+
 function normalizeHydrationValue(value: unknown) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
@@ -243,6 +375,12 @@ const ResumeBuilderPage = () => {
       if (cancelled) return;
 
       const remoteResume = remoteResumeResult.data;
+      const normalizedRemoteData = remoteResume
+        ? normalizeResumeDataForEditor(
+            remoteResume.data,
+            remoteResume.name || initialResumeState.data.title,
+          )
+        : null;
 
       if (remoteResumeResult.error) {
         if (localDraft?.resume) {
@@ -258,12 +396,26 @@ const ResumeBuilderPage = () => {
             "We couldn't load this resume. You'll be using a fresh template.",
           );
         }
-      } else if (remoteResume?.data && !looksLikePlaceholderResumeData(remoteResume.data)) {
-        const remoteState = buildHydratedResumeState(remoteResume, remoteResume.data);
+      } else if (
+        remoteResume &&
+        normalizedRemoteData &&
+        !looksLikePlaceholderResumeData(normalizedRemoteData)
+      ) {
+        const remoteState = buildHydratedResumeState(
+          remoteResume,
+          normalizedRemoteData,
+        );
         serverUpdatedAtRef.current = remoteResume.updated_at ?? null;
         lastDraftSignatureRef.current = JSON.stringify(remoteState);
         setResume(remoteState);
+        setResumeId(remoteResume.id);
       } else if (remoteResume) {
+        const canRestoreLocalDraft =
+          Boolean(localDraft?.resume) &&
+          !looksLikePlaceholderResumeData(localDraft?.resume?.data) &&
+          (!remoteResume.updated_at ||
+            !localDraft?.sourceUpdatedAt ||
+            localDraft.sourceUpdatedAt === remoteResume.updated_at);
         const parsedProfile = await loadParsedResumeProfileData({
           supabase,
           resumeId: remoteResume.id,
@@ -275,9 +427,9 @@ const ResumeBuilderPage = () => {
         const hydratedData = parsedProfile
           ? mapParsedDataToResume(
               parsedProfile,
-              structuredClone(remoteResume.data ?? initialResumeState.data),
+              structuredClone(normalizedRemoteData ?? initialResumeState.data),
             )
-          : {
+          : normalizedRemoteData ?? {
               ...structuredClone(initialResumeState.data),
               title: remoteResume.name || initialResumeState.data.title,
             };
@@ -289,7 +441,10 @@ const ResumeBuilderPage = () => {
         setResumeId(remoteResume.id);
 
         if (parsedProfile) {
-          if (looksLikePlaceholderResumeData(remoteResume.data)) {
+          if (
+            normalizedRemoteData &&
+            looksLikePlaceholderResumeData(normalizedRemoteData)
+          ) {
             const repairTimestamp = new Date().toISOString();
             serverUpdatedAtRef.current = repairTimestamp;
 
@@ -313,7 +468,7 @@ const ResumeBuilderPage = () => {
           );
           await removeResumeDraft(draftStorageKey);
           setLastDraftSavedAt(null);
-        } else if (localDraft?.resume) {
+        } else if (canRestoreLocalDraft && localDraft?.resume) {
           serverUpdatedAtRef.current = localDraft.sourceUpdatedAt ?? null;
           lastDraftSignatureRef.current = JSON.stringify(localDraft.resume);
           setResume(localDraft.resume);

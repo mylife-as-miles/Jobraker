@@ -9,7 +9,7 @@ import { ResumeTemplateRenderer } from "@/templates/render-resume-template";
 
 const PREVIEW_BASE_WIDTH = 794;
 const PREVIEW_BASE_HEIGHT = 1123;
-const PREVIEW_FRAME_PADDING = 24;
+const PREVIEW_FRAME_PADDING = 8;
 
 type ResumePreviewInput = Partial<ResumeData> & {
   basics?: Partial<ResumeData["basics"]>;
@@ -140,7 +140,7 @@ export const ResumePreviewCard: React.FC<ResumePreviewCardProps> = ({
   );
 
   const resolvedTemplateId =
-    templateId || previewData?.metadata.template || "azurill";
+    previewData?.metadata.template || templateId || "azurill";
 
   useEffect(() => {
     const updateScale = () => {
@@ -160,8 +160,10 @@ export const ResumePreviewCard: React.FC<ResumePreviewCardProps> = ({
 
       const nextScale = Math.min(
         1,
-        availableWidth / PREVIEW_BASE_WIDTH,
-        availableHeight / PREVIEW_BASE_HEIGHT,
+        Math.max(
+          availableWidth / PREVIEW_BASE_WIDTH,
+          availableHeight / PREVIEW_BASE_HEIGHT,
+        ),
       );
 
       setScale(Number(nextScale.toFixed(4)));
@@ -199,28 +201,34 @@ export const ResumePreviewCard: React.FC<ResumePreviewCardProps> = ({
   return (
     <div
       ref={containerRef}
-      className="flex h-full w-full items-center justify-center overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-3"
+      className="relative h-full w-full overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-2"
     >
       <div
-        className="relative shrink-0 overflow-hidden rounded-[14px] border border-black/5 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
-        style={{
-          width: `${PREVIEW_BASE_WIDTH * scale}px`,
-          height: `${PREVIEW_BASE_HEIGHT * scale}px`,
-        }}
+        className="relative h-full w-full overflow-hidden rounded-[14px] border border-black/5 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
       >
         <div
-          className="pointer-events-none origin-top-left select-none"
+          className="pointer-events-none absolute left-1/2 top-0 select-none"
           style={{
             width: `${PREVIEW_BASE_WIDTH}px`,
             height: `${PREVIEW_BASE_HEIGHT}px`,
-            transform: `scale(${scale})`,
+            transform: "translateX(-50%)",
           }}
         >
-          <ResumeTemplateRenderer
-            templateId={resolvedTemplateId}
-            pageLayout={previewLayout}
-            resumeDataOverride={previewData}
-          />
+          <div
+            className="origin-top"
+            style={{
+              width: `${PREVIEW_BASE_WIDTH}px`,
+              height: `${PREVIEW_BASE_HEIGHT}px`,
+              transform: `scale(${scale})`,
+              transformOrigin: "top center",
+            }}
+          >
+            <ResumeTemplateRenderer
+              templateId={resolvedTemplateId}
+              pageLayout={previewLayout}
+              resumeDataOverride={previewData}
+            />
+          </div>
         </div>
       </div>
     </div>
