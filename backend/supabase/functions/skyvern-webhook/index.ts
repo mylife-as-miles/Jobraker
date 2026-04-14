@@ -139,6 +139,57 @@ serve(async (req) => {
       });
     }
 
+    // --- In-App Notification & Email Dispatch ---
+    try {
+      const emailTitle = isFailed ? "Job Application Failed" : "Job Application Submitted!";
+      const emailMessage = isFailed 
+        ? `Your AI application was marked as failed.${failureReason ? ' Reason: ' + failureReason : ''}`
+        : "Your AI application was successfully completed.";
+      
+      // 1. Insert In-App Notification
+      const { error: notifError } = await supabase
+        .from("notifications")
+        .insert({
+          user_id: applicationRow.user_id,
+          title: emailTitle,
+          message: emailMessage,
+          type: "application",
+        });
+        
+      if (notifError) console.error("Failed to insert notification:", notifError);
+
+      // 2. Fetch User's Email to send Zoho Email
+      // Since we only have user_id, we need their email address.
+      // Deno Supabase client allows using admin auth to get user data if keys permit, 
+      // or we can select from 'profiles' if email is duplicated there (usually auth.users is best, or trigger email off auth endpoint).
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(applicationRow.user_id);
+      
+      if (!userError && userData?.user?.email) {
+        // Send email via the 'send-email' edge function we created 
+        // We invoke our own function using the supabaseUrl so it stays within the edge ecosystem
+        const sendEmailReq = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseKey}`,
+          },
+          body: JSON.stringify({
+            to: userData.user.email,
+            subject: emailTitle,
+            html_content: `<h3>${emailTitle}</h3><p>${emailMessage}</p><p>Check your dashboard for details.</p>`
+          })
+        });
+        if (!sendEmailReq.ok) {
+           console.error("Failed to trigger send-email function from skyvern-webhook", await sendEmailReq.text());
+        }
+      } else {
+        console.error("Could not fetch user email for notification dispatch.", userError);
+      }
+    } catch (dispatchErr) {
+      console.error("Error dispatching notification/email:", dispatchErr);
+    }
+    // --- End Notification Dispatch ---
+
     if (applicationRow.job_id) {
       const { error: jobUpdateError } = await supabase
         .from("jobs")

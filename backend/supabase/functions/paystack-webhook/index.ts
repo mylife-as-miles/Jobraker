@@ -294,6 +294,50 @@ serve(async (req) => {
             }
           }
         }
+
+        // --- In-App Notification & Email Dispatch ---
+        try {
+          const emailTitle = "Payment Successful";
+          const emailMessage = order.plan_type === "subscription" 
+            ? "Your subscription was successfully activated." 
+            : "Your credit pack was successfully purchased.";
+          
+          // 1. Insert In-App Notification
+          const { error: notifError } = await supabaseAdmin
+            .from("notifications")
+            .insert({
+              user_id: userId,
+              title: emailTitle,
+              message: emailMessage,
+              type: "credit",
+            });
+            
+          if (notifError) console.error("Failed to insert notification:", notifError);
+
+          // 2. Fetch User's Email to send Zoho Email
+          const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
+          
+          if (!userError && userData?.user?.email) {
+            const sendEmailReq = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({
+                to: userData.user.email,
+                subject: emailTitle,
+                html_content: `<h3>${emailTitle}</h3><p>${emailMessage}</p><p>Thank you for using JobRaker.</p>`
+              })
+            });
+            if (!sendEmailReq.ok) {
+               console.error("Failed to trigger send-email function from paystack-webhook", await sendEmailReq.text());
+            }
+          }
+        } catch (dispatchErr) {
+          console.error("Error dispatching payment notification/email:", dispatchErr);
+        }
+        // --- End Notification Dispatch ---
       }
     }
 
