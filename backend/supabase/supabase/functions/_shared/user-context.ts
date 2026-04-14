@@ -100,7 +100,10 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     global: { headers: { Authorization: authHeader } },
   });
 
-  const candidateMemoryPromise = fetchCandidateMemory(supabase, userId).catch(() => null);
+  const candidateMemoryPromise = Promise.race([
+    fetchCandidateMemory(supabase, userId).catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+  ]);
   const [
     profileRes,
     resumeRes,

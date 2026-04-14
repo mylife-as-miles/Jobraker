@@ -325,16 +325,57 @@ Deno.serve(async (req) => {
 
     const ai = createGeminiClient();
 
-    // Fetch user context
+    // Fetch user context with timeout
     let userContext: UserContext | null = null;
+    let contextError: string | null = null;
     try {
-      userContext = await fetchUserContext(userId, authHeader);
+      const contextPromise = fetchUserContext(userId, authHeader);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Context fetch timed out after 8s")), 8000),
+      );
+      userContext = await Promise.race([contextPromise, timeoutPromise]);
       if (userContext) {
         userContext.email = user.email ?? "";
         userContext.subscriptionTier = subscriptionTier;
       }
-    } catch (e) {
-      console.error("Failed to fetch user context:", e);
+    } catch (e: any) {
+      contextError = e?.message || "Unknown error";
+      console.error("Failed to fetch user context:", contextError);
+    }
+
+    // If rich context failed, try a minimal direct query
+    if (!userContext) {
+      try {
+        const sb = createAuthedSupabaseClient(authHeader);
+        const [profileRes, jobCountRes, appCountRes] = await Promise.all([
+          sb.from("profiles").select("first_name, last_name, job_title, location, skills").single(),
+          sb.from("jobs").select("id", { count: "exact", head: true }),
+          sb.from("applications").select("id", { count: "exact", head: true }),
+        ]);
+        const p = profileRes.data;
+        const name = p ? `${p.first_name || ""} ${p.last_name || ""}`.trim() || "User" : "User";
+        userContext = {
+          userId,
+          name,
+          email: user.email ?? "",
+          headline: p?.job_title || null,
+          resumeSummary: null,
+          candidateMemorySummary: null,
+          recentChatTitles: [],
+          subscriptionTier,
+          credits: 0,
+          applicationCount: appCountRes.count || 0,
+          jobCount: jobCountRes.count || 0,
+          resumeCount: 0,
+          recentApplications: [],
+          recentJobs: [],
+          recentCoverLetters: [],
+          resumes: [],
+        };
+        console.log("Used fallback context:", { jobCount: userContext.jobCount, appCount: userContext.applicationCount });
+      } catch (fallbackErr: any) {
+        console.error("Fallback context also failed:", fallbackErr?.message);
+      }
     }
 
     // Build system instruction
@@ -349,6 +390,8 @@ Deno.serve(async (req) => {
     if (userContext) {
       const contextStr = formatUserContextForPrompt(userContext);
       systemInstruction = `User Info:\n${contextStr}\n\n${systemInstruction}`;
+    } else {
+      systemInstruction = `NOTE: The user's account data could not be loaded due to a temporary error (${contextError || "unknown"}). Inform the user that you're having trouble accessing their data and suggest they try again in a moment. Do NOT say they have zero jobs or applications — the data simply couldn't be retrieved.\n\n${systemInstruction}`;
     }
 
     if (mode === "agent") {

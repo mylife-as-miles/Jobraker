@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jobraker — Architecture Diagrams</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #1e1e2e;
+      --surface: #282a36;
+      --text: #cdd6f4;
+      --accent: #89b4fa;
+      --border: #45475a;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      padding: 2rem;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+      color: var(--accent);
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 0.95rem;
+      color: #a6adc8;
+      margin-bottom: 2.5rem;
+    }
+    .diagram-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      overflow-x: auto;
+    }
+    .diagram-section h2 {
+      font-size: 1.15rem;
+      margin-bottom: 1.25rem;
+      color: #f5c2e7;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+    .mermaid svg {
+      max-width: 100%;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+    }
+    .legend-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Jobraker — Full Architecture</h1>
+<p class="subtitle">End-to-end sequence diagrams for the job search platform</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#89b4fa"></div> Frontend</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#a6e3a1"></div> Edge Functions</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f9e2af"></div> Database</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f38ba8"></div> External APIs</div>
+</div>
+
+<!-- 1. ONBOARDING & PROFILE -->
+<div class="diagram-section">
+  <h2>1 — Onboarding & Profile Setup</h2>
+  <pre class="mermaid">
+sequenceDiagram
+    participant FE as Frontend Onboarding
+    participant PR as parse-resume
+    participant DB as Supabase DB
+    participant GM as Gemini API
+
+    FE->>DB: Sign up via Supabase Auth
+    DB-->>FE: Session + JWT
+
+    FE->>FE: Multi-step profile form
+    FE->>DB: INSERT profiles, skills, education, experiences
+
+    rect rgba(100,100,200,0.1)
+    Note over FE,GM: Optional Resume Upload
+    FE->>PR: POST /functions/v1/parse-resume
+    PR->>GM: generateContent - structured extraction
+    GM-->>PR: Parsed resume JSON
+    PR->>DB: UPSERT parsed_resumes
+    PR-->>FE: Parsed fields
+    FE->>DB: UPDATE profiles with parsed data
+    end
+
+    FE->>DB: INSERT candidate_memory
+    FE-->>FE: Redirect to /dashboard/jobs
+  </pre>
+</div>
+
+<!-- 2. JOB DISCOVERY -->
+<div class="diagram-section">
+  <h2>2 — Job Discovery & Search</h2>
+  <pre class="mermaid">
+sequenceDiagram
+    participant FE as Frontend JobPage
+    participant JS as jobs-search
+    participant FC as Firecrawl API
+    participant GM as Gemini API
+    participant DB as Supabase DB
+
+    FE->>DB: Read job_source_settings
+    DB-->>FE: Allowed domains + preferences
+
+    FE->>JS: POST /functions/v1/jobs-search
+    JS->>DB: Load job_source_settings
+    DB-->>JS: Allowed domains list
+
+    JS->>FC: POST /v1/search - Google-style query
+    FC-->>JS: Search results with URLs
+
+    loop For each result
+        JS->>FC: POST /v1/scrape job URL
+        FC-->>JS: Raw page content
+        JS->>GM: generateContent - extract title, company, salary, reqs
+        GM-->>JS: Extracted job JSON
+    end
+
+    JS->>DB: INSERT INTO jobs per-user
+    JS-->>FE: Job list response
+
+    FE->>FE: Display job cards in queue
+
+    rect rgba(100,200,100,0.1)
+    Note over FE,GM: URL-based Intake Alternative
+    FE->>JS: POST /functions/v1/intake-job-url
+    JS->>FC: Firecrawl extract
+    FC-->>JS: Page content
+    JS->>GM: Gemini parse
+    GM-->>JS: Structured job
+    JS->>DB: UPSERT jobs
+    JS-->>FE: Extracted job
+    end
+  </pre>
+</div>
+
+<!-- 3. EVALUATION & RANKING -->
+<div class="diagram-section">
+  <h2>3 — Job Evaluation & Match Scoring</h2>
+  <pre class="mermaid">
+sequenceDiagram
+    participant FE as Frontend JobPage
+    participant MS as calculate-match-score
+    participant EV as evaluate-job-fit
+    participant GM as Gemini API
+    participant DB as Supabase DB
+
+    Note over FE: Job list loaded from jobs table
+
+    FE->>MS: POST /functions/v1/calculate-match-score
+    MS->>DB: Load profile + skills + experiences
+    DB-->>MS: User profile data
+    MS->>DB: Load jobs by IDs
+    DB-->>MS: Job details
+    MS->>GM: generateContent - batch match scoring
+    GM-->>MS: Scores + reasoning per job
+    MS-->>FE: Match scores with breakdowns
+
+    FE->>FE: Sort and badge jobs by match %
+
+    rect rgba(200,100,100,0.1)
+    Note over FE,DB: Deep Evaluation per job
+    FE->>EV: POST /functions/v1/evaluate-job-fit
+    EV->>DB: Load profile + candidate_memory + parsed_resume
+    DB-->>EV: Full candidate context
+    EV->>DB: Load job details
+    DB-->>EV: Job record
+    EV->>GM: generateContent - detailed fit analysis
+    GM-->>EV: Structured evaluation report
+    EV->>DB: INSERT job_evaluations + UPDATE jobs.evaluation_summary
+    EV-->>FE: Evaluation report
+    FE->>FE: Show fit report card
+    end
+  </pre>
+</div>
+
+<!-- 4. APPLICATION & AUTO-APPLY -->
+<div class="diagram-section">
+  <h2>4 — Application & Auto-Apply via Skyvern</h2>
+  <pre class="mermaid">
+sequenceDiagram
+    participant FE as Frontend JobPage
+    participant AP as apply-to-jobs
+    participant SK as Skyvern API
+    participant WH as skyvern-webhook
+    participant DB as Supabase DB
+    participant AT as Frontend ApplicationPage
+
+    FE->>AP: POST /functions/v1/apply-to-jobs
+
+    AP->>DB: Load job details + profile
+    DB-->>AP: Job record + candidate data
+
+    AP->>DB: Load source_credentials encrypted
+    DB-->>AP: Per-domain credentials
+    AP->>AP: Decrypt credentials
+
+    AP->>SK: POST /v1/run/workflows
+    SK-->>AP: run_id
+
+    AP->>DB: INSERT applications status in_progress
+    AP-->>FE: applicationId + run_id
+
+    FE->>FE: Show Applying status
+
+    loop Poll status
+        FE->>SK: GET /functions/v1/get-run/run_id
+        SK-->>FE: Current run status
+    end
+
+    SK->>WH: POST webhook with run_id + status
+    WH->>DB: UPDATE applications SET status + recording_url
+
+    rect rgba(100,200,100,0.1)
+    Note over WH,DB: On successful apply
+    WH->>DB: DELETE FROM jobs WHERE applied
+    end
+
+    AT->>DB: SELECT FROM applications
+    DB-->>AT: Application records
+    AT->>AT: Render Kanban tracker
+  </pre>
+</div>
+
+<!-- 5. RESUME & COVER LETTER -->
+<div class="diagram-section">
+  <h2>5 — Resume & Cover Letter Generation</h2>
+  <pre class="mermaid">
+sequenceDiagram
+    participant FE as Frontend Resume/CoverLetter
+    participant AR as ai-generate-resume
+    participant CL as generate-cover-letter
+    participant AN as analyze-resume
+    participant TR as tailor-resume
+    participant GM as Gemini API
+    participant DB as Supabase DB
+
+    Note over FE: Resume Generation Flow
+    FE->>AR: POST /functions/v1/ai-generate-resume
+    AR->>DB: Load profile + experiences + skills
+    DB-->>AR: Profile data
+    AR->>GM: generateContent - full resume prompt
+    GM-->>AR: Resume JSON
+    AR->>DB: INSERT resumes
+    AR-->>FE: Generated resume
+
+    rect rgba(200,200,100,0.1)
+    Note over FE,DB: Analyze Existing Resume
+    FE->>AN: POST /functions/v1/analyze-resume
+    AN->>DB: Load profile
+    DB-->>AN: Profile data
+    AN->>GM: generateContent - ATS score + gaps
+    GM-->>AN: Analysis JSON
+    AN->>DB: INSERT resume_analyses
+    AN-->>FE: Analysis report
+    end
+
+    rect rgba(100,200,200,0.1)
+    Note over FE,DB: Tailor Resume to Job
+    FE->>TR: POST /functions/v1/tailor-resume
+    TR->>DB: Load resume + job details
+    DB-->>TR: Resume + job data
+    TR->>GM: generateContent - tailor to requirements
+    GM-->>TR: Tailored resume
+    TR-->>FE: Tailored version
+    end
+
+    Note over FE: Cover Letter Flow
+    FE->>CL: POST /functions/v1/generate-cover-letter
+    CL->>DB: Load profile + collections + candidate_memory
+    DB-->>CL: Full context
+    CL->>GM: generateContent Gemini Pro - personalized letter
+    GM-->>CL: Cover letter text
+    CL->>DB: INSERT cover_letters
+    CL-->>FE: Generated cover letter
+  </pre>
+</div>
+
+<!-- 6. AI CHAT -->
+<div class="diagram-section">
+  <h2>6 — AI Chat Assistant - Ask & Agent Modes</h2>
+  <pre class="mermaid">
+sequenceDiagram
+    participant FE as Frontend ChatPage
+    participant AC as ai-chat Edge Function
+    participant DB as Supabase DB
+    participant EF as Other Edge Functions
+    participant GM as Gemini API
+
+    FE->>AC: POST /functions/v1/ai-chat mode agent + messages
+
+    AC->>DB: fetchUserContext - profile, jobs, apps, resumes, credits, memory
+    DB-->>AC: UserContext object
+
+    AC->>GM: generateContent with messages + functionDeclarations
+    GM-->>AC: Response with functionCall parts
+
+    loop Up to 5 tool turns
+        AC-->>FE: SSE tool_call event
+
+        alt DB tool - list_applications or list_recent_jobs
+            AC->>DB: Query with user auth token
+            DB-->>AC: Query results
+        else run_job_search
+            AC->>EF: POST /functions/v1/jobs-search
+            EF-->>AC: Search results
+        else evaluate_job_fit
+            AC->>EF: POST /functions/v1/evaluate-job-fit
+            EF-->>AC: Evaluation report
+        else apply_to_job
+            AC->>EF: POST /functions/v1/apply-to-jobs
+            EF-->>AC: Application status
+        else intake_job_url
+            AC->>EF: POST /functions/v1/intake-job-url
+            EF-->>AC: Extracted job
+        else generate_cover_letter
+            AC->>EF: POST /functions/v1/generate-cover-letter
+            EF-->>AC: Cover letter
+        end
+
+        AC->>GM: generateContent with functionResponse
+        GM-->>AC: Next response - text or more calls
+    end
+
+    AC-->>FE: SSE message events - streamed text
+    AC-->>FE: SSE done event
+
+    FE->>DB: UPDATE chat_sessions messages + response_id
+
+    rect rgba(200,100,200,0.1)
+    Note over FE,GM: First message in session
+    FE->>EF: POST /functions/v1/generate-title
+    EF->>GM: generateContent - short title
+    GM-->>EF: Title text
+    EF-->>FE: Session title
+    FE->>DB: UPDATE chat_sessions.title
+    end
+  </pre>
+</div>
+
+<!-- 7. BACKGROUND CRON -->
+<div class="diagram-section">
+  <h2>7 — Background Jobs & Cron Ingestion</h2>
+  <pre class="mermaid">
+sequenceDiagram
+    participant CR as jobs-cron Scheduled
+    participant RM as Remotive API
+    participant RO as RemoteOK API
+    participant AN as ArbeitNow API
+    participant FC as Firecrawl API
+    participant GM as Gemini API
+    participant DB as Supabase DB
+
+    Note over CR: Runs on schedule with service-role
+
+    CR->>RM: GET /api/remote-jobs
+    RM-->>CR: Job listings JSON
+    CR->>RO: GET /api
+    RO-->>CR: Job listings JSON
+    CR->>AN: GET /api/jobs
+    AN-->>CR: Job listings JSON
+
+    CR->>CR: Normalize + deduplicate
+
+    loop New or updated listings
+        CR->>FC: POST /v1/scrape if needed
+        FC-->>CR: Page content
+        CR->>GM: generateContent - extract structured fields
+        GM-->>CR: Structured job JSON
+        CR->>CR: parseSalaryRangeToMinMax
+    end
+
+    CR->>DB: UPSERT INTO jobs and job_listings batch
+    Note over CR,DB: Also triggers process-job-search for queued user searches
+  </pre>
+</div>
+
+<!-- 8. PAYMENTS -->
+<div class="diagram-section">
+  <h2>8 — Payments & Subscription Gating</h2>
+  <pre class="mermaid">
+sequenceDiagram
+    participant FE as Frontend PricingPage
+    participant IP as init-payment
+    participant FX as Exchange Rate API
+    participant PS as Paystack API
+    participant WH as paystack-webhook
+    participant DB as Supabase DB
+
+    FE->>IP: POST /functions/v1/init-payment
+    IP->>FX: GET open.er-api.com USD to NGN
+    FX-->>IP: Exchange rate
+    IP->>IP: Calculate amount in NGN
+    IP->>PS: POST /transaction/initialize
+    PS-->>IP: authorization_url + reference
+    IP-->>FE: Redirect URL
+    FE->>FE: Redirect to Paystack checkout
+
+    PS->>WH: POST webhook event
+    WH->>PS: GET /transaction/verify/ref
+    PS-->>WH: Verified transaction
+    WH->>DB: UPDATE user_subscriptions + INSERT user_credits
+    WH-->>PS: 200 OK
+
+    Note over FE,DB: Tier gates: Pro = AI Chat + Agent | Basics+ = Auto-apply + Evaluation | Free = Limited
+  </pre>
+</div>
+
+<!-- 9. FULL SYSTEM OVERVIEW -->
+<div class="diagram-section">
+  <h2>9 — Full System Overview - Component Map</h2>
+  <pre class="mermaid">
+graph TB
+    subgraph Frontend ["Frontend - React + Vite"]
+        ON[Onboarding]
+        JP[JobPage]
+        AP[ApplicationPage]
+        CP[ChatPage]
+        RP[ResumePage]
+        CLP[CoverLetterPage]
+        PP[ProfilePage]
+        IS[InterviewStudio]
+        PR[PricingPage]
+    end
+
+    subgraph Edge ["Supabase Edge Functions - Deno"]
+        JS[jobs-search]
+        PJS[process-job-search]
+        PM[process-and-match]
+        IU[intake-job-url]
+        EJ[enrich-jobs]
+        JC[jobs-cron]
+        GJ[get-jobs]
+        MS[calculate-match-score]
+        EV[evaluate-job-fit]
+        ATJ[apply-to-jobs]
+        GR[get-run]
+        SW[skyvern-webhook]
+        AC[ai-chat]
+        GT[generate-title]
+        PRR[parse-resume]
+        AGR[ai-generate-resume]
+        ANR[analyze-resume]
+        TR[tailor-resume]
+        GCL[generate-cover-letter]
+        IP2[init-payment]
+        PWH[paystack-webhook]
+        CGA[composio-gmail-auth]
+        ISESS[interview-session]
+    end
+
+    subgraph Database ["Supabase Postgres + Auth + Storage"]
+        AUTH[Auth]
+        PROF[profiles]
+        JOBS[jobs]
+        APPS[applications]
+        EVAL[job_evaluations]
+        CHAT[chat_sessions]
+        RES[resumes]
+        CL[cover_letters]
+        SUBS[user_subscriptions]
+        JSS[job_source_settings]
+    end
+
+    subgraph External ["External Services"]
+        GEMINI[Gemini API]
+        FIRE[Firecrawl]
+        SKYV[Skyvern]
+        PAYS[Paystack]
+        COMP[Composio]
+        BOARDS[Job Boards]
+    end
+
+    JP --> JS
+    JP --> MS
+    JP --> EV
+    JP --> ATJ
+    JP --> IU
+    JP --> GJ
+    CP --> AC
+    CP --> GT
+    RP --> PRR
+    RP --> AGR
+    RP --> ANR
+    RP --> TR
+    CLP --> GCL
+    AP --> GR
+    ON --> PRR
+    PP --> PROF
+    IS --> ISESS
+    PR --> IP2
+
+    JS --> FIRE
+    PJS --> FIRE
+    PM --> FIRE
+    IU --> FIRE
+    JS --> GEMINI
+    PJS --> GEMINI
+    EJ --> GEMINI
+    MS --> GEMINI
+    EV --> GEMINI
+    AC --> GEMINI
+    PRR --> GEMINI
+    AGR --> GEMINI
+    ANR --> GEMINI
+    TR --> GEMINI
+    GCL --> GEMINI
+    GT --> GEMINI
+    ATJ --> SKYV
+    SW -.-> SKYV
+    IP2 --> PAYS
+    PWH -.-> PAYS
+    JC --> BOARDS
+    JC --> FIRE
+    JC --> GEMINI
+    CGA --> COMP
+    ISESS --> GEMINI
+
+    JS --> JOBS
+    JS --> PROF
+    EV --> JOBS
+    EV --> PROF
+    EV --> EVAL
+    ATJ --> JOBS
+    ATJ --> APPS
+    ATJ --> PROF
+    AC --> CHAT
+    AC --> JOBS
+    AC --> PROF
+    PRR --> RES
+    AGR --> RES
+    GCL --> CL
+    PWH --> SUBS
+
+    style Frontend fill:#1e3a5f,stroke:#89b4fa,color:#cdd6f4
+    style Edge fill:#1a3a2a,stroke:#a6e3a1,color:#cdd6f4
+    style Database fill:#3a3520,stroke:#f9e2af,color:#cdd6f4
+    style External fill:#3a1a2a,stroke:#f38ba8,color:#cdd6f4
+  </pre>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#45475a',
+      primaryTextColor: '#cdd6f4',
+      primaryBorderColor: '#89b4fa',
+      lineColor: '#89b4fa',
+      secondaryColor: '#313244',
+      tertiaryColor: '#1e1e2e',
+      noteBkgColor: '#313244',
+      noteTextColor: '#cdd6f4',
+      noteBorderColor: '#585b70',
+      actorBkg: '#45475a',
+      actorBorder: '#89b4fa',
+      actorTextColor: '#cdd6f4',
+      actorLineColor: '#585b70',
+      signalColor: '#89b4fa',
+      signalTextColor: '#cdd6f4',
+      labelBoxBkgColor: '#313244',
+      labelBoxBorderColor: '#585b70',
+      labelTextColor: '#cdd6f4',
+      loopTextColor: '#f9e2af',
+      activationBorderColor: '#89b4fa',
+      activationBkgColor: '#313244',
+      sequenceNumberColor: '#1e1e2e',
+    },
+    sequence: {
+      diagramMarginX: 20,
+      diagramMarginY: 20,
+      actorMargin: 80,
+      width: 200,
+      height: 50,
+      boxMargin: 10,
+      boxTextMargin: 5,
+      noteMargin: 10,
+      messageMargin: 40,
+      mirrorActors: false,
+      useMaxWidth: false,
+    },
+    flowchart: {
+      useMaxWidth: false,
+      htmlLabels: true,
+      curve: 'basis',
+    },
+  });
+</script>
+
+</body>
+</html>
