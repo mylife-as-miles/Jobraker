@@ -67,7 +67,7 @@ export default function SortDropdown({ value, onChange }: SortDropdownProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 bottom-full mb-1 w-[180px] bg-transparent border border-neutral-700 rounded-md shadow-lg">
+        <div className="absolute z-50 bottom-full mb-1 w-[180px] bg-neutral-900 border border-neutral-700 rounded-md shadow-lg">
           <div role="listbox" aria-label="Sort options" className="p-1">
             {options.map((opt) => (
               <button
