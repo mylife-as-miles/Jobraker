@@ -47,8 +47,8 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     tier: "Basics",
     name: "Basics",
     monthlyPriceUsd: 19,
-    /** ~43% below paying month-by-month — strong annual anchor vs 12× monthly. */
-    yearlyPriceUsd: 129,
+    /** 30% off vs 12× monthly (rounded). */
+    yearlyPriceUsd: 160,
     creditsPerMonth: 250,
     autoApplyRunsPerMonth: 15,
     description: "High-signal search, drafting, and governed automation for active job seekers.",
@@ -65,8 +65,8 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     tier: "Pro",
     name: "Pro",
     monthlyPriceUsd: 59,
-    /** ~44% below 12× monthly — large gap on purpose for annual conversion. */
-    yearlyPriceUsd: 399,
+    /** 30% off vs 12× monthly (rounded). */
+    yearlyPriceUsd: 496,
     creditsPerMonth: 1200,
     autoApplyRunsPerMonth: 50,
     description: "Faster throughput, deeper personalization, and higher automation capacity.",
@@ -83,7 +83,8 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     tier: "Ultimate",
     name: "Ultimate",
     monthlyPriceUsd: 149,
-    yearlyPriceUsd: 999,
+    /** 30% off vs 12× monthly (rounded). */
+    yearlyPriceUsd: 1252,
     creditsPerMonth: 3500,
     autoApplyRunsPerMonth: 150,
     description: "Scaled search and governed automation for power users and concierge workflows.",
