@@ -122,6 +122,29 @@ function inferBillingCycleFromSubscriptionPeriod(
   return null;
 }
 
+/**
+ * If `current_period_end` is in the past, project it forward by the billing
+ * interval (1 month or 1 year) until it lands in the future.  This handles
+ * the common case where the payment gateway renewed but the DB row was never
+ * updated.
+ */
+function projectNextRenewalDate(
+  periodEnd: string | null,
+  cycle: 'monthly' | 'yearly' | null,
+): Date | null {
+  if (!periodEnd) return null;
+  const d = new Date(periodEnd);
+  if (!Number.isFinite(d.getTime())) return null;
+  const now = new Date();
+  if (d > now) return d;
+  const step = cycle === 'yearly' ? 12 : 1;
+  let projected = new Date(d);
+  while (projected <= now) {
+    projected.setMonth(projected.getMonth() + step);
+  }
+  return projected;
+}
+
 function getPlanPricingDisplay(
   planName: string,
   interval: BillingInterval,
@@ -633,15 +656,22 @@ export const BillingPage = () => {
                       RENEWAL
                     </span>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-400 font-medium">Next Refill</p>
-                    <p className="text-lg font-bold text-foreground tracking-tight pt-2">
-                      {currentPeriodEnd ? new Date(currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not scheduled'}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Automatic renewal
-                    </p>
-                  </div>
+                  {(() => {
+                    const next = projectNextRenewalDate(currentPeriodEnd, activeSubscriptionBillingCycle);
+                    return (
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-400 font-medium">Next Refill</p>
+                        <p className="text-lg font-bold text-foreground tracking-tight pt-2">
+                          {next
+                            ? next.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                            : 'Not scheduled'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Automatic renewal
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </motion.div>
