@@ -347,6 +347,11 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/skyvern-webhook/index.ts"
 
+[functions.proxy-resume]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/proxy-resume/index.ts"
+
 [functions.calculate-match-score]
 enabled = true
 verify_jwt = true

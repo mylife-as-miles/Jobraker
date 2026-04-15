@@ -6,8 +6,32 @@ import {
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 import { decryptSymmetric } from "../_shared/crypto.ts";
+import { signResumeProxyToken } from "../_shared/resume-proxy-token.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
+
+/**
+ * Skyvern often cannot fetch Supabase Storage signed URLs from its servers.
+ * Replace with our edge `proxy-resume` URL (HMAC token) when possible.
+ */
+async function resumeUrlForSkyvern(
+  resumeUrl: string,
+  userId: string,
+): Promise<string> {
+  const parsed = parseSupabaseSignedObjectPath(resumeUrl);
+  if (!parsed || parsed.bucket !== "resumes" || !parsed.path.startsWith(`${userId}/`)) {
+    return resumeUrl;
+  }
+  const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 72; // 72h
+  const token = await signResumeProxyToken({
+    path: parsed.path,
+    uid: userId,
+    exp,
+  });
+  const base = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
+  if (!base) return resumeUrl;
+  return `${base}/functions/v1/proxy-resume?t=${encodeURIComponent(token)}`;
+}
 
 /** Strip accidental JSON/Jinja quotes so Skyvern's fetcher gets a real URL. */
 function normalizeHttpUrlString(raw: string): string {
@@ -287,6 +311,11 @@ Deno.serve(async (req) => {
         resume = await refreshResumeSignedUrlIfPossible(resume, userId, serviceClient);
       } catch (e: any) {
         console.warn("apply-to-jobs: refreshResumeSignedUrlIfPossible", e?.message);
+      }
+      try {
+        resume = await resumeUrlForSkyvern(resume, userId);
+      } catch (e: any) {
+        console.warn("apply-to-jobs: resumeUrlForSkyvern", e?.message);
       }
     }
     const coverLetter =

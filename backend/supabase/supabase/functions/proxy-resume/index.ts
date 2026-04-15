@@ -1,0 +1,67 @@
+// @ts-nocheck
+// Public GET endpoint: Skyvern (and similar) fetch resume PDFs without using
+// Supabase Storage signed URLs, which often fail from third-party servers.
+import { getCorsHeaders } from "../_shared/types.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { verifyResumeProxyToken } from "../_shared/resume-proxy-token.ts";
+
+Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
+
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (req.method !== "GET") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "content-type": "application/json" },
+    });
+  }
+
+  try {
+    const url = new URL(req.url);
+    const token = url.searchParams.get("t") || "";
+    const payload = await verifyResumeProxyToken(token);
+    if (!payload) {
+      return new Response("Invalid or expired token", {
+        status: 401,
+        headers: { ...corsHeaders, "content-type": "text/plain" },
+      });
+    }
+
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!serviceKey) {
+      return new Response("Server misconfigured", { status: 500 });
+    }
+
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey, {
+      auth: { persistSession: false },
+    });
+
+    const { data, error } = await sb.storage.from("resumes").download(payload.path);
+    if (error || !data) {
+      console.error("proxy-resume download", error?.message);
+      return new Response("File not found", {
+        status: 404,
+        headers: { ...corsHeaders, "content-type": "text/plain" },
+      });
+    }
+
+    const buf = await data.arrayBuffer();
+    const filename = payload.path.split("/").pop() || "resume.pdf";
+
+    return new Response(buf, {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        "content-type": "application/pdf",
+        "cache-control": "private, max-age=300",
+        "content-disposition": `inline; filename="${filename.replace(/"/g, "")}"`,
+      },
+    });
+  } catch (e: any) {
+    console.error("proxy-resume", e);
+    return new Response(e?.message || "Error", { status: 500 });
+  }
+});
