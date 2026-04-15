@@ -1,4 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useCredits } from "@/hooks/useCredits";
+import {
+  LowCreditsPromoModal,
+  getCreditPressureStats,
+  readSnoozeUntil,
+} from "@/components/LowCreditsPromoModal";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 
@@ -182,6 +188,28 @@ export const Dashboard = (): JSX.Element => {
       ? (segment as DashboardPage)
       : "overview";
   }, [location.pathname]);
+
+  const {
+    balance: creditBalance,
+    loading: creditsLoading,
+  } = useCredits();
+  const [lowCreditModalOpen, setLowCreditModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (creditsLoading) return;
+    if (currentPage === "billing") {
+      setLowCreditModalOpen(false);
+      return;
+    }
+    if (!creditBalance) return;
+    if (!getCreditPressureStats(creditBalance).shouldAlert) {
+      setLowCreditModalOpen(false);
+      return;
+    }
+    const snoozeUntil = readSnoozeUntil();
+    if (snoozeUntil && Date.now() < snoozeUntil) return;
+    setLowCreditModalOpen(true);
+  }, [creditBalance, creditsLoading, currentPage]);
 
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -776,6 +804,14 @@ export const Dashboard = (): JSX.Element => {
           </AnimatePresence>
         </div>
       </div>
+
+      <LowCreditsPromoModal
+        open={lowCreditModalOpen}
+        onOpenChange={setLowCreditModalOpen}
+        balance={creditBalance}
+        loading={creditsLoading}
+        onUpgrade={() => navigate("/dashboard/billing?promo=JOBRAKER_PERSONAL")}
+      />
     </div>
   );
 };

@@ -147,17 +147,6 @@ export const BillingPage = () => {
   const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast();
 
-  const annualDecoyCopy = useMemo(() => {
-    const pro = BILLING_PLAN_DEFINITIONS.find((p) => p.name === 'Pro');
-    const ult = BILLING_PLAN_DEFINITIONS.find((p) => p.name === 'Ultimate');
-    if (!pro || !ult) return null;
-    const proEffective = Math.round((pro.yearlyPriceUsd / 12) * 10) / 10;
-    return {
-      proEffective,
-      ultimateMonthly: ult.monthlyPriceUsd,
-    };
-  }, []);
-
   /** Single headline discount % (Basics tier) so the toggle badge stays honest if catalog prices change. */
   const annualSavingsPctApprox = useMemo(() => {
     const b = BILLING_PLAN_DEFINITIONS.find((p) => p.name === 'Basics');
@@ -586,16 +575,6 @@ export const BillingPage = () => {
                     </span>
                   </button>
                 </div>
-                {billingInterval === 'yearly' && annualDecoyCopy && (
-                  <p className="text-xs text-muted-foreground leading-relaxed max-w-xl mx-auto">
-                    <span className="text-foreground font-medium">Decoy anchor: </span>
-                    Ultimate is ${annualDecoyCopy.ultimateMonthly}/mo if you stay on a month-to-month bill. Pro annual lands near
-                    {' '}
-                    <span className="text-[#1dff00] font-semibold tabular-nums">${annualDecoyCopy.proEffective}/mo</span>
-                    {' '}
-                    effective—same platform, calmer price point, which is why most serious seekers short-circuit at Pro yearly before sizing up.
-                  </p>
-                )}
               </div>
 
               <div className="grid gap-8 lg:grid-cols-3 xl:grid-cols-4">
