@@ -1,7 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
-import { DEFAULT_PAYSTACK_USD_TO_NGN_RATE } from "../../shared/billing-catalog.ts";
+import {
+  DEFAULT_PAYSTACK_USD_TO_NGN_RATE,
+  SHARED_SUBSCRIPTION_PLANS,
+} from "../../shared/billing-catalog.ts";
 
 console.log("Hello from init-payment!");
 
@@ -9,6 +12,8 @@ type PaymentInitRequest = {
   purchaseType?: "subscription" | "credit_pack";
   planId?: string;
   packSku?: string;
+  /** When set to yearly, price comes from catalog annual SKU (not DB monthly price). */
+  billingCycle?: "monthly" | "yearly";
 };
 
 type SubscriptionPlanRow = {
@@ -114,8 +119,22 @@ serve(async (req) => {
       }
 
       displayName = `${plan.name} Subscription`;
-      priceUsd = Number(plan.price || 0);
-      paymentCycle = plan.billing_cycle || "monthly";
+
+      const requested = body.billingCycle === "yearly" ? "yearly" : "monthly";
+      const catalogPlan = SHARED_SUBSCRIPTION_PLANS.find((p) => p.name === plan.name);
+
+      if (
+        requested === "yearly" &&
+        catalogPlan &&
+        catalogPlan.yearlyPriceUsd > 0
+      ) {
+        priceUsd = catalogPlan.yearlyPriceUsd;
+        paymentCycle = "yearly";
+      } else {
+        priceUsd = Number(plan.price || 0);
+        paymentCycle = "monthly";
+      }
+
       totalCreditsPaidFor = Number(plan.credits_per_month || 0);
       authoritativeMetadata = {
         purchase_type: "subscription",

@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabaseClient';
 import { 
   Coins, Crown, Zap, ArrowRight, Calendar, History, TrendingUp, 
   Sparkles, Package, Check, Star, ArrowUpRight, Download,
-  Shield, Infinity, Target, Loader2, Receipt
+  Shield, Infinity, Target, Loader2, Receipt, Percent
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/components/ui/toast';
@@ -70,6 +70,62 @@ const defaultPlans: SubscriptionPlan[] = BILLING_PLAN_DEFINITIONS.map((plan) => 
   features: plan.marketingFeatures,
 }));
 
+type BillingInterval = 'monthly' | 'yearly';
+
+type PlanPricingDisplay = {
+  headline: string;
+  suffix: string;
+  compareAt: string | null;
+  subline: string | null;
+  savingsBadge: string | null;
+  effectiveMonthly: number | null;
+};
+
+function getPlanPricingDisplay(
+  planName: string,
+  interval: BillingInterval,
+  fallbackMonthlyFromDb: number,
+): PlanPricingDisplay {
+  const def = BILLING_PLAN_DEFINITIONS.find((p) => p.name === planName);
+  const monthly = def?.monthlyPriceUsd ?? fallbackMonthlyFromDb;
+
+  if (!def || monthly <= 0) {
+    return {
+      headline: '0',
+      suffix: '',
+      compareAt: null,
+      subline: 'No card required',
+      savingsBadge: null,
+      effectiveMonthly: null,
+    };
+  }
+
+  if (interval === 'yearly' && def.yearlyPriceUsd > 0) {
+    const yearly = def.yearlyPriceUsd;
+    const stacked = monthly * 12;
+    const saved = stacked - yearly;
+    const pct = Math.round((saved / stacked) * 100);
+    const eqMo = yearly / 12;
+    return {
+      headline: yearly.toLocaleString('en-US', { maximumFractionDigits: 0 }),
+      suffix: '/yr',
+      compareAt: `12 × $${monthly}/mo → $${stacked.toLocaleString('en-US')}`,
+      subline: `≈ $${Math.round(eqMo)}/mo when paid annually`,
+      savingsBadge: `Save $${saved.toLocaleString('en-US')} (${pct}% vs monthly)`,
+      effectiveMonthly: eqMo,
+    };
+  }
+
+  return {
+    headline: monthly.toLocaleString('en-US', { maximumFractionDigits: 0 }),
+    suffix: '/mo',
+    compareAt: null,
+    subline: 'Billed monthly · cancel anytime',
+    savingsBadge: null,
+    effectiveMonthly: monthly,
+  };
+}
+
 export const BillingPage = () => {
   const [currentCredits, setCurrentCredits] = useState(0);
   const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
@@ -86,8 +142,29 @@ export const BillingPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'subscription' | 'packs' | 'costs' | 'history'>('subscription');
   const [processingPayment, setProcessingPayment] = useState(false);
+  /** Default yearly: commitment pricing is the better deal and reads stronger on the page. */
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>('yearly');
   const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast();
+
+  const annualDecoyCopy = useMemo(() => {
+    const pro = BILLING_PLAN_DEFINITIONS.find((p) => p.name === 'Pro');
+    const ult = BILLING_PLAN_DEFINITIONS.find((p) => p.name === 'Ultimate');
+    if (!pro || !ult) return null;
+    const proEffective = Math.round((pro.yearlyPriceUsd / 12) * 10) / 10;
+    return {
+      proEffective,
+      ultimateMonthly: ult.monthlyPriceUsd,
+    };
+  }, []);
+
+  /** Single headline discount % (Basics tier) so the toggle badge stays honest if catalog prices change. */
+  const annualSavingsPctApprox = useMemo(() => {
+    const b = BILLING_PLAN_DEFINITIONS.find((p) => p.name === 'Basics');
+    if (!b?.yearlyPriceUsd || b.monthlyPriceUsd <= 0) return 17;
+    const stacked = b.monthlyPriceUsd * 12;
+    return Math.round(((stacked - b.yearlyPriceUsd) / stacked) * 100);
+  }, []);
 
   useEffect(() => {
     fetchBillingData();
@@ -205,9 +282,10 @@ export const BillingPage = () => {
       }
 
       // Prepare payload
-      const payload = type === 'credit_pack'
-        ? { purchaseType: type, packSku: item.sku }
-        : { purchaseType: type, planId: item.id };
+      const payload =
+        type === 'credit_pack'
+          ? { purchaseType: type, packSku: item.sku }
+          : { purchaseType: type, planId: item.id, billingCycle: item.billingCycle as BillingInterval };
 
       // Call Edge Function
       const { data, error } = await supabase.functions.invoke('init-payment', {
@@ -475,12 +553,57 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
+              className="space-y-8"
             >
+              <div className="max-w-3xl mx-auto text-center space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Pick monthly flexibility or annual commitment—same features, different framing.
+                </p>
+                <div className="inline-flex p-1 rounded-2xl bg-foreground/5 border border-foreground/10 backdrop-blur-sm">
+                  <button
+                    type="button"
+                    onClick={() => setBillingInterval('monthly')}
+                    className={`relative px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                      billingInterval === 'monthly'
+                        ? 'bg-foreground text-background shadow-md'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBillingInterval('yearly')}
+                    className={`relative px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 ${
+                      billingInterval === 'yearly'
+                        ? 'bg-[#1dff00] text-background shadow-md'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Annual
+                    <span className="text-[10px] font-bold uppercase tracking-wide opacity-90 border border-current/30 rounded-full px-2 py-0.5">
+                      ~{annualSavingsPctApprox}% off
+                    </span>
+                  </button>
+                </div>
+                {billingInterval === 'yearly' && annualDecoyCopy && (
+                  <p className="text-xs text-muted-foreground leading-relaxed max-w-xl mx-auto">
+                    <span className="text-foreground font-medium">Decoy anchor: </span>
+                    Ultimate is ${annualDecoyCopy.ultimateMonthly}/mo if you stay on a month-to-month bill. Pro annual lands near
+                    {' '}
+                    <span className="text-[#1dff00] font-semibold tabular-nums">${annualDecoyCopy.proEffective}/mo</span>
+                    {' '}
+                    effective—same platform, calmer price point, which is why most serious seekers short-circuit at Pro yearly before sizing up.
+                  </p>
+                )}
+              </div>
+
               <div className="grid gap-8 lg:grid-cols-3 xl:grid-cols-4">
                 {plans.map((plan, index) => {
                   const isCurrentPlan = plan.name === subscriptionTier;
                   const isPro = plan.name === 'Pro';
                   const isUltimate = plan.name === 'Ultimate';
+                  const pricing = getPlanPricingDisplay(plan.name, billingInterval, plan.price);
                   
                   return (
                     <motion.div
@@ -497,7 +620,11 @@ export const BillingPage = () => {
                               ? 'bg-purple-500 text-foreground border-purple-400'
                               : 'bg-[#1dff00] text-background border-[#1dff00]'
                           }`}>
-                            {isUltimate ? 'MAXIMUM POWER' : 'MOST POPULAR'}
+                            {isUltimate
+                              ? 'MAXIMUM POWER'
+                              : billingInterval === 'yearly'
+                                ? 'SWEET SPOT · ANNUAL'
+                                : 'MOST POPULAR'}
                           </span>
                         </div>
                       )}
@@ -505,6 +632,8 @@ export const BillingPage = () => {
                       <Card className={`group relative h-full flex flex-col overflow-hidden transition-all duration-300 ${
                         isCurrentPlan 
                           ? 'border-[#1dff00]/50 bg-gradient-to-b from-[#1dff00]/10 to-transparent shadow-[0_0_40px_-10px_rgba(29,255,0,0.2)]'
+                          : isPro && billingInterval === 'yearly'
+                          ? 'ring-2 ring-blue-400/45 border-blue-400/25 bg-foreground/[0.02] hover:bg-foreground/[0.04] shadow-[0_0_36px_-10px_rgba(59,130,246,0.25)] hover:-translate-y-1'
                           : 'border-foreground/10 bg-foreground/[0.02] hover:bg-foreground/[0.04] hover:border-foreground/20 hover:shadow-xl hover:shadow-[#1dff00]/5 hover:-translate-y-1'
                       }`}>
                         {/* Gradient accent top border */}
@@ -538,13 +667,29 @@ export const BillingPage = () => {
                                 </div>
 
                                 {/* Price */}
-                                <div className="mb-6 pb-6 border-b border-foreground/10">
-                                  <div className="flex items-baseline gap-1">
-                                    <span className={`text-4xl font-bold ${textColors.primary}`}>${plan.price}</span>
-                                    {plan.price > 0 && (
-                                      <span className={textColors.tertiary}>/mo</span>
-                                    )}
+                                <div className="mb-6 pb-6 border-b border-foreground/10 space-y-2">
+                                  <div className="flex items-baseline gap-1.5 flex-wrap">
+                                    <span className={`text-4xl font-bold tabular-nums ${textColors.primary}`}>
+                                      ${pricing.headline}
+                                    </span>
+                                    {pricing.suffix ? (
+                                      <span className={textColors.tertiary}>{pricing.suffix}</span>
+                                    ) : null}
                                   </div>
+                                  {pricing.compareAt ? (
+                                    <p className="text-xs text-muted-foreground line-through decoration-foreground/35">
+                                      {pricing.compareAt}
+                                    </p>
+                                  ) : null}
+                                  {pricing.subline ? (
+                                    <p className={`text-sm ${textColors.secondary}`}>{pricing.subline}</p>
+                                  ) : null}
+                                  {pricing.savingsBadge && billingInterval === 'yearly' ? (
+                                    <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1dff00] bg-[#1dff00]/10 border border-[#1dff00]/25 rounded-full px-2.5 py-1 mt-1">
+                                      <Percent className="w-3.5 h-3.5 shrink-0" />
+                                      {pricing.savingsBadge}
+                                    </div>
+                                  ) : null}
                                 </div>
 
                                 {/* Included usage */}
@@ -660,13 +805,23 @@ export const BillingPage = () => {
                                   ? 'bg-purple-600 text-foreground hover:bg-purple-700 hover:shadow-[0_0_20px_rgba(147,51,234,0.4)] hover:scale-[1.02]'
                                   : 'bg-foreground text-background hover:bg-gray-200'
                               }`}
-                              disabled={isCurrentPlan || processingPayment}
-                              onClick={() => !isCurrentPlan && handlePayment('subscription', plan)}
+                              disabled={isCurrentPlan || processingPayment || plan.name === 'Free'}
+                              onClick={() =>
+                                !isCurrentPlan &&
+                                plan.name !== 'Free' &&
+                                handlePayment('subscription', { ...plan, billingCycle: billingInterval })
+                              }
                             >
                               {processingPayment && !isCurrentPlan ? (
                                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
                               ) : null}
-                              {isCurrentPlan ? 'CURRENT PLAN' : `UPGRADE TO ${plan.name.toUpperCase()}`}
+                              {isCurrentPlan
+                                ? 'CURRENT PLAN'
+                                : plan.name === 'Free'
+                                  ? 'INCLUDED'
+                                  : billingInterval === 'yearly'
+                                    ? `CHECKOUT ${plan.name.toUpperCase()} · YEARLY`
+                                    : `UPGRADE TO ${plan.name.toUpperCase()}`}
                               {!isCurrentPlan && !processingPayment && <ArrowRight className="ml-2 w-4 h-4" />}
                             </Button>
                           </div>
