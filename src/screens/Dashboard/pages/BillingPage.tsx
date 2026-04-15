@@ -1428,7 +1428,7 @@ export const BillingPage = () => {
                       {
                         feature: 'Results per Search',
                         sub: 'Maximum jobs returned per query',
-                        values: { Free: 30, Basics: 100, Pro: 100, Ultimate: 100 },
+                        values: { Free: 10, Basics: 20, Pro: 50, Ultimate: 100 },
                       },
                       {
                         feature: 'Job Match Insights',
@@ -1518,10 +1518,17 @@ export const BillingPage = () => {
                     </CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
-                        <table className="w-full text-sm min-w-[640px]">
+                        <table className="w-full min-w-[680px] table-fixed border-separate border-spacing-0 text-sm">
+                          <colgroup>
+                            <col className="w-[26%] min-w-[160px]" />
+                            <col className="w-[18.5%]" />
+                            <col className="w-[18.5%]" />
+                            <col className="w-[18.5%]" />
+                            <col className="w-[18.5%]" />
+                          </colgroup>
                           <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur-md">
                             <tr className="border-b border-foreground/10">
-                              <th className="w-[38%] text-left px-5 py-4" />
+                              <th className="text-left px-5 py-4" />
                               {tierOrder.map((tier) => {
                                 const def = BILLING_PLAN_DEFINITIONS.find((p) => p.name === tier);
                                 const pricing = getPlanPricingDisplay(
