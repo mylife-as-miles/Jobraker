@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import { createClient } from '@/lib/supabaseClient';
 import { 
   Coins, Crown, Zap, ArrowRight, Calendar, History, TrendingUp, 
@@ -166,6 +167,46 @@ function getPlanPricingDisplay(
   };
 }
 
+const ULTIMATE_CREDITS_SLIDER = { min: 3500, max: 10500, step: 500 } as const;
+
+function getUltimatePricingDisplay(
+  interval: BillingInterval,
+  selectedCredits: number,
+  fallbackMonthlyFromDb: number,
+): PlanPricingDisplay {
+  const def = BILLING_PLAN_DEFINITIONS.find((p) => p.name === 'Ultimate');
+  if (!def) {
+    return getPlanPricingDisplay('Ultimate', interval, fallbackMonthlyFromDb);
+  }
+  const ratio = selectedCredits / def.creditsPerMonth;
+  const monthlyUsd = (def.monthlyPriceUsd ?? fallbackMonthlyFromDb) * ratio;
+
+  if (interval === 'yearly' && def.yearlyPriceUsd > 0) {
+    const yearly = Math.round(def.yearlyPriceUsd * ratio);
+    const stacked = monthlyUsd * 12;
+    const saved = stacked - yearly;
+    const pct = stacked > 0 ? Math.round((saved / stacked) * 100) : 0;
+    const eqMo = yearly / 12;
+    return {
+      headline: yearly.toLocaleString('en-US', { maximumFractionDigits: 0 }),
+      suffix: '/yr',
+      compareAt: `12 × $${Math.round(monthlyUsd)}/mo → $${Math.round(stacked).toLocaleString('en-US')}`,
+      subline: `≈ $${Math.round(eqMo)}/mo when paid annually`,
+      savingsBadge: `Save $${Math.round(saved).toLocaleString('en-US')} (${pct}% vs monthly)`,
+      effectiveMonthly: eqMo,
+    };
+  }
+
+  return {
+    headline: Math.round(monthlyUsd).toLocaleString('en-US', { maximumFractionDigits: 0 }),
+    suffix: '/mo',
+    compareAt: null,
+    subline: 'Billed monthly · cancel anytime',
+    savingsBadge: null,
+    effectiveMonthly: monthlyUsd,
+  };
+}
+
 export const BillingPage = () => {
   const [currentCredits, setCurrentCredits] = useState(0);
   const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
@@ -184,6 +225,10 @@ export const BillingPage = () => {
   const [processingPayment, setProcessingPayment] = useState(false);
   /** Viewing monthly vs annual list prices; initialized after we know the member's real billing cycle. */
   const [billingInterval, setBillingInterval] = useState<BillingInterval>('monthly');
+  /** Ultimate: extra credits above catalog base (3500); scales price at checkout. */
+  const [ultimateCreditsMonthly, setUltimateCreditsMonthly] = useState(
+    ULTIMATE_CREDITS_SLIDER.min,
+  );
   /** Inferred from subscription period (or last successful order) — used so "CURRENT" matches monthly vs annual. */
   const [activeSubscriptionBillingCycle, setActiveSubscriptionBillingCycle] = useState<
     'monthly' | 'yearly' | null
@@ -373,6 +418,9 @@ export const BillingPage = () => {
           purchaseType: type,
           planId,
           billingCycle: item.billingCycle as BillingInterval,
+          ...(item.name === "Ultimate" && typeof item.ultimateCreditsPerMonth === "number"
+            ? { ultimateCreditsPerMonth: item.ultimateCreditsPerMonth }
+            : {}),
         };
       }
 
@@ -691,7 +739,21 @@ export const BillingPage = () => {
                       billingInterval === cycleForCurrent);
                   const isPro = plan.name === 'Pro';
                   const isUltimate = plan.name === 'Ultimate';
-                  const pricing = getPlanPricingDisplay(plan.name, billingInterval, plan.price);
+                  const ultimateBaseCredits =
+                    BILLING_PLAN_DEFINITIONS.find((p) => p.name === 'Ultimate')?.creditsPerMonth ??
+                    3500;
+                  const ultimateScaledRuns = isUltimate
+                    ? Math.max(
+                        1,
+                        Math.round(
+                          ((plan.auto_apply_monthly_limit || 0) * ultimateCreditsMonthly) /
+                            ultimateBaseCredits,
+                        ),
+                      )
+                    : plan.auto_apply_monthly_limit ?? 0;
+                  const pricing = isUltimate
+                    ? getUltimatePricingDisplay(billingInterval, ultimateCreditsMonthly, plan.price)
+                    : getPlanPricingDisplay(plan.name, billingInterval, plan.price);
                   
                   return (
                     <motion.div
@@ -758,6 +820,41 @@ export const BillingPage = () => {
                                   </p>
                                 </div>
 
+                                {isUltimate ? (
+                                  <div className="mb-5 shrink-0 rounded-xl border border-purple-500/20 bg-purple-500/5 p-4">
+                                    <div className="mb-3 flex items-center gap-2">
+                                      <Sparkles className="h-4 w-4 shrink-0 text-purple-300" />
+                                      <span className={`text-sm font-bold tabular-nums ${textColors.primary}`}>
+                                        {ultimateCreditsMonthly.toLocaleString()} credits/mo
+                                      </span>
+                                    </div>
+                                    <p className="mb-4 text-[11px] leading-snug text-muted-foreground">
+                                      Slide to add capacity—search, AI chat, and drafting scale with your monthly
+                                      credits. Governed auto-apply runs increase in step with your tier.
+                                    </p>
+                                    <Slider
+                                      min={ULTIMATE_CREDITS_SLIDER.min}
+                                      max={ULTIMATE_CREDITS_SLIDER.max}
+                                      step={ULTIMATE_CREDITS_SLIDER.step}
+                                      value={[ultimateCreditsMonthly]}
+                                      onValueChange={(v) =>
+                                        setUltimateCreditsMonthly(v[0] ?? ULTIMATE_CREDITS_SLIDER.min)
+                                      }
+                                      aria-label="Ultimate monthly credits"
+                                      className="mb-2"
+                                    />
+                                    <div className="flex justify-between text-[10px] tabular-nums text-muted-foreground">
+                                      <span>{ULTIMATE_CREDITS_SLIDER.min.toLocaleString()}</span>
+                                      <span className="font-medium text-foreground/80">
+                                        {Math.round(
+                                          (ULTIMATE_CREDITS_SLIDER.min + ULTIMATE_CREDITS_SLIDER.max) / 2,
+                                        ).toLocaleString()}
+                                      </span>
+                                      <span>{ULTIMATE_CREDITS_SLIDER.max.toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                ) : null}
+
                                 {/* Price */}
                                 <div className="mb-5 shrink-0 space-y-2 border-b border-foreground/10 pb-5">
                                   <div className="flex items-baseline gap-1.5 flex-wrap">
@@ -796,7 +893,10 @@ export const BillingPage = () => {
                                     <div className="min-w-0 flex-1 flex flex-col gap-1.5">
                                       <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
                                         <span className={`text-2xl font-bold tabular-nums leading-none tracking-tight ${textColors.primary}`}>
-                                          {plan.credits_per_month.toLocaleString()}
+                                          {(isUltimate
+                                            ? ultimateCreditsMonthly
+                                            : plan.credits_per_month
+                                          ).toLocaleString()}
                                         </span>
                                         <span className="text-xs font-medium text-muted-foreground">credits</span>
                                       </div>
@@ -822,7 +922,10 @@ export const BillingPage = () => {
                                         <>
                                           <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
                                             <span className={`text-2xl font-bold tabular-nums leading-none tracking-tight ${textColors.primary}`}>
-                                              {plan.auto_apply_monthly_limit.toLocaleString()}
+                                              {(isUltimate
+                                                ? ultimateScaledRuns
+                                                : plan.auto_apply_monthly_limit
+                                              ).toLocaleString()}
                                             </span>
                                             <span className="text-xs font-medium text-muted-foreground">runs</span>
                                           </div>
@@ -857,10 +960,23 @@ export const BillingPage = () => {
                                 {/* Features */}
                                 <div className="space-y-3 mb-8 flex-grow">
                                   {plan.features && Array.isArray(plan.features) && plan.features.map((feature: any, idx: number) => {
-                                    const featureName =
+                                    let featureName =
                                       typeof feature === 'string'
                                         ? feature
                                         : [feature.name, feature.value].filter(Boolean).join(' • ');
+                                    if (isUltimate) {
+                                      if (
+                                        typeof feature === 'string' &&
+                                        /search and AI credits|3,?500/i.test(feature)
+                                      ) {
+                                        featureName = `${ultimateCreditsMonthly.toLocaleString()} search and AI credits per month`;
+                                      } else if (
+                                        typeof feature === 'string' &&
+                                        /governed auto-apply|150.*runs/i.test(feature)
+                                      ) {
+                                        featureName = `${ultimateScaledRuns.toLocaleString()} governed auto-apply runs per month`;
+                                      }
+                                    }
                                     const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
                                     
                                     if (!isIncluded) return null;
@@ -901,7 +1017,13 @@ export const BillingPage = () => {
                               onClick={() =>
                                 !isCurrentPlan &&
                                 plan.name !== 'Free' &&
-                                handlePayment('subscription', { ...plan, billingCycle: billingInterval })
+                                handlePayment('subscription', {
+                                  ...plan,
+                                  billingCycle: billingInterval,
+                                  ...(plan.name === 'Ultimate'
+                                    ? { ultimateCreditsPerMonth: ultimateCreditsMonthly }
+                                    : {}),
+                                })
                               }
                             >
                               {processingPayment && !isCurrentPlan ? (

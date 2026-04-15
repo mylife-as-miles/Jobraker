@@ -14,6 +14,8 @@ type PaymentInitRequest = {
   packSku?: string;
   /** When set to yearly, price comes from catalog annual SKU (not DB monthly price). */
   billingCycle?: "monthly" | "yearly";
+  /** Ultimate only: 3500–10500, step 500 — scales price and credits vs catalog base. */
+  ultimateCreditsPerMonth?: number;
 };
 
 type SubscriptionPlanRow = {
@@ -118,8 +120,6 @@ serve(async (req) => {
         });
       }
 
-      displayName = `${plan.name} Subscription`;
-
       const requested = body.billingCycle === "yearly" ? "yearly" : "monthly";
       const catalogPlan = SHARED_SUBSCRIPTION_PLANS.find((p) => p.name === plan.name);
 
@@ -135,7 +135,35 @@ serve(async (req) => {
         paymentCycle = "monthly";
       }
 
-      totalCreditsPaidFor = Number(plan.credits_per_month || 0);
+      const baseCreditsFromPlan = Number(plan.credits_per_month || 0);
+      let resolvedCredits = baseCreditsFromPlan;
+      let resolvedAutoApply = Number(plan.auto_apply_monthly_limit || 0);
+
+      if (plan.name === "Ultimate" && catalogPlan) {
+        const raw = body.ultimateCreditsPerMonth;
+        if (typeof raw === "number" && Number.isFinite(raw)) {
+          const step = 500;
+          const min = 3500;
+          const max = 10500;
+          const v = Math.round(raw / step) * step;
+          if (v >= min && v <= max) {
+            resolvedCredits = v;
+            const ratio = v / catalogPlan.creditsPerMonth;
+            resolvedAutoApply = Math.max(
+              1,
+              Math.round(
+                (Number(plan.auto_apply_monthly_limit || 0) * v) /
+                  catalogPlan.creditsPerMonth,
+              ),
+            );
+            priceUsd = Math.round(priceUsd * ratio * 100) / 100;
+          }
+        }
+      }
+
+      totalCreditsPaidFor = resolvedCredits;
+      displayName = `${plan.name} Subscription`;
+
       authoritativeMetadata = {
         purchase_type: "subscription",
         sku: `plan:${plan.id}`,
@@ -143,7 +171,7 @@ serve(async (req) => {
         plan_name: plan.name,
         billing_cycle: paymentCycle,
         credits_per_month: totalCreditsPaidFor,
-        auto_apply_monthly_limit: Number(plan.auto_apply_monthly_limit || 0),
+        auto_apply_monthly_limit: resolvedAutoApply,
         currency: plan.currency || "USD",
       };
     } else if (purchaseType === "credit_pack") {
