@@ -2514,31 +2514,40 @@ export const JobPage = (): JSX.Element => {
           jobsToDraft = [];
 
           for (const item of jobsWithTargets) {
-            const prequalified =
-              isTrustedSource(item.target) && (item.job.matchScore ?? 0) >= 90;
-            if (!prequalified) {
-              jobsToDraft.push(item);
-              continue;
-            }
-
             try {
               const evaluation = await getEvaluationForJob(item.job);
+              const decision = evaluation.canonical_decision;
+              const confidence = evaluation.confidence_score ?? 0;
+              const hardBlockers = (evaluation.blockers?.length ?? 0);
+
               const safeToLaunch =
-                evaluation.canonical_decision === "strong_yes" &&
-                evaluation.confidence_score >= 85 &&
-                (evaluation.blockers?.length ?? 0) === 0 &&
-                (evaluation.missing_requirements?.length ?? 0) === 0;
+                (decision === "strong_yes" || decision === "draft_first") &&
+                confidence >= 65 &&
+                hardBlockers === 0;
 
               if (safeToLaunch) {
                 jobsToAutoApply.push(item);
+                pushLog(
+                  `Evaluated: ${item.job.title} — ${decision} (${Math.round(confidence)}% confidence) → auto-apply`,
+                  "info",
+                );
               } else {
                 jobsToDraft.push(item);
+                const reason = hardBlockers > 0
+                  ? `${hardBlockers} blocker(s)`
+                  : confidence < 65
+                    ? `low confidence (${Math.round(confidence)}%)`
+                    : `decision: ${decision}`;
+                pushLog(
+                  `Evaluated: ${item.job.title} — ${decision} (${Math.round(confidence)}% confidence) → draft (${reason})`,
+                  "info",
+                );
               }
             } catch (evaluationError) {
               console.error("Batch evaluation failed", evaluationError);
               jobsToDraft.push(item);
               pushLog(
-                `Moved ${item.job.title} to draft review because evaluation failed.`,
+                `${item.job.title} — evaluation failed, moved to drafts`,
                 "info",
               );
             }
@@ -2619,11 +2628,35 @@ export const JobPage = (): JSX.Element => {
               job.evaluation_summary?.matched_keywords ||
               [];
 
+            const evalDecision = evaluation?.canonical_decision ??
+              job.evaluation_summary?.canonical_decision;
+            const evalConfidence = evaluation?.confidence_score ??
+              job.evaluation_summary?.confidence_score;
+            const evalSuffix = evalDecision
+              ? ` [${evalDecision}, ${Math.round(evalConfidence ?? 0)}% confidence]`
+              : "";
             pushLog(
-              `Processing: ${job.title || "Untitled"} @ ${job.company || "Unknown"}`,
+              `Processing: ${job.title || "Untitled"} @ ${job.company || "Unknown"}${evalSuffix}`,
             );
 
             if (isLaunch) {
+              let jobCoverLetter = finalCoverLetterPayload;
+              if (job.description && jobsWithTargets.length > 1) {
+                try {
+                  pushLog(`Generating tailored cover letter for ${job.title}...`);
+                  const generated = await generateCoverLetterViaEdge({
+                    jobDescription: job.description,
+                    resumeText: activeResumeText || "",
+                  });
+                  if (generated) {
+                    jobCoverLetter = generated;
+                    pushLog(`Cover letter ready for ${job.title}`, "success");
+                  }
+                } catch (clErr) {
+                  console.warn("Per-job cover letter generation failed, using default", clErr);
+                }
+              }
+
               pushLog(
                 `Dispatching automation to ${new URL(target).hostname}...`,
               );
@@ -2674,7 +2707,7 @@ export const JobPage = (): JSX.Element => {
                   job.evaluation_summary?.evaluation_id ??
                   null,
                 title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
-                cover_letter: finalCoverLetterPayload,
+                cover_letter: jobCoverLetter,
                 ...(profileSnapshot
                   ? { additional_information: profileSnapshot }
                   : {}),
@@ -2764,7 +2797,12 @@ export const JobPage = (): JSX.Element => {
             done += 1;
             success += 1;
             setApplyProgress((prev) => ({ ...prev, done, success }));
-            pushLog(`✓ ${job.title} — saved as draft-ready`, "success");
+            pushLog(
+              evalDecision
+                ? `✓ ${job.title} — saved as draft (${evalDecision}, ${Math.round(evalConfidence ?? 0)}%)`
+                : `✓ ${job.title} — saved as draft-ready`,
+              "success",
+            );
           } catch (inner) {
             done += 1;
             fail += 1;

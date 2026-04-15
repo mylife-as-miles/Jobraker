@@ -50,6 +50,55 @@ export const isGeminiAccessDeniedError = (error: unknown): boolean => {
 export const getGeminiAccessDeniedMessage = (feature: string): string =>
   `${feature} is temporarily unavailable because the configured Gemini project no longer has model access. Re-enable Gemini access or switch this feature to another provider.`;
 
+export const isGeminiRateLimitError = (error: unknown): boolean => {
+  const record =
+    error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+  const status = typeof record.status === "number" ? record.status : null;
+  const message = readNestedErrorMessage(error).toLowerCase();
+
+  return (
+    status === 429 ||
+    message.includes("resource_exhausted") ||
+    message.includes("rate limit") ||
+    message.includes("quota")
+  );
+};
+
+function parseRetryDelay(error: unknown): number | null {
+  const message = readNestedErrorMessage(error);
+  const match = message.match(/retryDelay['":\s]*(\d+(?:\.\d+)?)\s*s/i);
+  if (match) return Math.ceil(parseFloat(match[1]) * 1000);
+  const matchMs = message.match(/retry\s*(?:in|after)\s*(\d+(?:\.\d+)?)\s*ms/i);
+  if (matchMs) return Math.ceil(parseFloat(matchMs[1]));
+  return null;
+}
+
+const DEFAULT_BACKOFF_MS = [5_000, 15_000, 30_000];
+
+export async function withGeminiRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (!isGeminiRateLimitError(error) || attempt === maxRetries) {
+        throw error;
+      }
+      const parsed = parseRetryDelay(error);
+      const delay = parsed ?? DEFAULT_BACKOFF_MS[Math.min(attempt, DEFAULT_BACKOFF_MS.length - 1)];
+      console.warn(
+        `[Gemini] Rate limited (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms`,
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastError;
+}
+
 // Standardize default text/function-calling work on the current shared Gemini model.
 export const GEMINI_MODEL = "gemini-3-flash-preview";
 export const GEMINI_FAST_MODEL = "gemini-3-flash-preview";

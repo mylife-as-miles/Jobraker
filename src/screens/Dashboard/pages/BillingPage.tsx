@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabaseClient';
 import { 
   Coins, Crown, Zap, ArrowRight, Calendar, History, TrendingUp, 
   Sparkles, Package, Check, Star, ArrowUpRight, Download,
-  Shield, Infinity, Target, Loader2
+  Shield, Infinity, Target, Loader2, Receipt
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/components/ui/toast';
@@ -77,8 +77,14 @@ export const BillingPage = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [creditPacks, setCreditPacks] = useState<CreditPack[]>(defaultCreditPacks);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+  const [creditCosts, setCreditCosts] = useState<Array<{
+    feature_type: string;
+    feature_name: string;
+    cost: number;
+    description: string;
+  }>>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'subscription' | 'packs' | 'history'>('subscription');
+  const [activeTab, setActiveTab] = useState<'subscription' | 'packs' | 'costs' | 'history'>('subscription');
   const [processingPayment, setProcessingPayment] = useState(false);
   const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast();
@@ -150,6 +156,17 @@ export const BillingPage = () => {
         setCreditPacks(packsData as CreditPack[]);
       } else {
         setCreditPacks(defaultCreditPacks);
+      }
+
+      // Fetch credit costs
+      const { data: costsData } = await supabase
+        .from('credit_costs')
+        .select('feature_type, feature_name, cost, description')
+        .eq('is_active', true)
+        .order('feature_type', { ascending: true });
+
+      if (costsData) {
+        setCreditCosts(costsData);
       }
 
       // Fetch recent transactions
@@ -421,6 +438,7 @@ export const BillingPage = () => {
             {[
               { id: 'subscription', label: 'Plans', icon: <Star className="w-4 h-4" /> },
               { id: 'packs', label: 'Credit Packs', icon: <Package className="w-4 h-4" /> },
+              { id: 'costs', label: 'Credit Costs', icon: <Receipt className="w-4 h-4" /> },
               { id: 'history', label: 'History', icon: <History className="w-4 h-4" /> },
             ].map((tab) => (
               <button
@@ -725,6 +743,184 @@ export const BillingPage = () => {
                   </div>
                 ))}
               </div>
+            </motion.div>
+          )}
+
+          {/* Credit Costs Tab */}
+          {activeTab === 'costs' && (
+            <motion.div
+              key="costs"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-8"
+            >
+              <div className="text-center">
+                <h2 className="text-3xl font-bold text-foreground mb-3">Credit Costs</h2>
+                <p className="text-gray-400 max-w-2xl mx-auto">
+                  See how many credits each feature uses. Some AI features include a free monthly allowance on paid plans before credits are deducted.
+                </p>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* AI & Chat */}
+                <Card className="border-foreground/10 bg-foreground/[0.02] backdrop-blur-md overflow-hidden">
+                  <CardHeader className="border-b border-foreground/10 bg-foreground/[0.02] pb-4">
+                    <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                      <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                        <Sparkles className="w-4 h-4 text-purple-400" />
+                      </div>
+                      AI Features
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Chat, cover letters, resume analysis, and more
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y divide-foreground/5">
+                      {[
+                        { label: 'AI Chat Message', cost: 1, note: 'Pro: 50 free/mo, Ultimate: 200 free/mo, then 1 credit each' },
+                        ...creditCosts
+                          .filter(c => (c.feature_type === 'cover_letter' || c.feature_type === 'analysis' || c.feature_type === 'job_search') && c.feature_name !== 'search' && c.feature_name !== 'auto_apply')
+                          .map(c => ({
+                            label: c.description.split('(')[0].trim() || `${c.feature_type} / ${c.feature_name}`,
+                            cost: c.cost,
+                            note: c.cost === 0 ? 'Included with Basics+ plan' : `${c.cost} credit${c.cost !== 1 ? 's' : ''} per use`,
+                          })),
+                      ].map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-4 hover:bg-foreground/[0.02] transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">{item.label}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{item.note}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 pl-4 flex-shrink-0">
+                            <span className={`text-lg font-bold font-mono ${item.cost === 0 ? 'text-[#1dff00]' : 'text-foreground'}`}>
+                              {item.cost === 0 ? 'FREE' : item.cost}
+                            </span>
+                            {item.cost > 0 && <Coins className="w-3.5 h-3.5 text-[#1dff00]" />}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Search & Applications */}
+                <Card className="border-foreground/10 bg-foreground/[0.02] backdrop-blur-md overflow-hidden">
+                  <CardHeader className="border-b border-foreground/10 bg-foreground/[0.02] pb-4">
+                    <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                      <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <Target className="w-4 h-4 text-blue-400" />
+                      </div>
+                      Search & Applications
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Job search, auto-apply, and application tracking
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y divide-foreground/5">
+                      {[
+                        ...creditCosts
+                          .filter(c => c.feature_name === 'search' || c.feature_name === 'auto_apply' || c.feature_type === 'job')
+                          .map(c => ({
+                            label: c.description.split('(')[0].trim() || `${c.feature_type} / ${c.feature_name}`,
+                            cost: c.cost,
+                            note: c.feature_name === 'auto_apply'
+                              ? `${c.cost} credits per job (governed runs from your plan)`
+                              : c.cost === 0
+                              ? 'Included with plan'
+                              : `${c.cost} credit${c.cost !== 1 ? 's' : ''} per use`,
+                          })),
+                        ...(creditCosts.filter(c => c.feature_name === 'search' || c.feature_name === 'auto_apply' || c.feature_type === 'job').length === 0
+                          ? [
+                              { label: 'Job Search', cost: 1, note: '1 credit per job found' },
+                              { label: 'Auto Apply', cost: 5, note: '5 credits per application (governed runs from your plan)' },
+                            ]
+                          : []),
+                      ].map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-4 hover:bg-foreground/[0.02] transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">{item.label}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{item.note}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 pl-4 flex-shrink-0">
+                            <span className={`text-lg font-bold font-mono ${item.cost === 0 ? 'text-[#1dff00]' : 'text-foreground'}`}>
+                              {item.cost === 0 ? 'FREE' : item.cost}
+                            </span>
+                            {item.cost > 0 && <Coins className="w-3.5 h-3.5 text-[#1dff00]" />}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Tier Comparison Summary */}
+              <Card className="border-foreground/10 bg-foreground/[0.02] backdrop-blur-md overflow-hidden">
+                <CardHeader className="border-b border-foreground/10 bg-foreground/[0.02]">
+                  <CardTitle className="text-lg font-bold text-foreground">
+                    Monthly Included Allowances by Plan
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">
+                    These are included with your subscription at no extra credit cost
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-foreground/10 bg-foreground/[0.02]">
+                          <th className="text-left px-6 py-3 text-gray-400 font-medium">Feature</th>
+                          <th className="text-center px-4 py-3 text-gray-400 font-medium">Free</th>
+                          <th className="text-center px-4 py-3 text-gray-400 font-medium">Basics</th>
+                          <th className="text-center px-4 py-3 text-blue-400 font-medium">Pro</th>
+                          <th className="text-center px-4 py-3 text-purple-400 font-medium">Ultimate</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-foreground/5">
+                        <tr className="hover:bg-foreground/[0.02]">
+                          <td className="px-6 py-3 text-foreground font-medium">Search & AI Credits</td>
+                          <td className="text-center px-4 py-3 text-gray-400">10</td>
+                          <td className="text-center px-4 py-3 text-foreground">250</td>
+                          <td className="text-center px-4 py-3 text-blue-300 font-semibold">1,200</td>
+                          <td className="text-center px-4 py-3 text-purple-300 font-semibold">3,500</td>
+                        </tr>
+                        <tr className="hover:bg-foreground/[0.02]">
+                          <td className="px-6 py-3 text-foreground font-medium">Auto-Apply Runs</td>
+                          <td className="text-center px-4 py-3 text-gray-500">&mdash;</td>
+                          <td className="text-center px-4 py-3 text-foreground">15</td>
+                          <td className="text-center px-4 py-3 text-blue-300 font-semibold">50</td>
+                          <td className="text-center px-4 py-3 text-purple-300 font-semibold">150</td>
+                        </tr>
+                        <tr className="hover:bg-foreground/[0.02]">
+                          <td className="px-6 py-3 text-foreground font-medium">Free AI Chat Messages</td>
+                          <td className="text-center px-4 py-3 text-gray-500">&mdash;</td>
+                          <td className="text-center px-4 py-3 text-gray-500">&mdash;</td>
+                          <td className="text-center px-4 py-3 text-blue-300 font-semibold">50/mo</td>
+                          <td className="text-center px-4 py-3 text-purple-300 font-semibold">200/mo</td>
+                        </tr>
+                        <tr className="hover:bg-foreground/[0.02]">
+                          <td className="px-6 py-3 text-foreground font-medium">Cover Letter Generation</td>
+                          <td className="text-center px-4 py-3 text-gray-500">&mdash;</td>
+                          <td className="text-center px-4 py-3 text-[#1dff00]">Included</td>
+                          <td className="text-center px-4 py-3 text-[#1dff00]">Included</td>
+                          <td className="text-center px-4 py-3 text-[#1dff00]">Included</td>
+                        </tr>
+                        <tr className="hover:bg-foreground/[0.02]">
+                          <td className="px-6 py-3 text-foreground font-medium">Job Match Analysis</td>
+                          <td className="text-center px-4 py-3 text-gray-500">&mdash;</td>
+                          <td className="text-center px-4 py-3 text-[#1dff00]">Included</td>
+                          <td className="text-center px-4 py-3 text-[#1dff00]">Included</td>
+                          <td className="text-center px-4 py-3 text-[#1dff00]">Included</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
             </motion.div>
           )}
 

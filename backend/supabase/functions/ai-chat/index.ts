@@ -4,6 +4,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   createGeminiClient,
   GEMINI_MODEL,
+  withGeminiRetry,
+  isGeminiRateLimitError,
 } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { fetchUserContext, formatUserContextForPrompt } from "../_shared/user-context.ts";
@@ -31,6 +33,11 @@ const createAuthedSupabaseClient = (authHeader: string) =>
         Authorization: authHeader,
       },
     },
+  });
+
+const createServiceSupabaseClient = () =>
+  createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+    auth: { persistSession: false },
   });
 
 const AGENT_FUNCTION_DECLARATIONS = [
@@ -140,8 +147,51 @@ serve(async (req) => {
       });
     }
 
-    const genAI = createGeminiClient();
     const userId = user.id;
+    const serviceClient = createServiceSupabaseClient();
+
+    // --- Rate limit check ---
+    const { data: rateLimitResult, error: rlError } = await serviceClient.rpc(
+      "check_chat_rate_limit",
+      { p_user_id: userId, p_tier: subscriptionTier },
+    );
+    if (!rlError && rateLimitResult && rateLimitResult.allowed === false) {
+      return new Response(
+        JSON.stringify({
+          error: rateLimitResult.message,
+          code: rateLimitResult.reason,
+          retry_after: rateLimitResult.retry_after_seconds,
+        }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // --- Credit / quota consumption ---
+    const { data: consumeResult, error: consumeError } = await serviceClient.rpc(
+      "consume_chat_message",
+      { p_user_id: userId },
+    );
+    if (consumeError) {
+      console.error("consume_chat_message RPC error:", consumeError);
+    } else if (consumeResult && consumeResult.success === false) {
+      return new Response(
+        JSON.stringify({
+          error: consumeResult.message,
+          code: consumeResult.reason,
+          balance: consumeResult.balance,
+          free_remaining: consumeResult.free_remaining,
+        }),
+        {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const genAI = createGeminiClient();
     let userContext = null;
     try {
       userContext = await fetchUserContext(user.id, authHeader);
@@ -199,7 +249,7 @@ serve(async (req) => {
         try {
           if (mode === "agent") {
             const chat = model.startChat({ history });
-            let response = await chat.sendMessage(userPrompt);
+            let response = await withGeminiRetry(() => chat.sendMessage(userPrompt));
             let turnCount = 0;
 
             while (turnCount < 5) {
@@ -281,19 +331,20 @@ serve(async (req) => {
                   toolResults.push({ functionResponse: { name: fn.name, response: result } });
                   enqueueEvent("tool_call", { name: fn.name, args: fn.args, result });
                 }
-                // Continue turn
-                response = await chat.sendMessage(toolResults);
+                response = await withGeminiRetry(() => chat.sendMessage(toolResults));
               } else {
                 break;
               }
             }
           } else {
-            const result = await model.generateContentStream({
-              contents: [
-                ...history,
-                { role: "user", parts: [{ text: userPrompt }] },
-              ],
-            });
+            const result = await withGeminiRetry(() =>
+              model.generateContentStream({
+                contents: [
+                  ...history,
+                  { role: "user", parts: [{ text: userPrompt }] },
+                ],
+              }),
+            );
             for await (const chunk of result.stream) {
               const text = chunk.text();
               if (text) enqueueEvent("message", { delta: text });
@@ -303,7 +354,10 @@ serve(async (req) => {
           controller.close();
         } catch (e: any) {
           console.error("Agent Loop Error:", e);
-          enqueueEvent("error", { error: e.message });
+          const userMessage = isGeminiRateLimitError(e)
+            ? "Our AI service is temporarily busy. Please try again in a moment."
+            : e.message;
+          enqueueEvent("error", { error: userMessage });
           controller.close();
         }
       },

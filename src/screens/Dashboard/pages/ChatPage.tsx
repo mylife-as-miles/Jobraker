@@ -45,6 +45,7 @@ import {
   ArrowDown,
   PanelLeft,
   X,
+  Coins,
 } from "lucide-react";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
@@ -277,7 +278,20 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
 
         if (!response.ok) {
           const errorBody = await response.text().catch(() => "");
-          throw new Error(errorBody || response.statusText || "Chat request failed");
+          let errorMessage = response.statusText || "Chat request failed";
+          try {
+            const parsed = JSON.parse(errorBody);
+            if (parsed.code === "insufficient_credits") {
+              errorMessage = parsed.error || "You've run out of free messages and credits. Purchase more credits to continue.";
+            } else if (parsed.code === "rate_limit" || parsed.code === "daily_limit") {
+              errorMessage = parsed.error || "Too many messages. Please wait a moment.";
+            } else if (parsed.error) {
+              errorMessage = parsed.error;
+            }
+          } catch {
+            if (errorBody) errorMessage = errorBody;
+          }
+          throw new Error(errorMessage);
         }
 
         if (!response.body) throw new Error("No response body");
@@ -465,8 +479,37 @@ export const ChatPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasChatAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
 
+  const [chatQuota, setChatQuota] = useState<{
+    free_remaining: number;
+    free_total: number;
+    credit_balance: number;
+    plan_name?: string;
+  } | null>(null);
+
+  const fetchChatQuota = useCallback(async () => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user?.id) return;
+      const { data } = await supabase.rpc("get_chat_quota_status", {
+        p_user_id: userData.user.id,
+      });
+      if (data) setChatQuota(data);
+    } catch {
+      // Quota display is non-critical
+    }
+  }, [supabase]);
+
+  useEffect(() => {
+    if (hasChatAccess) fetchChatQuota();
+  }, [hasChatAccess, fetchChatQuota]);
+
   // Chat logic
-  const chat = useChat({ api: "/api/ai-chat" });
+  const chat = useChat({
+    api: "/api/ai-chat",
+    onFinish: () => {
+      fetchChatQuota();
+    },
+  });
   const {
     messages,
     status,
@@ -820,9 +863,9 @@ export const ChatPage = () => {
               features={[
                 {
                   icon: <MessageSquare className='h-5 w-5' />,
-                  title: "Unlimited AI Conversations",
+                  title: "AI Conversations",
                   description:
-                    "Chat as much as you need about your job search strategy",
+                    "50 free messages/month on Pro, 200 on Ultimate, then 1 credit each",
                 },
                 {
                   icon: <Wand2 className='h-5 w-5' />,
@@ -959,6 +1002,16 @@ export const ChatPage = () => {
                   </span>
                 </div>
                 <div className='flex items-center gap-4'>
+                  {chatQuota && (
+                    <div className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/70 border border-border'>
+                      <Coins size={14} className='text-brand' />
+                      <span className='text-xs font-medium text-foreground'>
+                        {chatQuota.free_remaining > 0
+                          ? `${chatQuota.free_remaining}/${chatQuota.free_total} free`
+                          : `${chatQuota.credit_balance} credits`}
+                      </span>
+                    </div>
+                  )}
                   <div
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/70 border border-border`}
                   >
