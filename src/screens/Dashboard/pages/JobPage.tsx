@@ -23,7 +23,7 @@ import {
   TrendingUp,
   Lock,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -818,6 +818,7 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
 export const JobPage = (): JSX.Element => {
   const isMobile = useMediaQuery("(max-width: 1023px)");
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const gamificationHook = useGamification();
   const [searchQuery, setSearchQuery] = useState("");
@@ -2196,6 +2197,56 @@ export const JobPage = (): JSX.Element => {
     resumes,
     safeInfo,
     selectedResumeId,
+  ]);
+
+  /** Deep link from Applications: `/dashboard/jobs?autoApplyJobId=<uuid>` opens auto-apply for that queued job. */
+  const autoApplyDeepLinkConsumed = useRef<string | null>(null);
+  useEffect(() => {
+    const jobId = searchParams.get("autoApplyJobId");
+    if (!jobId) {
+      autoApplyDeepLinkConsumed.current = null;
+      return;
+    }
+    if (autoApplyDeepLinkConsumed.current === jobId) return;
+    if (queueStatus === "loading" || queueStatus === "populating") return;
+
+    const target = jobs.find((j) => j.id === jobId);
+    if (!target) {
+      if (queueStatus === "ready" || queueStatus === "empty") {
+        autoApplyDeepLinkConsumed.current = jobId;
+        safeInfo(
+          "Job not in your queue",
+          "That role isn’t in your Jobs list. Add it from Job Search, then try Continue auto-apply again.",
+        );
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete("autoApplyJobId");
+            return next;
+          },
+          { replace: true },
+        );
+      }
+      return;
+    }
+
+    autoApplyDeepLinkConsumed.current = jobId;
+    openAutoApplyFlow(target);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("autoApplyJobId");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [
+    jobs,
+    openAutoApplyFlow,
+    queueStatus,
+    safeInfo,
+    searchParams,
+    setSearchParams,
   ]);
 
   useEffect(() => {

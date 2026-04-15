@@ -1,5 +1,6 @@
 import SortDropdown from "@/components/SortDropdown";
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   useApplications,
@@ -28,6 +29,7 @@ import {
   Bot,
   ClipboardList,
   Lock,
+  Zap,
 } from "lucide-react";
 import {
   KanbanProvider,
@@ -415,6 +417,7 @@ function ApplicationsListView({
 }
 
 function ApplicationPage() {
+  const navigate = useNavigate();
   const {
     applications,
     exportCSV,
@@ -1912,6 +1915,23 @@ function ApplicationPage() {
                 Quick Actions
               </h3>
               <div className='flex flex-wrap gap-2'>
+                {(detailApp.status === "Draft" || detailApp.status === "Failed") &&
+                  detailApp.job_id && (
+                  <button
+                    type='button'
+                    onClick={() =>
+                      navigate(
+                        `/dashboard/jobs?autoApplyJobId=${encodeURIComponent(detailApp.job_id!)}`,
+                      )
+                    }
+                    className='inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1dff00]/15 border border-[#1dff00]/40 text-[#1dff00] hover:bg-[#1dff00]/25 hover:shadow-[0_0_20px_rgba(29,255,0,0.25)] transition-all duration-200 text-sm font-medium'
+                  >
+                    <Zap className='w-4 h-4' />
+                    {detailApp.status === "Failed"
+                      ? "Retry auto-apply"
+                      : "Continue auto-apply"}
+                  </button>
+                )}
                 {detailApp.app_url && (
                   <a
                     href={detailApp.app_url}
