@@ -1297,69 +1297,315 @@ export const BillingPage = () => {
                 </Card>
               </div>
 
-              {/* Tier Comparison Summary */}
-              <Card className="border-foreground/10 bg-foreground/[0.02] backdrop-blur-md overflow-hidden">
-                <CardHeader className="border-b border-foreground/10 bg-foreground/[0.02]">
-                  <CardTitle className="text-lg font-bold text-foreground">
-                    Monthly Included Allowances by Plan
-                  </CardTitle>
-                  <CardDescription className="text-gray-400">
-                    These are included with your subscription at no extra credit cost
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-foreground/10 bg-foreground/[0.02]">
-                          <th className="text-left px-6 py-3 text-gray-400 font-medium">Feature</th>
-                          <th className="text-center px-4 py-3 text-gray-400 font-medium">Free</th>
-                          <th className="text-center px-4 py-3 text-gray-400 font-medium">Basics</th>
-                          <th className="text-center px-4 py-3 text-blue-400 font-medium">Pro</th>
-                          <th className="text-center px-4 py-3 text-purple-400 font-medium">Ultimate</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-foreground/5">
-                        <tr className="hover:bg-foreground/[0.02]">
-                          <td className="px-6 py-3 text-foreground font-medium">Search & AI Credits</td>
-                          <td className="text-center px-4 py-3 text-gray-400">10</td>
-                          <td className="text-center px-4 py-3 text-foreground">250</td>
-                          <td className="text-center px-4 py-3 text-blue-300 font-semibold">1,200</td>
-                          <td className="text-center px-4 py-3 text-purple-300 font-semibold">3,500</td>
-                        </tr>
-                        <tr className="hover:bg-foreground/[0.02]">
-                          <td className="px-6 py-3 text-foreground font-medium">Auto-Apply Runs</td>
-                          <td className="text-center px-4 py-3 text-gray-500">&mdash;</td>
-                          <td className="text-center px-4 py-3 text-foreground">15</td>
-                          <td className="text-center px-4 py-3 text-blue-300 font-semibold">50</td>
-                          <td className="text-center px-4 py-3 text-purple-300 font-semibold">150</td>
-                        </tr>
-                        <tr className="hover:bg-foreground/[0.02]">
-                          <td className="px-6 py-3 text-foreground font-medium">Free AI Chat Messages</td>
-                          <td className="text-center px-4 py-3 text-gray-500">&mdash;</td>
-                          <td className="text-center px-4 py-3 text-gray-500">&mdash;</td>
-                          <td className="text-center px-4 py-3 text-blue-300 font-semibold">50/mo</td>
-                          <td className="text-center px-4 py-3 text-purple-300 font-semibold">200/mo</td>
-                        </tr>
-                        <tr className="hover:bg-foreground/[0.02]">
-                          <td className="px-6 py-3 text-foreground font-medium">Cover Letter Generation</td>
-                          <td className="text-center px-4 py-3 text-gray-500">&mdash;</td>
-                          <td className="text-center px-4 py-3 text-[#1dff00]">Included</td>
-                          <td className="text-center px-4 py-3 text-[#1dff00]">Included</td>
-                          <td className="text-center px-4 py-3 text-[#1dff00]">Included</td>
-                        </tr>
-                        <tr className="hover:bg-foreground/[0.02]">
-                          <td className="px-6 py-3 text-foreground font-medium">Job Match Analysis</td>
-                          <td className="text-center px-4 py-3 text-gray-500">&mdash;</td>
-                          <td className="text-center px-4 py-3 text-[#1dff00]">Included</td>
-                          <td className="text-center px-4 py-3 text-[#1dff00]">Included</td>
-                          <td className="text-center px-4 py-3 text-[#1dff00]">Included</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Full Plan Comparison Grid */}
+              {(() => {
+                const tierOrder = ['Free', 'Basics', 'Pro', 'Ultimate'] as const;
+                const tierColors: Record<string, { text: string; accent: string; bg: string }> = {
+                  Free: { text: 'text-gray-400', accent: 'text-foreground', bg: 'bg-foreground/5' },
+                  Basics: { text: 'text-[#1dff00]', accent: 'text-[#1dff00]', bg: 'bg-[#1dff00]/5' },
+                  Pro: { text: 'text-blue-400', accent: 'text-blue-300', bg: 'bg-blue-500/5' },
+                  Ultimate: { text: 'text-purple-400', accent: 'text-purple-300', bg: 'bg-purple-500/5' },
+                };
+
+                type CellVal = string | number | boolean;
+                interface CompRow { feature: string; sub?: string; values: Record<string, CellVal> }
+                interface CompSection { title: string; rows: CompRow[] }
+
+                const sections: CompSection[] = [
+                  {
+                    title: 'Quotas & Limits',
+                    rows: [
+                      {
+                        feature: 'Search & AI Credits',
+                        sub: 'Monthly allowance',
+                        values: { Free: 10, Basics: 250, Pro: '1,200', Ultimate: '3,500' },
+                      },
+                      {
+                        feature: 'Auto-Apply Runs',
+                        sub: 'Governed automations per month',
+                        values: { Free: 2, Basics: 15, Pro: 50, Ultimate: 150 },
+                      },
+                      {
+                        feature: 'Free AI Chat Messages',
+                        sub: 'Before credits are consumed',
+                        values: { Free: false, Basics: false, Pro: '50/mo', Ultimate: '200/mo' },
+                      },
+                    ],
+                  },
+                  {
+                    title: 'AI Features',
+                    rows: [
+                      {
+                        feature: 'AI Job Fit Evaluation',
+                        sub: 'Blockers, match score, interview angles',
+                        values: { Free: false, Basics: true, Pro: true, Ultimate: true },
+                      },
+                      {
+                        feature: 'Cover Letter Generation',
+                        sub: 'Tailored per job description',
+                        values: { Free: false, Basics: true, Pro: true, Ultimate: true },
+                      },
+                      {
+                        feature: 'Resume Tailoring',
+                        sub: 'AI rewrites to match each posting',
+                        values: { Free: false, Basics: true, Pro: true, Ultimate: true },
+                      },
+                      {
+                        feature: 'AI Chat Assistant',
+                        sub: 'Agent mode with profile/resume actions',
+                        values: { Free: false, Basics: false, Pro: true, Ultimate: true },
+                      },
+                      {
+                        feature: 'Interview Stories',
+                        sub: 'AI-generated STAR stories from your experience',
+                        values: { Free: false, Basics: false, Pro: true, Ultimate: true },
+                      },
+                    ],
+                  },
+                  {
+                    title: 'Automation & Applications',
+                    rows: [
+                      {
+                        feature: 'Single-Job Auto Apply',
+                        sub: 'Review + submit one application at a time',
+                        values: { Free: true, Basics: true, Pro: true, Ultimate: true },
+                      },
+                      {
+                        feature: 'Batch Auto Apply',
+                        sub: 'True Autonomy — apply to many jobs at once',
+                        values: { Free: true, Basics: true, Pro: true, Ultimate: true },
+                      },
+                      {
+                        feature: 'Per-Job Cover Letters in Batch',
+                        sub: 'Tailored letter generated per job in batch mode',
+                        values: { Free: false, Basics: true, Pro: true, Ultimate: true },
+                      },
+                      {
+                        feature: 'Draft-First Autopilot',
+                        sub: 'AI generates a custom resume + cover letter draft',
+                        values: { Free: false, Basics: true, Pro: true, Ultimate: true },
+                      },
+                    ],
+                  },
+                  {
+                    title: 'Search & Discovery',
+                    rows: [
+                      {
+                        feature: 'Job Search',
+                        sub: 'Hybrid discovery across multiple sources',
+                        values: { Free: true, Basics: true, Pro: true, Ultimate: true },
+                      },
+                      {
+                        feature: 'Results per Search',
+                        sub: 'Maximum jobs returned per query',
+                        values: { Free: 30, Basics: 100, Pro: 100, Ultimate: 100 },
+                      },
+                      {
+                        feature: 'Job Match Insights',
+                        sub: 'AI match score + breakdown per job',
+                        values: { Free: false, Basics: true, Pro: true, Ultimate: true },
+                      },
+                    ],
+                  },
+                  {
+                    title: 'Platform',
+                    rows: [
+                      {
+                        feature: 'Resume Builder & Storage',
+                        values: { Free: true, Basics: true, Pro: true, Ultimate: true },
+                      },
+                      {
+                        feature: 'Application Tracking',
+                        values: { Free: true, Basics: true, Pro: true, Ultimate: true },
+                      },
+                      {
+                        feature: 'Candidate Memory',
+                        sub: 'AI remembers your preferences across sessions',
+                        values: { Free: false, Basics: true, Pro: true, Ultimate: true },
+                      },
+                      {
+                        feature: 'Priority Automation Queue',
+                        sub: 'Your jobs are processed first',
+                        values: { Free: false, Basics: false, Pro: true, Ultimate: true },
+                      },
+                      {
+                        feature: 'Priority Support',
+                        values: { Free: false, Basics: false, Pro: false, Ultimate: true },
+                      },
+                    ],
+                  },
+                ];
+
+                const renderCell = (val: CellVal, tier: string) => {
+                  const colors = tierColors[tier] || tierColors.Free;
+                  if (val === true) return <Check className={`w-4 h-4 mx-auto ${colors.accent}`} />;
+                  if (val === false) return <span className="text-gray-600 select-none">&times;</span>;
+                  return (
+                    <span className={`font-semibold ${colors.accent}`}>
+                      {String(val)}
+                    </span>
+                  );
+                };
+
+                return (
+                  <Card className="border-foreground/10 bg-foreground/[0.02] backdrop-blur-md overflow-hidden">
+                    <CardHeader className="border-b border-foreground/10 bg-foreground/[0.02] pb-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <CardTitle className="text-xl font-bold text-foreground tracking-tight">
+                            Compare Plans
+                          </CardTitle>
+                          <CardDescription className="text-gray-400 mt-1">
+                            Every feature across all tiers — see exactly what you get
+                          </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 p-1 text-xs">
+                          <button
+                            onClick={() => setBillingInterval('monthly')}
+                            className={`rounded-full px-3 py-1 font-semibold transition-all ${
+                              billingInterval === 'monthly'
+                                ? 'bg-[#1dff00] text-background shadow-sm'
+                                : 'text-gray-400 hover:text-foreground'
+                            }`}
+                          >
+                            Monthly
+                          </button>
+                          <button
+                            onClick={() => setBillingInterval('yearly')}
+                            className={`rounded-full px-3 py-1 font-semibold transition-all ${
+                              billingInterval === 'yearly'
+                                ? 'bg-[#1dff00] text-background shadow-sm'
+                                : 'text-gray-400 hover:text-foreground'
+                            }`}
+                          >
+                            Annual{' '}
+                            <span className="text-[10px] font-bold ml-0.5 opacity-80">
+                              {annualSavingsPctApprox}% OFF
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm min-w-[640px]">
+                          <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur-md">
+                            <tr className="border-b border-foreground/10">
+                              <th className="w-[38%] text-left px-5 py-4" />
+                              {tierOrder.map((tier) => {
+                                const def = BILLING_PLAN_DEFINITIONS.find((p) => p.name === tier);
+                                const pricing = getPlanPricingDisplay(
+                                  tier,
+                                  billingInterval,
+                                  def?.monthlyPriceUsd ?? 0,
+                                );
+                                const isCurrent = subscriptionTier === tier;
+                                const colors = tierColors[tier];
+                                return (
+                                  <th key={tier} className="text-center px-3 py-4 align-top">
+                                    <div className="flex flex-col items-center gap-1.5">
+                                      <span className={`text-sm font-bold ${colors.text}`}>
+                                        {tier}
+                                      </span>
+                                      {def && def.monthlyPriceUsd > 0 ? (
+                                        <div className="flex items-baseline gap-0.5">
+                                          <span className="text-lg font-extrabold text-foreground">
+                                            ${pricing.headline}
+                                          </span>
+                                          <span className="text-[11px] text-gray-500">
+                                            {pricing.suffix}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-[11px] text-gray-500">
+                                          Free
+                                        </span>
+                                      )}
+                                      {pricing.savingsBadge && (
+                                        <span className="rounded-full bg-[#1dff00]/10 border border-[#1dff00]/30 px-2 py-0.5 text-[10px] font-bold text-[#1dff00]">
+                                          {pricing.savingsBadge}
+                                        </span>
+                                      )}
+                                      {isCurrent ? (
+                                        <span className="mt-1 rounded-full border border-foreground/20 bg-foreground/5 px-3 py-1 text-[10px] font-bold text-foreground/60 tracking-wider">
+                                          CURRENT
+                                        </span>
+                                      ) : tier !== 'Free' ? (
+                                        <Button
+                                          size="sm"
+                                          disabled={processingPayment}
+                                          onClick={() =>
+                                            handlePayment('subscription', {
+                                              ...plans.find((p) => p.name === tier) || { id: tier.toLowerCase(), name: tier },
+                                              billingCycle: billingInterval,
+                                            })
+                                          }
+                                          className={`mt-1 h-7 rounded-full px-4 text-[10px] font-bold tracking-wide transition-all ${
+                                            tier === 'Basics'
+                                              ? 'bg-[#1dff00] text-background hover:brightness-110'
+                                              : tier === 'Pro'
+                                                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                                                : 'bg-purple-600 text-white hover:bg-purple-700'
+                                          }`}
+                                        >
+                                          {isCurrent ? 'Current' : 'Upgrade'}
+                                        </Button>
+                                      ) : null}
+                                    </div>
+                                  </th>
+                                );
+                              })}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sections.map((section) => (
+                              <>
+                                <tr key={`h-${section.title}`}>
+                                  <td
+                                    colSpan={tierOrder.length + 1}
+                                    className="px-5 pt-5 pb-2 text-xs font-bold uppercase tracking-widest text-[#1dff00]"
+                                  >
+                                    {section.title}
+                                  </td>
+                                </tr>
+                                {section.rows.map((row) => (
+                                  <tr
+                                    key={row.feature}
+                                    className="group border-t border-foreground/5 hover:bg-foreground/[0.02] transition-colors"
+                                  >
+                                    <td className="px-5 py-3">
+                                      <span className="text-sm font-medium text-foreground">
+                                        {row.feature}
+                                      </span>
+                                      {row.sub && (
+                                        <span className="block text-[11px] text-gray-500 mt-0.5">
+                                          {row.sub}
+                                        </span>
+                                      )}
+                                    </td>
+                                    {tierOrder.map((tier) => (
+                                      <td
+                                        key={tier}
+                                        className={`text-center px-3 py-3 ${
+                                          subscriptionTier === tier
+                                            ? (tierColors[tier]?.bg ?? '')
+                                            : ''
+                                        }`}
+                                      >
+                                        {renderCell(row.values[tier] ?? false, tier)}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
             </motion.div>
           )}
 
