@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { user, serviceClient } = await requireSubscriptionTier(
       req,
-      "Basics",
+      "Free",
       "Auto apply",
     );
 
@@ -168,6 +168,7 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Tier gate is Free+; rate limit and credits (client / other RPCs) constrain abuse.
     const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
     const { count } = await serviceClient
       .from("applications")

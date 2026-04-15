@@ -780,13 +780,45 @@ export const BillingPage = () => {
                   <CardContent className="p-0">
                     <div className="divide-y divide-foreground/5">
                       {[
-                        { label: 'AI Chat Message', cost: 1, note: 'Pro: 50 free/mo, Ultimate: 200 free/mo, then 1 credit each' },
+                        ...((): Array<{ label: string; cost: number; note: string }> => {
+                          const chatBase = creditCosts.find(
+                            (c) => c.feature_type === 'ai_chat' && c.feature_name === 'chat_message',
+                          );
+                          const chatAgent = creditCosts.find(
+                            (c) => c.feature_type === 'ai_chat' && c.feature_name === 'agent_tool_round',
+                          );
+                          const rows: Array<{ label: string; cost: number; note: string }> = [
+                            {
+                              label: 'AI chat — base message (Ask or Agent)',
+                              cost: chatBase?.cost ?? 1,
+                              note:
+                                'Pro: 50 free/mo, Ultimate: 200 free/mo, then 1 credit each (Ask uses this only)',
+                            },
+                            {
+                              label: 'Agent mode — tool round',
+                              cost: chatAgent?.cost ?? 1,
+                              note:
+                                '+1 credit each time the agent runs a batch of tools (after the base message credit)',
+                            },
+                          ];
+                          return rows;
+                        })(),
                         ...creditCosts
-                          .filter(c => (c.feature_type === 'cover_letter' || c.feature_type === 'analysis' || c.feature_type === 'job_search') && c.feature_name !== 'search' && c.feature_name !== 'auto_apply')
-                          .map(c => ({
+                          .filter(
+                            (c) =>
+                              (c.feature_type === 'cover_letter' ||
+                                c.feature_type === 'analysis' ||
+                                c.feature_type === 'job_search') &&
+                              c.feature_name !== 'search' &&
+                              c.feature_name !== 'auto_apply',
+                          )
+                          .map((c) => ({
                             label: c.description.split('(')[0].trim() || `${c.feature_type} / ${c.feature_name}`,
                             cost: c.cost,
-                            note: c.cost === 0 ? 'Included with Basics+ plan' : `${c.cost} credit${c.cost !== 1 ? 's' : ''} per use`,
+                            note:
+                              c.cost === 0
+                                ? 'Included with Basics+ plan'
+                                : `${c.cost} credit${c.cost !== 1 ? 's' : ''} per use`,
                           })),
                       ].map((item, idx) => (
                         <div key={idx} className="flex items-center justify-between p-4 hover:bg-foreground/[0.02] transition-colors">

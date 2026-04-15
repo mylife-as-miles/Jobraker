@@ -106,6 +106,8 @@ interface UseChatOptions {
   api: string;
   initialMessages?: BasicMessage[];
   onFinish?: (msg: BasicMessage) => void;
+  /** Fired when agent mode charges extra credits for a tool round */
+  onCreditsUpdated?: () => void;
 }
 interface UseChatReturn {
   messages: BasicMessage[];
@@ -383,6 +385,8 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                         : msg,
                     ),
                   );
+                } else if (currentEvent === "agent_surcharge") {
+                  opts.onCreditsUpdated?.();
                 }
               } catch (e) {
                 // Ignore parse errors for partial lines
@@ -430,7 +434,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         abortControllerRef.current = null;
       }
     },
-    [responseId, status, opts.onFinish],
+    [responseId, status, opts.onFinish, opts.onCreditsUpdated],
   );
 
   const append = useCallback(
@@ -509,6 +513,7 @@ export const ChatPage = () => {
     onFinish: () => {
       fetchChatQuota();
     },
+    onCreditsUpdated: fetchChatQuota,
   });
   const {
     messages,
@@ -1399,27 +1404,35 @@ export const ChatPage = () => {
                     </div>
 
                     <div className='flex items-center justify-between px-4 pb-3 pt-0'>
-                      <div className='flex gap-2'>
-                        <button
-                          onClick={() => setPersona("concise")}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${persona === "concise"
-                              ? "bg-brand/10 text-brand border-brand/20"
-                              : "text-muted-foreground border-transparent hover:bg-accent/40"
-                            }`}
-                        >
-                          <Bolt size={12} />
-                          Ask
-                        </button>
-                        <button
-                          onClick={() => setPersona("analyst")}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${persona === "analyst"
-                              ? "bg-brand/10 text-brand border-brand/20"
-                              : "text-muted-foreground border-transparent hover:bg-accent/40"
-                            }`}
-                        >
-                          <BookOpen size={12} />
-                          Agent Mode
-                        </button>
+                      <div className='flex flex-col gap-1 min-w-0'>
+                        <div className='flex gap-2 flex-wrap'>
+                          <button
+                            onClick={() => setPersona("concise")}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${persona === "concise"
+                                ? "bg-brand/10 text-brand border-brand/20"
+                                : "text-muted-foreground border-transparent hover:bg-accent/40"
+                              }`}
+                          >
+                            <Bolt size={12} />
+                            Ask
+                          </button>
+                          <button
+                            onClick={() => setPersona("analyst")}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${persona === "analyst"
+                                ? "bg-brand/10 text-brand border-brand/20"
+                                : "text-muted-foreground border-transparent hover:bg-accent/40"
+                              }`}
+                            title="Same base credit as Ask, plus 1 credit per round when tools run"
+                          >
+                            <BookOpen size={12} />
+                            Agent Mode
+                          </button>
+                        </div>
+                        {persona === "analyst" && (
+                          <p className='text-[10px] text-muted-foreground px-0.5'>
+                            Agent: 1 credit for your message, then +1 credit each time tools run (from your balance).
+                          </p>
+                        )}
                       </div>
                       <div className='flex gap-2'>
                         <input

@@ -11,6 +11,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { fetchUserContext, formatUserContextForPrompt } from "../_shared/user-context.ts";
 import { APP_INTERFACE_GUIDE } from "../_shared/app-map.ts";
 import {
+  normalizeSubscriptionTier,
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
@@ -261,6 +262,30 @@ serve(async (req) => {
               if (text) enqueueEvent("message", { delta: text });
 
               if (functionCalls.length > 0) {
+                // Option C: extra credit per agent tool round (Ask mode has no surcharge)
+                const { data: surchargeResult, error: surchargeError } = await serviceClient.rpc(
+                  "consume_ai_chat_tool_surcharge",
+                  { p_user_id: userId, p_credits: 1 },
+                );
+                if (surchargeError) {
+                  console.error("consume_ai_chat_tool_surcharge RPC error:", surchargeError);
+                }
+                if (!surchargeError && surchargeResult && surchargeResult.success === false) {
+                  enqueueEvent("error", {
+                    error: surchargeResult.message ||
+                      "Not enough credits to run agent tools this step. Add credits or switch to Ask mode.",
+                    code: "agent_tool_surcharge",
+                    balance: surchargeResult.balance,
+                  });
+                  break;
+                }
+                if (surchargeResult?.success) {
+                  enqueueEvent("agent_surcharge", {
+                    credits_charged: surchargeResult.credits_charged,
+                    balance: surchargeResult.balance,
+                  });
+                }
+
                 const toolResults = [];
                 for (const fc of functionCalls) {
                   const fn = fc.functionCall;
@@ -319,6 +344,25 @@ serve(async (req) => {
                           .order("created_at", { ascending: false })
                           .limit(fn.args.limit || 10);
                         result = { success: true, jobs: data || [] };
+                    } else if (fn.name === "evaluate_job_fit") {
+                        const t = normalizeSubscriptionTier(subscriptionTier);
+                        if (t === "Free") {
+                          result = {
+                            success: false,
+                            error:
+                              "AI job fit reports require Basics or higher. Upgrade at Billing to unlock full evaluation (blockers, confidence, interview angles).",
+                            upgrade_required: true,
+                            required_tier: "Basics",
+                            billing_path: "/dashboard/billing",
+                          };
+                        } else {
+                          const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/evaluate-job-fit`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", Authorization: authHeader! },
+                            body: JSON.stringify(fn.args),
+                          });
+                          result = await res.json();
+                        }
                     } else {
                       const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/${fn.name.replace(/_/g, "-")}`, {
                         method: "POST", headers: { "Content-Type": "application/json", Authorization: authHeader! },

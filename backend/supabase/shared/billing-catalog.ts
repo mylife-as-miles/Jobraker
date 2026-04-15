@@ -31,15 +31,16 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     monthlyPriceUsd: 0,
     yearlyPriceUsd: 0,
     creditsPerMonth: 10,
-    autoApplyRunsPerMonth: 0,
-    description: "Core search and resume tools for getting started.",
+    autoApplyRunsPerMonth: 2,
+    description:
+      "Core search and resume tools, plus limited automation that uses your credits.",
     isPopular: false,
     marketingFeatures: [
       "10 search and AI credits per month",
+      "Governed auto-apply available (credit-based; no full AI job-fit report)",
       "Resume builder and storage",
       "Resume import and parsing",
       "Application tracking",
-      "Manual apply workflow",
     ],
   },
   {
@@ -54,7 +55,7 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     marketingFeatures: [
       "250 search and AI credits per month",
       "15 governed auto-apply runs per month",
-      "Hybrid discovery and fit evaluation",
+      "Full AI job fit evaluation and compatibility reports",
       "Resume tailoring and cover letter generation",
       "Draft-first autopilot and candidate memory",
     ],

@@ -8,6 +8,7 @@ import {
 } from "../_shared/user-context.ts";
 import { APP_INTERFACE_GUIDE } from "../_shared/app-map.ts";
 import {
+  normalizeSubscriptionTier,
   requireSubscriptionTier,
   resolveSubscriptionTier,
   subscriptionErrorResponse,
@@ -418,10 +419,22 @@ async function executeTool(
         instructions: args.instructions,
       });
 
-    case "evaluate_job_fit":
+    case "evaluate_job_fit": {
+      const tier = normalizeSubscriptionTier(userContext?.subscriptionTier);
+      if (tier === "Free") {
+        return {
+          success: false,
+          error:
+            "AI job fit reports require Basics or higher. Upgrade at Billing to unlock full evaluation (blockers, confidence, interview angles).",
+          upgrade_required: true,
+          required_tier: "Basics",
+          billing_path: "/dashboard/billing",
+        };
+      }
       return callEdgeFunction("evaluate-job-fit", {
         job_description: args.job_description,
       });
+    }
 
     case "intake_job_url":
       return callEdgeFunction("intake-job-url", {

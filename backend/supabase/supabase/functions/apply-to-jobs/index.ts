@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { user, serviceClient } = await requireSubscriptionTier(
       req,
-      "Basics",
+      "Free",
       "Auto apply",
     );
 

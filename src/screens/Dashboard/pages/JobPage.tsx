@@ -67,6 +67,7 @@ import { cn, getProxiedLogoUrl } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
+import { JobEvaluationTeaser } from "../../../components/JobEvaluationTeaser";
 import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
 import { JobEvaluationReport } from "../components/JobEvaluationReport";
 import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
@@ -885,8 +886,13 @@ export const JobPage = (): JSX.Element => {
   const [activeSearchScope, setActiveSearchScope] =
     useState<JobsQueueScope>(null);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
-  const hasMatchScoreAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
-  const hasAutoApplyAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
+  const hasPaidInsightsAccess = hasSubscriptionAccess(
+    subscriptionTier,
+    "Basics",
+  );
+  const hasMatchScoreAccess = hasPaidInsightsAccess;
+  const hasJobEvaluationAccess = hasPaidInsightsAccess;
+  const hasAutoApplyAccess = hasSubscriptionAccess(subscriptionTier, "Free");
 
   // AI Decision Boundary states
   const [evaluatingJob, setEvaluatingJob] = useState(false);
@@ -1561,6 +1567,7 @@ export const JobPage = (): JSX.Element => {
   const loadJobEvaluationReport = useCallback(
     async (jobId: string, force = false) => {
       if (!jobId) return null;
+      if (!hasJobEvaluationAccess) return null;
       if (!force && evaluationReports[jobId]) return evaluationReports[jobId];
       if (!force && evaluationLoadingByJob[jobId]) return null;
 
@@ -1578,7 +1585,7 @@ export const JobPage = (): JSX.Element => {
         setEvaluationLoadingByJob((prev) => ({ ...prev, [jobId]: false }));
       }
     },
-    [evaluationLoadingByJob, evaluationReports],
+    [evaluationLoadingByJob, evaluationReports, hasJobEvaluationAccess],
   );
 
   const buildEvaluationSummary = useCallback(
@@ -1638,6 +1645,7 @@ export const JobPage = (): JSX.Element => {
   );
 
   useEffect(() => {
+    if (!hasJobEvaluationAccess) return;
     if (!selectedJobRecord?.id) return;
     const status = selectedJobRecord.canonical_status;
     const shouldLoad =
@@ -1649,7 +1657,7 @@ export const JobPage = (): JSX.Element => {
 
     if (!shouldLoad) return;
     void loadJobEvaluationReport(selectedJobRecord.id);
-  }, [loadJobEvaluationReport, selectedJobRecord]);
+  }, [hasJobEvaluationAccess, loadJobEvaluationReport, selectedJobRecord]);
 
   useEffect(() => {
     jobsRef.current = jobs;
@@ -1783,7 +1791,7 @@ export const JobPage = (): JSX.Element => {
   }, [incrementalMode, isMobile]);
 
   const runBackgroundEvaluations = useCallback(async () => {
-    if (backgroundEvaluationRunnerRef.current || !hasMatchScoreAccess) return;
+    if (backgroundEvaluationRunnerRef.current || !hasJobEvaluationAccess) return;
 
     backgroundEvaluationRunnerRef.current = true;
     try {
@@ -1844,7 +1852,7 @@ export const JobPage = (): JSX.Element => {
     }
   }, [
     activeResumeText,
-    hasMatchScoreAccess,
+    hasJobEvaluationAccess,
     mergeEvaluationIntoState,
     profileSnapshot,
   ]);
@@ -2343,14 +2351,9 @@ export const JobPage = (): JSX.Element => {
       if (applyingAll) return;
       if (!hasAutoApplyAccess) {
         setError({
-          message:
-            "Auto apply requires a Basics, Pro, or Ultimate subscription.",
+          message: "Sign in to use auto apply.",
           link: "/dashboard/billing",
         });
-        safeInfo(
-          "Upgrade required",
-          "Upgrade to Basics or above to unlock auto apply.",
-        );
         return;
       }
 
@@ -2397,6 +2400,9 @@ export const JobPage = (): JSX.Element => {
         const getEvaluationForJob = async (job: Job) => {
           const cached = evaluationCache.get(job.id);
           if (cached) return cached;
+          if (!hasJobEvaluationAccess) {
+            throw new Error("Job evaluation requires Basics or higher");
+          }
 
           const evaluation = await evaluateJobFit(
             job.id,
@@ -2458,7 +2464,12 @@ export const JobPage = (): JSX.Element => {
           return evaluation;
         };
 
-        if (jobsWithTargets.length === 1 && !forceSubmit && !draftData) {
+        if (
+          hasJobEvaluationAccess &&
+          jobsWithTargets.length === 1 &&
+          !forceSubmit &&
+          !draftData
+        ) {
           const targetJob = jobsWithTargets[0].job;
           setEvaluatingJob(true);
           try {
@@ -2510,46 +2521,55 @@ export const JobPage = (): JSX.Element => {
           jobsToAutoApply = [];
           jobsToDraft = jobsWithTargets;
         } else if (trueAutonomyEnabled && jobsWithTargets.length > 1) {
-          jobsToAutoApply = [];
-          jobsToDraft = [];
+          if (!hasJobEvaluationAccess) {
+            jobsToAutoApply = [...jobsWithTargets];
+            jobsToDraft = [];
+            pushLog(
+              "AI fit evaluation is a Basics+ feature — skipping and launching all jobs with valid apply links.",
+              "info",
+            );
+          } else {
+            jobsToAutoApply = [];
+            jobsToDraft = [];
 
-          for (const item of jobsWithTargets) {
-            try {
-              const evaluation = await getEvaluationForJob(item.job);
-              const decision = evaluation.canonical_decision;
-              const confidence = evaluation.confidence_score ?? 0;
-              const hardBlockers = (evaluation.blockers?.length ?? 0);
+            for (const item of jobsWithTargets) {
+              try {
+                const evaluation = await getEvaluationForJob(item.job);
+                const decision = evaluation.canonical_decision;
+                const confidence = evaluation.confidence_score ?? 0;
+                const hardBlockers = (evaluation.blockers?.length ?? 0);
 
-              const safeToLaunch =
-                (decision === "strong_yes" || decision === "draft_first") &&
-                confidence >= 65 &&
-                hardBlockers === 0;
+                const safeToLaunch =
+                  (decision === "strong_yes" || decision === "draft_first") &&
+                  confidence >= 65 &&
+                  hardBlockers === 0;
 
-              if (safeToLaunch) {
-                jobsToAutoApply.push(item);
-                pushLog(
-                  `Evaluated: ${item.job.title} — ${decision} (${Math.round(confidence)}% confidence) → auto-apply`,
-                  "info",
-                );
-              } else {
+                if (safeToLaunch) {
+                  jobsToAutoApply.push(item);
+                  pushLog(
+                    `Evaluated: ${item.job.title} — ${decision} (${Math.round(confidence)}% confidence) → auto-apply`,
+                    "info",
+                  );
+                } else {
+                  jobsToDraft.push(item);
+                  const reason = hardBlockers > 0
+                    ? `${hardBlockers} blocker(s)`
+                    : confidence < 65
+                      ? `low confidence (${Math.round(confidence)}%)`
+                      : `decision: ${decision}`;
+                  pushLog(
+                    `Evaluated: ${item.job.title} — ${decision} (${Math.round(confidence)}% confidence) → draft (${reason})`,
+                    "info",
+                  );
+                }
+              } catch (evaluationError) {
+                console.error("Batch evaluation failed", evaluationError);
                 jobsToDraft.push(item);
-                const reason = hardBlockers > 0
-                  ? `${hardBlockers} blocker(s)`
-                  : confidence < 65
-                    ? `low confidence (${Math.round(confidence)}%)`
-                    : `decision: ${decision}`;
                 pushLog(
-                  `Evaluated: ${item.job.title} — ${decision} (${Math.round(confidence)}% confidence) → draft (${reason})`,
+                  `${item.job.title} — evaluation failed, moved to drafts`,
                   "info",
                 );
               }
-            } catch (evaluationError) {
-              console.error("Batch evaluation failed", evaluationError);
-              jobsToDraft.push(item);
-              pushLog(
-                `${item.job.title} — evaluation failed, moved to drafts`,
-                "info",
-              );
             }
           }
         }
@@ -2854,6 +2874,7 @@ export const JobPage = (): JSX.Element => {
       applyingAll,
       generateAutoApplyDraft,
       hasAutoApplyAccess,
+      hasJobEvaluationAccess,
       jobs,
       profileSnapshot,
       selectedCoverLetter,
@@ -4584,12 +4605,20 @@ export const JobPage = (): JSX.Element => {
                         />
                       )}
 
-                      <JobEvaluationReport
-                        evaluation={evaluationReports[job.id] ?? null}
-                        loading={Boolean(evaluationLoadingByJob[job.id])}
-                        savedStoryTitles={savedStoryTitles}
-                        onSaveStory={saveInterviewStoryToMemory}
-                      />
+                      {hasJobEvaluationAccess ? (
+                        <JobEvaluationReport
+                          evaluation={evaluationReports[job.id] ?? null}
+                          loading={Boolean(evaluationLoadingByJob[job.id])}
+                          savedStoryTitles={savedStoryTitles}
+                          onSaveStory={saveInterviewStoryToMemory}
+                        />
+                      ) : (
+                        <JobEvaluationTeaser
+                          jobTitle={job.title || "Role"}
+                          company={job.company}
+                          descriptionPreview={job.description || undefined}
+                        />
+                      )}
 
                       {(() => {
                         const screenshot = (job as any)?.raw_data?.screenshot;
@@ -6005,12 +6034,21 @@ export const JobPage = (): JSX.Element => {
                   />
                 )}
 
-                <JobEvaluationReport
-                  evaluation={evaluationReports[j.id] ?? null}
-                  loading={Boolean(evaluationLoadingByJob[j.id])}
-                  savedStoryTitles={savedStoryTitles}
-                  onSaveStory={saveInterviewStoryToMemory}
-                />
+                {hasJobEvaluationAccess ? (
+                  <JobEvaluationReport
+                    evaluation={evaluationReports[j.id] ?? null}
+                    loading={Boolean(evaluationLoadingByJob[j.id])}
+                    savedStoryTitles={savedStoryTitles}
+                    onSaveStory={saveInterviewStoryToMemory}
+                  />
+                ) : (
+                  <JobEvaluationTeaser
+                    compact
+                    jobTitle={j.title || "Role"}
+                    company={j.company}
+                    descriptionPreview={j.description || undefined}
+                  />
+                )}
 
                 {(() => {
                   const screenshot = (j as any)?.raw_data?.screenshot;
