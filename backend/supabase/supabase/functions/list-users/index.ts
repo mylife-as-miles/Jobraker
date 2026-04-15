@@ -35,34 +35,30 @@ serve(async (req) => {
       throw new Error('Invalid token');
     }
 
-    // Check if the user is an admin
-    // This requires checking the user_roles table
-    const { data: roles, error: rolesError } = await supabaseClient
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .single();
+    // Admin check: try user_roles table first, fall back to metadata flags
+    let isAdmin = false;
 
-    if (rolesError || !roles) {
-        // Alternative check: check metadata for admin flag if utilized
-        const isAdmin = user.app_metadata?.claims_admin || user.user_metadata?.is_admin;
-        if (!isAdmin) {
-             console.log("User is not admin:", user.id);
-             // Depending on security requirements, we might return 403. 
-             // For now, let's proceed but log it, or enforce strictly?
-             // Given the sensitivity, let's enforce strictly. 
-             // HOWEVER, the `user_roles` check above is the correct one based on `AdminUsers.tsx`.
-             // If `rolesError` is "PGRST116" (no rows), then access denied.
-             // If other error, log and deny.
-             if (rolesError && rolesError.code !== 'PGRST116') {
-                 console.error("Error checking roles:", rolesError);
-                 throw new Error('Error checking permissions');
-             }
-             if (!roles) {
-                 throw new Error('Unauthorized: Admin access required');
-             }
-        }
+    try {
+      const { data: roles } = await supabaseClient
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+      if (roles) isAdmin = true;
+    } catch {
+      // Table may not exist — fall through to metadata check
+    }
+
+    if (!isAdmin) {
+      isAdmin = !!(
+        user.app_metadata?.claims_admin ||
+        user.user_metadata?.is_admin
+      );
+    }
+
+    if (!isAdmin) {
+      throw new Error('Unauthorized: Admin access required');
     }
     
     // Create admin client to fetch all users

@@ -224,7 +224,9 @@ export const useUserActivities = () => {
         supabase.from('user_subscriptions')
           .select('user_id, status, subscription_plan_id, subscription_plans(name, price)')
           .eq('status', 'active'),
-        supabase.from('user_roles').select('user_id, role'),
+        supabase.from('user_roles').select('user_id, role').then(
+          (res) => (res.error ? { data: [] } : res)
+        ),
         supabase.from('credit_transactions')
           .select('user_id, reference_type, transaction_type, description, created_at') 
           .order('created_at', { ascending: false })
