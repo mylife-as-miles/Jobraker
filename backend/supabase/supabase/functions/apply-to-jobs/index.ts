@@ -279,15 +279,12 @@ Deno.serve(async (req) => {
 
     let webhookUrl: string | undefined;
     try {
-      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
       const base = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
-      if (base && anonKey) {
-        webhookUrl = `${base}/functions/v1/skyvern-webhook?apikey=${anonKey}`;
-      } else {
-        const url = new URL(req.url);
-        if (url.hostname.endsWith(".functions.supabase.co")) {
-          webhookUrl = `${url.origin}/skyvern-webhook`;
-        }
+      const webhookSecret = Deno.env.get("SKYVERN_WEBHOOK_SECRET") ||
+        Deno.env.get("SKYVERN_API_KEY") || "";
+      if (base) {
+        webhookUrl = `${base}/functions/v1/skyvern-webhook` +
+          (webhookSecret ? `?token=${encodeURIComponent(webhookSecret)}` : "");
       }
     } catch {
       // Use empty webhook fallback.

@@ -25,6 +25,22 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Since verify_jwt is disabled for this function (Skyvern can't send
+    // auth headers), we validate using a shared secret from the query string
+    // or a custom header that our apply-to-jobs function embeds in the URL.
+    const reqUrl = new URL(req.url);
+    const incomingToken = reqUrl.searchParams.get("token") ||
+      req.headers.get("x-webhook-secret") || "";
+    const expectedToken = Deno.env.get("SKYVERN_WEBHOOK_SECRET") ||
+      Deno.env.get("SKYVERN_API_KEY") || "";
+    if (expectedToken && incomingToken !== expectedToken) {
+      console.warn("skyvern-webhook: invalid or missing token");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      });
+    }
+
     const body = await req.json();
     const run_id = body?.id || body?.run_id || null;
     const status = (body?.status || '').toLowerCase();
