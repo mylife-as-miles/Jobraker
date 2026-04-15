@@ -76,8 +76,18 @@ Deno.serve(async (req) => {
     }
 
     // Step 2: Update the application status.
-    const finalStatus = ['succeeded', 'completed'].includes(status) ? 'Applied' : (['failed', 'error', 'cancelled'].includes(status) ? 'Rejected' : null);
-    const patch = {
+    const terminalSuccess = ['succeeded', 'completed'];
+    const terminalFail = ['failed', 'error', 'cancelled', 'canceled', 'timed_out', 'terminated'];
+    const finalStatus = terminalSuccess.includes(status) ? 'Applied' : (terminalFail.includes(status) ? 'Failed' : null);
+    const canonicalStage = terminalSuccess.includes(status)
+      ? 'applied'
+      : terminalFail.includes(status)
+        ? 'failed'
+        : ['running', 'queued', 'created'].includes(status)
+          ? 'queued'
+          : null;
+
+    const patch: Record<string, unknown> = {
       provider_status: status,
       workflow_id: body?.workflow_id || null,
       app_url: body?.app_url || null,
@@ -85,6 +95,7 @@ Deno.serve(async (req) => {
       failure_reason: body?.failure_reason || body?.error || null,
       updated_at: new Date().toISOString(),
       ...(finalStatus && { status: finalStatus }),
+      ...(canonicalStage && { canonical_stage: canonicalStage }),
     };
 
     const { data: updatedApps, error: updateError } = await sb.from('applications').update(patch).eq('run_id', run_id).select();

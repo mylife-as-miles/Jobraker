@@ -637,6 +637,57 @@ export function useApplications() {
     info("Export started", "CSV");
   }, [applications, info]);
 
+  const syncPendingSkyvernStatus = useCallback(async () => {
+    const pending = applications.filter(
+      (a) => a.status === "Pending" && a.run_id,
+    );
+    if (pending.length === 0) return 0;
+
+    let synced = 0;
+    for (const app of pending) {
+      try {
+        const { data, error: invokeErr } = await (supabase as any).functions.invoke(
+          "sync-skyvern-status",
+          { body: { run_id: app.run_id } },
+        );
+        if (invokeErr) {
+          console.warn("sync-skyvern-status invoke error", app.run_id, invokeErr);
+          continue;
+        }
+        const result = typeof data === "string" ? JSON.parse(data) : data;
+        if (result?.app_status && result.app_status !== "Pending") {
+          setApplications((prev) =>
+            prev.map((a) =>
+              a.id === app.id
+                ? {
+                    ...a,
+                    status: result.app_status as ApplicationStatus,
+                    canonical_stage: result.canonical_stage ?? a.canonical_stage,
+                    provider_status: result.skyvern_status ?? a.provider_status,
+                    failure_reason: result.failure_reason ?? a.failure_reason,
+                  }
+                : a,
+            ),
+          );
+          synced++;
+        }
+      } catch (e) {
+        console.warn("sync-skyvern-status error for", app.run_id, e);
+      }
+    }
+    return synced;
+  }, [applications, supabase]);
+
+  useEffect(() => {
+    if (!userId || applications.length === 0) return;
+    const hasPending = applications.some((a) => a.status === "Pending" && a.run_id);
+    if (!hasPending) return;
+    const timer = setTimeout(() => {
+      syncPendingSkyvernStatus();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [userId, applications, syncPendingSkyvernStatus]);
+
   return {
     applications,
     loading,
@@ -646,7 +697,7 @@ export function useApplications() {
     update,
     remove,
     exportCSV,
-    // Added utilities
+    syncPendingSkyvernStatus,
     stats,
     search,
     filter,
