@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     ArrowLeft,
     Download,
@@ -17,7 +17,9 @@ import {
     FileType,
     Edit2,
     Check,
-    Loader2
+    Loader2,
+    Briefcase,
+    ChevronDown,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -37,6 +39,15 @@ import { generateCoverLetterViaEdge } from '@/services/ai/generateCoverLetter';
 import { UpgradePrompt } from '@/components/UpgradePrompt';
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
 import { hasSubscriptionAccess } from '@/lib/subscriptionAccess';
+import { useJobsQueue } from '@/hooks/useJobsQueue';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const supabase = createClient();
 
@@ -118,6 +129,33 @@ export const CoverLetterBuilderPage = () => {
     // Remove unused copied
     // const [copied, setCopied] = useState(false);
     const [inlineEdit, setInlineEdit] = useState(false);
+
+    type QueuedJobPick = {
+        id: string;
+        title: string;
+        company: string;
+        description: string;
+    };
+
+    const { data: queueJobsRaw = [], isLoading: jobsQueueLoading } = useJobsQueue<QueuedJobPick>({
+        scope: null,
+        mapJob: (row: Record<string, unknown>) => ({
+            id: String(row.id ?? ''),
+            title: String(row.title ?? 'Untitled role'),
+            company: String(row.company ?? ''),
+            description: typeof row.description === 'string' ? row.description : '',
+        }),
+    });
+
+    const jobsWithDescription = useMemo(
+        () => queueJobsRaw.filter((j) => j.description.trim().length > 0),
+        [queueJobsRaw],
+    );
+
+    const applyJobDescriptionFromQueue = (job: QueuedJobPick) => {
+        setJobDescription(job.description);
+        toastSuccess('Job description loaded', `${job.title}${job.company ? ` · ${job.company}` : ''}`);
+    };
     const [isSaving, setIsSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
@@ -826,12 +864,70 @@ export const CoverLetterBuilderPage = () => {
                                     </div>
                                 ))}
                             </div>
-                            <input
-                                value={jobDescription}
-                                onChange={e => setJobDescription(e.target.value)}
-                                placeholder="Paste Job Description for AI context..."
-                                className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none mt-2"
-                            />
+                            <div className="mt-2 grid gap-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span className="text-xs product-helper-text">
+                                        Job posting (for AI generation)
+                                    </span>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                disabled={jobsQueueLoading}
+                                                className="h-8 gap-1.5 border-amber-500/50 text-foreground hover:bg-amber-500/10 hover:text-foreground"
+                                            >
+                                                <Briefcase className="h-3.5 w-3.5" />
+                                                Insert from job queue
+                                                <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent
+                                            align="end"
+                                            className="max-h-64 w-[min(100vw-2rem,22rem)] overflow-y-auto"
+                                        >
+                                            <DropdownMenuLabel className="text-xs font-normal text-foreground/60">
+                                                Tracked jobs with a description
+                                            </DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            {jobsQueueLoading ? (
+                                                <DropdownMenuItem disabled className="text-xs">
+                                                    Loading jobs…
+                                                </DropdownMenuItem>
+                                            ) : jobsWithDescription.length === 0 ? (
+                                                <DropdownMenuItem disabled className="text-xs">
+                                                    No jobs with descriptions in your queue
+                                                </DropdownMenuItem>
+                                            ) : (
+                                                jobsWithDescription.map((job) => (
+                                                    <DropdownMenuItem
+                                                        key={job.id}
+                                                        className="flex cursor-pointer flex-col items-start gap-0.5 py-2"
+                                                        onSelect={() => applyJobDescriptionFromQueue(job)}
+                                                    >
+                                                        <span className="w-full truncate font-medium text-foreground">
+                                                            {job.title}
+                                                        </span>
+                                                        {job.company ? (
+                                                            <span className="w-full truncate text-xs text-foreground/55">
+                                                                {job.company}
+                                                            </span>
+                                                        ) : null}
+                                                    </DropdownMenuItem>
+                                                ))
+                                            )}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                                <textarea
+                                    value={jobDescription}
+                                    onChange={(e) => setJobDescription(e.target.value)}
+                                    rows={4}
+                                    placeholder="Paste Job Description for AI context..."
+                                    className="w-full resize-y rounded-2xl border border-amber-500/55 bg-background/80 px-3 py-2.5 text-sm text-foreground outline-none ring-0 placeholder:text-foreground/40 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40"
+                                />
+                            </div>
                         </div>
 
                         {/* Closing */}

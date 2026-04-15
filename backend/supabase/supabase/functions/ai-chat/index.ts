@@ -1,5 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { createGeminiClient, GEMINI_MODEL } from "../_shared/gemini.ts";
+import {
+  createGeminiClient,
+  GEMINI_MODEL,
+  isGeminiRateLimitError,
+  withGeminiRetry,
+} from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/types.ts";
 import {
   fetchUserContext,
@@ -37,6 +42,11 @@ const createAuthedSupabaseClient = (authHeader: string) =>
   createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     auth: { persistSession: false },
     global: { headers: { Authorization: authHeader } },
+  });
+
+const createServiceSupabaseClient = () =>
+  createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+    auth: { persistSession: false },
   });
 
 // ---------------------------------------------------------------------------
@@ -626,6 +636,47 @@ Deno.serve(async (req) => {
       });
     }
 
+    const serviceClient = createServiceSupabaseClient();
+
+    const { data: rateLimitResult, error: rlError } = await serviceClient.rpc(
+      "check_chat_rate_limit",
+      { p_user_id: userId, p_tier: subscriptionTier },
+    );
+    if (!rlError && rateLimitResult && rateLimitResult.allowed === false) {
+      return new Response(
+        JSON.stringify({
+          error: rateLimitResult.message,
+          code: rateLimitResult.reason,
+          retry_after: rateLimitResult.retry_after_seconds,
+        }),
+        {
+          status: 429,
+          headers: { ...cors, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const { data: consumeResult, error: consumeError } = await serviceClient.rpc(
+      "consume_chat_message",
+      { p_user_id: userId },
+    );
+    if (consumeError) {
+      console.error("consume_chat_message RPC error:", consumeError);
+    } else if (consumeResult && consumeResult.success === false) {
+      return new Response(
+        JSON.stringify({
+          error: consumeResult.message,
+          code: consumeResult.reason,
+          balance: consumeResult.balance,
+          free_remaining: consumeResult.free_remaining,
+        }),
+        {
+          status: 402,
+          headers: { ...cors, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     const ai = createGeminiClient();
 
     // Fetch user context with timeout
@@ -749,14 +800,16 @@ When the user says "change the name on my resume" you MUST: 1) call list_resumes
             while (turnCount < 5) {
               turnCount++;
 
-              const response = await ai.models.generateContent({
-                model: GEMINI_MODEL,
-                config: {
-                  tools: [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }],
-                  systemInstruction,
-                },
-                contents,
-              });
+              const response = await withGeminiRetry(() =>
+                ai.models.generateContent({
+                  model: GEMINI_MODEL,
+                  config: {
+                    tools: [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }],
+                    systemInstruction,
+                  },
+                  contents,
+                }),
+              );
 
               const parts = response.candidates?.[0]?.content?.parts || [];
               const textParts = parts.filter((p: any) => p.text);
@@ -770,6 +823,29 @@ When the user says "change the name on my resume" you MUST: 1) call list_resumes
               }
 
               if (functionCalls.length === 0) break;
+
+              const { data: surchargeResult, error: surchargeError } = await serviceClient.rpc(
+                "consume_ai_chat_tool_surcharge",
+                { p_user_id: userId, p_credits: 1 },
+              );
+              if (surchargeError) {
+                console.error("consume_ai_chat_tool_surcharge RPC error:", surchargeError);
+              }
+              if (!surchargeError && surchargeResult && surchargeResult.success === false) {
+                send("error", {
+                  error: surchargeResult.message ||
+                    "Not enough credits to run agent tools this step. Add credits or switch to Ask mode.",
+                  code: "agent_tool_surcharge",
+                  balance: surchargeResult.balance,
+                });
+                break;
+              }
+              if (surchargeResult?.success) {
+                send("agent_surcharge", {
+                  credits_charged: surchargeResult.credits_charged,
+                  balance: surchargeResult.balance,
+                });
+              }
 
               // Execute each function call
               const functionResponses: any[] = [];
@@ -801,14 +877,16 @@ When the user says "change the name on my resume" you MUST: 1) call list_resumes
               ...(webSearch ? { tools: [{ googleSearch: {} }] } : {}),
             };
 
-            const stream = await ai.models.generateContentStream({
-              model: GEMINI_MODEL,
-              config,
-              contents: [
-                ...history,
-                { role: "user", parts: [{ text: userPrompt }] },
-              ],
-            });
+            const stream = await withGeminiRetry(() =>
+              ai.models.generateContentStream({
+                model: GEMINI_MODEL,
+                config,
+                contents: [
+                  ...history,
+                  { role: "user", parts: [{ text: userPrompt }] },
+                ],
+              }),
+            );
 
             let sentAny = false;
             for await (const chunk of stream) {
@@ -829,7 +907,10 @@ When the user says "change the name on my resume" you MUST: 1) call list_resumes
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
           console.error("ai-chat stream/agent error:", msg);
-          send("error", { error: msg });
+          const userMessage = isGeminiRateLimitError(e)
+            ? "Our AI service is temporarily busy. Please try again in a moment."
+            : msg;
+          send("error", { error: userMessage });
           controller.close();
         }
       },

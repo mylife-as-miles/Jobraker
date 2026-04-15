@@ -548,33 +548,71 @@ export const BillingPage = () => {
                                 </div>
 
                                 {/* Included usage */}
-                                <div className="grid gap-3 mb-6 sm:grid-cols-2">
-                                  <div className="flex items-center gap-3 p-3 rounded-xl bg-foreground/5 border border-foreground/5 group-hover:bg-foreground/10 transition-colors">
-                                    <div className="p-1.5 rounded-lg bg-background/40">
+                                <div className="grid gap-3 mb-6 sm:grid-cols-2 sm:items-stretch">
+                                  <div className="flex gap-3 p-3.5 rounded-xl bg-foreground/5 border border-foreground/5 group-hover:bg-foreground/10 transition-colors items-start min-h-[5.5rem]">
+                                    <div className="p-1.5 rounded-lg bg-background/40 shrink-0 mt-0.5">
                                       <Zap className={`w-4 h-4 ${
                                         plan.name === 'Pro' ? 'text-blue-400' :
                                         plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
                                       }`} />
                                     </div>
-                                    <div>
-                                      <span className={`block text-sm font-bold ${textColors.primary}`}>{plan.credits_per_month} credits</span>
-                                      <span className={`block text-[10px] uppercase tracking-wider ${textColors.muted}`}>Search + AI / month</span>
+                                    <div className="min-w-0 flex-1 flex flex-col gap-1.5">
+                                      <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                                        <span className={`text-2xl font-bold tabular-nums leading-none tracking-tight ${textColors.primary}`}>
+                                          {plan.credits_per_month.toLocaleString()}
+                                        </span>
+                                        <span className="text-xs font-medium text-muted-foreground">credits</span>
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <p className={`text-[10px] font-semibold uppercase tracking-wider ${textColors.muted} leading-tight`}>
+                                          Search + AI
+                                        </p>
+                                        <p className="text-[9px] uppercase tracking-widest text-muted-foreground/75 leading-tight">
+                                          per month
+                                        </p>
+                                      </div>
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-3 p-3 rounded-xl bg-foreground/5 border border-foreground/5 group-hover:bg-foreground/10 transition-colors">
-                                    <div className="p-1.5 rounded-lg bg-background/40">
+                                  <div className="flex gap-3 p-3.5 rounded-xl bg-foreground/5 border border-foreground/5 group-hover:bg-foreground/10 transition-colors items-start min-h-[5.5rem]">
+                                    <div className="p-1.5 rounded-lg bg-background/40 shrink-0 mt-0.5">
                                       <Target className={`w-4 h-4 ${
                                         plan.name === 'Pro' ? 'text-blue-400' :
                                         plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
                                       }`} />
                                     </div>
-                                    <div>
-                                      <span className={`block text-sm font-bold ${textColors.primary}`}>
-                                        {plan.auto_apply_monthly_limit && plan.auto_apply_monthly_limit > 0
-                                          ? `${plan.auto_apply_monthly_limit} runs`
-                                          : 'Manual only'}
-                                      </span>
-                                      <span className={`block text-[10px] uppercase tracking-wider ${textColors.muted}`}>Governed auto apply</span>
+                                    <div className="min-w-0 flex-1 flex flex-col gap-1.5">
+                                      {plan.auto_apply_monthly_limit && plan.auto_apply_monthly_limit > 0 ? (
+                                        <>
+                                          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                                            <span className={`text-2xl font-bold tabular-nums leading-none tracking-tight ${textColors.primary}`}>
+                                              {plan.auto_apply_monthly_limit.toLocaleString()}
+                                            </span>
+                                            <span className="text-xs font-medium text-muted-foreground">runs</span>
+                                          </div>
+                                          <div className="space-y-0.5">
+                                            <p className={`text-[10px] font-semibold uppercase tracking-wider ${textColors.muted} leading-tight`}>
+                                              Governed
+                                            </p>
+                                            <p className="text-[9px] uppercase tracking-widest text-muted-foreground/75 leading-tight">
+                                              auto apply / mo
+                                            </p>
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <p className={`text-base font-bold leading-tight ${textColors.primary}`}>
+                                            Manual only
+                                          </p>
+                                          <div className="space-y-0.5">
+                                            <p className={`text-[10px] font-semibold uppercase tracking-wider ${textColors.muted} leading-tight`}>
+                                              No automation
+                                            </p>
+                                            <p className="text-[9px] text-muted-foreground/75 leading-snug">
+                                              You apply yourself
+                                            </p>
+                                          </div>
+                                        </>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
