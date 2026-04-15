@@ -81,6 +81,46 @@ type PlanPricingDisplay = {
   effectiveMonthly: number | null;
 };
 
+/** Distinguish monthly vs annual subscriptions from billing period length (no DB column on user_subscriptions). */
+/** Edge function `init-payment` expects `subscription_plans.id` (UUID), not catalog slugs like `basics`. */
+const SUBSCRIPTION_PLAN_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function resolveSubscriptionPlanUuidForCheckout(
+  client: ReturnType<typeof createClient>,
+  item: { id: string; name?: string },
+): Promise<string | null> {
+  if (SUBSCRIPTION_PLAN_UUID_RE.test(item.id)) return item.id;
+  const name = item.name?.trim();
+  if (!name) return null;
+  const { data, error } = await client
+    .from('subscription_plans')
+    .select('id')
+    .eq('is_active', true)
+    .eq('name', name)
+    .maybeSingle();
+  if (error) {
+    console.warn('resolveSubscriptionPlanUuidForCheckout', error);
+    return null;
+  }
+  const row = data as { id?: string } | null;
+  return row?.id ?? null;
+}
+
+function inferBillingCycleFromSubscriptionPeriod(
+  start: string | null | undefined,
+  end: string | null | undefined,
+): 'monthly' | 'yearly' | null {
+  if (!start || !end) return null;
+  const t0 = new Date(start).getTime();
+  const t1 = new Date(end).getTime();
+  if (!Number.isFinite(t0) || !Number.isFinite(t1) || t1 <= t0) return null;
+  const days = (t1 - t0) / (1000 * 60 * 60 * 24);
+  if (days >= 200) return 'yearly';
+  if (days >= 18) return 'monthly';
+  return null;
+}
+
 function getPlanPricingDisplay(
   planName: string,
   interval: BillingInterval,
@@ -142,10 +182,14 @@ export const BillingPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'subscription' | 'packs' | 'costs' | 'history'>('subscription');
   const [processingPayment, setProcessingPayment] = useState(false);
-  /** Default yearly: commitment pricing is the better deal and reads stronger on the page. */
-  const [billingInterval, setBillingInterval] = useState<BillingInterval>('yearly');
+  /** Viewing monthly vs annual list prices; initialized after we know the member's real billing cycle. */
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>('monthly');
+  /** Inferred from subscription period (or last successful order) — used so "CURRENT" matches monthly vs annual. */
+  const [activeSubscriptionBillingCycle, setActiveSubscriptionBillingCycle] = useState<
+    'monthly' | 'yearly' | null
+  >(null);
   const supabase = useMemo(() => createClient(), []);
-  const { toast } = useToast();
+  const { notify, error: toastError } = useToast();
 
   /** Single headline discount % (Basics tier) so the toggle badge stays honest if catalog prices change. */
   const annualSavingsPctApprox = useMemo(() => {
@@ -168,6 +212,8 @@ export const BillingPage = () => {
       if (!userId) {
         setPlans(defaultPlans);
         setCreditPacks(defaultCreditPacks);
+        setBillingInterval('yearly');
+        setActiveSubscriptionBillingCycle(null);
         setTransactions([
           { id: '1', transaction_type: 'bonus', amount: 50, balance_after: 50, description: 'Welcome Bonus', created_at: new Date().toISOString() }
         ]);
@@ -185,18 +231,54 @@ export const BillingPage = () => {
         setCurrentCredits(creditsData.balance);
       }
 
-      // Fetch subscription
+      // Fetch subscription (period length reveals monthly vs yearly billing)
       const { data: subscription } = await supabase
         .from('user_subscriptions')
-        .select('subscription_plans(name, credits_per_month), current_period_end')
+        .select(
+          'current_period_start, current_period_end, subscription_plans(name, credits_per_month)',
+        )
         .eq('user_id', userId)
         .eq('status', 'active')
-        .single();
+        .maybeSingle();
+
+      let resolvedCycle: 'monthly' | 'yearly' | null = null;
 
       if (subscription) {
         const planName = (subscription as any)?.subscription_plans?.name;
         setSubscriptionTier(planName || 'Free');
         setCurrentPeriodEnd((subscription as any).current_period_end);
+        const start = (subscription as any).current_period_start as string | undefined;
+        const end = (subscription as any).current_period_end as string | undefined;
+        resolvedCycle = inferBillingCycleFromSubscriptionPeriod(start, end);
+      }
+
+      if (!resolvedCycle) {
+        const { data: lastSubOrder } = await supabase
+          .from('orders')
+          .select('payment_cycle, metadata')
+          .eq('user_id', userId)
+          .eq('plan_type', 'subscription')
+          .eq('is_success', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const pc = (lastSubOrder as { payment_cycle?: string } | null)?.payment_cycle;
+        const meta = (lastSubOrder as { metadata?: { billing_cycle?: string } } | null)?.metadata;
+        if (pc === 'yearly' || meta?.billing_cycle === 'yearly') resolvedCycle = 'yearly';
+        else if (pc === 'monthly' || meta?.billing_cycle === 'monthly') resolvedCycle = 'monthly';
+      }
+
+      setActiveSubscriptionBillingCycle(resolvedCycle);
+
+      if (subscription) {
+        const planName = (subscription as any)?.subscription_plans?.name as string | undefined;
+        if (planName && planName !== 'Free') {
+          setBillingInterval(resolvedCycle ?? 'monthly');
+        } else {
+          setBillingInterval('yearly');
+        }
+      } else {
+        setBillingInterval('yearly');
       }
 
       // Fetch all subscription plans
@@ -262,39 +344,61 @@ export const BillingPage = () => {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast({
+        notify({
           title: "Authentication Required",
           description: "Please sign in to make a purchase.",
-          variant: "destructive"
+          variant: "error",
         });
         return;
       }
 
-      // Prepare payload
-      const payload =
-        type === 'credit_pack'
-          ? { purchaseType: type, packSku: item.sku }
-          : { purchaseType: type, planId: item.id, billingCycle: item.billingCycle as BillingInterval };
-
-      // Call Edge Function
-      const { data, error } = await supabase.functions.invoke('init-payment', {
-        body: payload
-      });
-
-      if (error) throw error;
-      if (data?.url) {
-        window.location.href = data.url;
+      let payload: Record<string, unknown>;
+      if (type === 'credit_pack') {
+        payload = { purchaseType: type, packSku: item.sku };
       } else {
-        throw new Error("No payment URL returned");
+        const planId = await resolveSubscriptionPlanUuidForCheckout(supabase, {
+          id: String(item.id ?? ''),
+          name: typeof item.name === 'string' ? item.name : undefined,
+        });
+        if (!planId) {
+          notify({
+            title: "Could not start checkout",
+            description:
+              "We could not resolve this plan in the database. Refresh the page or contact support if this persists.",
+            variant: "error",
+          });
+          return;
+        }
+        payload = {
+          purchaseType: type,
+          planId,
+          billingCycle: item.billingCycle as BillingInterval,
+        };
       }
 
-    } catch (error: any) {
-      console.error('Payment initialization failed:', error);
-      toast({
-        title: "Payment Error",
-        description: error.message || "Failed to initialize payment. Please try again.",
-        variant: "destructive"
+      const { data, error } = await supabase.functions.invoke("init-payment", {
+        body: payload,
       });
+
+      const body = data as { url?: string; error?: string } | null;
+      if (error) {
+        throw new Error(
+          body?.error ?? (error as Error).message ?? "Failed to initialize payment",
+        );
+      }
+      if (body?.error && !body.url) {
+        throw new Error(body.error);
+      }
+      if (body?.url) {
+        window.location.href = body.url;
+        return;
+      }
+      throw new Error("No payment URL returned");
+    } catch (error: unknown) {
+      console.error("Payment initialization failed:", error);
+      const message =
+        error instanceof Error ? error.message : "Failed to initialize payment. Please try again.";
+      toastError("Payment Error", message);
     } finally {
       setProcessingPayment(false);
     }
@@ -579,7 +683,12 @@ export const BillingPage = () => {
 
               <div className="grid gap-8 lg:grid-cols-3 xl:grid-cols-4">
                 {plans.map((plan, index) => {
-                  const isCurrentPlan = plan.name === subscriptionTier;
+                  const cycleForCurrent =
+                    activeSubscriptionBillingCycle ?? 'monthly';
+                  const isCurrentPlan =
+                    plan.name === subscriptionTier &&
+                    (subscriptionTier === 'Free' ||
+                      billingInterval === cycleForCurrent);
                   const isPro = plan.name === 'Pro';
                   const isUltimate = plan.name === 'Ultimate';
                   const pricing = getPlanPricingDisplay(plan.name, billingInterval, plan.price);
