@@ -17,7 +17,7 @@ export class CreditService {
       const supabase = createClient();
       const { data, error } = await supabase
         .from('user_credits')
-        .select('balance, total_earned, total_consumed, last_reset_at')
+        .select('balance, lifetime_earned, lifetime_spent, updated_at')
         .eq('user_id', userId)
         .single();
 
@@ -25,10 +25,10 @@ export class CreditService {
       if (!data) return null;
 
       return {
-        balance: data.balance,
-        totalEarned: data.total_earned,
-        totalConsumed: data.total_consumed,
-        lastResetAt: data.last_reset_at
+        balance: data.balance ?? 0,
+        totalEarned: data.lifetime_earned ?? 0,
+        totalConsumed: data.lifetime_spent ?? 0,
+        lastResetAt: data.updated_at ?? null,
       };
     } catch (error) {
       console.error('Error fetching credit balance:', error);
@@ -230,7 +230,7 @@ export class CreditService {
         .from('user_credits')
         .update({
           balance: balance.balance + amount,
-          total_earned: balance.totalEarned + amount,
+          lifetime_earned: balance.totalEarned + amount,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', userId);
@@ -285,7 +285,7 @@ export class CreditService {
         .from('user_credits')
         .update({
           balance: balance.balance + transaction.amount,
-          total_consumed: balance.totalConsumed - transaction.amount,
+          lifetime_spent: balance.totalConsumed - transaction.amount,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', userId);

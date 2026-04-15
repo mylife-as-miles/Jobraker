@@ -207,15 +207,15 @@ export default function AdminCheckCredits() {
                   </div>
                   <div className="bg-gray-700 rounded p-4">
                     <p className="text-gray-400 text-sm">Total Earned</p>
-                    <p className="text-2xl font-bold text-blue-400">{result.credits.total_earned}</p>
+                    <p className="text-2xl font-bold text-blue-400">{result.credits.lifetime_earned ?? result.credits.total_earned ?? 0}</p>
                   </div>
                   <div className="bg-gray-700 rounded p-4">
                     <p className="text-gray-400 text-sm">Total Consumed</p>
-                    <p className="text-2xl font-bold text-red-400">{result.credits.total_consumed}</p>
+                    <p className="text-2xl font-bold text-red-400">{result.credits.lifetime_spent ?? result.credits.total_consumed ?? 0}</p>
                   </div>
                   <div className="bg-gray-700 rounded p-4">
-                    <p className="text-gray-400 text-sm">Last Reset</p>
-                    <p className="text-sm text-gray-300">{new Date(result.credits.last_reset_at).toLocaleDateString()}</p>
+                    <p className="text-gray-400 text-sm">Last Updated</p>
+                    <p className="text-sm text-gray-300">{result.credits.updated_at ? new Date(result.credits.updated_at).toLocaleDateString() : '—'}</p>
                   </div>
                 </div>
               ) : (
