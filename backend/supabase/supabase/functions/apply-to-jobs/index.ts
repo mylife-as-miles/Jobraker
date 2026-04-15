@@ -9,6 +9,59 @@ import { decryptSymmetric } from "../_shared/crypto.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 
+/** Strip accidental JSON/Jinja quotes so Skyvern's fetcher gets a real URL. */
+function normalizeHttpUrlString(raw: string): string {
+  let s = raw.trim();
+  if (
+    (s.startsWith('"') && s.endsWith('"')) ||
+    (s.startsWith("'") && s.endsWith("'"))
+  ) {
+    s = s.slice(1, -1).trim();
+  }
+  return s;
+}
+
+/**
+ * Parse bucket + object path from a Supabase Storage signed URL
+ * (/storage/v1/object/sign/{bucket}/{path...}).
+ */
+function parseSupabaseSignedObjectPath(urlStr: string): { bucket: string; path: string } | null {
+  try {
+    const u = new URL(urlStr);
+    const m = u.pathname.match(/\/storage\/v1\/object\/sign\/([^/]+)\/(.+)$/);
+    if (!m) return null;
+    return { bucket: m[1], path: m[2] };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mint a fresh long-lived signed URL server-side so Skyvern can download the PDF
+ * after queue delays (client URLs often expire in 1h).
+ */
+async function refreshResumeSignedUrlIfPossible(
+  resumeUrl: string,
+  userId: string,
+  serviceClient: any,
+): Promise<string> {
+  const parsed = parseSupabaseSignedObjectPath(resumeUrl);
+  if (!parsed) return resumeUrl;
+  const { bucket, path } = parsed;
+  if (bucket !== "resumes" || !path.startsWith(`${userId}/`)) {
+    return resumeUrl;
+  }
+  const ttlSec = 60 * 60 * 48; // 48h
+  const { data, error } = await serviceClient.storage
+    .from(bucket)
+    .createSignedUrl(path, ttlSec);
+  if (error || !data?.signedUrl) {
+    console.warn("apply-to-jobs: refresh signed URL failed", error?.message);
+    return resumeUrl;
+  }
+  return data.signedUrl;
+}
+
 function asArray(val: any): any[] {
   if (Array.isArray(val)) return val;
   if (typeof val === "string") {
@@ -224,8 +277,18 @@ Deno.serve(async (req) => {
       typeof body?.additional_information === "string"
         ? body.additional_information
         : "";
-    const resume = typeof body?.resume === "string" ? body.resume : "";
+    let resume = typeof body?.resume === "string" ? normalizeHttpUrlString(body.resume) : "";
     const resumeText = typeof body?.resume_text === "string" ? body.resume_text : "";
+    if (
+      resume &&
+      (resume.startsWith("http://") || resume.startsWith("https://"))
+    ) {
+      try {
+        resume = await refreshResumeSignedUrlIfPossible(resume, userId, serviceClient);
+      } catch (e: any) {
+        console.warn("apply-to-jobs: refreshResumeSignedUrlIfPossible", e?.message);
+      }
+    }
     const coverLetter =
       typeof body?.cover_letter === "string" ? body.cover_letter : undefined;
     const title = typeof body?.title === "string" ? body.title : undefined;

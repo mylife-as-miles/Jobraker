@@ -2604,7 +2604,7 @@ export const JobPage = (): JSX.Element => {
           try {
             const { data: signed, error: signErr } = await supabase.storage
               .from("resumes")
-              .createSignedUrl(selectedResume.file_path, 60 * 60);
+              .createSignedUrl(selectedResume.file_path, 60 * 60 * 48);
             if (!signErr && signed?.signedUrl) {
               resumeSignedUrl = signed.signedUrl;
             }
