@@ -18,6 +18,7 @@ export type ApplyToJobsParams = {
   }>;
   additional_information?: string;
   resume?: string;
+  resume_text?: string;
   cover_letter?: string;
   cover_letter_template?: string;
   workflow_id?: string;

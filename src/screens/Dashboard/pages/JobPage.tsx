@@ -2731,10 +2731,11 @@ export const JobPage = (): JSX.Element => {
                 ...(profileSnapshot
                   ? { additional_information: profileSnapshot }
                   : {}),
+                ...(resumeSignedUrl ? { resume: resumeSignedUrl } : {}),
                 ...(draftData
-                  ? { resume: draftData.resumeText }
-                  : resumeSignedUrl
-                    ? { resume: resumeSignedUrl }
+                  ? { resume_text: draftData.resumeText }
+                  : activeResumeText
+                    ? { resume_text: activeResumeText }
                     : {}),
                 ...(userEmail ? { email: userEmail } : {}),
               });

@@ -225,6 +225,7 @@ Deno.serve(async (req) => {
         ? body.additional_information
         : "";
     const resume = typeof body?.resume === "string" ? body.resume : "";
+    const resumeText = typeof body?.resume_text === "string" ? body.resume_text : "";
     const coverLetter =
       typeof body?.cover_letter === "string" ? body.cover_letter : undefined;
     const title = typeof body?.title === "string" ? body.title : undefined;
@@ -259,10 +260,15 @@ Deno.serve(async (req) => {
       additionalInformation = parts.join("\n");
     }
 
+    // `resume` = signed PDF URL for the workflow's pdf_parser block.
+    // `resume_text` = plain text for form-filling when the user edited/tailored
+    //  the resume via AI (no PDF exists for the tailored version).
+    const isResumeUrl = resume.startsWith("http://") || resume.startsWith("https://");
     const parameters: Record<string, unknown> = {
       job_urls: stringifyArrayForSkyvern(jobUrls),
       additional_information: additionalInformation,
-      resume,
+      resume: isResumeUrl ? resume : "",
+      resume_text: resumeText || (!isResumeUrl && resume ? resume : ""),
       user_input: JSON.stringify(safeUserInput),
       email,
     };
@@ -273,12 +279,15 @@ Deno.serve(async (req) => {
 
     let webhookUrl: string | undefined;
     try {
-      const url = new URL(req.url);
-      if (url.hostname.endsWith(".functions.supabase.co")) {
-        webhookUrl = `${url.origin}/skyvern-webhook`;
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+      const base = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
+      if (base && anonKey) {
+        webhookUrl = `${base}/functions/v1/skyvern-webhook?apikey=${anonKey}`;
       } else {
-        const base = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
-        if (base) webhookUrl = `${base}/functions/v1/skyvern-webhook`;
+        const url = new URL(req.url);
+        if (url.hostname.endsWith(".functions.supabase.co")) {
+          webhookUrl = `${url.origin}/skyvern-webhook`;
+        }
       }
     } catch {
       // Use empty webhook fallback.
