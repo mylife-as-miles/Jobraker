@@ -681,7 +681,7 @@ export const BillingPage = () => {
                 </div>
               </div>
 
-              <div className="grid gap-8 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2 md:gap-8 2xl:grid-cols-4 2xl:gap-6">
                 {plans.map((plan, index) => {
                   const cycleForCurrent =
                     activeSubscriptionBillingCycle ?? 'monthly';
@@ -699,7 +699,7 @@ export const BillingPage = () => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className="relative h-full"
+                      className="relative h-full min-w-0"
                     >
                       {(isPro || isUltimate) && (
                         <div className="absolute -top-3 left-0 right-0 flex justify-center z-20">
@@ -717,7 +717,7 @@ export const BillingPage = () => {
                         </div>
                       )}
                       
-                      <Card className={`group relative h-full flex flex-col overflow-hidden transition-all duration-300 ${
+                      <Card className={`group relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden transition-all duration-300 ${
                         isCurrentPlan 
                           ? 'border-[#1dff00]/50 bg-gradient-to-b from-[#1dff00]/10 to-transparent shadow-[0_0_40px_-10px_rgba(29,255,0,0.2)]'
                           : isPro && billingInterval === 'yearly'
@@ -736,26 +736,30 @@ export const BillingPage = () => {
                           </div>
                         )}
 
-                        <CardContent className="p-6 flex flex-col h-full">
+                        <CardContent className="flex h-full min-h-0 w-full min-w-0 flex-col p-5 sm:p-6">
                           {(() => {
                             const textColors = getTierTextColor(plan.name);
                             return (
                               <>
                                 {/* Header */}
-                                <div className="mb-6">
-                                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br ${
+                                <div className="mb-5 shrink-0">
+                                  <div className={`mb-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br sm:h-14 sm:w-14 ${
                                     plan.name === 'Pro' ? 'from-blue-500/20 to-transparent border-blue-500/20' :
                                     plan.name === 'Ultimate' ? 'from-purple-500/20 to-transparent border-purple-500/20' :
                                     'from-[#1dff00]/20 to-transparent border-[#1dff00]/20'
                                   } border border-foreground/5`}>
                                     {getTierIcon(plan.name)}
                                   </div>
-                                  <h3 className={`text-2xl font-bold ${textColors.primary} tracking-tight`}>{plan.name}</h3>
-                                  <p className={`text-sm ${textColors.secondary} mt-1 h-10`}>{plan.description}</p>
+                                  <h3 className={`text-xl font-bold tracking-tight sm:text-2xl ${textColors.primary}`}>
+                                    {plan.name}
+                                  </h3>
+                                  <p className={`mt-1 line-clamp-3 text-sm leading-snug ${textColors.secondary}`}>
+                                    {plan.description}
+                                  </p>
                                 </div>
 
                                 {/* Price */}
-                                <div className="mb-6 pb-6 border-b border-foreground/10 space-y-2">
+                                <div className="mb-5 shrink-0 space-y-2 border-b border-foreground/10 pb-5">
                                   <div className="flex items-baseline gap-1.5 flex-wrap">
                                     <span className={`text-4xl font-bold tabular-nums ${textColors.primary}`}>
                                       ${pricing.headline}
@@ -780,9 +784,9 @@ export const BillingPage = () => {
                                   ) : null}
                                 </div>
 
-                                {/* Included usage */}
-                                <div className="grid gap-3 mb-6 sm:grid-cols-2 sm:items-stretch">
-                                  <div className="flex gap-3 p-3.5 rounded-xl bg-foreground/5 border border-foreground/5 group-hover:bg-foreground/10 transition-colors items-start min-h-[5.5rem]">
+                                {/* Included usage — single column so narrow plan cards don’t crush side‑by‑side stats */}
+                                <div className="mb-6 grid grid-cols-1 gap-3">
+                                  <div className="flex min-h-[5rem] items-start gap-3 rounded-xl border border-foreground/5 bg-foreground/5 p-3.5 transition-colors group-hover:bg-foreground/10 sm:min-h-[5.5rem]">
                                     <div className="p-1.5 rounded-lg bg-background/40 shrink-0 mt-0.5">
                                       <Zap className={`w-4 h-4 ${
                                         plan.name === 'Pro' ? 'text-blue-400' :
@@ -806,7 +810,7 @@ export const BillingPage = () => {
                                       </div>
                                     </div>
                                   </div>
-                                  <div className="flex gap-3 p-3.5 rounded-xl bg-foreground/5 border border-foreground/5 group-hover:bg-foreground/10 transition-colors items-start min-h-[5.5rem]">
+                                  <div className="flex min-h-[5rem] items-start gap-3 rounded-xl border border-foreground/5 bg-foreground/5 p-3.5 transition-colors group-hover:bg-foreground/10 sm:min-h-[5.5rem]">
                                     <div className="p-1.5 rounded-lg bg-background/40 shrink-0 mt-0.5">
                                       <Target className={`w-4 h-4 ${
                                         plan.name === 'Pro' ? 'text-blue-400' :

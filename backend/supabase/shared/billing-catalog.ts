@@ -47,8 +47,8 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     tier: "Basics",
     name: "Basics",
     monthlyPriceUsd: 19,
-    /** 30% off vs 12× monthly (rounded). */
-    yearlyPriceUsd: 160,
+    /** 20% off vs 12× monthly (rounded). Pro/Ultimate use 30% off. */
+    yearlyPriceUsd: 182,
     creditsPerMonth: 250,
     autoApplyRunsPerMonth: 15,
     description: "High-signal search, drafting, and governed automation for active job seekers.",
