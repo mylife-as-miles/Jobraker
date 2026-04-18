@@ -6,6 +6,8 @@ const baseDirs = [
     "c:/Users/DELL PRECISION 5540/Documents/Jobraker/backend/supabase/supabase/functions"
 ];
 
+#hi
+
 function processDir(dir) {
     if (!fs.existsSync(dir)) return;
     const files = fs.readdirSync(dir, { withFileTypes: true });
