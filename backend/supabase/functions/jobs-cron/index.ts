@@ -89,23 +89,32 @@ async function runDiscoveryForUser(
     };
   }
 
-  const discoveredJobs = await discoverJobsFirecrawl({
-    serviceClient,
-    userId,
-    searchQuery,
-    location,
-    limit: effectiveLimit,
-  });
-
-  const { jobsInserted } = await persistDiscoveredJobs(serviceClient, discoveredJobs, {
-    userId,
-    searchQuery,
-    location,
-    trigger,
-    requestedLimit,
-    effectiveLimit,
-    subscriptionTier,
-  });
+  let totalInserted = 0;
+  const discoveredJobs = await discoverJobsFirecrawl(
+    {
+      serviceClient,
+      userId,
+      searchQuery,
+      location,
+      limit: effectiveLimit,
+    },
+    async (batch) => {
+      const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
+        serviceClient,
+        batch,
+        {
+          userId,
+          searchQuery,
+          location,
+          trigger,
+          requestedLimit,
+          effectiveLimit,
+          subscriptionTier,
+        },
+      );
+      totalInserted += batchInserted;
+    },
+  );
 
   let creditDeduction: unknown = null;
   if (discoveredJobs.length > 0) {
@@ -121,7 +130,7 @@ async function runDiscoveryForUser(
     searchQuery,
     location,
     count: discoveredJobs.length,
-    jobsInserted,
+    jobsInserted: totalInserted,
     requestedLimit,
     effectiveLimit,
     planCap,
