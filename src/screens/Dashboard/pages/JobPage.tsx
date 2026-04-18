@@ -154,6 +154,15 @@ const MATCH_SCORE_BATCH_SIZE = 10;
 const MATCH_SCORE_TEXT_LIMIT = 6_000;
 const MATCH_SCORE_META_LIMIT = 500;
 const MATCH_SCORE_LIST_LIMIT = 25;
+const AUTO_APPLY_RATE_LIMIT_WAIT_MS = 65_000;
+
+const sleep = (ms: number) =>
+  new Promise((resolve) => window.setTimeout(resolve, ms));
+
+const isApplyRateLimitError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) return false;
+  return /rate limit exceeded/i.test(error.message);
+};
 
 const compactText = (value: unknown, maxLength: number): string | undefined => {
   if (typeof value !== "string") return undefined;
@@ -1318,7 +1327,7 @@ export const JobPage = (): JSX.Element => {
       await fetchJobMatchInsights(
         list,
         matchContext,
-        hasMatchScoreAccess,
+        hasMatchScoreAccess && !applyingAll,
         () => {
           toastError(
             "Match Insights Failed",
@@ -1326,7 +1335,7 @@ export const JobPage = (): JSX.Element => {
           );
         },
       ),
-    [hasMatchScoreAccess, matchContext, toastError],
+    [applyingAll, hasMatchScoreAccess, matchContext, toastError],
   );
 
   useEffect(() => {
@@ -2731,7 +2740,7 @@ export const JobPage = (): JSX.Element => {
               pushLog(
                 `Dispatching automation to ${new URL(target).hostname}...`,
               );
-              const automationResult = await applyToJobs({
+              const automationPayload = {
                 jobs: [
                   {
                     sourceUrl: target,
@@ -2789,7 +2798,35 @@ export const JobPage = (): JSX.Element => {
                     ? { resume_text: activeResumeText }
                     : {}),
                 ...(userEmail ? { email: userEmail } : {}),
-              });
+              };
+
+              let automationResult:
+                | Awaited<ReturnType<typeof applyToJobs>>
+                | undefined;
+              for (let attempt = 0; attempt < 2; attempt += 1) {
+                try {
+                  automationResult = await applyToJobs(automationPayload);
+                  break;
+                } catch (automationError) {
+                  if (
+                    !isApplyRateLimitError(automationError) ||
+                    attempt === 1
+                  ) {
+                    throw automationError;
+                  }
+                  pushLog(
+                    `Rate limit reached while launching ${job.title}. Pausing for 65 seconds before retrying...`,
+                    "info",
+                  );
+                  await sleep(AUTO_APPLY_RATE_LIMIT_WAIT_MS);
+                }
+              }
+
+              if (!automationResult) {
+                throw new Error(
+                  "Automation launch failed before a result was returned.",
+                );
+              }
 
               const metadata = extractAutomationMetadata(automationResult);
               done += 1;
