@@ -2029,7 +2029,30 @@ export const JobPage = (): JSX.Element => {
           return data;
         };
 
-        let searchData = await attemptInvoke();
+        // Start background polling to show incremental results
+        let isSearchActive = true;
+        const pollInterval = window.setInterval(async () => {
+          if (!isSearchActive) {
+            window.clearInterval(pollInterval);
+            return;
+          }
+          try {
+            const currentJobs = await fetchJobQueue(currentSearchScope);
+            if (currentJobs.length > 0) {
+              setInsertedThisRun(currentJobs.length);
+            }
+          } catch (err) {
+            console.warn("[poll] incremental fetch failed", err);
+          }
+        }, 3000);
+
+        let searchData;
+        try {
+          searchData = await attemptInvoke();
+        } finally {
+          isSearchActive = false;
+          window.clearInterval(pollInterval);
+        }
         if (searchData?.error === "rate_limited") {
           const retrySec = Math.max(
             10,

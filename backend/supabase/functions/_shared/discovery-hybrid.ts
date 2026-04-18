@@ -164,7 +164,7 @@ const MAX_FIRECRAWL_RESULTS_PER_SEED = 12;
 const MAX_RAW_CANDIDATES = 36;
 const MAX_DIRECT_FETCHES = 8;
 const MAX_VERIFICATION_POOL = 16;
-const FIRECRAWL_SEARCH_TIMEOUT_MS = 25000;
+const FIRECRAWL_SEARCH_TIMEOUT_MS = 60000;
 const PROVIDER_LOOKUP_TIMEOUT_MS = 5000;
 const DIRECT_PAGE_FETCH_TIMEOUT_MS = 3500;
 const URL_VERIFY_TIMEOUT_MS = 2500;
@@ -1734,6 +1734,7 @@ function dedupeDiscoveredJobs(jobs: DiscoveryJob[]): DiscoveryJob[] {
 
 export async function discoverJobsFirecrawl(
   args: FirecrawlDiscoveryArgs,
+  onBatch?: (jobs: DiscoveryJob[]) => Promise<void>,
 ): Promise<DiscoveryJob[]> {
   const startedAt = Date.now();
   const apiKey = await resolveFirecrawlApiKey();
@@ -1802,6 +1803,12 @@ export async function discoverJobsFirecrawl(
     MAX_DIRECT_FETCHES,
   );
 
+  const batches: FirecrawlSearchCandidate[][] = [];
+  for (let i = 0; i < rawCandidates.length; i += 10) {
+    batches.push(rawCandidates.slice(i, i + 10));
+  }
+
+  const allProcessedJobs: DiscoveryJob[] = [];
   const normalizationContext: NormalizationContext = {
     greenhouseBoards: new Map(),
     leverSites: new Map(),
@@ -1809,61 +1816,64 @@ export async function discoverJobsFirecrawl(
     workableAccounts: new Map(),
   };
 
-  const normalized = await runWithConcurrency(rawCandidates, 6, (candidate, index) =>
-    normalizeCandidate(candidate, normalizationContext, {
-      allowDirectPageFetch:
-        candidate.is_tracked_company ||
-        candidate.source_kind !== "firecrawl" ||
-        candidate.priority <= 1 ||
-        index < directFetchBudget,
-    })
-  );
-  console.info("firecrawl.discovery.stage", {
-    stage: "normalize",
-    rawCandidateCount: rawCandidates.length,
-    directFetchBudget,
-    elapsed_ms: Date.now() - startedAt,
-  });
-
-  const ranked = normalized
-    .filter((job) => roleMatches(job, args.searchQuery))
-    .map((job) =>
-      attachRankingSignals(
-        job,
-        computeRankingSignals(
-          job,
-          args.searchQuery,
-          args.location || context.candidateMemory.location || "Remote",
-          context.candidateMemory,
-        ),
-      )
+  for (let b = 0; b < batches.length; b++) {
+    const batchCandidates = batches[b];
+    const batchOffset = b * 10;
+    
+    const normalized = await runWithConcurrency(batchCandidates, 6, (candidate, index) =>
+      normalizeCandidate(candidate, normalizationContext, {
+        allowDirectPageFetch:
+          candidate.is_tracked_company ||
+          candidate.source_kind !== "firecrawl" ||
+          candidate.priority <= 1 ||
+          (batchOffset + index) < directFetchBudget,
+      })
     );
 
-  const deduped = dedupeDiscoveredJobs(ranked).sort(compareRankedJobs);
-  const verificationPoolSize = Math.min(
-    deduped.length,
-    Math.min(Math.max(Math.ceil(args.limit / 2), 8), MAX_VERIFICATION_POOL),
-  );
-  const verificationPool = deduped.slice(0, verificationPoolSize);
-  const verified = await verifyJobs(verificationPool);
-  console.info("firecrawl.discovery.stage", {
-    stage: "verify",
-    dedupedCount: deduped.length,
-    verificationPoolSize,
-    elapsed_ms: Date.now() - startedAt,
-  });
-  const nonStaleVerified = verified.filter(
-    (job) => job.verification_status !== "stale",
-  );
-  const verifiedUrls = new Set(nonStaleVerified.map((job) => job.url));
-  const fallbackUnverified = deduped.filter((job) => !verifiedUrls.has(job.url));
+    const ranked = normalized
+      .filter((job) => roleMatches(job, args.searchQuery))
+      .map((job) =>
+        attachRankingSignals(
+          job,
+          computeRankingSignals(
+            job,
+            args.searchQuery,
+            args.location || context.candidateMemory.location || "Remote",
+            context.candidateMemory,
+          ),
+        )
+      );
 
-  const finalJobs = [...nonStaleVerified, ...fallbackUnverified]
+    const deduped = dedupeDiscoveredJobs(ranked).sort(compareRankedJobs);
+    
+    // Partially verify this batch
+    const verificationPool = deduped.slice(0, Math.min(deduped.length, 6));
+    const verified = await verifyJobs(verificationPool);
+    
+    const verifiedUrls = new Set(verified.map((job) => job.url));
+    const fallbackUnverified = deduped.filter((job) => !verifiedUrls.has(job.url));
+    const batchFinal = [...verified, ...fallbackUnverified].sort(compareRankedJobs);
+
+    allProcessedJobs.push(...batchFinal);
+
+    if (onBatch && batchFinal.length > 0) {
+      await onBatch(batchFinal);
+    }
+
+    console.info("firecrawl.discovery.batch_complete", {
+      batchIndex: b,
+      batchSize: batchFinal.length,
+      totalProcessed: allProcessedJobs.length,
+      elapsed_ms: Date.now() - startedAt,
+    });
+  }
+
+  const finalJobs = dedupeDiscoveredJobs(allProcessedJobs)
     .sort(compareRankedJobs)
     .slice(0, args.limit);
+    
   console.info("firecrawl.discovery.complete", {
     returnedCount: finalJobs.length,
-    verifiedCount: nonStaleVerified.length,
     elapsed_ms: Date.now() - startedAt,
   });
   return finalJobs;

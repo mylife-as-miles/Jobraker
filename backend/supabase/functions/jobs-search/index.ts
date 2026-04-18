@@ -68,23 +68,34 @@ Deno.serve(async (req) => {
       subscriptionTier,
     });
 
-    const discoveredJobs = await discoverJobsFirecrawl({
-      serviceClient,
-      userId: user.id,
-      searchQuery,
-      location,
-      limit: effectiveLimit,
-    });
+    let totalInserted = 0;
+    const discoveredJobs = await discoverJobsFirecrawl(
+      {
+        serviceClient,
+        userId: user.id,
+        searchQuery,
+        location,
+        limit: effectiveLimit,
+      },
+      async (batch) => {
+        const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
+          serviceClient,
+          batch,
+          {
+            userId: user.id,
+            searchQuery,
+            location,
+            trigger: "live_search",
+            requestedLimit,
+            effectiveLimit,
+            subscriptionTier,
+          },
+        );
+        totalInserted += batchInserted;
+      },
+    );
 
-    const { jobsInserted } = await persistDiscoveredJobs(serviceClient, discoveredJobs, {
-      userId: user.id,
-      searchQuery,
-      location,
-      trigger: "live_search",
-      requestedLimit,
-      effectiveLimit,
-      subscriptionTier,
-    });
+    const jobsInserted = totalInserted;
 
     console.info("[jobs-search] Completed", {
       userId: user.id,
