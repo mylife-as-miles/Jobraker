@@ -6,7 +6,7 @@ const baseDirs = [
     "c:/Users/DELL PRECISION 5540/Documents/Jobraker/backend/supabase/supabase/functions"
 ];
 
-#himmn
+#himmnh
 
 function processDir(dir) {
     if (!fs.existsSync(dir)) return;
