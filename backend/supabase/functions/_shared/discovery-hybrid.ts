@@ -1808,7 +1808,6 @@ export async function discoverJobsFirecrawl(
     batches.push(rawCandidates.slice(i, i + 10));
   }
 
-  const allProcessedJobs: DiscoveryJob[] = [];
   const normalizationContext: NormalizationContext = {
     greenhouseBoards: new Map(),
     leverSites: new Map(),
@@ -1816,8 +1815,7 @@ export async function discoverJobsFirecrawl(
     workableAccounts: new Map(),
   };
 
-  for (let b = 0; b < batches.length; b++) {
-    const batchCandidates = batches[b];
+  const batchResults = await runWithConcurrency(batches, 2, async (batchCandidates, b) => {
     const batchOffset = b * 10;
     
     const normalized = await runWithConcurrency(batchCandidates, 6, (candidate, index) =>
@@ -1854,8 +1852,6 @@ export async function discoverJobsFirecrawl(
     const fallbackUnverified = deduped.filter((job) => !verifiedUrls.has(job.url));
     const batchFinal = [...verified, ...fallbackUnverified].sort(compareRankedJobs);
 
-    allProcessedJobs.push(...batchFinal);
-
     if (onBatch && batchFinal.length > 0) {
       await onBatch(batchFinal);
     }
@@ -1863,10 +1859,13 @@ export async function discoverJobsFirecrawl(
     console.info("firecrawl.discovery.batch_complete", {
       batchIndex: b,
       batchSize: batchFinal.length,
-      totalProcessed: allProcessedJobs.length,
       elapsed_ms: Date.now() - startedAt,
     });
-  }
+
+    return batchFinal;
+  });
+
+  const allProcessedJobs = batchResults.flat();
 
   const finalJobs = dedupeDiscoveredJobs(allProcessedJobs)
     .sort(compareRankedJobs)
