@@ -54,7 +54,7 @@ export const PublicResumePage = () => {
             p_stat_type: 'downloads'
         });
 
-        downloadResumePDF(resumeData);
+        await downloadResumePDF(resumeData);
     };
 
     if (loading) return <div className="flex items-center justify-center h-screen product-page-shell text-foreground"><Loader2 className="animate-spin w-8 h-8" /></div>;

@@ -31,9 +31,7 @@ import { createClient } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/toast';
 // Fix Store import
 import { useArtboardStore } from '@/store/artboard';
-// Local PDF/Docx generation imports (assuming these pkgs exist or mocks handle them)
-import { jsPDF } from 'jspdf';
-import { Document, Packer, Paragraph, TextRun } from 'docx';
+// Export libraries are loaded only when needed to keep the default bundle lighter.
 import { polishContent } from '@/services/ai/polishContent';
 import { generateCoverLetterViaEdge } from '@/services/ai/generateCoverLetter';
 import { UpgradePrompt } from '@/components/UpgradePrompt';
@@ -526,6 +524,7 @@ export const CoverLetterBuilderPage = () => {
     const exportPdf = async () => {
         setExportBusy('pdf');
         try {
+            const { jsPDF } = await import('jspdf');
             const doc = new jsPDF({ unit: 'pt', format: 'a4' });
             const margin = 72;
             const top = 72;
@@ -551,6 +550,7 @@ export const CoverLetterBuilderPage = () => {
     const exportDocx = async () => {
         setExportBusy('docx');
         try {
+            const { Document, Packer, Paragraph, TextRun } = await import('docx');
             const doc = new Document({
                 sections: [{
                     properties: {},
@@ -1027,7 +1027,6 @@ export const CoverLetterBuilderPage = () => {
         </div>
     );
 };
-
 
 
 

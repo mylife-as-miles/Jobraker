@@ -1,7 +1,7 @@
-import jsPDF from 'jspdf';
 import { ResumeData } from '../store/artboard';
 
-export const downloadResumePDF = (resumeData: ResumeData) => {
+export const downloadResumePDF = async (resumeData: ResumeData) => {
+    const { default: jsPDF } = await import('jspdf');
     const { basics, sections, summary } = resumeData;
     const doc = new jsPDF({
         format: 'a4',
