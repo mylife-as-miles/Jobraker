@@ -164,7 +164,7 @@ const MAX_FIRECRAWL_RESULTS_PER_SEED = 12;
 const MAX_RAW_CANDIDATES = 36;
 const MAX_DIRECT_FETCHES = 8;
 const MAX_VERIFICATION_POOL = 16;
-const FIRECRAWL_SEARCH_TIMEOUT_MS = 12000;
+const FIRECRAWL_SEARCH_TIMEOUT_MS = 25000;
 const PROVIDER_LOOKUP_TIMEOUT_MS = 5000;
 const DIRECT_PAGE_FETCH_TIMEOUT_MS = 3500;
 const URL_VERIFY_TIMEOUT_MS = 2500;
@@ -727,7 +727,7 @@ function buildSearchSeeds(
       type: "tracked_company",
       query: buildTrackedCompanyQuery(searchQuery, location, company.name, domain),
       priority: 0,
-      domain: domain || undefined,
+      domain: domain ?? undefined,
       company_name: company.name,
       is_tracked_company: true,
     });
@@ -905,8 +905,8 @@ async function runSeedSearch(
           undefined,
           FIRECRAWL_SEARCH_TIMEOUT_MS,
         ),
-      1,
-      1000,
+      2,
+      2000,
     );
     return mapFirecrawlItems(toRecord(response))
       .map((item) => mapFirecrawlItemToCandidate(item, seed, settings))
@@ -1016,9 +1016,9 @@ async function fetchGreenhouseBoardJobs(
           board_token: boardToken,
           provider_job_id: job.id,
         },
-      };
+      } as NormalizedProviderJob;
     })
-    .filter((job): job is NormalizedProviderJob => Boolean(job));
+    .filter((job: NormalizedProviderJob | null): job is NormalizedProviderJob => Boolean(job));
 }
 
 async function fetchLeverSiteJobs(
@@ -1068,9 +1068,9 @@ async function fetchLeverSiteJobs(
           provider_job_id: job.id,
           categories,
         },
-      };
+      } as NormalizedProviderJob;
     })
-    .filter((job): job is NormalizedProviderJob => Boolean(job));
+    .filter((job: NormalizedProviderJob | null): job is NormalizedProviderJob => Boolean(job));
 }
 
 async function fetchAshbyBoardJobs(
@@ -1121,9 +1121,9 @@ async function fetchAshbyBoardJobs(
           board,
           compensation: job.compensation,
         },
-      };
+      } as NormalizedProviderJob;
     })
-    .filter((job): job is NormalizedProviderJob => Boolean(job));
+    .filter((job: NormalizedProviderJob | null): job is NormalizedProviderJob => Boolean(job));
 }
 
 async function fetchWorkableAccountJobs(
@@ -1184,9 +1184,9 @@ async function fetchWorkableAccountJobs(
           provider: "workable",
           account,
         },
-      };
+      } as NormalizedProviderJob;
     })
-    .filter((job): job is NormalizedProviderJob => Boolean(job));
+    .filter((job: NormalizedProviderJob | null): job is NormalizedProviderJob => Boolean(job));
 }
 
 function extractMetaContent(html: string, key: string): string | null {
