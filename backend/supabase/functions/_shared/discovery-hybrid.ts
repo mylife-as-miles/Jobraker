@@ -101,7 +101,7 @@ interface NormalizedProviderJob {
   posted_at: string | null;
   provider_source_id: string;
   provider_job_id?: string;
-  source_kind: Exclude<SourceKind, "firecrawl">;
+  source_kind: SourceKind;
   source_confidence: number;
   raw_data: Record<string, unknown>;
 }
@@ -725,9 +725,9 @@ function buildSearchSeeds(
       normalizeDomain(company.domain) || normalizeDomain(company.careers_url);
     seeds.push({
       type: "tracked_company",
-      query: buildTrackedCompanyQuery(searchQuery, location, company.name, domain),
+      query: buildTrackedCompanyQuery(searchQuery, location, company.name, domain || undefined),
       priority: 0,
-      domain: domain ?? undefined,
+      domain: domain || undefined,
       company_name: company.name,
       is_tracked_company: true,
     });
@@ -892,7 +892,6 @@ async function runSeedSearch(
     query: seed.query,
     limit: seed.limit,
     sources: ["web"],
-    scrapeOptions: { formats: ["markdown"] },
   };
 
   try {
@@ -918,6 +917,31 @@ async function runSeedSearch(
       error: error instanceof Error ? error.message : String(error),
     });
     return [];
+  }
+}
+async function fetchFirecrawlMarkdown(
+  url: string,
+  apiKey: string,
+): Promise<string | null> {
+  try {
+    const response = await firecrawlFetch(
+      "/scrape",
+      apiKey,
+      {
+        url,
+        formats: ["markdown"],
+        onlyMainContent: true,
+      },
+      undefined,
+      15000,
+    );
+    return asString(response.data?.markdown) || null;
+  } catch (error) {
+    console.warn("firecrawl.scrape_failed", {
+      url,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
   }
 }
 
@@ -1357,7 +1381,7 @@ function matchProviderJob(
 async function normalizeCandidate(
   candidate: FirecrawlSearchCandidate,
   context: NormalizationContext,
-  options?: { allowDirectPageFetch?: boolean },
+  options?: { allowDirectPageFetch?: boolean; apiKey?: string },
 ): Promise<DiscoveryJob> {
   const canonicalUrl = normalizeCanonicalJobUrl(candidate.url) || candidate.url;
   const classifiedAs = inferSourceKind(canonicalUrl, candidate.title);
@@ -1419,6 +1443,31 @@ async function normalizeCandidate(
       normalizationSource = classifiedAs === "direct"
         ? "direct_job_page"
         : "direct_page_fallback";
+    }
+  }
+
+  // Final fallback or enrichment: If description is still missing or we specifically want markdown
+  if ((!normalized?.description || normalized.description.length < 300) && options?.apiKey) {
+    const markdown = await fetchFirecrawlMarkdown(canonicalUrl, options.apiKey);
+    if (markdown) {
+      if (normalized) {
+        normalized.description = markdown;
+        normalizationSource = `${normalizationSource}_with_markdown`;
+      } else {
+        normalized = {
+          title: candidate.title,
+          company: candidate.company,
+          location: candidate.location,
+          url: canonicalUrl,
+          description: markdown,
+          posted_at: candidate.posted_at,
+          provider_source_id: `firecrawl_scrape:${canonicalUrl}`,
+          source_kind: "firecrawl",
+          source_confidence: 0.85,
+          raw_data: { firecrawl_scrape: true },
+        };
+        normalizationSource = "firecrawl_scrape_primary";
+      }
     }
   }
 
@@ -1825,6 +1874,7 @@ export async function discoverJobsFirecrawl(
           candidate.source_kind !== "firecrawl" ||
           candidate.priority <= 1 ||
           (batchOffset + index) < directFetchBudget,
+        apiKey,
       })
     );
 
