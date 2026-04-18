@@ -19,29 +19,17 @@
     <meta property="og:type" content="website" />
     <link rel="icon" type="image/jpeg" href="/logo/logo.jpeg" />
     <link rel="apple-touch-icon" href="/logo/logo.jpeg" />
-
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Questrial&display=swap");
-
-    </style>
-    <script>
-      (function initializeTheme() {
-        try {
-          if (
-            localStorage.theme === "dark" ||
-            (!("theme" in localStorage) &&
-              window.matchMedia("(prefers-color-scheme: dark)").matches)
-          ) {
-            document.documentElement.classList.add("dark");
-          } else {
-            document.documentElement.classList.remove("dark");
-          }
-        } catch (_) {}
-      })();
-    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Questrial&display=swap"
+    />
+    <script src="/theme-init.js"></script>
+    <link rel="stylesheet" href="/critical.css" />
     <!-- Styles are imported via Vite in src/index.tsx (../tailwind.css) -->
   </head>
-  <body style="margin: 0; padding: 0; background-color: #000">
+  <body>
     <div id="app"></div>
     <div id="radix-portal"></div>
     <script type="module" src="./src/index.tsx"></script>
