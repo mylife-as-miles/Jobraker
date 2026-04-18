@@ -207,6 +207,23 @@ const safeUrl = (value: string | null | undefined): URL | null => {
   }
 };
 
+async function fetchWithTimeout(
+  input: string | URL,
+  init: RequestInit = {},
+  timeoutMs = 8000,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort("fetch_timeout"), timeoutMs);
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 const normalizeDomain = (value: string | null | undefined): string | null => {
   const direct = asString(value);
   if (!direct) return null;
@@ -752,7 +769,7 @@ function buildSearchSeeds(
     }
   }
 
-  const finalSeeds = Array.from(deduped.values()).slice(0, 10);
+  const finalSeeds = Array.from(deduped.values()).slice(0, 6);
   const perSeedLimit = Math.min(
     18,
     Math.max(6, Math.ceil((args.limit * 2) / Math.max(1, finalSeeds.length))),
@@ -869,8 +886,8 @@ async function runSeedSearch(
 
   try {
     const response = await withRetry(
-      () => firecrawlFetch("/search", apiKey, payload),
-      2,
+      () => firecrawlFetch("/search", apiKey, payload, undefined, 20000),
+      1,
       1000,
     );
     return mapFirecrawlItems(toRecord(response))
@@ -948,8 +965,10 @@ async function fetchGreenhouseBoardJobs(
   boardToken: string,
   companyHint?: string,
 ): Promise<NormalizedProviderJob[]> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `https://boards-api.greenhouse.io/v1/boards/${boardToken}/jobs?content=true`,
+    {},
+    7000,
   );
   if (!res.ok) return [];
   const data = await res.json().catch(() => ({}));
@@ -988,7 +1007,11 @@ async function fetchLeverSiteJobs(
   site: string,
   companyHint?: string,
 ): Promise<NormalizedProviderJob[]> {
-  const res = await fetch(`https://api.lever.co/v0/postings/${site}?mode=json`);
+  const res = await fetchWithTimeout(
+    `https://api.lever.co/v0/postings/${site}?mode=json`,
+    {},
+    7000,
+  );
   if (!res.ok) return [];
   const jobs = await res.json().catch(() => []);
   if (!Array.isArray(jobs)) return [];
@@ -1036,8 +1059,10 @@ async function fetchAshbyBoardJobs(
   board: string,
   companyHint?: string,
 ): Promise<NormalizedProviderJob[]> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `https://jobs.ashbyhq.com/posting-api/job-board/${board}?includeCompensation=true`,
+    {},
+    7000,
   );
   if (!res.ok) return [];
   const data = await res.json().catch(() => ({}));
@@ -1087,8 +1112,10 @@ async function fetchWorkableAccountJobs(
   account: string,
   companyHint?: string,
 ): Promise<NormalizedProviderJob[]> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `https://www.workable.com/api/accounts/${account}?details=true`,
+    {},
+    7000,
   );
   if (!res.ok) return [];
   const data = await res.json().catch(() => ({}));
@@ -1195,11 +1222,15 @@ async function fetchDirectJobPage(
   companyHint?: string,
 ): Promise<NormalizedProviderJob | null> {
   try {
-    const res = await fetch(url, {
-      headers: {
-        "user-agent": "JobrakerBot/1.0 (+https://jobraker.com)",
+    const res = await fetchWithTimeout(
+      url,
+      {
+        headers: {
+          "user-agent": "JobrakerBot/1.0 (+https://jobraker.com)",
+        },
       },
-    });
+      6000,
+    );
     if (!res.ok) return null;
 
     const html = await res.text();
@@ -1308,6 +1339,7 @@ function matchProviderJob(
 async function normalizeCandidate(
   candidate: FirecrawlSearchCandidate,
   context: NormalizationContext,
+  options?: { allowDirectPageFetch?: boolean },
 ): Promise<DiscoveryJob> {
   const canonicalUrl = normalizeCanonicalJobUrl(candidate.url) || candidate.url;
   const classifiedAs = inferSourceKind(canonicalUrl, candidate.title);
@@ -1362,7 +1394,7 @@ async function normalizeCandidate(
     }
   }
 
-  if (!normalized) {
+  if (!normalized && options?.allowDirectPageFetch !== false) {
     const direct = await fetchDirectJobPage(canonicalUrl, candidate.company);
     if (direct) {
       normalized = direct;
@@ -1441,13 +1473,17 @@ async function normalizeCandidate(
 }
 
 const tryFetchStatus = async (url: string, method: "HEAD" | "GET") => {
-  const response = await fetch(url, {
-    method,
-    redirect: "follow",
-    headers: {
-      "user-agent": "JobrakerBot/1.0 (+https://jobraker.com)",
+  const response = await fetchWithTimeout(
+    url,
+    {
+      method,
+      redirect: "follow",
+      headers: {
+        "user-agent": "JobrakerBot/1.0 (+https://jobraker.com)",
+      },
     },
-  });
+    4000,
+  );
   return response.status;
 };
 
@@ -1471,7 +1507,7 @@ async function verifyJobUrl(url: string): Promise<VerificationStatus> {
 }
 
 async function verifyJobs(jobs: DiscoveryJob[]): Promise<DiscoveryJob[]> {
-  return runWithConcurrency(jobs, 6, async (job) => {
+  return runWithConcurrency(jobs, 8, async (job) => {
     const verificationStatus = await verifyJobUrl(job.url);
     const discovery = toRecord(job.raw_data.discovery);
     return {
@@ -1736,7 +1772,12 @@ export async function discoverJobsFirecrawl(
       if (left.priority !== right.priority) return left.priority - right.priority;
       return right.source_confidence - left.source_confidence;
     })
-    .slice(0, Math.max(args.limit * 3, 30));
+    .slice(0, Math.min(Math.max(args.limit + 15, 25), 60));
+
+  const directFetchBudget = Math.min(
+    Math.max(Math.ceil(args.limit / 3), 10),
+    18,
+  );
 
   const normalizationContext: NormalizationContext = {
     greenhouseBoards: new Map(),
@@ -1745,8 +1786,14 @@ export async function discoverJobsFirecrawl(
     workableAccounts: new Map(),
   };
 
-  const normalized = await runWithConcurrency(rawCandidates, 5, (candidate) =>
-    normalizeCandidate(candidate, normalizationContext)
+  const normalized = await runWithConcurrency(rawCandidates, 4, (candidate, index) =>
+    normalizeCandidate(candidate, normalizationContext, {
+      allowDirectPageFetch:
+        candidate.is_tracked_company ||
+        candidate.source_kind !== "firecrawl" ||
+        candidate.priority <= 1 ||
+        index < directFetchBudget,
+    })
   );
 
   const ranked = normalized
@@ -1764,10 +1811,19 @@ export async function discoverJobsFirecrawl(
     );
 
   const deduped = dedupeDiscoveredJobs(ranked).sort(compareRankedJobs);
-  const verified = await verifyJobs(deduped);
+  const verificationPoolSize = Math.min(
+    deduped.length,
+    Math.min(Math.max(args.limit, 20), 40),
+  );
+  const verificationPool = deduped.slice(0, verificationPoolSize);
+  const verified = await verifyJobs(verificationPool);
+  const nonStaleVerified = verified.filter(
+    (job) => job.verification_status !== "stale",
+  );
+  const verifiedUrls = new Set(nonStaleVerified.map((job) => job.url));
+  const fallbackUnverified = deduped.filter((job) => !verifiedUrls.has(job.url));
 
-  return verified
-    .filter((job) => job.verification_status !== "stale")
+  return [...nonStaleVerified, ...fallbackUnverified]
     .sort(compareRankedJobs)
     .slice(0, args.limit);
 }

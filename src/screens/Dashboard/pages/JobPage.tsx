@@ -2013,10 +2013,10 @@ export const JobPage = (): JSX.Element => {
               setTimeout(
                 () =>
                   reject(new Error("Job search timed out. Please try again.")),
-                45000,
+                120000,
+                ),
               ),
-            ),
-          ])) as {
+            ])) as {
             data: any;
             error?: { message?: string } | null;
           };
