@@ -1,10 +1,14 @@
-// @ts-nocheck
-import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/types.ts";
-import { discoverJobsHybrid } from "../_shared/discovery-hybrid.ts";
-import { attachExistingJobIdsBySourceId } from "../_shared/jobs.ts";
+import { discoverJobsFirecrawl } from "../_shared/discovery-hybrid.ts";
+import { persistDiscoveredJobs } from "../_shared/jobs.ts";
+import {
+  requireAuthenticatedUser,
+  resolveJobSearchExecutionLimits,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
 
 Deno.serve(async (req) => {
+  const startedAt = Date.now();
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
@@ -13,19 +17,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized: Missing token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "content-type": "application/json" },
-      });
-    }
-
     const body = await req.json().catch(() => ({}));
-    const searchQuery = (body?.searchQuery || body?.query || "").trim();
-    const location = (body?.location || "Remote").trim();
-    const limit = Number.isFinite(Number(body?.limit))
-      ? Math.max(1, Math.min(100, Number(body.limit)))
+    const searchQuery = String(body?.searchQuery || body?.query || "").trim();
+    const location = String(body?.location || "Remote").trim() || "Remote";
+    const requestedLimit = Number.isFinite(Number(body?.limit))
+      ? Math.max(1, Math.floor(Number(body.limit)))
       : 10;
 
     if (!searchQuery) {
@@ -35,102 +31,79 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
-    const supabaseAuthed = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-
+    const { serviceClient, user } = await requireAuthenticatedUser(req);
     const {
-      data: { user },
-      error: userError,
-    } = await supabaseAuthed.auth.getUser();
+      subscriptionTier,
+      planCap,
+      creditsBalance,
+      effectiveLimit,
+    } = await resolveJobSearchExecutionLimits(
+      user.id,
+      requestedLimit,
+      serviceClient,
+    );
 
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized: Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "content-type": "application/json" },
-      });
+    if (effectiveLimit <= 0) {
+      return new Response(
+        JSON.stringify({
+          error: "Insufficient credits for job search.",
+          code: "insufficient_credits",
+          requestedLimit,
+          planCap,
+          creditsBalance,
+        }),
+        {
+          status: 402,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        },
+      );
     }
 
-    console.log(
-      `[jobs-search] Hybrid discovery for user ${user.id}: "${searchQuery}" in ${location} (limit ${limit})`,
-    );
-
-    const discoveredJobs = await discoverJobsHybrid({
-      serviceClient: supabaseAdmin,
+    console.log("[jobs-search] Firecrawl-led discovery", {
       userId: user.id,
       searchQuery,
       location,
-      limit,
+      requestedLimit,
+      effectiveLimit,
+      subscriptionTier,
     });
 
-    let jobsInserted = 0;
+    const discoveredJobs = await discoverJobsFirecrawl({
+      serviceClient,
+      userId: user.id,
+      searchQuery,
+      location,
+      limit: effectiveLimit,
+    });
 
-    if (discoveredJobs.length > 0) {
-      const nowIso = new Date().toISOString();
-      const rows = discoveredJobs.map((job) => ({
-        user_id: user.id,
-        source_type: job.source_type,
-        source_id: job.source_id,
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        apply_url: job.url,
-        status: "active",
-        canonical_status: "discovered",
-        verification_status: job.verification_status,
-        source_kind: job.source_kind,
-        source_confidence: job.source_confidence,
-        is_tracked_company: job.is_tracked_company,
-        discovered_at: nowIso,
-        last_verified_at: nowIso,
-        description: job.description,
-        raw_data: {
-          ...(job.raw_data || {}),
-          discovery: {
-            mode: "hybrid",
-            source_kind: job.source_kind,
-            source_confidence: job.source_confidence,
-            verification_status: job.verification_status,
-            search_query: searchQuery,
-            location,
-          },
-        },
-      }));
+    const { jobsInserted } = await persistDiscoveredJobs(serviceClient, discoveredJobs, {
+      userId: user.id,
+      searchQuery,
+      location,
+      trigger: "live_search",
+      requestedLimit,
+      effectiveLimit,
+      subscriptionTier,
+    });
 
-      const rowsWithIds = await attachExistingJobIdsBySourceId(
-        supabaseAdmin,
-        user.id,
-        rows,
-      );
-
-      const newCount = rowsWithIds.filter((r) => !r.id).length;
-
-      const { data: upsertedRows, error: upsertError } = await supabaseAdmin
-        .from("jobs")
-        .upsert(rowsWithIds, { onConflict: "id" })
-        .select("id");
-
-      if (upsertError) {
-        console.error("jobs-search upsert error", upsertError);
-      }
-
-      jobsInserted = upsertedRows?.length ?? discoveredJobs.length;
-
-      console.log(
-        `[jobs-search] Upserted ${jobsInserted} (${newCount} new) for user ${user.id}`,
-      );
-    }
+    console.info("[jobs-search] Completed", {
+      userId: user.id,
+      requestedLimit,
+      effectiveLimit,
+      discoveredCount: discoveredJobs.length,
+      jobsInserted,
+      elapsed_ms: Date.now() - startedAt,
+    });
 
     return new Response(
       JSON.stringify({
         success: true,
+        status: "completed",
+        requestedLimit,
+        effectiveLimit,
+        planCap,
+        creditsBalance,
+        subscriptionTier,
         jobsInserted,
         jobs: discoveredJobs.map((job) => ({
           title: job.title,
@@ -145,7 +118,6 @@ Deno.serve(async (req) => {
           is_tracked_company: job.is_tracked_company,
         })),
         count: discoveredJobs.length,
-        status: "completed",
       }),
       {
         status: 200,
@@ -154,14 +126,6 @@ Deno.serve(async (req) => {
     );
   } catch (error: unknown) {
     console.error("jobs-search.error", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unexpected error",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "content-type": "application/json" },
-      },
-    );
+    return subscriptionErrorResponse(error, corsHeaders);
   }
 });

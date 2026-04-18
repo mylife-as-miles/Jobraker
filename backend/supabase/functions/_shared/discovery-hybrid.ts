@@ -159,6 +159,17 @@ const KNOWN_ATS_HINTS: Array<{ kind: SourceKind; match: RegExp }> = [
   { kind: "workable", match: /workable/i },
 ];
 
+const MAX_FIRECRAWL_SEEDS = 4;
+const MAX_FIRECRAWL_RESULTS_PER_SEED = 12;
+const MAX_RAW_CANDIDATES = 36;
+const MAX_DIRECT_FETCHES = 8;
+const MAX_VERIFICATION_POOL = 16;
+const FIRECRAWL_SEARCH_TIMEOUT_MS = 12000;
+const PROVIDER_LOOKUP_TIMEOUT_MS = 5000;
+const DIRECT_PAGE_FETCH_TIMEOUT_MS = 3500;
+const URL_VERIFY_TIMEOUT_MS = 2500;
+const URL_VERIFY_CONCURRENCY = 10;
+
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -769,10 +780,10 @@ function buildSearchSeeds(
     }
   }
 
-  const finalSeeds = Array.from(deduped.values()).slice(0, 6);
+  const finalSeeds = Array.from(deduped.values()).slice(0, MAX_FIRECRAWL_SEEDS);
   const perSeedLimit = Math.min(
-    18,
-    Math.max(6, Math.ceil((args.limit * 2) / Math.max(1, finalSeeds.length))),
+    MAX_FIRECRAWL_RESULTS_PER_SEED,
+    Math.max(5, Math.ceil((args.limit * 1.2) / Math.max(1, finalSeeds.length))),
   );
 
   return finalSeeds.map((seed) => ({
@@ -886,7 +897,14 @@ async function runSeedSearch(
 
   try {
     const response = await withRetry(
-      () => firecrawlFetch("/search", apiKey, payload, undefined, 20000),
+      () =>
+        firecrawlFetch(
+          "/search",
+          apiKey,
+          payload,
+          undefined,
+          FIRECRAWL_SEARCH_TIMEOUT_MS,
+        ),
       1,
       1000,
     );
@@ -968,7 +986,7 @@ async function fetchGreenhouseBoardJobs(
   const res = await fetchWithTimeout(
     `https://boards-api.greenhouse.io/v1/boards/${boardToken}/jobs?content=true`,
     {},
-    7000,
+    PROVIDER_LOOKUP_TIMEOUT_MS,
   );
   if (!res.ok) return [];
   const data = await res.json().catch(() => ({}));
@@ -1010,7 +1028,7 @@ async function fetchLeverSiteJobs(
   const res = await fetchWithTimeout(
     `https://api.lever.co/v0/postings/${site}?mode=json`,
     {},
-    7000,
+    PROVIDER_LOOKUP_TIMEOUT_MS,
   );
   if (!res.ok) return [];
   const jobs = await res.json().catch(() => []);
@@ -1062,7 +1080,7 @@ async function fetchAshbyBoardJobs(
   const res = await fetchWithTimeout(
     `https://jobs.ashbyhq.com/posting-api/job-board/${board}?includeCompensation=true`,
     {},
-    7000,
+    PROVIDER_LOOKUP_TIMEOUT_MS,
   );
   if (!res.ok) return [];
   const data = await res.json().catch(() => ({}));
@@ -1115,7 +1133,7 @@ async function fetchWorkableAccountJobs(
   const res = await fetchWithTimeout(
     `https://www.workable.com/api/accounts/${account}?details=true`,
     {},
-    7000,
+    PROVIDER_LOOKUP_TIMEOUT_MS,
   );
   if (!res.ok) return [];
   const data = await res.json().catch(() => ({}));
@@ -1229,7 +1247,7 @@ async function fetchDirectJobPage(
           "user-agent": "JobrakerBot/1.0 (+https://jobraker.com)",
         },
       },
-      6000,
+      DIRECT_PAGE_FETCH_TIMEOUT_MS,
     );
     if (!res.ok) return null;
 
@@ -1482,7 +1500,7 @@ const tryFetchStatus = async (url: string, method: "HEAD" | "GET") => {
         "user-agent": "JobrakerBot/1.0 (+https://jobraker.com)",
       },
     },
-    4000,
+    URL_VERIFY_TIMEOUT_MS,
   );
   return response.status;
 };
@@ -1492,22 +1510,14 @@ async function verifyJobUrl(url: string): Promise<VerificationStatus> {
     const headStatus = await tryFetchStatus(url, "HEAD");
     if (headStatus >= 200 && headStatus < 400) return "verified";
     if (headStatus === 404 || headStatus === 410) return "stale";
+    return "unverified";
   } catch {
-    // Retry with GET.
-  }
-
-  try {
-    const getStatus = await tryFetchStatus(url, "GET");
-    if (getStatus >= 200 && getStatus < 400) return "verified";
-    if (getStatus === 404 || getStatus === 410) return "stale";
-    return "failed";
-  } catch {
-    return "failed";
+    return "unverified";
   }
 }
 
 async function verifyJobs(jobs: DiscoveryJob[]): Promise<DiscoveryJob[]> {
-  return runWithConcurrency(jobs, 8, async (job) => {
+  return runWithConcurrency(jobs, URL_VERIFY_CONCURRENCY, async (job) => {
     const verificationStatus = await verifyJobUrl(job.url);
     const discovery = toRecord(job.raw_data.discovery);
     return {
@@ -1725,15 +1735,28 @@ function dedupeDiscoveredJobs(jobs: DiscoveryJob[]): DiscoveryJob[] {
 export async function discoverJobsFirecrawl(
   args: FirecrawlDiscoveryArgs,
 ): Promise<DiscoveryJob[]> {
+  const startedAt = Date.now();
   const apiKey = await resolveFirecrawlApiKey();
   const context = await buildSearchContext(args.serviceClient, args.userId);
   const seeds = buildSearchSeeds(args, context);
+  console.info("firecrawl.discovery.stage", {
+    stage: "seed_build",
+    seedCount: seeds.length,
+    limit: args.limit,
+    elapsed_ms: Date.now() - startedAt,
+  });
 
   const seedResults = (
     await runWithConcurrency(seeds, 3, (seed) =>
       runSeedSearch(seed, apiKey, context.settings)
     )
   ).flat();
+  console.info("firecrawl.discovery.stage", {
+    stage: "seed_search",
+    seedCount: seeds.length,
+    seedResultCount: seedResults.length,
+    elapsed_ms: Date.now() - startedAt,
+  });
 
   const rawByUrl = new Map<string, FirecrawlSearchCandidate>();
   for (const candidate of seedResults) {
@@ -1772,11 +1795,11 @@ export async function discoverJobsFirecrawl(
       if (left.priority !== right.priority) return left.priority - right.priority;
       return right.source_confidence - left.source_confidence;
     })
-    .slice(0, Math.min(Math.max(args.limit + 15, 25), 60));
+    .slice(0, Math.min(Math.max(args.limit + 6, 18), MAX_RAW_CANDIDATES));
 
   const directFetchBudget = Math.min(
-    Math.max(Math.ceil(args.limit / 3), 10),
-    18,
+    Math.max(Math.ceil(args.limit / 6), 4),
+    MAX_DIRECT_FETCHES,
   );
 
   const normalizationContext: NormalizationContext = {
@@ -1786,7 +1809,7 @@ export async function discoverJobsFirecrawl(
     workableAccounts: new Map(),
   };
 
-  const normalized = await runWithConcurrency(rawCandidates, 4, (candidate, index) =>
+  const normalized = await runWithConcurrency(rawCandidates, 6, (candidate, index) =>
     normalizeCandidate(candidate, normalizationContext, {
       allowDirectPageFetch:
         candidate.is_tracked_company ||
@@ -1795,6 +1818,12 @@ export async function discoverJobsFirecrawl(
         index < directFetchBudget,
     })
   );
+  console.info("firecrawl.discovery.stage", {
+    stage: "normalize",
+    rawCandidateCount: rawCandidates.length,
+    directFetchBudget,
+    elapsed_ms: Date.now() - startedAt,
+  });
 
   const ranked = normalized
     .filter((job) => roleMatches(job, args.searchQuery))
@@ -1813,19 +1842,31 @@ export async function discoverJobsFirecrawl(
   const deduped = dedupeDiscoveredJobs(ranked).sort(compareRankedJobs);
   const verificationPoolSize = Math.min(
     deduped.length,
-    Math.min(Math.max(args.limit, 20), 40),
+    Math.min(Math.max(Math.ceil(args.limit / 2), 8), MAX_VERIFICATION_POOL),
   );
   const verificationPool = deduped.slice(0, verificationPoolSize);
   const verified = await verifyJobs(verificationPool);
+  console.info("firecrawl.discovery.stage", {
+    stage: "verify",
+    dedupedCount: deduped.length,
+    verificationPoolSize,
+    elapsed_ms: Date.now() - startedAt,
+  });
   const nonStaleVerified = verified.filter(
     (job) => job.verification_status !== "stale",
   );
   const verifiedUrls = new Set(nonStaleVerified.map((job) => job.url));
   const fallbackUnverified = deduped.filter((job) => !verifiedUrls.has(job.url));
 
-  return [...nonStaleVerified, ...fallbackUnverified]
+  const finalJobs = [...nonStaleVerified, ...fallbackUnverified]
     .sort(compareRankedJobs)
     .slice(0, args.limit);
+  console.info("firecrawl.discovery.complete", {
+    returnedCount: finalJobs.length,
+    verifiedCount: nonStaleVerified.length,
+    elapsed_ms: Date.now() - startedAt,
+  });
+  return finalJobs;
 }
 
 export async function discoverJobsHybrid(

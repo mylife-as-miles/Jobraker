@@ -8,6 +8,7 @@ import {
 } from "../_shared/subscription.ts";
 
 Deno.serve(async (req) => {
+  const startedAt = Date.now();
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
@@ -83,6 +84,15 @@ Deno.serve(async (req) => {
       requestedLimit,
       effectiveLimit,
       subscriptionTier,
+    });
+
+    console.info("[jobs-search] Completed", {
+      userId: user.id,
+      requestedLimit,
+      effectiveLimit,
+      discoveredCount: discoveredJobs.length,
+      jobsInserted,
+      elapsed_ms: Date.now() - startedAt,
     });
 
     return new Response(
