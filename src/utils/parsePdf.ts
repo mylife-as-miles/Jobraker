@@ -21,7 +21,11 @@ export async function parsePdfFile(file: File): Promise<ParsedPdfResult> {
     // If worker URL import fails, pdf.js may still work with inline worker in dev
   }
 
-  const doc = await getDocument({ data: arrayBuffer }).promise;
+  const doc = await getDocument({
+    data: arrayBuffer,
+    // Keep PDF parsing compatible with a strict CSP by avoiding runtime code generation.
+    isEvalSupported: false,
+  }).promise;
   let fullText = '';
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);

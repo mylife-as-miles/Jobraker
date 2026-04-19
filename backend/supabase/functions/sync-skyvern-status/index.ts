@@ -1,10 +1,7 @@
-// @ts-nocheck
-// Polls Skyvern for the current status of a workflow run and syncs it back
-// to the applications table.  The frontend calls this for applications stuck
-// in "Pending" to pull through any webhook updates that were missed.
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders } from "../_shared/types.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
 
 const TERMINAL_SUCCESS = ["succeeded", "completed"];
 const TERMINAL_FAIL = [
@@ -53,36 +50,36 @@ async function fetchSkyvernRun(runId: string, skyvernKey: string) {
   let lastError: { status: number; detail: string; url: string } | null = null;
 
   for (const url of candidateUrls) {
-    const skyvernRes = await fetch(url, {
+    const response = await fetch(url, {
       headers: { "x-api-key": skyvernKey },
     });
 
-    if (skyvernRes.ok) {
-      return {
-        run: await skyvernRes.json(),
-        url,
-      };
+    if (response.ok) {
+      return await response.json();
     }
 
     lastError = {
-      status: skyvernRes.status,
-      detail: await skyvernRes.text(),
+      status: response.status,
+      detail: await response.text(),
       url,
     };
 
-    if (skyvernRes.status !== 404) {
+    if (response.status !== 404) {
       break;
     }
   }
 
-  throw new Error(JSON.stringify({
-    error: "Skyvern fetch failed",
-    ...(lastError || {}),
-  }));
+  return {
+    __error: {
+      error: "Skyvern fetch failed",
+      ...(lastError || {}),
+    },
+  };
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -103,9 +100,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!supabaseUrl || !serviceKey || !anonKey) {
+      return new Response(JSON.stringify({ error: "Supabase env vars not set" }), {
+        status: 500,
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      });
+    }
+
+    const anonClient = createClient(supabaseUrl, anonKey);
     const { data: { user }, error: authErr } = await anonClient.auth.getUser(token);
     if (authErr || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -131,28 +136,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    let run: any;
-    try {
-      const res = await fetchSkyvernRun(runId, skyvernKey);
-      run = res.run;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      let detail = message;
-      try {
-        detail = JSON.parse(message);
-      } catch {
-        // Preserve the original error string when it's not JSON.
-      }
-      return new Response(
-        JSON.stringify(detail),
-        { status: 502, headers: { ...corsHeaders, "content-type": "application/json" } },
-      );
+    const run = await fetchSkyvernRun(runId, skyvernKey);
+    if (run?.__error) {
+      return new Response(JSON.stringify(run.__error), {
+        status: 502,
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      });
     }
 
     const { providerStatus, appStatus, canonicalStage } = mapSkyvernStatus(run?.status);
     const failureReason = run?.failure_reason || run?.error || null;
 
-    const sb = createClient(supabaseUrl, serviceKey, {
+    const serviceClient = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false },
     });
 
@@ -166,7 +161,7 @@ Deno.serve(async (req) => {
       ...(run?.app_url && { app_url: run.app_url }),
     };
 
-    const { error: updateErr } = await sb
+    const { error: updateErr } = await serviceClient
       .from("applications")
       .update(patch)
       .eq("run_id", runId)
@@ -176,20 +171,22 @@ Deno.serve(async (req) => {
       console.error("sync-skyvern-status update error", updateErr);
     }
 
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        run_id: runId,
-        skyvern_status: providerStatus,
-        app_status: appStatus,
-        canonical_stage: canonicalStage,
-        failure_reason: failureReason,
-      }),
-      { headers: { ...corsHeaders, "content-type": "application/json" } },
-    );
-  } catch (e: any) {
-    console.error("sync-skyvern-status error", e);
-    return new Response(JSON.stringify({ error: e?.message || "Unknown error" }), {
+    return new Response(JSON.stringify({
+      ok: true,
+      run_id: runId,
+      skyvern_status: providerStatus,
+      app_status: appStatus,
+      canonical_stage: canonicalStage,
+      failure_reason: failureReason,
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, "content-type": "application/json" },
+    });
+  } catch (error: unknown) {
+    console.error("sync-skyvern-status error", error);
+    return new Response(JSON.stringify({
+      error: error instanceof Error ? error.message : "Unknown error",
+    }), {
       status: 500,
       headers: { ...corsHeaders, "content-type": "application/json" },
     });

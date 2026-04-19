@@ -8,9 +8,9 @@ async function getKey(): Promise<CryptoKey> {
   
   if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_ENCRYPTION_KEY) {
     secretString = import.meta.env.VITE_ENCRYPTION_KEY;
-  } else if (typeof Deno !== 'undefined') {
+  } else if (typeof (globalThis as any).Deno !== 'undefined') {
     // @ts-ignore
-    secretString = Deno.env.get('ENCRYPTION_KEY') || FALLBACK_SECRET;
+    secretString = (globalThis as any).Deno.env.get('ENCRYPTION_KEY') || FALLBACK_SECRET;
   }
 
   // Pad or truncate to 32 bytes

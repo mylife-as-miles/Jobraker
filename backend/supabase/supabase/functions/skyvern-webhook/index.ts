@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     const terminalFail = ['failed', 'error', 'cancelled', 'canceled', 'timed_out', 'terminated'];
     const finalStatus = terminalSuccess.includes(status) ? 'Applied' : (terminalFail.includes(status) ? 'Failed' : null);
     const canonicalStage = terminalSuccess.includes(status)
-      ? 'applied'
+      ? 'submitted'
       : terminalFail.includes(status)
         ? 'failed'
         : ['running', 'queued', 'created'].includes(status)

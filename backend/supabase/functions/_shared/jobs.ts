@@ -1,3 +1,5 @@
+import type { DiscoveryJob } from "./discovery-hybrid.ts";
+
 type JobRowInput = Record<string, unknown> & {
   id?: string;
   user_id: string;
@@ -59,4 +61,94 @@ export async function attachExistingJobIdsBySourceId(
     const existing = sourceId ? existingBySourceId.get(sourceId) : undefined;
     return existing ? { ...row, id: existing.id } : row;
   });
+}
+
+interface PersistDiscoveryOptions {
+  userId: string;
+  searchQuery: string;
+  location: string;
+  trigger: "live_search" | "manual_cron" | "scheduled_cron";
+  requestedLimit?: number | null;
+  effectiveLimit?: number | null;
+  subscriptionTier?: string | null;
+}
+
+const toRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+export async function persistDiscoveredJobs(
+  serviceClient: any,
+  jobs: DiscoveryJob[],
+  options: PersistDiscoveryOptions,
+) {
+  if (!jobs.length) {
+    return {
+      jobsInserted: 0,
+      rows: [] as JobRowInput[],
+    };
+  }
+
+  const nowIso = new Date().toISOString();
+  const rows = jobs.map((job) => {
+    const rawData = toRecord(job.raw_data);
+    const discovery = toRecord(rawData.discovery);
+
+    return {
+      user_id: options.userId,
+      source_type: job.source_type,
+      source_id: job.source_id,
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      apply_url: job.url,
+      status: "active",
+      canonical_status: "discovered",
+      verification_status: job.verification_status,
+      source_kind: job.source_kind,
+      source_confidence: job.source_confidence,
+      is_tracked_company: job.is_tracked_company,
+      discovered_at: nowIso,
+      last_verified_at: nowIso,
+      description: job.description,
+      posted_at: job.posted_at,
+      raw_data: {
+        ...rawData,
+        discovery: {
+          ...discovery,
+          mode: "firecrawl",
+          search_query: options.searchQuery,
+          location: options.location,
+          trigger: options.trigger,
+          source_kind: job.source_kind,
+          source_confidence: job.source_confidence,
+          verification_status: job.verification_status,
+          requested_limit: options.requestedLimit ?? null,
+          effective_limit: options.effectiveLimit ?? null,
+          subscription_tier: options.subscriptionTier ?? null,
+        },
+      },
+    } satisfies JobRowInput;
+  });
+
+  const rowsWithIds = await attachExistingJobIdsBySourceId(
+    serviceClient,
+    options.userId,
+    rows,
+  );
+
+  const { data, error } = await serviceClient
+    .from("jobs")
+    .upsert(rowsWithIds, { onConflict: "user_id,source_type,source_id" })
+    .select("id");
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    jobsInserted: data?.length ?? jobs.length,
+    rows: rowsWithIds,
+  };
 }

@@ -1,0 +1,32 @@
+html,
+body,
+#app,
+#root {
+  min-height: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #000;
+  color: #fff;
+}
+
+html {
+  color-scheme: dark;
+}
+
+html.dark,
+html.dark body {
+  background-color: #000;
+  color: #fff;
+  color-scheme: dark;
+}
+
+html:not(.dark),
+html:not(.dark) body {
+  background-color: #fff;
+  color: #0b0f14;
+  color-scheme: light;
+}

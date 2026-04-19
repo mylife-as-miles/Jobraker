@@ -1,14 +1,19 @@
-
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Set worker source to a CDN or local file. 
-// For Vite, it's often best to rely on the CDN for simplicity unless we bundle the worker.
-// Using unpkg for the matching version.
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-
 export async function extractTextFromPdf(file: File): Promise<string> {
+    const pdfjsLib = await import('pdfjs-dist');
+    try {
+        // @ts-ignore - bundler query param
+        const workerSrc: string = (await import('pdfjs-dist/build/pdf.worker.mjs?url')).default;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+    } catch {
+        // If the worker URL import fails, pdf.js can still fall back in development.
+    }
+
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pdf = await pdfjsLib.getDocument({
+        data: arrayBuffer,
+        // Avoid `unsafe-eval` requirements when parsing PDFs under a strict CSP.
+        isEvalSupported: false,
+    }).promise;
     let fullText = '';
 
     for (let i = 1; i <= pdf.numPages; i++) {

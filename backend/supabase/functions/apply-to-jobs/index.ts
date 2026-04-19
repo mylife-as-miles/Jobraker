@@ -8,6 +8,74 @@ import {
 import { decryptSymmetric } from "../_shared/crypto.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
+const AUTOMATION_RATE_LIMIT_WINDOW_MS = 60_000;
+const MAX_AUTOMATIONS_PER_WINDOW = 20;
+
+// Skyvern's file parser expects a plain URL string, not a JSON-encoded one.
+function normalizeHttpUrlString(raw: string): string {
+  let value = raw.trim();
+
+  try {
+    const parsed = JSON.parse(value);
+    if (typeof parsed === "string") {
+      value = parsed.trim();
+    }
+  } catch {
+    // Fall through to quote trimming.
+  }
+
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1).trim();
+  }
+
+  return value;
+}
+
+function parseSupabaseSignedObjectPath(
+  urlStr: string,
+): { bucket: string; path: string } | null {
+  try {
+    const url = new URL(urlStr);
+    const match = url.pathname.match(/\/storage\/v1\/object\/sign\/([^/]+)\/(.+)$/);
+    if (!match) return null;
+
+    return {
+      bucket: decodeURIComponent(match[1]),
+      path: decodeURIComponent(match[2]),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function refreshResumeSignedUrlIfPossible(
+  resumeUrl: string,
+  userId: string,
+  serviceClient: any,
+): Promise<string> {
+  const parsed = parseSupabaseSignedObjectPath(resumeUrl);
+  if (!parsed) return resumeUrl;
+
+  const { bucket, path } = parsed;
+  if (bucket !== "resumes" || !path.startsWith(`${userId}/`)) {
+    return resumeUrl;
+  }
+
+  const ttlSeconds = 60 * 60 * 48;
+  const { data, error } = await serviceClient.storage
+    .from(bucket)
+    .createSignedUrl(path, ttlSeconds);
+
+  if (error || !data?.signedUrl) {
+    console.warn("apply-to-jobs: refresh signed URL failed", error?.message);
+    return resumeUrl;
+  }
+
+  return data.signedUrl;
+}
 
 function asArray(val: any): any[] {
   if (Array.isArray(val)) return val;
@@ -96,7 +164,7 @@ async function withRetry(fn: () => Promise<any>, attempts = 3, baseDelayMs = 500
 }
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
 
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -169,18 +237,24 @@ Deno.serve(async (req) => {
     }
 
     // Tier gate is Free+; rate limit and credits (client / other RPCs) constrain abuse.
-    const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+    const oneMinuteAgo = new Date(
+      Date.now() - AUTOMATION_RATE_LIMIT_WINDOW_MS,
+    ).toISOString();
     const { count } = await serviceClient
       .from("applications")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId)
       .gte("created_at", oneMinuteAgo);
 
-    if (count && count >= 5) {
+    if (count && count >= MAX_AUTOMATIONS_PER_WINDOW) {
       return new Response(
         JSON.stringify({
           error:
             "Rate limit exceeded. Please wait a moment before heavily automating applications.",
+          retry_after_seconds: Math.ceil(
+            AUTOMATION_RATE_LIMIT_WINDOW_MS / 1000,
+          ),
+          limit: MAX_AUTOMATIONS_PER_WINDOW,
         }),
         {
           status: 429,
@@ -225,7 +299,20 @@ Deno.serve(async (req) => {
       typeof body?.additional_information === "string"
         ? body.additional_information
         : "";
-    const resume = typeof body?.resume === "string" ? body.resume : "";
+    let resume =
+      typeof body?.resume === "string" ? normalizeHttpUrlString(body.resume) : "";
+    const resumeText = typeof body?.resume_text === "string" ? body.resume_text : "";
+    if (resume && (resume.startsWith("http://") || resume.startsWith("https://"))) {
+      try {
+        resume = await refreshResumeSignedUrlIfPossible(
+          resume,
+          userId,
+          serviceClient,
+        );
+      } catch (error: any) {
+        console.warn("apply-to-jobs: refreshResumeSignedUrlIfPossible", error?.message);
+      }
+    }
     const coverLetter =
       typeof body?.cover_letter === "string" ? body.cover_letter : undefined;
     const title = typeof body?.title === "string" ? body.title : undefined;
@@ -260,10 +347,12 @@ Deno.serve(async (req) => {
       additionalInformation = parts.join("\n");
     }
 
+    const isResumeUrl = resume.startsWith("http://") || resume.startsWith("https://");
     const parameters: Record<string, unknown> = {
       job_urls: stringifyArrayForSkyvern(jobUrls),
       additional_information: additionalInformation,
-      resume,
+      resume: isResumeUrl ? resume : "",
+      resume_text: resumeText || (!isResumeUrl && resume ? resume : ""),
       user_input: JSON.stringify(safeUserInput),
       email,
     };

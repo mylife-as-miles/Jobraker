@@ -782,7 +782,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   };
 
   const downloadPDF = () => {
-    downloadResumePDF(resumeData);
+    void downloadResumePDF(resumeData);
   };
 
   const aiPolishSummary = async (instruction = "Polish this resume summary for clarity, confidence, and measurable impact.") => {

@@ -518,7 +518,7 @@ const buildFallbackEvaluation = (
       proof_points_to_highlight: proofPointsToHighlight,
       risk_mitigation: riskMitigation,
     },
-    interview_stories,
+    interview_stories: interviewStories,
     missing_requirements: missingRequirements,
     tailoring_suggestions:
       fallbackTailoringSuggestions.length > 0

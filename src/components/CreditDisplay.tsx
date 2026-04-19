@@ -17,26 +17,21 @@ export const CreditDisplay = () => {
         const { data: userData } = await supabase.auth.getUser();
         const userId = userData?.user?.id;
         if (!userId) {
-          console.log('CreditDisplay: No user ID found');
           setLoading(false);
           return;
         }
-
-        console.log('CreditDisplay: Fetching credits for user:', userId);
 
         // Fetch credits
         const { data: creditsData, error: creditsError } = await supabase
           .from('user_credits')
           .select('balance')
           .eq('user_id', userId)
-          .single();
+          .maybeSingle();
 
-        console.log('CreditDisplay: Credits data:', creditsData, 'Error:', creditsError);
-
-        if (creditsData) {
+        if (creditsError) {
+          console.error('CreditDisplay: Failed to fetch credits', creditsError);
+        } else if (creditsData) {
           setCredits(creditsData.balance);
-        } else {
-          console.warn('CreditDisplay: No credits data found for user');
         }
 
         // Fetch subscription tier
@@ -47,22 +42,27 @@ export const CreditDisplay = () => {
           .eq('status', 'active')
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
-        console.log('CreditDisplay: Subscription data:', subscription, 'Error:', subError);
+        if (subError) {
+          console.error('CreditDisplay: Failed to fetch subscription tier', subError);
+        }
 
         const planName = (subscription as any)?.subscription_plans?.name;
         if (planName && (planName === 'Free' || planName === 'Basics' || planName === 'Pro' || planName === 'Ultimate')) {
           setSubscriptionTier(planName as 'Free' | 'Basics' | 'Pro' | 'Ultimate');
         } else {
           // Fallback to profiles table
-          const { data: profileData } = await supabase
+          const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('subscription_tier')
             .eq('id', userId)
-            .single();
+            .maybeSingle();
 
-          console.log('CreditDisplay: Profile tier:', profileData?.subscription_tier);
+          if (profileError) {
+            console.error('CreditDisplay: Failed to fetch fallback profile tier', profileError);
+          }
+
           if (profileData?.subscription_tier && (profileData.subscription_tier === 'Free' || profileData.subscription_tier === 'Basics' || profileData.subscription_tier === 'Pro' || profileData.subscription_tier === 'Ultimate')) {
             setSubscriptionTier(profileData.subscription_tier);
           } else {

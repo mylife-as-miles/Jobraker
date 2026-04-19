@@ -9,6 +9,13 @@ const TIER_RANK: Record<SubscriptionTier, number> = {
   Ultimate: 3,
 };
 
+export const JOB_SEARCH_RESULT_CAPS: Record<SubscriptionTier, number> = {
+  Free: 10,
+  Basics: 20,
+  Pro: 50,
+  Ultimate: 100,
+};
+
 export class SubscriptionAccessError extends Error {
   status: number;
 
@@ -123,6 +130,50 @@ export async function resolveSubscriptionTier(
     .maybeSingle();
 
   return normalizeSubscriptionTier(profileData?.subscription_tier);
+}
+
+export function getJobSearchResultCap(
+  tier: SubscriptionTier,
+): number {
+  return JOB_SEARCH_RESULT_CAPS[tier];
+}
+
+export async function getUserCreditsBalance(
+  userId: string,
+  serviceClient = createServiceClient(),
+): Promise<number> {
+  const { data } = await serviceClient
+    .from("user_credits")
+    .select("balance")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const balance = Number(data?.balance ?? 0);
+  return Number.isFinite(balance) && balance > 0 ? Math.floor(balance) : 0;
+}
+
+export async function resolveJobSearchExecutionLimits(
+  userId: string,
+  requestedLimit: number,
+  serviceClient = createServiceClient(),
+) {
+  const subscriptionTier = await resolveSubscriptionTier(userId, serviceClient);
+  const planCap = getJobSearchResultCap(subscriptionTier);
+  const creditsBalance = await getUserCreditsBalance(userId, serviceClient);
+  const normalizedRequestedLimit = Number.isFinite(requestedLimit)
+    ? Math.max(1, Math.floor(requestedLimit))
+    : planCap;
+  const effectiveLimit = Math.max(
+    0,
+    Math.min(normalizedRequestedLimit, planCap, creditsBalance),
+  );
+
+  return {
+    subscriptionTier,
+    planCap,
+    creditsBalance,
+    effectiveLimit,
+  };
 }
 
 export async function requireSubscriptionTier(

@@ -41,13 +41,22 @@ async function resolveFirecrawlApiKey(): Promise<string> {
 }
 
 // Centralized Firecrawl API call function
-async function firecrawlFetch(path: string, apiKey: string, body: any, userId?: string) {
+async function firecrawlFetch(
+  path: string,
+  apiKey: string,
+  body: any,
+  userId?: string,
+  timeoutMs = 20000,
+) {
   const url = `https://api.firecrawl.dev/v2${path}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort("firecrawl_timeout"), timeoutMs);
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify(body),
-  });
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout));
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
