@@ -657,19 +657,19 @@ export const CoverLetterBuilderPage = () => {
     return (
         <div id="cover-page-root" className="product-page-shell relative flex min-h-[calc(100vh-4rem)] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
             {/* Ambient Background Glows */}
-            <div className="fixed top-20 right-0 h-96 w-96 bg-[#2dd4bf]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10" />
-            <div className="fixed bottom-20 left-0 h-96 w-96 bg-[#2dd4bf]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10" />
+            <div className="fixed top-20 right-0 h-96 w-96 bg-[#ffd700]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10" />
+            <div className="fixed bottom-20 left-0 h-96 w-96 bg-[#ffd700]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10" />
 
             {/* Header */}
             <div id="cover-header" className="product-section-card sticky top-0 z-10 group relative flex flex-col justify-between gap-4 overflow-hidden rounded-2xl px-4 py-5 shadow-lg sm:px-6 xl:flex-row xl:items-center">
                 {/* Animated gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-[#22d3ee]/0 via-[#2dd4bf]/5 to-[#0d9488]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-r from-[#fbbf24]/0 via-[#ffd700]/5 to-[#b45309]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
                 <div className="relative flex items-center gap-3 sm:gap-4 w-full xl:w-auto">
-                    <Button variant="ghost" size="sm" className="h-10 w-10 sm:h-12 sm:w-12 p-0 rounded-xl border border-[#2dd4bf]/20 hover:border-[#2dd4bf]/50 hover:bg-gradient-to-br hover:from-[#22d3ee]/15 hover:to-[#0d9488]/5 hover:text-[#2dd4bf] hover:scale-110 hover:shadow-[0_0_25px_rgba(45,212,191,0.2)] transition-all duration-200 group/btn shrink-0" onClick={() => navigate('/dashboard/cover-letter')}>
+                    <Button variant="ghost" size="sm" className="h-10 w-10 sm:h-12 sm:w-12 p-0 rounded-xl border border-[#ffd700]/20 hover:border-[#ffd700]/50 hover:bg-gradient-to-br hover:from-[#fbbf24]/15 hover:to-[#b45309]/5 hover:text-[#ffd700] hover:scale-110 hover:shadow-[0_0_25px_rgba(255,215,0,0.2)] transition-all duration-200 group/btn shrink-0" onClick={() => navigate('/dashboard/cover-letter')}>
                         <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover/btn:scale-110 transition-transform" />
                     </Button>
-                    <div className="h-12 w-px bg-gradient-to-b from-transparent via-[#2dd4bf]/40 to-transparent shadow-[0_0_10px_rgba(45,212,191,0.3)]" />
+                    <div className="h-12 w-px bg-gradient-to-b from-transparent via-[#ffd700]/40 to-transparent shadow-[0_0_10px_rgba(255,215,0,0.3)]" />
                     <div>
                         {/* Dynamic Title Input */}
                         <div className="flex items-center gap-2 group/title">
@@ -683,8 +683,8 @@ export const CoverLetterBuilderPage = () => {
                         </div>
                         <div className="flex items-center gap-3 mt-1.5">
                             <p className="text-xs sm:text-sm product-helper-text flex items-center gap-2.5">
-                                <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-[#2dd4bf]/20 border border-[#2dd4bf]/40">
-                                    <span className="inline-block w-2 h-2 bg-[#2dd4bf] rounded-full animate-pulse shadow-[0_0_8px_rgba(45,212,191,0.8)]" />
+                                <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-[#ffd700]/20 border border-[#ffd700]/40">
+                                    <span className="inline-block w-2 h-2 bg-[#ffd700] rounded-full animate-pulse shadow-[0_0_8px_rgba(255,215,0,0.8)]" />
                                 </span>
                                 AI Assistant Ready
                             </p>
@@ -702,12 +702,12 @@ export const CoverLetterBuilderPage = () => {
                     <Button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="rounded-xl h-11 border-[#2dd4bf]/30 bg-[#2dd4bf]/10 text-[#2dd4bf] hover:bg-[#2dd4bf]/20 gap-2 shrink-0"
+                        className="rounded-xl h-11 border-[#ffd700]/30 bg-[#ffd700]/10 text-[#ffd700] hover:bg-[#ffd700]/20 gap-2 shrink-0"
                     >
                         {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                         {isSaving ? 'Saving...' : 'Save'}
                     </Button>
-                    <Button variant="outline" onClick={() => setInlineEdit(!inlineEdit)} className={`rounded-xl shrink-0 whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${inlineEdit ? 'bg-[#2dd4bf]/10 border-[#2dd4bf] text-[#2dd4bf]' : 'border-[#2dd4bf]/30 hover:border-[#2dd4bf]/60 hover:text-[#2dd4bf] hover:bg-[#2dd4bf]/5'}`}>
+                    <Button variant="outline" onClick={() => setInlineEdit(!inlineEdit)} className={`rounded-xl shrink-0 whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${inlineEdit ? 'bg-[#ffd700]/10 border-[#ffd700] text-[#ffd700]' : 'border-[#ffd700]/30 hover:border-[#ffd700]/60 hover:text-[#ffd700] hover:bg-[#ffd700]/5'}`}>
                         <Pencil className="w-4 h-4 mr-2" />
                         {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'}
                     </Button>
@@ -752,7 +752,7 @@ export const CoverLetterBuilderPage = () => {
                             </div>
                             <input value={libName} onChange={e => setLibName(e.target.value)} placeholder="Letter Name" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
                             <div className="grid grid-cols-2 gap-3">
-                                <Button onClick={() => saveToLibrary()} variant="outline" className="border-[#2dd4bf]/30">{currentLibId ? 'Update' : 'Save'}</Button>
+                                <Button onClick={() => saveToLibrary()} variant="outline" className="border-[#ffd700]/30">{currentLibId ? 'Update' : 'Save'}</Button>
                                 <Button onClick={() => saveToLibrary(libName)} variant="outline">Save As New</Button>
                             </div>
                             {library.length > 0 && (
@@ -831,7 +831,7 @@ export const CoverLetterBuilderPage = () => {
                         <div className="grid gap-3">
                             <div className="flex justify-between items-center">
                                 <label className="text-sm font-semibold text-foreground">Body</label>
-                                <Button size="sm" variant="ghost" onClick={splitContentString} className="h-6 text-xs text-[#2dd4bf]">Split to Paragraphs</Button>
+                                <Button size="sm" variant="ghost" onClick={splitContentString} className="h-6 text-xs text-[#ffd700]">Split to Paragraphs</Button>
                             </div>
                             {/* Raw Body Editor */}
                             <textarea
@@ -857,8 +857,8 @@ export const CoverLetterBuilderPage = () => {
                                             className="w-full product-input-surface rounded-lg px-3 py-2 text-sm outline-none"
                                         />
                                         <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex gap-1 bg-muted/50 rounded">
-                                            <button onClick={() => moveParagraphUp(idx)} className="p-1 hover:text-[#2dd4bf]"><ArrowUp className="w-3 h-3" /></button>
-                                            <button onClick={() => moveParagraphDown(idx)} className="p-1 hover:text-[#2dd4bf]"><ArrowDown className="w-3 h-3" /></button>
+                                            <button onClick={() => moveParagraphUp(idx)} className="p-1 hover:text-[#ffd700]"><ArrowUp className="w-3 h-3" /></button>
+                                            <button onClick={() => moveParagraphDown(idx)} className="p-1 hover:text-[#ffd700]"><ArrowDown className="w-3 h-3" /></button>
                                             <button onClick={() => removeParagraph(idx)} className="p-1 hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
                                         </div>
                                     </div>
@@ -986,9 +986,9 @@ export const CoverLetterBuilderPage = () => {
 
             {/* Config Toolbar */}
             <div className="product-section-card fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-2xl p-2 shadow-xl">
-                <Button size="icon" variant="ghost" onClick={zoomOut} className="hover:text-[#2dd4bf]"><Minus className="w-4 h-4" /></Button>
+                <Button size="icon" variant="ghost" onClick={zoomOut} className="hover:text-[#ffd700]"><Minus className="w-4 h-4" /></Button>
                 <span className="text-xs font-mono w-12 text-center">{typography.fontSize}px</span>
-                <Button size="icon" variant="ghost" onClick={zoomIn} className="hover:text-[#2dd4bf]"><Plus className="w-4 h-4" /></Button>
+                <Button size="icon" variant="ghost" onClick={zoomIn} className="hover:text-[#ffd700]"><Plus className="w-4 h-4" /></Button>
                 <div className="w-px h-4 bg-foreground/20 mx-2" />
                 <Button size="sm" variant="ghost" onClick={clearDraft} className="text-red-400 hover:text-red-500 hover:bg-red-500/10">Clear</Button>
             </div>
@@ -1002,15 +1002,15 @@ export const CoverLetterBuilderPage = () => {
                         <p className="text-sm product-helper-text mb-6">Choose a format to download your letter.</p>
 
                         <div className="space-y-3">
-                            <Button onClick={exportPdf} disabled={!!exportBusy} className="w-full justify-start h-12 border-[#2dd4bf]/30 hover:bg-[#2dd4bf]/10" variant="outline">
-                                <FileText className="w-5 h-5 mr-3 text-[#2dd4bf]" /> PDF Document
+                            <Button onClick={exportPdf} disabled={!!exportBusy} className="w-full justify-start h-12 border-[#ffd700]/30 hover:bg-[#ffd700]/10" variant="outline">
+                                <FileText className="w-5 h-5 mr-3 text-[#ffd700]" /> PDF Document
                                 {exportBusy === 'pdf' && <span className="ml-auto animate-pulse">Processing...</span>}
                             </Button>
-                            <Button onClick={exportDocx} disabled={!!exportBusy} className="w-full justify-start h-12 border-[#2dd4bf]/30 hover:bg-[#2dd4bf]/10" variant="outline">
+                            <Button onClick={exportDocx} disabled={!!exportBusy} className="w-full justify-start h-12 border-[#ffd700]/30 hover:bg-[#ffd700]/10" variant="outline">
                                 <FileType className="w-5 h-5 mr-3 text-blue-400" /> Word (DOCX)
                                 {exportBusy === 'docx' && <span className="ml-auto animate-pulse">Processing...</span>}
                             </Button>
-                            <Button onClick={exportTxt} className="w-full justify-start h-12 border-[#2dd4bf]/30 hover:bg-[#2dd4bf]/10" variant="outline">
+                            <Button onClick={exportTxt} className="w-full justify-start h-12 border-[#ffd700]/30 hover:bg-[#ffd700]/10" variant="outline">
                                 <FileText className="w-5 h-5 mr-3 product-helper-text" /> Plain Text
                             </Button>
                         </div>

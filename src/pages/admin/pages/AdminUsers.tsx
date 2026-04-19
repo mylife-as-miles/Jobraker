@@ -75,10 +75,10 @@ function UserDetailPanel({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-gradient-to-b from-background via-background to-background border-l border-[#2dd4bf]/20 z-50 overflow-y-auto"
+            className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-gradient-to-b from-background via-background to-background border-l border-[#ffd700]/20 z-50 overflow-y-auto"
           >
             {/* Header */}
-            <div className="sticky top-0 bg-background/95 backdrop-blur-xl border-b border-[#2dd4bf]/20 px-6 py-4 flex items-center justify-between z-10">
+            <div className="sticky top-0 bg-background/95 backdrop-blur-xl border-b border-[#ffd700]/20 px-6 py-4 flex items-center justify-between z-10">
               <h2 className="text-xl font-bold text-white">User Details</h2>
               <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-foreground/5 rounded-lg">
                 <X className="w-5 h-5" />
@@ -88,8 +88,8 @@ function UserDetailPanel({
             <div className="p-6 space-y-6">
               {/* User Identity */}
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#22d3ee]/20 to-background/10 border border-[#2dd4bf]/30 flex items-center justify-center">
-                  <User className="w-8 h-8 text-[#2dd4bf]" />
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#fbbf24]/20 to-background/10 border border-[#ffd700]/30 flex items-center justify-center">
+                  <User className="w-8 h-8 text-[#ffd700]" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-white">{user.full_name || 'No Name'}</h3>
@@ -99,7 +99,7 @@ function UserDetailPanel({
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     {user.roles?.includes('admin') && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium bg-[#2dd4bf]/20 text-[#2dd4bf] border-[#2dd4bf]/30 uppercase tracking-wider">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium bg-[#ffd700]/20 text-[#ffd700] border-[#ffd700]/30 uppercase tracking-wider">
                         <Shield className="w-3 h-3" />
                         Admin
                       </span>
@@ -117,7 +117,7 @@ function UserDetailPanel({
 
               {/* Stats Grid */}
               <div className="grid grid-cols-2 gap-3">
-                <StatMini icon={<Coins className="w-4 h-4 text-[#2dd4bf]" />} label="Credits" value={user.credits_balance} />
+                <StatMini icon={<Coins className="w-4 h-4 text-[#ffd700]" />} label="Credits" value={user.credits_balance} />
                 <StatMini icon={<Zap className="w-4 h-4 text-yellow-400" />} label="Used" value={user.credits_consumed} />
                 <StatMini icon={<Search className="w-4 h-4 text-blue-400" />} label="Searches" value={user.job_searches} />
                 <StatMini icon={<ArrowUpRight className="w-4 h-4 text-purple-400" />} label="Auto Applies" value={user.auto_applies} />
@@ -138,7 +138,7 @@ function UserDetailPanel({
                 <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Recent Transactions</h4>
                 {loadingTransactions ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 text-[#2dd4bf] animate-spin" />
+                    <Loader2 className="w-6 h-6 text-[#ffd700] animate-spin" />
                   </div>
                 ) : transactions.length === 0 ? (
                   <p className="text-sm text-gray-500 py-4 text-center">No transactions found</p>
@@ -151,7 +151,7 @@ function UserDetailPanel({
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${(tx.transaction_type === 'bonus' || tx.transaction_type === 'earn' || tx.transaction_type === 'refill')
-                            ? 'bg-[#2dd4bf]/20 text-[#2dd4bf]'
+                            ? 'bg-[#ffd700]/20 text-[#ffd700]'
                             : 'bg-red-500/20 text-red-400'
                             }`}>
                             {(tx.transaction_type === 'bonus' || tx.transaction_type === 'earn' || tx.transaction_type === 'refill')
@@ -166,7 +166,7 @@ function UserDetailPanel({
                         </div>
                         <div className="text-right">
                           <p className={`text-sm font-bold ${(tx.transaction_type === 'bonus' || tx.transaction_type === 'earn' || tx.transaction_type === 'refill')
-                            ? 'text-[#2dd4bf]'
+                            ? 'text-[#ffd700]'
                             : 'text-red-400'
                             }`}>
                             {(tx.transaction_type === 'bonus' || tx.transaction_type === 'earn' || tx.transaction_type === 'refill') ? '+' : '-'}{tx.amount}
@@ -200,7 +200,7 @@ function StatMini({ icon, label, value }: { icon: React.ReactNode; label: string
 
 function ActionButton({ icon, label, onClick, color }: { icon: React.ReactNode; label: string; onClick: () => void; color: 'green' | 'yellow' | 'red' }) {
   const colorClasses = {
-    green: 'border-[#2dd4bf]/30 hover:border-[#2dd4bf] hover:bg-[#2dd4bf]/10 text-[#2dd4bf]',
+    green: 'border-[#ffd700]/30 hover:border-[#ffd700] hover:bg-[#ffd700]/10 text-[#ffd700]',
     yellow: 'border-yellow-500/30 hover:border-yellow-500 hover:bg-yellow-500/10 text-yellow-400',
     red: 'border-red-500/30 hover:border-red-500 hover:bg-red-500/10 text-red-400',
   };
@@ -251,13 +251,13 @@ function TopUpDialog({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#2dd4bf]/30 rounded-2xl w-full max-w-md shadow-2xl shadow-[#2dd4bf]/10"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#ffd700]/30 rounded-2xl w-full max-w-md shadow-2xl shadow-[#ffd700]/10"
         >
           {/* Header */}
-          <div className="px-6 pt-6 pb-4 border-b border-[#2dd4bf]/20">
+          <div className="px-6 pt-6 pb-4 border-b border-[#ffd700]/20">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-[#2dd4bf]/20 flex items-center justify-center">
-                <Coins className="w-5 h-5 text-[#2dd4bf]" />
+              <div className="w-10 h-10 rounded-xl bg-[#ffd700]/20 flex items-center justify-center">
+                <Coins className="w-5 h-5 text-[#ffd700]" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-white">Top Up Credits</h3>
@@ -265,7 +265,7 @@ function TopUpDialog({
               </div>
             </div>
             <p className="text-sm text-gray-400">
-              Current balance: <span className="text-[#2dd4bf] font-semibold">{user.credits_balance}</span> credits
+              Current balance: <span className="text-[#ffd700] font-semibold">{user.credits_balance}</span> credits
             </p>
           </div>
 
@@ -280,8 +280,8 @@ function TopUpDialog({
                     key={qa}
                     onClick={() => setAmount(qa)}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${amount === qa
-                      ? 'bg-[#2dd4bf]/20 border-[#2dd4bf] text-[#2dd4bf]'
-                      : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-[#2dd4bf]/50'
+                      ? 'bg-[#ffd700]/20 border-[#ffd700] text-[#ffd700]'
+                      : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-[#ffd700]/50'
                       }`}
                   >
                     +{qa}
@@ -298,7 +298,7 @@ function TopUpDialog({
                 value={amount}
                 onChange={(e) => setAmount(Math.max(1, parseInt(e.target.value) || 0))}
                 min={1}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-[#2dd4bf] focus:outline-none transition-colors text-lg font-bold"
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-[#ffd700] focus:outline-none transition-colors text-lg font-bold"
               />
             </div>
 
@@ -310,24 +310,24 @@ function TopUpDialog({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="e.g. Promotional bonus, Support credit"
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-[#2dd4bf] focus:outline-none transition-colors"
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-[#ffd700] focus:outline-none transition-colors"
               />
             </div>
 
             {/* Preview */}
-            <div className="bg-[#2dd4bf]/5 border border-[#2dd4bf]/20 rounded-xl p-4">
+            <div className="bg-[#ffd700]/5 border border-[#ffd700]/20 rounded-xl p-4">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Current Balance</span>
                 <span className="text-white">{user.credits_balance}</span>
               </div>
               <div className="flex justify-between text-sm mt-1">
                 <span className="text-gray-400">Top Up Amount</span>
-                <span className="text-[#2dd4bf] font-semibold">+{amount}</span>
+                <span className="text-[#ffd700] font-semibold">+{amount}</span>
               </div>
-              <div className="border-t border-[#2dd4bf]/20 my-2" />
+              <div className="border-t border-[#ffd700]/20 my-2" />
               <div className="flex justify-between text-sm font-bold">
                 <span className="text-white">New Balance</span>
-                <span className="text-[#2dd4bf]">{user.credits_balance + amount}</span>
+                <span className="text-[#ffd700]">{user.credits_balance + amount}</span>
               </div>
             </div>
           </div>
@@ -345,7 +345,7 @@ function TopUpDialog({
               whileTap={{ scale: 0.98 }}
               onClick={() => onConfirm(amount, description)}
               disabled={loading || amount < 1}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-[#22d3ee] to-background text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-[#2dd4bf]/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-[#fbbf24] to-background text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-[#ffd700]/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Add {amount} Credits
@@ -436,11 +436,11 @@ function ChangePlanDialog({
                   whileTap={{ scale: 0.99 }}
                   onClick={() => setSelectedPlan(plan.id)}
                   className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl border transition-all ${selectedPlan === plan.id
-                    ? 'bg-[#2dd4bf]/10 border-[#2dd4bf] shadow-lg shadow-[#2dd4bf]/10'
+                    ? 'bg-[#ffd700]/10 border-[#ffd700] shadow-lg shadow-[#ffd700]/10'
                     : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
                     }`}
                 >
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selectedPlan === plan.id ? 'bg-[#2dd4bf]/20' : 'bg-gray-700/50'
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selectedPlan === plan.id ? 'bg-[#ffd700]/20' : 'bg-gray-700/50'
                     }`}>
                     {planIcons[plan.name] || <Star className="w-5 h-5 text-gray-400" />}
                   </div>
@@ -450,7 +450,7 @@ function ChangePlanDialog({
                   </div>
                   <p className="text-white font-bold">${plan.price}</p>
                   {selectedPlan === plan.id && (
-                    <CheckCircle2 className="w-5 h-5 text-[#2dd4bf]" />
+                    <CheckCircle2 className="w-5 h-5 text-[#ffd700]" />
                   )}
                 </motion.button>
               ))
@@ -626,20 +626,20 @@ function RowActions({
               initial={{ opacity: 0, scale: 0.95, y: -5 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -5 }}
-              className="absolute right-0 top-full mt-1 w-48 bg-background border border-[#2dd4bf]/20 rounded-xl shadow-2xl z-50 overflow-hidden"
+              className="absolute right-0 top-full mt-1 w-48 bg-background border border-[#ffd700]/20 rounded-xl shadow-2xl z-50 overflow-hidden"
             >
               <button onClick={() => { setOpen(false); onView(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
                 <Eye className="w-4 h-4 text-blue-400" /> View Details
               </button>
               <button onClick={() => { setOpen(false); onTopUp(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
-                <Plus className="w-4 h-4 text-[#2dd4bf]" /> Top Up Credits
+                <Plus className="w-4 h-4 text-[#ffd700]" /> Top Up Credits
               </button>
               <button onClick={() => { setOpen(false); onChangePlan(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
                 <Crown className="w-4 h-4 text-yellow-400" /> Change Plan
               </button>
 
               <button onClick={() => { setOpen(false); onToggleAdmin(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
-                <Shield className={`w-4 h-4 ${isAdmin ? 'text-[#2dd4bf]' : 'text-gray-400'}`} />
+                <Shield className={`w-4 h-4 ${isAdmin ? 'text-[#ffd700]' : 'text-gray-400'}`} />
                 {isAdmin ? 'Remove Admin' : 'Make Admin'}
               </button>
               <div className="border-t border-gray-700/50" />
@@ -667,7 +667,7 @@ function getTierIcon(tier: string) {
 function getTierBadgeClass(tier: string) {
   switch (tier) {
     case 'Ultimate': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-    case 'Pro': return 'bg-[#2dd4bf]/20 text-[#2dd4bf] border-[#2dd4bf]/30';
+    case 'Pro': return 'bg-[#ffd700]/20 text-[#ffd700] border-[#ffd700]/30';
     case 'Basics': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
     default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
   }
@@ -675,7 +675,7 @@ function getTierBadgeClass(tier: string) {
 
 function getStatusBadgeClass(status: string) {
   switch (status) {
-    case 'active': return 'bg-[#2dd4bf]/20 text-[#2dd4bf] border-[#2dd4bf]/30';
+    case 'active': return 'bg-[#ffd700]/20 text-[#ffd700] border-[#ffd700]/30';
     case 'inactive': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
     default: return 'bg-red-500/20 text-red-400 border-red-500/30';
   }
@@ -841,7 +841,7 @@ export default function AdminUsers() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-[#2dd4bf] animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-[#ffd700] animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Loading users...</p>
         </div>
       </div>
@@ -868,7 +868,7 @@ export default function AdminUsers() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => refetch()}
-          className="p-2.5 rounded-xl border border-[#2dd4bf]/30 text-[#2dd4bf] hover:bg-[#2dd4bf]/10 transition-all"
+          className="p-2.5 rounded-xl border border-[#ffd700]/30 text-[#ffd700] hover:bg-[#ffd700]/10 transition-all"
           title="Refresh"
         >
           <RefreshCw className="w-5 h-5" />
@@ -876,7 +876,7 @@ export default function AdminUsers() {
       </div>
 
       {/* Filters Bar */}
-      <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#2dd4bf]/20">
+      <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20">
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Search */}
@@ -887,7 +887,7 @@ export default function AdminUsers() {
                 placeholder="Search users..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-[#2dd4bf] focus:outline-none transition-colors"
+                className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-[#ffd700] focus:outline-none transition-colors"
               />
             </div>
 
@@ -897,7 +897,7 @@ export default function AdminUsers() {
               <select
                 value={filterTier}
                 onChange={(e) => setFilterTier(e.target.value as any)}
-                className="w-full pl-10 pr-10 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white appearance-none focus:border-[#2dd4bf] focus:outline-none transition-colors cursor-pointer"
+                className="w-full pl-10 pr-10 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white appearance-none focus:border-[#ffd700] focus:outline-none transition-colors cursor-pointer"
               >
                 <option value="all">All Tiers</option>
                 <option value="Free">Free</option>
@@ -914,7 +914,7 @@ export default function AdminUsers() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as any)}
-                className="w-full pl-10 pr-10 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white appearance-none focus:border-[#2dd4bf] focus:outline-none transition-colors cursor-pointer"
+                className="w-full pl-10 pr-10 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white appearance-none focus:border-[#ffd700] focus:outline-none transition-colors cursor-pointer"
               >
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
@@ -928,7 +928,7 @@ export default function AdminUsers() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={exportCSV}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#22d3ee] to-background text-black font-medium rounded-xl hover:shadow-lg hover:shadow-[#2dd4bf]/20 transition-all"
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#fbbf24] to-background text-black font-medium rounded-xl hover:shadow-lg hover:shadow-[#ffd700]/20 transition-all"
             >
               <Download className="w-5 h-5" />
               Export CSV
@@ -939,29 +939,29 @@ export default function AdminUsers() {
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#2dd4bf]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20">
           <CardContent className="p-4">
             <p className="text-sm text-gray-400 mb-1">Total Users</p>
             <p className="text-2xl font-bold text-white">{activities.length}</p>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#2dd4bf]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20">
           <CardContent className="p-4">
             <p className="text-sm text-gray-400 mb-1">Active Users</p>
-            <p className="text-2xl font-bold text-[#2dd4bf]">
+            <p className="text-2xl font-bold text-[#ffd700]">
               {activities.filter(u => u.status === 'active').length}
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#2dd4bf]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20">
           <CardContent className="p-4">
             <p className="text-sm text-gray-400 mb-1">Paid Users</p>
-            <p className="text-2xl font-bold text-[#2dd4bf]">
+            <p className="text-2xl font-bold text-[#ffd700]">
               {activities.filter(u => u.subscription_tier !== 'Free').length}
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#2dd4bf]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20">
           <CardContent className="p-4">
             <p className="text-sm text-gray-400 mb-1">Showing</p>
             <p className="text-2xl font-bold text-white">{filteredActivities.length}</p>
@@ -970,10 +970,10 @@ export default function AdminUsers() {
       </div>
 
       {/* Users Table */}
-      <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#2dd4bf]/20 overflow-hidden">
+      <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-800/50 border-b border-[#2dd4bf]/20">
+            <thead className="bg-gray-800/50 border-b border-[#ffd700]/20">
               <tr>
                 <th
                   onClick={() => handleSort('email')}
@@ -1057,9 +1057,9 @@ export default function AdminUsers() {
                   <td className="px-6 py-4">
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="text-white font-medium group-hover:text-[#2dd4bf] transition-colors">{user.email}</p>
+                        <p className="text-white font-medium group-hover:text-[#ffd700] transition-colors">{user.email}</p>
                         {user.roles?.includes('admin') && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#2dd4bf]/20 text-[#2dd4bf] border border-[#2dd4bf]/30 uppercase tracking-wider">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#ffd700]/20 text-[#ffd700] border border-[#ffd700]/30 uppercase tracking-wider">
                             <Shield className="w-3 h-3" />
                             Admin
                           </span>

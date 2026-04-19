@@ -2,7 +2,7 @@
 create table if not exists public.appearance_settings (
   id uuid primary key references auth.users(id) on delete cascade,
   theme text check (theme in ('dark','light','auto')) default 'auto',
-  accent_color text default '#2dd4bf',
+  accent_color text default '#ffd700',
   reduce_motion boolean default false,
   updated_at timestamptz default now()
 );

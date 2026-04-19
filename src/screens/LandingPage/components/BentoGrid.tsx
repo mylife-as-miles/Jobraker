@@ -33,7 +33,7 @@ export const BentoGrid = () => {
     <section className="py-24 bg-background relative overflow-hidden">
       {/* Subtle Background Gradients */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none">
-        <div className="absolute top-[20%] left-[10%] w-[400px] h-[400px] bg-[#2dd4bf]/5 rounded-full blur-[100px]" />
+        <div className="absolute top-[20%] left-[10%] w-[400px] h-[400px] bg-[#ffd700]/5 rounded-full blur-[100px]" />
         <div className="absolute bottom-[20%] right-[10%] w-[300px] h-[300px] bg-purple-500/5 rounded-full blur-[100px]" />
       </div>
 
@@ -47,7 +47,7 @@ export const BentoGrid = () => {
             viewport={{ once: true }}
             className="inline-flex items-center px-3 py-1 rounded-full border border-foreground/10 bg-muted/50 text-gray-300 text-xs font-mono tracking-widest uppercase mb-6 backdrop-blur-sm"
           >
-             <Bot className="w-3 h-3 mr-2 text-[#2dd4bf]" />
+             <Bot className="w-3 h-3 mr-2 text-[#ffd700]" />
              Platform Capabilities
           </motion.div>
 
@@ -59,7 +59,7 @@ export const BentoGrid = () => {
             className="text-4xl md:text-6xl font-bold font-sans text-foreground mb-6 tracking-tight"
           >
             Everything you need to <br/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#22d3ee] to-emerald-600">dominate the job market.</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#fbbf24] to-emerald-600">dominate the job market.</span>
           </motion.h2>
 
           <motion.p
@@ -91,8 +91,8 @@ export const BentoGrid = () => {
 
             <div className="p-8 h-full flex flex-col z-10 relative">
               <div className="mb-8">
-                <div className="w-10 h-10 rounded-full bg-[#2dd4bf]/10 flex items-center justify-center mb-4 border border-[#2dd4bf]/20">
-                  <Activity className="w-5 h-5 text-[#2dd4bf]" />
+                <div className="w-10 h-10 rounded-full bg-[#ffd700]/10 flex items-center justify-center mb-4 border border-[#ffd700]/20">
+                  <Activity className="w-5 h-5 text-[#ffd700]" />
                 </div>
                 <h3 className="text-2xl font-semibold text-foreground mb-2">Autonomous Application System</h3>
                 <p className="text-gray-400 max-w-md">Our AI agents navigate job boards, fill out forms, and submit applications while you sleep. Watch your 'Applied' column grow automatically.</p>
@@ -132,8 +132,8 @@ export const BentoGrid = () => {
              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
              <div className="p-6 h-full flex flex-col">
                <div className="flex justify-between items-start mb-4">
-                 <div className="w-8 h-8 rounded-full bg-[#2dd4bf]/10 flex items-center justify-center border border-[#2dd4bf]/20">
-                    <MessageSquare className="w-4 h-4 text-[#2dd4bf]" />
+                 <div className="w-8 h-8 rounded-full bg-[#ffd700]/10 flex items-center justify-center border border-[#ffd700]/20">
+                    <MessageSquare className="w-4 h-4 text-[#ffd700]" />
                  </div>
                </div>
                <h3 className="text-lg font-semibold text-foreground mb-1">AI Assistant</h3>
@@ -152,7 +152,7 @@ export const BentoGrid = () => {
              <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
              <div className="flex-1 relative z-10">
-               <div className="inline-flex items-center px-3 py-1 rounded-full bg-[#2dd4bf]/10 text-[#2dd4bf] text-xs font-bold mb-4">
+               <div className="inline-flex items-center px-3 py-1 rounded-full bg-[#ffd700]/10 text-[#ffd700] text-xs font-bold mb-4">
                  <Mic className="w-3 h-3 mr-2" />
                  VOICE INTERACTIVE
                </div>
@@ -160,7 +160,7 @@ export const BentoGrid = () => {
                <p className="text-gray-400 mb-6">
                  Practice with a voice-interactive AI that simulates real interviews based on the specific job description. Get real-time feedback on your answers.
                </p>
-               <button className="text-foreground flex items-center text-sm font-semibold hover:text-[#2dd4bf] transition-colors">
+               <button className="text-foreground flex items-center text-sm font-semibold hover:text-[#ffd700] transition-colors">
                  Try it out <ArrowRight className="w-4 h-4 ml-2" />
                </button>
              </div>

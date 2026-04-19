@@ -62,12 +62,12 @@ export const NotificationPage = (): JSX.Element => {
       switch (type) {
         case "interview":
           return {
-            bgColor: "#2dd4bf",
+            bgColor: "#ffd700",
             icon: <Calendar className="w-4 h-4 text-black" />,
           };
         case "system":
           return {
-            bgColor: "#2dd4bf",
+            bgColor: "#ffd700",
             icon: <AlertCircle className="w-4 h-4 text-black" />,
           };
         case "company":
@@ -92,7 +92,7 @@ export const NotificationPage = (): JSX.Element => {
           };
         default:
           return {
-            bgColor: "#2dd4bf",
+            bgColor: "#ffd700",
             icon: <Bell className="w-4 h-4 text-black" />,
           };
       }
@@ -253,7 +253,7 @@ export const NotificationPage = (): JSX.Element => {
                 <label className="product-helper-text flex cursor-pointer select-none items-center gap-1 text-[10px] uppercase tracking-wide">
                   <input
                     type="checkbox"
-                    className="accent-[#2dd4bf] w-3 h-3"
+                    className="accent-[#ffd700] w-3 h-3"
                     checked={autoMarkSeen}
                     onChange={(e) => {
                       const v = e.target.checked; setAutoMarkSeen(v); try { localStorage.setItem('notifications:autoMarkSeen', v ? 'true' : 'false'); window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notifications_auto_seen_toggle', value: v } })); } catch { }
@@ -269,8 +269,8 @@ export const NotificationPage = (): JSX.Element => {
               {filteredNotifications.length === 0 && !loading && (
                 <div className="p-8 flex items-center justify-center">
                   <div className="text-center">
-                    <div className="mx-auto w-14 h-14 rounded-full bg-[#2dd4bf]/10 flex items-center justify-center mb-3">
-                      <Inbox className="w-7 h-7 text-[#2dd4bf]" />
+                    <div className="mx-auto w-14 h-14 rounded-full bg-[#ffd700]/10 flex items-center justify-center mb-3">
+                      <Inbox className="w-7 h-7 text-[#ffd700]" />
                     </div>
                     <p className="text-foreground font-medium">No notifications</p>
                     <p className="product-helper-text text-xs">You'll see updates from your job search here.</p>
@@ -345,7 +345,7 @@ export const NotificationPage = (): JSX.Element => {
                         <p className="text-xs product-helper-text flex items-center gap-1">
                           {notification.timestamp}
                           {!notification.seen_at && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#2dd4bf]/15 text-[#2dd4bf] text-[10px] font-semibold tracking-wide animate-pulse">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#ffd700]/15 text-[#ffd700] text-[10px] font-semibold tracking-wide animate-pulse">
                               New
                             </span>
                           )}
@@ -355,7 +355,7 @@ export const NotificationPage = (): JSX.Element => {
                         )}
                       </div>
                       {!notification.isRead && (
-                        <div className="w-2 h-2 bg-[#2dd4bf] rounded-full mt-1"></div>
+                        <div className="w-2 h-2 bg-[#ffd700] rounded-full mt-1"></div>
                       )}
                     </div>
                   </div>
@@ -366,7 +366,7 @@ export const NotificationPage = (): JSX.Element => {
                   <Button
                     variant="ghost"
                     onClick={() => loadMore()}
-                    className="w-full text-[#2dd4bf] hover:bg-[#2dd4bf]/10"
+                    className="w-full text-[#ffd700] hover:bg-[#ffd700]/10"
                   >Load more</Button>
                 </div>
               )}
@@ -436,7 +436,7 @@ export const NotificationPage = (): JSX.Element => {
                       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-foreground/10">
                         {selectedNotificationData.action_url && (
                           <Button
-                            className="bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90 hover:scale-105 transition-all duration-300"
+                            className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90 hover:scale-105 transition-all duration-300"
                             onClick={() => {
                               const item = items.find(i => i.id === selectedNotification);
                               if (item?.action_url) window.open(item.action_url, '_blank');

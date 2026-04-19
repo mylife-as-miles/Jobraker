@@ -54,7 +54,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   const toneStyles: Record<string, { ring: string; glow: string; accent: string; icon: string; pill: string }> = {
     neutral: { ring: 'ring-foreground/10', glow: 'from-foreground/5 to-foreground/5', accent: 'text-foreground', icon: 'text-foreground', pill: 'bg-foreground/5 text-foreground/60' },
     info: { ring: 'ring-sky-400/30', glow: 'from-sky-500/10 to-sky-500/0', accent: 'text-sky-300', icon: 'text-sky-300', pill: 'bg-sky-500/15 text-sky-300' },
-    primary: { ring: 'ring-[#2dd4bf]/40', glow: 'from-[#22d3ee]/15 to-transparent', accent: 'text-[#2dd4bf]', icon: 'text-[#2dd4bf]', pill: 'bg-[#2dd4bf]/20 text-[#2dd4bf]' },
+    primary: { ring: 'ring-[#ffd700]/40', glow: 'from-[#fbbf24]/15 to-transparent', accent: 'text-[#ffd700]', icon: 'text-[#ffd700]', pill: 'bg-[#ffd700]/20 text-[#ffd700]' },
     success: { ring: 'ring-emerald-400/30', glow: 'from-emerald-500/15 to-transparent', accent: 'text-emerald-300', icon: 'text-emerald-300', pill: 'bg-emerald-500/15 text-emerald-300' },
     warning: { ring: 'ring-amber-400/30', glow: 'from-amber-500/15 to-transparent', accent: 'text-amber-300', icon: 'text-amber-300', pill: 'bg-amber-500/15 text-amber-300' },
     danger: { ring: 'ring-rose-400/30', glow: 'from-rose-500/15 to-transparent', accent: 'text-rose-300', icon: 'text-rose-300', pill: 'bg-rose-500/15 text-rose-300' },
@@ -102,7 +102,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           </div>
         )}
       </div>
-      <div className="pointer-events-none absolute -right-10 -top-10 w-40 h-40 bg-[conic-gradient(from_90deg_at_50%_50%,#2dd4bf_0deg,transparent_140deg)] opacity-10 blur-2xl group-hover:opacity-20 transition-opacity" />
+      <div className="pointer-events-none absolute -right-10 -top-10 w-40 h-40 bg-[conic-gradient(from_90deg_at_50%_50%,#ffd700_0deg,transparent_140deg)] opacity-10 blur-2xl group-hover:opacity-20 transition-opacity" />
     </div>
   );
 };

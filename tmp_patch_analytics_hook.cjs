@@ -36,7 +36,7 @@ lines.splice(529, 0,
   "}",
   "",
   "function indexedColor(index: number) {",
-  "  const palette = ['#2dd4bf', '#56c2ff', '#f59e0b', '#fb7185', '#a78bfa', '#14b8a6'];",
+  "  const palette = ['#ffd700', '#56c2ff', '#f59e0b', '#fb7185', '#a78bfa', '#14b8a6'];",
   "  return palette[index % palette.length];",
   "}",
 );

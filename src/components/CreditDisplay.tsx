@@ -111,7 +111,7 @@ export const CreditDisplay = () => {
         return 'from-purple-500 to-purple-600';
       default:
         // Match the exact green gradient from match score cards
-        return 'from-[#22d3ee] to-background';
+        return 'from-[#fbbf24] to-background';
     }
   };
 
@@ -140,7 +140,7 @@ export const CreditDisplay = () => {
   return (
     <button
       onClick={() => navigate('/dashboard/billing')}
-      className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r ${getTierColor()} hover:opacity-90 transition-all duration-300 hover:scale-105 cursor-pointer shadow-[0_0_0_1px_#2dd4bf,0_4px_16px_rgba(45,212,191,0.3)] hover:shadow-[0_0_0_1px_#2dd4bf,0_6px_24px_rgba(45,212,191,0.5)]`}
+      className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r ${getTierColor()} hover:opacity-90 transition-all duration-300 hover:scale-105 cursor-pointer shadow-[0_0_0_1px_#ffd700,0_4px_16px_rgba(255,215,0,0.3)] hover:shadow-[0_0_0_1px_#ffd700,0_6px_24px_rgba(255,215,0,0.5)]`}
       title={`${subscriptionTier} Plan - ${credits} credits remaining. Click to view billing.`}
     >
       <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-black" />

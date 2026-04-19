@@ -68,7 +68,7 @@ export const ResetPassword: React.FC = () => {
               onChange={(e) => setConfirm(e.target.value)}
               required
             />
-            <Button type="submit" disabled={submitting} className="w-full bg-[linear-gradient(270deg,rgba(45,212,191,1)_0%,rgba(10,130,70,1)_85%)] text-foreground">
+            <Button type="submit" disabled={submitting} className="w-full bg-[linear-gradient(270deg,rgba(255,215,0,1)_0%,rgba(180,83,9,1)_85%)] text-foreground">
               {submitting ? "Updating..." : "Update password"}
             </Button>
             <div className="text-center">

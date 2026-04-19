@@ -124,8 +124,8 @@ function CompanyMark({
   return (
     <div
       className={[
-        "relative isolate shrink-0 overflow-hidden border border-[#2dd4bf]/15",
-        "bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.22),_rgba(10,14,18,0.98)_68%)]",
+        "relative isolate shrink-0 overflow-hidden border border-[#ffd700]/15",
+        "bg-[radial-gradient(circle_at_top,_rgba(255,215,0,0.22),_rgba(10,14,18,0.98)_68%)]",
         "shadow-[0_14px_34px_rgba(0,0,0,0.28)]",
         sizeClass,
       ].join(" ")}
@@ -153,7 +153,7 @@ function CompanyMark({
 }
 
 function getApplicationStatusColor(status: ApplicationStatus) {
-  if (status === "Applied") return "#2dd4bf";
+  if (status === "Applied") return "#ffd700";
   if (status === "Interview") return "#F59E0B";
   if (status === "Offer") return "#10B981";
   if (status === "Rejected") return "#EF4444";
@@ -199,8 +199,8 @@ function ApplicationsListView({
   ];
 
   return (
-    <div className='overflow-hidden rounded-2xl border border-[#2dd4bf]/20 bg-gradient-to-br from-background via-background to-background shadow-[0_0_30px_rgba(45,212,191,0.15)] backdrop-blur-xl'>
-      <div className='pointer-events-none absolute -top-20 left-0 h-64 w-64 rounded-full bg-[#2dd4bf]/10 blur-3xl opacity-40' />
+    <div className='overflow-hidden rounded-2xl border border-[#ffd700]/20 bg-gradient-to-br from-background via-background to-background shadow-[0_0_30px_rgba(255,215,0,0.15)] backdrop-blur-xl'>
+      <div className='pointer-events-none absolute -top-20 left-0 h-64 w-64 rounded-full bg-[#ffd700]/10 blur-3xl opacity-40' />
 
       <ListProvider
         onDragEnd={async (e: ListDragEndEvent) => {
@@ -214,7 +214,7 @@ function ApplicationsListView({
             await refresh();
           }
         }}
-        className='divide-y divide-[#2dd4bf]/5'
+        className='divide-y divide-[#ffd700]/5'
       >
         {statuses.map((status) => {
           const rows = filtered.filter((a) => a.status === status);
@@ -230,7 +230,7 @@ function ApplicationsListView({
               <ListHeader
                 name={status}
                 color={color}
-                className='sticky top-0 z-10 border-b border-[#2dd4bf]/10 bg-background/95 backdrop-blur-xl'
+                className='sticky top-0 z-10 border-b border-[#ffd700]/10 bg-background/95 backdrop-blur-xl'
               >
                 <div className='flex items-center gap-3 px-4 py-3'>
                   <div
@@ -271,7 +271,7 @@ function ApplicationsListView({
                     className='group relative overflow-hidden rounded-[1.4rem] border-0 bg-transparent p-0 shadow-none'
                   >
                     <div
-                      className='w-full cursor-pointer rounded-[1.4rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.018))] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)] transition-[border-color,box-shadow,transform,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-[#2dd4bf]/28 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.024))] hover:shadow-[0_22px_48px_rgba(0,0,0,0.32)] active:scale-[0.985]'
+                      className='w-full cursor-pointer rounded-[1.4rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.018))] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)] transition-[border-color,box-shadow,transform,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-[#ffd700]/28 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.024))] hover:shadow-[0_22px_48px_rgba(0,0,0,0.32)] active:scale-[0.985]'
                       onClick={() => setDetailId(a.id)}
                     >
                       <div className='flex items-start gap-4'>
@@ -382,7 +382,7 @@ function ApplicationsListView({
                                   target='_blank'
                                   rel='noreferrer'
                                   onClick={(e) => e.stopPropagation()}
-                                  className='inline-flex items-center gap-1.5 rounded-xl border border-[#2dd4bf]/25 bg-[#2dd4bf]/10 px-3 py-1.5 text-xs font-medium text-[#7fff8b] transition-[background-color,border-color,transform] duration-150 ease-out hover:bg-[#2dd4bf]/16 active:scale-95'
+                                  className='inline-flex items-center gap-1.5 rounded-xl border border-[#ffd700]/25 bg-[#ffd700]/10 px-3 py-1.5 text-xs font-medium text-[#7fff8b] transition-[background-color,border-color,transform] duration-150 ease-out hover:bg-[#ffd700]/16 active:scale-95'
                                 >
                                   <ExternalLink className='h-3.5 w-3.5' />
                                   Open role
@@ -712,8 +712,8 @@ function ApplicationPage() {
   return (
     <div className='relative p-4 lg:p-8  space-y-8'>
       {/* Ambient Background Glow */}
-      <div className='fixed top-20 right-0 h-96 w-96 bg-[#2dd4bf]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10'></div>
-      <div className='fixed bottom-0 left-0 h-96 w-96 bg-[#2dd4bf]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10'></div>
+      <div className='fixed top-20 right-0 h-96 w-96 bg-[#ffd700]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10'></div>
+      <div className='fixed bottom-0 left-0 h-96 w-96 bg-[#ffd700]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10'></div>
 
       {/* Header Section */}
       <div className='flex flex-col gap-6 md:flex-row md:items-center md:justify-between'>
@@ -748,7 +748,7 @@ function ApplicationPage() {
           </Button>
           <Button
             variant='outline'
-            className='border-[#2dd4bf]/30 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  text-foreground hover:border-[#2dd4bf]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(45,212,191,0.15)]'
+            className='border-[#ffd700]/30 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  text-foreground hover:border-[#ffd700]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(255,215,0,0.15)]'
             onClick={() => refresh()}
           >
             <RefreshCw className='w-4 h-4 mr-2' />
@@ -758,7 +758,7 @@ function ApplicationPage() {
       </div>
 
       {/* Toolbar */}
-      <Card className='relative overflow-hidden p-6 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 border border-[#2dd4bf]/20 rounded-2xl shadow-[0_0_30px_rgba(45,212,191,0.1)] backdrop-blur-xl'>
+      <Card className='relative overflow-hidden p-6 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 border border-[#ffd700]/20 rounded-2xl shadow-[0_0_30px_rgba(255,215,0,0.1)] backdrop-blur-xl'>
         {/* Subtle gradient overlay */}
         <div className='absolute inset-0 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  pointer-events-none'></div>
 
@@ -771,7 +771,7 @@ function ApplicationPage() {
                 placeholder='Search by title, company, location, or status...'
                 value={rawSearch}
                 onChange={(e) => setRawSearch(e.target.value)}
-                className='pl-12 h-12 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#2dd4bf]/20 text-foreground placeholder:text-foreground/80 focus:border-[#2dd4bf]/50 focus:ring-2 focus:ring-[#2dd4bf]/20 transition-all duration-200 rounded-xl'
+                className='pl-12 h-12 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#ffd700]/20 text-foreground placeholder:text-foreground/80 focus:border-[#ffd700]/50 focus:ring-2 focus:ring-[#ffd700]/20 transition-all duration-200 rounded-xl'
               />
             </div>
             <div className='flex items-center gap-3'>
@@ -782,57 +782,57 @@ function ApplicationPage() {
 
               <div
                 id='application-view-toggle'
-                className='inline-flex rounded-xl border border-[#2dd4bf]/30 overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  backdrop-blur-sm shadow-lg'
+                className='inline-flex rounded-xl border border-[#ffd700]/30 overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  backdrop-blur-sm shadow-lg'
                 data-tour='application-view-toggle'
               >
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 relative ${viewMode === "gantt" ? "bg-gradient-to-br from-[#22d3ee]/20 to-[#0d9488]/10 text-[#2dd4bf] shadow-[0_0_15px_rgba(45,212,191,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`group px-4 py-3 text-sm transition-all duration-200 relative ${viewMode === "gantt" ? "bg-gradient-to-br from-[#fbbf24]/20 to-[#b45309]/10 text-[#ffd700] shadow-[0_0_15px_rgba(255,215,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Gantt view'
                   onClick={() => setViewMode("gantt")}
                 >
                   <GanttChart className='w-5 h-5' />
                   {viewMode === "gantt" && (
-                    <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#2dd4bf] to-transparent'></div>
+                    <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent'></div>
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#2dd4bf]/20 relative ${viewMode === "list" ? "bg-gradient-to-br from-[#22d3ee]/20 to-[#0d9488]/10 text-[#2dd4bf] shadow-[0_0_15px_rgba(45,212,191,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#ffd700]/20 relative ${viewMode === "list" ? "bg-gradient-to-br from-[#fbbf24]/20 to-[#b45309]/10 text-[#ffd700] shadow-[0_0_15px_rgba(255,215,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='List view'
                   onClick={() => setViewMode("list")}
                 >
                   <ListIcon className='w-5 h-5' />
                   {viewMode === "list" && (
-                    <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#2dd4bf] to-transparent'></div>
+                    <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent'></div>
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#2dd4bf]/20 relative ${viewMode === "kanban" ? "bg-gradient-to-br from-[#22d3ee]/20 to-[#0d9488]/10 text-[#2dd4bf] shadow-[0_0_15px_rgba(45,212,191,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#ffd700]/20 relative ${viewMode === "kanban" ? "bg-gradient-to-br from-[#fbbf24]/20 to-[#b45309]/10 text-[#ffd700] shadow-[0_0_15px_rgba(255,215,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Kanban view'
                   onClick={() => setViewMode("kanban")}
                 >
                   <Columns className='w-5 h-5' />
                   {viewMode === "kanban" && (
-                    <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#2dd4bf] to-transparent'></div>
+                    <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent'></div>
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#2dd4bf]/20 relative ${viewMode === "calendar" ? "bg-gradient-to-br from-[#22d3ee]/20 to-[#0d9488]/10 text-[#2dd4bf] shadow-[0_0_15px_rgba(45,212,191,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#ffd700]/20 relative ${viewMode === "calendar" ? "bg-gradient-to-br from-[#fbbf24]/20 to-[#b45309]/10 text-[#ffd700] shadow-[0_0_15px_rgba(255,215,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Calendar view'
                   onClick={() => setViewMode("calendar")}
                 >
                   <CalendarIcon className='w-5 h-5' />
                   {viewMode === "calendar" && (
-                    <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#2dd4bf] to-transparent'></div>
+                    <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent'></div>
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#2dd4bf]/20 relative ${viewMode === "table" ? "bg-gradient-to-br from-[#22d3ee]/20 to-[#0d9488]/10 text-[#2dd4bf] shadow-[0_0_15px_rgba(45,212,191,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#ffd700]/20 relative ${viewMode === "table" ? "bg-gradient-to-br from-[#fbbf24]/20 to-[#b45309]/10 text-[#ffd700] shadow-[0_0_15px_rgba(255,215,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Table view'
                   onClick={() => setViewMode("table")}
                 >
                   <TableIcon className='w-5 h-5' />
                   {viewMode === "table" && (
-                    <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#2dd4bf] to-transparent'></div>
+                    <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent'></div>
                   )}
                 </button>
               </div>
@@ -857,7 +857,7 @@ function ApplicationPage() {
               const statusColors: Record<string, string> = {
                 All: "#ffffff",
                 Pending: "#6B7280",
-                Applied: "#2dd4bf",
+                Applied: "#ffd700",
                 Interview: "#F59E0B",
                 Offer: "#10B981",
                 Rejected: "#EF4444",
@@ -873,7 +873,7 @@ function ApplicationPage() {
                   variant='ghost'
                   onClick={() => setSelectedStatus(s)}
                   className={`text-sm px-4 py-2 rounded-xl transition-all duration-200 border ${isActive
-                    ? "border-[#2dd4bf]/50 bg-gradient-to-br from-[#22d3ee]/20 to-[#0d9488]/5 text-[#2dd4bf] shadow-[0_0_15px_rgba(45,212,191,0.2)]"
+                    ? "border-[#ffd700]/50 bg-gradient-to-br from-[#fbbf24]/20 to-[#b45309]/5 text-[#ffd700] shadow-[0_0_15px_rgba(255,215,0,0.2)]"
                     : "border-foreground/10 text-foreground/70 hover:text-foreground hover:bg-foreground/5 hover:border-foreground/20"
                     }`}
                   style={isActive ? {} : { color: color + "b3" }}
@@ -889,11 +889,11 @@ function ApplicationPage() {
               );
             })}
             {viewMode === "gantt" && (
-              <div className='flex items-center gap-2 text-xs text-foreground/60 border-l border-[#2dd4bf]/20 pl-4 ml-2'>
+              <div className='flex items-center gap-2 text-xs text-foreground/60 border-l border-[#ffd700]/20 pl-4 ml-2'>
                 <label className='inline-flex items-center gap-2 cursor-pointer hover:text-foreground/80 transition-colors'>
                   <input
                     type='checkbox'
-                    className='w-4 h-4 accent-[#2dd4bf] rounded border-foreground/20 bg-foreground/5'
+                    className='w-4 h-4 accent-[#ffd700] rounded border-foreground/20 bg-foreground/5'
                     checked={showFuture}
                     onChange={(e) => setShowFuture(e.target.checked)}
                   />
@@ -910,13 +910,13 @@ function ApplicationPage() {
         {initialLoading ? (
           <ApplicationPageSkeleton viewMode={viewMode} />
         ) : applications.length === 0 ? (
-          <div className='relative overflow-hidden border border-[#2dd4bf]/20 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(45,212,191,0.1)]'>
+          <div className='relative overflow-hidden border border-[#ffd700]/20 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(255,215,0,0.1)]'>
             {/* Ambient glow */}
-            <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 bg-[#2dd4bf]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
+            <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 bg-[#ffd700]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
 
             <div className='relative z-10 space-y-6'>
-              <div className='mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br from-[#22d3ee]/20 to-[#0d9488]/5 border border-[#2dd4bf]/30 grid place-items-center shadow-[0_0_30px_rgba(45,212,191,0.2)]'>
-                <Columns className='w-10 h-10 text-[#2dd4bf]' />
+              <div className='mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br from-[#fbbf24]/20 to-[#b45309]/5 border border-[#ffd700]/30 grid place-items-center shadow-[0_0_30px_rgba(255,215,0,0.2)]'>
+                <Columns className='w-10 h-10 text-[#ffd700]' />
               </div>
               <div className='space-y-2'>
                 <h3 className='text-foreground text-2xl font-bold'>
@@ -930,7 +930,7 @@ function ApplicationPage() {
               <div className='flex items-center justify-center gap-3 pt-2'>
                 <Button
                   variant='outline'
-                  className='border-[#2dd4bf]/40 bg-gradient-to-br from-[#22d3ee]/10 to-transparent text-[#2dd4bf] hover:bg-[#2dd4bf]/20 hover:border-[#2dd4bf]/60 transition-all duration-200 hover:shadow-[0_0_20px_rgba(45,212,191,0.2)]'
+                  className='border-[#ffd700]/40 bg-gradient-to-br from-[#fbbf24]/10 to-transparent text-[#ffd700] hover:bg-[#ffd700]/20 hover:border-[#ffd700]/60 transition-all duration-200 hover:shadow-[0_0_20px_rgba(255,215,0,0.2)]'
                   onClick={() => refresh()}
                 >
                   <RefreshCw className='w-4 h-4 mr-2' />
@@ -940,7 +940,7 @@ function ApplicationPage() {
             </div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className='relative overflow-hidden border border-[#2dd4bf]/20 bg-gradient-to-br from-background to-background rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(45,212,191,0.1)]'>
+          <div className='relative overflow-hidden border border-[#ffd700]/20 bg-gradient-to-br from-background to-background rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(255,215,0,0.1)]'>
             {/* Ambient glow */}
             <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 bg-yellow-400/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
 
@@ -967,13 +967,13 @@ function ApplicationPage() {
           >
             {viewMode === "gantt" && (
               <div className='space-y-6'>
-                <div className='flex flex-wrap gap-4 text-xs text-foreground/60 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border border-[#2dd4bf]/10 rounded-xl p-4'>
+                <div className='flex flex-wrap gap-4 text-xs text-foreground/60 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border border-[#ffd700]/10 rounded-xl p-4'>
                   <span className='inline-flex items-center gap-2'>
                     <span className='h-3 w-8 rounded-md bg-gradient-to-r from-[#71717a] to-[#27272a] shadow-lg' />
                     <span className='font-medium'>Pending</span>
                   </span>
                   <span className='inline-flex items-center gap-2'>
-                    <span className='h-3 w-8 rounded-md bg-gradient-to-r from-[#22d3ee] to-background shadow-lg shadow-[#2dd4bf]/20' />
+                    <span className='h-3 w-8 rounded-md bg-gradient-to-r from-[#fbbf24] to-background shadow-lg shadow-[#ffd700]/20' />
                     <span className='font-medium'>Applied</span>
                   </span>
                   <span className='inline-flex items-center gap-2'>
@@ -1064,9 +1064,9 @@ function ApplicationPage() {
               </div>
             )}
             {false && viewMode === "list" && (
-              <div className='border border-[#2dd4bf]/20 rounded-2xl bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(45,212,191,0.15)] overflow-hidden'>
+              <div className='border border-[#ffd700]/20 rounded-2xl bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(255,215,0,0.15)] overflow-hidden'>
                 {/* Ambient glow */}
-                <div className='pointer-events-none absolute -top-20 left-0 h-64 w-64 rounded-full bg-[#2dd4bf]/10 blur-3xl opacity-40' />
+                <div className='pointer-events-none absolute -top-20 left-0 h-64 w-64 rounded-full bg-[#ffd700]/10 blur-3xl opacity-40' />
 
                 <ListProvider
                   onDragEnd={async (e: ListDragEndEvent) => {
@@ -1082,7 +1082,7 @@ function ApplicationPage() {
                       await refresh();
                     }
                   }}
-                  className='divide-y divide-[#2dd4bf]/5'
+                  className='divide-y divide-[#ffd700]/5'
                 >
                   {(
                     [
@@ -1097,7 +1097,7 @@ function ApplicationPage() {
                     const rows = filtered.filter((a) => a.status === status);
                     const color =
                       status === "Applied"
-                        ? "#2dd4bf"
+                        ? "#ffd700"
                         : status === "Interview"
                           ? "#F59E0B"
                           : status === "Offer"
@@ -1118,7 +1118,7 @@ function ApplicationPage() {
                         <ListHeader
                           name={status}
                           color={color}
-                          className='sticky top-0 z-10 backdrop-blur-xl bg-background/95 border-b border-[#2dd4bf]/10'
+                          className='sticky top-0 z-10 backdrop-blur-xl bg-background/95 border-b border-[#ffd700]/10'
                         >
                           <div className='flex items-center gap-3 px-4 py-3'>
                             <div
@@ -1157,7 +1157,7 @@ function ApplicationPage() {
                               className='group relative overflow-hidden rounded-[1.4rem] border-0 bg-transparent p-0 shadow-none'
                             >
                               <div
-                                className='w-full cursor-pointer rounded-[1.4rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.018))] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)] transition-[border-color,box-shadow,transform,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-[#2dd4bf]/28 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.024))] hover:shadow-[0_22px_48px_rgba(0,0,0,0.32)] active:scale-[0.985]'
+                                className='w-full cursor-pointer rounded-[1.4rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.018))] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)] transition-[border-color,box-shadow,transform,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-[#ffd700]/28 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.024))] hover:shadow-[0_22px_48px_rgba(0,0,0,0.32)] active:scale-[0.985]'
                                 onClick={() => setDetailId(a.id)}
                               >
                                 <div className='flex items-start gap-4'>
@@ -1263,7 +1263,7 @@ function ApplicationPage() {
                                       target='_blank'
                                       rel='noreferrer'
                                       onClick={(e) => e.stopPropagation()}
-                                      className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2dd4bf]/10 border border-[#2dd4bf]/30 text-[#2dd4bf] hover:bg-[#2dd4bf]/20 transition-colors text-xs font-medium'
+                                      className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ffd700]/10 border border-[#ffd700]/30 text-[#ffd700] hover:bg-[#ffd700]/20 transition-colors text-xs font-medium'
                                     >
                                       <ExternalLink className='w-3.5 h-3.5' />
                                       Open
@@ -1315,9 +1315,9 @@ function ApplicationPage() {
               />
             )}
             {viewMode === "calendar" && (
-              <div className='relative rounded-2xl border border-[#2dd4bf]/20 bg-gradient-to-br from-background via-background to-background p-6 shadow-[0_0_30px_rgba(45,212,191,0.1)] overflow-hidden'>
+              <div className='relative rounded-2xl border border-[#ffd700]/20 bg-gradient-to-br from-background via-background to-background p-6 shadow-[0_0_30px_rgba(255,215,0,0.1)] overflow-hidden'>
                 {/* Ambient Glow Effect */}
-                <div className='absolute -top-20 -left-20 h-64 w-64 bg-[#2dd4bf]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
+                <div className='absolute -top-20 -left-20 h-64 w-64 bg-[#ffd700]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
 
                 <div className='relative z-10'>
                   <KiboCalendar
@@ -1343,7 +1343,7 @@ function ApplicationPage() {
                       setSelectedRange(r);
                       if (r) setSelectedDate(null);
                     }}
-                    className='border border-[#2dd4bf]/20 rounded-xl bg-gradient-to-br from-background/50 to-background/50 backdrop-blur-sm'
+                    className='border border-[#ffd700]/20 rounded-xl bg-gradient-to-br from-background/50 to-background/50 backdrop-blur-sm'
                   />
                 </div>
                 <CalendarDayDetail
@@ -1371,7 +1371,7 @@ function ApplicationPage() {
               <KanbanProvider
                 columns={[
                   { id: "Pending", name: "Pending", color: "#6B7280" },
-                  { id: "Applied", name: "Applied", color: "#2dd4bf" },
+                  { id: "Applied", name: "Applied", color: "#ffd700" },
                   { id: "Interview", name: "Interview", color: "#F59E0B" },
                   { id: "Offer", name: "Offer", color: "#10B981" },
                   { id: "Rejected", name: "Rejected", color: "#EF4444" },
@@ -1485,11 +1485,11 @@ function ApplicationPage() {
         {detailApp ? (
           <div className='space-y-6'>
             {/* Header Section with Status Badge */}
-            <div className='relative pb-6 border-b border-[#2dd4bf]/10'>
+            <div className='relative pb-6 border-b border-[#ffd700]/10'>
               <div className='absolute top-0 right-0'>
                 <span
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${detailApp.status === "Applied"
-                    ? "bg-[#2dd4bf]/10 text-[#2dd4bf] border border-[#2dd4bf]/20"
+                    ? "bg-[#ffd700]/10 text-[#ffd700] border border-[#ffd700]/20"
                     : detailApp.status === "Interview"
                       ? "bg-amber-400/10 text-amber-400 border border-amber-400/20"
                       : detailApp.status === "Offer"
@@ -1501,7 +1501,7 @@ function ApplicationPage() {
                 >
                   <div
                     className={`h-1.5 w-1.5 rounded-full ${detailApp.status === "Applied"
-                      ? "bg-[#2dd4bf]"
+                      ? "bg-[#ffd700]"
                       : detailApp.status === "Interview"
                         ? "bg-amber-400"
                         : detailApp.status === "Offer"
@@ -1555,7 +1555,7 @@ function ApplicationPage() {
                 {detailApp.ai_confidence_score != null && (
                   <span
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border ${detailApp.ai_confidence_score >= 70
-                      ? 'bg-[#2dd4bf]/10 text-[#2dd4bf] border-[#2dd4bf]/20'
+                      ? 'bg-[#ffd700]/10 text-[#ffd700] border-[#ffd700]/20'
                       : detailApp.ai_confidence_score >= 40
                         ? 'bg-amber-400/10 text-amber-400 border-amber-400/20'
                         : 'bg-rose-400/10 text-rose-400 border-rose-400/20'
@@ -1576,10 +1576,10 @@ function ApplicationPage() {
                 Timeline
               </h3>
               <div className='space-y-2'>
-                <div className='flex items-center gap-3 p-3 rounded-lg bg-foreground/[0.02] border border-foreground/5 hover:border-[#2dd4bf]/20 transition-colors'>
-                  <div className='flex-shrink-0 h-10 w-10 rounded-lg bg-gradient-to-br from-[#22d3ee]/10 to-transparent border border-[#2dd4bf]/20 flex items-center justify-center'>
+                <div className='flex items-center gap-3 p-3 rounded-lg bg-foreground/[0.02] border border-foreground/5 hover:border-[#ffd700]/20 transition-colors'>
+                  <div className='flex-shrink-0 h-10 w-10 rounded-lg bg-gradient-to-br from-[#fbbf24]/10 to-transparent border border-[#ffd700]/20 flex items-center justify-center'>
                     <svg
-                      className='w-5 h-5 text-[#2dd4bf]'
+                      className='w-5 h-5 text-[#ffd700]'
                       fill='none'
                       viewBox='0 0 24 24'
                       stroke='currentColor'
@@ -1687,17 +1687,17 @@ function ApplicationPage() {
             {/* Trust & Explainability: Why this match? */}
             {detailApp.match_reasons && detailApp.match_reasons.length > 0 && (
               <div className='space-y-3'>
-                <h3 className='text-xs font-semibold flex items-center gap-2 uppercase tracking-wider text-[#2dd4bf]'>
+                <h3 className='text-xs font-semibold flex items-center gap-2 uppercase tracking-wider text-[#ffd700]'>
                   <svg className='w-4 h-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
                     <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' />
                   </svg>
                   Why this match?
                 </h3>
-                <div className='flex flex-wrap gap-2 p-3 rounded-xl bg-gradient-to-br from-[#22d3ee]/10 to-transparent border border-[#2dd4bf]/20'>
+                <div className='flex flex-wrap gap-2 p-3 rounded-xl bg-gradient-to-br from-[#fbbf24]/10 to-transparent border border-[#ffd700]/20'>
                   {detailApp.match_reasons.map((reason, idx) => (
                     <span
                       key={idx}
-                      className='inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-[#2dd4bf]/20 text-[#2dd4bf]'
+                      className='inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-[#ffd700]/20 text-[#ffd700]'
                     >
                       {reason}
                     </span>
@@ -1712,10 +1712,10 @@ function ApplicationPage() {
                 <h3 className='text-xs font-semibold uppercase tracking-wider text-foreground/40'>
                   Compensation
                 </h3>
-                <div className='p-4 rounded-xl bg-gradient-to-br from-[#22d3ee]/5 to-transparent border border-[#2dd4bf]/20'>
+                <div className='p-4 rounded-xl bg-gradient-to-br from-[#fbbf24]/5 to-transparent border border-[#ffd700]/20'>
                   <div className='flex items-center gap-2'>
                     <svg
-                      className='w-5 h-5 text-[#2dd4bf]'
+                      className='w-5 h-5 text-[#ffd700]'
                       fill='none'
                       viewBox='0 0 24 24'
                       stroke='currentColor'
@@ -1727,7 +1727,7 @@ function ApplicationPage() {
                         d='M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
                       />
                     </svg>
-                    <span className='text-lg font-bold text-[#2dd4bf]'>
+                    <span className='text-lg font-bold text-[#ffd700]'>
                       {detailApp.salary}
                     </span>
                   </div>
@@ -1744,7 +1744,7 @@ function ApplicationPage() {
                 {!editingNotes && (
                   <button
                     onClick={() => setEditingNotes(true)}
-                    className='text-xs text-[#2dd4bf] hover:text-[#2dd4bf]/80 transition-colors flex items-center gap-1'
+                    className='text-xs text-[#ffd700] hover:text-[#ffd700]/80 transition-colors flex items-center gap-1'
                   >
                     <svg
                       className='w-3.5 h-3.5'
@@ -1769,7 +1769,7 @@ function ApplicationPage() {
                     value={notesText}
                     onChange={(e) => setNotesText(e.target.value)}
                     placeholder='Add notes about this application...'
-                    className='w-full min-h-[140px] rounded-xl bg-foreground/5 border border-[#2dd4bf]/30 text-foreground placeholder:text-foreground/40 p-4 outline-none focus:border-[#2dd4bf]/50 focus:ring-2 focus:ring-[#2dd4bf]/20 transition-all resize-y'
+                    className='w-full min-h-[140px] rounded-xl bg-foreground/5 border border-[#ffd700]/30 text-foreground placeholder:text-foreground/40 p-4 outline-none focus:border-[#ffd700]/50 focus:ring-2 focus:ring-[#ffd700]/20 transition-all resize-y'
                     autoFocus
                   />
                   <div className='flex justify-end gap-2'>
@@ -1786,7 +1786,7 @@ function ApplicationPage() {
                     </Button>
                     <Button
                       size='sm'
-                      className='bg-gradient-to-r from-[#22d3ee] to-background text-foreground font-semibold hover:shadow-[0_0_20px_rgba(45,212,191,0.3)]'
+                      className='bg-gradient-to-r from-[#fbbf24] to-background text-foreground font-semibold hover:shadow-[0_0_20px_rgba(255,215,0,0.3)]'
                       onClick={async () => {
                         if (!detailApp) return;
                         try {
@@ -1806,7 +1806,7 @@ function ApplicationPage() {
                 </div>
               ) : (
                 <div
-                  className='p-4 rounded-xl bg-foreground/[0.02] border border-foreground/10 max-h-60 overflow-auto scrollbar-thin scrollbar-thumb-[#2dd4bf]/30 scrollbar-track-transparent cursor-text hover:border-foreground/20 transition-colors'
+                  className='p-4 rounded-xl bg-foreground/[0.02] border border-foreground/10 max-h-60 overflow-auto scrollbar-thin scrollbar-thumb-[#ffd700]/30 scrollbar-track-transparent cursor-text hover:border-foreground/20 transition-colors'
                   onClick={() => setEditingNotes(true)}
                 >
                   {detailApp.notes ? (
@@ -1868,7 +1868,7 @@ function ApplicationPage() {
                       href={detailApp.receipt_url}
                       target="_blank"
                       rel="noreferrer"
-                      className='group relative block overflow-hidden rounded-xl border border-foreground/10 bg-foreground/5 transition-all hover:border-[#2dd4bf]/50 hover:shadow-[0_0_20px_rgba(45,212,191,0.15)] aspect-[4/3]'
+                      className='group relative block overflow-hidden rounded-xl border border-foreground/10 bg-foreground/5 transition-all hover:border-[#ffd700]/50 hover:shadow-[0_0_20px_rgba(255,215,0,0.15)] aspect-[4/3]'
                     >
                       <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10' />
                       <img
@@ -1889,7 +1889,7 @@ function ApplicationPage() {
                       href={detailApp.success_url}
                       target="_blank"
                       rel="noreferrer"
-                      className='group relative block overflow-hidden rounded-xl border border-foreground/10 bg-foreground/5 transition-all hover:border-[#2dd4bf]/50 hover:shadow-[0_0_20px_rgba(45,212,191,0.15)] aspect-[4/3]'
+                      className='group relative block overflow-hidden rounded-xl border border-foreground/10 bg-foreground/5 transition-all hover:border-[#ffd700]/50 hover:shadow-[0_0_20px_rgba(255,215,0,0.15)] aspect-[4/3]'
                     >
                       <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10' />
                       <img
@@ -1898,8 +1898,8 @@ function ApplicationPage() {
                         className='absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80'
                       />
                       <div className='absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between'>
-                        <span className='text-xs font-medium focus:text-foreground text-[#2dd4bf]'>Success Screenshot</span>
-                        <svg className='w-4 h-4 focus:text-foreground text-[#2dd4bf] opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                        <span className='text-xs font-medium focus:text-foreground text-[#ffd700]'>Success Screenshot</span>
+                        <svg className='w-4 h-4 focus:text-foreground text-[#ffd700] opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
                           <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' />
                         </svg>
                       </div>
@@ -1924,7 +1924,7 @@ function ApplicationPage() {
                         `/dashboard/jobs?autoApplyJobId=${encodeURIComponent(detailApp.job_id!)}`,
                       )
                     }
-                    className='inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#2dd4bf]/15 border border-[#2dd4bf]/40 text-[#2dd4bf] hover:bg-[#2dd4bf]/25 hover:shadow-[0_0_20px_rgba(45,212,191,0.25)] transition-all duration-200 text-sm font-medium'
+                    className='inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#ffd700]/15 border border-[#ffd700]/40 text-[#ffd700] hover:bg-[#ffd700]/25 hover:shadow-[0_0_20px_rgba(255,215,0,0.25)] transition-all duration-200 text-sm font-medium'
                   >
                     <Zap className='w-4 h-4' />
                     {detailApp.status === "Failed"
@@ -1937,7 +1937,7 @@ function ApplicationPage() {
                     href={detailApp.app_url}
                     target='_blank'
                     rel='noreferrer'
-                    className='inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#2dd4bf]/10 border border-[#2dd4bf]/30 text-[#2dd4bf] hover:bg-[#2dd4bf]/20 hover:shadow-[0_0_20px_rgba(45,212,191,0.2)] transition-all duration-200 text-sm font-medium'
+                    className='inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#ffd700]/10 border border-[#ffd700]/30 text-[#ffd700] hover:bg-[#ffd700]/20 hover:shadow-[0_0_20px_rgba(255,215,0,0.2)] transition-all duration-200 text-sm font-medium'
                   >
                     <svg
                       className='w-4 h-4'
@@ -2058,7 +2058,7 @@ function ApplicationPage() {
                   }
                 }}
                 rows={3}
-                className='w-full rounded-xl bg-foreground/[0.03] border border-foreground/10 px-4 py-3 text-sm text-foreground/80 placeholder:text-foreground/30 focus:border-[#2dd4bf]/40 focus:ring-1 focus:ring-[#2dd4bf]/20 focus:outline-none transition-all resize-none'
+                className='w-full rounded-xl bg-foreground/[0.03] border border-foreground/10 px-4 py-3 text-sm text-foreground/80 placeholder:text-foreground/30 focus:border-[#ffd700]/40 focus:ring-1 focus:ring-[#ffd700]/20 focus:outline-none transition-all resize-none'
               />
             </div>
 
@@ -2074,7 +2074,7 @@ function ApplicationPage() {
               </Button>
               <Button
                 size='sm'
-                className='flex-1 bg-gradient-to-r from-[#22d3ee] to-background hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] text-foreground font-semibold transition-all'
+                className='flex-1 bg-gradient-to-r from-[#fbbf24] to-background hover:shadow-[0_0_20px_rgba(255,215,0,0.3)] text-foreground font-semibold transition-all'
                 onClick={() => {
                   // Edit functionality can be added here
                   console.log("Edit application:", detailApp.id);
@@ -2100,7 +2100,7 @@ function ApplicationPage() {
             value={nextStepText}
             onChange={(e) => setNextStepText(e.target.value)}
             placeholder='e.g., Email recruiter on Friday about take-home; prep system design'
-            className='w-full min-h-[140px] rounded-xl bg-foreground/5 border border-foreground/10 text-foreground placeholder:text-foreground/40 p-3 outline-none focus:border-[#2dd4bf]/40 focus:ring-2 focus:ring-[#2dd4bf]/20'
+            className='w-full min-h-[140px] rounded-xl bg-foreground/5 border border-foreground/10 text-foreground placeholder:text-foreground/40 p-3 outline-none focus:border-[#ffd700]/40 focus:ring-2 focus:ring-[#ffd700]/20'
           />
           <div className='flex justify-end gap-2'>
             <Button
@@ -2111,7 +2111,7 @@ function ApplicationPage() {
               Cancel
             </Button>
             <Button
-              className='bg-gradient-to-r from-[#22d3ee] to-background text-foreground font-semibold hover:shadow-[0_0_20px_rgba(45,212,191,0.3)]'
+              className='bg-gradient-to-r from-[#fbbf24] to-background text-foreground font-semibold hover:shadow-[0_0_20px_rgba(255,215,0,0.3)]'
               onClick={async () => {
                 if (!detailApp) {
                   setNextStepOpen(false);
@@ -2212,15 +2212,15 @@ function ApplicationPage() {
           ) : (
             <div className='space-y-5'>
               {interviewAgentResult.booking_link ? (
-                <div className='p-4 rounded-xl border border-[#2dd4bf]/30 bg-[#2dd4bf]/10 space-y-2'>
-                  <div className='flex items-center gap-2 text-[#2dd4bf] font-medium text-sm'>
+                <div className='p-4 rounded-xl border border-[#ffd700]/30 bg-[#ffd700]/10 space-y-2'>
+                  <div className='flex items-center gap-2 text-[#ffd700] font-medium text-sm'>
                     <Link2 className='w-4 h-4' />
                     Booking Link Found!
                   </div>
                   <p className='text-sm text-foreground/80'>
                     The recruiter provided a direct link to book your interview:
                   </p>
-                  <a href={interviewAgentResult.booking_link} target='_blank' rel='noreferrer' className='inline-flex items-center gap-2 text-[#2dd4bf] underline text-sm break-all'>
+                  <a href={interviewAgentResult.booking_link} target='_blank' rel='noreferrer' className='inline-flex items-center gap-2 text-[#ffd700] underline text-sm break-all'>
                     {interviewAgentResult.booking_link}
                   </a>
                 </div>
@@ -2499,7 +2499,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
   // For brevity & low risk, we'll look for a global set by parent: (window as any).__apps_update.
 
   const statusColors: Record<string, string> = {
-    Applied: "#2dd4bf",
+    Applied: "#ffd700",
     Interview: "#F59E0B",
     Offer: "#10B981",
     Rejected: "#EF4444",
@@ -2514,7 +2514,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
         header: () => (
           <div className='inline-flex items-center gap-2'>
             <svg
-              className='w-4 h-4 text-[#2dd4bf]/60'
+              className='w-4 h-4 text-[#ffd700]/60'
               fill='none'
               viewBox='0 0 24 24'
               stroke='currentColor'
@@ -2538,7 +2538,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
             {info.row.original.company && (
               <div className='flex items-center gap-2'>
                 {info.row.original.logo_url && (
-                  <div className='relative w-4 h-4 rounded overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#22d3ee] via-background to-[#0d9488] p-[1px]'>
+                  <div className='relative w-4 h-4 rounded overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#fbbf24] via-background to-[#b45309] p-[1px]'>
                     <div className='w-full h-full bg-background rounded flex items-center justify-center'>
                       <img
                         src={getProxiedLogoUrl(info.row.original.logo_url)}
@@ -2561,7 +2561,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
         header: ({ column }) => (
           <div className='inline-flex items-center gap-2'>
             <svg
-              className='w-4 h-4 text-[#2dd4bf]/60'
+              className='w-4 h-4 text-[#ffd700]/60'
               fill='none'
               viewBox='0 0 24 24'
               stroke='currentColor'
@@ -2622,7 +2622,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
                 </button>
               )}
               {isEditing && (
-                <div className='absolute z-30 top-0 left-0 min-w-[140px] rounded-xl border border-[#2dd4bf]/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-2 shadow-[0_0_30px_rgba(45,212,191,0.2)] flex flex-col gap-1'>
+                <div className='absolute z-30 top-0 left-0 min-w-[140px] rounded-xl border border-[#ffd700]/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-2 shadow-[0_0_30px_rgba(255,215,0,0.2)] flex flex-col gap-1'>
                   {selectableStatuses.map((s) => {
                     const sColor = statusColors[s] || "#6B7280";
                     return (
@@ -2646,7 +2646,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
                             setEditingStatusId(null);
                           }
                         }}
-                        className={`flex items-center gap-2 text-left text-xs px-3 py-2 rounded-lg border transition-all ${s === value ? "bg-[#2dd4bf]/20 border-[#2dd4bf]/40 text-[#2dd4bf] font-semibold" : "border-transparent hover:border-foreground/10 hover:bg-foreground/5 text-foreground/70"}`}
+                        className={`flex items-center gap-2 text-left text-xs px-3 py-2 rounded-lg border transition-all ${s === value ? "bg-[#ffd700]/20 border-[#ffd700]/40 text-[#ffd700] font-semibold" : "border-transparent hover:border-foreground/10 hover:bg-foreground/5 text-foreground/70"}`}
                       >
                         <span
                           className='w-2 h-2 rounded-full'
@@ -2676,7 +2676,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
         header: ({ column }) => (
           <div className='inline-flex items-center gap-2'>
             <svg
-              className='w-4 h-4 text-[#2dd4bf]/60'
+              className='w-4 h-4 text-[#ffd700]/60'
               fill='none'
               viewBox='0 0 24 24'
               stroke='currentColor'
@@ -2706,7 +2706,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
         header: ({ column }) => (
           <div className='inline-flex items-center gap-2'>
             <svg
-              className='w-4 h-4 text-[#2dd4bf]/60'
+              className='w-4 h-4 text-[#ffd700]/60'
               fill='none'
               viewBox='0 0 24 24'
               stroke='currentColor'
@@ -2736,7 +2736,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
         header: ({ column }) => (
           <div className='inline-flex items-center gap-2'>
             <svg
-              className='w-4 h-4 text-[#2dd4bf]/60'
+              className='w-4 h-4 text-[#ffd700]/60'
               fill='none'
               viewBox='0 0 24 24'
               stroke='currentColor'
@@ -2763,10 +2763,10 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
   return (
     <div
       ref={(n) => (tableRef.current = n)}
-      className='relative rounded-2xl border border-[#2dd4bf]/20 bg-gradient-to-br from-background via-background to-background overflow-hidden shadow-[0_0_30px_rgba(45,212,191,0.1)]'
+      className='relative rounded-2xl border border-[#ffd700]/20 bg-gradient-to-br from-background via-background to-background overflow-hidden shadow-[0_0_30px_rgba(255,215,0,0.1)]'
     >
       {/* Ambient Glow Effect */}
-      <div className='absolute -top-20 -right-20 h-64 w-64 bg-[#2dd4bf]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
+      <div className='absolute -top-20 -right-20 h-64 w-64 bg-[#ffd700]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
 
       <div className='overflow-auto relative z-10'>
         <TableProvider<ApplicationRow, any>
@@ -2774,7 +2774,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           columns={columns}
           className='min-w-full'
         >
-          <KTableHeader className='sticky top-0 z-20 backdrop-blur-xl bg-gradient-to-r from-background/95 to-background/95 border-b border-[#2dd4bf]/20'>
+          <KTableHeader className='sticky top-0 z-20 backdrop-blur-xl bg-gradient-to-r from-background/95 to-background/95 border-b border-[#ffd700]/20'>
             {(headerGroup) => (
               <TableHeaderGroup headerGroup={headerGroup.headerGroup}>
                 {({ header }) => (
@@ -2794,7 +2794,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
               return (
                 <KTableRow
                   row={row.row}
-                  className='cursor-pointer border-b border-foreground/5 hover:bg-gradient-to-r hover:from-[#22d3ee]/5 hover:to-transparent hover:border-[#2dd4bf]/20 transition-all group'
+                  className='cursor-pointer border-b border-foreground/5 hover:bg-gradient-to-r hover:from-[#fbbf24]/5 hover:to-transparent hover:border-[#ffd700]/20 transition-all group'
                   onClick={() => onRowClick(original.id)}
                 >
                   {({ cell }) => (
@@ -2806,7 +2806,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           </KTableBody>
         </TableProvider>
       </div>
-      <div className='px-6 py-3 text-xs text-foreground/40 flex items-center justify-between border-t border-[#2dd4bf]/20 bg-background/50 backdrop-blur'>
+      <div className='px-6 py-3 text-xs text-foreground/40 flex items-center justify-between border-t border-[#ffd700]/20 bg-background/50 backdrop-blur'>
         <div className='flex items-center gap-2'>
           <svg
             className='w-3.5 h-3.5'

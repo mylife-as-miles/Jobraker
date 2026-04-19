@@ -64,7 +64,7 @@ export const PublicResumePage = () => {
         <div className="product-page-shell min-h-screen flex flex-col">
             <header className="sticky top-0 z-50 flex items-center justify-between border-b border-border/40 bg-background/95 px-8 backdrop-blur supports-[backdrop-filter]:bg-background/85 h-16">
                 <span className="product-page-title text-xl font-bold">{resumeData.basics.name}</span>
-                <Button onClick={handleDownload} className="bg-[#2dd4bf] text-black hover:bg-[#15bd00]">
+                <Button onClick={handleDownload} className="bg-[#ffd700] text-black hover:bg-[#ca8a04]">
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF
                 </Button>

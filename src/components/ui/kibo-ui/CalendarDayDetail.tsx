@@ -249,12 +249,12 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 160, damping: 18 }}
-            className="relative w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border border-[#2dd4bf]/30 bg-gradient-to-br from-background via-background/98 to-background/95 shadow-2xl p-6 flex flex-col"
+            className="relative w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border border-[#ffd700]/30 bg-gradient-to-br from-background via-background/98 to-background/95 shadow-2xl p-6 flex flex-col"
           >
-            <div className="absolute inset-0 pointer-events-none opacity-40" style={{ background: 'radial-gradient(circle at 30% 20%, rgba(45,212,191,0.08), transparent 60%)' }} />
+            <div className="absolute inset-0 pointer-events-none opacity-40" style={{ background: 'radial-gradient(circle at 30% 20%, rgba(255,215,0,0.08), transparent 60%)' }} />
             <button
               onClick={onClose}
-              className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center rounded-full border border-foreground/10 text-foreground/70 hover:text-[#2dd4bf] hover:border-[#2dd4bf]/40 hover:bg-[#2dd4bf]/10 transition"
+              className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center rounded-full border border-foreground/10 text-foreground/70 hover:text-[#ffd700] hover:border-[#ffd700]/40 hover:bg-[#ffd700]/10 transition"
               aria-label="Close detail"
             >
               <X className="w-4 h-4" />
@@ -263,17 +263,17 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
               <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-                    <CalendarDays className="w-5 h-5 text-[#2dd4bf]" />
+                    <CalendarDays className="w-5 h-5 text-[#ffd700]" />
                     {range ? `${range.start.toLocaleDateString(undefined,{ month:'short', day:'numeric'})} → ${range.end.toLocaleDateString(undefined,{ month:'short', day:'numeric', year:'numeric'})}` : date?.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                   </h2>
                   <p className="text-xs text-[#888] mt-1">{filteredApplications.length} application{filteredApplications.length === 1 ? '' : 's'} • {filteredInterviews.length} interview{filteredInterviews.length === 1 ? '' : 's'}</p>
                   <div className="mt-3">
                     <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-8">
-                      <path d={sparkline.path} fill="none" stroke="#2dd4bf" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+                      <path d={sparkline.path} fill="none" stroke="#ffd700" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
                       {sparkline.points.map((v,i)=>{
                         const x = (i/(sparkline.points.length-1))*100;
                         const y = 100 - (v/ (sparkline.max||1))*100;
-                        return <circle key={i} cx={x} cy={y} r={1.8} fill="#2dd4bf" />;
+                        return <circle key={i} cx={x} cy={y} r={1.8} fill="#ffd700" />;
                       })}
                     </svg>
                   </div>
@@ -287,7 +287,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
                         <button
                           key={s}
                           onClick={() => toggleStatus(s)}
-                          className={`px-2 py-1 rounded-full text-[10px] font-medium border transition ${active ? 'border-[#2dd4bf]/40 bg-[#2dd4bf]/10 text-[#2dd4bf]' : 'border-foreground/10 bg-foreground/5 text-foreground/40 line-through'}`}
+                          className={`px-2 py-1 rounded-full text-[10px] font-medium border transition ${active ? 'border-[#ffd700]/40 bg-[#ffd700]/10 text-[#ffd700]' : 'border-foreground/10 bg-foreground/5 text-foreground/40 line-through'}`}
                           aria-pressed={active}
                         >
                           {s}{count ? `:${count}` : ''}
@@ -298,7 +298,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
                   <div className="flex items-center gap-2">
                     <button
                       onClick={copySummary}
-                      className="text-[10px] px-3 py-1 rounded border border-[#2dd4bf]/30 bg-[#2dd4bf]/10 text-[#2dd4bf] hover:border-[#2dd4bf]/60 hover:bg-[#2dd4bf]/20 transition"
+                      className="text-[10px] px-3 py-1 rounded border border-[#ffd700]/30 bg-[#ffd700]/10 text-[#ffd700] hover:border-[#ffd700]/60 hover:bg-[#ffd700]/20 transition"
                     >
                       {copyState === 'idle' && 'Copy Summary'}
                       {copyState === 'copied' && 'Copied!'}
@@ -306,11 +306,11 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
                     </button>
                     <button
                       onClick={exportDayCSV}
-                      className="text-[10px] px-3 py-1 rounded border border-foreground/10 bg-foreground/5 text-foreground/70 hover:text-[#2dd4bf] hover:border-[#2dd4bf]/40 hover:bg-[#2dd4bf]/10 transition"
+                      className="text-[10px] px-3 py-1 rounded border border-foreground/10 bg-foreground/5 text-foreground/70 hover:text-[#ffd700] hover:border-[#ffd700]/40 hover:bg-[#ffd700]/10 transition"
                     >CSV</button>
                     <button
                       onClick={() => setQuickAddOpen(o=>!o)}
-                      className="text-[10px] px-3 py-1 rounded border border-[#2dd4bf]/30 bg-[#2dd4bf]/5 text-[#2dd4bf] hover:border-[#2dd4bf]/60 hover:bg-[#2dd4bf]/15 transition"
+                      className="text-[10px] px-3 py-1 rounded border border-[#ffd700]/30 bg-[#ffd700]/5 text-[#ffd700] hover:border-[#ffd700]/60 hover:bg-[#ffd700]/15 transition"
                     >{quickAddOpen ? 'Close' : 'Quick Add'}</button>
                   </div>
                 </div>
@@ -323,18 +323,18 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
                       placeholder="Job title"
                       value={qaJob}
                       onChange={e=>setQaJob(e.target.value)}
-                      className="flex-1 bg-background/40 border border-foreground/10 rounded px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#2dd4bf]/50"
+                      className="flex-1 bg-background/40 border border-foreground/10 rounded px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#ffd700]/50"
                     />
                     <input
                       placeholder="Company"
                       value={qaCompany}
                       onChange={e=>setQaCompany(e.target.value)}
-                      className="flex-1 bg-background/40 border border-foreground/10 rounded px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#2dd4bf]/50"
+                      className="flex-1 bg-background/40 border border-foreground/10 rounded px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#ffd700]/50"
                     />
                     <select
                       value={qaStatus}
                       onChange={e=>setQaStatus(e.target.value as any)}
-                      className="bg-background/40 border border-foreground/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#2dd4bf]/50"
+                      className="bg-background/40 border border-foreground/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#ffd700]/50"
                     >
                       {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
@@ -343,7 +343,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
                     <button
                       disabled={qaSaving || !qaJob.trim() || !qaCompany.trim()}
                       onClick={handleQuickAdd}
-                      className="text-[11px] px-4 py-2 rounded-md border border-[#2dd4bf]/40 bg-[#2dd4bf]/15 text-[#2dd4bf] hover:bg-[#2dd4bf]/25 hover:border-[#2dd4bf]/60 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium"
+                      className="text-[11px] px-4 py-2 rounded-md border border-[#ffd700]/40 bg-[#ffd700]/15 text-[#ffd700] hover:bg-[#ffd700]/25 hover:border-[#ffd700]/60 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium"
                     >{qaSaving ? 'Saving...' : 'Add'}</button>
                   </div>
                   <p className="text-[10px] text-foreground/40">Quick add uses the selected day as applied date. (Creation relies on injected create function.)</p>
@@ -352,10 +352,10 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
 
               {topCompanies.length > 0 && (
                 <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2"><Building2 className="w-4 h-4 text-[#2dd4bf]" /> Companies</h3>
+                  <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2"><Building2 className="w-4 h-4 text-[#ffd700]" /> Companies</h3>
                   <div className="flex flex-wrap gap-2">
                     {topCompanies.map(c => (
-                      <span key={c} className="px-2 py-1 text-[11px] rounded border border-[#2dd4bf]/20 text-foreground/80 bg-[#2dd4bf]/5 hover:border-[#2dd4bf]/50 hover:bg-[#2dd4bf]/10 transition">{c}</span>
+                      <span key={c} className="px-2 py-1 text-[11px] rounded border border-[#ffd700]/20 text-foreground/80 bg-[#ffd700]/5 hover:border-[#ffd700]/50 hover:bg-[#ffd700]/10 transition">{c}</span>
                     ))}
                   </div>
                 </div>
@@ -364,17 +364,17 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
               {/* Interviews */}
               {filteredInterviews.length > 0 && (
                 <div className="mb-8">
-                  <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-[#2dd4bf]" /> Interviews</h3>
+                  <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-[#ffd700]" /> Interviews</h3>
                   <div className="space-y-2">
                     {filteredInterviews.map(a => (
-                      <div key={a.id} className="group p-3 rounded-xl border border-[#2dd4bf]/20 bg-[#2dd4bf]/5 hover:border-[#2dd4bf]/50 hover:bg-[#2dd4bf]/10 transition flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#2dd4bf]/15 border border-[#2dd4bf]/30 flex items-center justify-center text-[#2dd4bf] font-bold text-xs">
+                      <div key={a.id} className="group p-3 rounded-xl border border-[#ffd700]/20 bg-[#ffd700]/5 hover:border-[#ffd700]/50 hover:bg-[#ffd700]/10 transition flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#ffd700]/15 border border-[#ffd700]/30 flex items-center justify-center text-[#ffd700] font-bold text-xs">
                           {(a.company||'')[0] || '•'}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="text-white text-sm font-medium truncate">{a.job_title}</div>
                           <div className="text-foreground/40 text-[11px] truncate">{a.company}</div>
-                          <div className="text-[#2dd4bf] text-[11px] mt-1">{new Date(a.interview_date as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                          <div className="text-[#ffd700] text-[11px] mt-1">{new Date(a.interview_date as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                         </div>
                         {typeof a.match_score === 'number' && <MatchScoreBadge score={a.match_score} />}
                       </div>
@@ -385,30 +385,30 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
 
               {/* Applications */}
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Briefcase className="w-4 h-4 text-[#2dd4bf]" /> Applications ({filteredApplications.length})</h3>
+                <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Briefcase className="w-4 h-4 text-[#ffd700]" /> Applications ({filteredApplications.length})</h3>
               </div>
                 {filteredApplications.length > 0 ? (
                 <div className="grid gap-2 max-h-72 overflow-auto pr-1 styled-scroll">
                     {filteredApplications.map(a => (
-                      <div key={a.id} className="p-3 rounded-xl border border-foreground/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-[#2dd4bf]/40 transition flex items-center gap-3 group">
-                      <div className="w-10 h-10 rounded-xl bg-[#2dd4bf]/10 border border-[#2dd4bf]/30 flex items-center justify-center text-[#2dd4bf] font-bold text-xs">
+                      <div key={a.id} className="p-3 rounded-xl border border-foreground/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-[#ffd700]/40 transition flex items-center gap-3 group">
+                      <div className="w-10 h-10 rounded-xl bg-[#ffd700]/10 border border-[#ffd700]/30 flex items-center justify-center text-[#ffd700] font-bold text-xs">
                         {(a.company||'')[0] || '•'}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-white text-sm font-medium truncate" title={a.job_title}>{a.job_title}</div>
                         <div className="text-foreground/40 text-[11px] truncate">{a.company}</div>
                         <div className="mt-1 flex items-center gap-2 text-[10px]">
-                          <span className="px-1.5 py-0.5 rounded border border-[#2dd4bf]/30 bg-[#2dd4bf]/10 text-[#2dd4bf] font-medium">{a.status}</span>
+                          <span className="px-1.5 py-0.5 rounded border border-[#ffd700]/30 bg-[#ffd700]/10 text-[#ffd700] font-medium">{a.status}</span>
                           {a.location && <span className="text-foreground/40 truncate max-w-[120px]">{a.location}</span>}
                             {onUpdateApplication && (
                               <button
                                 onClick={() => cycleStatus(a)}
-                                className="opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-0.5 rounded border border-foreground/10 hover:border-[#2dd4bf]/40 hover:text-[#2dd4bf]"
+                                className="opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-0.5 rounded border border-foreground/10 hover:border-[#ffd700]/40 hover:text-[#ffd700]"
                                 title="Cycle status"
                               >↻</button>
                             )}
                           <button
-                            className="opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-0.5 rounded border border-foreground/10 hover:border-[#2dd4bf]/40 hover:text-[#2dd4bf]"
+                            className="opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-0.5 rounded border border-foreground/10 hover:border-[#ffd700]/40 hover:text-[#ffd700]"
                             title="Add follow-up reminder"
                             onClick={() => {
                               if (!onUpdateApplication) return;
@@ -438,7 +438,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
                       <div key={label} className="flex flex-col gap-1">
                         <div className="text-[10px] text-foreground/60">{label}</div>
                         <div className="h-6 rounded bg-foreground/5 border border-foreground/10 overflow-hidden relative">
-                          <div style={{ width: pct+'%' }} className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#22d3ee] to-background" />
+                          <div style={{ width: pct+'%' }} className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#fbbf24] to-background" />
                           <div className="absolute inset-0 flex items-center justify-center text-[10px] text-foreground/80 font-medium">{count}</div>
                         </div>
                       </div>
@@ -460,7 +460,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
           value={followUpText}
           onChange={(e) => setFollowUpText(e.target.value)}
           placeholder="e.g., Email recruiter on Friday about take-home; prep system design"
-          className="w-full min-h-[140px] rounded-xl bg-foreground/5 border border-foreground/10 text-white placeholder:text-foreground/40 p-3 outline-none focus:border-[#2dd4bf]/40 focus:ring-2 focus:ring-[#2dd4bf]/20"
+          className="w-full min-h-[140px] rounded-xl bg-foreground/5 border border-foreground/10 text-white placeholder:text-foreground/40 p-3 outline-none focus:border-[#ffd700]/40 focus:ring-2 focus:ring-[#ffd700]/20"
         />
         <div className="flex justify-end gap-2">
           <Button
@@ -471,7 +471,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
             Cancel
           </Button>
           <Button
-            className="bg-gradient-to-r from-[#22d3ee] to-background text-black font-semibold hover:shadow-[0_0_20px_rgba(45,212,191,0.3)]"
+            className="bg-gradient-to-r from-[#fbbf24] to-background text-black font-semibold hover:shadow-[0_0_20px_rgba(255,215,0,0.3)]"
             onClick={async () => {
               if (!onUpdateApplication || !followUpAppId) {
                 setFollowUpOpen(false);

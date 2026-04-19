@@ -34,11 +34,11 @@ export const ChatSearchPalette = ({ open, onClose }: Props) => {
     <AnimatePresence>
       {open && (
         <motion.div className="fixed inset-0 z-[200] flex items-start justify-center pt-24 backdrop-blur-sm bg-background/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y:0, opacity:1 }} exit={{ y: 20, opacity: 0 }} transition={{ type:'spring', stiffness: 240, damping: 24 }} className="w-full max-w-2xl rounded-2xl border border-[#2dd4bf]/30 bg-background shadow-xl overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[#2dd4bf]/20 bg-background">
-              <Search className="w-4 h-4 text-[#2dd4bf]" />
+          <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y:0, opacity:1 }} exit={{ y: 20, opacity: 0 }} transition={{ type:'spring', stiffness: 240, damping: 24 }} className="w-full max-w-2xl rounded-2xl border border-[#ffd700]/30 bg-background shadow-xl overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-[#ffd700]/20 bg-background">
+              <Search className="w-4 h-4 text-[#ffd700]" />
               <input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search current session (Ctrl+K)" className="flex-1 bg-transparent outline-none text-sm text-neutral-200 placeholder:text-neutral-500" />
-              <button onClick={onClose} className="p-1.5 rounded-md hover:bg-[#2dd4bf]/10 text-neutral-400 hover:text-white"><X className="w-4 h-4" /></button>
+              <button onClick={onClose} className="p-1.5 rounded-md hover:bg-[#ffd700]/10 text-neutral-400 hover:text-white"><X className="w-4 h-4" /></button>
             </div>
             <div className="max-h-[60vh] overflow-y-auto custom-scrollbar py-2">
               {results.length === 0 && query && (
@@ -49,9 +49,9 @@ export const ChatSearchPalette = ({ open, onClose }: Props) => {
               )}
               <ul className="space-y-1 px-3">
                 {results.map(r => (
-                  <li key={r.message.id} className="group rounded-lg border border-transparent hover:border-[#2dd4bf]/30 bg-background/40 hover:bg-[#131d13]/70 transition">
+                  <li key={r.message.id} className="group rounded-lg border border-transparent hover:border-[#ffd700]/30 bg-background/40 hover:bg-[#131d13]/70 transition">
                     <div className="px-3 py-2 text-[11px] text-neutral-300 leading-relaxed">
-                      <span className="text-[#2dd4bf]/80 font-mono mr-2">score:{r.score}</span>
+                      <span className="text-[#ffd700]/80 font-mono mr-2">score:{r.score}</span>
                       {r.message.content.slice(0, 280)}{r.message.content.length>280?'…':''}
                     </div>
                   </li>

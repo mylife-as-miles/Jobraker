@@ -31,8 +31,8 @@ const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
           onChange={handleChange}
           className={cn(
             "w-full h-2 appearance-none rounded-full bg-foreground/10 outline-none",
-            "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#2dd4bf] [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-[#2dd4bf]",
-            "[&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#2dd4bf] [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-[#2dd4bf]"
+            "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#ffd700] [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-[#ffd700]",
+            "[&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#ffd700] [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-[#ffd700]"
           )}
           id={inputId}
           name={inputName}

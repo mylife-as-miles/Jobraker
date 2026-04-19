@@ -92,7 +92,7 @@ export const StyledInputExample: React.FC = () => {
           />
           <button 
             onClick={validateForm}
-            className="w-full mt-6 bg-[#2dd4bf] text-black py-3 px-4 rounded-lg font-medium hover:bg-[#2dd4bf]/90 transition-colors"
+            className="w-full mt-6 bg-[#ffd700] text-black py-3 px-4 rounded-lg font-medium hover:bg-[#ffd700]/90 transition-colors"
           >
             Validate Form
           </button>
@@ -108,7 +108,7 @@ export const StyledInputExample: React.FC = () => {
           />
           <button 
             onClick={validateForm}
-            className="w-full mt-6 bg-[#2dd4bf] text-black py-3 px-4 rounded-lg font-medium hover:bg-[#2dd4bf]/90 transition-colors"
+            className="w-full mt-6 bg-[#ffd700] text-black py-3 px-4 rounded-lg font-medium hover:bg-[#ffd700]/90 transition-colors"
           >
             Validate Form
           </button>

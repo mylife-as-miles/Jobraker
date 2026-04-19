@@ -36,7 +36,7 @@ export const ScrollToBottom: React.FC<Props> = ({ target }) => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.92 }}
             onClick={scrollDown}
-            className="absolute bottom-4 right-4 z-20 px-2.5 py-2 rounded-xl bg-background/90 border border-[#2dd4bf]/30 text-[#2dd4bf] shadow-md backdrop-blur-md flex items-center gap-1 text-xs"
+            className="absolute bottom-4 right-4 z-20 px-2.5 py-2 rounded-xl bg-background/90 border border-[#ffd700]/30 text-[#ffd700] shadow-md backdrop-blur-md flex items-center gap-1 text-xs"
         >
           <ArrowDown className="w-4 h-4" /> New Messages
         </motion.button>

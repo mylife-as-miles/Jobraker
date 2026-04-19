@@ -59,11 +59,11 @@ const chartConfig = {
 
 const getCategoryColor = (label: string) => {
   const normalized = label.toLowerCase();
-  if (normalized.includes("role") || normalized.includes("focus")) return "#2dd4bf"; // Applied green
+  if (normalized.includes("role") || normalized.includes("focus")) return "#ffd700"; // Applied green
   if (normalized.includes("keyword") || normalized.includes("match")) return "#56c2ff"; // Interview blue
   if (normalized.includes("goal") || normalized.includes("profile")) return "#ffd700"; // Offer gold
   if (normalized.includes("location") || normalized.includes("alignment")) return "#ff6b6b"; // Rejected red
-  return "#2dd4bf"; // Default green
+  return "#ffd700"; // Default green
 };
 
 export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieChartProps) {
@@ -76,20 +76,20 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
   const hasBreakdown = chartData.length > 0;
 
   return (
-    <Card className="relative overflow-hidden border border-[#2dd4bf]/20 bg-gradient-to-br from-background via-background to-background">
-      <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#2dd4bf]/20 blur-3xl opacity-60" />
+    <Card className="relative overflow-hidden border border-[#ffd700]/20 bg-gradient-to-br from-background via-background to-background">
+      <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#ffd700]/20 blur-3xl opacity-60" />
       
       <CardHeader className="relative items-center pb-2">
         <div className="flex w-full items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[#2dd4bf]" />
+            <Sparkles className="h-4 w-4 text-[#ffd700]" />
             <CardTitle className="text-lg text-foreground/90">AI Match Analysis</CardTitle>
           </div>
           <Badge
             variant="outline"
             className={
               score >= 70
-                ? "text-[#2dd4bf] bg-[#2dd4bf]/10 border-none"
+                ? "text-[#ffd700] bg-[#ffd700]/10 border-none"
                 : score >= 50
                 ? "text-[#ffd78b] bg-[#ffd78b]/10 border-none"
                 : "text-[#ff8b8b] bg-[#ff8b8b]/10 border-none"
@@ -155,7 +155,7 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
                       />
                       <span className="text-sm font-medium text-foreground/90">{item.label}</span>
                     </div>
-                    <span className="text-sm font-semibold text-[#2dd4bf]">{item.componentScore}%</span>
+                    <span className="text-sm font-semibold text-[#ffd700]">{item.componentScore}%</span>
                   </div>
                   <p className="text-xs text-foreground/60 leading-relaxed">{item.detail}</p>
                 </div>
@@ -165,7 +165,7 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
         ) : (
           <div className="flex h-[250px] items-center justify-center">
             <div className="text-center space-y-2">
-              <div className="text-6xl font-bold text-[#2dd4bf]">{Math.round(score)}%</div>
+              <div className="text-6xl font-bold text-[#ffd700]">{Math.round(score)}%</div>
               <p className="text-sm text-foreground/50">Overall Match Score</p>
             </div>
           </div>

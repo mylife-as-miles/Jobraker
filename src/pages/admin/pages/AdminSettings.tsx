@@ -16,11 +16,11 @@ export default function AdminSettings() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#2dd4bf]/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#ffd700]/20 rounded-2xl p-6"
         >
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-lg bg-[#2dd4bf]/20 flex items-center justify-center">
-              <SettingsIcon className="w-5 h-5 text-[#2dd4bf]" />
+            <div className="w-10 h-10 rounded-lg bg-[#ffd700]/20 flex items-center justify-center">
+              <SettingsIcon className="w-5 h-5 text-[#ffd700]" />
             </div>
             <div>
               <h3 className="text-lg font-bold text-white">General Settings</h3>
@@ -36,7 +36,7 @@ export default function AdminSettings() {
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" className="sr-only peer" />
-                <div className="w-11 h-6 bg-gray-700 peer-focus:ring-2 peer-focus:ring-emerald-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2dd4bf]"></div>
+                <div className="w-11 h-6 bg-gray-700 peer-focus:ring-2 peer-focus:ring-emerald-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ffd700]"></div>
               </label>
             </div>
 
@@ -47,7 +47,7 @@ export default function AdminSettings() {
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" className="sr-only peer" defaultChecked />
-                <div className="w-11 h-6 bg-gray-700 peer-focus:ring-2 peer-focus:ring-emerald-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2dd4bf]"></div>
+                <div className="w-11 h-6 bg-gray-700 peer-focus:ring-2 peer-focus:ring-emerald-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ffd700]"></div>
               </label>
             </div>
           </div>
@@ -58,11 +58,11 @@ export default function AdminSettings() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#2dd4bf]/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#ffd700]/20 rounded-2xl p-6"
         >
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-lg bg-[#2dd4bf]/20 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-[#2dd4bf]" />
+            <div className="w-10 h-10 rounded-lg bg-[#ffd700]/20 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-[#ffd700]" />
             </div>
             <div>
               <h3 className="text-lg font-bold text-white">Security Settings</h3>
@@ -74,7 +74,7 @@ export default function AdminSettings() {
             <div className="p-4 bg-gray-800/50 rounded-xl">
               <p className="text-white font-medium mb-2">Two-Factor Authentication</p>
               <p className="text-sm text-gray-400 mb-4">Require 2FA for all admin accounts</p>
-              <button className="px-4 py-2 bg-[#2dd4bf] hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors">
+              <button className="px-4 py-2 bg-[#ffd700] hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors">
                 Enable 2FA
               </button>
             </div>
@@ -95,7 +95,7 @@ export default function AdminSettings() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#2dd4bf]/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#ffd700]/20 rounded-2xl p-6"
         >
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
@@ -115,7 +115,7 @@ export default function AdminSettings() {
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" className="sr-only peer" defaultChecked />
-                <div className="w-11 h-6 bg-gray-700 peer-focus:ring-2 peer-focus:ring-emerald-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2dd4bf]"></div>
+                <div className="w-11 h-6 bg-gray-700 peer-focus:ring-2 peer-focus:ring-emerald-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ffd700]"></div>
               </label>
             </div>
 
@@ -126,7 +126,7 @@ export default function AdminSettings() {
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" className="sr-only peer" defaultChecked />
-                <div className="w-11 h-6 bg-gray-700 peer-focus:ring-2 peer-focus:ring-emerald-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2dd4bf]"></div>
+                <div className="w-11 h-6 bg-gray-700 peer-focus:ring-2 peer-focus:ring-emerald-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ffd700]"></div>
               </label>
             </div>
           </div>

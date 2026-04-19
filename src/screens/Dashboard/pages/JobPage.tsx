@@ -1019,12 +1019,12 @@ export const JobPage = (): JSX.Element => {
     onCancel?: () => void;
     foundCount?: number;
   }) => (
-    <Card className='relative overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  border border-[#2dd4bf]/30 p-4 sm:p-5 mb-4'>
+    <Card className='relative overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  border border-[#ffd700]/30 p-4 sm:p-5 mb-4'>
       <motion.div
         className='pointer-events-none absolute -inset-24 opacity-30'
         style={{
           background:
-            "radial-gradient(600px 200px at 20% -10%, rgba(45,212,191,0.25), rgba(45,212,191,0) 60%)",
+            "radial-gradient(600px 200px at 20% -10%, rgba(255,215,0,0.25), rgba(255,215,0,0) 60%)",
         }}
         initial={{ opacity: 0.15 }}
         animate={{ opacity: [0.15, 0.3, 0.15] }}
@@ -1032,9 +1032,9 @@ export const JobPage = (): JSX.Element => {
       />
       <div className='flex items-center gap-3'>
         <div className='relative w-6 h-6'>
-          <span className='absolute inset-0 rounded-full bg-[#2dd4bf] opacity-70' />
+          <span className='absolute inset-0 rounded-full bg-[#ffd700] opacity-70' />
           <motion.span
-            className='absolute inset-0 rounded-full bg-[#2dd4bf]'
+            className='absolute inset-0 rounded-full bg-[#ffd700]'
             initial={{ scale: 0.9, opacity: 0.75 }}
             animate={{ scale: [0.9, 1.25, 0.9], opacity: [0.75, 0.15, 0.75] }}
             transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
@@ -1049,7 +1049,7 @@ export const JobPage = (): JSX.Element => {
                 initial={{ scale: 0.9, opacity: 0.6 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: "spring", stiffness: 260, damping: 18 }}
-                className='text-[11px] px-2 py-0.5 rounded-full border border-[#2dd4bf]/40 text-[#2dd4bf] bg-foreground/10'
+                className='text-[11px] px-2 py-0.5 rounded-full border border-[#ffd700]/40 text-[#ffd700] bg-foreground/10'
               >
                 Found {foundCount}
               </motion.span>
@@ -1082,9 +1082,9 @@ export const JobPage = (): JSX.Element => {
               transition={{ delay: idx * 0.1 }}
               className={`relative flex items-center gap-2 rounded-lg border p-2.5 transition-all duration-300 ${
                 isActive
-                  ? "border-[#2dd4bf] bg-[#2dd4bf]/10 shadow-[0_0_15px_rgba(45,212,191,0.2)]"
+                  ? "border-[#ffd700] bg-[#ffd700]/10 shadow-[0_0_15px_rgba(255,215,0,0.2)]"
                   : isCompleted
-                    ? "border-[#2dd4bf]/50 bg-[#2dd4bf]/5"
+                    ? "border-[#ffd700]/50 bg-[#ffd700]/5"
                     : "border-foreground/10 bg-foreground/5"
               }`}
             >
@@ -1094,7 +1094,7 @@ export const JobPage = (): JSX.Element => {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 500, damping: 25 }}
-                    className='w-4 h-4 rounded-full bg-[#2dd4bf] flex items-center justify-center'
+                    className='w-4 h-4 rounded-full bg-[#ffd700] flex items-center justify-center'
                   >
                     <svg
                       className='w-2.5 h-2.5 text-black'
@@ -1112,7 +1112,7 @@ export const JobPage = (): JSX.Element => {
                   </motion.div>
                 ) : isActive ? (
                   <motion.div
-                    className='w-4 h-4 rounded-full bg-[#2dd4bf]'
+                    className='w-4 h-4 rounded-full bg-[#ffd700]'
                     animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
                     transition={{
                       duration: 1.5,
@@ -1125,7 +1125,7 @@ export const JobPage = (): JSX.Element => {
                 )}
               </div>
               <div
-                className={`text-[11px] sm:text-xs truncate font-medium ${isActive ? "text-[#ccfbf1]" : isCompleted ? "text-[#2dd4bf]/80" : "text-foreground/60"}`}
+                className={`text-[11px] sm:text-xs truncate font-medium ${isActive ? "text-[#ccfbf1]" : isCompleted ? "text-[#ffd700]/80" : "text-foreground/60"}`}
               >
                 {label}
               </div>
@@ -1133,7 +1133,7 @@ export const JobPage = (): JSX.Element => {
                 <motion.span
                   layoutId='activeStepGlow'
                   className='absolute inset-0 rounded-lg pointer-events-none'
-                  style={{ boxShadow: "0 0 20px rgba(45,212,191,0.25) inset" }}
+                  style={{ boxShadow: "0 0 20px rgba(255,215,0,0.25) inset" }}
                 />
               )}
             </motion.div>
@@ -1146,18 +1146,18 @@ export const JobPage = (): JSX.Element => {
           <span>Progress</span>
           <span>{Math.round((activeStep / (steps.length - 1)) * 100)}%</span>
         </div>
-        <div className='h-2 bg-foreground/10 rounded-full overflow-hidden border border-[#2dd4bf]/20 relative'>
+        <div className='h-2 bg-foreground/10 rounded-full overflow-hidden border border-[#ffd700]/20 relative'>
           <motion.div
             className='absolute inset-0 opacity-20'
             style={{
               background:
-                "linear-gradient(90deg, transparent 0%, rgba(45,212,191,0.4) 50%, transparent 100%)",
+                "linear-gradient(90deg, transparent 0%, rgba(255,215,0,0.4) 50%, transparent 100%)",
             }}
             animate={{ x: ["-100%", "200%"] }}
             transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
           />
           <motion.div
-            className='h-full bg-gradient-to-r from-[#22d3ee]/60 via-[#2dd4bf] to-[#0d9488]/60 relative'
+            className='h-full bg-gradient-to-r from-[#fbbf24]/60 via-[#ffd700] to-[#b45309]/60 relative'
             initial={{ width: "0%" }}
             animate={{ width: `${(activeStep / (steps.length - 1)) * 100}%` }}
             transition={{ duration: 0.5, ease: "easeOut" }}
@@ -1185,24 +1185,24 @@ export const JobPage = (): JSX.Element => {
     count: number;
     isSearching: boolean;
   }) => (
-    <Card className='relative overflow-hidden bg-gradient-to-br from-[#22d3ee]/5 via-background to-background  border border-[#2dd4bf]/20 p-5 mb-6 rounded-2xl'>
+    <Card className='relative overflow-hidden bg-gradient-to-br from-[#fbbf24]/5 via-background to-background  border border-[#ffd700]/20 p-5 mb-6 rounded-2xl'>
       <motion.div
         className='absolute inset-0 opacity-20'
         animate={{
           background: [
-            "radial-gradient(400px at 0% 0%, rgba(45,212,191,0.15) 0%, transparent 100%)",
-            "radial-gradient(400px at 100% 100%, rgba(45,212,191,0.15) 0%, transparent 100%)",
-            "radial-gradient(400px at 0% 0%, rgba(45,212,191,0.15) 0%, transparent 100%)",
+            "radial-gradient(400px at 0% 0%, rgba(255,215,0,0.15) 0%, transparent 100%)",
+            "radial-gradient(400px at 100% 100%, rgba(255,215,0,0.15) 0%, transparent 100%)",
+            "radial-gradient(400px at 0% 0%, rgba(255,215,0,0.15) 0%, transparent 100%)",
           ],
         }}
         transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
       />
       <div className='relative z-10 flex flex-col sm:flex-row items-center gap-4'>
-        <div className='flex-shrink-0 w-12 h-12 rounded-full bg-[#2dd4bf]/10 flex items-center justify-center border border-[#2dd4bf]/20'>
+        <div className='flex-shrink-0 w-12 h-12 rounded-full bg-[#ffd700]/10 flex items-center justify-center border border-[#ffd700]/20'>
           {isSearching ? (
-            <Loader2 className='w-6 h-6 text-[#2dd4bf] animate-spin' />
+            <Loader2 className='w-6 h-6 text-[#ffd700] animate-spin' />
           ) : (
-            <Sparkles className='w-6 h-6 text-[#2dd4bf]' />
+            <Sparkles className='w-6 h-6 text-[#ffd700]' />
           )}
         </div>
         <div className='flex-1 text-center sm:text-left'>
@@ -1218,7 +1218,7 @@ export const JobPage = (): JSX.Element => {
           </p>
         </div>
         {isSearching && (
-          <div className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2dd4bf]/10 border border-[#2dd4bf]/20 text-[10px] font-bold uppercase tracking-wider text-[#2dd4bf] animate-pulse'>
+          <div className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#ffd700]/10 border border-[#ffd700]/20 text-[10px] font-bold uppercase tracking-wider text-[#ffd700] animate-pulse'>
             Deep Search Active
           </div>
         )}
@@ -3248,13 +3248,13 @@ export const JobPage = (): JSX.Element => {
                 <div className='absolute inset-0 rounded-2xl bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none'></div>
 
                 <div className='relative z-10 space-y-1'>
-                  <div className='text-[10px] uppercase tracking-[0.35em] text-[#2dd4bf]/80 font-semibold'>
+                  <div className='text-[10px] uppercase tracking-[0.35em] text-[#ffd700]/80 font-semibold'>
                     Automation readiness
                   </div>
                   <div className='flex items-center gap-2 text-sm font-medium'>
                     {profileReady && resumeLibraryReady ? (
                       <>
-                        <ShieldCheck className='h-4 w-4 text-[#2dd4bf]' />
+                        <ShieldCheck className='h-4 w-4 text-[#ffd700]' />
                         <span className='text-foreground'>Ready to launch</span>
                       </>
                     ) : (
@@ -3279,7 +3279,7 @@ export const JobPage = (): JSX.Element => {
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all hover:scale-105",
                         profileReady
-                          ? "border-[#2dd4bf]/60 bg-gradient-to-br from-[#22d3ee]/20 to-[#0d9488]/10 text-[#2dd4bf] shadow-[0_0_10px_rgba(45,212,191,0.15)] hover:shadow-[0_0_15px_rgba(45,212,191,0.25)]"
+                          ? "border-[#ffd700]/60 bg-gradient-to-br from-[#fbbf24]/20 to-[#b45309]/10 text-[#ffd700] shadow-[0_0_10px_rgba(255,215,0,0.15)] hover:shadow-[0_0_15px_rgba(255,215,0,0.25)]"
                           : "border-[#ffb347]/50 bg-gradient-to-br from-[#ffb347]/15 to-[#ffb347]/5 text-[#ffb347] shadow-[0_0_10px_rgba(255,179,71,0.15)] hover:shadow-[0_0_15px_rgba(255,179,71,0.25)]",
                       )}
                       title={
@@ -3289,7 +3289,7 @@ export const JobPage = (): JSX.Element => {
                       }
                     >
                       {profileReady ? (
-                        <UserCheck className='h-3.5 w-3.5 text-[#2dd4bf]' />
+                        <UserCheck className='h-3.5 w-3.5 text-[#ffd700]' />
                       ) : (
                         <UserX className='h-3.5 w-3.5 text-[#ffb347]' />
                       )}
@@ -3310,7 +3310,7 @@ export const JobPage = (): JSX.Element => {
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all hover:scale-105",
                         resumeLibraryReady
-                          ? "border-[#2dd4bf]/60 bg-gradient-to-br from-[#22d3ee]/20 to-[#0d9488]/10 text-[#2dd4bf] shadow-[0_0_10px_rgba(45,212,191,0.15)] hover:shadow-[0_0_15px_rgba(45,212,191,0.25)]"
+                          ? "border-[#ffd700]/60 bg-gradient-to-br from-[#fbbf24]/20 to-[#b45309]/10 text-[#ffd700] shadow-[0_0_10px_rgba(255,215,0,0.15)] hover:shadow-[0_0_15px_rgba(255,215,0,0.25)]"
                           : "border-[#ffb347]/50 bg-gradient-to-br from-[#ffb347]/15 to-[#ffb347]/5 text-[#ffb347] shadow-[0_0_10px_rgba(255,179,71,0.15)] hover:shadow-[0_0_15px_rgba(255,179,71,0.25)]",
                       )}
                       title={
@@ -3322,7 +3322,7 @@ export const JobPage = (): JSX.Element => {
                       }
                     >
                       {resumeLibraryReady ? (
-                        <FileCheck2 className='h-3.5 w-3.5 text-[#2dd4bf]' />
+                        <FileCheck2 className='h-3.5 w-3.5 text-[#ffd700]' />
                       ) : (
                         <FileWarning className='h-3.5 w-3.5 text-[#ffb347]' />
                       )}
@@ -3345,7 +3345,7 @@ export const JobPage = (): JSX.Element => {
                     <button
                       type='button'
                       onClick={() => setDebugMode((v) => !v)}
-                      className='px-1 py-0.5 rounded hover:text-foreground focus:outline-none focus:ring-1 focus:ring-[#2dd4bf]/50'
+                      className='px-1 py-0.5 rounded hover:text-foreground focus:outline-none focus:ring-1 focus:ring-[#ffd700]/50'
                       aria-pressed={debugMode}
                       title='Toggle Diagnostics'
                     >
@@ -3364,7 +3364,7 @@ export const JobPage = (): JSX.Element => {
                     onClick={() => {
                       openAutoApplyFlow(null);
                     }}
-                    className={`relative flex-1 sm:flex-none overflow-hidden border border-[#2dd4bf]/40 text-foreground px-3 py-2 sm:px-4 sm:py-2 md:px-5 rounded-xl transition-all duration-300 text-xs sm:text-sm ${applyingAll ? "bg-[#2dd4bf]/20 text-[#2dd4bf]" : "bg-gradient-to-r from-[#22d3ee]/10 via-transparent to-[#0d9488]/10 hover:from-[#22d3ee]/20 hover:to-[#0d9488]/5"}`}
+                    className={`relative flex-1 sm:flex-none overflow-hidden border border-[#ffd700]/40 text-foreground px-3 py-2 sm:px-4 sm:py-2 md:px-5 rounded-xl transition-all duration-300 text-xs sm:text-sm ${applyingAll ? "bg-[#ffd700]/20 text-[#ffd700]" : "bg-gradient-to-r from-[#fbbf24]/10 via-transparent to-[#b45309]/10 hover:from-[#fbbf24]/20 hover:to-[#b45309]/5"}`}
                     title='Auto apply all visible jobs'
                     disabled={
                       applyingAll ||
@@ -3377,7 +3377,7 @@ export const JobPage = (): JSX.Element => {
                       className='absolute inset-0 opacity-20 pointer-events-none'
                       style={{
                         background:
-                          "radial-gradient(180px at 0% 0%, rgba(45,212,191,0.45), transparent 65%)",
+                          "radial-gradient(180px at 0% 0%, rgba(255,215,0,0.45), transparent 65%)",
                       }}
                     />
                     <span className='relative inline-flex items-center justify-center gap-1.5 sm:gap-2 font-medium tracking-wide'>
@@ -3406,8 +3406,8 @@ export const JobPage = (): JSX.Element => {
                     onClick={() => populateQueue(searchQuery, selectedLocation)}
                     className={`group relative flex-1 sm:flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
                       queueStatus === "populating" || queueStatus === "loading"
-                        ? "border-[#2dd4bf]/60 text-[#2dd4bf] bg-[#2dd4bf]/15"
-                        : "border-foreground/20 text-foreground bg-foreground/5 hover:text-[#2dd4bf] hover:border-[#2dd4bf]/60 hover:bg-[#2dd4bf]/10 shadow-[0_12px_32px_rgba(8,122,52,0.35)]"
+                        ? "border-[#ffd700]/60 text-[#ffd700] bg-[#ffd700]/15"
+                        : "border-foreground/20 text-foreground bg-foreground/5 hover:text-[#ffd700] hover:border-[#ffd700]/60 hover:bg-[#ffd700]/10 shadow-[0_12px_32px_rgba(8,122,52,0.35)]"
                     }`}
                     title='Find a fresh batch of jobs'
                     disabled={
@@ -3418,14 +3418,14 @@ export const JobPage = (): JSX.Element => {
                       className='pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300'
                       style={{
                         background:
-                          "linear-gradient(120deg, transparent 0%, rgba(45,212,191,0.35) 45%, transparent 90%)",
+                          "linear-gradient(120deg, transparent 0%, rgba(255,215,0,0.35) 45%, transparent 90%)",
                       }}
                     />
                     <span className='relative inline-flex items-center justify-center gap-1.5 sm:gap-2'>
                       {queueStatus === "populating" ? (
                         <Loader2 className='w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin' />
                       ) : (
-                        <Search className='w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#2dd4bf]' />
+                        <Search className='w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#ffd700]' />
                       )}
                       <span className='hidden sm:inline'>
                         {queueStatus === "populating"
@@ -3503,16 +3503,16 @@ export const JobPage = (): JSX.Element => {
         )}
 
         <Card
-          className='relative overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  border border-[#2dd4bf]/20 p-5 sm:p-6 mb-6 sm:mb-8 rounded-2xl shadow-[0_0_30px_rgba(45,212,191,0.1)] backdrop-blur-xl transition-colors duration-300 hover:border-[#2dd4bf]/30 hover:shadow-[0_0_40px_rgba(45,212,191,0.15)]'
+          className='relative overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  border border-[#ffd700]/20 p-5 sm:p-6 mb-6 sm:mb-8 rounded-2xl shadow-[0_0_30px_rgba(255,215,0,0.1)] backdrop-blur-xl transition-colors duration-300 hover:border-[#ffd700]/30 hover:shadow-[0_0_40px_rgba(255,215,0,0.15)]'
           id='jobs-search-filters'
           data-tour='jobs-search-filters'
         >
           {/* Subtle gradient overlay */}
-          <div className='absolute inset-0 bg-gradient-to-br from-[#22d3ee]/5 via-transparent to-transparent pointer-events-none'></div>
+          <div className='absolute inset-0 bg-gradient-to-br from-[#fbbf24]/5 via-transparent to-transparent pointer-events-none'></div>
 
           <div className='relative z-10 grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4'>
             <div className='md:col-span-2 relative group'>
-              <Search className='w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-[#2dd4bf]/60 transition-colors group-focus-within:text-[#2dd4bf]' />
+              <Search className='w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-[#ffd700]/60 transition-colors group-focus-within:text-[#ffd700]' />
               <Input
                 id='jobs-search'
                 data-tour='jobs-search'
@@ -3525,10 +3525,10 @@ export const JobPage = (): JSX.Element => {
                     populateQueue(searchQuery, selectedLocation);
                   }
                 }}
-                className='h-12 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#2dd4bf]/20 text-foreground placeholder:text-foreground/40 transition-all duration-300 rounded-xl'
+                className='h-12 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#ffd700]/20 text-foreground placeholder:text-foreground/40 transition-all duration-300 rounded-xl'
               />
               <div className='pointer-events-none select-none absolute right-10 top-1/2 transform -translate-y-1/2'>
-                <span className='text-[10px] font-medium text-[#2dd4bf]/80 bg-gradient-to-br from-[#22d3ee]/15 to-[#0d9488]/5 px-2.5 py-1 rounded-lg border border-[#2dd4bf]/30 whitespace-nowrap'>
+                <span className='text-[10px] font-medium text-[#ffd700]/80 bg-gradient-to-br from-[#fbbf24]/15 to-[#b45309]/5 px-2.5 py-1 rounded-lg border border-[#ffd700]/30 whitespace-nowrap'>
                   {subscriptionTier === "Ultimate"
                     ? "100"
                     : subscriptionTier === "Pro"
@@ -3541,14 +3541,14 @@ export const JobPage = (): JSX.Element => {
               </div>
             </div>
             <div className='md:col-span-1 space-y-2'>
-              <div className='relative group bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#2dd4bf]/20 text-foreground transition-all duration-300 rounded-xl'>
-                <MapPin className='pointer-events-none w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-[#2dd4bf]/60' />
+              <div className='relative group bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#ffd700]/20 text-foreground transition-all duration-300 rounded-xl'>
+                <MapPin className='pointer-events-none w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-[#ffd700]/60' />
                 <div
                   id='jobs-location'
                   data-tour='jobs-location'
                   aria-label={`Selected location ${selectedLocation || "Remote"}`}
                   role='status'
-                  className='flex h-12 items-center rounded-xl border border-[#2dd4bf]/20 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] px-6 pr-12 text-base font-medium text-foreground sm:text-lg'
+                  className='flex h-12 items-center rounded-xl border border-[#ffd700]/20 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] px-6 pr-12 text-base font-medium text-foreground sm:text-lg'
                 >
                   <span className='truncate'>{selectedLocation || "Remote"}</span>
                 </div>
@@ -3561,7 +3561,7 @@ export const JobPage = (): JSX.Element => {
                     onClick={() => setLocationScope(scope)}
                     className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all duration-200 ${
                       locationScope === scope
-                        ? "bg-[#2dd4bf]/15 text-[#2dd4bf] border border-[#2dd4bf]/30"
+                        ? "bg-[#ffd700]/15 text-[#ffd700] border border-[#ffd700]/30"
                         : "text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 border border-transparent"
                     }`}
                   >
@@ -3575,10 +3575,10 @@ export const JobPage = (): JSX.Element => {
 
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8'>
           <div className='space-y-4'>
-            <div className='flex items-center justify-between mb-3 sticky top-0 z-10 backdrop-blur-xl bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  rounded-xl px-4 py-3 border border-[#2dd4bf]/10 lg:static  lg:bg-transparent lg:border-0 lg:backdrop-blur-none'>
+            <div className='flex items-center justify-between mb-3 sticky top-0 z-10 backdrop-blur-xl bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  rounded-xl px-4 py-3 border border-[#ffd700]/10 lg:static  lg:bg-transparent lg:border-0 lg:backdrop-blur-none'>
               <h2 className='text-lg sm:text-xl font-bold text-foreground flex items-center gap-2'>
                 <svg
-                  className='w-5 h-5 text-[#2dd4bf]'
+                  className='w-5 h-5 text-[#ffd700]'
                   fill='none'
                   viewBox='0 0 24 24'
                   stroke='currentColor'
@@ -3600,7 +3600,7 @@ export const JobPage = (): JSX.Element => {
                     <>
                       <span>{total} Jobs Found</span>
                       {total > 0 && (
-                        <span className='ml-2 text-xs font-normal px-2 py-1 rounded-lg bg-[#2dd4bf]/10 text-[#2dd4bf] border border-[#2dd4bf]/30'>
+                        <span className='ml-2 text-xs font-normal px-2 py-1 rounded-lg bg-[#ffd700]/10 text-[#ffd700] border border-[#ffd700]/30'>
                           AI Matched
                         </span>
                       )}
@@ -3629,7 +3629,7 @@ export const JobPage = (): JSX.Element => {
             </div>
 
             {queueStatus === "ready" && total > 0 && !incrementalMode && (
-              <div className='hidden lg:grid grid-cols-[auto,1fr,auto] items-center gap-3 px-3 py-2 text-xs uppercase tracking-wider text-[#2dd4bf]/60 font-semibold bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border border-[#2dd4bf]/10 rounded-xl'>
+              <div className='hidden lg:grid grid-cols-[auto,1fr,auto] items-center gap-3 px-3 py-2 text-xs uppercase tracking-wider text-[#ffd700]/60 font-semibold bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border border-[#ffd700]/10 rounded-xl'>
                 <span className='pl-2'>Role</span>
                 <div className='grid grid-cols-3 gap-2'>
                   <span>Company</span>
@@ -3682,9 +3682,9 @@ export const JobPage = (): JSX.Element => {
             )}
             {(queueStatus === "populating" || incrementalMode) && (
               <div className='space-y-5'>
-                <Card className='relative overflow-hidden border border-[#2dd4bf]/20 bg-gradient-to-br from-background via-background/98 to-background/95 p-6 sm:p-7'>
+                <Card className='relative overflow-hidden border border-[#ffd700]/20 bg-gradient-to-br from-background via-background/98 to-background/95 p-6 sm:p-7'>
                   <motion.div
-                    className='pointer-events-none absolute inset-[-40%] bg-[radial-gradient(circle_at_top,rgba(45,212,191,0.28),rgba(45,212,191,0)_60%)] opacity-60'
+                    className='pointer-events-none absolute inset-[-40%] bg-[radial-gradient(circle_at_top,rgba(255,215,0,0.28),rgba(255,215,0,0)_60%)] opacity-60'
                     animate={{ rotate: [0, 360] }}
                     transition={{
                       duration: 14,
@@ -3693,9 +3693,9 @@ export const JobPage = (): JSX.Element => {
                     }}
                   />
                   <div className='relative flex flex-col gap-5'>
-                    <div className='flex items-center gap-3 text-xs uppercase tracking-[0.4em] text-[#2dd4bf]/70'>
-                      <span className='inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#2dd4bf]/40 bg-[#2dd4bf]/10'>
-                        <span className='h-2 w-2 rounded-full bg-[#2dd4bf] animate-ping' />
+                    <div className='flex items-center gap-3 text-xs uppercase tracking-[0.4em] text-[#ffd700]/70'>
+                      <span className='inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#ffd700]/40 bg-[#ffd700]/10'>
+                        <span className='h-2 w-2 rounded-full bg-[#ffd700] animate-ping' />
                       </span>
                       Scanning networks for roles
                     </div>
@@ -3708,13 +3708,13 @@ export const JobPage = (): JSX.Element => {
                           >
                             <div className='flex items-center justify-between text-xs text-foreground/60'>
                               <span>{label}</span>
-                              <span className='text-[9px] font-mono text-[#2dd4bf]/80'>
+                              <span className='text-[9px] font-mono text-[#ffd700]/80'>
                                 {String(idx + 1).padStart(2, "0")}
                               </span>
                             </div>
                             <div className='mt-3 h-2 rounded-full bg-foreground/10 overflow-hidden'>
                               <motion.div
-                                className='h-full bg-gradient-to-r from-background via-[#2dd4bf] to-[#5eead4]'
+                                className='h-full bg-gradient-to-r from-background via-[#ffd700] to-[#5eead4]'
                                 animate={{
                                   width: ["15%", "85%", "35%", "70%"],
                                 }}
@@ -3761,10 +3761,10 @@ export const JobPage = (): JSX.Element => {
                   {Array.from({ length: pageSize }).map((_, i) => (
                     <Card
                       key={i}
-                      className='relative overflow-hidden border border-[#2dd4bf]/25 bg-gradient-to-br from-background via-background/98 to-background/95 p-5 sm:p-6'
+                      className='relative overflow-hidden border border-[#ffd700]/25 bg-gradient-to-br from-background via-background/98 to-background/95 p-5 sm:p-6'
                     >
                       <motion.div
-                        className='absolute inset-0 bg-[linear-gradient(120deg,rgba(45,212,191,0.12)_0%,rgba(45,212,191,0.02)_38%,rgba(45,212,191,0.15)_72%,rgba(45,212,191,0.02)_100%)]'
+                        className='absolute inset-0 bg-[linear-gradient(120deg,rgba(255,215,0,0.12)_0%,rgba(255,215,0,0.02)_38%,rgba(255,215,0,0.15)_72%,rgba(255,215,0,0.02)_100%)]'
                         animate={{
                           backgroundPosition: ["0% 0%", "120% 0%", "0% 0%"],
                         }}
@@ -3777,9 +3777,9 @@ export const JobPage = (): JSX.Element => {
                       />
                       <div className='relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
                         <div className='flex flex-1 items-start gap-4'>
-                          <div className='relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-[#2dd4bf]/25 bg-card border border-foreground/10'>
+                          <div className='relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-[#ffd700]/25 bg-card border border-foreground/10'>
                             <motion.span
-                              className='absolute h-10 w-10 rounded-full bg-[#2dd4bf]/20'
+                              className='absolute h-10 w-10 rounded-full bg-[#ffd700]/20'
                               animate={{
                                 scale: [0.85, 1.05, 0.85],
                                 opacity: [0.4, 0.15, 0.4],
@@ -3790,7 +3790,7 @@ export const JobPage = (): JSX.Element => {
                                 ease: "easeInOut",
                               }}
                             />
-                            <span className='relative h-8 w-8 rounded-full border border-[#2dd4bf]/40' />
+                            <span className='relative h-8 w-8 rounded-full border border-[#ffd700]/40' />
                           </div>
                           <div className='flex-1 space-y-3'>
                             <div className='h-4 w-3/5 rounded bg-foreground/10' />
@@ -3837,11 +3837,11 @@ export const JobPage = (): JSX.Element => {
               </Card>
             )}
             {applyingAll && (
-              <Card className='relative overflow-hidden border border-[#2dd4bf]/30 bg-gradient-to-br from-background via-background/98 to-background/95 text-foreground p-4 sm:p-5'>
-                <div className='pointer-events-none absolute -inset-32 bg-[#2dd4bf]/10 blur-3xl opacity-40' />
+              <Card className='relative overflow-hidden border border-[#ffd700]/30 bg-gradient-to-br from-background via-background/98 to-background/95 text-foreground p-4 sm:p-5'>
+                <div className='pointer-events-none absolute -inset-32 bg-[#ffd700]/10 blur-3xl opacity-40' />
                 <div className='relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'>
                   <div className='flex items-center gap-3'>
-                    <Loader2 className='w-5 h-5 animate-spin text-[#2dd4bf]' />
+                    <Loader2 className='w-5 h-5 animate-spin text-[#ffd700]' />
                     <div>
                       <div className='text-sm font-medium'>
                         Automation in progress
@@ -3861,7 +3861,7 @@ export const JobPage = (): JSX.Element => {
                     className='absolute inset-0 opacity-30'
                     style={{
                       background:
-                        "linear-gradient(90deg, transparent 0%, rgba(45,212,191,0.6) 50%, transparent 100%)",
+                        "linear-gradient(90deg, transparent 0%, rgba(255,215,0,0.6) 50%, transparent 100%)",
                     }}
                     animate={{ x: ["-100%", "200%"] }}
                     transition={{
@@ -3871,7 +3871,7 @@ export const JobPage = (): JSX.Element => {
                     }}
                   />
                   <motion.div
-                    className='relative h-full bg-gradient-to-r from-[#22d3ee] via-[#22d3ee] to-[#0d9488]'
+                    className='relative h-full bg-gradient-to-r from-[#fbbf24] via-[#fbbf24] to-[#b45309]'
                     initial={{ width: "0%" }}
                     animate={{
                       width: `${Math.min(100, Math.round((applyProgress.done / Math.max(1, applyProgress.total)) * 100))}%`,
@@ -3886,12 +3886,12 @@ export const JobPage = (): JSX.Element => {
               <div className='relative min-h-[600px] flex items-center justify-center py-12'>
                 {/* Ambient Background Effects */}
                 <div className='absolute inset-0 overflow-hidden rounded-3xl'>
-                  <div className='absolute top-1/4 left-1/4 w-96 h-96 bg-[#2dd4bf]/5 rounded-full blur-3xl animate-pulse' />
+                  <div className='absolute top-1/4 left-1/4 w-96 h-96 bg-[#ffd700]/5 rounded-full blur-3xl animate-pulse' />
                   <div className='absolute bottom-1/4 right-1/4 w-80 h-80 bg-background/5 rounded-full blur-3xl animate-pulse delay-1000' />
                 </div>
 
                 {/* Main Content */}
-                <Card className='relative z-10 max-w-2xl mx-auto bg-gradient-to-br from-background via-background/95 to-background/90 border border-[#2dd4bf]/20 backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_0_1px_rgba(45,212,191,0.1)]'>
+                <Card className='relative z-10 max-w-2xl mx-auto bg-gradient-to-br from-background via-background/95 to-background/90 border border-[#ffd700]/20 backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,215,0,0.1)]'>
                   <div className='p-8 sm:p-12 text-center space-y-8'>
                     {/* Icon Container with Animation */}
                     <motion.div
@@ -3901,18 +3901,18 @@ export const JobPage = (): JSX.Element => {
                       className='relative mx-auto w-32 h-32'
                     >
                       {/* Glowing Ring */}
-                      <div className='absolute inset-0 rounded-full bg-gradient-to-br from-[#22d3ee]/20 to-background/10 blur-xl animate-pulse' />
+                      <div className='absolute inset-0 rounded-full bg-gradient-to-br from-[#fbbf24]/20 to-background/10 blur-xl animate-pulse' />
 
                       {/* Icon Background */}
-                      <div className='relative w-full h-full rounded-full bg-gradient-to-br from-[#22d3ee]/10 to-background/5 border border-[#2dd4bf]/30 flex items-center justify-center shadow-[0_0_40px_rgba(45,212,191,0.15)]'>
+                      <div className='relative w-full h-full rounded-full bg-gradient-to-br from-[#fbbf24]/10 to-background/5 border border-[#ffd700]/30 flex items-center justify-center shadow-[0_0_40px_rgba(255,215,0,0.15)]'>
                         <Briefcase
-                          className='w-16 h-16 text-[#2dd4bf] drop-shadow-[0_0_20px_rgba(45,212,191,0.6)]'
+                          className='w-16 h-16 text-[#ffd700] drop-shadow-[0_0_20px_rgba(255,215,0,0.6)]'
                           strokeWidth={1.5}
                         />
                       </div>
 
                       {/* Floating Particles */}
-                      <div className='absolute -top-2 -right-2 w-3 h-3 rounded-full bg-[#2dd4bf] animate-ping opacity-40' />
+                      <div className='absolute -top-2 -right-2 w-3 h-3 rounded-full bg-[#ffd700] animate-ping opacity-40' />
                       <div className='absolute -bottom-2 -left-2 w-2 h-2 rounded-full bg-background animate-ping opacity-40 delay-500' />
                     </motion.div>
 
@@ -3970,7 +3970,7 @@ export const JobPage = (): JSX.Element => {
                           )
                         }
                         disabled={incrementalMode}
-                        className='group relative overflow-hidden px-8 py-6 rounded-xl bg-gradient-to-r from-[#22d3ee] to-background text- font-semibold text-base shadow-[0_0_0_1px_#2dd4bf,0_8px_32px_rgba(45,212,191,0.4)] hover:shadow-[0_0_0_1px_#2dd4bf,0_12px_48px_rgba(45,212,191,0.6)] transition-all duration-300 hover:scale-105 active:scale-95'
+                        className='group relative overflow-hidden px-8 py-6 rounded-xl bg-gradient-to-r from-[#fbbf24] to-background text- font-semibold text-base shadow-[0_0_0_1px_#ffd700,0_8px_32px_rgba(255,215,0,0.4)] hover:shadow-[0_0_0_1px_#ffd700,0_12px_48px_rgba(255,215,0,0.6)] transition-all duration-300 hover:scale-105 active:scale-95'
                       >
                         <span className='relative z-10 flex items-center gap-3'>
                           <Search className='w-5 h-5' />
@@ -3982,7 +3982,7 @@ export const JobPage = (): JSX.Element => {
                       <Button
                         onClick={() => navigate("/dashboard/profile")}
                         variant='ghost'
-                        className='px-6 py-6 rounded-xl border border-foreground/10 text-foreground hover:bg-foreground/5 hover:border-[#2dd4bf]/40 transition-all duration-300'
+                        className='px-6 py-6 rounded-xl border border-foreground/10 text-foreground hover:bg-foreground/5 hover:border-[#ffd700]/40 transition-all duration-300'
                       >
                         <span className='flex items-center gap-2'>
                           <User className='w-4 h-4' />
@@ -4017,9 +4017,9 @@ export const JobPage = (): JSX.Element => {
                       ].map((feature) => (
                         <div
                           key={feature.label}
-                          className='flex flex-col items-center gap-2 p-4 rounded-lg bg-foreground/5 border border-foreground/5 hover:border-[#2dd4bf]/20 transition-colors'
+                          className='flex flex-col items-center gap-2 p-4 rounded-lg bg-foreground/5 border border-foreground/5 hover:border-[#ffd700]/20 transition-colors'
                         >
-                          <feature.icon className='w-5 h-5 text-[#2dd4bf]' />
+                          <feature.icon className='w-5 h-5 text-[#ffd700]' />
                           <div className='text-center'>
                             <div className='text-sm font-medium text-foreground'>
                               {feature.label}
@@ -4073,16 +4073,16 @@ export const JobPage = (): JSX.Element => {
                   <div
                     className={`relative overflow-hidden rounded-2xl border transition-all duration-300 p-5 sm:p-6 ${
                       selectedJob === job.id
-                        ? "bg-background border-[#2dd4bf] shadow-[0_0_30px_rgba(45,212,191,0.15)]"
-                        : "bg-gradient-to-br from-background to-background/95 border-foreground/5 hover:border-[#2dd4bf]/30 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+                        ? "bg-background border-[#ffd700] shadow-[0_0_30px_rgba(255,215,0,0.15)]"
+                        : "bg-gradient-to-br from-background to-background/95 border-foreground/5 hover:border-[#ffd700]/30 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
                     }`}
                   >
                     {/* Selection Indicator Line */}
                     <div
                       className={`absolute left-0 top-0 bottom-0 w-1 transition-all duration-300 ${
                         selectedJob === job.id
-                          ? "bg-[#2dd4bf]"
-                          : "bg-transparent group-hover:bg-[#2dd4bf]/50"
+                          ? "bg-[#ffd700]"
+                          : "bg-transparent group-hover:bg-[#ffd700]/50"
                       }`}
                     />
 
@@ -4104,7 +4104,7 @@ export const JobPage = (): JSX.Element => {
                             />
                           </div>
                         ) : (
-                          <div className='w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[#22d3ee] to-background flex items-center justify-center text- font-bold text-xl shadow-[0_0_15px_rgba(45,212,191,0.2)]'>
+                          <div className='w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[#fbbf24] to-background flex items-center justify-center text- font-bold text-xl shadow-[0_0_15px_rgba(255,215,0,0.2)]'>
                             {job.logo}
                           </div>
                         )}
@@ -4118,8 +4118,8 @@ export const JobPage = (): JSX.Element => {
                             <h3
                               className={`font-bold text-lg sm:text-xl leading-tight transition-colors ${
                                 selectedJob === job.id
-                                  ? "text-[#2dd4bf]"
-                                  : "text-foreground group-hover:text-[#2dd4bf]"
+                                  ? "text-[#ffd700]"
+                                  : "text-foreground group-hover:text-[#ffd700]"
                               }`}
                               title={job.title}
                             >
@@ -4150,7 +4150,7 @@ export const JobPage = (): JSX.Element => {
                                 Date.now() - postedTs <= 48 * 60 * 60 * 1000;
                               if (isNew) {
                                 return (
-                                  <span className='inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-[#2dd4bf]/10 text-[#2dd4bf] border border-[#2dd4bf]/20 shadow-[0_0_10px_rgba(45,212,191,0.1)]'>
+                                  <span className='inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-[#ffd700]/10 text-[#ffd700] border border-[#ffd700]/20 shadow-[0_0_10px_rgba(255,215,0,0.1)]'>
                                     New
                                   </span>
                                 );
@@ -4158,7 +4158,7 @@ export const JobPage = (): JSX.Element => {
                               return null;
                             })()}
                             {job.matchScore && job.matchScore >= 80 && (
-                              <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-gradient-to-r from-[#22d3ee]/20 to-[#0d9488]/5 text-[#2dd4bf] border border-[#2dd4bf]/20'>
+                              <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-gradient-to-r from-[#fbbf24]/20 to-[#b45309]/5 text-[#ffd700] border border-[#ffd700]/20'>
                                 <Sparkles className='w-3 h-3' />
                                 {job.matchScore}% Match
                               </span>
@@ -4233,11 +4233,11 @@ export const JobPage = (): JSX.Element => {
                               }
                               if (salaryText) {
                                 return (
-                                  <div className='inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#2dd4bf]/5 border border-[#2dd4bf]/10 text-xs text-gray-200'>
+                                  <div className='inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#ffd700]/5 border border-[#ffd700]/10 text-xs text-gray-200'>
                                     <span className='text-base leading-none'>
                                       💰
                                     </span>
-                                    <span className='font-medium text-[#2dd4bf]'>
+                                    <span className='font-medium text-[#ffd700]'>
                                       {salaryText}
                                     </span>
                                   </div>
@@ -4394,7 +4394,7 @@ export const JobPage = (): JSX.Element => {
                             <button
                               key={idx}
                               onClick={() => setCurrentPage(p)}
-                              className={`h-8 min-w-8 px-2 rounded-md border text-[12px] ${p === clampedPage ? "border-[#2dd4bf]/50 text-[#2dd4bf] bg-[#2dd4bf]/10" : "border-foreground/20 text-foreground/70 hover:text-foreground hover:border-foreground/40 hover:bg-foreground/10"}`}
+                              className={`h-8 min-w-8 px-2 rounded-md border text-[12px] ${p === clampedPage ? "border-[#ffd700]/50 text-[#ffd700] bg-[#ffd700]/10" : "border-foreground/20 text-foreground/70 hover:text-foreground hover:border-foreground/40 hover:bg-foreground/10"}`}
                             >
                               {p}
                             </button>
@@ -4567,9 +4567,9 @@ export const JobPage = (): JSX.Element => {
                           <Card
                             id='jobs-ai-match'
                             data-tour='jobs-ai-match'
-                            className='relative overflow-hidden border border-[#2dd4bf]/20 bg-gradient-to-br from-background via-background to-background p-6'
+                            className='relative overflow-hidden border border-[#ffd700]/20 bg-gradient-to-br from-background via-background to-background p-6'
                           >
-                            <span className='pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#2dd4bf]/20 blur-3xl opacity-60' />
+                            <span className='pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#ffd700]/20 blur-3xl opacity-60' />
                             <div className='relative flex flex-col gap-5'>
                               {/* Header row: logo + info + action buttons */}
                               <div className='flex items-start gap-3 sm:gap-4'>
@@ -4587,7 +4587,7 @@ export const JobPage = (): JSX.Element => {
                                       }
                                     />
                                   ) : (
-                                    <div className='w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-gradient-to-r from-[#22d3ee] to-background rounded-xl flex items-center justify-center font-bold text-lg sm:text-xl md:text-2xl flex-shrink-0'>
+                                    <div className='w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-gradient-to-r from-[#fbbf24] to-background rounded-xl flex items-center justify-center font-bold text-lg sm:text-xl md:text-2xl flex-shrink-0'>
                                       {job.logo}
                                     </div>
                                   )}
@@ -4597,7 +4597,7 @@ export const JobPage = (): JSX.Element => {
                                     <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3'>
                                       {/* Title & meta */}
                                       <div className='flex-1 min-w-0 space-y-1.5'>
-                                    <div className='inline-flex items-center gap-2 flex-wrap text-[11px] uppercase tracking-[0.3em] text-[#2dd4bf]/80'>
+                                    <div className='inline-flex items-center gap-2 flex-wrap text-[11px] uppercase tracking-[0.3em] text-[#ffd700]/80'>
                                       <Sparkles className='w-3 h-3' />
                                       Featured Job
                                     </div>
@@ -4646,7 +4646,7 @@ export const JobPage = (): JSX.Element => {
                                       href={primaryHref}
                                       target='_blank'
                                       rel='noopener noreferrer'
-                                      className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#2dd4bf]/50 bg-[#2dd4bf]/15 px-3 py-1.5 text-sm font-medium text-[#2dd4bf] transition hover:bg-[#2dd4bf]/25 hover:shadow-[0_10px_30px_rgba(45,212,191,0.2)] whitespace-nowrap'
+                                      className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#ffd700]/50 bg-[#ffd700]/15 px-3 py-1.5 text-sm font-medium text-[#ffd700] transition hover:bg-[#ffd700]/25 hover:shadow-[0_10px_30px_rgba(255,215,0,0.2)] whitespace-nowrap'
                                     >
                                       View Posting
                                     </a>
@@ -4654,7 +4654,7 @@ export const JobPage = (): JSX.Element => {
                                   <Button
                                     variant='ghost'
                                     onClick={() => openAutoApplyFlow(job)}
-                                    className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#2dd4bf]/40 bg-gradient-to-r from-[#22d3ee]/10 via-transparent to-[#0d9488]/10 px-3 py-1.5 text-sm font-medium text-foreground transition hover:from-[#22d3ee]/20 hover:to-[#0d9488]/5 whitespace-nowrap'
+                                    className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#ffd700]/40 bg-gradient-to-r from-[#fbbf24]/10 via-transparent to-[#b45309]/10 px-3 py-1.5 text-sm font-medium text-foreground transition hover:from-[#fbbf24]/20 hover:to-[#b45309]/5 whitespace-nowrap'
                                     title='Launch auto apply suite for this job'
                                   >
                                     <Briefcase className='w-4 h-4' />
@@ -4695,7 +4695,7 @@ export const JobPage = (): JSX.Element => {
                       <Card className='border border-border bg-card/80 p-6'>
                         <div className='flex items-center justify-between mb-4'>
                           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-                            <FileText className='w-4 h-4 text-[#2dd4bf]' />
+                            <FileText className='w-4 h-4 text-[#ffd700]' />
                             Job Description
                           </div>
                           <span className='text-[11px] uppercase tracking-wide text-foreground/35'>
@@ -4735,7 +4735,7 @@ export const JobPage = (): JSX.Element => {
                           ]}
                           requiredTier='Basics'
                           icon={
-                            <Sparkles className='h-12 w-12 text-[#2dd4bf]' />
+                            <Sparkles className='h-12 w-12 text-[#ffd700]' />
                           }
                           compact={true}
                         />
@@ -4773,7 +4773,7 @@ export const JobPage = (): JSX.Element => {
                           <Card className='relative overflow-hidden border border-foreground/12 bg-background p-0'>
                             <div className='flex items-center justify-between px-4 py-3 border-b border-foreground/10 bg-foreground/5'>
                               <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/75'>
-                                <Sparkles className='w-4 h-4 text-[#2dd4bf]' />
+                                <Sparkles className='w-4 h-4 text-[#ffd700]' />
                                 Screenshot
                               </div>
                               <span className='text-[11px] uppercase tracking-wide text-foreground/35'>
@@ -4815,7 +4815,7 @@ export const JobPage = (): JSX.Element => {
                           <Card className='border border-foreground/12 bg-gradient-to-br from-background via-background to-background p-6'>
                             <div className='flex items-center justify-between mb-3'>
                               <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/75'>
-                                <ShieldCheck className='w-4 h-4 text-[#2dd4bf]' />
+                                <ShieldCheck className='w-4 h-4 text-[#ffd700]' />
                                 Source Intelligence
                               </div>
                               <span className='text-[11px] uppercase tracking-wide text-foreground/35'>
@@ -4855,7 +4855,7 @@ export const JobPage = (): JSX.Element => {
                                         href={href}
                                         target='_blank'
                                         rel='noopener noreferrer'
-                                        className='text-sm text-[#2dd4bf] hover:underline'
+                                        className='text-sm text-[#ffd700] hover:underline'
                                       >
                                         {host || href}
                                       </a>
@@ -4923,12 +4923,12 @@ export const JobPage = (): JSX.Element => {
           size='lg'
           side='center'
         >
-          <div className='relative overflow-hidden rounded-2xl border border-[#2dd4bf]/20 bg-gradient-to-br from-background via-background to-background text-foreground'>
-            <div className='pointer-events-none absolute -top-32 right-0 h-72 w-72 rounded-full bg-[#2dd4bf]/20 blur-3xl opacity-40' />
+          <div className='relative overflow-hidden rounded-2xl border border-[#ffd700]/20 bg-gradient-to-br from-background via-background to-background text-foreground'>
+            <div className='pointer-events-none absolute -top-32 right-0 h-72 w-72 rounded-full bg-[#ffd700]/20 blur-3xl opacity-40' />
             <div className='relative p-6 sm:p-8 space-y-6'>
               <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6'>
                 <div className='space-y-3 max-w-xl'>
-                  <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#2dd4bf]/80'>
+                  <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#ffd700]/80'>
                     <Sparkles className='w-3 h-3' />
                     Auto Apply Suite
                   </div>
@@ -4946,7 +4946,7 @@ export const JobPage = (): JSX.Element => {
                     ) : (
                       <>
                         Deploy applications across{" "}
-                        <span className='text-[#2dd4bf] font-medium'>
+                        <span className='text-[#ffd700] font-medium'>
                           {autoApplyTargetCount}
                         </span>{" "}
                         curated roles with governed pacing, telemetry, and
@@ -4959,7 +4959,7 @@ export const JobPage = (): JSX.Element => {
                   <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
                     Jobs queued
                   </div>
-                  <div className='text-2xl font-semibold text-[#2dd4bf]'>
+                  <div className='text-2xl font-semibold text-[#ffd700]'>
                     {autoApplyTargetCount}
                   </div>
                   {selectedResume && (
@@ -4977,7 +4977,7 @@ export const JobPage = (): JSX.Element => {
 
               {loadingTier ? (
                 <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-8 text-center'>
-                  <div className='mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-[#2dd4bf]' />
+                  <div className='mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-[#ffd700]' />
                   <p className='text-sm text-foreground/70'>
                     Checking auto apply access...
                   </p>
@@ -5005,22 +5005,22 @@ export const JobPage = (): JSX.Element => {
                       key={step.id}
                       className={`flex-1 rounded-xl border p-3 sm:p-4 transition-all duration-300 ${
                         status === "active"
-                          ? "border-[#2dd4bf]/60 bg-[#2dd4bf]/10 shadow-[0_0_18px_rgba(45,212,191,0.25)]"
+                          ? "border-[#ffd700]/60 bg-[#ffd700]/10 shadow-[0_0_18px_rgba(255,215,0,0.25)]"
                           : status === "done"
-                            ? "border-[#2dd4bf]/30 bg-[#2dd4bf]/12 text-foreground/80"
+                            ? "border-[#ffd700]/30 bg-[#ffd700]/12 text-foreground/80"
                             : "border-foreground/12 bg-foreground/[0.02] text-foreground/60"
                       }`}
                     >
                       <div className='flex items-center gap-2 text-sm font-medium'>
                         {status === "done" ? (
-                          <span className='inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#2dd4bf] text-'>
+                          <span className='inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#ffd700] text-'>
                             <Check className='w-3.5 h-3.5' />
                           </span>
                         ) : (
                           <span
                             className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px] ${
                               status === "active"
-                                ? "border-[#2dd4bf]/70 text-[#2dd4bf]"
+                                ? "border-[#ffd700]/70 text-[#ffd700]"
                                 : "border-foreground/25 text-foreground/35"
                             }`}
                           >
@@ -5046,7 +5046,7 @@ export const JobPage = (): JSX.Element => {
                     </p>
                     <a
                       href='/dashboard/resumes'
-                      className='text-xs inline-flex items-center gap-1 text-[#2dd4bf] hover:text-[#a3ffb5]'
+                      className='text-xs inline-flex items-center gap-1 text-[#ffd700] hover:text-[#a3ffb5]'
                     >
                       Manage resumes
                     </a>
@@ -5072,8 +5072,8 @@ export const JobPage = (): JSX.Element => {
                               onClick={() => setSelectedResumeId(r.id)}
                               className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
                                 selected
-                                  ? "border-[#2dd4bf]/60 bg-[#2dd4bf]/12 shadow-[0_0_16px_rgba(45,212,191,0.25)]"
-                                  : "border-foreground/12 bg-foreground/[0.02] hover:border-[#2dd4bf]/45 hover:bg-[#2dd4bf]/8"
+                                  ? "border-[#ffd700]/60 bg-[#ffd700]/12 shadow-[0_0_16px_rgba(255,215,0,0.25)]"
+                                  : "border-foreground/12 bg-foreground/[0.02] hover:border-[#ffd700]/45 hover:bg-[#ffd700]/8"
                               }`}
                             >
                               <div className='min-w-0 space-y-1'>
@@ -5085,7 +5085,7 @@ export const JobPage = (): JSX.Element => {
                                     {r.name}
                                   </span>
                                   {r.is_favorite && (
-                                    <span className='text-[10px] px-1.5 py-0.5 rounded-full border border-[#2dd4bf]/40 text-[#2dd4bf] bg-[#2dd4bf]/10'>
+                                    <span className='text-[10px] px-1.5 py-0.5 rounded-full border border-[#ffd700]/40 text-[#ffd700] bg-[#ffd700]/10'>
                                       Preferred
                                     </span>
                                   )}
@@ -5102,8 +5102,8 @@ export const JobPage = (): JSX.Element => {
                               <span
                                 className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
                                   selected
-                                    ? "border-[#2dd4bf]/70 bg-[#2dd4bf] text-"
-                                    : "border-foreground/20 text-foreground/40 group-hover:border-[#2dd4bf]/50 group-hover:text-[#2dd4bf]"
+                                    ? "border-[#ffd700]/70 bg-[#ffd700] text-"
+                                    : "border-foreground/20 text-foreground/40 group-hover:border-[#ffd700]/50 group-hover:text-[#ffd700]"
                                 }`}
                               >
                                 {selected ? (
@@ -5127,7 +5127,7 @@ export const JobPage = (): JSX.Element => {
                         </p>
                         <a
                           href='/dashboard/resumes'
-                          className='inline-flex items-center gap-2 text-[13px] px-4 py-2 rounded-lg border border-[#2dd4bf]/40 text-[#2dd4bf] bg-[#2dd4bf]/10 hover:bg-[#2dd4bf]/20 transition'
+                          className='inline-flex items-center gap-2 text-[13px] px-4 py-2 rounded-lg border border-[#ffd700]/40 text-[#ffd700] bg-[#ffd700]/10 hover:bg-[#ffd700]/20 transition'
                         >
                           Manage resumes
                         </a>
@@ -5142,7 +5142,7 @@ export const JobPage = (): JSX.Element => {
                       </p>
                       <a
                         href='/dashboard/cover-letter'
-                        className='text-xs inline-flex items-center gap-1 text-[#2dd4bf] hover:text-[#a3ffb5]'
+                        className='text-xs inline-flex items-center gap-1 text-[#ffd700] hover:text-[#a3ffb5]'
                       >
                         Manage cover letters
                       </a>
@@ -5156,8 +5156,8 @@ export const JobPage = (): JSX.Element => {
                             onClick={() => setSelectedCoverLetterId(null)}
                             className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
                               !selectedCoverLetterId
-                                ? "border-[#2dd4bf]/60 bg-[#2dd4bf]/12 shadow-[0_0_16px_rgba(45,212,191,0.25)]"
-                                : "border-foreground/12 bg-foreground/[0.02] hover:border-[#2dd4bf]/45 hover:bg-[#2dd4bf]/8"
+                                ? "border-[#ffd700]/60 bg-[#ffd700]/12 shadow-[0_0_16px_rgba(255,215,0,0.25)]"
+                                : "border-foreground/12 bg-foreground/[0.02] hover:border-[#ffd700]/45 hover:bg-[#ffd700]/8"
                             }`}
                           >
                             <div className='min-w-0 space-y-1'>
@@ -5176,8 +5176,8 @@ export const JobPage = (): JSX.Element => {
                             <span
                               className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
                                 !selectedCoverLetterId
-                                  ? "border-[#2dd4bf]/70 bg-[#2dd4bf] text-"
-                                  : "border-foreground/20 text-foreground/40 group-hover:border-[#2dd4bf]/50 group-hover:text-[#2dd4bf]"
+                                  ? "border-[#ffd700]/70 bg-[#ffd700] text-"
+                                  : "border-foreground/20 text-foreground/40 group-hover:border-[#ffd700]/50 group-hover:text-[#ffd700]"
                               }`}
                             >
                               {!selectedCoverLetterId ? (
@@ -5214,8 +5214,8 @@ export const JobPage = (): JSX.Element => {
                                 }
                                 className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
                                   selected
-                                    ? "border-[#2dd4bf]/60 bg-[#2dd4bf]/12 shadow-[0_0_16px_rgba(45,212,191,0.25)]"
-                                    : "border-foreground/12 bg-foreground/[0.02] hover:border-[#2dd4bf]/45 hover:bg-[#2dd4bf]/8"
+                                    ? "border-[#ffd700]/60 bg-[#ffd700]/12 shadow-[0_0_16px_rgba(255,215,0,0.25)]"
+                                    : "border-foreground/12 bg-foreground/[0.02] hover:border-[#ffd700]/45 hover:bg-[#ffd700]/8"
                                 }`}
                               >
                                 <div className='min-w-0 space-y-1'>
@@ -5248,8 +5248,8 @@ export const JobPage = (): JSX.Element => {
                                 <span
                                   className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
                                     selected
-                                      ? "border-[#2dd4bf]/70 bg-[#2dd4bf] text-"
-                                      : "border-foreground/20 text-foreground/40 group-hover:border-[#2dd4bf]/50 group-hover:text-[#2dd4bf]"
+                                      ? "border-[#ffd700]/70 bg-[#ffd700] text-"
+                                      : "border-foreground/20 text-foreground/40 group-hover:border-[#ffd700]/50 group-hover:text-[#ffd700]"
                                   }`}
                                 >
                                   {selected ? (
@@ -5273,7 +5273,7 @@ export const JobPage = (): JSX.Element => {
                           </p>
                           <a
                             href='/dashboard/cover-letter'
-                            className='inline-flex items-center gap-2 text-[13px] px-4 py-2 rounded-lg border border-[#2dd4bf]/40 text-[#2dd4bf] bg-[#2dd4bf]/10 hover:bg-[#2dd4bf]/20 transition'
+                            className='inline-flex items-center gap-2 text-[13px] px-4 py-2 rounded-lg border border-[#ffd700]/40 text-[#ffd700] bg-[#ffd700]/10 hover:bg-[#ffd700]/20 transition'
                           >
                             Manage cover letters
                           </a>
@@ -5287,13 +5287,13 @@ export const JobPage = (): JSX.Element => {
               {autoApplyStep === 2 && (
                 <div className='grid gap-4'>
                   <div className='grid sm:grid-cols-2 gap-4'>
-                    <div className='rounded-xl border border-[#2dd4bf]/35 bg-[#2dd4bf]/12 p-4 sm:p-5'>
+                    <div className='rounded-xl border border-[#ffd700]/35 bg-[#ffd700]/12 p-4 sm:p-5'>
                       <div className='flex items-center gap-2 text-sm font-medium text-[#ccfbf1]'>
                         <ShieldCheck className='w-4 h-4' />
                         Execution summary
                       </div>
                       <div className='mt-4 flex items-baseline gap-2'>
-                        <span className='text-3xl font-semibold text-[#2dd4bf]'>
+                        <span className='text-3xl font-semibold text-[#ffd700]'>
                           {autoApplyTargetCount}
                         </span>
                         <span className='text-sm text-foreground/75'>
@@ -5310,7 +5310,7 @@ export const JobPage = (): JSX.Element => {
                     </div>
                     <div className='rounded-xl border border-foreground/12 bg-foreground/[0.03] p-4 sm:p-5 space-y-3'>
                       <div className='flex items-center gap-2 text-sm font-medium text-foreground/80'>
-                        <FileText className='w-4 h-4 text-[#2dd4bf]' />
+                        <FileText className='w-4 h-4 text-[#ffd700]' />
                         Resume payload
                       </div>
                       {selectedResume ? (
@@ -5338,7 +5338,7 @@ export const JobPage = (): JSX.Element => {
                       </div>
                       <div className='pt-4 border-t border-foreground/10 space-y-3'>
                         <div className='flex items-center gap-2 text-sm font-medium text-foreground/80'>
-                          <FileText className='w-4 h-4 text-[#2dd4bf]' />
+                          <FileText className='w-4 h-4 text-[#ffd700]' />
                           Cover letter payload
                         </div>
                         {selectedCoverLetter ? (
@@ -5377,27 +5377,27 @@ export const JobPage = (): JSX.Element => {
                   </div>
                   <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5'>
                     <div className='flex items-center gap-2 text-sm font-medium text-foreground/80'>
-                      <Clock3 className='w-4 h-4 text-[#2dd4bf]' />
+                      <Clock3 className='w-4 h-4 text-[#ffd700]' />
                       Runbook
                     </div>
                     <ul className='mt-3 space-y-2 text-sm text-foreground/70'>
                       <li className='flex items-start gap-2'>
-                        <span className='mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-[#2dd4bf]' />
+                        <span className='mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-[#ffd700]' />
                         <span>
                           Sequential automation with intelligent retries; cancel
                           anytime from Diagnostics.
                         </span>
                       </li>
                       <li className='flex items-start gap-2'>
-                        <span className='mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-[#2dd4bf]' />
+                        <span className='mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-[#ffd700]' />
                         <span>
                           Each job updates status to{" "}
-                          <span className='text-[#2dd4bf]'>applied</span> and
+                          <span className='text-[#ffd700]'>applied</span> and
                           emits success or failure analytics.
                         </span>
                       </li>
                       <li className='flex items-start gap-2'>
-                        <span className='mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-[#2dd4bf]' />
+                        <span className='mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-[#ffd700]' />
                         <span>
                           We honour custom apply URLs and respect rate limits to
                           avoid vendor throttling.
@@ -5409,7 +5409,7 @@ export const JobPage = (): JSX.Element => {
                   {/* True Autonomy Toggle */}
                   <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5 flex items-center justify-between'>
                     <div>
-                      <div className='flex items-center gap-2 text-sm font-medium text-[#2dd4bf]'>
+                      <div className='flex items-center gap-2 text-sm font-medium text-[#ffd700]'>
                         <Sparkles className='w-4 h-4' />
                         True Autonomy
                       </div>
@@ -5424,7 +5424,7 @@ export const JobPage = (): JSX.Element => {
                       onClick={() =>
                         setTrueAutonomyEnabled(!trueAutonomyEnabled)
                       }
-                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${trueAutonomyEnabled ? "bg-[#2dd4bf]" : "bg-foreground/20"}`}
+                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${trueAutonomyEnabled ? "bg-[#ffd700]" : "bg-foreground/20"}`}
                       role='switch'
                       aria-checked={trueAutonomyEnabled}
                     >
@@ -5451,7 +5451,7 @@ export const JobPage = (): JSX.Element => {
                     <div className='mt-4 flex flex-col sm:flex-row items-baseline gap-4'>
                       <div className='flex items-baseline gap-2'>
                         <span
-                          className={`text-3xl font-semibold ${aiEvaluation.confidence_score >= 70 ? "text-[#2dd4bf]" : "text-[#ffb347]"}`}
+                          className={`text-3xl font-semibold ${aiEvaluation.confidence_score >= 70 ? "text-[#ffd700]" : "text-[#ffb347]"}`}
                         >
                           {aiEvaluation.confidence_score}%
                         </span>
@@ -5529,7 +5529,7 @@ export const JobPage = (): JSX.Element => {
                         </div>
                         {selectedResumeCandidateName && (
                           <p className='text-sm text-foreground/80 flex items-center gap-2'>
-                            <User className='w-3.5 h-3.5 text-[#2dd4bf]' />
+                            <User className='w-3.5 h-3.5 text-[#ffd700]' />
                             Detected candidate: {selectedResumeCandidateName}
                           </p>
                         )}
@@ -5558,8 +5558,8 @@ export const JobPage = (): JSX.Element => {
 
               {draftData && autoApplyStep === 4 && (
                 <div className='grid gap-4 mt-4'>
-                  <div className='rounded-xl border border-[#2dd4bf]/30 bg-[#2dd4bf]/5 p-5'>
-                    <div className='flex items-center gap-2 text-sm font-medium text-[#2dd4bf]'>
+                  <div className='rounded-xl border border-[#ffd700]/30 bg-[#ffd700]/5 p-5'>
+                    <div className='flex items-center gap-2 text-sm font-medium text-[#ffd700]'>
                       <Sparkles className='w-5 h-5' />
                       Draft Mode Review
                     </div>
@@ -5568,8 +5568,8 @@ export const JobPage = (): JSX.Element => {
                       Review and edit the drafts below before launching the
                       automation, or save them for later.
                     </p>
-                    <div className='mt-4 rounded-lg border border-[#2dd4bf]/20 bg-black/20 p-3 space-y-1'>
-                      <p className='text-xs uppercase tracking-wider text-[#2dd4bf]/75'>
+                    <div className='mt-4 rounded-lg border border-[#ffd700]/20 bg-black/20 p-3 space-y-1'>
+                      <p className='text-xs uppercase tracking-wider text-[#ffd700]/75'>
                         Draft Source
                       </p>
                       <p className='text-sm text-foreground'>
@@ -5596,7 +5596,7 @@ export const JobPage = (): JSX.Element => {
                           Tailored Cover Letter
                         </label>
                         <textarea
-                          className='w-full mt-1 h-32 p-3 text-sm bg-background border border-foreground/10 rounded-lg focus:outline-none focus:border-[#2dd4bf]/50 resize-y'
+                          className='w-full mt-1 h-32 p-3 text-sm bg-background border border-foreground/10 rounded-lg focus:outline-none focus:border-[#ffd700]/50 resize-y'
                           value={draftData.coverLetterText}
                           onChange={(e) =>
                             setDraftData({
@@ -5611,7 +5611,7 @@ export const JobPage = (): JSX.Element => {
                           Tailored Resume Content
                         </label>
                         <textarea
-                          className='w-full mt-1 h-48 p-3 text-sm bg-background border border-foreground/10 rounded-lg focus:outline-none focus:border-[#2dd4bf]/50 resize-y'
+                          className='w-full mt-1 h-48 p-3 text-sm bg-background border border-foreground/10 rounded-lg focus:outline-none focus:border-[#ffd700]/50 resize-y'
                           value={draftData.resumeText}
                           onChange={(e) =>
                             setDraftData({
@@ -5629,9 +5629,9 @@ export const JobPage = (): JSX.Element => {
               {autoApplyStep === 3 && (
                 <div className='grid gap-4 mt-2'>
                   {/* Progress Bar */}
-                  <div className='rounded-xl border border-[#2dd4bf]/30 bg-[#2dd4bf]/5 p-5'>
+                  <div className='rounded-xl border border-[#ffd700]/30 bg-[#ffd700]/5 p-5'>
                     <div className='flex items-center justify-between mb-3'>
-                      <div className='flex items-center gap-2 text-sm font-medium text-[#2dd4bf]'>
+                      <div className='flex items-center gap-2 text-sm font-medium text-[#ffd700]'>
                         {!automationFinished ? (
                           <Loader2 className='w-4 h-4 animate-spin' />
                         ) : applyProgress.fail === 0 ? (
@@ -5649,7 +5649,7 @@ export const JobPage = (): JSX.Element => {
                     </div>
                     <div className='w-full h-2 rounded-full bg-foreground/10 overflow-hidden'>
                       <motion.div
-                        className='h-full rounded-full bg-gradient-to-r from-[#22d3ee] to-[#00ff88]'
+                        className='h-full rounded-full bg-gradient-to-r from-[#fbbf24] to-[#00ff88]'
                         initial={{ width: "0%" }}
                         animate={{
                           width: `${applyProgress.total > 0 ? Math.round((applyProgress.done / applyProgress.total) * 100) : 0}%`,
@@ -5669,11 +5669,11 @@ export const JobPage = (): JSX.Element => {
                         Queued
                       </div>
                     </div>
-                    <div className='rounded-xl border border-[#2dd4bf]/25 bg-[#2dd4bf]/5 p-3 text-center'>
-                      <div className='text-2xl font-semibold text-[#2dd4bf]'>
+                    <div className='rounded-xl border border-[#ffd700]/25 bg-[#ffd700]/5 p-3 text-center'>
+                      <div className='text-2xl font-semibold text-[#ffd700]'>
                         {applyProgress.success}
                       </div>
-                      <div className='text-[10px] uppercase tracking-wider text-[#2dd4bf]/70 mt-1'>
+                      <div className='text-[10px] uppercase tracking-wider text-[#ffd700]/70 mt-1'>
                         Success
                       </div>
                     </div>
@@ -5698,7 +5698,7 @@ export const JobPage = (): JSX.Element => {
                     <div className='flex items-center justify-between px-4 py-2 border-b border-foreground/10'>
                       <div className='flex items-center gap-2 text-[11px] uppercase tracking-wider text-foreground/50'>
                         <span
-                          className={`inline-block h-1.5 w-1.5 rounded-full ${!automationFinished ? "bg-[#2dd4bf] animate-pulse" : "bg-foreground/30"}`}
+                          className={`inline-block h-1.5 w-1.5 rounded-full ${!automationFinished ? "bg-[#ffd700] animate-pulse" : "bg-foreground/30"}`}
                         />
                         Live Telemetry
                       </div>
@@ -5718,7 +5718,7 @@ export const JobPage = (): JSX.Element => {
                             {log.time}
                           </span>
                           <span
-                            className={`${log.status === "success" ? "text-[#2dd4bf]" : log.status === "error" ? "text-[#ff4747]" : "text-foreground/60"}`}
+                            className={`${log.status === "success" ? "text-[#ffd700]" : log.status === "error" ? "text-[#ff4747]" : "text-foreground/60"}`}
                           >
                             {log.message}
                           </span>
@@ -5735,9 +5735,9 @@ export const JobPage = (): JSX.Element => {
                             })}
                           </span>
                           <span className='text-foreground/40 flex items-center gap-1'>
-                            <span className='inline-block h-1 w-1 rounded-full bg-[#2dd4bf] animate-pulse' />
-                            <span className='inline-block h-1 w-1 rounded-full bg-[#2dd4bf] animate-pulse [animation-delay:150ms]' />
-                            <span className='inline-block h-1 w-1 rounded-full bg-[#2dd4bf] animate-pulse [animation-delay:300ms]' />
+                            <span className='inline-block h-1 w-1 rounded-full bg-[#ffd700] animate-pulse' />
+                            <span className='inline-block h-1 w-1 rounded-full bg-[#ffd700] animate-pulse [animation-delay:150ms]' />
+                            <span className='inline-block h-1 w-1 rounded-full bg-[#ffd700] animate-pulse [animation-delay:300ms]' />
                           </span>
                         </div>
                       )}
@@ -5749,7 +5749,7 @@ export const JobPage = (): JSX.Element => {
               <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t border-foreground/12'>
                 <div className='flex items-center gap-3'>
                   <p className='text-[11px] leading-tight text-foreground/50 flex items-center gap-2 max-w-[280px]'>
-                    <ShieldCheck className='w-3.5 h-3.5 text-[#2dd4bf] shrink-0' />
+                    <ShieldCheck className='w-3.5 h-3.5 text-[#ffd700] shrink-0' />
                     <span>Automation respects existing filters and logs telemetry for audit trails.</span>
                   </p>
                 </div>
@@ -5759,7 +5759,7 @@ export const JobPage = (): JSX.Element => {
                       className={cn(
                         "whitespace-nowrap shrink-0",
                         automationFinished
-                          ? "border border-[#2dd4bf]/50 text-[#2dd4bf] bg-[#2dd4bf]/15 hover:bg-[#2dd4bf]/25"
+                          ? "border border-[#ffd700]/50 text-[#ffd700] bg-[#ffd700]/15 hover:bg-[#ffd700]/25"
                           : "border border-foreground/20 text-foreground/40 cursor-not-allowed opacity-50"
                       )}
                       disabled={!automationFinished}
@@ -5818,7 +5818,7 @@ export const JobPage = (): JSX.Element => {
                       aiEvaluation.missing_requirements.length > 0 ? (
                         <div className='flex items-center gap-4'>
                           <Button
-                            className='border border-[#2dd4bf]/50 text-[#2dd4bf] bg-[#2dd4bf]/15 hover:bg-[#2dd4bf]/25 whitespace-nowrap shrink-0'
+                            className='border border-[#ffd700]/50 text-[#ffd700] bg-[#ffd700]/15 hover:bg-[#ffd700]/25 whitespace-nowrap shrink-0'
                             onClick={handleDecisionBoundaryAutoFix}
                             disabled={
                               generatingDraft || evaluatingJob || !canAutoFixDecisionBoundary
@@ -5856,7 +5856,7 @@ export const JobPage = (): JSX.Element => {
                             )}
                           </Button>
                           <Button
-                            className='border-[#2dd4bf]/50 text-[#2dd4bf] bg-[#2dd4bf]/15 hover:bg-[#2dd4bf]/25 whitespace-nowrap shrink-0'
+                            className='border-[#ffd700]/50 text-[#ffd700] bg-[#ffd700]/15 hover:bg-[#ffd700]/25 whitespace-nowrap shrink-0'
                             onClick={() => applyAllJobs(false)}
                             disabled={applyingAll}
                           >
@@ -5872,10 +5872,10 @@ export const JobPage = (): JSX.Element => {
                           className={cn(
                             "border whitespace-nowrap shrink-0",
                             evaluatingJob || generatingDraft 
-                              ? "border-[#2dd4bf]/50" 
+                              ? "border-[#ffd700]/50" 
                               : aiEvaluation 
                                 ? "border-[#ffb347]/50 text-[#ffb347] bg-[#ffb347]/15 hover:bg-[#ffb347]/25" 
-                                : "border-[#2dd4bf]/50 text-[#2dd4bf] bg-[#2dd4bf]/15 hover:bg-[#2dd4bf]/25",
+                                : "border-[#ffd700]/50 text-[#ffd700] bg-[#ffd700]/15 hover:bg-[#ffd700]/25",
                             (autoApplyPrimaryDisabled || evaluatingJob || generatingDraft) && "opacity-50 cursor-not-allowed"
                           )}
                           disabled={
@@ -6022,8 +6022,8 @@ export const JobPage = (): JSX.Element => {
                   }[];
 
                   return (
-                    <Card className='relative overflow-hidden border border-[#2dd4bf]/25 bg-gradient-to-br from-background via-background to-background p-5'>
-                      <span className='pointer-events-none absolute -top-20 -right-10 h-40 w-40 rounded-full bg-[#2dd4bf]/20 blur-3xl opacity-50' />
+                    <Card className='relative overflow-hidden border border-[#ffd700]/25 bg-gradient-to-br from-background via-background to-background p-5'>
+                      <span className='pointer-events-none absolute -top-20 -right-10 h-40 w-40 rounded-full bg-[#ffd700]/20 blur-3xl opacity-50' />
                       <div className='relative space-y-4'>
                         <div className='flex items-start gap-3'>
                           {j.logoUrl && !logoError[j.id] ? (
@@ -6036,12 +6036,12 @@ export const JobPage = (): JSX.Element => {
                               }
                             />
                           ) : (
-                            <div className='w-12 h-12 bg-gradient-to-r from-[#22d3ee] to-background rounded-xl flex items-center justify-center text- font-bold text-lg'>
+                            <div className='w-12 h-12 bg-gradient-to-r from-[#fbbf24] to-background rounded-xl flex items-center justify-center text- font-bold text-lg'>
                               {j.logo}
                             </div>
                           )}
                           <div className='flex-1 min-w-0 space-y-1'>
-                            <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-[#2dd4bf]/70'>
+                            <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-[#ffd700]/70'>
                               <Sparkles className='w-3 h-3' />
                               Featured Job
                             </div>
@@ -6105,7 +6105,7 @@ export const JobPage = (): JSX.Element => {
                               href={primaryHref}
                               target='_blank'
                               rel='noopener noreferrer'
-                              className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#2dd4bf]/50 bg-[#2dd4bf]/15 px-3 py-2 text-[13px] font-medium text-[#2dd4bf] transition hover:bg-[#2dd4bf]/25'
+                              className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#ffd700]/50 bg-[#ffd700]/15 px-3 py-2 text-[13px] font-medium text-[#ffd700] transition hover:bg-[#ffd700]/25'
                             >
                               View Posting
                             </a>
@@ -6113,7 +6113,7 @@ export const JobPage = (): JSX.Element => {
                           <Button
                             variant='ghost'
                             onClick={() => openAutoApplyFlow(j)}
-                            className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#2dd4bf]/40 bg-gradient-to-r from-[#22d3ee]/10 via-transparent to-[#0d9488]/10 px-3 py-2 text-[13px] font-medium text-foreground transition hover:from-[#22d3ee]/20 hover:to-[#0d9488]/5'
+                            className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#ffd700]/40 bg-gradient-to-r from-[#fbbf24]/10 via-transparent to-[#b45309]/10 px-3 py-2 text-[13px] font-medium text-foreground transition hover:from-[#fbbf24]/20 hover:to-[#b45309]/5'
                             title='Launch auto apply suite for this job'
                           >
                             <Briefcase className='w-4 h-4' />
@@ -6131,7 +6131,7 @@ export const JobPage = (): JSX.Element => {
                 <Card className='border border-border bg-card/80 p-4'>
                   <div className='flex items-center justify-between mb-3'>
                     <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-                      <FileText className='w-4 h-4 text-[#2dd4bf]' />
+                      <FileText className='w-4 h-4 text-[#ffd700]' />
                       Job Description
                     </div>
                     <span className='text-[10px] uppercase tracking-wide text-foreground/35'>
@@ -6169,7 +6169,7 @@ export const JobPage = (): JSX.Element => {
                       },
                     ]}
                     requiredTier='Basics'
-                    icon={<Sparkles className='h-12 w-12 text-[#2dd4bf]' />}
+                    icon={<Sparkles className='h-12 w-12 text-[#ffd700]' />}
                     compact={true}
                   />
                 ) : (
@@ -6203,7 +6203,7 @@ export const JobPage = (): JSX.Element => {
                     <Card className='border border-foreground/12 bg-background p-0 overflow-hidden'>
                       <div className='flex items-center justify-between px-3 py-2 border-b border-foreground/10 bg-foreground/5'>
                         <div className='inline-flex items-center gap-2 text-xs font-medium text-foreground/70'>
-                          <Sparkles className='w-3 h-3 text-[#2dd4bf]' />
+                          <Sparkles className='w-3 h-3 text-[#ffd700]' />
                           Screenshot
                         </div>
                         <span className='text-[10px] uppercase tracking-wide text-foreground/35'>
@@ -6244,7 +6244,7 @@ export const JobPage = (): JSX.Element => {
                     <Card className='border border-foreground/12 bg-gradient-to-br from-background via-background to-background p-4'>
                       <div className='flex items-center justify-between mb-2'>
                         <div className='inline-flex items-center gap-2 text-xs font-medium text-foreground/70'>
-                          <ShieldCheck className='w-3 h-3 text-[#2dd4bf]' />
+                          <ShieldCheck className='w-3 h-3 text-[#ffd700]' />
                           Source Intelligence
                         </div>
                         <span className='text-[10px] uppercase tracking-wide text-foreground/30'>
@@ -6284,7 +6284,7 @@ export const JobPage = (): JSX.Element => {
                                   href={href}
                                   target='_blank'
                                   rel='noopener noreferrer'
-                                  className='text-sm text-[#2dd4bf] hover:underline'
+                                  className='text-sm text-[#ffd700] hover:underline'
                                 >
                                   {host || href}
                                 </a>

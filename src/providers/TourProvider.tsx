@@ -337,23 +337,23 @@ const FloatingTourMenu: React.FC<{ registry: React.MutableRefObject<Map<string, 
   return (
     <div className="fixed z-[12000] bottom-4 right-4 flex flex-col items-end gap-2">
       {open && (
-        <div className="w-60 rounded-2xl border border-[#2dd4bf]/30 bg-background/95 backdrop-blur-md shadow-[0_0_0_1px_rgba(45,212,191,0.25),0_14px_32px_-8px_rgba(0,0,0,0.65)] p-3 flex flex-col gap-2">
+        <div className="w-60 rounded-2xl border border-[#ffd700]/30 bg-background/95 backdrop-blur-md shadow-[0_0_0_1px_rgba(255,215,0,0.25),0_14px_32px_-8px_rgba(0,0,0,0.65)] p-3 flex flex-col gap-2">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold tracking-wide text-[#2dd4bf] uppercase">Guided Tours</span>
-            <button onClick={() => setOpen(false)} className="text-[#2dd4bf]/70 hover:text-[#2dd4bf] text-xs">×</button>
+            <span className="text-xs font-semibold tracking-wide text-[#ffd700] uppercase">Guided Tours</span>
+            <button onClick={() => setOpen(false)} className="text-[#ffd700]/70 hover:text-[#ffd700] text-xs">×</button>
           </div>
           <div className="max-h-64 overflow-auto pr-1 custom-scrollbar">
             {pages.map(p => (
               <button
                 key={p}
                 onClick={() => { start(p); setOpen(false); }}
-                className={`w-full text-left px-2 py-1.5 rounded-md text-xs flex items-center justify-between group transition ${page === p && isRunning ? 'bg-[#2dd4bf]/15' : 'hover:bg-[#2dd4bf]/10'}`}
+                className={`w-full text-left px-2 py-1.5 rounded-md text-xs flex items-center justify-between group transition ${page === p && isRunning ? 'bg-[#ffd700]/15' : 'hover:bg-[#ffd700]/10'}`}
               >
                 <span className="truncate text-foreground/80 group-hover:text-white">{pageLabels[p] || p}</span>
                 {completion(p) ? (
-                  <span className="text-[10px] text-[#2dd4bf] font-medium">Done</span>
+                  <span className="text-[10px] text-[#ffd700] font-medium">Done</span>
                 ) : (
-                  <span className="text-[10px] text-[#2dd4bf]/60">Start</span>
+                  <span className="text-[10px] text-[#ffd700]/60">Start</span>
                 )}
               </button>
             ))}
@@ -362,17 +362,17 @@ const FloatingTourMenu: React.FC<{ registry: React.MutableRefObject<Map<string, 
             )}
           </div>
           <div className="flex justify-end">
-            <button onClick={() => setOpen(false)} className="text-[10px] px-2 py-1 rounded-md border border-[#2dd4bf]/30 text-[#2dd4bf]/70 hover:text-black hover:bg-[#2dd4bf] transition">Close</button>
+            <button onClick={() => setOpen(false)} className="text-[10px] px-2 py-1 rounded-md border border-[#ffd700]/30 text-[#ffd700]/70 hover:text-black hover:bg-[#ffd700] transition">Close</button>
           </div>
         </div>
       )}
       <button
         onClick={() => setOpen(o => !o)}
-        className={`h-11 px-4 rounded-full font-semibold text-sm flex items-center gap-2 shadow-[0_0_0_1px_rgba(45,212,191,0.3),0_8px_18px_-6px_rgba(0,0,0,0.6)] transition-colors ${open ? 'bg-[#2dd4bf] text-black' : 'bg-background text-[#2dd4bf] hover:bg-[#132413]'}`}
+        className={`h-11 px-4 rounded-full font-semibold text-sm flex items-center gap-2 shadow-[0_0_0_1px_rgba(255,215,0,0.3),0_8px_18px_-6px_rgba(0,0,0,0.6)] transition-colors ${open ? 'bg-[#ffd700] text-black' : 'bg-background text-[#ffd700] hover:bg-[#132413]'}`}
         aria-expanded={open}
         aria-label="Open guided tour menu"
       >
-        <span className="h-2 w-2 rounded-full bg-[#2dd4bf] animate-pulse" />
+        <span className="h-2 w-2 rounded-full bg-[#ffd700] animate-pulse" />
         {open ? 'Close Tours' : 'Guided Tours'}
       </button>
     </div>

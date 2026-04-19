@@ -130,7 +130,7 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
             <div className="flex items-center justify-between p-3 bg-background border border-foreground/10 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-foreground/80">Current Balance</p>
-                <p className="text-lg font-bold text-[#2dd4bf]">{access.currentBalance}</p>
+                <p className="text-lg font-bold text-[#ffd700]">{access.currentBalance}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground/80">Cost</p>

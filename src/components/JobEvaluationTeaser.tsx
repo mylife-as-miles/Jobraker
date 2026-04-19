@@ -40,13 +40,13 @@ export function JobEvaluationTeaser({
       className={`relative overflow-hidden rounded-2xl border border-foreground/12 bg-gradient-to-br from-foreground/[0.04] via-background to-background ${compact ? "p-4" : "p-6 sm:p-8"} ${className}`}
     >
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-[#2dd4bf]/10 blur-3xl" />
+        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-[#ffd700]/10 blur-3xl" />
         <div className="absolute -bottom-10 -left-10 h-44 w-44 rounded-full bg-violet-500/10 blur-3xl" />
       </div>
 
       <div className="relative z-10">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-[#2dd4bf]/35 bg-[#2dd4bf]/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#2dd4bf]">
+          <span className="rounded-full border border-[#ffd700]/35 bg-[#ffd700]/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#ffd700]">
             {getPromptBadgeLabel("Basics")}
           </span>
           <span className="inline-flex items-center gap-1 text-[11px] text-foreground/45">
@@ -56,8 +56,8 @@ export function JobEvaluationTeaser({
         </div>
 
         <div className="mb-2 flex items-start gap-2">
-          <div className="mt-0.5 rounded-lg bg-[#2dd4bf]/15 p-2">
-            <Sparkles className="h-5 w-5 text-[#2dd4bf]" />
+          <div className="mt-0.5 rounded-lg bg-[#ffd700]/15 p-2">
+            <Sparkles className="h-5 w-5 text-[#ffd700]" />
           </div>
           <div>
             <h3 className="text-base font-semibold text-foreground">
@@ -92,7 +92,7 @@ export function JobEvaluationTeaser({
             Same engine as single-job apply — see risks before you send.
           </p>
           <Link to="/dashboard/billing" className="shrink-0">
-            <Button className="w-full bg-gradient-to-r from-[#22d3ee] to-[#0d9488]/85 font-semibold text-black hover:from-[#22d3ee]/90 sm:w-auto">
+            <Button className="w-full bg-gradient-to-r from-[#fbbf24] to-[#b45309]/85 font-semibold text-black hover:from-[#fbbf24]/90 sm:w-auto">
               Upgrade for full AI fit report
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

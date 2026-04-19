@@ -55,7 +55,7 @@ SET default_table_access_method = "heap";
 CREATE TABLE IF NOT EXISTS "public"."appearance_settings" (
     "id" "uuid" NOT NULL,
     "theme" "text" DEFAULT 'auto'::"text",
-    "accent_color" "text" DEFAULT '#2dd4bf'::"text",
+    "accent_color" "text" DEFAULT '#ffd700'::"text",
     "reduce_motion" boolean DEFAULT false,
     "updated_at" timestamp with time zone DEFAULT "now"(),
     CONSTRAINT "appearance_settings_theme_check" CHECK (("theme" = ANY (ARRAY['dark'::"text", 'light'::"text", 'auto'::"text"])))

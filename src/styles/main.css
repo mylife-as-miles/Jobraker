@@ -4,11 +4,11 @@
 
 @layer base {
   :root {
-    /* Brand gradient: cyan → teal (replaces legacy #2dd4bf lime) */
-    --brand-from: #22d3ee;
-    --brand-to: #0d9488;
-    --brand-mid: #2dd4bf;
-    --brand: 173 58% 52%;
+    /* Product gold gradient (shell / brand). Job “Applied” flows use teal in components. */
+    --brand-from: #ffd700;
+    --brand-to: #b45309;
+    --brand-mid: #fbbf24;
+    --brand: 48 96% 50%;
     --chart-1: hsl(var(--brand));
     --chart-2: hsl(var(--brand) / 0.9);
     --chart-3: hsl(var(--brand) / 0.8);
@@ -17,10 +17,10 @@
   }
 
   .dark {
-    --brand-from: #22d3ee;
-    --brand-to: #0d9488;
-    --brand-mid: #2dd4bf;
-    --brand: 173 58% 52%;
+    --brand-from: #ffd700;
+    --brand-to: #b45309;
+    --brand-mid: #fbbf24;
+    --brand: 48 96% 50%;
     --chart-1: hsl(var(--brand));
     --chart-2: hsl(var(--brand) / 0.9);
     --chart-3: hsl(var(--brand) / 0.8);

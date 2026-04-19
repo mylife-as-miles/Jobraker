@@ -262,7 +262,7 @@ export function useAnalyticsData(
       const interviews = apps.filter((a: any) => String(a.status).toLowerCase() === "interview").length;
       const jobsFound = jobs.length;
       
-      const sourcePalette = ['#2dd4bf', '#56c2ff', '#f59e0b', '#fb7185', '#a78bfa', '#14b8a6'];
+      const sourcePalette = ['#ffd700', '#56c2ff', '#f59e0b', '#fb7185', '#a78bfa', '#14b8a6'];
       const sourceCounts = groupCounts(
         jobs.map((job: any) => {
           const rawSource = String(job.source_type || '').trim();
@@ -364,7 +364,7 @@ export function useAnalyticsData(
       // Bars and donut
       const bar = [
         { name: 'Jobs found', value: jobsFound, color: '#3B82F6' },
-        { name: 'Applications', value: applications, color: '#2dd4bf' },
+        { name: 'Applications', value: applications, color: '#ffd700' },
         { name: 'Interviews', value: interviews, color: '#F59E0B' },
       ];
 
@@ -581,12 +581,12 @@ function pickColor(name: string) {
   if (/offer/.test(key)) return '#10B981';
   if (/reject/.test(key)) return '#EF4444';
   if (/withdraw/.test(key)) return '#94A3B8';
-  if (/pending|appl/.test(key)) return '#2dd4bf';
+  if (/pending|appl/.test(key)) return '#ffd700';
   return '#3B82F6';
 }
 
 function matchScoreColor(score: number) {
-  if (score >= 90) return '#2dd4bf';
+  if (score >= 90) return '#ffd700';
   if (score >= 75) return '#FACC15';
   if (score >= 60) return '#FB923C';
   return '#F87171';

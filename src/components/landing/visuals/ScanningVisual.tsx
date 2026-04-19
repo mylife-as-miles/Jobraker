@@ -16,7 +16,7 @@ export const ScanningVisual = () => {
 
          {/* Scanning Beam */}
          <motion.div
-           className="absolute left-0 right-0 h-1 bg-[#2dd4bf] shadow-[0_0_15px_#2dd4bf] z-10"
+           className="absolute left-0 right-0 h-1 bg-[#ffd700] shadow-[0_0_15px_#ffd700] z-10"
            initial={{ top: 0, opacity: 0 }}
            animate={{
              top: ['0%', '100%'],

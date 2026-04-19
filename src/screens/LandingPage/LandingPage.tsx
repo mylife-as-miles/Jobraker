@@ -21,10 +21,10 @@ export const LandingPage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-mono selection:bg-[#2dd4bf] selection:text-black overflow-x-hidden">
+    <div className="min-h-screen bg-background text-foreground font-mono selection:bg-[#ffd700] selection:text-black overflow-x-hidden">
 
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-[#2dd4bf]/20">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-[#ffd700]/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
             <div className="flex items-center space-x-2 cursor-pointer" onClick={() => window.scrollTo(0,0)}>
@@ -42,13 +42,13 @@ export const LandingPage = () => {
               <Button
                 variant='ghost'
                 onClick={() => navigate("/signin")}
-                className='text-gray-400 hover:text-[#2dd4bf] hover:bg-transparent'
+                className='text-gray-400 hover:text-[#ffd700] hover:bg-transparent'
               >
                 LOGIN
               </Button>
               <Button
                 onClick={() => navigate("/signup")}
-                className='bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90 font-bold rounded-none'
+                className='bg-[#ffd700] text-black hover:bg-[#ffd700]/90 font-bold rounded-none'
               >
                 GET STARTED
               </Button>

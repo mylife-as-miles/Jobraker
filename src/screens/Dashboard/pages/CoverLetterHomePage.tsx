@@ -115,7 +115,7 @@ export const CoverLetterHomePage = () => {
 
           <Button
             onClick={handleCreateNew}
-            className='bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90 gap-2 font-semibold'
+            className='bg-[#ffd700] text-black hover:bg-[#ffd700]/90 gap-2 font-semibold'
           >
             <Plus className='w-4 h-4' />
             Create New
@@ -185,7 +185,7 @@ export const CoverLetterHomePage = () => {
                 onClick={handleCreateNew}
                 className='product-section-card-muted aspect-[3/4] border-dashed hover:border-[#ffd700]/60 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
               >
-                <div className='w-16 h-16 rounded-full bg-[#2dd4bf]/10 flex items-center justify-center text-[#2dd4bf] group-hover:scale-110 transition-transform'>
+                <div className='w-16 h-16 rounded-full bg-[#ffd700]/10 flex items-center justify-center text-[#ffd700] group-hover:scale-110 transition-transform'>
                   <Plus className='w-8 h-8' />
                 </div>
                 <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
@@ -276,7 +276,7 @@ export const CoverLetterHomePage = () => {
                 className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 border-dashed hover:border-[#ffd700]/60 cursor-pointer items-center group transition-all'
               >
                 <div className='col-span-6 flex items-center gap-3'>
-                  <div className='w-10 h-10 rounded-lg bg-[#2dd4bf]/10 flex items-center justify-center text-[#2dd4bf]'>
+                  <div className='w-10 h-10 rounded-lg bg-[#ffd700]/10 flex items-center justify-center text-[#ffd700]'>
                     <Plus className='w-5 h-5' />
                   </div>
                   <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>

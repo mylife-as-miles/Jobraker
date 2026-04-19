@@ -38,11 +38,11 @@ function TransactionDetailPanel({
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 20 }}
-          className="w-full max-w-md h-full bg-background border-l border-[#2dd4bf]/20 shadow-2xl overflow-y-auto"
+          className="w-full max-w-md h-full bg-background border-l border-[#ffd700]/20 shadow-2xl overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="p-6 border-b border-[#2dd4bf]/10 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
+          <div className="p-6 border-b border-[#ffd700]/10 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
             <div>
               <h2 className="text-xl font-bold text-white">Transaction Details</h2>
               <p className="text-sm text-gray-400 font-mono text-xs mt-1">{transaction.id}</p>
@@ -58,16 +58,16 @@ function TransactionDetailPanel({
           <div className="p-6 space-y-8">
             {/* Amount Badge */}
             <div className={`flex flex-col items-center justify-center p-8 rounded-2xl border ${isPositive
-              ? 'bg-[#2dd4bf]/5 border-[#2dd4bf]/20'
+              ? 'bg-[#ffd700]/5 border-[#ffd700]/20'
               : 'bg-red-500/5 border-red-500/20'
               }`}>
               <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${isPositive
-                ? 'bg-[#2dd4bf]/10 text-[#2dd4bf]'
+                ? 'bg-[#ffd700]/10 text-[#ffd700]'
                 : 'bg-red-500/10 text-red-500'
                 }`}>
                 {isPositive ? <ArrowUpRight className="w-8 h-8" /> : <ArrowDownRight className="w-8 h-8" />}
               </div>
-              <h3 className={`text-4xl font-bold ${isPositive ? 'text-[#2dd4bf]' : 'text-red-500'}`}>
+              <h3 className={`text-4xl font-bold ${isPositive ? 'text-[#ffd700]' : 'text-red-500'}`}>
                 {isPositive ? '+' : '-'}{Math.abs(transaction.amount)}
               </h3>
               <p className="text-gray-400 mt-2 uppercase text-xs font-medium tracking-wider">
@@ -266,7 +266,7 @@ export default function AdminCredits() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-[#2dd4bf] animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-[#ffd700] animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Loading credit data...</p>
         </div>
       </div>
@@ -286,15 +286,15 @@ export default function AdminCredits() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-background border border-[#2dd4bf]/20 rounded-2xl p-6 relative overflow-hidden group"
+          className="bg-background border border-[#ffd700]/20 rounded-2xl p-6 relative overflow-hidden group"
         >
-          <div className="absolute inset-0 bg-[#2dd4bf]/5 group-hover:bg-[#2dd4bf]/10 transition-colors" />
+          <div className="absolute inset-0 bg-[#ffd700]/5 group-hover:bg-[#ffd700]/10 transition-colors" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-lg bg-[#2dd4bf]/20 text-[#2dd4bf]">
+              <div className="p-3 rounded-lg bg-[#ffd700]/20 text-[#ffd700]">
                 <Coins className="w-6 h-6" />
               </div>
-              <span className="text-xs font-medium text-[#2dd4bf] bg-[#2dd4bf]/10 px-2 py-1 rounded-full">Available</span>
+              <span className="text-xs font-medium text-[#ffd700] bg-[#ffd700]/10 px-2 py-1 rounded-full">Available</span>
             </div>
             <p className="text-3xl font-bold text-white mb-1">{stats.totalAvailable.toLocaleString()}</p>
             <p className="text-sm text-gray-400">Total Credits Available</p>
@@ -364,7 +364,7 @@ export default function AdminCredits() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-background border border-[#2dd4bf]/20 rounded-2xl p-6"
+        className="bg-background border border-[#ffd700]/20 rounded-2xl p-6"
       >
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -377,7 +377,7 @@ export default function AdminCredits() {
                 key={days}
                 onClick={() => setTimeRange(days)}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${timeRange === days
-                  ? 'bg-[#2dd4bf] text-black'
+                  ? 'bg-[#ffd700] text-black'
                   : 'text-gray-400 hover:text-white'
                   }`}
               >
@@ -455,9 +455,9 @@ export default function AdminCredits() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="bg-background border border-[#2dd4bf]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#2dd4bf]/5"
+        className="bg-background border border-[#ffd700]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#ffd700]/5"
       >
-        <div className="p-6 border-b border-[#2dd4bf]/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-6 border-b border-[#ffd700]/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h3 className="text-xl font-bold text-white mb-1">Recent Transactions</h3>
             <p className="text-sm text-gray-400">Detailed credit movement history</p>
@@ -471,7 +471,7 @@ export default function AdminCredits() {
                 placeholder="Search user or description..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white text-sm focus:border-[#2dd4bf] focus:outline-none w-64 transition-all focus:ring-1 focus:ring-[#2dd4bf]"
+                className="pl-9 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white text-sm focus:border-[#ffd700] focus:outline-none w-64 transition-all focus:ring-1 focus:ring-[#ffd700]"
               />
             </div>
 
@@ -480,7 +480,7 @@ export default function AdminCredits() {
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value as any)}
-                className="pl-9 pr-10 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white text-sm appearance-none focus:border-[#2dd4bf] focus:outline-none cursor-pointer transition-all"
+                className="pl-9 pr-10 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white text-sm appearance-none focus:border-[#ffd700] focus:outline-none cursor-pointer transition-all"
               >
                 <option value="all">All Types</option>
                 <option value="earned">Earned</option>
@@ -575,7 +575,7 @@ export default function AdminCredits() {
                       <td className="px-6 py-4 text-gray-400 text-sm max-w-[200px] truncate" title={tx.description}>
                         {tx.description}
                       </td>
-                      <td className={`px-6 py-4 text-right font-bold font-mono ${isNegative ? 'text-red-400' : 'text-[#2dd4bf]'
+                      <td className={`px-6 py-4 text-right font-bold font-mono ${isNegative ? 'text-red-400' : 'text-[#ffd700]'
                         }`}>
                         {isNegative ? '-' : '+'}{Math.abs(tx.amount)}
                       </td>

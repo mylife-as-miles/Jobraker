@@ -1,5 +1,5 @@
 /**
- * One-off migrator: legacy lime accent (#1dff00) → cyan–teal palette.
+ * One-off migrator: legacy lime accent (#1dff00) → gold / amber palette.
  * Run: node scripts/replace-brand-accent.mjs
  */
 import fs from "fs";
@@ -57,14 +57,14 @@ const tailwindCss = path.join(root, "tailwind.css");
 if (fs.existsSync(tailwindCss)) files.add(tailwindCss);
 
 const steps = [
-  [/rgba\(29,255,0,/g, "rgba(45,212,191,"],
-  [/from-\[#1dff00\]/gi, "from-[#22d3ee]"],
-  [/to-\[#1dff00\]/gi, "to-[#0d9488]"],
-  [/via-\[#1dff00\]/gi, "via-[#2dd4bf]"],
-  [/#1dff00/gi, "#2dd4bf"],
-  [/#7bffb2/gi, "#5eead4"],
-  [/#52ff4b/gi, "#22d3ee"],
-  [/#eaffea/gi, "#ccfbf1"],
+  [/rgba\(29,255,0,/g, "rgba(255,215,0,"],
+  [/from-\[#1dff00\]/gi, "from-[#fbbf24]"],
+  [/to-\[#1dff00\]/gi, "to-[#b45309]"],
+  [/via-\[#1dff00\]/gi, "via-[#ffd700]"],
+  [/#1dff00/gi, "#ffd700"],
+  [/#7bffb2/gi, "#fde68a"],
+  [/#52ff4b/gi, "#fbbf24"],
+  [/#eaffea/gi, "#fef3c7"],
 ];
 
 let touched = 0;

@@ -143,8 +143,8 @@ export const RoadmapItem = React.forwardRef<HTMLDivElement, RoadmapItemProps>(fu
   return (
     <div
       ref={ref}
-      className={cn('group relative rounded-xl border border-foreground/10 bg-gradient-to-br from-white/[0.05] to-white/[0.02] p-3 shadow-sm hover:border-[#2dd4bf]/40 transition-colors',
-        'hover:shadow-[0_0_0_1px_rgba(45,212,191,0.25),0_4px_18px_-6px_rgba(45,212,191,0.45)]',
+      className={cn('group relative rounded-xl border border-foreground/10 bg-gradient-to-br from-white/[0.05] to-white/[0.02] p-3 shadow-sm hover:border-[#ffd700]/40 transition-colors',
+        'hover:shadow-[0_0_0_1px_rgba(255,215,0,0.25),0_4px_18px_-6px_rgba(255,215,0,0.45)]',
         className
       )}
       data-status={status}
@@ -156,13 +156,13 @@ export const RoadmapItem = React.forwardRef<HTMLDivElement, RoadmapItemProps>(fu
           <span className={cn('h-2 w-2 rounded-full', s.dot)} aria-hidden />
           {pct != null && (
             <span className='relative mt-2 block h-8 w-1 rounded-full bg-foreground/10 overflow-hidden'>
-              <span className='absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#22d3ee] to-emerald-400' style={{ height: pct + '%' }} />
+              <span className='absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#fbbf24] to-emerald-400' style={{ height: pct + '%' }} />
             </span>
           )}
         </div>
         <div className='min-w-0 flex-1'>
           <div className='flex items-start gap-2'>
-            {icon && <div className='mt-0.5 h-5 w-5 text-[#2dd4bf]'>{icon}</div>}
+            {icon && <div className='mt-0.5 h-5 w-5 text-[#ffd700]'>{icon}</div>}
             <h4 className='text-sm font-medium text-white leading-tight truncate'>{title}</h4>
             {meta && <div className='ml-auto text-[11px] text-foreground/50 flex-shrink-0'>{meta}</div>}
           </div>
@@ -187,7 +187,7 @@ export const RoadmapItem = React.forwardRef<HTMLDivElement, RoadmapItemProps>(fu
           </div>
         </div>
       </div>
-      <div className='pointer-events-none absolute inset-0 rounded-xl border border-transparent group-hover:border-[#2dd4bf]/30 transition-colors' />
+      <div className='pointer-events-none absolute inset-0 rounded-xl border border-transparent group-hover:border-[#ffd700]/30 transition-colors' />
     </div>
   );
 });

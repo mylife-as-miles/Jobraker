@@ -33,7 +33,7 @@ export function KanbanProvider({
       {/* Modern responsive grid with enhanced spacing */}
       <div className="relative">
         {/* Ambient background effects */}
-        <div className="pointer-events-none absolute -top-20 left-1/4 h-64 w-64 rounded-full bg-[#2dd4bf]/10 blur-3xl opacity-30" />
+        <div className="pointer-events-none absolute -top-20 left-1/4 h-64 w-64 rounded-full bg-[#ffd700]/10 blur-3xl opacity-30" />
         <div className="pointer-events-none absolute -bottom-20 right-1/4 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl opacity-30" />
         
         <div className="flex gap-4 md:gap-5 lg:gap-6 overflow-x-auto pb-3 -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory md:snap-none md:overflow-visible flex-nowrap md:flex-wrap md:flex-auto md:grid md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -143,7 +143,7 @@ export function KanbanCard({ id, children }: { id?: string; name?: string; colum
       layout
       className={`group relative rounded-lg border bg-gradient-to-br from-background to-background/95 p-4 transition-all duration-200 cursor-grab active:cursor-grabbing ${
         isDragging 
-          ? 'border-[#2dd4bf]/50 shadow-[0_0_30px_rgba(45,212,191,0.3)] scale-105 opacity-50' 
+          ? 'border-[#ffd700]/50 shadow-[0_0_30px_rgba(255,215,0,0.3)] scale-105 opacity-50' 
           : 'border-foreground/8 hover:border-foreground/15 bg-background shadow-sm hover:shadow-md'
       }`}
       draggable

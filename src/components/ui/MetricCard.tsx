@@ -82,7 +82,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 {icon && (
-                  <div className="w-8 h-8 rounded-lg bg-[#2dd4bf]/20 flex items-center justify-center text-[#2dd4bf]">
+                  <div className="w-8 h-8 rounded-lg bg-[#ffd700]/20 flex items-center justify-center text-[#ffd700]">
                     {icon}
                   </div>
                 )}
@@ -96,7 +96,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.3 }}
                   className={cn(
-                    "font-bold text-[#2dd4bf] tracking-tight",
+                    "font-bold text-[#ffd700] tracking-tight",
                     valueSizeClasses[size]
                   )}
                 >

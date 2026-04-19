@@ -183,7 +183,7 @@ export const AddSectionDialog = ({
             <Button
               onClick={handleAddCustom}
               disabled={!customName.trim()}
-              className='bg-[#2dd4bf] text-black hover:bg-[#15bd00]'
+              className='bg-[#ffd700] text-black hover:bg-[#ca8a04]'
             >
               <Plus className='w-4 h-4 mr-2' />
               Add
