@@ -71,7 +71,22 @@ const defaultPlans: SubscriptionPlan[] = BILLING_PLAN_DEFINITIONS.map((plan) => 
   features: plan.marketingFeatures,
 }));
 
-type BillingInterval = 'monthly' | 'yearly';
+type BillingInterval = 'monthly' | 'quarterly' | 'yearly';
+
+function planSupportsQuarterly(planName: string): boolean {
+  return planName === 'Pro' || planName === 'Ultimate';
+}
+
+/** Basics/Free have no quarterly SKU — checkout and displayed price use monthly. */
+function effectiveBillingCycleForPlan(
+  planName: string,
+  interval: BillingInterval,
+): BillingInterval {
+  if (interval === 'quarterly' && !planSupportsQuarterly(planName)) {
+    return 'monthly';
+  }
+  return interval;
+}
 
 type PlanPricingDisplay = {
   headline: string;
@@ -111,36 +126,43 @@ async function resolveSubscriptionPlanUuidForCheckout(
 function inferBillingCycleFromSubscriptionPeriod(
   start: string | null | undefined,
   end: string | null | undefined,
-): 'monthly' | 'yearly' | null {
+): 'monthly' | 'quarterly' | 'yearly' | null {
   if (!start || !end) return null;
   const t0 = new Date(start).getTime();
   const t1 = new Date(end).getTime();
   if (!Number.isFinite(t0) || !Number.isFinite(t1) || t1 <= t0) return null;
   const days = (t1 - t0) / (1000 * 60 * 60 * 24);
   if (days >= 200) return 'yearly';
+  if (days >= 75) return 'quarterly';
   if (days >= 18) return 'monthly';
   return null;
 }
 
 /**
  * If `current_period_end` is in the past, project it forward by the billing
- * interval (1 month or 1 year) until it lands in the future.  This handles
+ * interval (month / quarter / year) until it lands in the future.  This handles
  * the common case where the payment gateway renewed but the DB row was never
  * updated.
  */
+function addCalendarMonths(d: Date, months: number): Date {
+  const out = new Date(d.getTime());
+  out.setMonth(out.getMonth() + months);
+  return out;
+}
+
 function projectNextRenewalDate(
   periodEnd: string | null,
-  cycle: 'monthly' | 'yearly' | null,
+  cycle: 'monthly' | 'quarterly' | 'yearly' | null,
 ): Date | null {
   if (!periodEnd) return null;
   const d = new Date(periodEnd);
   if (!Number.isFinite(d.getTime())) return null;
   const now = new Date();
   if (d > now) return d;
-  const step = cycle === 'yearly' ? 12 : 1;
+  const stepMonths = cycle === 'yearly' ? 12 : cycle === 'quarterly' ? 3 : 1;
   let projected = new Date(d);
   while (projected <= now) {
-    projected.setMonth(projected.getMonth() + step);
+    projected = addCalendarMonths(projected, stepMonths);
   }
   return projected;
 }
@@ -148,7 +170,7 @@ function projectNextRenewalDate(
 /** Explains the date shown in the billing card (next charge), not the monthly credit cron. */
 function getPaymentRenewalCaption(
   cancelAtPeriodEnd: boolean,
-  cycle: 'monthly' | 'yearly' | null,
+  cycle: 'monthly' | 'quarterly' | 'yearly' | null,
 ): { primary: string; secondary?: string } {
   if (cancelAtPeriodEnd) {
     return {
@@ -161,6 +183,14 @@ function getPaymentRenewalCaption(
         'Annual billing: your next charge is on this date. Cancel before then if you do not want another year.',
       secondary:
         'Per-month credits are your monthly allowance during the year, not separate monthly payments.',
+    };
+  }
+  if (cycle === 'quarterly') {
+    return {
+      primary:
+        'Quarterly billing: your next charge is on this date. Cancel before then if you do not want another quarter.',
+      secondary:
+        'Per-month credits are your monthly allowance during the quarter, not separate monthly payments.',
     };
   }
   if (cycle === 'monthly') {
@@ -190,6 +220,22 @@ function getPlanPricingDisplay(
       subline: 'No card required',
       savingsBadge: null,
       effectiveMonthly: null,
+    };
+  }
+
+  const quarterlyUsd = def.quarterlyPriceUsd ?? 0;
+  if (interval === 'quarterly' && quarterlyUsd > 0) {
+    const stacked = monthly * 3;
+    const saved = stacked - quarterlyUsd;
+    const pct = stacked > 0 ? Math.round((saved / stacked) * 100) : 40;
+    const eqMo = quarterlyUsd / 3;
+    return {
+      headline: quarterlyUsd.toLocaleString('en-US', { maximumFractionDigits: 0 }),
+      suffix: '/qtr',
+      compareAt: `3 × $${monthly}/mo → $${stacked.toLocaleString('en-US')}`,
+      subline: `≈ $${Math.round(eqMo)}/mo equivalent · billed every 3 months`,
+      savingsBadge: `Save $${saved.toLocaleString('en-US')} (${pct}% vs monthly)`,
+      effectiveMonthly: eqMo,
     };
   }
 
@@ -232,6 +278,23 @@ function getUltimatePricingDisplay(
   }
   const ratio = selectedCredits / def.creditsPerMonth;
   const monthlyUsd = (def.monthlyPriceUsd ?? fallbackMonthlyFromDb) * ratio;
+  const quarterlyBase = def.quarterlyPriceUsd ?? 0;
+
+  if (interval === 'quarterly' && quarterlyBase > 0) {
+    const quarterly = Math.round(quarterlyBase * ratio * 100) / 100;
+    const stacked = monthlyUsd * 3;
+    const saved = stacked - quarterly;
+    const pct = stacked > 0 ? Math.round((saved / stacked) * 100) : 40;
+    const eqMo = quarterly / 3;
+    return {
+      headline: quarterly.toLocaleString('en-US', { maximumFractionDigits: 0 }),
+      suffix: '/qtr',
+      compareAt: `3 × $${Math.round(monthlyUsd)}/mo → $${Math.round(stacked).toLocaleString('en-US')}`,
+      subline: `≈ $${Math.round(eqMo)}/mo equivalent · billed every 3 months`,
+      savingsBadge: `Save $${Math.round(saved).toLocaleString('en-US')} (${pct}% vs monthly)`,
+      effectiveMonthly: eqMo,
+    };
+  }
 
   if (interval === 'yearly' && def.yearlyPriceUsd > 0) {
     const yearly = Math.round(def.yearlyPriceUsd * ratio);
@@ -276,7 +339,7 @@ export const BillingPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'subscription' | 'packs' | 'costs' | 'history'>('subscription');
   const [processingPayment, setProcessingPayment] = useState(false);
-  /** Viewing monthly vs annual list prices; initialized after we know the member's real billing cycle. */
+  /** Billing cadence toggle (quarterly applies to Pro & Ultimate only at checkout). */
   const [billingInterval, setBillingInterval] = useState<BillingInterval>('monthly');
   /** Ultimate: extra credits above catalog base (3500); scales price at checkout. */
   const [ultimateCreditsMonthly, setUltimateCreditsMonthly] = useState(
@@ -284,7 +347,7 @@ export const BillingPage = () => {
   );
   /** Inferred from subscription period (or last successful order) — used so "CURRENT" matches monthly vs annual. */
   const [activeSubscriptionBillingCycle, setActiveSubscriptionBillingCycle] = useState<
-    'monthly' | 'yearly' | null
+    'monthly' | 'quarterly' | 'yearly' | null
   >(null);
   const supabase = useMemo(() => createClient(), []);
   const { notify, error: toastError } = useToast();
@@ -340,7 +403,7 @@ export const BillingPage = () => {
         .eq('status', 'active')
         .maybeSingle();
 
-      let resolvedCycle: 'monthly' | 'yearly' | null = null;
+      let resolvedCycle: 'monthly' | 'quarterly' | 'yearly' | null = null;
 
       if (subscription) {
         const planName = (subscription as any)?.subscription_plans?.name;
@@ -367,7 +430,11 @@ export const BillingPage = () => {
         const pc = (lastSubOrder as { payment_cycle?: string } | null)?.payment_cycle;
         const meta = (lastSubOrder as { metadata?: { billing_cycle?: string } } | null)?.metadata;
         if (pc === 'yearly' || meta?.billing_cycle === 'yearly') resolvedCycle = 'yearly';
-        else if (pc === 'monthly' || meta?.billing_cycle === 'monthly') resolvedCycle = 'monthly';
+        else if (pc === 'quarterly' || meta?.billing_cycle === 'quarterly') {
+          resolvedCycle = 'quarterly';
+        } else if (pc === 'monthly' || meta?.billing_cycle === 'monthly') {
+          resolvedCycle = 'monthly';
+        }
       }
 
       setActiveSubscriptionBillingCycle(resolvedCycle);
@@ -769,13 +836,13 @@ export const BillingPage = () => {
             >
               <div className="max-w-3xl mx-auto text-center space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Pick monthly flexibility or annual commitment—same features, different framing.
+                  Monthly, quarterly (Pro & Ultimate, 40% off three months), or annual—same features, different billing cadence.
                 </p>
-                <div className="inline-flex p-1 rounded-2xl bg-foreground/5 border border-foreground/10 backdrop-blur-sm">
+                <div className="inline-flex flex-wrap justify-center gap-1 p-1 rounded-2xl bg-foreground/5 border border-foreground/10 backdrop-blur-sm max-w-full">
                   <button
                     type="button"
                     onClick={() => setBillingInterval('monthly')}
-                    className={`relative px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    className={`relative px-4 sm:px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
                       billingInterval === 'monthly'
                         ? 'bg-foreground text-background shadow-md'
                         : 'text-muted-foreground hover:text-foreground'
@@ -785,8 +852,22 @@ export const BillingPage = () => {
                   </button>
                   <button
                     type="button"
+                    onClick={() => setBillingInterval('quarterly')}
+                    className={`relative px-4 sm:px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors inline-flex items-center gap-2 ${
+                      billingInterval === 'quarterly'
+                        ? 'bg-foreground text-background shadow-md'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Quarterly
+                    <span className="text-[10px] font-bold uppercase tracking-wide opacity-90 border border-current/30 rounded-full px-2 py-0.5">
+                      40% off
+                    </span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setBillingInterval('yearly')}
-                    className={`relative px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 ${
+                    className={`relative px-4 sm:px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors inline-flex items-center gap-2 ${
                       billingInterval === 'yearly'
                         ? 'bg-[#1dff00] text-background shadow-md'
                         : 'text-muted-foreground hover:text-foreground'
@@ -810,6 +891,7 @@ export const BillingPage = () => {
                       billingInterval === cycleForCurrent);
                   const isPro = plan.name === 'Pro';
                   const isUltimate = plan.name === 'Ultimate';
+                  const pricingInterval = effectiveBillingCycleForPlan(plan.name, billingInterval);
                   const ultimateBaseCredits =
                     BILLING_PLAN_DEFINITIONS.find((p) => p.name === 'Ultimate')?.creditsPerMonth ??
                     3500;
@@ -823,8 +905,8 @@ export const BillingPage = () => {
                       )
                     : plan.auto_apply_monthly_limit ?? 0;
                   const pricing = isUltimate
-                    ? getUltimatePricingDisplay(billingInterval, ultimateCreditsMonthly, plan.price)
-                    : getPlanPricingDisplay(plan.name, billingInterval, plan.price);
+                    ? getUltimatePricingDisplay(pricingInterval, ultimateCreditsMonthly, plan.price)
+                    : getPlanPricingDisplay(plan.name, pricingInterval, plan.price);
                   
                   return (
                     <motion.div
@@ -842,10 +924,16 @@ export const BillingPage = () => {
                               : 'bg-[#1dff00] text-background border-[#1dff00]'
                           }`}>
                             {isUltimate
-                              ? 'MAXIMUM POWER'
+                              ? billingInterval === 'quarterly'
+                                ? 'SCALE · QUARTERLY'
+                                : billingInterval === 'yearly'
+                                  ? 'MAX VALUE · ANNUAL'
+                                  : 'MAXIMUM POWER'
                               : billingInterval === 'yearly'
                                 ? 'SWEET SPOT · ANNUAL'
-                                : 'MOST POPULAR'}
+                                : billingInterval === 'quarterly'
+                                  ? 'SMART COMMIT · QUARTERLY'
+                                  : 'MOST POPULAR'}
                           </span>
                         </div>
                       )}
@@ -853,7 +941,7 @@ export const BillingPage = () => {
                       <Card className={`group relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden transition-all duration-300 ${
                         isCurrentPlan 
                           ? 'border-[#1dff00]/50 bg-gradient-to-b from-[#1dff00]/10 to-transparent shadow-[0_0_40px_-10px_rgba(29,255,0,0.2)]'
-                          : isPro && billingInterval === 'yearly'
+                          : isPro && (billingInterval === 'yearly' || billingInterval === 'quarterly')
                           ? 'ring-2 ring-blue-400/45 border-blue-400/25 bg-foreground/[0.02] hover:bg-foreground/[0.04] shadow-[0_0_36px_-10px_rgba(59,130,246,0.25)] hover:-translate-y-1'
                           : 'border-foreground/10 bg-foreground/[0.02] hover:bg-foreground/[0.04] hover:border-foreground/20 hover:shadow-xl hover:shadow-[#1dff00]/5 hover:-translate-y-1'
                       }`}>
@@ -944,7 +1032,8 @@ export const BillingPage = () => {
                                   {pricing.subline ? (
                                     <p className={`text-sm ${textColors.secondary}`}>{pricing.subline}</p>
                                   ) : null}
-                                  {pricing.savingsBadge && billingInterval === 'yearly' ? (
+                                  {pricing.savingsBadge &&
+                                  (billingInterval === 'yearly' || billingInterval === 'quarterly') ? (
                                     <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1dff00] bg-[#1dff00]/10 border border-[#1dff00]/25 rounded-full px-2.5 py-1 mt-1">
                                       <Percent className="w-3.5 h-3.5 shrink-0" />
                                       {pricing.savingsBadge}
@@ -1072,8 +1161,24 @@ export const BillingPage = () => {
 
                           {/* CTA */}
                           <div className="mt-auto">
+                            {(() => {
+                              const checkoutCadence =
+                                billingInterval === 'yearly'
+                                  ? 'Yearly'
+                                  : billingInterval === 'quarterly' &&
+                                      planSupportsQuarterly(plan.name)
+                                    ? 'Quarterly'
+                                    : null;
+                              const ctaLabel = isCurrentPlan
+                                ? 'Current plan'
+                                : plan.name === 'Free'
+                                  ? 'Included'
+                                  : checkoutCadence
+                                    ? `Checkout ${plan.name} · ${checkoutCadence}`
+                                    : `Upgrade to ${plan.name}`;
+                              return (
                             <Button
-                              className={`w-full h-12 font-bold text-sm tracking-wide transition-all duration-300 ${
+                              className={`w-full min-h-12 h-auto py-3 px-3 sm:px-4 font-bold text-xs sm:text-sm tracking-wide transition-all duration-300 ${
                                 isCurrentPlan
                                   ? 'bg-foreground/5 text-foreground/50 cursor-default border border-foreground/5'
                                   : plan.name === 'Basics'
@@ -1090,25 +1195,27 @@ export const BillingPage = () => {
                                 plan.name !== 'Free' &&
                                 handlePayment('subscription', {
                                   ...plan,
-                                  billingCycle: billingInterval,
+                                  billingCycle: effectiveBillingCycleForPlan(plan.name, billingInterval),
                                   ...(plan.name === 'Ultimate'
                                     ? { ultimateCreditsPerMonth: ultimateCreditsMonthly }
                                     : {}),
                                 })
                               }
                             >
-                              {processingPayment && !isCurrentPlan ? (
-                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                              ) : null}
-                              {isCurrentPlan
-                                ? 'CURRENT PLAN'
-                                : plan.name === 'Free'
-                                  ? 'INCLUDED'
-                                  : billingInterval === 'yearly'
-                                    ? `CHECKOUT ${plan.name.toUpperCase()} · YEARLY`
-                                    : `UPGRADE TO ${plan.name.toUpperCase()}`}
-                              {!isCurrentPlan && !processingPayment && <ArrowRight className="ml-2 w-4 h-4" />}
+                              <span className="flex w-full items-center justify-center gap-2">
+                                {processingPayment && !isCurrentPlan ? (
+                                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                                ) : null}
+                                <span className="min-w-0 text-center uppercase leading-snug [overflow-wrap:anywhere]">
+                                  {ctaLabel}
+                                </span>
+                                {!isCurrentPlan && !processingPayment ? (
+                                  <ArrowRight className="h-4 w-4 shrink-0" strokeWidth={2.5} aria-hidden />
+                                ) : null}
+                              </span>
                             </Button>
+                              );
+                            })()}
                           </div>
                         </CardContent>
                       </Card>
@@ -1530,7 +1637,7 @@ export const BillingPage = () => {
                             Every feature across all tiers — see exactly what you get
                           </CardDescription>
                         </div>
-                        <div className="flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 p-1 text-xs">
+                        <div className="flex flex-wrap items-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 p-1 text-xs">
                           <button
                             onClick={() => setBillingInterval('monthly')}
                             className={`rounded-full px-3 py-1 font-semibold transition-all ${
@@ -1540,6 +1647,17 @@ export const BillingPage = () => {
                             }`}
                           >
                             Monthly
+                          </button>
+                          <button
+                            onClick={() => setBillingInterval('quarterly')}
+                            className={`rounded-full px-3 py-1 font-semibold transition-all inline-flex items-center gap-1 ${
+                              billingInterval === 'quarterly'
+                                ? 'bg-[#1dff00] text-background shadow-sm'
+                                : 'text-gray-400 hover:text-foreground'
+                            }`}
+                          >
+                            Quarterly
+                            <span className="text-[10px] font-bold opacity-80">40% OFF</span>
                           </button>
                           <button
                             onClick={() => setBillingInterval('yearly')}
@@ -1572,9 +1690,13 @@ export const BillingPage = () => {
                               <th className="text-left px-5 py-4" />
                               {tierOrder.map((tier) => {
                                 const def = BILLING_PLAN_DEFINITIONS.find((p) => p.name === tier);
-                                const pricing = getPlanPricingDisplay(
+                                const tablePricingInterval = effectiveBillingCycleForPlan(
                                   tier,
                                   billingInterval,
+                                );
+                                const pricing = getPlanPricingDisplay(
+                                  tier,
+                                  tablePricingInterval,
                                   def?.monthlyPriceUsd ?? 0,
                                 );
                                 const isCurrent = subscriptionTier === tier;
@@ -1615,7 +1737,7 @@ export const BillingPage = () => {
                                           onClick={() =>
                                             handlePayment('subscription', {
                                               ...plans.find((p) => p.name === tier) || { id: tier.toLowerCase(), name: tier },
-                                              billingCycle: billingInterval,
+                                              billingCycle: effectiveBillingCycleForPlan(tier, billingInterval),
                                             })
                                           }
                                           className={`mt-1 h-7 rounded-full px-4 text-[10px] font-bold tracking-wide transition-all ${

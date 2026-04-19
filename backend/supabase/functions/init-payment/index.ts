@@ -12,8 +12,8 @@ type PaymentInitRequest = {
   purchaseType?: "subscription" | "credit_pack";
   planId?: string;
   packSku?: string;
-  /** When set to yearly, price comes from catalog annual SKU (not DB monthly price). */
-  billingCycle?: "monthly" | "yearly";
+  /** When set to yearly / quarterly, price comes from catalog (not DB monthly price). */
+  billingCycle?: "monthly" | "quarterly" | "yearly";
   /** Ultimate only: 3500–10500, step 500 — scales price and credits vs catalog base. */
   ultimateCreditsPerMonth?: number;
 };
@@ -120,8 +120,14 @@ serve(async (req) => {
         });
       }
 
-      const requested = body.billingCycle === "yearly" ? "yearly" : "monthly";
+      const requested: "monthly" | "quarterly" | "yearly" =
+        body.billingCycle === "yearly"
+          ? "yearly"
+          : body.billingCycle === "quarterly"
+            ? "quarterly"
+            : "monthly";
       const catalogPlan = SHARED_SUBSCRIPTION_PLANS.find((p) => p.name === plan.name);
+      const quarterlyUsd = catalogPlan?.quarterlyPriceUsd ?? 0;
 
       if (
         requested === "yearly" &&
@@ -130,6 +136,13 @@ serve(async (req) => {
       ) {
         priceUsd = catalogPlan.yearlyPriceUsd;
         paymentCycle = "yearly";
+      } else if (
+        requested === "quarterly" &&
+        catalogPlan &&
+        quarterlyUsd > 0
+      ) {
+        priceUsd = quarterlyUsd;
+        paymentCycle = "quarterly";
       } else {
         priceUsd = Number(plan.price || 0);
         paymentCycle = "monthly";

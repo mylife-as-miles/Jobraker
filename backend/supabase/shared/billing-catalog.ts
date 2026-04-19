@@ -4,6 +4,8 @@ export interface SharedSubscriptionPlanDefinition {
   tier: SharedSubscriptionTier;
   name: SharedSubscriptionTier;
   monthlyPriceUsd: number;
+  /** Pro/Ultimate: 40% off vs paying monthly for 3 months (3 × monthly × 0.6). Omit or 0 = not sold. */
+  quarterlyPriceUsd?: number;
   yearlyPriceUsd: number;
   creditsPerMonth: number;
   autoApplyRunsPerMonth: number;
@@ -65,6 +67,8 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     tier: "Pro",
     name: "Pro",
     monthlyPriceUsd: 59,
+    /** 40% off vs 3× monthly ($177 → $106). */
+    quarterlyPriceUsd: 106,
     /** 30% off vs 12× monthly (rounded). */
     yearlyPriceUsd: 496,
     creditsPerMonth: 1200,
@@ -83,6 +87,8 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     tier: "Ultimate",
     name: "Ultimate",
     monthlyPriceUsd: 149,
+    /** 40% off vs 3× monthly ($447 → $268). */
+    quarterlyPriceUsd: 268,
     /** 30% off vs 12× monthly (rounded). */
     yearlyPriceUsd: 1252,
     creditsPerMonth: 3500,
