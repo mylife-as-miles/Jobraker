@@ -22,6 +22,26 @@ const faqs = [
   {
     question: "Can I cancel my subscription anytime?",
     answer: "Yes, you can cancel directly from your dashboard. You'll retain access until the end of your billing period."
+  },
+  {
+    question: "What are search and AI credits?",
+    answer: "Credits are used when you run job search, evaluations, resume tailoring, cover letters, AI chat, and other metered features. Your subscription includes a monthly allowance; you can also buy one-time packs from Billing. Governed auto-apply uses separate monthly run limits on paid tiers."
+  },
+  {
+    question: "Do you offer quarterly or annual billing?",
+    answer: "Pro and Ultimate can be billed monthly, quarterly (40% off vs three monthly payments), or annually. Basics supports monthly and annual. See the Billing page in your dashboard for live prices and checkout."
+  },
+  {
+    question: "Can I use JobRaker on mobile?",
+    answer: "The product is built as a responsive web app—use it in your phone or tablet browser. For the best drafting and review experience, many users still prefer desktop."
+  },
+  {
+    question: "How does match or ATS scoring work?",
+    answer: "We analyze your resume against job descriptions to surface fit scores and insights so you can prioritize applications. Scores are guidance, not guarantees from employers."
+  },
+  {
+    question: "Who do I contact for billing or account help?",
+    answer: "Use in-app support or your account email to reach us. Include any payment reference or screenshot if the issue is about a charge—our Billing FAQ in the dashboard covers plans, credits, and checkout in more detail."
   }
 ];
 

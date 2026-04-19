@@ -14,6 +14,7 @@ import {
   BILLING_CREDIT_PACK_DEFINITIONS,
   BILLING_PLAN_DEFINITIONS,
 } from '@/lib/billingCatalog';
+import { BillingFAQSection } from '@/components/billing/BillingFAQSection';
 
 interface SubscriptionPlan {
   id: string;
@@ -1885,6 +1886,8 @@ export const BillingPage = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <BillingFAQSection />
       </div>
     </div>
   );
