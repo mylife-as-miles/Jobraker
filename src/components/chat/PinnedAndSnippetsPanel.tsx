@@ -30,8 +30,8 @@ export const PinnedAndSnippetsPanel = ({ open, onClose }: Props) => {
               {tab === 'pinned' ? 'Pinned Insights' : 'Snippets'}
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => setTab('pinned')} className={`text-[11px] px-2 py-1 rounded-md border ${tab==='pinned'?'border-[#ffd700]/60 text-[#ffd700] bg-[#152e15]':'border-[#ffd700]/20 text-neutral-400 hover:text-[#ffd700]'}`}>Pinned</button>
-              <button onClick={() => setTab('snippets')} className={`text-[11px] px-2 py-1 rounded-md border ${tab==='snippets'?'border-[#ffd700]/60 text-[#ffd700] bg-[#152e15]':'border-[#ffd700]/20 text-neutral-400 hover:text-[#ffd700]'}`}>Snippets</button>
+              <button onClick={() => setTab('pinned')} className={`text-[11px] px-2 py-1 rounded-md border ${tab==='pinned'?'border-[#ffd700]/60 text-[#ffd700] bg-[#3a2f0c]':'border-[#ffd700]/20 text-neutral-400 hover:text-[#ffd700]'}`}>Pinned</button>
+              <button onClick={() => setTab('snippets')} className={`text-[11px] px-2 py-1 rounded-md border ${tab==='snippets'?'border-[#ffd700]/60 text-[#ffd700] bg-[#3a2f0c]':'border-[#ffd700]/20 text-neutral-400 hover:text-[#ffd700]'}`}>Snippets</button>
               <button onClick={onClose} className="p-1.5 rounded-md hover:bg-[#ffd700]/10 text-neutral-400 hover:text-white"><X className="w-4 h-4" /></button>
             </div>
           </div>
@@ -40,7 +40,7 @@ export const PinnedAndSnippetsPanel = ({ open, onClose }: Props) => {
               <div className="space-y-2">
                 {pinnedMessages.length === 0 && <div className="text-[11px] text-neutral-500 text-center pt-6">No pinned messages yet.</div>}
                 {pinnedMessages.map(pm => (
-                  <div key={pm.id} className="group border border-[#ffd700]/25 rounded-xl p-3 bg-background/60 hover:bg-[#141f14]/70 transition">
+                  <div key={pm.id} className="group border border-[#ffd700]/25 rounded-xl p-3 bg-background/60 hover:bg-[#2d2610]/70 transition">
                     <div className="flex items-start gap-2">
                       <Pin className="w-4 h-4 text-[#ffd700] mt-0.5" />
                       <div className="flex-1 text-[12px] leading-relaxed text-neutral-200 whitespace-pre-wrap">{pm.content.slice(0, 800)}</div>
@@ -56,11 +56,11 @@ export const PinnedAndSnippetsPanel = ({ open, onClose }: Props) => {
               <div className="space-y-2">
                 {snippets.length === 0 && <div className="text-[11px] text-neutral-500 text-center pt-6">No saved snippets yet.</div>}
                 {snippets.slice().sort((a,b)=>b.createdAt - a.createdAt).map(sn => (
-                  <div key={sn.id} className="group border border-[#ffd700]/25 rounded-xl p-3 bg-[#101510]/60 hover:bg-[#162416]/70 transition">
+                  <div key={sn.id} className="group border border-[#ffd700]/25 rounded-xl p-3 bg-[#1c170d]/60 hover:bg-[#2a2310]/70 transition">
                     <div className="flex items-start gap-2">
                       <BookmarkPlus className="w-4 h-4 text-[#ffd700] mt-0.5" />
                       <div className="flex-1">
-                        <div className="text-[11px] font-semibold text-[#b5ffb2] mb-1 truncate">{sn.title}</div>
+                        <div className="text-[11px] font-semibold text-[#fde68a] mb-1 truncate">{sn.title}</div>
                         <div className="text-[12px] leading-relaxed text-neutral-300 whitespace-pre-wrap">{sn.content.slice(0, 1000)}</div>
                       </div>
                     </div>
