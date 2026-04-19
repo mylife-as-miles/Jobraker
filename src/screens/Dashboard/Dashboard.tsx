@@ -28,6 +28,7 @@ import {
   PanelLeft,
   FileText,
   PenTool,
+  Gift,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
@@ -52,6 +53,7 @@ import { BillingPage } from "./pages/BillingPage";
 import InterviewStudioPage from "./pages/InterviewStudioPage";
 import { ResumePage } from "./pages/ResumePage";
 import { CoverLetterPage } from "./pages/CoverLetterPage";
+import { ReferralsPage } from "./pages/ReferralsPage";
 
 type DashboardPage =
   | "overview"
@@ -66,7 +68,8 @@ type DashboardPage =
   | "billing"
   | "interview-studio"
   | "resume"
-  | "cover-letter";
+  | "cover-letter"
+  | "referrals";
 
 interface PageLink {
   id: DashboardPage;
@@ -171,6 +174,7 @@ export const Dashboard = (): JSX.Element => {
       "pricing",
       "resume",
       "cover-letter",
+      "referrals",
     ];
     if (isAdmin) {
       basePages.push("interview-studio");
@@ -305,6 +309,12 @@ export const Dashboard = (): JSX.Element => {
         path: "Dashboard / Analytics",
       },
       {
+        id: "referrals",
+        label: "Referrals",
+        icon: <Gift className='w-5 h-5' />,
+        path: "Dashboard / Referrals",
+      },
+      {
         id: "notifications",
         label: "Notifications",
         icon: <Bell className='w-5 h-5' />,
@@ -397,6 +407,8 @@ export const Dashboard = (): JSX.Element => {
         return <NotificationPage />;
       case "profile":
         return <ProfilePage />;
+      case "referrals":
+        return <ReferralsPage />;
       default:
         return <OverviewPage />;
     }
