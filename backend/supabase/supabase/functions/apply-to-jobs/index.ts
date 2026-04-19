@@ -6,6 +6,7 @@ import {
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 import { decryptSymmetric } from "../_shared/crypto.ts";
+import { sendEmail } from "../_shared/email.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 
@@ -372,6 +373,19 @@ Deno.serve(async (req) => {
 
         if (jobUpdateError) {
           console.error("Failed to update queued job state", jobUpdateError);
+        }
+      }
+      
+      // Send email notification dynamically via Shared Module
+      if (email) {
+        try {
+          await sendEmail({
+            to: email,
+            subject: "Application Queued to Automation Engine",
+            html_content: `<h3>Application Automation Started!</h3><p>Your application for <b>${jobContext.job_title || title || "the queued job"}</b> at <b>${jobContext.company || "the company"}</b> has been pushed to the engine and is now processing.</p>`
+          });
+        } catch(e) {
+          console.error("Email dispatch failed", e);
         }
       }
     }

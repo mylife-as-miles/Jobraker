@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/types.ts";
+import { sendEmail } from "../_shared/email.ts";
 
 interface ResumeAnalysisRequest {
   resumeText: string;
@@ -199,6 +200,19 @@ serve(async (req) => {
         }).select().single();
       } catch (logError) {
         console.warn("Failed to log analysis to database:", logError);
+      }
+    }
+    
+    // Send email notification for completed resume analysis
+    if (user?.email) {
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: "Resume Analysis Completed",
+          html_content: `<h3>Your Resume Analysis is Ready!</h3><p>We've finished analyzing your resume. Your overall score is <b>${result.overallScore}</b> (Grade: ${result.grade}). Log in to your JobRaker dashboard to see the full breakdown and ATS insights.</p>`
+        });
+      } catch(e) {
+        console.error("Email dispatch failed", e);
       }
     }
 

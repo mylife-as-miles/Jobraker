@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { sendEmail } from "../_shared/email.ts";
 // Using Web Crypto API for HMAC
 // Deno (and modern Edge Runtimes) support crypto.subtle
 
@@ -141,6 +142,18 @@ serve(async (req) => {
                         metadata: { order_id: order.id, paystack_ref: ref }
                     });
                 }
+                
+                // Send email notification for credit purchase
+                try {
+                  const { data: userAuth } = await supabaseAdmin.auth.admin.getUserById(userId);
+                  if (userAuth.user?.email) {
+                    await sendEmail({
+                      to: userAuth.user.email,
+                      subject: "Receipt: Credits Purchased",
+                      html_content: `<h3>Thank you for your purchase!</h3><p>Your account has been credited with ${totalCredits} credits.</p>`
+                    });
+                  }
+                } catch (e) { console.error("Email failed", e); }
             }
 
         } else if (planType === "subscription") {
@@ -200,6 +213,18 @@ serve(async (req) => {
                             reference_id: order.id // simplified
                         });
                      }
+                     
+                     // Send email notification for subscription
+                     try {
+                        const { data: userAuth } = await supabaseAdmin.auth.admin.getUserById(userId);
+                        if (userAuth.user?.email) {
+                           await sendEmail({
+                              to: userAuth.user.email,
+                              subject: "Subscription Activated",
+                              html_content: `<h3>Subscription Active!</h3><p>Your subscription is now active until ${new Date(currentPeriodEnd).toLocaleDateString()}.</p>`
+                           });
+                        }
+                     } catch (e) { console.error("Email failed", e); }
                 }
             }
         }
