@@ -451,6 +451,8 @@ function ApplicationPage() {
   const [nextStepText, setNextStepText] = useState("");
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesText, setNotesText] = useState("");
+  const [editingSalary, setEditingSalary] = useState(false);
+  const [salaryText, setSalaryText] = useState("");
   const [interviewAgentOpen, setInterviewAgentOpen] = useState(false);
   const [interviewEmailText, setInterviewEmailText] = useState("");
   const [interviewAgentLoading, setInterviewAgentLoading] = useState(false);
@@ -466,7 +468,9 @@ function ApplicationPage() {
   useEffect(() => {
     if (detailApp) {
       setNotesText(detailApp.notes || "");
+      setSalaryText(detailApp.salary || "");
       setEditingNotes(false);
+      setEditingSalary(false);
     }
   }, [detailApp]);
 
@@ -1717,16 +1721,82 @@ function ApplicationPage() {
               </div>
             )}
 
-            {/* Additional Information */}
-            {detailApp.salary && (
-              <div className='space-y-3'>
+            {/* Compensation — feeds Analytics pipeline earnings estimates */}
+            <div className='space-y-3'>
+              <div className='flex items-center justify-between'>
                 <h3 className='text-xs font-semibold uppercase tracking-wider text-foreground/40'>
                   Compensation
                 </h3>
-                <div className='p-4 rounded-xl bg-gradient-to-br from-[#fbbf24]/5 to-transparent border border-[#ffd700]/20'>
-                  <div className='flex items-center gap-2'>
+                {!editingSalary && (
+                  <button
+                    type='button'
+                    onClick={() => setEditingSalary(true)}
+                    className='text-xs text-[#ffd700] hover:text-[#ffd700]/80 transition-colors flex items-center gap-1'
+                  >
+                    <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' />
+                    </svg>
+                    {detailApp.salary ? "Edit" : "Add"}
+                  </button>
+                )}
+              </div>
+              {editingSalary ? (
+                <div className='space-y-3'>
+                  <textarea
+                    value={salaryText}
+                    onChange={(e) => setSalaryText(e.target.value)}
+                    placeholder='e.g. $180k base + bonus, or $9500/mo contract'
+                    className='w-full min-h-[88px] rounded-xl bg-foreground/5 border border-[#ffd700]/30 text-foreground placeholder:text-foreground/40 p-3 text-sm outline-none focus:border-[#ffd700]/50 focus:ring-2 focus:ring-[#ffd700]/20 resize-y'
+                    autoFocus
+                  />
+                  <div className='flex justify-end gap-2'>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      className='border-foreground/20 hover:border-foreground/30 hover:bg-foreground/5 text-foreground/70 hover:text-foreground'
+                      onClick={() => {
+                        setSalaryText(detailApp?.salary || "");
+                        setEditingSalary(false);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size='sm'
+                      className='bg-gradient-to-r from-[#fbbf24] to-background text-foreground font-semibold hover:shadow-[0_0_20px_rgba(255,215,0,0.3)]'
+                      onClick={async () => {
+                        if (!detailApp) return;
+                        try {
+                          await update(detailApp.id, {
+                            salary: salaryText.trim() || null,
+                          });
+                          setEditingSalary(false);
+                        } catch {
+                          await refresh();
+                          setEditingSalary(false);
+                        }
+                      }}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className='p-4 rounded-xl bg-gradient-to-br from-[#fbbf24]/5 to-transparent border border-[#ffd700]/20 cursor-text hover:border-[#ffd700]/35 transition-colors'
+                  onClick={() => setEditingSalary(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setEditingSalary(true);
+                    }
+                  }}
+                  role='button'
+                  tabIndex={0}
+                >
+                  <div className='flex items-start gap-2'>
                     <svg
-                      className='w-5 h-5 text-[#ffd700]'
+                      className='w-5 h-5 text-[#ffd700] shrink-0 mt-0.5'
                       fill='none'
                       viewBox='0 0 24 24'
                       stroke='currentColor'
@@ -1738,13 +1808,17 @@ function ApplicationPage() {
                         d='M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
                       />
                     </svg>
-                    <span className='text-lg font-bold text-[#ffd700]'>
-                      {detailApp.salary}
-                    </span>
+                    {detailApp.salary ? (
+                      <span className='text-lg font-bold text-[#ffd700] leading-snug'>{detailApp.salary}</span>
+                    ) : (
+                      <span className='text-sm text-foreground/45 italic'>
+                        Click to add listing or offer comp (used in Analytics pipeline estimates)
+                      </span>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Notes Section */}
             <div className='space-y-3'>

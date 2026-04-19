@@ -16,6 +16,7 @@ import { MatchScoreAnalytics } from "./MatchScoreAnalytics";
 import { ResumeVersionSuccess } from "./ResumeVersionSuccess";
 import { InsightsSection } from "./insights/InsightsSection";
 import type { InsightsData } from "../../hooks/insightsComputations";
+import { PipelineEarningsProjectionCard } from "./PipelineEarningsProjectionCard";
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
@@ -68,6 +69,8 @@ export function AnalyticsContent({ period = "30d", data = {} as any, insights }:
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+      <PipelineEarningsProjectionCard period={period} />
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <button type="button" onClick={() => gotoApplications()} className="rounded-2xl border border-border bg-card/85 p-4 text-left transition hover:border-[#ffd700]/35 hover:bg-card">
           <div className="mb-3 flex items-center justify-between">
