@@ -35,6 +35,13 @@ export interface DiscoveryJob {
   raw_data: Record<string, unknown>;
 }
 
+/** Result returned by discoverJobsFirecrawl with optional warnings for the client. */
+export interface DiscoveryResult {
+  jobs: DiscoveryJob[];
+  /** User-facing warnings (e.g. "searched beyond your configured sources"). */
+  warnings: string[];
+}
+
 interface FirecrawlDiscoveryArgs {
   serviceClient: any;
   userId: string;
@@ -367,12 +374,15 @@ const isExcludedSourceUrl = (
 const roleMatches = (
   job: { title: string; description: string },
   query: string,
+  relaxed = false,
 ): boolean => {
   const haystack = `${job.title} ${job.description}`.toLowerCase();
   const terms = extractTerms(query);
   if (terms.length === 0) return true;
   const matched = terms.filter((term) => haystack.includes(term));
-  return matched.length >= Math.max(1, Math.ceil(terms.length / 3));
+  // In relaxed mode (fallback/broadened searches), require only 1 term match
+  const threshold = relaxed ? 1 : Math.max(1, Math.ceil(terms.length / 3));
+  return matched.length >= threshold;
 };
 
 const evaluateLocationAlignment = (
@@ -1636,46 +1646,47 @@ const fallbackFirecrawlSearch = async (
   }
 
   const items = Array.isArray(response?.data?.web) ? response.data.web : [];
-  return items
-    .map((item: Record<string, unknown>) => {
-      const url =
-        normalizeAbsoluteUrl(asString(item.url)) ||
-        normalizeAbsoluteUrl(
-          asString((item.metadata as Record<string, unknown> | undefined)?.sourceURL),
-        );
-      if (!url) return null;
-      if (isProfileUrl(url)) return null;
-      const sourceKind = inferSourceKind(url, null);
-      const rawTitle =
-        asString(item.title) ||
-        asString((item.metadata as Record<string, unknown> | undefined)?.title) ||
-        "Job opening";
-      if (titleLooksLikeProfile(rawTitle)) return null;
-      const company =
-        rawTitle.split(/[|:-]| at /i).slice(-1)[0]?.trim() ||
-        hostFromUrl(url) ||
-        "Unknown";
-      return {
-        title: rawTitle,
-        company,
-        location: location || "Remote",
-        url,
-        description:
-          asString(item.markdown) || asString(item.description) || "",
-        posted_at: new Date().toISOString(),
-        source_id: `firecrawl:${url}`,
-        source_type: "web_search" as const,
-        source_kind: sourceKind === "direct" ? "firecrawl" : sourceKind,
-        source_confidence: sourceKind === "direct" ? 0.68 : 0.8,
-        verification_status: "unverified" as const,
-        is_tracked_company: false,
-        raw_data: {
-          provider: "firecrawl",
-          metadata: item.metadata || null,
-        },
-      };
-    })
-    .filter((job): job is DiscoveryJob => Boolean(job));
+  const results: DiscoveryJob[] = [];
+  for (const raw of items) {
+    const item = toRecord(raw);
+    const url =
+      normalizeCanonicalJobUrl(asString(item.url)) ||
+      normalizeCanonicalJobUrl(
+        asString((item.metadata as Record<string, unknown> | undefined)?.sourceURL),
+      );
+    if (!url) continue;
+    if (isProfileUrl(url)) continue;
+    const sourceKind = inferSourceKind(url, null);
+    const rawTitle =
+      asString(item.title) ||
+      asString((item.metadata as Record<string, unknown> | undefined)?.title) ||
+      "Job opening";
+    if (titleLooksLikeProfile(rawTitle)) continue;
+    const company =
+      rawTitle.split(/[|:-]| at /i).slice(-1)[0]?.trim() ||
+      hostFromUrl(url) ||
+      "Unknown";
+    results.push({
+      title: rawTitle,
+      company,
+      location: location || "Remote",
+      url,
+      description:
+        asString(item.markdown) || asString(item.description) || "",
+      posted_at: new Date().toISOString(),
+      source_id: `firecrawl:${url}`,
+      source_type: "web_search" as const,
+      source_kind: sourceKind === "direct" ? "firecrawl" : sourceKind,
+      source_confidence: sourceKind === "direct" ? 0.68 : 0.8,
+      verification_status: "unverified" as const,
+      is_tracked_company: false,
+      raw_data: {
+        provider: "firecrawl",
+        metadata: item.metadata || null,
+      },
+    });
+  }
+  return results;
 };
 
 function buildProfileTerms(memory: CandidateMemory): string[] {
@@ -1876,11 +1887,149 @@ function dedupeDiscoveredJobs(jobs: DiscoveryJob[]): DiscoveryJob[] {
   return Array.from(byUrl.values());
 }
 
+// ---------------------------------------------------------------------------
+// Location broadening helpers
+// ---------------------------------------------------------------------------
+
+/** Known country names mapped from city/region locations. */
+const COUNTRY_NAMES: Record<string, string> = {
+  NG: "Nigeria",
+  US: "United States",
+  UK: "United Kingdom",
+  CA: "Canada",
+};
+
+/**
+ * Broaden a location string: city → country → Remote.
+ * Returns null when no further broadening is possible.
+ */
+function broadenLocation(location: string): string | null {
+  const lower = location.toLowerCase().trim();
+  if (lower === "remote") return null; // already broadest
+
+  // If it looks like a country already, broaden to Remote
+  const knownCountries = Object.values(COUNTRY_NAMES).map((c) => c.toLowerCase());
+  if (knownCountries.includes(lower)) return "Remote";
+
+  // Try to extract country from the location string
+  const country = inferCountryFromLocation(location);
+  if (country && COUNTRY_NAMES[country]) return COUNTRY_NAMES[country];
+
+  // Fallback: just go to Remote
+  return "Remote";
+}
+
+/**
+ * Unrestricted web search — searches the open web without domain restrictions.
+ * Used as a last resort when configured sources yield 0 results.
+ * Returns jobs with lower confidence scores to reflect the broader source.
+ */
+async function unrestrictedWebSearch(
+  searchQuery: string,
+  location: string,
+  limit: number,
+): Promise<DiscoveryJob[]> {
+  let apiKey: string;
+  try {
+    apiKey = await resolveFirecrawlApiKey();
+  } catch {
+    return [];
+  }
+
+  const loc = (location || "Remote").trim();
+  const country = inferCountryFromLocation(loc);
+  const payload: Record<string, unknown> = {
+    query: `${searchQuery} ${loc} job posting (hiring OR careers OR apply) -inurl:search -inurl:login`,
+    limit: Math.min(limit * 2, 30),
+    sources: ["web"],
+  };
+  if (loc.toLowerCase() !== "remote") {
+    payload.location = loc;
+    if (country) payload.country = country;
+  }
+
+  let response: { data?: { web?: unknown[] } } | null;
+  try {
+    response = await withRetry(
+      () => firecrawlFetch("/search", apiKey, payload),
+      2,
+      1500,
+    );
+  } catch (e: unknown) {
+    const err = e as { firecrawlError?: string; message?: string };
+    console.error("firecrawl.unrestricted_search_failed", {
+      query: payload.query,
+      error: err?.firecrawlError || err?.message || String(e),
+    });
+    return [];
+  }
+
+  const items = Array.isArray(response?.data?.web) ? response.data.web : [];
+  console.info("firecrawl.unrestricted_search", {
+    query: payload.query,
+    rawCount: items.length,
+  });
+
+  const results: DiscoveryJob[] = [];
+  for (const raw of items) {
+    const item = toRecord(raw);
+    const metadata = toRecord(item.metadata);
+    const url =
+      normalizeCanonicalJobUrl(asString(item.url)) ||
+      normalizeCanonicalJobUrl(asString(metadata.sourceURL));
+    if (!url) continue;
+    if (isProfileUrl(url)) continue;
+    if (/\/login|\/signin|\/auth/i.test(url)) continue;
+
+    const rawTitle =
+      asString(item.title) ||
+      asString(metadata.title) ||
+      asString(metadata.ogTitle) ||
+      "Job opening";
+    if (titleLooksLikeProfile(rawTitle)) continue;
+
+    const description = trimText(
+      asString(item.markdown) || asString(item.description) || asString(metadata.description) || "",
+      16000,
+    );
+
+    const company =
+      rawTitle.split(/[|:\-–]| at /i).slice(-1)[0]?.trim() ||
+      hostFromUrl(url) ||
+      "Unknown";
+
+    const sourceKind = inferSourceKind(url, rawTitle);
+
+    results.push({
+      title: trimText(rawTitle, 300),
+      company: trimText(company, 200),
+      location: loc,
+      url,
+      description,
+      posted_at: parsePublishedAt(metadata),
+      source_id: `firecrawl:${url}`,
+      source_type: "web_search" as const,
+      source_kind: sourceKind === "direct" ? "firecrawl" : sourceKind,
+      // Lower confidence for unrestricted results
+      source_confidence: sourceKind === "direct" ? 0.55 : 0.65,
+      verification_status: "unverified" as const,
+      is_tracked_company: false,
+      raw_data: {
+        provider: "firecrawl",
+        discovery_mode: "unrestricted_fallback",
+        metadata,
+      },
+    });
+  }
+  return results;
+}
+
 export async function discoverJobsFirecrawl(
   args: FirecrawlDiscoveryArgs,
   onBatch?: (jobs: DiscoveryJob[]) => Promise<void>,
-): Promise<DiscoveryJob[]> {
+): Promise<DiscoveryResult> {
   const startedAt = Date.now();
+  const warnings: string[] = [];
   const apiKey = await resolveFirecrawlApiKey();
   const context = await buildSearchContext(args.serviceClient, args.userId);
   const seeds = buildSearchSeeds(args, context);
@@ -2012,19 +2161,119 @@ export async function discoverJobsFirecrawl(
 
   const allProcessedJobs = batchResults.flat();
 
-  const finalJobs = dedupeDiscoveredJobs(allProcessedJobs)
+  let finalJobs = dedupeDiscoveredJobs(allProcessedJobs)
     .sort(compareRankedJobs)
     .slice(0, args.limit);
-    
+
+  // -----------------------------------------------------------------------
+  // Fallback 1: Location broadening — try country-level then Remote
+  // -----------------------------------------------------------------------
+  if (finalJobs.length === 0) {
+    const broadened = broadenLocation(args.location);
+    if (broadened && broadened.toLowerCase() !== args.location.toLowerCase()) {
+      console.info("firecrawl.discovery.broadening_location", {
+        original: args.location,
+        broadened,
+        elapsed_ms: Date.now() - startedAt,
+      });
+
+      const broadenedSeeds = buildSearchSeeds(
+        { ...args, location: broadened },
+        context,
+      );
+      const broadenedResults = (
+        await runWithConcurrency(broadenedSeeds, 3, (seed) =>
+          runSeedSearch(seed, apiKey, context.settings),
+        )
+      ).flat();
+
+      const broadenedByUrl = new Map<string, FirecrawlSearchCandidate>();
+      for (const candidate of broadenedResults) {
+        if (!roleMatches(candidate, args.searchQuery, true)) continue;
+        const key = normalizeCanonicalJobUrl(candidate.url) || candidate.url;
+        if (!broadenedByUrl.has(key)) broadenedByUrl.set(key, candidate);
+      }
+
+      if (broadenedByUrl.size > 0) {
+        const broadenedCandidates = Array.from(broadenedByUrl.values())
+          .sort((a, b) => b.source_confidence - a.source_confidence)
+          .slice(0, Math.min(Math.max(args.limit + 6, 18), MAX_RAW_CANDIDATES));
+
+        const broadenedNormalized = await runWithConcurrency(
+          broadenedCandidates,
+          6,
+          (candidate) =>
+            normalizeCandidate(candidate, normalizationContext, {
+              allowDirectPageFetch: true,
+              apiKey,
+            }),
+        );
+
+        finalJobs = dedupeDiscoveredJobs(
+          broadenedNormalized.filter((job) =>
+            roleMatches(job, args.searchQuery, true),
+          ),
+        )
+          .sort(compareRankedJobs)
+          .slice(0, args.limit);
+
+        if (finalJobs.length > 0) {
+          warnings.push(
+            `No jobs found in "${args.location}". Showing results for "${broadened}" instead.`,
+          );
+          if (onBatch) await onBatch(finalJobs);
+        }
+      }
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Fallback 2: Unrestricted web search — search beyond configured sources
+  // -----------------------------------------------------------------------
+  if (finalJobs.length === 0) {
+    console.info("firecrawl.discovery.unrestricted_fallback", {
+      searchQuery: args.searchQuery,
+      location: args.location,
+      elapsed_ms: Date.now() - startedAt,
+    });
+
+    const unrestrictedJobs = await unrestrictedWebSearch(
+      args.searchQuery,
+      args.location,
+      args.limit,
+    );
+
+    // Apply relaxed role matching
+    const matched = unrestrictedJobs.filter((job) =>
+      roleMatches(job, args.searchQuery, true),
+    );
+
+    finalJobs = dedupeDiscoveredJobs(matched)
+      .sort((a, b) => b.source_confidence - a.source_confidence)
+      .slice(0, args.limit);
+
+    if (finalJobs.length > 0) {
+      warnings.push(
+        "No results found from your configured job sources. These results were found from the broader web and may be less relevant.",
+      );
+      if (onBatch) await onBatch(finalJobs);
+    } else {
+      warnings.push(
+        `Your search "${args.searchQuery}" in "${args.location}" is very specific and returned no results. Try broadening your job title or changing the location.`,
+      );
+    }
+  }
+
   console.info("firecrawl.discovery.complete", {
     returnedCount: finalJobs.length,
+    warningCount: warnings.length,
     elapsed_ms: Date.now() - startedAt,
   });
-  return finalJobs;
+  return { jobs: finalJobs, warnings };
 }
 
 export async function discoverJobsHybrid(
   args: FirecrawlDiscoveryArgs,
-): Promise<DiscoveryJob[]> {
+): Promise<DiscoveryResult> {
   return discoverJobsFirecrawl(args);
 }

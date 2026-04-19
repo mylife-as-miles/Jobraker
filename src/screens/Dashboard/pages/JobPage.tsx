@@ -2163,6 +2163,13 @@ export const JobPage = (): JSX.Element => {
             ? `Found and saved ${inserted} jobs. Evaluations are running in the background.`
             : "No jobs found for this search.",
         );
+
+        // Display any warnings from the search (e.g. broadened location, searched beyond sources)
+        const searchWarnings: string[] = searchData?.warnings || [];
+        for (const warning of searchWarnings) {
+          safeInfo("Search note", warning, 2000);
+        }
+
         setCurrentSource(null);
       } catch (e: any) {
         activeSearchScopeRef.current = null;

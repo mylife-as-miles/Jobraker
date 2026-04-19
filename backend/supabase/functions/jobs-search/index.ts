@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     });
 
     let totalInserted = 0;
-    const discoveredJobs = await discoverJobsFirecrawl(
+    const { jobs: discoveredJobs, warnings } = await discoverJobsFirecrawl(
       {
         serviceClient,
         userId: user.id,
@@ -103,6 +103,7 @@ Deno.serve(async (req) => {
       effectiveLimit,
       discoveredCount: discoveredJobs.length,
       jobsInserted,
+      warningCount: warnings.length,
       elapsed_ms: Date.now() - startedAt,
     });
 
@@ -129,6 +130,7 @@ Deno.serve(async (req) => {
           is_tracked_company: job.is_tracked_company,
         })),
         count: discoveredJobs.length,
+        warnings,
       }),
       {
         status: 200,

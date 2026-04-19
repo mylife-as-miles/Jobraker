@@ -90,7 +90,7 @@ async function runDiscoveryForUser(
   }
 
   let totalInserted = 0;
-  const discoveredJobs = await discoverJobsFirecrawl(
+  const { jobs: discoveredJobs } = await discoverJobsFirecrawl(
     {
       serviceClient,
       userId,
