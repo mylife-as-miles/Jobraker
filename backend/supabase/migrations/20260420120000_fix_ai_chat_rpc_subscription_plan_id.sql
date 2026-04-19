@@ -12,7 +12,7 @@ DECLARE
     v_period_start TIMESTAMPTZ;
     v_period_end TIMESTAMPTZ;
     v_quota RECORD;
-    v_remaining_free INT := 0;
+    v_remaining_free INT := 0;          
     v_credit_balance INT := 0;
     v_new_balance INT;
 BEGIN

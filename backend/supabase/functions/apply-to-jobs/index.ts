@@ -472,21 +472,86 @@ Deno.serve(async (req) => {
         user_review_notes: null,
       };
 
-      const { error: applicationError } = await serviceClient
-        .from("applications")
-        .insert(applicationPayload);
+      const upgradeDraftApplication = async (): Promise<boolean> => {
+        if (!jobContext.job_id) return false;
+        const upgradePatch = {
+          run_id: applicationPayload.run_id,
+          job_title: applicationPayload.job_title,
+          company: applicationPayload.company,
+          location: applicationPayload.location,
+          applied_date: applicationPayload.applied_date,
+          status: applicationPayload.status,
+          canonical_stage: applicationPayload.canonical_stage,
+          draft_status: applicationPayload.draft_status,
+          salary: applicationPayload.salary,
+          notes: applicationPayload.notes,
+          next_step: applicationPayload.next_step,
+          interview_date: applicationPayload.interview_date,
+          logo: applicationPayload.logo,
+          workflow_id: applicationPayload.workflow_id,
+          app_url: applicationPayload.app_url,
+          provider_status: applicationPayload.provider_status,
+          failure_reason: applicationPayload.failure_reason,
+          match_score: applicationPayload.match_score,
+          match_reasons: applicationPayload.match_reasons,
+          ai_confidence_score: applicationPayload.ai_confidence_score,
+          user_review_notes: applicationPayload.user_review_notes,
+          updated_at: nowIso,
+        };
+        const { data: upgraded, error: upgradeError } = await serviceClient
+          .from("applications")
+          .update(upgradePatch)
+          .eq("user_id", userId)
+          .eq("job_id", jobContext.job_id)
+          .eq("canonical_stage", "draft_ready")
+          .select("id");
+        if (upgradeError) {
+          console.error("Failed to upgrade draft application row", upgradeError);
+          return false;
+        }
+        return Array.isArray(upgraded) && upgraded.length > 0;
+      };
 
-      if (applicationError) {
-        console.error("Failed to create queued application record", applicationError);
+      const upgradedFromDraft = await upgradeDraftApplication();
+      if (!upgradedFromDraft) {
+        const { error: applicationError } = await serviceClient
+          .from("applications")
+          .insert(applicationPayload);
+
+        if (applicationError) {
+          console.error("Failed to create queued application record", applicationError);
+        }
       }
 
       if (jobContext.job_id) {
+        const jobUpdateBase: Record<string, unknown> = {
+          canonical_status: "queued",
+          updated_at: nowIso,
+        };
+        const { data: jobRow, error: jobFetchError } = await serviceClient
+          .from("jobs")
+          .select("raw_data")
+          .eq("id", jobContext.job_id)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (jobFetchError) {
+          console.warn("apply-to-jobs: fetch job raw_data", jobFetchError.message);
+        } else if (
+          jobRow?.raw_data &&
+          typeof jobRow.raw_data === "object" &&
+          !Array.isArray(jobRow.raw_data) &&
+          "application_draft" in (jobRow.raw_data as object)
+        ) {
+          const { application_draft: _draft, ...restRaw } = jobRow.raw_data as Record<
+            string,
+            unknown
+          >;
+          jobUpdateBase.raw_data = restRaw;
+        }
+
         const { error: jobUpdateError } = await serviceClient
           .from("jobs")
-          .update({
-            canonical_status: "queued",
-            updated_at: nowIso,
-          })
+          .update(jobUpdateBase)
           .eq("id", jobContext.job_id)
           .eq("user_id", userId);
 

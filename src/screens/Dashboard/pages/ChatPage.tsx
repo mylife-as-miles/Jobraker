@@ -481,6 +481,17 @@ export const ChatPage = () => {
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const [attachment, setAttachment] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachmentPreviewUrl = useMemo(() => {
+    if (!attachment?.type?.startsWith("image/")) return null;
+    return URL.createObjectURL(attachment);
+  }, [attachment]);
+
+  useEffect(() => {
+    return () => {
+      if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
+    };
+  }, [attachmentPreviewUrl]);
+
   const hasChatAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
 
   const [chatQuota, setChatQuota] = useState<{
@@ -681,6 +692,42 @@ export const ChatPage = () => {
       setAttachment(e.target.files[0]);
     }
   };
+
+  const handlePasteImage = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = e.clipboardData?.items;
+      if (!items?.length) return;
+
+      const files: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind !== "file") continue;
+        const file = item.getAsFile();
+        if (file) files.push(file);
+      }
+      const imageFile = files.find((f) => f.type.startsWith("image/"));
+      if (!imageFile) return;
+
+      e.preventDefault();
+      const ext =
+        imageFile.name.split(".").pop()?.toLowerCase() ||
+        imageFile.type.split("/")[1]?.split("+")[0] ||
+        "png";
+      const needsName =
+        !imageFile.name ||
+        !imageFile.name.includes(".") ||
+        imageFile.name === "image.png";
+      const file = needsName
+        ? new File([imageFile], `pasted-screenshot-${Date.now()}.${ext}`, {
+            type: imageFile.type || "image/png",
+          })
+        : imageFile;
+
+      setAttachment(file);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    },
+    [],
+  );
 
   const handleSubmit = async (message: { text: string }) => {
     if ((!message.text.trim() && !attachment) || status === "in_progress")
@@ -1361,7 +1408,7 @@ export const ChatPage = () => {
 
               <div className='p-4 md:p-6 pt-0 w-full max-w-4xl mx-auto z-10 shrink-0'>
                 <div
-                  className={`relative rounded-[24px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${text.trim()
+                  className={`relative rounded-[24px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${text.trim() || attachment
                       ? "bg-card ring-1 ring-brand/50 border-brand/50"
                       : "bg-card/85 backdrop-blur-xl"
                     }`}
@@ -1372,10 +1419,12 @@ export const ChatPage = () => {
                         ref={textareaRef}
                         value={text}
                         onChange={(e) => setText(e.target.value)}
+                        onPaste={handlePasteImage}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault();
-                            if (text.trim()) handleSubmit({ text } as any);
+                            if (text.trim() || attachment)
+                              handleSubmit({ text } as any);
                           }
                         }}
                         className='w-full bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground py-3 px-4 resize-none min-h-[48px] max-h-48 text-base leading-relaxed scrollbar-hide'
@@ -1391,10 +1440,14 @@ export const ChatPage = () => {
 
                       <button
                         onClick={() =>
-                          text.trim() && handleSubmit({ text } as any)
+                          (text.trim() || attachment) &&
+                          handleSubmit({ text } as any)
                         }
-                        disabled={!text.trim() || status === "in_progress"}
-                        className={`mb-1.5 mr-1.5 w-8 h-8 rounded-full flex items-center justify-center transition-all ${text.trim()
+                        disabled={
+                          (!text.trim() && !attachment) ||
+                          status === "in_progress"
+                        }
+                        className={`mb-1.5 mr-1.5 w-8 h-8 rounded-full flex items-center justify-center transition-all ${text.trim() || attachment
                             ? "bg-brand hover:bg-brand/90 text-primary-foreground shadow-[0_0_15px_hsl(var(--brand)/0.3)]"
                             : "bg-muted text-muted-foreground/60 cursor-not-allowed"
                           }`}
@@ -1453,11 +1506,20 @@ export const ChatPage = () => {
                     {attachment && (
                       <div className='px-4 pb-2'>
                         <div className='inline-flex items-center gap-2 bg-accent/40 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground border border-border'>
-                          <Paperclip size={12} className='text-brand' />
+                          {attachmentPreviewUrl ? (
+                            <img
+                              src={attachmentPreviewUrl}
+                              alt=''
+                              className='h-10 w-10 rounded-md object-cover border border-border shrink-0'
+                            />
+                          ) : (
+                            <Paperclip size={12} className='text-brand' />
+                          )}
                           <span className='max-w-[150px] truncate'>
                             {attachment.name}
                           </span>
                           <button
+                            type='button'
                             onClick={() => {
                               setAttachment(null);
                               if (fileInputRef.current)
