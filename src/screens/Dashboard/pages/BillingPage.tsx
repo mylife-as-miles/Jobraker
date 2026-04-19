@@ -145,6 +145,35 @@ function projectNextRenewalDate(
   return projected;
 }
 
+/** Explains the date shown in the billing card (next charge), not the monthly credit cron. */
+function getPaymentRenewalCaption(
+  cancelAtPeriodEnd: boolean,
+  cycle: 'monthly' | 'yearly' | null,
+): { primary: string; secondary?: string } {
+  if (cancelAtPeriodEnd) {
+    return {
+      primary: 'Scheduled to end on this date. You will not be charged again after that.',
+    };
+  }
+  if (cycle === 'yearly') {
+    return {
+      primary:
+        'Annual billing: your next charge is on this date. Cancel before then if you do not want another year.',
+      secondary:
+        'Per-month credits are your monthly allowance during the year, not separate monthly payments.',
+    };
+  }
+  if (cycle === 'monthly') {
+    return {
+      primary:
+        'Monthly billing: your next charge is on this date. Cancel before then if you do not want another month.',
+    };
+  }
+  return {
+    primary: 'Next charge is on this date unless you cancel beforehand.',
+  };
+}
+
 function getPlanPricingDisplay(
   planName: string,
   interval: BillingInterval,
@@ -234,6 +263,7 @@ export const BillingPage = () => {
   const [currentCredits, setCurrentCredits] = useState(0);
   const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [creditPacks, setCreditPacks] = useState<CreditPack[]>(defaultCreditPacks);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
@@ -281,6 +311,7 @@ export const BillingPage = () => {
         setPlans(defaultPlans);
         setCreditPacks(defaultCreditPacks);
         setBillingInterval('yearly');
+        setCancelAtPeriodEnd(false);
         setActiveSubscriptionBillingCycle(null);
         setTransactions([
           { id: '1', transaction_type: 'bonus', amount: 50, balance_after: 50, description: 'Welcome Bonus', created_at: new Date().toISOString() }
@@ -303,7 +334,7 @@ export const BillingPage = () => {
       const { data: subscription } = await supabase
         .from('user_subscriptions')
         .select(
-          'current_period_start, current_period_end, subscription_plans(name, credits_per_month)',
+          'current_period_start, current_period_end, cancel_at_period_end, subscription_plans(name, credits_per_month)',
         )
         .eq('user_id', userId)
         .eq('status', 'active')
@@ -315,9 +346,12 @@ export const BillingPage = () => {
         const planName = (subscription as any)?.subscription_plans?.name;
         setSubscriptionTier(planName || 'Free');
         setCurrentPeriodEnd((subscription as any).current_period_end);
+        setCancelAtPeriodEnd(Boolean((subscription as any).cancel_at_period_end));
         const start = (subscription as any).current_period_start as string | undefined;
         const end = (subscription as any).current_period_end as string | undefined;
         resolvedCycle = inferBillingCycleFromSubscriptionPeriod(start, end);
+      } else {
+        setCancelAtPeriodEnd(false);
       }
 
       if (!resolvedCycle) {
@@ -639,7 +673,7 @@ export const BillingPage = () => {
               </Card>
             </motion.div>
 
-            {/* Next Refill */}
+            {/* Next payment (subscription period end — not the same as monthly credit cron) */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -653,22 +687,27 @@ export const BillingPage = () => {
                       <Calendar className="w-6 h-6 text-blue-400" />
                     </div>
                     <span className="text-[10px] tracking-wider font-bold text-blue-400 bg-blue-400/10 px-2.5 py-1 rounded-full border border-blue-400/20">
-                      RENEWAL
+                      BILLING
                     </span>
                   </div>
                   {(() => {
                     const next = projectNextRenewalDate(currentPeriodEnd, activeSubscriptionBillingCycle);
+                    const { primary, secondary } = getPaymentRenewalCaption(
+                      cancelAtPeriodEnd,
+                      activeSubscriptionBillingCycle,
+                    );
                     return (
                       <div className="space-y-1">
-                        <p className="text-sm text-gray-400 font-medium">Next Refill</p>
+                        <p className="text-sm text-gray-400 font-medium">Next payment</p>
                         <p className="text-lg font-bold text-foreground tracking-tight pt-2">
                           {next
                             ? next.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                             : 'Not scheduled'}
                         </p>
-                        <p className="text-xs text-gray-500">
-                          Automatic renewal
-                        </p>
+                        <p className="text-xs text-gray-500 pt-1">{primary}</p>
+                        {secondary ? (
+                          <p className="text-[11px] text-gray-600 leading-snug pt-0.5">{secondary}</p>
+                        ) : null}
                       </div>
                     );
                   })()}

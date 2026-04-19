@@ -4068,7 +4068,7 @@ export const SettingsPage = (): JSX.Element => {
                 </div>
                 <div className='space-y-1'>
                   <p className='text-xs text-muted-foreground uppercase tracking-wider'>
-                    Next Credit Refill
+                    Next payment
                   </p>
                   <p className='text-sm font-semibold text-foreground'>
                     {currentPeriodEnd
@@ -4078,6 +4078,9 @@ export const SettingsPage = (): JSX.Element => {
                         year: "numeric",
                       })
                       : "Not scheduled"}
+                  </p>
+                  <p className='text-[11px] text-muted-foreground leading-snug'>
+                    Subscription billing date from your plan (monthly or annual), not each credit top-up.
                   </p>
                 </div>
               </div>
