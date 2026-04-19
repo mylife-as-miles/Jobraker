@@ -18,6 +18,53 @@ import {
 
 console.log("JobRaker AI Chat Starting...");
 
+const MAX_CHAT_IMAGES = 3;
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+
+function estimateBase64Bytes(b64: string): number {
+  const clean = b64.replace(/\s/g, "");
+  return Math.floor((clean.length * 3) / 4);
+}
+
+function normalizeChatImages(raw: unknown): { mimeType: string; data: string }[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: { mimeType: string; data: string }[] = [];
+  for (const item of raw.slice(0, MAX_CHAT_IMAGES)) {
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+    const mimeType = typeof rec.mimeType === "string" ? rec.mimeType : "";
+    const dataRaw = typeof rec.data === "string" ? rec.data : "";
+    const data = dataRaw.replace(/\s/g, "");
+    if (!mimeType.startsWith("image/") || !data) continue;
+    if (estimateBase64Bytes(data) > MAX_IMAGE_BYTES) {
+      throw new Error(`Each image must be under ${MAX_IMAGE_BYTES / (1024 * 1024)}MB`);
+    }
+    out.push({ mimeType, data });
+  }
+  return out.length ? out : undefined;
+}
+
+/** Gemini multimodal user turn */
+function buildGeminiUserParts(
+  text: string,
+  images?: { mimeType: string; data: string }[],
+): Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> {
+  const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [];
+  for (const img of images || []) {
+    parts.push({ inlineData: { mimeType: img.mimeType, data: img.data } });
+  }
+  const trimmed = (text || "").trim();
+  if (trimmed) {
+    parts.push({ text: trimmed });
+  } else if (parts.length > 0) {
+    parts.push({
+      text:
+        "The user shared a screenshot or image. Describe what you see and help with their request (errors, UI, job postings, resume feedback, etc.).",
+    });
+  }
+  return parts;
+}
+
 const ACCOUNT_ACCESS_RULES = `
 You are inside the authenticated user's JobRaker workspace.
 You DO have access to the user's JobRaker account data provided in this prompt and, in agent mode, through the available tools.
@@ -132,17 +179,47 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    const body = await req.json();
     const {
       messages,
       system,
       mode = "ask",
       model: requestedModel,
       webSearch = false,
-    } = await req.json();
+    } = body;
     const { authHeader, user, subscriptionTier } = await requireSubscriptionTier(req, "Pro", "AI chat");
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "Messages are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    let normalizedMessages: { role: string; content: string; images?: { mimeType: string; data: string }[] }[];
+    try {
+      normalizedMessages = messages.map((m: any, i: number) => {
+        const role = m?.role === "assistant" ? "assistant" : "user";
+        const content = typeof m?.content === "string" ? m.content : "";
+        const isLast = i === messages.length - 1;
+        const images =
+          isLast && role === "user" ? normalizeChatImages(m?.images) : undefined;
+        return { role, content, images };
+      });
+    } catch (e: any) {
+      return new Response(JSON.stringify({ error: e?.message || "Invalid image payload" }), {
+        status: 413,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const lastNorm = normalizedMessages[normalizedMessages.length - 1];
+    if (
+      lastNorm.role === "user" &&
+      !lastNorm.content.trim() &&
+      !lastNorm.images?.length
+    ) {
+      return new Response(JSON.stringify({ error: "Message text or image is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -233,13 +310,16 @@ serve(async (req) => {
 
     const model = genAI.getGenerativeModel(modelParams);
 
-    const history = messages.slice(0, -1).map((m: any) => ({
+    const history = normalizedMessages.slice(0, -1).map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }],
     }));
-    const userPrompt = messages[messages.length - 1].content;
+    const lastUserParts = buildGeminiUserParts(
+      normalizedMessages[normalizedMessages.length - 1].content,
+      normalizedMessages[normalizedMessages.length - 1].images,
+    );
 
-    const body = new ReadableStream({
+    const streamBody = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
         const enqueueEvent = (ev: string, data: any) => {
@@ -250,7 +330,7 @@ serve(async (req) => {
         try {
           if (mode === "agent") {
             const chat = model.startChat({ history });
-            let response = await withGeminiRetry(() => chat.sendMessage(userPrompt));
+            let response = await withGeminiRetry(() => chat.sendMessage(lastUserParts));
             let turnCount = 0;
 
             while (turnCount < 5) {
@@ -402,7 +482,7 @@ serve(async (req) => {
               model.generateContentStream({
                 contents: [
                   ...history,
-                  { role: "user", parts: [{ text: userPrompt }] },
+                  { role: "user", parts: lastUserParts },
                 ],
               }),
             );
@@ -424,7 +504,7 @@ serve(async (req) => {
       },
     });
 
-    return new Response(body, {
+    return new Response(streamBody, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" }
     });
 

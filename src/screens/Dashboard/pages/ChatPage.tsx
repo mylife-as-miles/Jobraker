@@ -27,6 +27,7 @@ SyntaxHighlighter.registerLanguage("xml", xml);
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { createClient } from "../../../lib/supabaseClient";
+import { cacheChatAttachment, getChatAttachment } from "../../../lib/chatAttachmentIdb";
 import {
   MessageSquare,
   Wand2,
@@ -101,7 +102,15 @@ interface BasicMessage {
   createdAt: number;
   meta?: { persona?: Persona; parent?: string };
   toolCalls?: ToolCallEntry[];
+  /** Persisted: user message included an image (bytes live in IndexedDB). */
+  hasPastedImage?: boolean;
 }
+
+type ChatUserPayload = {
+  role: "user";
+  content: string;
+  images?: { mimeType: string; data: string; name?: string }[];
+};
 interface UseChatOptions {
   api: string;
   initialMessages?: BasicMessage[];
@@ -112,7 +121,7 @@ interface UseChatOptions {
 interface UseChatReturn {
   messages: BasicMessage[];
   status: "idle" | "in_progress";
-  append: (m: { role: "user"; content: string }, opts?: ChatRequestOptions) => void;
+  append: (m: ChatUserPayload, opts?: ChatRequestOptions) => void;
   regenerate: () => void;
   setMessages: (m: BasicMessage[]) => void;
   responseId: string | null;
@@ -166,6 +175,7 @@ const normalizeBasicMessage = (message: any): BasicMessage => ({
       : Date.now(),
   meta:
     message?.meta && typeof message.meta === "object" ? message.meta : undefined,
+  hasPastedImage: Boolean(message?.hasPastedImage),
 });
 
 const normalizeChatSession = (session: ChatSessionRecord): ChatSessionState => {
@@ -203,7 +213,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
   const [responseId, setResponseId] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastTurnRef = useRef<{
-    message: { role: "user"; content: string };
+    message: ChatUserPayload;
     chatOpts?: ChatRequestOptions;
     historyBeforeUser: BasicMessage[];
   } | null>(null);
@@ -211,19 +221,39 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
   const sendMessage = useCallback(
     async (
       baseMessages: BasicMessage[],
-      m: { role: "user"; content: string },
+      m: ChatUserPayload,
       chatOpts?: ChatRequestOptions,
       previousResponseId?: string | null,
     ) => {
       if (status === "in_progress") return;
 
+      const textContent = m.content.trim();
       const userMessage: BasicMessage = {
         id: nanoid(),
         role: "user",
-        content: m.content,
+        content: textContent,
+        hasPastedImage: Boolean(m.images?.length),
         createdAt: Date.now(),
-        parts: [{ type: "text", text: m.content }],
+        parts: [
+          {
+            type: "text",
+            text: textContent || (m.images?.length ? " " : ""),
+          },
+        ],
       };
+
+      if (m.images?.length) {
+        const img0 = m.images[0];
+        if (img0?.data) {
+          void cacheChatAttachment({
+            messageId: userMessage.id,
+            mimeType: img0.mimeType || "image/png",
+            name: img0.name || "attachment",
+            base64: img0.data,
+          });
+        }
+      }
+
       const history = [...baseMessages, userMessage];
       lastTurnRef.current = {
         message: m,
@@ -265,11 +295,28 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           body: JSON.stringify({
             model: chatOpts?.model || DEFAULT_CHAT_MODEL,
             messages: history
-              .filter((m) => m.content.trim() !== "")
-              .map((m) => ({
-                role: m.role,
-                content: m.content,
-              })),
+              .filter((msg, idx, arr) => {
+                const isLast = idx === arr.length - 1;
+                if (isLast && msg.role === "user") {
+                  return msg.content.trim() !== "" || Boolean(m.images?.length);
+                }
+                return msg.role === "assistant" || msg.content.trim() !== "";
+              })
+              .map((msg, idx, arr) => {
+                const isLast = idx === arr.length - 1;
+                if (isLast && msg.role === "user" && m.images?.length) {
+                  return {
+                    role: "user",
+                    content: msg.content.trim(),
+                    images: m.images.map(({ mimeType, data, name }) => ({
+                      mimeType,
+                      data,
+                      ...(name ? { name } : {}),
+                    })),
+                  };
+                }
+                return { role: msg.role, content: msg.content.trim() };
+              }),
             mode: chatOpts?.mode || "ask",
             webSearch: chatOpts?.webSearch,
             system: chatOpts?.system,
@@ -438,7 +485,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
   );
 
   const append = useCallback(
-    (m: { role: "user"; content: string }, chatOpts?: ChatRequestOptions) => {
+    (m: ChatUserPayload, chatOpts?: ChatRequestOptions) => {
       void sendMessage(messages, m, chatOpts, responseId);
     },
     [messages, responseId, sendMessage],
@@ -467,6 +514,50 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     setResponseId,
   };
 };
+
+async function fileToChatImagePart(
+  file: File,
+): Promise<{ mimeType: string; data: string; name: string }> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  const mimeType = match?.[1] || file.type || "image/png";
+  const data = match?.[2] || "";
+  return { mimeType, data, name: file.name || "attachment" };
+}
+
+function UserChatAttachment({
+  messageId,
+  hasPastedImage,
+}: {
+  messageId: string;
+  hasPastedImage?: boolean;
+}) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (!hasPastedImage) return;
+    let cancelled = false;
+    void getChatAttachment(messageId).then((row) => {
+      if (cancelled || !row) return;
+      setSrc(`data:${row.mimeType};base64,${row.base64}`);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [messageId, hasPastedImage]);
+  if (!hasPastedImage || !src) return null;
+  return (
+    <img
+      src={src}
+      alt=''
+      className='rounded-lg max-h-56 max-w-full mb-2 border border-primary-foreground/25 object-contain bg-black/10'
+    />
+  );
+}
 
 export const ChatPage = () => {
   const { error: toastError } = useToast();
@@ -733,41 +824,24 @@ export const ChatPage = () => {
     if ((!message.text.trim() && !attachment) || status === "in_progress")
       return;
 
+    const attachmentFile = attachment;
     setText("");
     setAttachment(null);
     const textarea = textareaRef.current;
     if (textarea) textarea.style.height = "auto";
 
-    let content = message.text || "";
-
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData?.user?.id;
-
-    if (attachment && userId) {
+    let images: { mimeType: string; data: string; name: string }[] | undefined;
+    if (attachmentFile) {
       try {
-        const fileExt = attachment.name.split(".").pop();
-        const fileName = `${nanoid()}.${fileExt}`;
-        const filePath = `${userId}/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("chat-attachments")
-          .upload(filePath, attachment);
-
-        if (uploadError) {
-          toastError("Failed to upload attachment");
-          return;
-        }
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("chat-attachments").getPublicUrl(filePath);
-
-        content += `\n\n[Attached: ${attachment.name}](${publicUrl})`;
+        images = [await fileToChatImagePart(attachmentFile)];
       } catch (e) {
         console.error(e);
-        toastError("Error attachment file");
+        toastError("Could not read the image. Try again or use a smaller file.");
+        return;
       }
     }
+
+    const content = message.text || "";
 
     const systemInstruction = {
       concise: "You are a concise and direct assistant.",
@@ -802,7 +876,11 @@ export const ChatPage = () => {
       .eq("id", sessionId);
 
     append(
-      { role: "user", content: content },
+      {
+        role: "user",
+        content: content.trim(),
+        ...(images ? { images } : {}),
+      },
       {
         model,
         webSearch: false,
@@ -815,7 +893,9 @@ export const ChatPage = () => {
       currentMessages.filter((m) => m.role === "user").length === 0;
 
     if (isFirstMessage && sessionId) {
-      const optimisticTitle = (message.text || "New Chat").slice(0, 40);
+      const optimisticTitle = (
+        message.text.trim() || (attachmentFile ? "Image" : "New Chat")
+      ).slice(0, 40);
       setSessions((prev) =>
         prev.map((s) =>
           s.id === sessionId ? { ...s, title: optimisticTitle } : s,
@@ -837,7 +917,11 @@ export const ChatPage = () => {
               "Content-Type": "application/json",
               Authorization: `Bearer ${session?.access_token}`,
             },
-            body: JSON.stringify({ message: message.text }),
+            body: JSON.stringify({
+              message:
+                message.text.trim() ||
+                (attachmentFile ? "User shared a screenshot" : ""),
+            }),
           });
 
           if (response.ok) {
@@ -1181,7 +1265,11 @@ export const ChatPage = () => {
                         >
                           {m.role === "user" ? (
                             <div className='text-sm break-words whitespace-pre-wrap'>
-                              {m.content}
+                              <UserChatAttachment
+                                messageId={m.id}
+                                hasPastedImage={m.hasPastedImage}
+                              />
+                              {m.content.trim() ? m.content : null}
                             </div>
                           ) : (
                             <div className='text-sm prose prose-invert max-w-none overflow-hidden'>
