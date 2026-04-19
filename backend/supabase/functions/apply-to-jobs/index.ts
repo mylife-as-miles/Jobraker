@@ -6,6 +6,7 @@ import {
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 import { decryptSymmetric } from "../_shared/crypto.ts";
+import { signResumeProxyToken } from "../_shared/resume-proxy-token.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 const AUTOMATION_RATE_LIMIT_WINDOW_MS = 60_000;
@@ -13,7 +14,8 @@ const MAX_AUTOMATIONS_PER_WINDOW = 20;
 
 // Skyvern's file parser expects a plain URL string, not a JSON-encoded one.
 function normalizeHttpUrlString(raw: string): string {
-  let value = raw.trim();
+  // Strip inline whitespace (line breaks in pasted URLs break `new URL()` / path parsing).
+  let value = raw.trim().replace(/\s+/g, "");
 
   try {
     const parsed = JSON.parse(value);
@@ -75,6 +77,29 @@ async function refreshResumeSignedUrlIfPossible(
   }
 
   return data.signedUrl;
+}
+
+/**
+ * Skyvern often cannot fetch Supabase Storage signed URLs from its servers.
+ * Replace with our edge `proxy-resume` URL (HMAC token) when possible.
+ */
+async function resumeUrlForSkyvern(
+  resumeUrl: string,
+  userId: string,
+): Promise<string> {
+  const parsed = parseSupabaseSignedObjectPath(resumeUrl);
+  if (!parsed || parsed.bucket !== "resumes" || !parsed.path.startsWith(`${userId}/`)) {
+    return resumeUrl;
+  }
+  const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 72; // 72h
+  const token = await signResumeProxyToken({
+    path: parsed.path,
+    uid: userId,
+    exp,
+  });
+  const base = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
+  if (!base) return resumeUrl;
+  return `${base}/functions/v1/proxy-resume?t=${encodeURIComponent(token)}`;
 }
 
 function asArray(val: any): any[] {
@@ -311,6 +336,11 @@ Deno.serve(async (req) => {
         );
       } catch (error: any) {
         console.warn("apply-to-jobs: refreshResumeSignedUrlIfPossible", error?.message);
+      }
+      try {
+        resume = await resumeUrlForSkyvern(resume, userId);
+      } catch (error: any) {
+        console.warn("apply-to-jobs: resumeUrlForSkyvern", error?.message);
       }
     }
     const coverLetter =
