@@ -362,6 +362,8 @@ export const Gantt: React.FC<GanttProps> = ({
 
 function statusColor(status?: string): { bg: string; fg: string } {
   switch (status) {
+    case 'Draft':
+      return { bg: 'linear-gradient(90deg,#38BDF8,#0369A1)', fg: '#0c1a24' };
     case 'Applied': return { bg: 'linear-gradient(90deg,#ffd700,#b45309)', fg: '#041f11' };
     case 'Interview': return { bg: 'linear-gradient(90deg,#fbbf24,#a16207)', fg: '#2d1e04' };
     case 'Offer': return { bg: 'linear-gradient(90deg,#84cc16,#166534)', fg: '#0b1f0f' };
@@ -374,6 +376,8 @@ function statusColor(status?: string): { bg: string; fg: string } {
 
 function statusAccent(status?: string): string {
   switch (status) {
+    case "Draft":
+      return "#38BDF8";
     case "Applied":
       return "#ffd700";
     case "Interview":

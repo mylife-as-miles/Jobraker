@@ -153,6 +153,7 @@ function CompanyMark({
 }
 
 function getApplicationStatusColor(status: ApplicationStatus) {
+  if (status === "Draft") return "#38BDF8";
   if (status === "Applied") return "#ffd700";
   if (status === "Interview") return "#F59E0B";
   if (status === "Offer") return "#10B981";
@@ -190,6 +191,7 @@ function ApplicationsListView({
   setDetailId: (id: string) => void;
 }) {
   const statuses: ApplicationStatus[] = [
+    "Draft",
     "Pending",
     "Applied",
     "Interview",
@@ -480,6 +482,7 @@ function ApplicationPage() {
         qsStatus &&
         [
           "All",
+          "Draft",
           "Pending",
           "Applied",
           "Interview",
@@ -518,6 +521,7 @@ function ApplicationPage() {
           !qsStatus &&
           [
             "All",
+            "Draft",
             "Pending",
             "Applied",
             "Interview",
@@ -846,6 +850,7 @@ function ApplicationPage() {
             {(
               [
                 "All",
+                "Draft",
                 "Pending",
                 "Applied",
                 "Interview",
@@ -856,6 +861,7 @@ function ApplicationPage() {
             ).map((s) => {
               const statusColors: Record<string, string> = {
                 All: "#ffffff",
+                Draft: "#38BDF8",
                 Pending: "#6B7280",
                 Applied: "#ffd700",
                 Interview: "#F59E0B",
@@ -968,6 +974,10 @@ function ApplicationPage() {
             {viewMode === "gantt" && (
               <div className='space-y-6'>
                 <div className='flex flex-wrap gap-4 text-xs text-foreground/60 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border border-[#ffd700]/10 rounded-xl p-4'>
+                  <span className='inline-flex items-center gap-2'>
+                    <span className='h-3 w-8 rounded-md bg-gradient-to-r from-[#38BDF8] to-[#0369A1] shadow-lg shadow-sky-400/20' />
+                    <span className='font-medium'>Draft</span>
+                  </span>
                   <span className='inline-flex items-center gap-2'>
                     <span className='h-3 w-8 rounded-md bg-gradient-to-r from-[#71717a] to-[#27272a] shadow-lg' />
                     <span className='font-medium'>Pending</span>
@@ -1370,6 +1380,7 @@ function ApplicationPage() {
             {viewMode === "kanban" && (
               <KanbanProvider
                 columns={[
+                  { id: "Draft", name: "Draft", color: "#38BDF8" },
                   { id: "Pending", name: "Pending", color: "#6B7280" },
                   { id: "Applied", name: "Applied", color: "#ffd700" },
                   { id: "Interview", name: "Interview", color: "#F59E0B" },
@@ -2330,6 +2341,7 @@ function ListSkeleton() {
   return (
     <div className='border border-foreground/10 rounded-xl bg-foreground/30 overflow-hidden divide-y divide-foreground/5'>
       {[
+        "Draft",
         "Pending",
         "Applied",
         "Interview",
@@ -2368,8 +2380,9 @@ function ListSkeleton() {
 
 function KanbanSkeleton() {
   return (
-    <div className='grid gap-4 md:grid-cols-3 lg:grid-cols-6'>
+    <div className='grid gap-4 md:grid-cols-3 lg:grid-cols-7'>
       {[
+        "Draft",
         "Pending",
         "Applied",
         "Interview",
@@ -2499,6 +2512,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
   // For brevity & low risk, we'll look for a global set by parent: (window as any).__apps_update.
 
   const statusColors: Record<string, string> = {
+    Draft: "#38BDF8",
     Applied: "#ffd700",
     Interview: "#F59E0B",
     Offer: "#10B981",
@@ -2582,6 +2596,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           const value = info.getValue() as string;
           const isEditing = editingStatusId === row.id;
           const selectableStatuses: ApplicationStatus[] = [
+            "Draft",
             "Pending",
             "Applied",
             "Interview",
