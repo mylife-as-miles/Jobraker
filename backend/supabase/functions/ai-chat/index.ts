@@ -330,12 +330,17 @@ serve(async (req) => {
                           .order("created_at", { ascending: false });
                         result = { success: true, applications: data || [] };
                     } else if (fn.name === "list_resumes") {
-                        const { data } = await supabaseUser
+                        const { data, error } = await supabaseUser
                           .from("resumes")
                           .select("id, name, status, updated_at, is_favorite")
                           .eq("user_id", userId)
-                          .order("created_at", { ascending: false });
-                        result = { success: true, resumes: data || [] };
+                          .order("updated_at", { ascending: false });
+                        if (error) {
+                          console.error("list_resumes:", error.message);
+                          result = { success: false, error: error.message, resumes: [] };
+                        } else {
+                          result = { success: true, resumes: data || [] };
+                        }
                     } else if (fn.name === "list_recent_jobs") {
                         const { data } = await supabaseUser
                           .from("jobs")

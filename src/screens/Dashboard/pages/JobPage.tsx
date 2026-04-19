@@ -2485,6 +2485,7 @@ export const JobPage = (): JSX.Element => {
       let executionStarted = false;
 
       try {
+        setApplyingAll(true);
         const { data: authData } = await supabase.auth.getUser();
         const userEmail = authData?.user?.email;
 
@@ -2669,7 +2670,6 @@ export const JobPage = (): JSX.Element => {
         // Temporarily skip client-side quota RPC checks until the remote quota
         // functions are repaired. We still require paid access before launch.
 
-        setApplyingAll(true);
         setAutomationLogs([]);
         setAutomationFinished(false);
         setAutoApplyStep(3);
@@ -3510,9 +3510,8 @@ export const JobPage = (): JSX.Element => {
           {/* Subtle gradient overlay */}
           <div className='absolute inset-0 bg-gradient-to-br from-[#fbbf24]/5 via-transparent to-transparent pointer-events-none'></div>
 
-          <div className='relative z-10 grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4'>
-            <div className='md:col-span-2 relative group'>
-              <Search className='w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-[#ffd700]/60 transition-colors group-focus-within:text-[#ffd700]' />
+          <div className='relative z-10 flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-stretch'>
+            <div className='relative group min-w-0 flex-1'>
               <Input
                 id='jobs-search'
                 data-tour='jobs-search'
@@ -3525,10 +3524,10 @@ export const JobPage = (): JSX.Element => {
                     populateQueue(searchQuery, selectedLocation);
                   }
                 }}
-                className='h-12 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#ffd700]/20 text-foreground placeholder:text-foreground/40 transition-all duration-300 rounded-xl'
+                className='h-12 w-full pl-4 pr-[8.25rem] sm:pr-36 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#ffd700]/20 text-foreground placeholder:text-foreground/40 transition-all duration-300 rounded-xl focus-visible:border-[#ffd700]/40'
               />
-              <div className='pointer-events-none select-none absolute right-10 top-1/2 transform -translate-y-1/2'>
-                <span className='text-[10px] font-medium text-[#ffd700]/80 bg-gradient-to-br from-[#fbbf24]/15 to-[#b45309]/5 px-2.5 py-1 rounded-lg border border-[#ffd700]/30 whitespace-nowrap'>
+              <div className='pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2'>
+                <span className='text-[10px] font-medium text-[#ffd700]/90 bg-gradient-to-br from-[#fbbf24]/15 to-[#b45309]/5 px-2.5 py-1 rounded-lg border border-[#ffd700]/30 whitespace-nowrap shadow-sm'>
                   {subscriptionTier === "Ultimate"
                     ? "100"
                     : subscriptionTier === "Pro"
@@ -3538,28 +3537,29 @@ export const JobPage = (): JSX.Element => {
                         : "10"}{" "}
                   results
                 </span>
+                <Search className='h-5 w-5 shrink-0 text-[#ffd700]/70 transition-colors group-focus-within:text-[#ffd700]' />
               </div>
             </div>
-            <div className='md:col-span-1 space-y-2'>
-              <div className='relative group bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#ffd700]/20 text-foreground transition-all duration-300 rounded-xl'>
-                <MapPin className='pointer-events-none w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-[#ffd700]/60' />
+            <div className='flex w-full flex-col gap-2 lg:w-72 lg:shrink-0 xl:w-80'>
+              <div className='relative'>
+                <MapPin className='pointer-events-none absolute right-3 top-1/2 z-[1] h-5 w-5 -translate-y-1/2 text-[#ffd700]/60' />
                 <div
                   id='jobs-location'
                   data-tour='jobs-location'
                   aria-label={`Selected location ${selectedLocation || "Remote"}`}
                   role='status'
-                  className='flex h-12 items-center rounded-xl border border-[#ffd700]/20 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] px-6 pr-12 text-base font-medium text-foreground sm:text-lg'
+                  className='flex h-12 w-full items-center rounded-xl border border-[#ffd700]/20 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] pl-4 pr-11 text-base font-medium text-foreground'
                 >
-                  <span className='truncate'>{selectedLocation || "Remote"}</span>
+                  <span className='min-w-0 truncate'>{selectedLocation || "Remote"}</span>
                 </div>
               </div>
-              <div className='flex items-center gap-1 rounded-lg border border-border/30 bg-background/40 p-0.5 w-fit'>
+              <div className='flex w-full gap-0.5 rounded-lg border border-border/30 bg-background/40 p-0.5'>
                 {(["city", "country", "global"] as const).map((scope) => (
                   <button
                     key={scope}
                     type='button'
                     onClick={() => setLocationScope(scope)}
-                    className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all duration-200 ${
+                    className={`min-h-[2rem] flex-1 px-1.5 py-1.5 text-[10px] font-semibold leading-tight rounded-md transition-all duration-200 sm:px-2.5 ${
                       locationScope === scope
                         ? "bg-[#ffd700]/15 text-[#ffd700] border border-[#ffd700]/30"
                         : "text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 border border-transparent"
@@ -5871,17 +5871,22 @@ export const JobPage = (): JSX.Element => {
                         <Button
                           className={cn(
                             "border whitespace-nowrap shrink-0",
-                            evaluatingJob || generatingDraft 
-                              ? "border-[#ffd700]/50" 
-                              : aiEvaluation 
-                                ? "border-[#ffb347]/50 text-[#ffb347] bg-[#ffb347]/15 hover:bg-[#ffb347]/25" 
+                            evaluatingJob || generatingDraft || applyingAll
+                              ? "border-[#ffd700]/50"
+                              : aiEvaluation
+                                ? "border-[#ffb347]/50 text-[#ffb347] bg-[#ffb347]/15 hover:bg-[#ffb347]/25"
                                 : "border-[#ffd700]/50 text-[#ffd700] bg-[#ffd700]/15 hover:bg-[#ffd700]/25",
-                            (autoApplyPrimaryDisabled || evaluatingJob || generatingDraft) && "opacity-50 cursor-not-allowed"
+                            (autoApplyPrimaryDisabled ||
+                              evaluatingJob ||
+                              generatingDraft ||
+                              applyingAll) &&
+                              "opacity-50 cursor-not-allowed",
                           )}
                           disabled={
                             autoApplyPrimaryDisabled ||
                             evaluatingJob ||
-                            generatingDraft
+                            generatingDraft ||
+                            applyingAll
                           }
                           onClick={() => {
                             if (autoApplyStep === 1) {
@@ -5897,12 +5902,14 @@ export const JobPage = (): JSX.Element => {
                             }
                           }}
                         >
-                          {evaluatingJob || generatingDraft ? (
+                          {evaluatingJob || generatingDraft || applyingAll ? (
                             <>
                               <Loader2 className='w-4 h-4 mr-2 animate-spin' />
                               {evaluatingJob
-                                ? "Evaluating Job Fit..."
-                                : "Drafting Materials..."}
+                                ? "Evaluating job fit..."
+                                : generatingDraft
+                                  ? "Drafting materials..."
+                                  : "Preparing automation..."}
                             </>
                           ) : autoApplyStep === 1 ? (
                             "Continue"

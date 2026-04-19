@@ -352,6 +352,12 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/proxy-resume/index.ts"
 
+# Public image proxy for <img src>; browser requests cannot send Authorization.
+[functions.proxy-image]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/proxy-image/index.ts"
+
 [functions.calculate-match-score]
 enabled = true
 verify_jwt = true

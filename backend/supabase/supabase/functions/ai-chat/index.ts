@@ -373,10 +373,15 @@ async function executeTool(
     }
 
     case "list_resumes": {
-      const { data } = await sb
+      const { data, error } = await sb
         .from("resumes")
         .select("id, name, status, updated_at, is_favorite")
-        .order("created_at", { ascending: false });
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false });
+      if (error) {
+        console.error("list_resumes:", error.message);
+        return { success: false, error: error.message, resumes: [] };
+      }
       return { success: true, resumes: data || [] };
     }
 
