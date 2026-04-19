@@ -12,9 +12,29 @@ import {
   X,
   Linkedin,
   Loader2,
+  Info,
+  Search,
+  UserPlus,
+  ChevronDown,
+  ListFilter,
+  Link2,
+  Sparkle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { useProfileSettings, type Profile } from "@/hooks/useProfileSettings";
@@ -310,10 +330,201 @@ function CheckCandidateFitModal({
   );
 }
 
+const FUNNEL_STAGES = [
+  { id: "signed_up", label: "Signed Up" },
+  { id: "application_started", label: "Application Started" },
+  { id: "application_completed", label: "Application Completed" },
+  { id: "offer_extended", label: "Offer Extended" },
+  { id: "hired", label: "Hired" },
+  { id: "paid", label: "Paid" },
+] as const;
+
+type FunnelStageId = (typeof FUNNEL_STAGES)[number]["id"];
+type ReferralTimeframe = "1d" | "3d" | "7d" | "all";
+
+function MyReferralsPanel({
+  onOpenFitCheck,
+  onShareLink,
+}: {
+  onOpenFitCheck: () => void;
+  onShareLink: () => void;
+}): JSX.Element {
+  const { success } = useToast();
+  const [timeframe, setTimeframe] = useState<ReferralTimeframe>("all");
+  const [highlightStage, setHighlightStage] = useState<FunnelStageId>("signed_up");
+  const [statusFilter, setStatusFilter] = useState<FunnelStageId>("signed_up");
+  const [search, setSearch] = useState("");
+
+  const counts = useMemo(() => {
+    const base: Record<FunnelStageId, number> = {
+      signed_up: 0,
+      application_started: 0,
+      application_completed: 0,
+      offer_extended: 0,
+      hired: 0,
+      paid: 0,
+    };
+    void timeframe;
+    void search;
+    void statusFilter;
+    return base;
+  }, [timeframe, search, statusFilter]);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <p className="text-sm product-helper-text">Track your referral earnings and progress</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="product-outline-button border-foreground/20"
+            onClick={() => success("You're on the latest referrals experience.")}
+          >
+            <Sparkle className="w-3.5 h-3.5 mr-1.5 opacity-80" />
+            What&apos;s new
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="sm" className="product-outline-button border-foreground/20">
+                <Share2 className="w-3.5 h-3.5 mr-1.5" />
+                Share
+                <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[12rem]">
+              <DropdownMenuItem onClick={onShareLink}>
+                <Link2 className="w-4 h-4 mr-2" />
+                Copy referral link
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => success("Invite email flow coming soon.")}>Email invite</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <div className="flex rounded-lg border border-foreground/15 p-0.5 bg-foreground/[0.04]">
+            {(
+              [
+                { id: "1d" as const, label: "1D" },
+                { id: "3d" as const, label: "3D" },
+                { id: "7d" as const, label: "7D" },
+                { id: "all" as const, label: "ALL" },
+              ] as const
+            ).map((tf) => (
+              <button
+                key={tf.id}
+                type="button"
+                onClick={() => setTimeframe(tf.id)}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                  timeframe === tf.id
+                    ? "bg-[#ffd700]/20 text-[#ffd700] border border-[#ffd700]/35"
+                    : "text-foreground/55 hover:text-foreground/90"
+                }`}
+              >
+                {tf.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <Card className="product-section-card overflow-hidden p-0 border-foreground/15">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-x divide-y divide-border/50 lg:divide-y-0 border-b border-border/50">
+          {FUNNEL_STAGES.map((stage) => {
+            const active = highlightStage === stage.id;
+            return (
+              <button
+                key={stage.id}
+                type="button"
+                onClick={() => {
+                  setHighlightStage(stage.id);
+                  setStatusFilter(stage.id);
+                }}
+                className={`px-3 py-4 text-left transition-colors ${
+                  active ? "bg-[#ffd700]/10 border-b-2 border-[#ffd700] -mb-px" : "hover:bg-foreground/[0.03]"
+                }`}
+              >
+                <p className={`text-[11px] sm:text-xs font-medium leading-tight ${active ? "text-[#ffd700]" : "product-helper-text"}`}>
+                  {stage.label}
+                </p>
+                <p className="text-2xl font-bold text-foreground tabular-nums mt-1">{counts[stage.id]}</p>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <ListFilter className="w-4 h-4 text-foreground/40 shrink-0" />
+          <span className="text-xs text-foreground/50 shrink-0">Status</span>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as FunnelStageId)}>
+            <SelectTrigger className="w-[min(100%,220px)] h-9 text-sm border-foreground/15">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {FUNNEL_STAGES.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/35" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or email…"
+            className="product-input-surface w-full rounded-xl pl-9 pr-3 py-2 text-sm h-10"
+          />
+        </div>
+      </div>
+
+      <Card className="product-section-card py-16 px-6 text-center border-dashed border-foreground/15 hover:border-[#ffd700]/30 transition-colors">
+        <div className="w-14 h-14 rounded-full bg-foreground/5 border border-foreground/10 flex items-center justify-center mx-auto mb-4">
+          <UserPlus className="w-7 h-7 text-foreground/40" />
+        </div>
+        <p className="text-sm text-foreground font-medium max-w-md mx-auto">
+          You don&apos;t have any referrals yet. All your referrals will be visible here.
+        </p>
+        <p className="text-xs product-helper-text max-w-sm mx-auto mt-2">
+          Pre-screen candidates with{" "}
+          <button type="button" className="text-[#ffd700] hover:underline" onClick={onOpenFitCheck}>
+            Check candidate fit
+          </button>{" "}
+          before you share your link.
+        </p>
+        <Button
+          type="button"
+          className="mt-6 bg-[#ffd700] text-black hover:bg-[#ffd700]/90"
+          onClick={onShareLink}
+        >
+          <Link2 className="w-4 h-4 mr-2" />
+          Share your referral link
+        </Button>
+      </Card>
+    </div>
+  );
+}
+
 export const ReferralsPage = (): JSX.Element => {
   const navigate = useNavigate();
+  const { success, error: toastError } = useToast();
   const [tab, setTab] = useState<"connections" | "referrals">("connections");
   const [fitOpen, setFitOpen] = useState(false);
+
+  const referralLink = `${typeof window !== "undefined" ? window.location.origin : ""}/signIn?ref=pending`;
+
+  const copyReferralLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      success("Referral link copied");
+    } catch {
+      toastError("Copy failed", "Could not copy to clipboard.");
+    }
+  }, [referralLink, success, toastError]);
 
   return (
     <div className="product-page-shell min-h-screen">
@@ -321,8 +532,18 @@ export const ReferralsPage = (): JSX.Element => {
 
       <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Referrals</h1>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Referrals</h1>
+              <button
+                type="button"
+                className="rounded-full p-1 text-foreground/40 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+                title="Referrals let you share JobRaker with people you trust. You stay in control—no automatic messages when you upload connections."
+                aria-label="About referrals"
+              >
+                <Info className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
             <div className="mt-4 flex gap-6 border-b border-foreground/10">
               {(
                 [
@@ -348,57 +569,90 @@ export const ReferralsPage = (): JSX.Element => {
           </div>
 
           <div className="flex flex-col sm:items-end gap-3 shrink-0">
-            <p className="text-xs product-helper-text">0 / 100 referrals today</p>
-            <div className="flex flex-wrap gap-2 justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="product-outline-button border-foreground/20"
-                onClick={() => {}}
-              >
-                <Share2 className="w-3.5 h-3.5 mr-1.5" />
-                Share
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="product-outline-button border-foreground/20"
-                onClick={() => navigate("/dashboard/settings/profile")}
-              >
-                <HelpCircle className="w-3.5 h-3.5 mr-1.5" />
-                Help
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90"
-                onClick={() => setFitOpen(true)}
-              >
-                Check candidate fit
-              </Button>
-            </div>
-            <div className="flex gap-2 text-[11px] product-helper-text">
-              <button type="button" className="underline-offset-2 hover:underline text-[#ffd700]/90" onClick={() => navigate("/dashboard/settings")}>
-                Settings
-              </button>
-              <span className="text-foreground/20">·</span>
-              <button type="button" className="underline-offset-2 hover:underline text-[#ffd700]/90" onClick={() => navigate("/dashboard/billing")}>
-                Billing
-              </button>
-            </div>
+            <span className="inline-flex items-center rounded-full border border-foreground/15 bg-foreground/[0.04] px-3 py-1 text-xs font-medium product-helper-text">
+              0 / 100 referrals today
+            </span>
+            {tab === "connections" ? (
+              <>
+                <div className="flex flex-wrap gap-2 justify-end">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="outline" size="sm" className="product-outline-button border-foreground/20">
+                        <Share2 className="w-3.5 h-3.5 mr-1.5" />
+                        Share
+                        <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-60" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => void copyReferralLink()}>
+                        <Link2 className="w-4 h-4 mr-2" />
+                        Copy referral link
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="product-outline-button border-foreground/20"
+                    onClick={() => navigate("/dashboard/settings/profile")}
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 mr-1.5" />
+                    Help
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90"
+                    onClick={() => setFitOpen(true)}
+                  >
+                    Check candidate fit
+                  </Button>
+                </div>
+                <div className="flex gap-2 text-[11px] product-helper-text justify-end">
+                  <button type="button" className="underline-offset-2 hover:underline text-[#ffd700]/90" onClick={() => navigate("/dashboard/settings")}>
+                    Settings
+                  </button>
+                  <span className="text-foreground/20">·</span>
+                  <button type="button" className="underline-offset-2 hover:underline text-[#ffd700]/90" onClick={() => navigate("/dashboard/billing")}>
+                    Billing
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-wrap gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="product-outline-button border-foreground/20"
+                  onClick={() => navigate("/dashboard/billing")}
+                >
+                  Billing & payouts
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90"
+                  onClick={() => setFitOpen(true)}
+                >
+                  Check candidate fit
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-          <p className="text-lg sm:text-xl font-semibold text-foreground max-w-3xl">
-            Refer people you&apos;ve worked with. Earn when they get hired.
-          </p>
-          <p className="mt-2 text-sm product-helper-text max-w-2xl">
-            Uploading your LinkedIn connections will not trigger any messages. You remain in control.
-          </p>
-        </motion.div>
+        {tab === "connections" ? (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
+            <p className="text-lg sm:text-xl font-semibold text-foreground max-w-3xl">
+              Refer people you&apos;ve worked with. Earn when they get hired.
+            </p>
+            <p className="mt-2 text-sm product-helper-text max-w-2xl">
+              Uploading your LinkedIn connections will not trigger any messages. You remain in control.
+            </p>
+          </motion.div>
+        ) : null}
 
         {tab === "connections" ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
@@ -469,15 +723,9 @@ export const ReferralsPage = (): JSX.Element => {
             </Card>
           </div>
         ) : (
-          <Card className="product-section-card p-10 text-center hover:border-[#ffd700]/40 transition-all duration-300">
-            <p className="text-sm product-helper-text max-w-md mx-auto">
-              Referrals you&apos;ve submitted will appear here. This flow is coming online next — for now, use{" "}
-              <button type="button" className="text-[#ffd700] hover:underline" onClick={() => setFitOpen(true)}>
-                Check candidate fit
-              </button>{" "}
-              to vet someone before you refer them.
-            </p>
-          </Card>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+            <MyReferralsPanel onOpenFitCheck={() => setFitOpen(true)} onShareLink={() => void copyReferralLink()} />
+          </motion.div>
         )}
       </div>
     </div>
