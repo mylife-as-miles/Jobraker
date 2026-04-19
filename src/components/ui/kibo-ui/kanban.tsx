@@ -34,7 +34,7 @@ export function KanbanProvider({
       <div className="relative">
         {/* Ambient background effects */}
         <div className="pointer-events-none absolute -top-20 left-1/4 h-64 w-64 rounded-full bg-[#ffd700]/10 blur-3xl opacity-30" />
-        <div className="pointer-events-none absolute -bottom-20 right-1/4 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl opacity-30" />
+        <div className="pointer-events-none absolute -bottom-20 right-1/4 h-64 w-64 rounded-full bg-amber-500/10 blur-3xl opacity-30" />
         
         <div className="flex gap-4 md:gap-5 lg:gap-6 overflow-x-auto pb-3 -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory md:snap-none md:overflow-visible flex-nowrap md:flex-wrap md:flex-auto md:grid md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {columns.map((c) => (

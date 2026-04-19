@@ -733,8 +733,8 @@ export const GanttMarker: React.FC<GanttMarkerProps> = ({ id, date, label, onRem
   return (
     <div className="absolute inset-y-0 pointer-events-none" style={{ left: p + '%' }}>
       <div className="relative h-full">
-        <div className="absolute top-0 bottom-0 w-px bg-cyan-400/70" />
-        <div className={"absolute -top-2 -translate-y-full -translate-x-1/2 flex items-center gap-1 rounded bg-cyan-400 text-black px-1.5 py-0.5 text-[9px] font-semibold pointer-events-auto " + className}>
+        <div className="absolute top-0 bottom-0 w-px bg-amber-400/70" />
+        <div className={"absolute -top-2 -translate-y-full -translate-x-1/2 flex items-center gap-1 rounded bg-amber-400 text-black px-1.5 py-0.5 text-[9px] font-semibold pointer-events-auto " + className}>
           <span className="truncate max-w-[140px]">{label}</span>
           {onRemove && (
             <button onClick={() => onRemove(id)} className="text-background/70 hover:text-black" aria-label="Remove marker">×</button>

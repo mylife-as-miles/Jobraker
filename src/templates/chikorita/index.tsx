@@ -22,7 +22,7 @@ const sectionClassName = cn(
 
 /**
  * Template: Chikorita ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Right Sidebar Accent
- * A modern template with main content on the left and a teal-colored right sidebar.
+ * A modern template with main content on the left and a gold-toned right sidebar.
  */
 export function ChikoritaTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 	const defaultLayout = {

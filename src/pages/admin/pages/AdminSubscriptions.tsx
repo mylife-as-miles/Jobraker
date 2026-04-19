@@ -415,7 +415,7 @@ export default function AdminSubscriptions() {
   const getTierGradient = (name: string) => {
     switch (name.toLowerCase()) {
       case 'ultimate': return 'from-purple-500/20 to-pink-500/20 border-purple-500/30';
-      case 'pro': return 'from-blue-500/20 to-cyan-500/20 border-blue-500/30';
+      case 'pro': return 'from-blue-500/20 to-amber-500/20 border-blue-500/30';
       case 'basics': return 'from-yellow-500/20 to-orange-500/20 border-yellow-500/30';
       default: return 'from-gray-500/20 to-gray-600/20 border-gray-500/30';
     }
@@ -899,7 +899,7 @@ function ViewPlanDialog({
         className="relative max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden rounded-3xl"
       >
         {/* Animated gradient border glow */}
-        <div className="absolute -inset-1 bg-gradient-to-r from-[#fbbf24]/20 via-cyan-500/20 to-purple-500/20 rounded-3xl blur-2xl animate-pulse" />
+        <div className="absolute -inset-1 bg-gradient-to-r from-[#fbbf24]/20 via-amber-500/20 to-purple-500/20 rounded-3xl blur-2xl animate-pulse" />
 
         <div className="relative bg-gradient-to-br from-background/95 via-[#111111]/95 to-background/95 backdrop-blur-xl border border-[#ffd700]/20 rounded-3xl overflow-y-auto max-h-[90vh] shadow-2xl">
           {/* Sticky Header with glass effect */}
@@ -908,12 +908,12 @@ function ViewPlanDialog({
               <div className="flex items-center gap-4">
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
-                  className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#fbbf24]/20 to-cyan-500/20 flex items-center justify-center backdrop-blur-sm border border-[#ffd700]/30 shadow-lg shadow-[#ffd700]/20"
+                  className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#fbbf24]/20 to-amber-500/20 flex items-center justify-center backdrop-blur-sm border border-[#ffd700]/30 shadow-lg shadow-[#ffd700]/20"
                 >
                   <Crown className="w-7 h-7 text-[#ffd700]" />
                 </motion.div>
                 <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-white via-[#ffd700] to-cyan-400 bg-clip-text text-transparent">
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-white via-[#ffd700] to-amber-300 bg-clip-text text-transparent">
                     {plan.name}
                   </h2>
                   <p className="text-sm text-gray-400 flex items-center gap-2 mt-1">
@@ -1000,17 +1000,17 @@ function ViewPlanDialog({
             {(plan.max_resumes || plan.max_cover_letters) && (
               <div>
                 <h4 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-cyan-400" />
+                  <TrendingUp className="w-4 h-4 text-amber-400" />
                   Usage Limits
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
                   {plan.max_resumes && (
                     <motion.div
                       whileHover={{ scale: 1.05 }}
-                      className="p-4 bg-gradient-to-br from-black/40 to-cyan-900/20 rounded-xl border border-cyan-500/30 backdrop-blur-sm"
+                      className="p-4 bg-gradient-to-br from-black/40 to-amber-950/20 rounded-xl border border-amber-500/30 backdrop-blur-sm"
                     >
                       <p className="text-xs text-gray-400 mb-2">Max Resumes</p>
-                      <p className="text-2xl font-bold text-cyan-400">{plan.max_resumes}</p>
+                      <p className="text-2xl font-bold text-amber-400">{plan.max_resumes}</p>
                     </motion.div>
                   )}
                   {plan.max_cover_letters && (

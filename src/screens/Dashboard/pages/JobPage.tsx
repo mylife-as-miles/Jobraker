@@ -1125,7 +1125,7 @@ export const JobPage = (): JSX.Element => {
                 )}
               </div>
               <div
-                className={`text-[11px] sm:text-xs truncate font-medium ${isActive ? "text-[#ccfbf1]" : isCompleted ? "text-[#ffd700]/80" : "text-foreground/60"}`}
+                className={`text-[11px] sm:text-xs truncate font-medium ${isActive ? "text-[#fef3c7]" : isCompleted ? "text-[#ffd700]/80" : "text-foreground/60"}`}
               >
                 {label}
               </div>
@@ -3714,7 +3714,7 @@ export const JobPage = (): JSX.Element => {
                             </div>
                             <div className='mt-3 h-2 rounded-full bg-foreground/10 overflow-hidden'>
                               <motion.div
-                                className='h-full bg-gradient-to-r from-background via-[#ffd700] to-[#5eead4]'
+                                className='h-full bg-gradient-to-r from-background via-[#ffd700] to-[#fbbf24]'
                                 animate={{
                                   width: ["15%", "85%", "35%", "70%"],
                                 }}
@@ -4167,7 +4167,7 @@ export const JobPage = (): JSX.Element => {
                               <span
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
                                   job.status === "applied"
-                                    ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+                                    ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
                                     : "bg-foreground/5 text-gray-400 border-foreground/10"
                                 }`}
                               >
@@ -5288,7 +5288,7 @@ export const JobPage = (): JSX.Element => {
                 <div className='grid gap-4'>
                   <div className='grid sm:grid-cols-2 gap-4'>
                     <div className='rounded-xl border border-[#ffd700]/35 bg-[#ffd700]/12 p-4 sm:p-5'>
-                      <div className='flex items-center gap-2 text-sm font-medium text-[#ccfbf1]'>
+                      <div className='flex items-center gap-2 text-sm font-medium text-[#fef3c7]'>
                         <ShieldCheck className='w-4 h-4' />
                         Execution summary
                       </div>

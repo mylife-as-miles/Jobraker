@@ -1544,10 +1544,10 @@ function ApplicationPage() {
                   <span
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider border ${detailApp.draft_status === 'draft'
                       ? 'bg-yellow-400/10 text-yellow-400 border-yellow-400/20'
-                      : 'bg-cyan-400/10 text-cyan-400 border-cyan-400/20'
+                      : 'bg-amber-400/10 text-amber-400 border-amber-400/20'
                       }`}
                   >
-                    <div className={`h-1.5 w-1.5 rounded-full ${detailApp.draft_status === 'draft' ? 'bg-yellow-400' : 'bg-cyan-400'
+                    <div className={`h-1.5 w-1.5 rounded-full ${detailApp.draft_status === 'draft' ? 'bg-yellow-400' : 'bg-amber-400'
                       }`} />
                     {detailApp.draft_status}
                   </span>
