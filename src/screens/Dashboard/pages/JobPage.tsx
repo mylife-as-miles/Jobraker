@@ -4570,15 +4570,15 @@ export const JobPage = (): JSX.Element => {
                             className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background p-6'
                           >
                             <span className='pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60' />
-                            <div className='relative flex flex-col gap-6'>
-                              <div className='flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5'>
-                                <div className='flex items-start gap-3 sm:gap-4 flex-1 min-w-0'>
-                                  {/* Logo - comes first */}
+                            <div className='relative flex flex-col gap-5'>
+                              {/* Header row: logo + info + action buttons */}
+                              <div className='flex items-start gap-3 sm:gap-4'>
+                                  {/* Logo */}
                                   {job.logoUrl && !logoError[job.id] ? (
                                     <img
                                       src={job.logoUrl}
                                       alt={job.company}
-                                      className='w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-xl object-contain bg-foreground flex-shrink-0'
+                                      className='w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-xl object-contain bg-foreground flex-shrink-0'
                                       onError={() =>
                                         setLogoError((e) => ({
                                           ...e,
@@ -4587,19 +4587,22 @@ export const JobPage = (): JSX.Element => {
                                       }
                                     />
                                   ) : (
-                                    <div className='w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-r from-[#1dff00] to-background rounded-xl flex items-center justify-center text- font-bold text-xl sm:text-2xl md:text-3xl flex-shrink-0'>
+                                    <div className='w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-gradient-to-r from-[#1dff00] to-background rounded-xl flex items-center justify-center font-bold text-lg sm:text-xl md:text-2xl flex-shrink-0'>
                                       {job.logo}
                                     </div>
                                   )}
 
-                                  {/* Content stack - Featured Job, Title, Badges */}
-                                  <div className='flex-1 min-w-0 space-y-2'>
+                                  {/* Content + buttons */}
+                                  <div className='flex-1 min-w-0'>
+                                    <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3'>
+                                      {/* Title & meta */}
+                                      <div className='flex-1 min-w-0 space-y-1.5'>
                                     <div className='inline-flex items-center gap-2 flex-wrap text-[11px] uppercase tracking-[0.3em] text-[#1dff00]/80'>
                                       <Sparkles className='w-3 h-3' />
                                       Featured Job
                                     </div>
                                     <h1
-                                      className='text-base sm:text-lg md:text-xl font-semibold text-foreground leading-tight line-clamp-2'
+                                      className='text-base sm:text-lg md:text-xl font-semibold text-foreground leading-tight line-clamp-3'
                                       title={job.title}
                                     >
                                       {job.title}
@@ -4634,15 +4637,16 @@ export const JobPage = (): JSX.Element => {
                                         </span>
                                       )}
                                     </div>
-                                  </div>
-                                </div>
-                                <div className='flex flex-wrap items-center gap-2 lg:justify-end'>
+                                      </div>
+
+                                      {/* Action buttons — inline on sm+ */}
+                                      <div className='flex flex-shrink-0 items-center gap-2'>
                                   {primaryHref && (
                                     <a
                                       href={primaryHref}
                                       target='_blank'
                                       rel='noopener noreferrer'
-                                      className='inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-4 py-2 text-sm font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25 hover:shadow-[0_10px_30px_rgba(29,255,0,0.2)]'
+                                      className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-3 py-1.5 text-sm font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25 hover:shadow-[0_10px_30px_rgba(29,255,0,0.2)] whitespace-nowrap'
                                     >
                                       View Posting
                                     </a>
@@ -4650,7 +4654,7 @@ export const JobPage = (): JSX.Element => {
                                   <Button
                                     variant='ghost'
                                     onClick={() => openAutoApplyFlow(job)}
-                                    className='inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-[#1dff00]/40 bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 px-4 py-2 text-sm font-medium text-foreground transition hover:from-[#1dff00]/20 hover:to-[#1dff00]/5'
+                                    className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#1dff00]/40 bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 px-3 py-1.5 text-sm font-medium text-foreground transition hover:from-[#1dff00]/20 hover:to-[#1dff00]/5 whitespace-nowrap'
                                     title='Launch auto apply suite for this job'
                                   >
                                     <Briefcase className='w-4 h-4' />
@@ -4659,15 +4663,17 @@ export const JobPage = (): JSX.Element => {
                                       <Lock className='w-3 h-3 opacity-60' />
                                     )}
                                   </Button>
-                                </div>
+                                      </div>
+                                    </div>
+                                  </div>
                               </div>
 
                               {metaTiles.length > 0 && (
-                                <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                                <div className='flex flex-wrap gap-3'>
                                   {metaTiles.map((tile) => (
                                     <div
                                       key={`${tile.label}-${tile.value}`}
-                                      className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-3'
+                                      className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 min-w-[120px]'
                                     >
                                       <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
                                         {tile.label}
