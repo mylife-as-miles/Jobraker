@@ -595,23 +595,58 @@ const verifyJobs = async (jobs: DiscoveryJob[]): Promise<DiscoveryJob[]> => {
   );
 };
 
+/** ISO country hint for Firecrawl geo-targeting (optional). */
+const inferCountryFromLocation = (location: string): string | undefined => {
+  const lower = location.toLowerCase();
+  if (/\bnigeria\b/.test(lower)) return "NG";
+  if (/\b(united states|u\.s\.a\.?|usa)\b/.test(lower)) return "US";
+  if (/\b(united kingdom|england|scotland|wales)\b/.test(lower) || /\buk\b/.test(lower))
+    return "UK";
+  if (/\bcanada\b/.test(lower)) return "CA";
+  return undefined;
+};
+
 const fallbackFirecrawlSearch = async (
   query: string,
   location: string,
   limit: number,
 ): Promise<DiscoveryJob[]> => {
-  const firecrawlApiKey = await resolveFirecrawlApiKey();
-  const payload = {
-    query: `${query} ${location || "Remote"} jobs (hiring OR careers) -inurl:search -inurl:login`,
+  let firecrawlApiKey: string;
+  try {
+    firecrawlApiKey = await resolveFirecrawlApiKey();
+  } catch {
+    return [];
+  }
+
+  const loc = (location || "Remote").trim();
+  const country = inferCountryFromLocation(loc);
+  const payload: Record<string, unknown> = {
+    query: `${query} ${loc} jobs (hiring OR careers OR openings) -inurl:search -inurl:login`,
     limit,
     sources: ["web"],
-    scrapeOptions: { formats: ["markdown"] },
   };
-  const response = await withRetry(
-    () => firecrawlFetch("/search", firecrawlApiKey, payload),
-    1,
-    1000,
-  );
+  if (loc.toLowerCase() !== "remote") {
+    payload.location = loc;
+    if (country) payload.country = country;
+  }
+
+  let response: { data?: { web?: unknown[] } } | null;
+  try {
+    response = await withRetry(
+      () => firecrawlFetch("/search", firecrawlApiKey, payload),
+      3,
+      1200,
+    );
+  } catch (e: unknown) {
+    const err = e as { firecrawlError?: string; message?: string };
+    console.error("firecrawl.seed_search_failed", {
+      query: payload.query,
+      seedType: "general",
+      error: err?.firecrawlError || err?.message || String(e),
+    });
+    return [];
+  }
+
   const items = Array.isArray(response?.data?.web) ? response.data.web : [];
   return items
     .map((item: Record<string, unknown>) => {

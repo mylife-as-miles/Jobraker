@@ -73,7 +73,14 @@ async function firecrawlFetch(path: string, apiKey: string, body: any, userId?: 
     }
     throw err;
   }
-  return res.json();
+  const json = await res.json().catch(() => null);
+  if (json && typeof json.success === 'boolean' && json.success === false) {
+    const code = json.error || json.message || 'request_failed';
+    const err = new Error(`Firecrawl ${path}: ${code}`) as any;
+    err.firecrawlError = code;
+    throw err;
+  }
+  return json;
 }
 
 export { withRetry, resolveFirecrawlApiKey, firecrawlFetch };
