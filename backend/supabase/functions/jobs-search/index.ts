@@ -19,7 +19,31 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const searchQuery = String(body?.searchQuery || body?.query || "").trim();
-    const location = String(body?.location || "Remote").trim() || "Remote";
+    const rawLocation = String(body?.location || "Remote").trim() || "Remote";
+    const locationScope = (["city", "country", "global"] as const).includes(body?.locationScope)
+      ? (body.locationScope as "city" | "country" | "global")
+      : "city";
+
+    // Resolve effective location based on scope
+    let location = rawLocation;
+    if (locationScope === "global") {
+      location = "Remote";
+    } else if (locationScope === "country") {
+      // Extract country from the location string
+      const lower = rawLocation.toLowerCase();
+      const countryMap: Record<string, string> = {
+        nigeria: "Nigeria", "united states": "United States", usa: "United States",
+        "united kingdom": "United Kingdom", uk: "United Kingdom", canada: "Canada",
+        germany: "Germany", india: "India", australia: "Australia",
+      };
+      let resolved: string | null = null;
+      for (const [key, name] of Object.entries(countryMap)) {
+        if (lower.includes(key)) { resolved = name; break; }
+      }
+      if (resolved) location = resolved;
+      // If no country detected, keep the original location (best effort)
+    }
+
     const requestedLimit = Number.isFinite(Number(body?.limit))
       ? Math.max(1, Math.floor(Number(body.limit)))
       : 10;

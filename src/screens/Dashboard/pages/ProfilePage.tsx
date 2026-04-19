@@ -528,6 +528,7 @@ const ProfilePage = (): JSX.Element => {
                     profile={{
                       job_title: profile?.job_title ?? "",
                       location: profile?.location ?? "",
+                      location_scope: (profile as any)?.location_scope ?? "city",
                       experience_years: profile?.experience_years ?? null,
                     }}
                     onCancel={() => setIsEditing(false)}
@@ -554,7 +555,11 @@ const ProfilePage = (): JSX.Element => {
                           <> with <span className="text-foreground font-medium">{profile.experience_years}</span> years experience</>
                         ) : null}
                         {profile?.location ? (
-                          <> in <span className="text-foreground font-medium">{profile.location}</span></>
+                          <> in <span className="text-foreground font-medium">{profile.location}</span>
+                            <span className="ml-1 inline-flex items-center rounded-full bg-foreground/5 border border-foreground/10 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/70">
+                              {(profile as any)?.location_scope === "global" ? "Global" : (profile as any)?.location_scope === "country" ? "Country" : "City"}
+                            </span>
+                          </>
                         ) : null}
                         .
                       </p>
@@ -1077,22 +1082,45 @@ const ProfilePage = (): JSX.Element => {
 };
 
 // Lightweight About editor component (inline to keep file scoped)
-function AboutEditor({ profile, onSave, onCancel }: { profile: { job_title: string; location: string; experience_years: number | null }; onSave: (p: { job_title: string; location: string | null; experience_years: number | null }) => Promise<void> | void; onCancel: () => void; }) {
+function AboutEditor({ profile, onSave, onCancel }: { profile: { job_title: string; location: string; location_scope: "city" | "country" | "global"; experience_years: number | null }; onSave: (p: { job_title: string; location: string | null; location_scope: "city" | "country" | "global"; experience_years: number | null }) => Promise<void> | void; onCancel: () => void; }) {
   const [jobTitle, setJobTitle] = useState(profile.job_title);
   const [location, setLocation] = useState(profile.location || "");
+  const [locationScope, setLocationScope] = useState<"city" | "country" | "global">(profile.location_scope || "city");
   const [years, setYears] = useState<string>(profile.experience_years != null ? String(profile.experience_years) : "");
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Job title" className="product-input-surface rounded px-3 py-2 text-sm" />
-        <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="product-input-surface rounded px-3 py-2 text-sm" />
+        <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location (e.g. Enugu, Nigeria)" className="product-input-surface rounded px-3 py-2 text-sm" />
         <input value={years} onChange={(e) => setYears(e.target.value)} placeholder="Years experience" inputMode="numeric" className="product-input-surface rounded px-3 py-2 text-sm" />
+      </div>
+      <div>
+        <label className="text-xs font-medium text-muted-foreground/70 mb-1.5 block">Job search scope</label>
+        <div className="inline-flex rounded-lg border border-border/40 bg-background/40 p-0.5">
+          {(["city", "country", "global"] as const).map((scope) => (
+            <button
+              key={scope}
+              type="button"
+              onClick={() => setLocationScope(scope)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
+                locationScope === scope
+                  ? "bg-[#1dff00]/15 text-[#1dff00] border border-[#1dff00]/30"
+                  : "text-muted-foreground hover:text-foreground hover:bg-foreground/5 border border-transparent"
+              }`}
+            >
+              {scope === "city" ? "City" : scope === "country" ? "Country" : "Global"}
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground/50 mt-1">
+          {locationScope === "city" ? "Search jobs in your exact city" : locationScope === "country" ? "Search jobs across your country" : "Search jobs worldwide & remote"}
+        </p>
       </div>
       <div className="flex space-x-2">
         <Button
           size="sm"
           className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
-          onClick={() => onSave({ job_title: jobTitle.trim(), location: location.trim() || null, experience_years: years ? Number(years) : null })}
+          onClick={() => onSave({ job_title: jobTitle.trim(), location: location.trim() || null, location_scope: locationScope, experience_years: years ? Number(years) : null })}
         >
           Save
         </Button>

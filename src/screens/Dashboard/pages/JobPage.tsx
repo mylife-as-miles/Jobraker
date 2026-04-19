@@ -832,6 +832,7 @@ export const JobPage = (): JSX.Element => {
   const gamificationHook = useGamification();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("Remote");
+  const [locationScope, setLocationScope] = useState<"city" | "country" | "global">("city");
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [evaluationReports, setEvaluationReports] = useState<
@@ -1998,6 +1999,7 @@ export const JobPage = (): JSX.Element => {
         const searchPayload = {
           searchQuery: query,
           location: currentSearchScope.location,
+          locationScope,
           limit: maxResultsPerSearch, // Use tier-based result limit per search
         };
         const attemptInvoke = async (): Promise<any> => {
@@ -3043,6 +3045,7 @@ export const JobPage = (): JSX.Element => {
     if (profile && !searchQuery) {
       setSearchQuery(profile.job_title || "");
       setSelectedLocation(profile.location || "Remote");
+      setLocationScope((profile as any)?.location_scope || "city");
     }
   }, [profile, searchQuery]);
 
@@ -3537,16 +3540,34 @@ export const JobPage = (): JSX.Element => {
                 </span>
               </div>
             </div>
-            <div className='relative group md:col-span-1 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#1dff00]/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00]/60 focus:ring-2 focus:ring-[#1dff00]/30 transition-all duration-300 rounded-xl'>
-              <MapPin className='pointer-events-none w-5 h-5 absolute right-3 top-1/2  -translate-y-1/2 text-[#1dff00]/60 transition-colors group-focus-within:text-[#1dff00]' />
-              <div
-                id='jobs-location'
-                data-tour='jobs-location'
-                aria-label={`Selected location ${selectedLocation || "Remote"}`}
-                role='status'
-                className='flex h-12 items-center rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] px-6 pr-12 text-base font-medium text-foreground sm:text-lg'
-              >
-                <span className='truncate'>{selectedLocation || "Remote"}</span>
+            <div className='md:col-span-1 space-y-2'>
+              <div className='relative group bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#1dff00]/20 text-foreground transition-all duration-300 rounded-xl'>
+                <MapPin className='pointer-events-none w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-[#1dff00]/60' />
+                <div
+                  id='jobs-location'
+                  data-tour='jobs-location'
+                  aria-label={`Selected location ${selectedLocation || "Remote"}`}
+                  role='status'
+                  className='flex h-12 items-center rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] px-6 pr-12 text-base font-medium text-foreground sm:text-lg'
+                >
+                  <span className='truncate'>{selectedLocation || "Remote"}</span>
+                </div>
+              </div>
+              <div className='flex items-center gap-1 rounded-lg border border-border/30 bg-background/40 p-0.5 w-fit'>
+                {(["city", "country", "global"] as const).map((scope) => (
+                  <button
+                    key={scope}
+                    type='button'
+                    onClick={() => setLocationScope(scope)}
+                    className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all duration-200 ${
+                      locationScope === scope
+                        ? "bg-[#1dff00]/15 text-[#1dff00] border border-[#1dff00]/30"
+                        : "text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 border border-transparent"
+                    }`}
+                  >
+                    {scope === "city" ? "City" : scope === "country" ? "Country" : "Global"}
+                  </button>
+                ))}
               </div>
             </div>
           </div>

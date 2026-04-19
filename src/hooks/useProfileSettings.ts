@@ -9,6 +9,7 @@ export interface Profile {
   job_title: string | null;
   experience_years: number | null;
   location: string | null;
+  location_scope: "city" | "country" | "global";
   goals: string[];
   proof_points?: Array<{ title: string; evidence: string; metric?: string; tags?: string[] }> | string[];
   preferred_narratives?: string[];
