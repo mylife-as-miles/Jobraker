@@ -358,6 +358,11 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/proxy-image/index.ts"
 
+[functions.referrals-agent]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/referrals-agent/index.ts"
+
 [functions.calculate-match-score]
 enabled = true
 verify_jwt = true
