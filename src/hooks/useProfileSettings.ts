@@ -47,6 +47,8 @@ export interface Profile {
     unavailable: boolean;
     slots: { start: string; end: string }[];
   }> | null;
+  referral_code?: string | null;
+  referred_by_user_id?: string | null;
 }
 
 // Lightweight collection record types (duplicated from useProfileCollections to avoid coupling)

@@ -33,6 +33,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { useProfileSettings } from "../../hooks/useProfileSettings";
+import { useToast } from "@/components/ui/toast";
+import { peekPendingReferralCode, clearPendingReferralCode } from "@/lib/referralAttribution";
 import { Skeleton } from "../../components/ui/skeleton";
 import { createClient } from "../../lib/supabaseClient";
 import { updateSessionActivity } from "../../utils/sessionManagement";
@@ -116,7 +118,36 @@ export const Dashboard = (): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useProfileSettings();
+  const { success } = useToast();
   const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    const code = peekPendingReferralCode();
+    if (!code) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc("claim_referral_attribution", { p_code: code });
+      if (cancelled || error) return;
+      const res = data as { ok?: boolean; skipped?: boolean; error?: string } | null;
+      if (res?.ok) {
+        clearPendingReferralCode();
+        if (!res.skipped) {
+          success("Referral linked", "Your account is connected to your referrer.");
+        }
+        try {
+          window.dispatchEvent(new CustomEvent("jobraker:referrals-changed"));
+        } catch {
+          /* ignore */
+        }
+      } else if (res?.error === "invalid_code" || res?.error === "self_referral") {
+        clearPendingReferralCode();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, supabase, success]);
 
   useEffect(() => {
     const checkAuth = async () => {

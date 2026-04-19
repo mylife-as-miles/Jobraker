@@ -16,6 +16,7 @@ import { Input } from "../../components/ui/input";
 import { motion } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
 import { ROUTES } from "../../routes";
+import { capturePendingReferralCodeFromSearch } from "../../lib/referralAttribution";
 import { validatePassword } from "../../utils/password";
 import { useToast } from "../../components/ui/toast-provider";
 import Modal from "../../components/ui/modal";
@@ -49,6 +50,10 @@ export const JobrackerSignup = (): JSX.Element => {
     const shouldSignUp = location.pathname !== ROUTES.SIGNIN;
     setIsSignUp(shouldSignUp);
   }, [location.pathname]);
+
+  useEffect(() => {
+    capturePendingReferralCodeFromSearch(location.search || "");
+  }, [location.search]);
 
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);

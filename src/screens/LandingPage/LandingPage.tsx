@@ -1,5 +1,6 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { capturePendingReferralCodeFromSearch } from "../../lib/referralAttribution";
 import { Bot } from "lucide-react";
 import { Button } from "../../components/ui/button";
 
@@ -19,6 +20,11 @@ import { AnimatedSection } from "./components/AnimatedSection";
 
 export const LandingPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    capturePendingReferralCodeFromSearch(location.search || "");
+  }, [location.search]);
 
   return (
     <div className="min-h-screen bg-background text-foreground font-mono selection:bg-[#ffd700] selection:text-black overflow-x-hidden">

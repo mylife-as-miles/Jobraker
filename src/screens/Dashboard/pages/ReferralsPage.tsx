@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -41,6 +41,7 @@ import { useProfileSettings, type Profile } from "@/hooks/useProfileSettings";
 import { parsePdfFile } from "@/utils/parsePdf";
 import { evaluateJobFit } from "@/services/ai/evaluateJobFit";
 import type { EvaluateJobFitResponse } from "@/services/ai/evaluateJobFit";
+import { useReferrals, type ReferralRow, type ReferralFunnelStage } from "@/hooks/useReferrals";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_EXT = new Set(["pdf", "txt", "text", "docx"]);
@@ -339,15 +340,23 @@ const FUNNEL_STAGES = [
   { id: "paid", label: "Paid" },
 ] as const;
 
-type FunnelStageId = (typeof FUNNEL_STAGES)[number]["id"];
+type FunnelStageId = ReferralFunnelStage;
 type ReferralTimeframe = "1d" | "3d" | "7d" | "all";
 
 function MyReferralsPanel({
   onOpenFitCheck,
   onShareLink,
+  funnelCounts,
+  referrals,
+  loading,
+  onMarkStage,
 }: {
   onOpenFitCheck: () => void;
   onShareLink: () => void;
+  funnelCounts: Record<ReferralFunnelStage, number>;
+  referrals: ReferralRow[];
+  loading: boolean;
+  onMarkStage: (referredUserId: string, stage: "hired" | "paid") => Promise<void>;
 }): JSX.Element {
   const { success } = useToast();
   const [timeframe, setTimeframe] = useState<ReferralTimeframe>("all");
@@ -355,20 +364,28 @@ function MyReferralsPanel({
   const [statusFilter, setStatusFilter] = useState<FunnelStageId>("signed_up");
   const [search, setSearch] = useState("");
 
-  const counts = useMemo(() => {
-    const base: Record<FunnelStageId, number> = {
-      signed_up: 0,
-      application_started: 0,
-      application_completed: 0,
-      offer_extended: 0,
-      hired: 0,
-      paid: 0,
-    };
-    void timeframe;
-    void search;
-    void statusFilter;
-    return base;
-  }, [timeframe, search, statusFilter]);
+  const counts = funnelCounts;
+
+  const filteredReferrals = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const now = Date.now();
+    const ms =
+      timeframe === "1d"
+        ? 86400000
+        : timeframe === "3d"
+          ? 3 * 86400000
+          : timeframe === "7d"
+            ? 7 * 86400000
+            : 0;
+    return referrals.filter((r) => {
+      if (r.funnel_stage !== statusFilter) return false;
+      if (ms > 0 && now - new Date(r.signed_up_at).getTime() > ms) return false;
+      if (!q) return true;
+      const name = `${r.referee?.first_name || ""} ${r.referee?.last_name || ""}`.toLowerCase();
+      const em = (r.referred_email || "").toLowerCase();
+      return name.includes(q) || em.includes(q);
+    });
+  }, [referrals, search, statusFilter, timeframe]);
 
   return (
     <div className="space-y-5">
@@ -482,29 +499,108 @@ function MyReferralsPanel({
         </div>
       </div>
 
-      <Card className="product-section-card py-16 px-6 text-center border-dashed border-foreground/15 hover:border-[#ffd700]/30 transition-colors">
-        <div className="w-14 h-14 rounded-full bg-foreground/5 border border-foreground/10 flex items-center justify-center mx-auto mb-4">
-          <UserPlus className="w-7 h-7 text-foreground/40" />
-        </div>
-        <p className="text-sm text-foreground font-medium max-w-md mx-auto">
-          You don&apos;t have any referrals yet. All your referrals will be visible here.
-        </p>
-        <p className="text-xs product-helper-text max-w-sm mx-auto mt-2">
-          Pre-screen candidates with{" "}
-          <button type="button" className="text-[#ffd700] hover:underline" onClick={onOpenFitCheck}>
-            Check candidate fit
-          </button>{" "}
-          before you share your link.
-        </p>
-        <Button
-          type="button"
-          className="mt-6 bg-[#ffd700] text-black hover:bg-[#ffd700]/90"
-          onClick={onShareLink}
-        >
-          <Link2 className="w-4 h-4 mr-2" />
-          Share your referral link
-        </Button>
-      </Card>
+      {loading ? (
+        <Card className="product-section-card p-10 text-center border-foreground/15">
+          <Loader2 className="w-8 h-8 animate-spin text-[#ffd700] mx-auto" />
+          <p className="text-sm product-helper-text mt-3">Loading referrals…</p>
+        </Card>
+      ) : filteredReferrals.length === 0 ? (
+        <Card className="product-section-card py-16 px-6 text-center border-dashed border-foreground/15 hover:border-[#ffd700]/30 transition-colors">
+          <div className="w-14 h-14 rounded-full bg-foreground/5 border border-foreground/10 flex items-center justify-center mx-auto mb-4">
+            <UserPlus className="w-7 h-7 text-foreground/40" />
+          </div>
+          <p className="text-sm text-foreground font-medium max-w-md mx-auto">
+            {referrals.length === 0
+              ? "You don't have any referrals yet. All your referrals will be visible here."
+              : "No referrals match these filters. Try ALL dates or another status."}
+          </p>
+          <p className="text-xs product-helper-text max-w-sm mx-auto mt-2">
+            Pre-screen candidates with{" "}
+            <button type="button" className="text-[#ffd700] hover:underline" onClick={onOpenFitCheck}>
+              Check candidate fit
+            </button>{" "}
+            before you share your link.
+          </p>
+          <Button
+            type="button"
+            className="mt-6 bg-[#ffd700] text-black hover:bg-[#ffd700]/90"
+            onClick={onShareLink}
+          >
+            <Link2 className="w-4 h-4 mr-2" />
+            Share your referral link
+          </Button>
+        </Card>
+      ) : (
+        <Card className="product-section-card overflow-hidden border-foreground/15">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-foreground/10 text-left product-helper-text">
+                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">Email</th>
+                  <th className="px-4 py-3 font-medium">Stage</th>
+                  <th className="px-4 py-3 font-medium">Signed up</th>
+                  <th className="px-4 py-3 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredReferrals.map((r) => {
+                  const name =
+                    `${r.referee?.first_name || ""} ${r.referee?.last_name || ""}`.trim() || "—";
+                  return (
+                    <tr key={r.id} className="border-b border-foreground/5 hover:bg-foreground/[0.02]">
+                      <td className="px-4 py-3 text-foreground">{name}</td>
+                      <td className="px-4 py-3 product-helper-text">{r.referred_email || "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex rounded-full border border-[#ffd700]/30 bg-[#ffd700]/10 px-2 py-0.5 text-xs text-[#ffd700]">
+                          {FUNNEL_STAGES.find((s) => s.id === r.funnel_stage)?.label || r.funnel_stage}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 product-helper-text">
+                        {new Date(r.signed_up_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {r.funnel_stage !== "hired" && r.funnel_stage !== "paid" ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[10px] border-foreground/20"
+                              onClick={() =>
+                                void onMarkStage(r.referred_user_id, "hired").catch((e) =>
+                                  console.warn(e),
+                                )
+                              }
+                            >
+                              Mark hired
+                            </Button>
+                          ) : null}
+                          {r.funnel_stage === "hired" ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[10px] border-foreground/20"
+                              onClick={() =>
+                                void onMarkStage(r.referred_user_id, "paid").catch((e) =>
+                                  console.warn(e),
+                                )
+                              }
+                            >
+                              Mark paid
+                            </Button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
@@ -514,17 +610,44 @@ export const ReferralsPage = (): JSX.Element => {
   const { success, error: toastError } = useToast();
   const [tab, setTab] = useState<"connections" | "referrals">("connections");
   const [fitOpen, setFitOpen] = useState(false);
+  const [replaceNetwork, setReplaceNetwork] = useState(true);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
-  const referralLink = `${typeof window !== "undefined" ? window.location.origin : ""}/signIn?ref=pending`;
+  const {
+    loading,
+    importing,
+    agentRunning,
+    stats,
+    referrals,
+    connectionCount,
+    suggestionCount,
+    referralShareUrl,
+    funnelCounts,
+    refreshAll,
+    importLinkedInCsv,
+    runAgentScan,
+    updateReferralStage,
+  } = useReferrals();
+
+  useEffect(() => {
+    const onEvt = () => void refreshAll();
+    window.addEventListener("jobraker:referrals-changed", onEvt);
+    return () => window.removeEventListener("jobraker:referrals-changed", onEvt);
+  }, [refreshAll]);
 
   const copyReferralLink = useCallback(async () => {
+    const link = referralShareUrl || "";
+    if (!link) {
+      toastError("Referral link", "Your code is still loading. Try again in a moment.");
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(referralLink);
+      await navigator.clipboard.writeText(link);
       success("Referral link copied");
     } catch {
       toastError("Copy failed", "Could not copy to clipboard.");
     }
-  }, [referralLink, success, toastError]);
+  }, [referralShareUrl, success, toastError]);
 
   return (
     <div className="product-page-shell min-h-screen">
@@ -570,7 +693,7 @@ export const ReferralsPage = (): JSX.Element => {
 
           <div className="flex flex-col sm:items-end gap-3 shrink-0">
             <span className="inline-flex items-center rounded-full border border-foreground/15 bg-foreground/[0.04] px-3 py-1 text-xs font-medium product-helper-text">
-              0 / 100 referrals today
+              {stats?.referrals_today ?? 0} / {stats?.referrals_today_cap ?? 100} referrals today
             </span>
             {tab === "connections" ? (
               <>
@@ -657,12 +780,39 @@ export const ReferralsPage = (): JSX.Element => {
         {tab === "connections" ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
             <Card className="product-section-card p-5 sm:p-6 hover:border-[#ffd700]/50 transition-all duration-300 md:col-span-1">
+              <input
+                ref={csvInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) {
+                    void importLinkedInCsv(f, { replace: replaceNetwork }).catch((err) =>
+                      toastError("Import failed", err instanceof Error ? err.message : "Could not import CSV"),
+                    );
+                  }
+                  e.target.value = "";
+                }}
+              />
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-foreground">Upload connections</h3>
                 <HelpCircle className="w-4 h-4 text-foreground/35" />
               </div>
               <p className="text-sm product-helper-text mb-4">
-                Extract the ZIP from LinkedIn and upload &quot;Connections.csv&quot; here.
+                Extract the ZIP from LinkedIn and upload &quot;Connections.csv&quot; here. Data stays private to your account (RLS).
+              </p>
+              <label className="flex items-center gap-2 text-xs product-helper-text mb-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={replaceNetwork}
+                  onChange={(e) => setReplaceNetwork(e.target.checked)}
+                  className="accent-[#ffd700] rounded"
+                />
+                Replace previous import (clear old connections)
+              </label>
+              <p className="text-[11px] product-helper-text mb-2">
+                Saved contacts: <span className="text-foreground font-medium">{connectionCount}</span>
               </p>
               <div className="flex flex-col gap-2">
                 <Button
@@ -676,11 +826,16 @@ export const ReferralsPage = (): JSX.Element => {
                 </Button>
                 <Button
                   type="button"
+                  disabled={importing}
                   className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90 justify-start"
-                  onClick={() => {}}
+                  onClick={() => csvInputRef.current?.click()}
                 >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload connections
+                  {importing ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4 mr-2" />
+                  )}
+                  {importing ? "Importing…" : "Upload connections"}
                 </Button>
               </div>
             </Card>
@@ -689,14 +844,32 @@ export const ReferralsPage = (): JSX.Element => {
               <div className="w-10 h-10 rounded-full bg-[#ffd700]/15 border border-[#ffd700]/30 flex items-center justify-center mb-4">
                 <Sparkles className="w-5 h-5 text-[#ffd700]" />
               </div>
-              <h3 className="font-semibold text-foreground mb-2">We find matches</h3>
+              <h3 className="font-semibold text-foreground mb-2">Agentic match scan</h3>
               <p className="text-sm product-helper-text mb-4">
-                We scan your network against active roles and surface strong fits.
+                Gemini compares your LinkedIn network to jobs on your JobRaker board and writes structured match suggestions (Basics+).
               </p>
-              <p className="text-xs product-helper-text flex items-center gap-1.5">
+              <p className="text-xs product-helper-text flex items-center gap-1.5 mb-3">
                 <Clock className="w-3.5 h-3.5 text-[#ffd700]/70" />
-                Within minutes of upload
+                {suggestionCount} saved suggestions
               </p>
+              <Button
+                type="button"
+                disabled={agentRunning || connectionCount === 0}
+                className="w-full bg-foreground/10 border border-[#ffd700]/40 text-[#ffd700] hover:bg-[#ffd700]/10"
+                onClick={() => void runAgentScan()}
+              >
+                {agentRunning ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Running agent…
+                  </>
+                ) : (
+                  <>
+                    <Sparkle className="w-4 h-4 mr-2" />
+                    Run AI network match
+                  </>
+                )}
+              </Button>
             </Card>
 
             <Card className="product-section-card p-5 sm:p-6 hover:border-[#ffd700]/50 transition-all duration-300">
@@ -724,7 +897,20 @@ export const ReferralsPage = (): JSX.Element => {
           </div>
         ) : (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-            <MyReferralsPanel onOpenFitCheck={() => setFitOpen(true)} onShareLink={() => void copyReferralLink()} />
+            <MyReferralsPanel
+              onOpenFitCheck={() => setFitOpen(true)}
+              onShareLink={() => void copyReferralLink()}
+              funnelCounts={funnelCounts}
+              referrals={referrals}
+              loading={loading}
+              onMarkStage={async (referredUserId, stage) => {
+                try {
+                  await updateReferralStage(referredUserId, stage);
+                } catch (e: unknown) {
+                  toastError("Update failed", e instanceof Error ? e.message : "Try again");
+                }
+              }}
+            />
           </motion.div>
         )}
       </div>
