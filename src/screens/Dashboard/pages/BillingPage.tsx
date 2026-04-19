@@ -310,7 +310,7 @@ export const BillingPage = () => {
       if (!userId) {
         setPlans(defaultPlans);
         setCreditPacks(defaultCreditPacks);
-        setBillingInterval('yearly');
+        setBillingInterval('monthly');
         setCancelAtPeriodEnd(false);
         setActiveSubscriptionBillingCycle(null);
         setTransactions([
@@ -372,15 +372,17 @@ export const BillingPage = () => {
 
       setActiveSubscriptionBillingCycle(resolvedCycle);
 
+      // Default the Monthly/Annual toggle to monthly so checkout matches "billed each month"
+      // unless we know this member is on (or last bought) an annual term.
       if (subscription) {
         const planName = (subscription as any)?.subscription_plans?.name as string | undefined;
         if (planName && planName !== 'Free') {
           setBillingInterval(resolvedCycle ?? 'monthly');
         } else {
-          setBillingInterval('yearly');
+          setBillingInterval(resolvedCycle ?? 'monthly');
         }
       } else {
-        setBillingInterval('yearly');
+        setBillingInterval(resolvedCycle ?? 'monthly');
       }
 
       // Fetch all subscription plans
