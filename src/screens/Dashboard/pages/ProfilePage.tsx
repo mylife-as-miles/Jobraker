@@ -12,6 +12,7 @@ import { useApplications } from "../../../hooks/useApplications";
 import { createClient } from "../../../lib/supabaseClient";
 import { useGamification } from "../../../hooks/useGamification";
 import { CandidateMemoryEditor } from "../components/CandidateMemoryEditor";
+import { ProfileAvailabilitySection } from "../components/ProfileAvailabilitySection";
 
 // Data now comes from Supabase via useProfileCollections
 
@@ -568,6 +569,14 @@ const ProfilePage = (): JSX.Element => {
                 )}
               </Card>
             </motion.div>
+
+            <ProfileAvailabilitySection
+              profile={profile}
+              loading={profileLoading}
+              onSave={async (patch) => {
+                await updateProfile(patch);
+              }}
+            />
 
             {/* Experience Section */}
             <motion.div

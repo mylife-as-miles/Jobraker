@@ -28,6 +28,16 @@ export interface Tables {
       walkthrough_notifications?: boolean | null;
       walkthrough_chat?: boolean | null;
       walkthrough_cover_letter?: boolean | null;
+      availability_start?: string | null;
+      preferred_weekly_hours?: number | null;
+      work_timezone?: string | null;
+      weekly_availability?: Record<string, { start: string; end: string }[]> | null;
+      availability_date_exceptions?: Array<{
+        id: string;
+        date: string;
+        unavailable: boolean;
+        slots: { start: string; end: string }[];
+      }> | null;
     };
   };
   resumes: {

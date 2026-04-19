@@ -32,6 +32,21 @@ export interface Profile {
   walkthrough_notifications?: boolean;
   walkthrough_chat?: boolean;
   walkthrough_cover_letter?: boolean;
+  /** When the user can start a new role */
+  availability_start?: string | null;
+  /** Ideal weekly hours (e.g. 40) */
+  preferred_weekly_hours?: number | null;
+  /** IANA timezone */
+  work_timezone?: string | null;
+  /** Day index 0=Sun … 6=Sat → { start, end }[] in HH:MM */
+  weekly_availability?: Record<string, { start: string; end: string }[]> | null;
+  /** Date-specific overrides */
+  availability_date_exceptions?: Array<{
+    id: string;
+    date: string;
+    unavailable: boolean;
+    slots: { start: string; end: string }[];
+  }> | null;
 }
 
 // Lightweight collection record types (duplicated from useProfileCollections to avoid coupling)
