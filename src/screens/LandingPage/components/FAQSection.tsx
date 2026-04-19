@@ -29,7 +29,7 @@ const faqs = [
   },
   {
     question: "Do you offer quarterly or annual billing?",
-    answer: "Pro and Ultimate can be billed monthly, quarterly (40% off vs three monthly payments), or annually. Basics supports monthly and annual. See the Billing page in your dashboard for live prices and checkout."
+    answer: "Pro and Ultimate can be billed monthly, quarterly (10% off for Pro and 15% off for Ultimate vs three monthly payments), or annually. Basics supports monthly and annual. See the Billing page in your dashboard for live prices and checkout."
   },
   {
     question: "Can I use JobRaker on mobile?",

@@ -837,7 +837,7 @@ export const BillingPage = () => {
             >
               <div className="max-w-3xl mx-auto text-center space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Monthly, quarterly (Pro & Ultimate, 40% off three months), or annual—same features, different billing cadence.
+                  Monthly, quarterly (Pro: 10% off, Ultimate: 15% off vs three monthly payments), or annual—same features, different billing cadence.
                 </p>
                 <div className="inline-flex flex-wrap justify-center gap-1 p-1 rounded-2xl bg-foreground/5 border border-foreground/10 backdrop-blur-sm max-w-full">
                   <button
@@ -862,7 +862,7 @@ export const BillingPage = () => {
                   >
                     Quarterly
                     <span className="text-[10px] font-bold uppercase tracking-wide opacity-90 border border-current/30 rounded-full px-2 py-0.5">
-                      40% off
+                      10–15% off
                     </span>
                   </button>
                   <button
@@ -1658,7 +1658,7 @@ export const BillingPage = () => {
                             }`}
                           >
                             Quarterly
-                            <span className="text-[10px] font-bold opacity-80">40% OFF</span>
+                            <span className="text-[10px] font-bold opacity-80">10–15% OFF</span>
                           </button>
                           <button
                             onClick={() => setBillingInterval('yearly')}
