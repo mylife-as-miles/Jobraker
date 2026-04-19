@@ -63,20 +63,20 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
       >
         {/* Ambient background effects */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-[#1dff00]/5 blur-3xl" />
+          <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-[#2dd4bf]/5 blur-3xl" />
           <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-purple-500/5 blur-3xl" />
         </div>
 
         <div className="relative z-10 text-center">
-          <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-purple-500/20 border border-foreground/10">
-            <LockIcon className="h-8 w-8 text-[#1dff00]" />
+          <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#22d3ee]/20 to-purple-500/20 border border-foreground/10">
+            <LockIcon className="h-8 w-8 text-[#2dd4bf]" />
           </div>
           
           <h3 className="mb-2 text-xl font-semibold text-white">{title}</h3>
           <p className="mb-6 text-sm text-foreground/60">{description}</p>
 
           <Link to="/dashboard/billing">
-            <Button className="bg-gradient-to-r from-[#1dff00] to-background hover:from-[#1dff00]/90 hover:to-background/90 text-black font-semibold">
+            <Button className="bg-gradient-to-r from-[#22d3ee] to-background hover:from-[#22d3ee]/90 hover:to-background/90 text-black font-semibold">
               Upgrade Now
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -95,7 +95,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
     >
       {/* Ambient background effects */}
       <div className='pointer-events-none absolute inset-0'>
-        <div className='absolute top-0 right-0 h-96 w-96 rounded-full bg-[#1dff00]/5 blur-3xl animate-pulse' />
+        <div className='absolute top-0 right-0 h-96 w-96 rounded-full bg-[#2dd4bf]/5 blur-3xl animate-pulse' />
         <div
           className='absolute bottom-0 left-0 h-96 w-96 rounded-full bg-purple-500/5 blur-3xl animate-pulse'
           style={{ animationDelay: "1s" }}
@@ -121,10 +121,10 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
           <div className='text-center mb-12'>
             <motion.div
               variants={itemVariants}
-              className='mx-auto mb-6 inline-flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-[#1dff00]/20 via-purple-500/10 to-blue-500/10 border border-foreground/10 backdrop-blur-xl'
+              className='mx-auto mb-6 inline-flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-[#22d3ee]/20 via-purple-500/10 to-blue-500/10 border border-foreground/10 backdrop-blur-xl'
             >
               {icon || (
-                <LockIcon className='h-10 w-10 sm:h-12 sm:w-12 text-[#1dff00]' />
+                <LockIcon className='h-10 w-10 sm:h-12 sm:w-12 text-[#2dd4bf]' />
               )}
             </motion.div>
 
@@ -132,7 +132,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
               variants={itemVariants}
               className='mb-3 inline-flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 px-4 py-1.5 text-xs font-medium text-foreground/70'
             >
-              <Sparkles className='h-3 w-3 text-[#1dff00]' />
+              <Sparkles className='h-3 w-3 text-[#2dd4bf]' />
               {getPromptBadgeLabel(requiredTier)}
             </motion.div>
 
@@ -161,13 +161,13 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
                 <motion.div
                   key={index}
                   variants={itemVariants}
-                  className='group relative overflow-hidden rounded-2xl border border-foreground/10 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] p-6 backdrop-blur-sm hover:border-[#1dff00]/30 transition-all duration-300'
+                  className='group relative overflow-hidden rounded-2xl border border-foreground/10 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] p-6 backdrop-blur-sm hover:border-[#2dd4bf]/30 transition-all duration-300'
                 >
-                  <div className='absolute inset-0 bg-gradient-to-br from-[#1dff00]/0 to-[#1dff00]/0 group-hover:from-[#1dff00]/5 group-hover:to-transparent transition-all duration-300' />
+                  <div className='absolute inset-0 bg-gradient-to-br from-[#22d3ee]/0 to-[#0d9488]/0 group-hover:from-[#22d3ee]/5 group-hover:to-transparent transition-all duration-300' />
 
                   <div className='relative z-10'>
                     {feature.icon && (
-                      <div className='mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#1dff00]/10 text-[#1dff00] group-hover:bg-[#1dff00]/20 transition-colors'>
+                      <div className='mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#2dd4bf]/10 text-[#2dd4bf] group-hover:bg-[#2dd4bf]/20 transition-colors'>
                         {feature.icon}
                       </div>
                     )}
@@ -195,22 +195,22 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
                 const isBasics = plan.tier === "Basics";
                 const isPro = plan.tier === "Pro";
                 const borderClass = isBasics
-                  ? "border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/10 via-[#1dff00]/5 to-transparent hover:border-[#1dff00]/50"
+                  ? "border-[#2dd4bf]/30 bg-gradient-to-br from-[#22d3ee]/10 via-[#2dd4bf]/5 to-transparent hover:border-[#2dd4bf]/50"
                   : isPro
                     ? "border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent hover:border-blue-500/40"
                     : "border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent hover:border-purple-500/50 ring-2 ring-purple-500/20";
                 const iconBgClass = isBasics
-                  ? "bg-[#1dff00]/20"
+                  ? "bg-[#2dd4bf]/20"
                   : isPro
                     ? "bg-blue-500/20"
                     : "bg-purple-500/20";
                 const iconClass = isBasics
-                  ? "text-[#1dff00]"
+                  ? "text-[#2dd4bf]"
                   : isPro
                     ? "text-blue-400"
                     : "text-purple-400";
                 const buttonClass = isBasics
-                  ? "bg-[#1dff00] hover:bg-[#1dff00]/90 text-black"
+                  ? "bg-[#2dd4bf] hover:bg-[#2dd4bf]/90 text-black"
                   : isPro
                     ? "bg-blue-500 hover:bg-blue-600 text-foreground"
                     : "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-foreground";
@@ -288,7 +288,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
               Need help deciding?{" "}
               <Link
                 to='/dashboard/billing'
-                className='text-[#1dff00] hover:text-[#1dff00]/80 transition-colors'
+                className='text-[#2dd4bf] hover:text-[#2dd4bf]/80 transition-colors'
               >
                 Compare all plans
               </Link>

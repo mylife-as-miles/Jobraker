@@ -87,7 +87,7 @@ export function AnalyticsPage() {
       <div className='relative space-y-6 p-4 sm:p-6 lg:p-8 mx-auto max-w-7xl'>
         {loadingTier ? (
           <Card className='rounded-2xl border border-foreground/10 bg-foreground/5 p-10 text-center'>
-            <div className='mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-[#1dff00]' />
+            <div className='mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-[#2dd4bf]' />
             <p className='text-sm text-foreground/70'>Loading analytics access...</p>
           </Card>
         ) : !hasAnalyticsAccess ? (
@@ -115,7 +115,7 @@ export function AnalyticsPage() {
 
         {/* Controls Card */}
         <Card
-          className='relative overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  border border-[#1dff00]/20 p-5 sm:p-6 rounded-2xl shadow-[0_0_30px_rgba(29,255,0,0.1)] backdrop-blur-xl'
+          className='relative overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  border border-[#2dd4bf]/20 p-5 sm:p-6 rounded-2xl shadow-[0_0_30px_rgba(45,212,191,0.1)] backdrop-blur-xl'
           id='analytics-controls'
           data-tour='analytics-controls'
         >
@@ -124,7 +124,7 @@ export function AnalyticsPage() {
 
           <div className='relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4'>
             <div className='flex flex-wrap items-center gap-3'>
-              <span className='text-xs uppercase tracking-wider text-[#1dff00]/80 font-semibold'>
+              <span className='text-xs uppercase tracking-wider text-[#2dd4bf]/80 font-semibold'>
                 Granularity:
               </span>
               {(["day", "week", "month"] as const).map((g) => (
@@ -133,14 +133,14 @@ export function AnalyticsPage() {
                   onClick={() => setGranularityAndPersist(g)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 ${
                     granularity === g
-                      ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/50 shadow-[0_0_15px_rgba(29,255,0,0.2)]"
+                      ? "bg-gradient-to-br from-[#22d3ee]/20 to-[#0d9488]/10 text-[#2dd4bf] border-[#2dd4bf]/50 shadow-[0_0_15px_rgba(45,212,191,0.2)]"
                       : "border-foreground/20 text-foreground/70 hover:bg-foreground/10 hover:border-foreground/30"
                   }`}
                 >
                   {g.charAt(0).toUpperCase() + g.slice(1)}
                 </button>
               ))}
-              <span className='ml-3 text-xs uppercase tracking-wider text-[#1dff00]/80 font-semibold'>
+              <span className='ml-3 text-xs uppercase tracking-wider text-[#2dd4bf]/80 font-semibold'>
                 Period:
               </span>
               {["7d", "30d", "90d", "ytd", "12m"].map((p) => (
@@ -163,7 +163,7 @@ export function AnalyticsPage() {
             <div className='flex items-center gap-3'>
               <Button
                 variant='outline'
-                className='border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/5 to-transparent text-foreground hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
+                className='border-[#2dd4bf]/30 bg-gradient-to-br from-[#22d3ee]/5 to-transparent text-foreground hover:bg-[#2dd4bf]/10 hover:border-[#2dd4bf]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(45,212,191,0.15)]'
                 onClick={() => analytics.refresh?.({ bypassCache: true })}
               >
                 <RefreshCw
@@ -173,7 +173,7 @@ export function AnalyticsPage() {
               </Button>
               <Button
                 variant='outline'
-                className='border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/5 to-transparent text-foreground hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
+                className='border-[#2dd4bf]/30 bg-gradient-to-br from-[#22d3ee]/5 to-transparent text-foreground hover:bg-[#2dd4bf]/10 hover:border-[#2dd4bf]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(45,212,191,0.15)]'
                 disabled={analytics.loading}
                 onClick={() => analytics.exportCSV?.()}
               >
@@ -194,7 +194,7 @@ export function AnalyticsPage() {
               </Button>
               <Button
                 variant='outline'
-                className='border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/5 to-transparent text-foreground hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
+                className='border-[#2dd4bf]/30 bg-gradient-to-br from-[#22d3ee]/5 to-transparent text-foreground hover:bg-[#2dd4bf]/10 hover:border-[#2dd4bf]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(45,212,191,0.15)]'
                 disabled={analytics.loading}
                 onClick={() => analytics.exportJSON?.()}
               >

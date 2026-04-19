@@ -42,7 +42,7 @@ const AudioVisualizer = ({ isActive }: { isActive: boolean }) => {
       {[...Array(12)].map((_, i) => (
         <motion.div
           key={i}
-          className={`w-1 rounded-full ${isActive ? "bg-[#1dff00]" : "bg-zinc-700"}`}
+          className={`w-1 rounded-full ${isActive ? "bg-[#2dd4bf]" : "bg-zinc-700"}`}
           animate={
             isActive
               ? {
@@ -328,21 +328,21 @@ export const InterviewStudioPage: React.FC = () => {
   return (
     <div className='h-full bg-background text-foreground overflow-hidden flex flex-col relative'>
       {/* Background Grid */}
-      <div className='absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none' />
+      <div className='absolute inset-0 bg-[linear-gradient(rgba(45,212,191,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(45,212,191,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none' />
 
       {/* Main Content Area */}
       <div className='flex-1 flex flex-col xl:grid xl:grid-cols-12 gap-4 p-4 min-h-0 z-10 overflow-y-auto xl:overflow-hidden'>
         {/* HEADER (Mobile Only - usually redundant if sidebar exists, but good for context) */}
         <div className='xl:col-span-12 flex items-center justify-between shrink-0 xl:mb-2'>
           <div className='flex items-center gap-2'>
-            <span className='w-2 h-2 bg-[#1dff00] rounded-full shadow-[0_0_8px_#1dff00]' />
+            <span className='w-2 h-2 bg-[#2dd4bf] rounded-full shadow-[0_0_8px_#2dd4bf]' />
             <h1 className='font-bold font-mono tracking-tight text-lg'>
               Interview Studio
             </h1>
           </div>
           {isRecording && (
-            <div className='flex items-center gap-2 px-2 py-0.5 rounded-full bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] text-[10px] uppercase font-mono'>
-              <div className='w-1.5 h-1.5 rounded-full bg-[#1dff00] animate-pulse' />
+            <div className='flex items-center gap-2 px-2 py-0.5 rounded-full bg-[#2dd4bf]/10 border border-[#2dd4bf]/30 text-[#2dd4bf] text-[10px] uppercase font-mono'>
+              <div className='w-1.5 h-1.5 rounded-full bg-[#2dd4bf] animate-pulse' />
               {isAIActive ? "AI Speaking" : formatTime(elapsedSeconds)}
             </div>
           )}
@@ -493,7 +493,7 @@ export const InterviewStudioPage: React.FC = () => {
                   isRecording ? handleStopRecording : handleStartRecording
                 }
                 disabled={!streamInitialized || isConnecting}
-                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-red-500 hover:bg-red-600 shadow-red-900/20" : "bg-[#1dff00] hover:bg-[#1dff00]/90 shadow-[#1dff00]/20"} shadow-lg hover:scale-105 active:scale-95`}
+                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-red-500 hover:bg-red-600 shadow-red-900/20" : "bg-[#2dd4bf] hover:bg-[#2dd4bf]/90 shadow-[#2dd4bf]/20"} shadow-lg hover:scale-105 active:scale-95`}
               >
                 {isConnecting ? (
                   <div className='w-5 h-5 border-2 border-background/30 border-t-black rounded-full animate-spin' />
@@ -524,7 +524,7 @@ export const InterviewStudioPage: React.FC = () => {
                 variant='ghost'
                 size='sm'
                 onClick={() => setIsScriptEditing(!isScriptEditing)}
-                className={`h-6 text-[10px] px-2 uppercase tracking-wider ${isScriptEditing ? "text-[#1dff00] bg-[#1dff00]/10 hover:bg-[#1dff00]/20" : "text-foreground hover:text-foreground"}`}
+                className={`h-6 text-[10px] px-2 uppercase tracking-wider ${isScriptEditing ? "text-[#2dd4bf] bg-[#2dd4bf]/10 hover:bg-[#2dd4bf]/20" : "text-foreground hover:text-foreground"}`}
               >
                 {isScriptEditing ? (
                   <span className='flex items-center gap-1'>
@@ -544,7 +544,7 @@ export const InterviewStudioPage: React.FC = () => {
               />
               {!isScriptEditing && isRecording && (
                 <div className='absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-foreground/5 to-transparent pointer-events-none flex items-end justify-center pb-2'>
-                  <span className='text-[10px] text-[#1dff00] animate-pulse'>
+                  <span className='text-[10px] text-[#2dd4bf] animate-pulse'>
                     Auto-scrolling...
                   </span>
                 </div>
@@ -559,7 +559,7 @@ export const InterviewStudioPage: React.FC = () => {
                 <Activity size={12} /> AI Coach
               </h3>
               {isRecording && (
-                <span className='px-1.5 py-0.5 rounded bg-[#1dff00] text-foreground text-[9px] font-bold animate-pulse'>
+                <span className='px-1.5 py-0.5 rounded bg-[#2dd4bf] text-foreground text-[9px] font-bold animate-pulse'>
                   LIVE
                 </span>
               )}

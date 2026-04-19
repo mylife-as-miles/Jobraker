@@ -1388,13 +1388,13 @@ export const SettingsPage = (): JSX.Element => {
   const getTierGradient = (tier: string) => {
     switch (tier) {
       case "Basics":
-        return "from-[#1dff00] via-[#5fff4a] to-[#b8ffb0]";
+        return "from-[#22d3ee] via-[#5fff4a] to-[#b8ffb0]";
       case "Pro":
         return "from-blue-500 via-blue-600 to-blue-700";
       case "Ultimate":
         return "from-purple-500 via-purple-600 to-purple-700";
       default:
-        return "from-[#1dff00] via-background to-background";
+        return "from-[#22d3ee] via-background to-background";
     }
   };
 
@@ -2912,7 +2912,7 @@ export const SettingsPage = (): JSX.Element => {
               <div className='flex flex-wrap gap-4'>
                 {[
                   "#ffd700", // Gold
-                  "#1dff00", // Neon Green
+                  "#2dd4bf", // Neon Green
                   "#3b82f6", // Blue
                   "#8b5cf6", // Purple
                   "#f59e0b", // Amber
@@ -3876,7 +3876,7 @@ export const SettingsPage = (): JSX.Element => {
               <Button
                 onClick={handleSaveDomains}
                 disabled={savingDomains || loadingDomains}
-                className='bg-[#1dff00] text-black hover:bg-[#1dff00]/90 font-medium'
+                className='bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90 font-medium'
               >
                 {savingDomains ? (
                   <>
@@ -4031,7 +4031,7 @@ export const SettingsPage = (): JSX.Element => {
                     className={`text-xs font-semibold px-2 py-1 rounded-full ${billingSubscriptionTier === "Pro"
                       ? "bg-blue-500/20 text-blue-400"
                       : billingSubscriptionTier === "Basics"
-                        ? "bg-[#1dff00]/20 text-[#1dff00]"
+                        ? "bg-[#2dd4bf]/20 text-[#2dd4bf]"
                         : billingSubscriptionTier === "Ultimate"
                           ? "bg-purple-500/20 text-purple-400"
                           : "bg-[#ffd700]/20 text-[#ffd700]"
@@ -4329,14 +4329,14 @@ export const SettingsPage = (): JSX.Element => {
                   id={`settings-tab-btn-${tab.id}`}
                   data-tour={`settings-tab-btn-${tab.id}`}
                   className={`w-full flex items-center gap-3 text-in px-4 py-2.5 rounded-lg text-sm transition-all ${activeTab === tab.id
-                    ? "text-foreground/95 bg-gradient-to-r from-foreground/[0.08] to-transparent border-l-2 border-[#1dff00]"
+                    ? "text-foreground/95 bg-gradient-to-r from-foreground/[0.08] to-transparent border-l-2 border-[#2dd4bf]"
                     : "text-foreground/70 hover:text-foreground/80 hover:bg-foreground/5 border-l-2 border-transparent"
                     }`}
                 >
                   <span
                     className={
                       activeTab === tab.id
-                        ? "text-[#1dff00]"
+                        ? "text-[#2dd4bf]"
                         : "text-foreground/40"
                     }
                   >
@@ -4431,7 +4431,7 @@ export const SettingsPage = (): JSX.Element => {
                   navigator.clipboard.writeText(allCodes);
                   success("All codes copied to clipboard");
                 }}
-                className='flex-1 bg-[#1dff00] text-black hover:bg-[#1dff00]/90'
+                className='flex-1 bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90'
               >
                 Copy All Codes
               </Button>

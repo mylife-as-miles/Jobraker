@@ -122,7 +122,7 @@ export function Toaster({ toasts, onClose }: { toasts: ToastItem[]; onClose: (id
 function variantBorderClass(v: ToastVariant) {
   switch (v) {
     case "success":
-      return "border-[#1dff00]/40";
+      return "border-[#2dd4bf]/40";
     case "error":
       return "border-red-500/40";
     case "warning":
@@ -135,7 +135,7 @@ function variantBorderClass(v: ToastVariant) {
 function variantDotClass(v: ToastVariant) {
   switch (v) {
     case "success":
-      return "bg-[#1dff00] shadow-[0_0_12px_#1dff00]";
+      return "bg-[#2dd4bf] shadow-[0_0_12px_#2dd4bf]";
     case "error":
       return "bg-red-500 shadow-[0_0_12px_#ef4444]";
     case "warning":

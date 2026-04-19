@@ -105,7 +105,7 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                     {/* Color selection */}
                     <div>
                         <div className="flex items-center gap-2 mb-4">
-                            <Palette className="w-4 h-4 text-[#1dff00]" />
+                            <Palette className="w-4 h-4 text-[#2dd4bf]" />
                             <h3 className="text-foreground text-xs font-semibold uppercase tracking-wider">Theme Colors</h3>
                         </div>
                         <div className="flex flex-wrap gap-3">
@@ -129,7 +129,7 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                     {/* Typography selection */}
                     <div>
                         <div className="flex items-center gap-2 mb-4">
-                            <TypeIcon className="w-4 h-4 text-[#1dff00]" />
+                            <TypeIcon className="w-4 h-4 text-[#2dd4bf]" />
                             <h3 className="text-foreground text-xs font-semibold uppercase tracking-wider">Typography</h3>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
@@ -140,7 +140,7 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                                     className={cn(
                                         "h-10 rounded border text-sm font-medium transition-all flex items-center justify-center",
                                         fontFamily === font.family
-                                            ? "bg-border border-[#1dff00] text-foreground shadow-[0_0_10px_rgba(29,255,0,0.1)]"
+                                            ? "bg-border border-[#2dd4bf] text-foreground shadow-[0_0_10px_rgba(45,212,191,0.1)]"
                                             : "bg-background border-transparent text-[#9cbaa1] hover:border-[#28392b] hover:text-foreground"
                                     )}
                                 >
@@ -154,7 +154,7 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                     <div className="mt-auto pt-6 border-t border-[#28392b] space-y-3">
                         <button
                             onClick={handleConfirm}
-                            className="w-full flex items-center justify-center gap-2 h-12 bg-[#1dff00] hover:bg-[#18d600] text-[#111812] rounded-lg font-bold text-base transition-all shadow-[0_0_20px_rgba(29,255,0,0.2)] active:scale-95"
+                            className="w-full flex items-center justify-center gap-2 h-12 bg-[#2dd4bf] hover:bg-[#18d600] text-[#111812] rounded-lg font-bold text-base transition-all shadow-[0_0_20px_rgba(45,212,191,0.2)] active:scale-95"
                         >
                             <Edit3 className="w-5 h-5" />
                             Use This Template
@@ -178,7 +178,7 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                         >
                             <ZoomIn className="w-5 h-5" />
                         </button>
-                        <span className="text-sm font-bold text-[#1dff00] min-w-[3rem] text-center">
+                        <span className="text-sm font-bold text-[#2dd4bf] min-w-[3rem] text-center">
                             {Math.round(zoom * 100)}%
                         </span>
                         <button
@@ -238,7 +238,7 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                     border: 2px solid #0A0A0A;
                 }
                 .preview-scroll::-webkit-scrollbar-thumb:hover {
-                    background: #1dff00;
+                    background: #2dd4bf;
                 }
                 .bg-grid-pattern {
                     background-image: radial-gradient(circle, #28392b 1px, transparent 1px);

@@ -104,7 +104,7 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
                             checked={!!isPublic}
                             onCheckedChange={handleToggle}
                             disabled={loading || !canShare}
-                            className="data-[state=checked]:bg-[#1dff00] data-[state=checked]:dark:bg-[#1dff00]"
+                            className="data-[state=checked]:bg-[#2dd4bf] data-[state=checked]:dark:bg-[#2dd4bf]"
                         />
                     </div>
 
@@ -113,8 +113,8 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
                             <div className="space-y-3">
                                 <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] ml-1">Share Link</label>
                                 <div className="flex items-center gap-3 p-4 bg-zinc-100/50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-2xl group transition-all hover:border-zinc-300 dark:hover:border-white/20">
-                                    <div className="w-8 h-8 rounded-lg bg-[#1dff00]/10 flex items-center justify-center shrink-0">
-                                        <Globe className="w-4 h-4 text-[#1dff00]" />
+                                    <div className="w-8 h-8 rounded-lg bg-[#2dd4bf]/10 flex items-center justify-center shrink-0">
+                                        <Globe className="w-4 h-4 text-[#2dd4bf]" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-mono text-zinc-500 dark:text-zinc-400 truncate">

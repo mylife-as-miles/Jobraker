@@ -304,7 +304,7 @@ export const useMouseFollower = () => {
       position: fixed;
       width: 20px;
       height: 20px;
-      background: linear-gradient(45deg, #1dff00, #0a8246);
+      background: linear-gradient(45deg, #2dd4bf, #0a8246);
       border-radius: 50%;
       pointer-events: none;
       z-index: 9999;

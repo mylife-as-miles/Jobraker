@@ -156,7 +156,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
   if (checking || !onboardingCheck.done) {
     return (
       <div className="min-h-screen grid place-items-center bg-background">
-        <div className="w-6 h-6 border-2 border-foreground/20 border-t-[#1dff00] rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-foreground/20 border-t-[#2dd4bf] rounded-full animate-spin" />
       </div>
     )
   }

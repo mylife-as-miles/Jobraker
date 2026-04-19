@@ -71,7 +71,7 @@ export const ListEditor = ({ sectionId }: ListEditorProps) => {
         <Button
           onClick={handleAddItem}
           disabled={!newItemName.trim()}
-          className='bg-[#1dff00] text-black hover:bg-[#15bd00] sm:w-auto'
+          className='bg-[#2dd4bf] text-black hover:bg-[#15bd00] sm:w-auto'
         >
           <Plus className='w-4 h-4' />
         </Button>

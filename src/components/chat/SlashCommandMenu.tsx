@@ -67,8 +67,8 @@ export function SlashCommandMenu({ open, query, onSelect, anchorRef }: Props) {
           style={style}
           ref={containerRef}
         >
-          <div className="rounded-xl overflow-hidden border border-[#1dff00]/30 bg-background/95 backdrop-blur-xl shadow-xl">
-            <ul className="divide-y divide-[#1dff00]/10">
+          <div className="rounded-xl overflow-hidden border border-[#2dd4bf]/30 bg-background/95 backdrop-blur-xl shadow-xl">
+            <ul className="divide-y divide-[#2dd4bf]/10">
               {list.map(item => (
                 <li key={item.cmd}>
                   <button
@@ -76,7 +76,7 @@ export function SlashCommandMenu({ open, query, onSelect, anchorRef }: Props) {
                     onClick={()=>onSelect(item)}
                     className="w-full text-left px-3 py-2 focus:outline-none focus:bg-[#143014] hover:bg-[#112611] transition flex flex-col gap-0.5"
                   >
-                    <span className="text-[12px] font-semibold text-[#b9ffb5]"><span className="text-[#1dff00]">/{item.cmd}</span> — {item.title}</span>
+                    <span className="text-[12px] font-semibold text-[#b9ffb5]"><span className="text-[#2dd4bf]">/{item.cmd}</span> — {item.title}</span>
                     <span className="text-[10px] text-neutral-400 leading-snug">{item.description}</span>
                   </button>
                 </li>

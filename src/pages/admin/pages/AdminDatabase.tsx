@@ -90,14 +90,14 @@ function DatabaseDetailPanel({
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 20 }}
-          className="w-full max-w-xl h-full bg-background border-l border-[#1dff00]/20 shadow-2xl overflow-y-auto"
+          className="w-full max-w-xl h-full bg-background border-l border-[#2dd4bf]/20 shadow-2xl overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="p-6 border-b border-[#1dff00]/10 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
+          <div className="p-6 border-b border-[#2dd4bf]/10 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
             <div>
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Table className="w-5 h-5 text-[#1dff00]" />
+                <Table className="w-5 h-5 text-[#2dd4bf]" />
                 {tableName}
               </h2>
               <p className="text-sm text-gray-400 font-mono text-xs mt-1">Schema Inspector</p>
@@ -113,7 +113,7 @@ function DatabaseDetailPanel({
           <div className="p-6 space-y-8">
             {loading ? (
               <div className="flex justify-center p-12">
-                <Loader2 className="w-8 h-8 text-[#1dff00] animate-spin" />
+                <Loader2 className="w-8 h-8 text-[#2dd4bf] animate-spin" />
               </div>
             ) : error ? (
               <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 flex items-center gap-3">
@@ -135,9 +135,9 @@ function DatabaseDetailPanel({
                       <p className="text-gray-500 italic">No columns found (table might be empty or permissions denied)</p>
                     ) : (
                       schemaKeys.map(key => (
-                        <div key={key} className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg border border-gray-800 hover:border-[#1dff00]/30 transition-colors">
+                        <div key={key} className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg border border-gray-800 hover:border-[#2dd4bf]/30 transition-colors">
                           <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#1dff00]"></div>
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#2dd4bf]"></div>
                             <span className="text-sm text-gray-200 font-mono">{key}</span>
                           </div>
                           <span className="text-xs text-gray-500 font-mono">
@@ -252,15 +252,15 @@ export default function AdminDatabase() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-background border border-[#1dff00]/20 rounded-2xl p-6 relative overflow-hidden group"
+          className="bg-background border border-[#2dd4bf]/20 rounded-2xl p-6 relative overflow-hidden group"
         >
-          <div className="absolute inset-0 bg-[#1dff00]/5 group-hover:bg-[#1dff00]/10 transition-colors" />
+          <div className="absolute inset-0 bg-[#2dd4bf]/5 group-hover:bg-[#2dd4bf]/10 transition-colors" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-lg bg-[#1dff00]/20 text-[#1dff00]">
+              <div className="p-3 rounded-lg bg-[#2dd4bf]/20 text-[#2dd4bf]">
                 <Table className="w-6 h-6" />
               </div>
-              <span className="text-xs font-medium text-[#1dff00] bg-[#1dff00]/10 px-2 py-1 rounded-full">Core Tables</span>
+              <span className="text-xs font-medium text-[#2dd4bf] bg-[#2dd4bf]/10 px-2 py-1 rounded-full">Core Tables</span>
             </div>
             <p className="text-3xl font-bold text-white mb-1">{availableTables} / {totalTables}</p>
             <p className="text-sm text-gray-400">Monitored Tables</p>
@@ -311,9 +311,9 @@ export default function AdminDatabase() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-background border border-[#1dff00]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#1dff00]/5"
+        className="bg-background border border-[#2dd4bf]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#2dd4bf]/5"
       >
-        <div className="p-6 border-b border-[#1dff00]/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-6 border-b border-[#2dd4bf]/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h3 className="text-xl font-bold text-white mb-1">Core Tables</h3>
             <p className="text-sm text-gray-400">Real-time row counts and schema inspection</p>
@@ -327,7 +327,7 @@ export default function AdminDatabase() {
                 placeholder="Search tables..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white text-sm focus:border-[#1dff00] focus:outline-none w-64 transition-all focus:ring-1 focus:ring-[#1dff00]"
+                className="pl-9 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white text-sm focus:border-[#2dd4bf] focus:outline-none w-64 transition-all focus:ring-1 focus:ring-[#2dd4bf]"
               />
             </div>
           </div>
@@ -385,8 +385,8 @@ export default function AdminDatabase() {
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-[#1dff00]/10 flex items-center justify-center group-hover:bg-[#1dff00]/20 transition-colors">
-                          <Table className="w-4 h-4 text-[#1dff00]" />
+                        <div className="w-8 h-8 rounded-lg bg-[#2dd4bf]/10 flex items-center justify-center group-hover:bg-[#2dd4bf]/20 transition-colors">
+                          <Table className="w-4 h-4 text-[#2dd4bf]" />
                         </div>
                         <span className="text-white font-mono text-sm">{table.name}</span>
                       </div>

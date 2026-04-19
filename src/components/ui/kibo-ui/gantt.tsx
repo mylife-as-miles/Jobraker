@@ -122,22 +122,22 @@ export const Gantt: React.FC<GanttProps> = ({
   }, [todayPercent, timelineWidth]);
 
   return (
-    <div ref={scrollRef} className={"relative w-full overflow-auto rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] " + className} style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div ref={scrollRef} className={"relative w-full overflow-auto rounded-2xl border border-[#2dd4bf]/20 bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(45,212,191,0.15)] " + className} style={{ WebkitOverflowScrolling: 'touch' }}>
       {/* Ambient glow effect */}
-      <div className="pointer-events-none absolute -top-20 right-0 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40" />
+      <div className="pointer-events-none absolute -top-20 right-0 h-64 w-64 rounded-full bg-[#2dd4bf]/10 blur-3xl opacity-40" />
       
       {/* Header timeline scale + zoom controls */}
-      <div className="sticky top-0 z-20 border-b border-[#1dff00]/20 bg-background/95 backdrop-blur-xl">
+      <div className="sticky top-0 z-20 border-b border-[#2dd4bf]/20 bg-background/95 backdrop-blur-xl">
         <div className="flex items-stretch">
-          <div className="w-64 flex items-center justify-between gap-3 px-4 py-3 border-r border-[#1dff00]/20">
+          <div className="w-64 flex items-center justify-between gap-3 px-4 py-3 border-r border-[#2dd4bf]/20">
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-[#1dff00] shadow-[0_0_8px_rgba(29,255,0,0.6)]" />
-              <span className="text-xs font-medium bg-gradient-to-r from-[#1dff00] to-[#6dffb0] bg-clip-text text-transparent">Timeline View</span>
+              <div className="h-2 w-2 rounded-full bg-[#2dd4bf] shadow-[0_0_8px_rgba(45,212,191,0.6)]" />
+              <span className="text-xs font-medium bg-gradient-to-r from-[#22d3ee] to-[#6dffb0] bg-clip-text text-transparent">Timeline View</span>
             </div>
             <div className="flex items-center gap-1.5 rounded-lg bg-neutral-900/60 p-1 border border-neutral-700/50">
               <button 
                 aria-label="Zoom out" 
-                className="h-6 w-6 rounded-md bg-transparent hover:bg-neutral-800 text-foreground/60 hover:text-[#1dff00] text-xs font-medium transition-all duration-200 hover:scale-105" 
+                className="h-6 w-6 rounded-md bg-transparent hover:bg-neutral-800 text-foreground/60 hover:text-[#2dd4bf] text-xs font-medium transition-all duration-200 hover:scale-105" 
                 onClick={() => setZoom(zoom-1)}
               >
                 −
@@ -145,7 +145,7 @@ export const Gantt: React.FC<GanttProps> = ({
               <span className="px-2 text-xs tabular-nums text-foreground/70 font-medium min-w-[2ch]">{zoom}</span>
               <button 
                 aria-label="Zoom in" 
-                className="h-6 w-6 rounded-md bg-transparent hover:bg-neutral-800 text-foreground/60 hover:text-[#1dff00] text-xs font-medium transition-all duration-200 hover:scale-105" 
+                className="h-6 w-6 rounded-md bg-transparent hover:bg-neutral-800 text-foreground/60 hover:text-[#2dd4bf] text-xs font-medium transition-all duration-200 hover:scale-105" 
                 onClick={() => setZoom(zoom+1)}
               >
                 +
@@ -161,7 +161,7 @@ export const Gantt: React.FC<GanttProps> = ({
                     <div 
                       key={i} 
                       style={{ width: autoDayWidth }} 
-                      className={`py-2.5 text-center border-r border-[#1dff00]/5 last:border-r-0 transition-colors ${isWeekend ? 'bg-white/[0.02]' : ''}`}
+                      className={`py-2.5 text-center border-r border-[#2dd4bf]/5 last:border-r-0 transition-colors ${isWeekend ? 'bg-white/[0.02]' : ''}`}
                     >
                       <div className="text-foreground/40 text-[9px] uppercase tracking-wider">{d.toLocaleDateString(undefined,{ weekday:'short' })}</div>
                       <div className="text-foreground/70 font-semibold">{d.toLocaleDateString(undefined,{ month:'short', day:'numeric' })}</div>
@@ -182,7 +182,7 @@ export const Gantt: React.FC<GanttProps> = ({
       </div>
       
       <div className="relative" style={{ width: (min && max ? timelineWidth : 0) + 64 }}>
-        <div className="absolute inset-y-0 left-64 w-[1px] bg-gradient-to-b from-[#1dff00]/20 via-[#1dff00]/10 to-transparent" />
+        <div className="absolute inset-y-0 left-64 w-[1px] bg-gradient-to-b from-[#22d3ee]/20 via-[#2dd4bf]/10 to-transparent" />
         
         {/* Vertical grid */}
         {min && max && (
@@ -194,15 +194,15 @@ export const Gantt: React.FC<GanttProps> = ({
                 <div 
                   key={i} 
                   style={{ width: autoDayWidth }} 
-                  className={`h-full border-r border-[#1dff00]/[0.03] last:border-r-0 ${isWeekend ? 'bg-white/[0.01]' : ''}`} 
+                  className={`h-full border-r border-[#2dd4bf]/[0.03] last:border-r-0 ${isWeekend ? 'bg-white/[0.01]' : ''}`} 
                 />
               );
             })}
           </div>
           {showTodayMarker && (
             <div className="absolute top-0 bottom-0" style={{ left: `${todayPercent!*100}%` }}>
-              <div className="h-full w-[2px] bg-gradient-to-b from-[#1dff00] via-[#1dff00]/80 to-[#1dff00]/20 shadow-[0_0_8px_rgba(29,255,0,0.5)]" />
-              <div className="absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md bg-[#1dff00] text-black text-[10px] font-bold tracking-wide shadow-lg">
+              <div className="h-full w-[2px] bg-gradient-to-b from-[#22d3ee] via-[#2dd4bf]/80 to-[#0d9488]/20 shadow-[0_0_8px_rgba(45,212,191,0.5)]" />
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md bg-[#2dd4bf] text-black text-[10px] font-bold tracking-wide shadow-lg">
                 Today
               </div>
             </div>
@@ -214,7 +214,7 @@ export const Gantt: React.FC<GanttProps> = ({
           {valid.length === 0 && (
             <div className="p-8 text-center">
               <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-foreground/5 border border-foreground/10 mb-3">
-                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#1dff00]/20 to-transparent" />
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#22d3ee]/20 to-transparent" />
               </div>
               <div className="text-sm text-foreground/50">No applications to display</div>
               <div className="text-xs text-foreground/30 mt-1">Add applications to see them on the timeline</div>
@@ -223,16 +223,16 @@ export const Gantt: React.FC<GanttProps> = ({
           {valid.length > 0 && groups.map(g => (
             <div key={g.key} className="relative">
               {groups.length > 1 && (
-                <div className="sticky left-0 z-10 w-64 bg-gradient-to-r from-background to-background/80 backdrop-blur-sm border-r border-[#1dff00]/20 py-2 px-4">
+                <div className="sticky left-0 z-10 w-64 bg-gradient-to-r from-background to-background/80 backdrop-blur-sm border-r border-[#2dd4bf]/20 py-2 px-4">
                   <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#1dff00]/60" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#2dd4bf]/60" />
                     <span className="text-xs font-semibold text-foreground/80">{g.label}</span>
                     <span className="ml-auto text-[10px] text-foreground/40 bg-foreground/5 px-1.5 py-0.5 rounded">{g.rows.length}</span>
                   </div>
                 </div>
               )}
               <div className={groups.length>1 ? 'pl-64' : ''}>
-                <div className="relative divide-y divide-[#1dff00]/5">
+                <div className="relative divide-y divide-[#2dd4bf]/5">
                   {g.rows.map(item => {
                     const startP = percent(item.start);
                     const endP = percent(item.end);
@@ -263,7 +263,7 @@ export const Gantt: React.FC<GanttProps> = ({
                       <div key={item.id} className="relative group/item hover:bg-white/[0.02] transition-colors" style={{ height }}>
                         <div className="absolute inset-y-0 left-0 flex items-center pl-4 pr-3 w-64 overflow-hidden">
                           <div className="flex items-center gap-2 w-full">
-                            <div className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${item.status === 'Applied' ? 'bg-[#1dff00]' : item.status === 'Interview' ? 'bg-amber-400' : item.status === 'Offer' ? 'bg-lime-400' : item.status === 'Rejected' ? 'bg-rose-400' : 'bg-gray-400'} shadow-[0_0_4px_currentColor]`} />
+                            <div className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${item.status === 'Applied' ? 'bg-[#2dd4bf]' : item.status === 'Interview' ? 'bg-amber-400' : item.status === 'Offer' ? 'bg-lime-400' : item.status === 'Rejected' ? 'bg-rose-400' : 'bg-gray-400'} shadow-[0_0_4px_currentColor]`} />
                             <div className="truncate text-xs font-medium text-foreground/80">
                               {renderLabel ? renderLabel(item) : item.label}
                             </div>
@@ -302,7 +302,7 @@ export const Gantt: React.FC<GanttProps> = ({
                               </>
                             )}
                             <div
-                              className="absolute group rounded-lg overflow-hidden ring-1 ring-white/10 shadow-md hover:ring-[#1dff00]/40 hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1dff00]/60 transform hover:scale-[1.02]"
+                              className="absolute group rounded-lg overflow-hidden ring-1 ring-white/10 shadow-md hover:ring-[#2dd4bf]/40 hover:shadow-[0_0_20px_rgba(45,212,191,0.2)] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#2dd4bf]/60 transform hover:scale-[1.02]"
                               style={{ left: `${left}%`, width: widthPct + '%', top: height*0.25, height: height*0.5, background: color.bg }}
                               title={`${item.label}\n${item.start.toLocaleDateString()} → ${item.end.toLocaleDateString()} (${days}d)`}
                               aria-label={`Timeline for ${item.label}`}
@@ -319,9 +319,9 @@ export const Gantt: React.FC<GanttProps> = ({
                                   : null}
                               </div>
                               {/* Enhanced Tooltip */}
-                              <div className="absolute z-30 hidden group-hover:flex -top-3 left-1/2 -translate-y-full -translate-x-1/2 min-w-[220px] max-w-[280px] flex-col rounded-xl border border-[#1dff00]/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-3 shadow-[0_0_30px_rgba(29,255,0,0.2)]">
+                              <div className="absolute z-30 hidden group-hover:flex -top-3 left-1/2 -translate-y-full -translate-x-1/2 min-w-[220px] max-w-[280px] flex-col rounded-xl border border-[#2dd4bf]/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-3 shadow-[0_0_30px_rgba(45,212,191,0.2)]">
                                 <div className="flex items-center gap-2 mb-2 pb-2 border-b border-foreground/10">
-                                  <div className={`h-2 w-2 rounded-full ${item.status === 'Applied' ? 'bg-[#1dff00]' : item.status === 'Interview' ? 'bg-amber-400' : item.status === 'Offer' ? 'bg-lime-400' : item.status === 'Rejected' ? 'bg-rose-400' : 'bg-gray-400'}`} />
+                                  <div className={`h-2 w-2 rounded-full ${item.status === 'Applied' ? 'bg-[#2dd4bf]' : item.status === 'Interview' ? 'bg-amber-400' : item.status === 'Offer' ? 'bg-lime-400' : item.status === 'Rejected' ? 'bg-rose-400' : 'bg-gray-400'}`} />
                                   <div className="font-semibold text-white text-sm truncate">{item.label}</div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
@@ -332,7 +332,7 @@ export const Gantt: React.FC<GanttProps> = ({
                                   <span className="text-foreground/40">End Date</span>
                                   <span className="text-foreground/90">{item.end.toLocaleDateString()}</span>
                                   <span className="text-foreground/40">Duration</span>
-                                  <span className="text-[#1dff00] font-semibold">{days} day{days !== 1 ? 's' : ''}</span>
+                                  <span className="text-[#2dd4bf] font-semibold">{days} day{days !== 1 ? 's' : ''}</span>
                                   {trailEnd && (
                                     <>
                                       <span className="text-foreground/40">Active Age</span>
@@ -362,7 +362,7 @@ export const Gantt: React.FC<GanttProps> = ({
 
 function statusColor(status?: string): { bg: string; fg: string } {
   switch (status) {
-    case 'Applied': return { bg: 'linear-gradient(90deg,#1dff00,#0a8246)', fg: '#041f11' };
+    case 'Applied': return { bg: 'linear-gradient(90deg,#2dd4bf,#0a8246)', fg: '#041f11' };
     case 'Interview': return { bg: 'linear-gradient(90deg,#fbbf24,#a16207)', fg: '#2d1e04' };
     case 'Offer': return { bg: 'linear-gradient(90deg,#84cc16,#166534)', fg: '#0b1f0f' };
     case 'Rejected': return { bg: 'linear-gradient(90deg,#fb7185,#881337)', fg: '#2f070f' };
@@ -375,7 +375,7 @@ function statusColor(status?: string): { bg: string; fg: string } {
 function statusAccent(status?: string): string {
   switch (status) {
     case "Applied":
-      return "#1dff00";
+      return "#2dd4bf";
     case "Interview":
       return "#fbbf24";
     case "Offer":
@@ -695,7 +695,7 @@ export const GanttFeatureItem: React.FC<GanttFeatureItemProps> = ({
     <div className={"relative h-8 " + className} {...rest}>
       <div
         ref={barRef}
-        className="group absolute top-1/2 -translate-y-1/2 rounded-md ring-1 ring-white/10 hover:ring-white/30 hover:shadow-lg shadow-sm cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-[#1dff00]/60"
+        className="group absolute top-1/2 -translate-y-1/2 rounded-md ring-1 ring-white/10 hover:ring-white/30 hover:shadow-lg shadow-sm cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-[#2dd4bf]/60"
         style={{ left: `calc(${left}% + 0px)`, width: widthPct + '%', height: '60%', background: color.bg }}
         title={`${name}\n${startAt.toLocaleDateString()} → ${endAt.toLocaleDateString()} (${days}d)`}
         tabIndex={0}
@@ -752,8 +752,8 @@ export const GanttToday: React.FC = () => {
   const p = percent(today) * 100;
   return (
     <div className="absolute inset-y-0 pointer-events-none" style={{ left: p + '%' }}>
-      <div className="h-full w-px bg-[#1dff00] shadow-[0_0_0_1px_rgba(29,255,0,0.4)]" />
-      <div className="absolute -top-2 -translate-y-full -translate-x-1/2 px-1 py-0.5 rounded bg-[#1dff00] text-black text-[9px] font-semibold">Today</div>
+      <div className="h-full w-px bg-[#2dd4bf] shadow-[0_0_0_1px_rgba(45,212,191,0.4)]" />
+      <div className="absolute -top-2 -translate-y-full -translate-x-1/2 px-1 py-0.5 rounded bg-[#2dd4bf] text-black text-[9px] font-semibold">Today</div>
     </div>
   );
 };

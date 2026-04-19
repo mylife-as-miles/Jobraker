@@ -39,22 +39,22 @@ const BrandedTooltip: React.FC<TooltipRenderProps & { waiting?: boolean; interna
   return (
     <div
       {...tooltipProps}
-      className="relative max-w-sm w-[min(380px,90vw)] rounded-2xl border border-[#1dff00]/35 bg-gradient-to-br from-[#132313] via-background to-black p-5 shadow-[0_4px_28px_-6px_rgba(0,0,0,0.7),0_0_0_1px_rgba(29,255,0,0.25)] text-white font-sans"
+      className="relative max-w-sm w-[min(380px,90vw)] rounded-2xl border border-[#2dd4bf]/35 bg-gradient-to-br from-[#132313] via-background to-black p-5 shadow-[0_4px_28px_-6px_rgba(0,0,0,0.7),0_0_0_1px_rgba(45,212,191,0.25)] text-white font-sans"
     >
       <button
         {...closeProps}
         {...skipProps}
         title="Skip tour"
-        className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-[#1dff00]/15 hover:bg-[#1dff00]/30 text-[#1dff00] text-lg font-bold flex items-center justify-center shadow-inner"
+        className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-[#2dd4bf]/15 hover:bg-[#2dd4bf]/30 text-[#2dd4bf] text-lg font-bold flex items-center justify-center shadow-inner"
       >
         ×
       </button>
       <div className="flex items-center gap-3 mb-2">
-        <div className="h-8 w-8 rounded-lg bg-[#1dff00]/15 border border-[#1dff00]/30 flex items-center justify-center text-[#1dff00] text-xs font-bold">
+        <div className="h-8 w-8 rounded-lg bg-[#2dd4bf]/15 border border-[#2dd4bf]/30 flex items-center justify-center text-[#2dd4bf] text-xs font-bold">
           {index + 1}
         </div>
         {step.title && (
-          <h3 className="text-base font-semibold bg-gradient-to-r from-white to-[#1dff00] bg-clip-text text-transparent tracking-wide">
+          <h3 className="text-base font-semibold bg-gradient-to-r from-white to-[#0d9488] bg-clip-text text-transparent tracking-wide">
             {step.title}
           </h3>
         )}
@@ -62,7 +62,7 @@ const BrandedTooltip: React.FC<TooltipRenderProps & { waiting?: boolean; interna
       {step.content && (
         <div className="leading-relaxed mb-4 space-y-3">
           {internalStep?.media && (
-            <div className="rounded-lg overflow-hidden border border-[#1dff00]/25 shadow-inner">
+            <div className="rounded-lg overflow-hidden border border-[#2dd4bf]/25 shadow-inner">
               {internalStep.media.type === 'image' && (
                 <img src={getProxiedLogoUrl(internalStep.media.src)} alt={internalStep.media.alt || ''} className="max-h-40 w-full object-cover" />
               )}
@@ -80,7 +80,7 @@ const BrandedTooltip: React.FC<TooltipRenderProps & { waiting?: boolean; interna
                 }
                 if (internalStep.cta.advanceOnClick) onCta?.();
               }}
-              className="mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1dff00]/15 hover:bg-[#1dff00]/25 border border-[#1dff00]/30 text-[#1dff00] text-xs font-medium transition-colors"
+              className="mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#2dd4bf]/15 hover:bg-[#2dd4bf]/25 border border-[#2dd4bf]/30 text-[#2dd4bf] text-xs font-medium transition-colors"
             >
               {internalStep.cta.label}
             </button>
@@ -92,7 +92,7 @@ const BrandedTooltip: React.FC<TooltipRenderProps & { waiting?: boolean; interna
           {Array.from({ length: size }).map((_, i) => (
             <span
               key={i}
-              className={`h-1.5 w-3 rounded-sm ${i <= index ? 'bg-[#1dff00]' : 'bg-[#1dff00]/30'} transition-colors`}
+              className={`h-1.5 w-3 rounded-sm ${i <= index ? 'bg-[#2dd4bf]' : 'bg-[#2dd4bf]/30'} transition-colors`}
             />
           ))}
         </div>
@@ -100,14 +100,14 @@ const BrandedTooltip: React.FC<TooltipRenderProps & { waiting?: boolean; interna
           <button
             {...backProps}
             disabled={!index}
-            className="px-3 py-1.5 rounded-md text-xs font-medium border border-[#1dff00]/35 text-[#1dff00]/80 disabled:opacity-30 hover:text-black hover:bg-[#1dff00] transition-colors"
+            className="px-3 py-1.5 rounded-md text-xs font-medium border border-[#2dd4bf]/35 text-[#2dd4bf]/80 disabled:opacity-30 hover:text-black hover:bg-[#2dd4bf] transition-colors"
           >
             Back
           </button>
           <button
             {...primaryProps}
             disabled={waiting}
-            className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#1dff00] text-black hover:brightness-110 shadow-[0_0_0_1px_rgba(29,255,0,0.4)] transition-all"
+            className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#2dd4bf] text-black hover:brightness-110 shadow-[0_0_0_1px_rgba(45,212,191,0.4)] transition-all"
           >
             {waiting ? 'Complete action…' : isLastStep ? 'Finish' : 'Next'}
           </button>
@@ -265,14 +265,14 @@ export const JoyrideAdapter: React.FC = () => {
       style.id = id;
       style.textContent = `
   .react-joyride__overlay { backdrop-filter: blur(0.4px); }
-    .react-joyride__spotlight { box-shadow: 0 0 0 2px #1dff00, 0 0 0 6px rgba(29,255,0,0.25), 0 0 0 10000px rgba(0,0,0,0.45) !important; border-radius: 12px !important; }
+    .react-joyride__spotlight { box-shadow: 0 0 0 2px #2dd4bf, 0 0 0 6px rgba(45,212,191,0.25), 0 0 0 10000px rgba(0,0,0,0.45) !important; border-radius: 12px !important; }
         .react-joyride__tooltip { background: transparent !important; box-shadow: none !important; position: relative !important; }
         .react-joyride__tooltip[data-placement="bottom"] { margin-top: 16px !important; }
         .react-joyride__tooltip[data-placement="top"] { margin-bottom: 16px !important; }
         .react-joyride__tooltip[data-placement="left"] { margin-right: 16px !important; }
         .react-joyride__tooltip[data-placement="right"] { margin-left: 16px !important; }
-        .react-joyride__beacon { box-shadow: 0 0 0 0 rgba(29,255,0,0.65); animation: joyPulse 2.4s ease-in-out infinite; }
-        @keyframes joyPulse { 0%{ box-shadow:0 0 0 0 rgba(29,255,0,0.45);} 70%{ box-shadow:0 0 0 14px rgba(29,255,0,0);} 100%{ box-shadow:0 0 0 0 rgba(29,255,0,0);} }
+        .react-joyride__beacon { box-shadow: 0 0 0 0 rgba(45,212,191,0.65); animation: joyPulse 2.4s ease-in-out infinite; }
+        @keyframes joyPulse { 0%{ box-shadow:0 0 0 0 rgba(45,212,191,0.45);} 70%{ box-shadow:0 0 0 14px rgba(45,212,191,0);} 100%{ box-shadow:0 0 0 0 rgba(45,212,191,0);} }
       `;
       document.head.appendChild(style);
     }
@@ -304,15 +304,15 @@ export const JoyrideAdapter: React.FC = () => {
       styles={{
         options: {
           zIndex: 10040,
-          primaryColor: '#1dff00',
+          primaryColor: '#2dd4bf',
           textColor: '#ffffff',
           overlayColor: 'rgba(0,0,0,0.55)',
           arrowColor: '#132313',
         },
-        buttonNext: { background: '#1dff00', color: '#000', fontWeight: 600 },
-        buttonBack: { color: '#1dff00' },
-        buttonSkip: { color: '#1dff00' },
-        beaconInner: { backgroundColor: '#1dff00' },
+        buttonNext: { background: '#2dd4bf', color: '#000', fontWeight: 600 },
+        buttonBack: { color: '#2dd4bf' },
+        buttonSkip: { color: '#2dd4bf' },
+        beaconInner: { backgroundColor: '#2dd4bf' },
       }}
       callback={handleCallback}
     />

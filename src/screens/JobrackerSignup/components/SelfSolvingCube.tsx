@@ -49,14 +49,14 @@ const Cubie = React.forwardRef(({ position }: { position: Vector3 }, ref: any) =
       <group scale={[0.96, 0.96, 0.96]}>
         <RoundedBox args={[CUBE_SIZE, CUBE_SIZE, CUBE_SIZE]} radius={0.05} smoothness={4}>
           <meshBasicMaterial color="#000000" wireframe transparent opacity={0} />
-          <Edges threshold={15} color="#1dff00" renderOrder={100} scale={1.0} linewidth={1} />
+          <Edges threshold={15} color="#2dd4bf" renderOrder={100} scale={1.0} linewidth={1} />
         </RoundedBox>
       </group>
 
       {/* Inner Glow Core */}
       <mesh scale={[0.4, 0.4, 0.4]}>
         <boxGeometry />
-        <meshBasicMaterial color="#1dff00" transparent opacity={0.1} />
+        <meshBasicMaterial color="#2dd4bf" transparent opacity={0.1} />
       </mesh>
     </mesh>
   );
@@ -275,7 +275,7 @@ export const SelfSolvingCube = () => {
   return (
     <div className="w-full h-full relative group">
       {/* Decorative gradient bloom */}
-      <div className="absolute inset-0 bg-[#1dff00] blur-[150px] opacity-[0.03] animate-pulse pointer-events-none" />
+      <div className="absolute inset-0 bg-[#2dd4bf] blur-[150px] opacity-[0.03] animate-pulse pointer-events-none" />
 
       <Canvas
         camera={{ position: [5, 4, 5], fov: 35 }}
@@ -284,7 +284,7 @@ export const SelfSolvingCube = () => {
       >
         <Environment preset="city" />
         <ambientLight intensity={0.2} />
-        <pointLight position={[10, 10, 10]} intensity={2} color="#1dff00" distance={20} />
+        <pointLight position={[10, 10, 10]} intensity={2} color="#2dd4bf" distance={20} />
         <pointLight position={[-10, -5, -10]} intensity={1} color="#00ff88" distance={20} />
 
         <Float

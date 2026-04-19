@@ -57,7 +57,7 @@ const Globe = () => {
         </bufferGeometry>
         <pointsMaterial
           size={0.02}
-          color="#1dff00"
+          color="#2dd4bf"
           transparent
           opacity={0.6}
           sizeAttenuation
@@ -69,7 +69,7 @@ const Globe = () => {
       <mesh ref={wireframeRef}>
         <sphereGeometry args={[2.0, 48, 48]} />
         <meshBasicMaterial
-          color="#1dff00"
+          color="#2dd4bf"
           wireframe
           transparent
           opacity={0.05}
@@ -85,7 +85,7 @@ const Globe = () => {
       <mesh>
         <sphereGeometry args={[2.2, 32, 32]} />
         <meshBasicMaterial
-            color="#1dff00"
+            color="#2dd4bf"
             transparent
             opacity={0.03}
             side={THREE.BackSide}
@@ -94,10 +94,10 @@ const Globe = () => {
       </mesh>
 
       {/* 6. Orbit Rings */}
-      <OrbitRing radius={2.5} speed={0.3} color="#1dff00" opacity={0.4} />
-      <OrbitRing radius={3.0} speed={0.2} color="#1dff00" opacity={0.2} rotateX={Math.PI / 2.5} />
+      <OrbitRing radius={2.5} speed={0.3} color="#2dd4bf" opacity={0.4} />
+      <OrbitRing radius={3.0} speed={0.2} color="#2dd4bf" opacity={0.2} rotateX={Math.PI / 2.5} />
       <OrbitRing radius={2.8} speed={-0.2} color="#ffffff" opacity={0.15} rotateZ={Math.PI / 4} />
-      <OrbitRing radius={3.5} speed={0.1} color="#1dff00" opacity={0.1} rotateY={Math.PI / 3} />
+      <OrbitRing radius={3.5} speed={0.1} color="#2dd4bf" opacity={0.1} rotateY={Math.PI / 3} />
     </group>
   );
 };
@@ -130,7 +130,7 @@ export const EarthOrb = () => {
 
       <Canvas camera={{ position: [0, 0, 8.5], fov: 40 }} dpr={[1, 2]}>
         <ambientLight intensity={0.2} />
-        <pointLight position={[10, 10, 10]} intensity={1.5} color="#1dff00" />
+        <pointLight position={[10, 10, 10]} intensity={1.5} color="#2dd4bf" />
         <pointLight position={[-10, -10, -10]} intensity={0.5} color="#004000" />
 
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />

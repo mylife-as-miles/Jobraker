@@ -7,7 +7,7 @@ const companies = [
 
 export const SocialProof = () => {
   return (
-    <div className="w-full py-12 bg-background overflow-hidden relative border-y border-[#1dff00]/10">
+    <div className="w-full py-12 bg-background overflow-hidden relative border-y border-[#2dd4bf]/10">
       <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-black z-10 pointer-events-none" />
 
       <div className="text-center mb-8">

@@ -83,7 +83,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                             placeholder="Search templates..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="bg-background border border-[#28392b] text-foreground text-sm rounded-lg pl-10 pr-4 py-2 w-64 focus:ring-1 focus:ring-[#1dff00] focus:border-[#1dff00] outline-none placeholder-[#5c6e60]"
+                            className="bg-background border border-[#28392b] text-foreground text-sm rounded-lg pl-10 pr-4 py-2 w-64 focus:ring-1 focus:ring-[#2dd4bf] focus:border-[#2dd4bf] outline-none placeholder-[#5c6e60]"
                         />
                     </div>
                     <button
@@ -114,7 +114,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                                     className={cn(
                                         "px-4 py-1.5 rounded-full text-xs font-bold transition-all border",
                                         filter === cat
-                                            ? "bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/30 shadow-[0_0_15px_rgba(29,255,0,0.1)]"
+                                            ? "bg-[#2dd4bf]/10 text-[#2dd4bf] border-[#2dd4bf]/30 shadow-[0_0_15px_rgba(45,212,191,0.1)]"
                                             : "bg-background text-[#9cbaa1] border-[#28392b] hover:border-[#5c6e60]"
                                     )}
                                 >
@@ -135,8 +135,8 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                                 <div className={cn(
                                     "relative bg-white aspect-[1/1.414] rounded-xl overflow-hidden border transition-all duration-300 transform group-hover:scale-[1.02]",
                                     currentTemplate === template.id
-                                        ? "border-[#1dff00] border-4 shadow-[0_0_30px_rgba(29,255,0,0.2)]"
-                                        : "border-[#28392b] hover:border-[#1dff00]/50"
+                                        ? "border-[#2dd4bf] border-4 shadow-[0_0_30px_rgba(45,212,191,0.2)]"
+                                        : "border-[#28392b] hover:border-[#2dd4bf]/50"
                                 )}>
                                     {/* Preview Content */}
                                     <div className="w-full h-full pointer-events-none origin-top transition-transform duration-500">
@@ -145,7 +145,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
 
                                     {/* Selected Indicator */}
                                     {currentTemplate === template.id && (
-                                        <div className="absolute top-4 right-4 z-20 bg-[#1dff00] text-black rounded-full p-1.5 shadow-lg border-2 border-[#102213]">
+                                        <div className="absolute top-4 right-4 z-20 bg-[#2dd4bf] text-black rounded-full p-1.5 shadow-lg border-2 border-[#102213]">
                                             <Check className="w-5 h-5 font-bold" />
                                         </div>
                                     )}
@@ -166,11 +166,11 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                                     <div>
                                         <h3 className={cn(
                                             "font-bold text-xl transition-colors",
-                                            currentTemplate === template.id ? "text-[#1dff00]" : "text-foreground"
+                                            currentTemplate === template.id ? "text-[#2dd4bf]" : "text-foreground"
                                         )}>
                                             {template.name}
                                             {currentTemplate === template.id && (
-                                                <span className="ml-2 text-[10px] bg-[#1dff00]/20 text-[#1dff00] px-2 py-0.5 rounded border border-[#1dff00]/20 uppercase tracking-wider vertical-middle">Selected</span>
+                                                <span className="ml-2 text-[10px] bg-[#2dd4bf]/20 text-[#2dd4bf] px-2 py-0.5 rounded border border-[#2dd4bf]/20 uppercase tracking-wider vertical-middle">Selected</span>
                                             )}
                                         </h3>
                                         <p className="text-[#9cbaa1] text-sm mt-1">{template.description}</p>
@@ -187,7 +187,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <div className="hidden md:block">
                         <p className="text-foreground font-medium text-base">
-                            Selection: <span className="text-[#1dff00]">{activeTemplateInfo?.name || 'None'}</span>
+                            Selection: <span className="text-[#2dd4bf]">{activeTemplateInfo?.name || 'None'}</span>
                         </p>
                         <p className="text-[#9cbaa1] text-xs mt-0.5 flex items-center gap-1.5">
                             <LayoutTemplate className="w-3 h-3" /> A4 Format â€¢ ATS-Ready â€¢ High Performance
@@ -202,7 +202,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                         </button>
                         <button
                             onClick={handleConfirm}
-                            className="px-10 py-3 bg-[#1dff00] hover:bg-[#18d600] text-black rounded-lg font-black text-sm transition-all shadow-[0_0_20px_rgba(29,255,0,0.3)] flex items-center gap-2 active:scale-95"
+                            className="px-10 py-3 bg-[#2dd4bf] hover:bg-[#18d600] text-black rounded-lg font-black text-sm transition-all shadow-[0_0_20px_rgba(45,212,191,0.3)] flex items-center gap-2 active:scale-95"
                         >
                             <Edit3 className="w-4 h-4" />
                             Use This Template

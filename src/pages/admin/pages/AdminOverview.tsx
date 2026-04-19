@@ -24,7 +24,7 @@ export default function AdminOverview() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-[#1dff00] animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-[#2dd4bf] animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Loading admin analytics...</p>
         </div>
       </div>
@@ -51,8 +51,8 @@ export default function AdminOverview() {
       change: '+12.5%',
       trend: 'up',
       icon: Users,
-      gradient: 'from-[#1dff00] to-background',
-      bgGradient: 'from-[#1dff00]/20 to-background/10',
+      gradient: 'from-[#22d3ee] to-background',
+      bgGradient: 'from-[#22d3ee]/20 to-background/10',
     },
     {
       title: 'Active Users',
@@ -60,8 +60,8 @@ export default function AdminOverview() {
       change: '+8.2%',
       trend: 'up',
       icon: Activity,
-      gradient: 'from-[#1dff00] to-background',
-      bgGradient: 'from-[#1dff00]/20 to-background/10',
+      gradient: 'from-[#22d3ee] to-background',
+      bgGradient: 'from-[#22d3ee]/20 to-background/10',
     },
     {
       title: 'Total Revenue',
@@ -69,8 +69,8 @@ export default function AdminOverview() {
       change: '+23.1%',
       trend: 'up',
       icon: DollarSign,
-      gradient: 'from-[#1dff00] to-background',
-      bgGradient: 'from-[#1dff00]/20 to-background/10',
+      gradient: 'from-[#22d3ee] to-background',
+      bgGradient: 'from-[#22d3ee]/20 to-background/10',
     },
     {
       title: 'MRR',
@@ -78,8 +78,8 @@ export default function AdminOverview() {
       change: '+15.3%',
       trend: 'up',
       icon: TrendingUp,
-      gradient: 'from-[#1dff00] to-background',
-      bgGradient: 'from-[#1dff00]/20 to-background/10',
+      gradient: 'from-[#22d3ee] to-background',
+      bgGradient: 'from-[#22d3ee]/20 to-background/10',
     },
     {
       title: 'Credits Available',
@@ -87,8 +87,8 @@ export default function AdminOverview() {
       change: '-5.4%',
       trend: 'down',
       icon: Coins,
-      gradient: 'from-[#1dff00] to-background',
-      bgGradient: 'from-[#1dff00]/20 to-background/10',
+      gradient: 'from-[#22d3ee] to-background',
+      bgGradient: 'from-[#22d3ee]/20 to-background/10',
     },
     {
       title: 'Credits Consumed',
@@ -96,8 +96,8 @@ export default function AdminOverview() {
       change: '+18.7%',
       trend: 'up',
       icon: Zap,
-      gradient: 'from-[#1dff00] to-background',
-      bgGradient: 'from-[#1dff00]/20 to-background/10',
+      gradient: 'from-[#22d3ee] to-background',
+      bgGradient: 'from-[#22d3ee]/20 to-background/10',
     },
     {
       title: 'Job Searches',
@@ -105,8 +105,8 @@ export default function AdminOverview() {
       change: '+28.4%',
       trend: 'up',
       icon: Search,
-      gradient: 'from-[#1dff00] to-background',
-      bgGradient: 'from-[#1dff00]/20 to-background/10',
+      gradient: 'from-[#22d3ee] to-background',
+      bgGradient: 'from-[#22d3ee]/20 to-background/10',
     },
     {
       title: 'Auto Applies',
@@ -114,8 +114,8 @@ export default function AdminOverview() {
       change: '+42.1%',
       trend: 'up',
       icon: Zap,
-      gradient: 'from-[#1dff00] to-background',
-      bgGradient: 'from-[#1dff00]/20 to-background/10',
+      gradient: 'from-[#22d3ee] to-background',
+      bgGradient: 'from-[#22d3ee]/20 to-background/10',
     },
   ];
 
@@ -123,7 +123,7 @@ export default function AdminOverview() {
   const subscriptionData = [
     { name: 'Free', value: 60, color: '#6b7280' },
     { name: 'Basics', value: 10, color: '#eab308' },
-    { name: 'Pro', value: 20, color: '#1dff00' },
+    { name: 'Pro', value: 20, color: '#2dd4bf' },
     { name: 'Ultimate', value: 10, color: '#0a8246' },
   ];
 
@@ -136,7 +136,7 @@ export default function AdminOverview() {
 
   // Feature usage comparison
   const featureUsage = [
-    { feature: 'Job Search', value: stats.totalJobSearches, fill: '#1dff00' },
+    { feature: 'Job Search', value: stats.totalJobSearches, fill: '#2dd4bf' },
     { feature: 'Auto Apply', value: stats.totalAutoApplies, fill: '#0a8246' },
   ];
 
@@ -161,11 +161,11 @@ export default function AdminOverview() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
             >
-              <Card className="relative group bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-300">
+              <Card className="relative group bg-gradient-to-br from-background via-[#111111] to-background border-[#2dd4bf]/20 hover:border-[#2dd4bf]/50 hover:shadow-[#2dd4bf]/20 transition-all duration-300">
                 <CardContent className="p-6">
                   {/* Icon */}
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.bgGradient} border border-[#1dff00]/30 flex items-center justify-center mb-4`}>
-                    <Icon className="w-6 h-6 text-[#1dff00]" />
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.bgGradient} border border-[#2dd4bf]/30 flex items-center justify-center mb-4`}>
+                    <Icon className="w-6 h-6 text-[#2dd4bf]" />
                   </div>
 
                   {/* Stats */}
@@ -173,8 +173,8 @@ export default function AdminOverview() {
                     <p className="text-sm text-gray-400">{stat.title}</p>
                     <p className="text-3xl font-bold text-white">{stat.value}</p>
                     <div className="flex items-center gap-1">
-                      <TrendIcon className={`w-4 h-4 ${stat.trend === 'up' ? 'text-[#1dff00]' : 'text-red-400'}`} />
-                      <span className={`text-sm font-medium ${stat.trend === 'up' ? 'text-[#1dff00]' : 'text-red-400'}`}>
+                      <TrendIcon className={`w-4 h-4 ${stat.trend === 'up' ? 'text-[#2dd4bf]' : 'text-red-400'}`} />
+                      <span className={`text-sm font-medium ${stat.trend === 'up' ? 'text-[#2dd4bf]' : 'text-red-400'}`}>
                         {stat.change}
                       </span>
                       <span className="text-sm text-gray-500">vs last month</span>
@@ -195,7 +195,7 @@ export default function AdminOverview() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#2dd4bf]/20 hover:border-[#2dd4bf]/50 hover:shadow-[#2dd4bf]/20 transition-all duration-300">
             <CardHeader>
               <CardTitle>Monthly Recurring Revenue</CardTitle>
               <p className="text-sm text-gray-400">Last 30 days revenue trend</p>
@@ -203,15 +203,15 @@ export default function AdminOverview() {
             <CardContent>
               {revenueLoading ? (
                 <div className="h-80 flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 text-[#1dff00] animate-spin" />
+                  <Loader2 className="w-8 h-8 text-[#2dd4bf] animate-spin" />
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={320}>
                   <AreaChart data={creditUsageTrend}>
                     <defs>
                       <linearGradient id="mrrGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#1dff00" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#1dff00" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#2dd4bf" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#2dd4bf" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -235,7 +235,7 @@ export default function AdminOverview() {
                     <Area 
                       type="monotone" 
                       dataKey="mrr" 
-                      stroke="#1dff00" 
+                      stroke="#2dd4bf" 
                       strokeWidth={2}
                       fill="url(#mrrGradient)"
                     />
@@ -252,7 +252,7 @@ export default function AdminOverview() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#2dd4bf]/20 hover:border-[#2dd4bf]/50 hover:shadow-lg hover:shadow-[#2dd4bf]/20 transition-all duration-300">
             <CardHeader>
               <CardTitle>Subscription Distribution</CardTitle>
               <p className="text-sm text-gray-400">User distribution across tiers</p>
@@ -276,7 +276,7 @@ export default function AdminOverview() {
                   <Tooltip 
                     contentStyle={{ 
                       backgroundColor: '#1f2937', 
-                      border: '1px solid #1dff00',
+                      border: '1px solid #2dd4bf',
                       borderRadius: '8px',
                       color: '#fff'
                     }}
@@ -300,7 +300,7 @@ export default function AdminOverview() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
       >
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#2dd4bf]/20 hover:border-[#2dd4bf]/50 hover:shadow-lg hover:shadow-[#2dd4bf]/20 transition-all duration-300">
           <CardHeader>
             <CardTitle>Feature Usage Comparison</CardTitle>
             <p className="text-sm text-gray-400">Total usage across platform features</p>
@@ -321,7 +321,7 @@ export default function AdminOverview() {
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: '#1f2937', 
-                    border: '1px solid #1dff00',
+                    border: '1px solid #2dd4bf',
                     borderRadius: '8px',
                     color: '#fff'
                   }}
@@ -344,9 +344,9 @@ export default function AdminOverview() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
         >
-          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#22d3ee]/10 to-background/10 border-[#2dd4bf]/30 hover:border-[#2dd4bf]/60 hover:shadow-lg hover:shadow-[#2dd4bf]/20 transition-all duration-300">
             <CardContent className="p-6">
-              <h4 className="text-[#1dff00] font-semibold mb-2">Avg Credits Per User</h4>
+              <h4 className="text-[#2dd4bf] font-semibold mb-2">Avg Credits Per User</h4>
               <p className="text-4xl font-bold text-white mb-1">
                 {stats.averageCreditsPerUser.toFixed(1)}
               </p>
@@ -360,9 +360,9 @@ export default function AdminOverview() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.75 }}
         >
-          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#22d3ee]/10 to-background/10 border-[#2dd4bf]/30 hover:border-[#2dd4bf]/60 hover:shadow-lg hover:shadow-[#2dd4bf]/20 transition-all duration-300">
             <CardContent className="p-6">
-              <h4 className="text-[#1dff00] font-semibold mb-2">Conversion Rate</h4>
+              <h4 className="text-[#2dd4bf] font-semibold mb-2">Conversion Rate</h4>
               <p className="text-4xl font-bold text-white mb-1">
                 {stats.conversionRate.toFixed(1)}%
               </p>
@@ -376,9 +376,9 @@ export default function AdminOverview() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
         >
-          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#22d3ee]/10 to-background/10 border-[#2dd4bf]/30 hover:border-[#2dd4bf]/60 hover:shadow-lg hover:shadow-[#2dd4bf]/20 transition-all duration-300">
             <CardContent className="p-6">
-              <h4 className="text-[#1dff00] font-semibold mb-2">Churn Rate</h4>
+              <h4 className="text-[#2dd4bf] font-semibold mb-2">Churn Rate</h4>
               <p className="text-4xl font-bold text-white mb-1">
                 {stats.churnRate.toFixed(1)}%
               </p>

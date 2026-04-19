@@ -3,7 +3,7 @@ import { Github, Twitter, Linkedin } from "lucide-react";
 
 export const FooterSection = () => {
   return (
-    <footer className="bg-background border-t border-[#1dff00]/10 pt-16 pb-8">
+    <footer className="bg-background border-t border-[#2dd4bf]/10 pt-16 pb-8">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           <div className="col-span-1 md:col-span-2">
@@ -31,22 +31,22 @@ export const FooterSection = () => {
             </h4>
             <ul className="space-y-4 text-sm text-gray-500 font-mono">
               <li>
-                <a href="#" className="hover:text-[#1dff00] transition-colors">
+                <a href="#" className="hover:text-[#2dd4bf] transition-colors">
                   Features
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-[#1dff00] transition-colors">
+                <a href="#" className="hover:text-[#2dd4bf] transition-colors">
                   Pricing
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-[#1dff00] transition-colors">
+                <a href="#" className="hover:text-[#2dd4bf] transition-colors">
                   Changelog
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-[#1dff00] transition-colors">
+                <a href="#" className="hover:text-[#2dd4bf] transition-colors">
                   Docs
                 </a>
               </li>
@@ -59,17 +59,17 @@ export const FooterSection = () => {
             </h4>
             <ul className="space-y-4 text-sm text-gray-500 font-mono">
               <li>
-                <a href="#" className="hover:text-[#1dff00] transition-colors">
+                <a href="#" className="hover:text-[#2dd4bf] transition-colors">
                   Privacy
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-[#1dff00] transition-colors">
+                <a href="#" className="hover:text-[#2dd4bf] transition-colors">
                   Terms
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-[#1dff00] transition-colors">
+                <a href="#" className="hover:text-[#2dd4bf] transition-colors">
                   Security
                 </a>
               </li>
@@ -84,19 +84,19 @@ export const FooterSection = () => {
           <div className="flex space-x-6">
             <a
               href="#"
-              className="text-gray-500 hover:text-[#1dff00] transition-colors"
+              className="text-gray-500 hover:text-[#2dd4bf] transition-colors"
             >
               <Twitter className="w-5 h-5" />
             </a>
             <a
               href="#"
-              className="text-gray-500 hover:text-[#1dff00] transition-colors"
+              className="text-gray-500 hover:text-[#2dd4bf] transition-colors"
             >
               <Github className="w-5 h-5" />
             </a>
             <a
               href="#"
-              className="text-gray-500 hover:text-[#1dff00] transition-colors"
+              className="text-gray-500 hover:text-[#2dd4bf] transition-colors"
             >
               <Linkedin className="w-5 h-5" />
             </a>

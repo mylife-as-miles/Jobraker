@@ -21,7 +21,7 @@ export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
         placeholder:text-[#757575] 
         text-base
         hover:border-[#BDBDBD] 
-        focus:border-[#1dff00] 
+        focus:border-[#2dd4bf] 
         focus:bg-[#F5F5F5]
         backdrop-blur-sm
       `,
@@ -34,7 +34,7 @@ export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
         placeholder:text-foreground/40 
         text-base
         hover:border-foreground/30 
-        focus:border-[#1dff00] 
+        focus:border-[#2dd4bf] 
         focus:bg-foreground/10
         backdrop-blur-[8px]
       `,
@@ -47,7 +47,7 @@ export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
         placeholder:text-[#757575] 
         text-base
         hover:border-[#BDBDBD] 
-        focus:border-[#1dff00] 
+        focus:border-[#2dd4bf] 
         focus:bg-[#F5F5F5]/50
       `
     };

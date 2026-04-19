@@ -11,10 +11,10 @@
 ```
 
 ### Badge Colors:
-- **Remote**: Green border (`border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10`)
+- **Remote**: Green border (`border-[#2dd4bf]/30 text-[#2dd4bf] bg-[#2dd4bf]/10`)
 - **Location**: Gray (`border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]`)
 - **Source**: Gray with favicon (`border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]`)
-- **Salary**: Green with 💰 (`border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10`)
+- **Salary**: Green with 💰 (`border-[#2dd4bf]/30 text-[#2dd4bf] bg-[#2dd4bf]/10`)
 - **Deadline**: Color-coded urgency
   - Green: 7+ days
   - Yellow: 3-6 days

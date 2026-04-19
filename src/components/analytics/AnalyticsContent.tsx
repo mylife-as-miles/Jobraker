@@ -69,10 +69,10 @@ export function AnalyticsContent({ period = "30d", data = {} as any, insights }:
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-        <button type="button" onClick={() => gotoApplications()} className="rounded-2xl border border-border bg-card/85 p-4 text-left transition hover:border-[#1dff00]/35 hover:bg-card">
+        <button type="button" onClick={() => gotoApplications()} className="rounded-2xl border border-border bg-card/85 p-4 text-left transition hover:border-[#2dd4bf]/35 hover:bg-card">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-foreground/55">Applications</span>
-            <div className="rounded-full bg-[#1dff00]/10 p-2 text-[#1dff00]"><Briefcase className="h-4 w-4" /></div>
+            <div className="rounded-full bg-[#2dd4bf]/10 p-2 text-[#2dd4bf]"><Briefcase className="h-4 w-4" /></div>
           </div>
           <div className="flex items-end justify-between gap-2">
             <div className="text-3xl font-bold text-foreground">{metrics.applications}</div>

@@ -259,7 +259,7 @@ const ProfilePage = (): JSX.Element => {
                     )}
                     {profile !== null && (
                       <>
-                        <div className="w-24 h-24 bg-gradient-to-r from-[#1dff00] to-background rounded-full flex items-center justify-center text-black font-bold text-2xl overflow-hidden">
+                        <div className="w-24 h-24 bg-gradient-to-r from-[#22d3ee] to-background rounded-full flex items-center justify-center text-black font-bold text-2xl overflow-hidden">
                           {avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -267,7 +267,7 @@ const ProfilePage = (): JSX.Element => {
                             <span>{initials}</span>
                           )}
                         </div>
-                        <label className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-110 transition-all duration-300 p-0 flex items-center justify-center cursor-pointer">
+                        <label className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90 hover:scale-110 transition-all duration-300 p-0 flex items-center justify-center cursor-pointer">
                           <Edit className="w-4 h-4" />
                           <input type="file" accept="image/*" className="hidden" onChange={onAvatarPick} />
                         </label>
@@ -354,19 +354,19 @@ const ProfilePage = (): JSX.Element => {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="product-helper-text">Applications</span>
-                      <span className="text-[#1dff00] font-semibold">{totalApps}</span>
+                      <span className="text-[#2dd4bf] font-semibold">{totalApps}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="product-helper-text">Interviews</span>
-                      <span className="text-[#1dff00] font-semibold">{interviews}</span>
+                      <span className="text-[#2dd4bf] font-semibold">{interviews}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="product-helper-text">Offers</span>
-                      <span className="text-[#1dff00] font-semibold">{offers}</span>
+                      <span className="text-[#2dd4bf] font-semibold">{offers}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="product-helper-text">Success Rate</span>
-                      <span className="text-[#1dff00] font-semibold">{successRate}%</span>
+                      <span className="text-[#2dd4bf] font-semibold">{successRate}%</span>
                     </div>
 
                     {/* PRD Metrics for Success */}
@@ -375,10 +375,10 @@ const ProfilePage = (): JSX.Element => {
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="product-helper-text flex items-center gap-1.5">
-                            <svg className="w-3.5 h-3.5 text-[#1dff00]/60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <svg className="w-3.5 h-3.5 text-[#2dd4bf]/60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                             Apps This Week
                           </span>
-                          <span className="text-[#1dff00] font-semibold">{appsThisWeek}</span>
+                          <span className="text-[#2dd4bf] font-semibold">{appsThisWeek}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="product-helper-text flex items-center gap-1.5">
@@ -417,12 +417,12 @@ const ProfilePage = (): JSX.Element => {
               className='transition-transform duration-300'
             >
               <Card className='product-section-card relative overflow-hidden p-5 hover:border-[#ffd700]/60 hover:shadow-lg transition-all duration-300'>
-                <div className='absolute -top-20 -right-20 w-56 h-56 rounded-full bg-[#1dff00]/5 blur-3xl' />
+                <div className='absolute -top-20 -right-20 w-56 h-56 rounded-full bg-[#2dd4bf]/5 blur-3xl' />
                 <div className='relative z-10'>
                   <div className='flex items-center justify-between mb-3'>
                     <div className='flex items-center gap-2.5'>
-                      <div className='w-10 h-10 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 border border-[#1dff00]/30 flex items-center justify-center shadow-inner'>
-                        <Zap className='w-5 h-5 text-[#1dff00]' />
+                      <div className='w-10 h-10 rounded-xl bg-gradient-to-br from-[#22d3ee]/20 to-[#0d9488]/5 border border-[#2dd4bf]/30 flex items-center justify-center shadow-inner'>
+                        <Zap className='w-5 h-5 text-[#2dd4bf]' />
                       </div>
                       <div>
                         <h3 className='text-sm sm:text-base font-semibold text-foreground tracking-tight'>Level {gamification.streak.level}</h3>
@@ -430,20 +430,20 @@ const ProfilePage = (): JSX.Element => {
                       </div>
                     </div>
                     <div className='text-right'>
-                      <div className='text-lg sm:text-xl font-bold text-[#1dff00]'>{gamification.streak.total_xp} <span className='text-xs font-normal text-foreground/20'>XP</span></div>
+                      <div className='text-lg sm:text-xl font-bold text-[#2dd4bf]'>{gamification.streak.total_xp} <span className='text-xs font-normal text-foreground/20'>XP</span></div>
                     </div>
                   </div>
                   <div className='mb-1'>
                     <div className='flex items-center justify-between mb-1.5'>
                       <span className='text-[9px] sm:text-[10px] product-helper-text uppercase tracking-wider font-medium'>Next Level</span>
-                      <span className='text-xs font-semibold text-[#1dff00]'>{gamification.xpProgress}/{gamification.xpForNext}</span>
+                      <span className='text-xs font-semibold text-[#2dd4bf]'>{gamification.xpProgress}/{gamification.xpForNext}</span>
                     </div>
                     <div className='relative w-full h-2.5 rounded-full bg-foreground/5 overflow-hidden'>
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${Math.min(100, (gamification.xpProgress / gamification.xpForNext) * 100)}%` }}
                         transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
-                        className='absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-[#1dff00] to-background shadow-lg shadow-[#1dff00]/50'
+                        className='absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-[#22d3ee] to-background shadow-lg shadow-[#2dd4bf]/50'
                       />
                     </div>
                   </div>
@@ -477,7 +477,7 @@ const ProfilePage = (): JSX.Element => {
                       whileHover={{ scale: 1.12 }}
                       title={`${ach.title}: ${ach.description}`}
                       className={`relative flex flex-col items-center justify-center p-2 rounded-lg border transition-all duration-300 cursor-default ${ach.unlocked
-                        ? 'bg-[#1dff00]/10 border-[#1dff00]/40 shadow-lg shadow-[#1dff00]/20'
+                        ? 'bg-[#2dd4bf]/10 border-[#2dd4bf]/40 shadow-lg shadow-[#2dd4bf]/20'
                         : 'bg-foreground/5 border-foreground/5 opacity-40'
                         }`}
                     >
@@ -585,7 +585,7 @@ const ProfilePage = (): JSX.Element => {
                   </h3>
                   <Button
                     size="sm"
-                    className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                    className="bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90 hover:scale-105 transition-all duration-300"
                     onClick={() => setShowAddExperience(v => !v)}
                   >
                     <Plus className="w-4 h-4 mr-1" />
@@ -603,14 +603,14 @@ const ProfilePage = (): JSX.Element => {
                         <input type="month" placeholder="End" id="exp-end" className="product-input-surface flex-1 rounded px-3 py-2 text-sm" />
                       </div>
                       <label className="flex items-center gap-2 text-xs product-helper-text">
-                        <input type="checkbox" id="exp-current" className="accent-[#1dff00]" /> Current Role
+                        <input type="checkbox" id="exp-current" className="accent-[#2dd4bf]" /> Current Role
                       </label>
                       <textarea placeholder="Description" id="exp-desc" rows={2} className="product-input-surface col-span-full rounded px-3 py-2 text-sm resize-none" />
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="outline" className="border-foreground/20 text-foreground hover:bg-foreground/10"
                         onClick={() => setShowAddExperience(false)}>Cancel</Button>
-                      <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                      <Button size="sm" className="bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90"
                         onClick={() => {
                           const title = (document.getElementById('exp-title') as HTMLInputElement)?.value.trim();
                           if (!title) return;
@@ -632,7 +632,7 @@ const ProfilePage = (): JSX.Element => {
                   {experiences.loading && (
                     <div className="space-y-4">
                       {Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="border-l-2 border-[#1dff00] pl-4 pb-4 relative p-3 rounded-r-lg">
+                        <div key={i} className="border-l-2 border-[#2dd4bf] pl-4 pb-4 relative p-3 rounded-r-lg">
                           <Skeleton className="absolute -left-2 top-3 w-4 h-4 rounded-full" />
                           <div className="space-y-2">
                             <Skeleton className="h-4 w-40" />
@@ -660,13 +660,13 @@ const ProfilePage = (): JSX.Element => {
                   {experiences.data.map((exp: TProfileExperience, index: number) => (
                     <motion.div
                       key={exp.id}
-                      className="border-l-2 border-[#1dff00] pl-4 pb-4 relative hover:bg-foreground/5 p-3 rounded-r-lg transition-all duration-300"
+                      className="border-l-2 border-[#2dd4bf] pl-4 pb-4 relative hover:bg-foreground/5 p-3 rounded-r-lg transition-all duration-300"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.1 }}
                       whileHover={{ x: 4 }}
                     >
-                      <div className="absolute -left-2 top-3 w-4 h-4 bg-[#1dff00] rounded-full"></div>
+                      <div className="absolute -left-2 top-3 w-4 h-4 bg-[#2dd4bf] rounded-full"></div>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h4 className="text-foreground font-semibold">{exp.title}</h4>
@@ -714,13 +714,13 @@ const ProfilePage = (): JSX.Element => {
                               <input type="month" defaultValue={exp.end_date ? exp.end_date.slice(0, 7) : ''} id={`exp-edit-end-${exp.id}`} className="product-input-surface flex-1 rounded px-3 py-2 text-sm" />
                             </div>
                             <label className="flex items-center gap-2 text-xs product-helper-text">
-                              <input type="checkbox" defaultChecked={!!exp.is_current} id={`exp-edit-current-${exp.id}`} className="accent-[#1dff00]" /> Current Role
+                              <input type="checkbox" defaultChecked={!!exp.is_current} id={`exp-edit-current-${exp.id}`} className="accent-[#2dd4bf]" /> Current Role
                             </label>
                             <textarea defaultValue={exp.description || ''} id={`exp-edit-desc-${exp.id}`} rows={2} placeholder="Description" className="product-input-surface col-span-full rounded px-3 py-2 text-sm resize-none" />
                           </div>
                           <div className="flex justify-end gap-2">
                             <Button size="sm" variant="outline" className="border-foreground/20 text-foreground hover:bg-foreground/10" onClick={() => setEditingExpId(null)}>Cancel</Button>
-                            <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={async () => {
+                            <Button size="sm" className="bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90" onClick={async () => {
                               await updateExperience(exp.id, {
                                 title: (document.getElementById(`exp-edit-title-${exp.id}`) as HTMLInputElement)?.value.trim(),
                                 company: (document.getElementById(`exp-edit-company-${exp.id}`) as HTMLInputElement)?.value.trim(),
@@ -757,7 +757,7 @@ const ProfilePage = (): JSX.Element => {
                   </h3>
                   <Button
                     size="sm"
-                    className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                    className="bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90 hover:scale-105 transition-all duration-300"
                     onClick={() => setShowAddEducation(v => !v)}
                   >
                     <Plus className="w-4 h-4 mr-1" />
@@ -778,7 +778,7 @@ const ProfilePage = (): JSX.Element => {
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="outline" className="border-foreground/20 text-foreground hover:bg-foreground/10" onClick={() => setShowAddEducation(false)}>Cancel</Button>
-                      <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => {
+                      <Button size="sm" className="bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90" onClick={() => {
                         const degree = (document.getElementById('edu-degree') as HTMLInputElement)?.value.trim();
                         const school = (document.getElementById('edu-school') as HTMLInputElement)?.value.trim();
                         if (!degree || !school) return;
@@ -799,7 +799,7 @@ const ProfilePage = (): JSX.Element => {
                   {education.loading && (
                     <div className="space-y-4">
                       {Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="border-l-2 border-[#1dff00] pl-4 pb-4 relative p-3 rounded-r-lg">
+                        <div key={i} className="border-l-2 border-[#2dd4bf] pl-4 pb-4 relative p-3 rounded-r-lg">
                           <Skeleton className="absolute -left-2 top-3 w-4 h-4 rounded-full" />
                           <div className="space-y-2">
                             <Skeleton className="h-4 w-52" />
@@ -827,13 +827,13 @@ const ProfilePage = (): JSX.Element => {
                   {education.data.map((edu: TProfileEducation, index: number) => (
                     <motion.div
                       key={edu.id}
-                      className="border-l-2 border-[#1dff00] pl-4 pb-4 relative hover:bg-foreground/5 p-3 rounded-r-lg transition-all duration-300"
+                      className="border-l-2 border-[#2dd4bf] pl-4 pb-4 relative hover:bg-foreground/5 p-3 rounded-r-lg transition-all duration-300"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.1 }}
                       whileHover={{ x: 4 }}
                     >
-                      <div className="absolute -left-2 top-3 w-4 h-4 bg-[#1dff00] rounded-full"></div>
+                      <div className="absolute -left-2 top-3 w-4 h-4 bg-[#2dd4bf] rounded-full"></div>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h4 className="text-foreground font-semibold">{edu.degree}</h4>
@@ -885,7 +885,7 @@ const ProfilePage = (): JSX.Element => {
                           </div>
                           <div className="flex justify-end gap-2">
                             <Button size="sm" variant="outline" className="border-foreground/20 text-foreground hover:bg-foreground/10" onClick={() => setEditingEduId(null)}>Cancel</Button>
-                            <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={async () => {
+                            <Button size="sm" className="bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90" onClick={async () => {
                               await updateEducation(edu.id, {
                                 degree: (document.getElementById(`edu-edit-degree-${edu.id}`) as HTMLInputElement)?.value.trim(),
                                 school: (document.getElementById(`edu-edit-school-${edu.id}`) as HTMLInputElement)?.value.trim(),
@@ -921,7 +921,7 @@ const ProfilePage = (): JSX.Element => {
                   </h3>
                   <Button
                     size="sm"
-                    className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                    className="bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90 hover:scale-105 transition-all duration-300"
                     onClick={() => setShowAddSkill(v => !v)}
                   >
                     <Plus className="w-4 h-4 mr-1" />
@@ -943,7 +943,7 @@ const ProfilePage = (): JSX.Element => {
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="outline" className="border-foreground/20 text-foreground hover:bg-foreground/10" onClick={() => setShowAddSkill(false)}>Cancel</Button>
-                      <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => {
+                      <Button size="sm" className="bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90" onClick={() => {
                         const name = (document.getElementById('skill-name') as HTMLInputElement)?.value.trim();
                         if (!name) return;
                         addSkill({
@@ -1034,7 +1034,7 @@ const ProfilePage = (): JSX.Element => {
                             onClick={() => setEditingSkillId(null)}>
                             Cancel
                           </Button>
-                          <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={async () => {
+                          <Button size="sm" className="bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90" onClick={async () => {
                             await updateSkill(skill.id, {
                               name: (document.getElementById(`skill-edit-name-${skill.id}`) as HTMLInputElement)?.value.trim(),
                               level: ((document.getElementById(`skill-edit-level-${skill.id}`) as HTMLSelectElement)?.value || null) as any,
@@ -1104,7 +1104,7 @@ function AboutEditor({ profile, onSave, onCancel }: { profile: { job_title: stri
               onClick={() => setLocationScope(scope)}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
                 locationScope === scope
-                  ? "bg-[#1dff00]/15 text-[#1dff00] border border-[#1dff00]/30"
+                  ? "bg-[#2dd4bf]/15 text-[#2dd4bf] border border-[#2dd4bf]/30"
                   : "text-muted-foreground hover:text-foreground hover:bg-foreground/5 border border-transparent"
               }`}
             >
@@ -1119,7 +1119,7 @@ function AboutEditor({ profile, onSave, onCancel }: { profile: { job_title: stri
       <div className="flex space-x-2">
         <Button
           size="sm"
-          className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+          className="bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90 hover:scale-105 transition-all duration-300"
           onClick={() => onSave({ job_title: jobTitle.trim(), location: location.trim() || null, location_scope: locationScope, experience_years: years ? Number(years) : null })}
         >
           Save

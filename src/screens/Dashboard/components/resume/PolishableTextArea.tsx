@@ -29,7 +29,7 @@ export const PolishableTextArea = ({ className, onPolish, isPolishing, value, ..
                 value={value}
                 className={cn(
                     "pr-10 transition-all duration-300",
-                    isPolishing && "border-[#1dff00] ring-1 ring-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.1)]",
+                    isPolishing && "border-[#2dd4bf] ring-1 ring-[#2dd4bf] shadow-[0_0_15px_rgba(45,212,191,0.1)]",
                     className
                 )}
                 {...props}
@@ -52,8 +52,8 @@ export const PolishableTextArea = ({ className, onPolish, isPolishing, value, ..
                         className={cn(
                             "p-1.5 rounded-lg transition-all duration-300",
                             isPolishing
-                                ? "bg-[#1dff00] text-black shadow-[0_0_10px_rgba(29,255,0,0.5)]"
-                                : "bg-gray-100 dark:bg-muted text-gray-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10"
+                                ? "bg-[#2dd4bf] text-black shadow-[0_0_10px_rgba(45,212,191,0.5)]"
+                                : "bg-gray-100 dark:bg-muted text-gray-400 hover:text-[#2dd4bf] hover:bg-[#2dd4bf]/10"
                         )}
                         title="AI Polish"
                     >
@@ -62,7 +62,7 @@ export const PolishableTextArea = ({ className, onPolish, isPolishing, value, ..
 
                     {/* Pulsing ring when polishing */}
                     {isPolishing && (
-                        <span className="absolute -inset-1 rounded-lg bg-[#1dff00]/30 animate-ping -z-10" />
+                        <span className="absolute -inset-1 rounded-lg bg-[#2dd4bf]/30 animate-ping -z-10" />
                     )}
                 </motion.div>
             </AnimatePresence>

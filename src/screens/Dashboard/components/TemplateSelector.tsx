@@ -121,8 +121,8 @@ export const TemplateSelector = ({
                 onClick={() => handleSelect(template.id)}
                 className={`group relative overflow-hidden rounded-xl border-2 transition-all duration-200 ${
                   currentTemplate === template.id
-                    ? "border-[#1dff00] bg-[#1dff00]/5 ring-2 ring-[#1dff00]/20"
-                    : "border-gray-200 bg-white hover:border-[#1dff00]/50 hover:shadow-lg dark:border-white/10 dark:bg-[#1A1A1A]"
+                    ? "border-[#2dd4bf] bg-[#2dd4bf]/5 ring-2 ring-[#2dd4bf]/20"
+                    : "border-gray-200 bg-white hover:border-[#2dd4bf]/50 hover:shadow-lg dark:border-white/10 dark:bg-[#1A1A1A]"
                 }`}
               >
                 <div className="relative aspect-[210/297] overflow-hidden bg-gray-100 dark:bg-[#2A2A2A]">
@@ -133,7 +133,7 @@ export const TemplateSelector = ({
                   <div className="absolute inset-0 z-10 bg-black/0 transition-colors group-hover:bg-black/10 dark:group-hover:bg-white/5" />
 
                   {currentTemplate === template.id && (
-                    <div className="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-full bg-[#1dff00] px-2 py-1 text-xs font-bold text-black shadow-sm">
+                    <div className="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-full bg-[#2dd4bf] px-2 py-1 text-xs font-bold text-black shadow-sm">
                       <Check className="h-3 w-3" />
                       Selected
                     </div>

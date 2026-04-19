@@ -1,18 +1,18 @@
 # UI Update: Chat Page Modernization
 
 ## Overview
-The Chat Page (`ChatPage.tsx`) has been updated to align with the application's modern, premium aesthetic. The new design features glassmorphism, neon accents (`#1dff00`), and refined gradients, matching the style of the `OverviewPage`.
+The Chat Page (`ChatPage.tsx`) has been updated to align with the application's modern, premium aesthetic. The new design features glassmorphism, neon accents (`#2dd4bf`), and refined gradients, matching the style of the `OverviewPage`.
 
 ## Key Changes
 
 ### 1. Sidebar
 *   **Background**: Changed from flat black/transparent to a subtle vertical gradient (`bg-gradient-to-b from-[#0a0a0a] to-black`).
-*   **New Chat Button**: Updated to a glassmorphism style with neon text and border (`bg-[#1dff00]/10`, `border-[#1dff00]/20`).
+*   **New Chat Button**: Updated to a glassmorphism style with neon text and border (`bg-[#2dd4bf]/10`, `border-[#2dd4bf]/20`).
 *   **Session Items**: Added a neon left border indicator on active state.
 
 ### 2. Header
 *   **Background**: Enhanced with a gradient and stronger blur (`backdrop-blur-xl`, `bg-gradient-to-r from-[#0a0a0a]/80 to-black/80`).
-*   **Borders**: Used subtle neon borders (`border-[#1dff00]/10`) instead of plain white.
+*   **Borders**: Used subtle neon borders (`border-[#2dd4bf]/10`) instead of plain white.
 
 ### 3. Message Area
 *   **User Messages**: Increased contrast with `text-white` and neon border/glow.

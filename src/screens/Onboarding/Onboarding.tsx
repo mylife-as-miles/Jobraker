@@ -124,7 +124,7 @@ export const Onboarding = (): JSX.Element => {
               variant={formData.goals.includes(goal) ? "primary" : "outline"}
               onClick={() => toggleGoal(goal)}
               className={`h-10 sm:h-12 text-xs sm:text-sm transition-all duration-200 ${formData.goals.includes(goal)
-                ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90'
+                ? 'bg-[#2dd4bf] text-black hover:bg-[#2dd4bf]/90'
                 : 'product-outline-button'
                 }`}
             >
@@ -182,7 +182,7 @@ export const Onboarding = (): JSX.Element => {
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
           >
-            <CheckCircle className="mx-auto h-12 w-12 sm:h-16 sm:w-16 lg:h-20 lg:w-20 text-[#1dff00]" />
+            <CheckCircle className="mx-auto h-12 w-12 sm:h-16 sm:w-16 lg:h-20 lg:w-20 text-[#2dd4bf]" />
           </motion.div>
           <motion.p
             className="text-foreground text-sm sm:text-base lg:text-lg"
@@ -503,28 +503,28 @@ export const Onboarding = (): JSX.Element => {
   const resumeModeScreen = (
     <div className="product-page-shell min-h-screen flex flex-col items-center justify-center px-6 py-10 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-32 -left-24 h-72 w-72 rounded-full bg-[#1dff00]/10 blur-3xl" />
-        <div className="absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-[#1dff00]/5 blur-3xl" />
+        <div className="absolute -top-32 -left-24 h-72 w-72 rounded-full bg-[#2dd4bf]/10 blur-3xl" />
+        <div className="absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-[#2dd4bf]/5 blur-3xl" />
       </div>
       <div className="relative max-w-4xl w-full space-y-10">
         <div className="text-center space-y-4">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-[#1dff00] bg-clip-text text-transparent">Welcome – let's set up your profile</h1>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-[#0d9488] bg-clip-text text-transparent">Welcome – let's set up your profile</h1>
           <p className="product-helper-text max-w-2xl mx-auto text-sm md:text-base">Upload your resume for instant AI-powered profile creation, or manually enter your information step by step.</p>
         </div>
         <div className="grid gap-6 md:grid-cols-2">
-          <button onClick={() => setMode('resume')} className="group relative overflow-hidden rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#101910] via-background to-black p-8 text-left shadow-[0_0_0_1px_rgba(29,255,0,0.15),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(29,255,0,0.4),0_25px_50px_-12px_rgba(29,255,0,0.15)] transition">
-            <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-[#1dff00]/20 border border-[#1dff00]/40 text-[#1dff00] text-[10px] font-semibold uppercase tracking-wide">Recommended</div>
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-[#1dff00]/10 to-transparent transition" />
+          <button onClick={() => setMode('resume')} className="group relative overflow-hidden rounded-2xl border border-[#2dd4bf]/30 bg-gradient-to-br from-[#101910] via-background to-black p-8 text-left shadow-[0_0_0_1px_rgba(45,212,191,0.15),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(45,212,191,0.4),0_25px_50px_-12px_rgba(45,212,191,0.15)] transition">
+            <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-[#2dd4bf]/20 border border-[#2dd4bf]/40 text-[#2dd4bf] text-[10px] font-semibold uppercase tracking-wide">Recommended</div>
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-[#22d3ee]/10 to-transparent transition" />
             <div className="flex items-center gap-3 mb-6">
-              <div className="h-12 w-12 rounded-xl bg-[#1dff00]/15 flex items-center justify-center border border-[#1dff00]/30"><UploadCloud className="w-6 h-6 text-[#1dff00]" /></div>
+              <div className="h-12 w-12 rounded-xl bg-[#2dd4bf]/15 flex items-center justify-center border border-[#2dd4bf]/30"><UploadCloud className="w-6 h-6 text-[#2dd4bf]" /></div>
               <h2 className="text-xl font-semibold text-foreground">AI-Powered Setup</h2>
             </div>
             <ul className="space-y-2 text-sm product-helper-text">
-              <li className="flex items-start gap-2"><Wand2 className="w-4 h-4 text-[#1dff00] mt-0.5" /> AI extracts all profile information automatically</li>
-              <li className="flex items-start gap-2"><FileText className="w-4 h-4 text-[#1dff00] mt-0.5" /> Saves directly to your account - no manual entry</li>
-              <li className="flex items-start gap-2"><ShieldCheck className="w-4 h-4 text-[#1dff00] mt-0.5" /> Fast, accurate & editable anytime</li>
+              <li className="flex items-start gap-2"><Wand2 className="w-4 h-4 text-[#2dd4bf] mt-0.5" /> AI extracts all profile information automatically</li>
+              <li className="flex items-start gap-2"><FileText className="w-4 h-4 text-[#2dd4bf] mt-0.5" /> Saves directly to your account - no manual entry</li>
+              <li className="flex items-start gap-2"><ShieldCheck className="w-4 h-4 text-[#2dd4bf] mt-0.5" /> Fast, accurate & editable anytime</li>
             </ul>
-            <div className="mt-6 inline-flex items-center gap-2 text-[#1dff00] text-sm font-medium">Upload Resume <ChevronRight className="w-4 h-4" /></div>
+            <div className="mt-6 inline-flex items-center gap-2 text-[#2dd4bf] text-sm font-medium">Upload Resume <ChevronRight className="w-4 h-4" /></div>
           </button>
           <button onClick={() => setMode('manual')} className="group relative overflow-hidden product-section-card p-8 text-left transition hover:border-[#ffd700]/60 hover:shadow-lg">
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-white/5 to-transparent transition" />
@@ -547,8 +547,8 @@ export const Onboarding = (): JSX.Element => {
   const resumeUploadScreen = (
     <div className="product-page-shell min-h-screen flex flex-col items-center justify-center px-6 py-10 relative overflow-hidden" role="main" aria-labelledby="uploadHeading">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-32 -left-24 h-72 w-72 rounded-full bg-[#1dff00]/10 blur-3xl" />
-        <div className="absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-[#1dff00]/5 blur-3xl" />
+        <div className="absolute -top-32 -left-24 h-72 w-72 rounded-full bg-[#2dd4bf]/10 blur-3xl" />
+        <div className="absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-[#2dd4bf]/5 blur-3xl" />
       </div>
       <div className="relative max-w-2xl w-full space-y-10">
         <div className="text-center space-y-4">
@@ -556,7 +556,7 @@ export const Onboarding = (): JSX.Element => {
           <p className="product-helper-text text-sm md:text-base max-w-xl mx-auto">We'll use AI to parse your profile information and automatically set up your account. You'll be redirected to your dashboard once complete.</p>
         </div>
         <div className="product-section-card p-10 relative overflow-hidden" aria-live="polite">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(29,255,0,0.15),transparent_70%)] opacity-70" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(45,212,191,0.15),transparent_70%)] opacity-70" />
           <div className="relative z-10 flex flex-col gap-8">
             <div className="flex flex-col lg:flex-row gap-8">
               <div className="flex-1 flex flex-col gap-4">
@@ -571,14 +571,14 @@ export const Onboarding = (): JSX.Element => {
                     const files = e.dataTransfer?.files; if (files && files.length) handleResumeFiles(files);
                   }}
                 >
-                  <div className={`flex flex-col items-center justify-center gap-4 border-2 border-dashed rounded-xl py-12 px-6 relative overflow-hidden transition ${dragActive ? 'border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_0_1px_rgba(29,255,0,0.4),0_0_20px_-2px_rgba(29,255,0,0.4)]' : 'border-[#1dff00]/40 group-hover:border-[#1dff00] bg-[#1dff00]/5'}`}>
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-[#1dff00]/10 to-transparent transition" />
-                    <UploadCloud className="w-10 h-10 text-[#1dff00]" />
+                  <div className={`flex flex-col items-center justify-center gap-4 border-2 border-dashed rounded-xl py-12 px-6 relative overflow-hidden transition ${dragActive ? 'border-[#2dd4bf] bg-[#2dd4bf]/10 shadow-[0_0_0_1px_rgba(45,212,191,0.4),0_0_20px_-2px_rgba(45,212,191,0.4)]' : 'border-[#2dd4bf]/40 group-hover:border-[#2dd4bf] bg-[#2dd4bf]/5'}`}>
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-[#22d3ee]/10 to-transparent transition" />
+                    <UploadCloud className="w-10 h-10 text-[#2dd4bf]" />
                     <div className="text-center space-y-1">
                       <p className="text-foreground font-medium">{dragActive ? 'Release to upload' : 'Drop your resume here'}</p>
                       <p className="text-foreground/60 text-xs">{dragActive ? 'Parsing will begin automatically' : 'Click or drag (PDF / TXT / MD / RTF)'}</p>
                     </div>
-                    <p className="text-[10px] tracking-wide text-[#1dff00]/70 uppercase">Secure • Local Parse</p>
+                    <p className="text-[10px] tracking-wide text-[#2dd4bf]/70 uppercase">Secure • Local Parse</p>
                   </div>
                   <input type="file" accept=".pdf,.txt,.md,.rtf" className="hidden" onChange={(e) => handleResumeFiles(e.target.files)} />
                 </label>
@@ -589,24 +589,24 @@ export const Onboarding = (): JSX.Element => {
                       <span>{uploadProgress}%</span>
                     </div>
                     <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-[#1dff00] via-[#7dff5c] to-[#1dff00] transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                      <div className="h-full bg-gradient-to-r from-[#22d3ee] via-[#7dff5c] to-[#0d9488] transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-foreground/40">
-                      <div className="h-1.5 w-1.5 rounded-full bg-[#1dff00] animate-pulse" />
+                      <div className="h-1.5 w-1.5 rounded-full bg-[#2dd4bf] animate-pulse" />
                       <span>{parsing ? 'Extracting profile data & creating your account…' : 'Uploading to secure storage…'}</span>
                     </div>
                   </div>
                 )}
                 {parseError && <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2 w-full">{parseError}</div>}
                 {parsed && !parseError && (
-                  <div className="text-xs text-[#1dff00] bg-[#1dff00]/10 border border-[#1dff00]/30 rounded-md px-3 py-2 w-full flex items-center gap-2">
+                  <div className="text-xs text-[#2dd4bf] bg-[#2dd4bf]/10 border border-[#2dd4bf]/30 rounded-md px-3 py-2 w-full flex items-center gap-2">
                     <CheckCircle className="w-4 h-4" />
                     <span>Profile created successfully! Redirecting to dashboard...</span>
                   </div>
                 )}
                 <div className="flex flex-wrap gap-3">
                   <button onClick={() => setMode(null)} disabled={uploading || parsing} className="px-4 py-2 rounded-md border border-foreground/20 product-helper-text hover:text-foreground hover:border-foreground/40 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Back</button>
-                  {parseError && <button onClick={() => setParseError(null)} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium">Try Again</button>}
+                  {parseError && <button onClick={() => setParseError(null)} className="px-4 py-2 rounded-md bg-[#2dd4bf] text-black text-sm font-medium">Try Again</button>}
                 </div>
               </div>
               {/* Preview / Extraction Panel */}
@@ -640,7 +640,7 @@ export const Onboarding = (): JSX.Element => {
                 )}
                 {parsed && !uploading && !parsing && (
                   <div className="flex flex-col gap-4">
-                    <div className="flex items-center gap-2 text-[#1dff00]">
+                    <div className="flex items-center gap-2 text-[#2dd4bf]">
                       <CheckCircle className="w-5 h-5" />
                       <span className="font-semibold">Profile Created Successfully!</span>
                     </div>
@@ -653,7 +653,7 @@ export const Onboarding = (): JSX.Element => {
                         <li>Education history</li>
                         <li>Work experience</li>
                       </ul>
-                      <p className="mt-3 text-[11px] text-[#1dff00]/80">Redirecting you to the dashboard...</p>
+                      <p className="mt-3 text-[11px] text-[#2dd4bf]/80">Redirecting you to the dashboard...</p>
                     </div>
                   </div>
                 )}
@@ -808,12 +808,12 @@ export const Onboarding = (): JSX.Element => {
       <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl">
         {/* Floating background elements */}
         <motion.div
-          className="absolute top-4 sm:top-8 left-2 sm:left-4 lg:left-8 bg-gradient-to-r from-[#1dff00]/20 to-background/20 rounded-full blur-xl w-8 h-8 sm:w-12 sm:h-12 lg:w-16 lg:h-16"
+          className="absolute top-4 sm:top-8 left-2 sm:left-4 lg:left-8 bg-gradient-to-r from-[#22d3ee]/20 to-background/20 rounded-full blur-xl w-8 h-8 sm:w-12 sm:h-12 lg:w-16 lg:h-16"
           animate={{ y: [-10, 10, -10] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute bottom-4 sm:bottom-8 right-2 sm:right-4 lg:right-8 bg-gradient-to-r from-[#1dff00]/10 to-background/10 rounded-full blur-xl w-10 h-10 sm:w-16 sm:h-16 lg:w-20 lg:h-20"
+          className="absolute bottom-4 sm:bottom-8 right-2 sm:right-4 lg:right-8 bg-gradient-to-r from-[#22d3ee]/10 to-background/10 rounded-full blur-xl w-10 h-10 sm:w-16 sm:h-16 lg:w-20 lg:h-20"
           animate={{ y: [10, -10, 10] }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
         />
@@ -826,13 +826,13 @@ export const Onboarding = (): JSX.Element => {
         >
           <Card className="product-section-card w-full relative overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl">
             {/* Animated border glow */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/20 via-transparent to-[#1dff00]/20 opacity-50 animate-pulse rounded-xl sm:rounded-2xl" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#22d3ee]/20 via-transparent to-[#0d9488]/20 opacity-50 animate-pulse rounded-xl sm:rounded-2xl" />
 
             <CardContent className="relative z-10 p-4 sm:p-6 lg:p-8 xl:p-10">
               {/* Header with logo */}
               <div className="flex items-center justify-center mb-6 sm:mb-8">
                 <div className="flex items-center space-x-2 sm:space-x-3">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-[#1dff00] to-background rounded-full flex items-center justify-center">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-[#22d3ee] to-background rounded-full flex items-center justify-center">
                     <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-foreground" />
                   </div>
                   <span className="text-foreground font-bold text-lg sm:text-xl lg:text-2xl">JobRaker</span>
@@ -901,7 +901,7 @@ export const Onboarding = (): JSX.Element => {
                 {steps.map((_, index) => (
                   <div
                     key={index}
-                    className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 ${index <= currentStep ? "bg-[#1dff00]" : "bg-foreground/20"
+                    className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 ${index <= currentStep ? "bg-[#2dd4bf]" : "bg-foreground/20"
                       }`}
                   />
                 ))}
@@ -939,18 +939,18 @@ const SkillInput = ({ values, onChange }: { values: string[]; onChange: (v: stri
           placeholder="Type a skill and press Enter"
           className="product-input-surface flex-1 rounded-md px-3 py-2 text-sm outline-none"
         />
-        <button onClick={add} disabled={!draft.trim()} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium disabled:opacity-50">Add</button>
+        <button onClick={add} disabled={!draft.trim()} className="px-4 py-2 rounded-md bg-[#2dd4bf] text-black text-sm font-medium disabled:opacity-50">Add</button>
       </div>
       <div className="flex flex-wrap gap-2">
         {values.map(s => (
           <button
             key={s}
             onClick={() => onChange(values.filter(x => x !== s))}
-            className="group inline-flex items-center gap-1 rounded-full border border-[#1dff00]/40 bg-[#1dff00]/10 px-3 py-1 text-xs text-[#1dff00] hover:bg-[#1dff00]/20"
+            className="group inline-flex items-center gap-1 rounded-full border border-[#2dd4bf]/40 bg-[#2dd4bf]/10 px-3 py-1 text-xs text-[#2dd4bf] hover:bg-[#2dd4bf]/20"
             title="Remove skill"
           >
             <span>{s}</span>
-            <span className="text-[#1dff00]/70 group-hover:text-[#ff4d4d]">×</span>
+            <span className="text-[#2dd4bf]/70 group-hover:text-[#ff4d4d]">×</span>
           </button>
         ))}
         {!values.length && <span className="text-xs text-foreground/40">No skills added yet</span>}
@@ -980,7 +980,7 @@ const EducationEditor = ({ values, onChange }: { values: EduItem[]; onChange: (v
           </div>
         </div>
       ))}
-      <button onClick={add} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium">Add Education</button>
+      <button onClick={add} className="px-4 py-2 rounded-md bg-[#2dd4bf] text-black text-sm font-medium">Add Education</button>
       {!values.length && <div className="text-xs text-foreground/40">No education entries yet</div>}
     </div>
   );

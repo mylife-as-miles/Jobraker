@@ -55,7 +55,7 @@ export const KanbanCard = () => {
               >
                  <div className="absolute top-1/2 left-2 w-12 h-1 bg-neutral-600 rounded-full -translate-y-1/2" />
                  {col.id === 'done' && (
-                     <div className="absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-[#1dff00] rounded-full" />
+                     <div className="absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-[#2dd4bf] rounded-full" />
                  )}
               </motion.div>
             ))}

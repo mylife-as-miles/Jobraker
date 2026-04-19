@@ -40,7 +40,7 @@ export const TestimonialGridSection = () => {
     <section className="py-24 bg-background">
       <div className="container mx-auto px-4">
         <h2 className="text-3xl md:text-5xl font-bold font-mono text-center text-foreground mb-16">
-          COMMUNITY <span className="text-[#1dff00]">FEEDBACK</span>
+          COMMUNITY <span className="text-[#2dd4bf]">FEEDBACK</span>
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -48,9 +48,9 @@ export const TestimonialGridSection = () => {
             <motion.div
               key={i}
               whileHover={{ y: -5 }}
-              className="p-8 bg-muted/50 border border-foreground/10 rounded-xl hover:border-[#1dff00]/30 transition-all"
+              className="p-8 bg-muted/50 border border-foreground/10 rounded-xl hover:border-[#2dd4bf]/30 transition-all"
             >
-              <div className="flex text-[#1dff00] mb-4">
+              <div className="flex text-[#2dd4bf] mb-4">
                 {[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-current" />)}
               </div>
               <p className="text-gray-300 font-mono mb-6 leading-relaxed">"{t.text}"</p>
