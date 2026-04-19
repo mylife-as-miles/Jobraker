@@ -14,10 +14,12 @@ import { InsightCard } from "./InsightCard";
 import { IndustriesCard } from "./IndustriesCard";
 import { MatchScoreAnalytics } from "./MatchScoreAnalytics";
 import { ResumeVersionSuccess } from "./ResumeVersionSuccess";
+import { InsightsSection } from "./insights/InsightsSection";
+import type { InsightsData } from "../../hooks/insightsComputations";
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
-export function AnalyticsContent({ period = "30d", data = {} as any }: { period?: Period; data?: any }) {
+export function AnalyticsContent({ period = "30d", data = {} as any, insights }: { period?: Period; data?: any; insights?: InsightsData }) {
   const navigate = useNavigate();
   const metrics = data?.metrics || { applications: 0, interviews: 0, jobsFound: 0, sources: 0, avgMatchScore: 0 };
   const comparisons = data?.comparisons || { applicationsDeltaPct: 0, interviewsDeltaPct: 0, jobsFoundDeltaPct: 0, avgMatchDelta: 0 };
@@ -129,6 +131,11 @@ export function AnalyticsContent({ period = "30d", data = {} as any }: { period?
           <ResumeVersionSuccess period={period} data={data} />
         </div>
       </div>
+
+      {/* Deeper Insights Section */}
+      {insights && (
+        <InsightsSection period={period} insights={insights} />
+      )}
     </div>
   );
 }

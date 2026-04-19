@@ -4,6 +4,7 @@ import { Card, CardContent } from "../../components/ui/card";
 import { RefreshCw, Link2, Download, Printer } from "lucide-react";
 import { AnalyticsContent } from "../../components/analytics/AnalyticsContent";
 import { useAnalyticsData } from "../../hooks/useAnalyticsData";
+import { useInsightsData } from "../../hooks/useInsightsData";
 
 export const Analytics = (): JSX.Element => {
   const [period, setPeriod] = useState<string>("30d");
@@ -11,6 +12,7 @@ export const Analytics = (): JSX.Element => {
     (localStorage.getItem('analytics:granularity') as any) || 'day'
   );
   const analytics = useAnalyticsData(period as any, { granularity });
+  const insights = useInsightsData(period as any, granularity, analytics);
   const hasData = (analytics.chartDataApps?.length ?? 0) > 0 || (analytics.chartDataJobs?.length ?? 0) > 0 || (analytics.barData?.length ?? 0) > 0 || (analytics.donutData?.length ?? 0) > 0;
 
   // Initialize from URL
@@ -162,7 +164,7 @@ export const Analytics = (): JSX.Element => {
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
         <Card className="product-section-card rounded-[28px]">
           <CardContent className="p-4 sm:p-6">
-            <AnalyticsContent period={period as any} data={analytics} />
+            <AnalyticsContent period={period as any} data={analytics} insights={insights} />
           </CardContent>
         </Card>
       </main>
