@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -19,6 +20,8 @@ import {
   ListFilter,
   Link2,
   Sparkle,
+  Mail,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -42,6 +45,8 @@ import { parsePdfFile } from "@/utils/parsePdf";
 import { evaluateJobFit } from "@/services/ai/evaluateJobFit";
 import type { EvaluateJobFitResponse } from "@/services/ai/evaluateJobFit";
 import { useReferrals, type ReferralRow, type ReferralFunnelStage } from "@/hooks/useReferrals";
+
+const LINKEDIN_DATA_EXPORT_URL = "https://www.linkedin.com/mypreferences/d/download-my-data";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_EXT = new Set(["pdf", "txt", "text", "docx"]);
@@ -145,7 +150,7 @@ function CheckCandidateFitModal({
     }
   };
 
-  const onDrop = (e: React.DragEvent) => {
+  const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const f = e.dataTransfer.files?.[0];
@@ -190,7 +195,7 @@ function CheckCandidateFitModal({
           <div>
             <h2 className="text-lg font-semibold text-foreground tracking-tight">Check candidate fit</h2>
             <p className="text-sm product-helper-text mt-1">
-              Upload a resume to see if they would be a good fit for a role you have in mind.
+              Upload their resume and compare it to a JobRaker job description—same fit engine as your Jobs board.
             </p>
           </div>
           <button
@@ -204,8 +209,8 @@ function CheckCandidateFitModal({
         </div>
 
         <p className="text-sm product-helper-text leading-relaxed">
-          Not sure if someone you know would be a good fit? Upload their resume and we&apos;ll analyze their background
-          against a job description you paste — same engine as JobRaker job fit, without messaging anyone automatically.
+          Use this before you share your referral link: we only analyze what you upload. JobRaker never emails or messages
+          your contacts from this screen.
         </p>
 
         <div
@@ -331,6 +336,122 @@ function CheckCandidateFitModal({
   );
 }
 
+function ReferralsProgramInfoModal({
+  open,
+  onClose,
+  onOpenBilling,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onOpenBilling: () => void;
+}): JSX.Element {
+  return (
+    <Modal open={open} onClose={onClose} title="Referrals on JobRaker" size="lg">
+      <div className="space-y-4 text-sm text-foreground/90">
+        <p className="product-helper-text leading-relaxed">
+          Share JobRaker with people in your network. When someone signs up with your link, they stay linked to your
+          account for tracking—no cold outreach is sent from JobRaker just because you imported contacts.
+        </p>
+        <ul className="list-disc pl-5 space-y-2 product-helper-text">
+          <li>
+            <span className="text-foreground font-medium">Your link</span> adds <code className="text-xs bg-foreground/10 px-1 rounded">?ref=</code>{" "}
+            on signup so attribution is automatic.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">LinkedIn export</span> is optional: use it to match people you
+            know to roles already on your JobRaker job board.
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Rewards</span> (where applicable) are summarized under Billing—rates
+            and eligibility can change; always check the latest terms there.
+          </li>
+        </ul>
+        <div className="flex flex-wrap gap-2 pt-2">
+          <Button type="button" className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90" onClick={onOpenBilling}>
+            Open billing &amp; payouts
+          </Button>
+          <Button type="button" variant="outline" className="product-outline-button border-foreground/20" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function ReferralsHelpModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}): JSX.Element {
+  return (
+    <Modal open={open} onClose={onClose} title="How referrals work" size="lg">
+      <div className="space-y-5 text-sm">
+        <ol className="list-decimal pl-5 space-y-4 product-helper-text">
+          <li>
+            <span className="text-foreground font-medium">Export from LinkedIn</span>
+            <p className="mt-1">
+              Request your data archive and download the ZIP. Inside, find{" "}
+              <span className="text-foreground">Connections.csv</span> and upload it here. This can take LinkedIn a few
+              minutes to generate.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2 product-outline-button border-foreground/20"
+              onClick={() => window.open(LINKEDIN_DATA_EXPORT_URL, "_blank", "noopener,noreferrer")}
+            >
+              <ExternalLink className="w-3.5 h-3.5 mr-2" />
+              LinkedIn data export
+            </Button>
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Upload to JobRaker</span>
+            <p className="mt-1">
+              We store connections under your account (RLS) so only you can see them. Use &quot;Replace previous import&quot;
+              if you want a full refresh.
+            </p>
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Run AI network match</span>
+            <p className="mt-1">
+              With Basics or higher, JobRaker compares your network to jobs on your board and saves suggestions you can
+              review—nothing is auto-sent to candidates.
+            </p>
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Share your link</span>
+            <p className="mt-1">Copy or email your referral link from the Share menu when you&apos;re ready.</p>
+          </li>
+        </ol>
+        <Button type="button" variant="outline" className="product-outline-button border-foreground/20" onClick={onClose}>
+          Done
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+function ReferralsWhatsNewModal({ open, onClose }: { open: boolean; onClose: () => void }): JSX.Element {
+  return (
+    <Modal open={open} onClose={onClose} title="Referrals in JobRaker" size="md">
+      <ul className="list-disc pl-5 space-y-2 text-sm product-helper-text">
+        <li>Share a personal signup link with automatic attribution.</li>
+        <li>Import LinkedIn Connections.csv privately to power network ↔ job matching.</li>
+        <li>Run an AI match pass against your JobRaker job queue (Basics+).</li>
+        <li>Track each invite through signup, applications, and milestones in My referrals.</li>
+        <li>Pre-screen a resume against any role with Check candidate fit.</li>
+      </ul>
+      <Button type="button" className="mt-4 bg-[#ffd700] text-black hover:bg-[#ffd700]/90" onClick={onClose}>
+        Got it
+      </Button>
+    </Modal>
+  );
+}
+
 const FUNNEL_STAGES = [
   { id: "signed_up", label: "Signed Up" },
   { id: "application_started", label: "Application Started" },
@@ -346,6 +467,8 @@ type ReferralTimeframe = "1d" | "3d" | "7d" | "all";
 function MyReferralsPanel({
   onOpenFitCheck,
   onShareLink,
+  onEmailInvite,
+  onOpenWhatsNew,
   funnelCounts,
   referrals,
   loading,
@@ -353,12 +476,13 @@ function MyReferralsPanel({
 }: {
   onOpenFitCheck: () => void;
   onShareLink: () => void;
+  onEmailInvite: () => void;
+  onOpenWhatsNew: () => void;
   funnelCounts: Record<ReferralFunnelStage, number>;
   referrals: ReferralRow[];
   loading: boolean;
   onMarkStage: (referredUserId: string, stage: "hired" | "paid") => Promise<void>;
 }): JSX.Element {
-  const { success } = useToast();
   const [timeframe, setTimeframe] = useState<ReferralTimeframe>("all");
   const [highlightStage, setHighlightStage] = useState<FunnelStageId>("signed_up");
   const [statusFilter, setStatusFilter] = useState<FunnelStageId>("signed_up");
@@ -390,14 +514,16 @@ function MyReferralsPanel({
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <p className="text-sm product-helper-text">Track your referral earnings and progress</p>
+        <p className="text-sm product-helper-text">
+          Track each invite as they use JobRaker—applications, interviews, and milestones.
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
             size="sm"
             className="product-outline-button border-foreground/20"
-            onClick={() => success("You're on the latest referrals experience.")}
+            onClick={onOpenWhatsNew}
           >
             <Sparkle className="w-3.5 h-3.5 mr-1.5 opacity-80" />
             What&apos;s new
@@ -415,7 +541,10 @@ function MyReferralsPanel({
                 <Link2 className="w-4 h-4 mr-2" />
                 Copy referral link
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => success("Invite email flow coming soon.")}>Email invite</DropdownMenuItem>
+              <DropdownMenuItem onClick={onEmailInvite}>
+                <Mail className="w-4 h-4 mr-2" />
+                Email invite…
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="flex rounded-lg border border-foreground/15 p-0.5 bg-foreground/[0.04]">
@@ -610,6 +739,9 @@ export const ReferralsPage = (): JSX.Element => {
   const { success, error: toastError } = useToast();
   const [tab, setTab] = useState<"connections" | "referrals">("connections");
   const [fitOpen, setFitOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [replaceNetwork, setReplaceNetwork] = useState(true);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
@@ -649,9 +781,32 @@ export const ReferralsPage = (): JSX.Element => {
     }
   }, [referralShareUrl, success, toastError]);
 
+  const openEmailInvite = useCallback(() => {
+    const link = referralShareUrl || "";
+    if (!link) {
+      toastError("Referral link", "Your link is still loading. Try again in a moment.");
+      return;
+    }
+    const subject = encodeURIComponent("Join me on JobRaker");
+    const body = encodeURIComponent(
+      `I've been using JobRaker to run my job search—discovery, applications, and follow-ups in one place.\n\nIf you sign up with my link, it helps me track referrals in the app:\n\n${link}\n`,
+    );
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }, [referralShareUrl, toastError]);
+
   return (
     <div className="product-page-shell min-h-screen">
       <CheckCandidateFitModal open={fitOpen} onClose={() => setFitOpen(false)} />
+      <ReferralsProgramInfoModal
+        open={infoOpen}
+        onClose={() => setInfoOpen(false)}
+        onOpenBilling={() => {
+          setInfoOpen(false);
+          navigate("/dashboard/billing");
+        }}
+      />
+      <ReferralsHelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <ReferralsWhatsNewModal open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
 
       <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -661,8 +816,9 @@ export const ReferralsPage = (): JSX.Element => {
               <button
                 type="button"
                 className="rounded-full p-1 text-foreground/40 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
-                title="Referrals let you share JobRaker with people you trust. You stay in control—no automatic messages when you upload connections."
+                title="How JobRaker referrals work"
                 aria-label="About referrals"
+                onClick={() => setInfoOpen(true)}
               >
                 <Info className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
@@ -693,7 +849,7 @@ export const ReferralsPage = (): JSX.Element => {
 
           <div className="flex flex-col sm:items-end gap-3 shrink-0">
             <span className="inline-flex items-center rounded-full border border-foreground/15 bg-foreground/[0.04] px-3 py-1 text-xs font-medium product-helper-text">
-              {stats?.referrals_today ?? 0} / {stats?.referrals_today_cap ?? 100} referrals today
+              {stats?.referrals_today ?? 0} / {stats?.referrals_today_cap ?? 100} signups via your link today
             </span>
             {tab === "connections" ? (
               <>
@@ -711,6 +867,10 @@ export const ReferralsPage = (): JSX.Element => {
                         <Link2 className="w-4 h-4 mr-2" />
                         Copy referral link
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={openEmailInvite}>
+                        <Mail className="w-4 h-4 mr-2" />
+                        Email invite…
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <Button
@@ -718,7 +878,7 @@ export const ReferralsPage = (): JSX.Element => {
                     variant="outline"
                     size="sm"
                     className="product-outline-button border-foreground/20"
-                    onClick={() => navigate("/dashboard/settings/profile")}
+                    onClick={() => setHelpOpen(true)}
                   >
                     <HelpCircle className="w-3.5 h-3.5 mr-1.5" />
                     Help
@@ -732,7 +892,7 @@ export const ReferralsPage = (): JSX.Element => {
                     Check candidate fit
                   </Button>
                 </div>
-                <div className="flex gap-2 text-[11px] product-helper-text justify-end">
+                <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] product-helper-text justify-end">
                   <button type="button" className="underline-offset-2 hover:underline text-[#ffd700]/90" onClick={() => navigate("/dashboard/settings")}>
                     Settings
                   </button>
@@ -740,28 +900,80 @@ export const ReferralsPage = (): JSX.Element => {
                   <button type="button" className="underline-offset-2 hover:underline text-[#ffd700]/90" onClick={() => navigate("/dashboard/billing")}>
                     Billing
                   </button>
+                  <span className="text-foreground/20">·</span>
+                  <button type="button" className="underline-offset-2 hover:underline text-[#ffd700]/90" onClick={() => setWhatsNewOpen(true)}>
+                    What&apos;s new
+                  </button>
                 </div>
               </>
             ) : (
-              <div className="flex flex-wrap gap-2 justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="product-outline-button border-foreground/20"
-                  onClick={() => navigate("/dashboard/billing")}
-                >
-                  Billing & payouts
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90"
-                  onClick={() => setFitOpen(true)}
-                >
-                  Check candidate fit
-                </Button>
-              </div>
+              <>
+                <div className="flex flex-wrap gap-2 justify-end">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="outline" size="sm" className="product-outline-button border-foreground/20">
+                        <Share2 className="w-3.5 h-3.5 mr-1.5" />
+                        Share
+                        <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-60" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => void copyReferralLink()}>
+                        <Link2 className="w-4 h-4 mr-2" />
+                        Copy referral link
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={openEmailInvite}>
+                        <Mail className="w-4 h-4 mr-2" />
+                        Email invite…
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="product-outline-button border-foreground/20"
+                    onClick={() => setHelpOpen(true)}
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 mr-1.5" />
+                    Help
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="product-outline-button border-foreground/20"
+                    onClick={() => navigate("/dashboard/billing")}
+                  >
+                    Billing &amp; payouts
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90"
+                    onClick={() => setFitOpen(true)}
+                  >
+                    Check candidate fit
+                  </Button>
+                </div>
+                <div className="flex gap-2 text-[11px] product-helper-text justify-end">
+                  <button
+                    type="button"
+                    className="underline-offset-2 hover:underline text-[#ffd700]/90"
+                    onClick={() => navigate("/dashboard/settings")}
+                  >
+                    Settings
+                  </button>
+                  <span className="text-foreground/20">·</span>
+                  <button
+                    type="button"
+                    className="underline-offset-2 hover:underline text-[#ffd700]/90"
+                    onClick={() => setWhatsNewOpen(true)}
+                  >
+                    What&apos;s new
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -769,10 +981,11 @@ export const ReferralsPage = (): JSX.Element => {
         {tab === "connections" ? (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
             <p className="text-lg sm:text-xl font-semibold text-foreground max-w-3xl">
-              Refer people you&apos;ve worked with. Earn when they get hired.
+              Grow JobRaker with people you trust—and see when your invites actually use the product.
             </p>
             <p className="mt-2 text-sm product-helper-text max-w-2xl">
-              Uploading your LinkedIn connections will not trigger any messages. You remain in control.
+              Import your LinkedIn connections export to match people you know to roles already on your JobRaker board.
+              Nothing is messaged automatically; you stay in control of outreach.
             </p>
           </motion.div>
         ) : null}
@@ -797,10 +1010,18 @@ export const ReferralsPage = (): JSX.Element => {
               />
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-foreground">Upload connections</h3>
-                <HelpCircle className="w-4 h-4 text-foreground/35" />
+                <button
+                  type="button"
+                  className="rounded-full p-1 text-foreground/35 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+                  aria-label="Help with LinkedIn export"
+                  onClick={() => setHelpOpen(true)}
+                >
+                  <HelpCircle className="w-4 h-4" />
+                </button>
               </div>
               <p className="text-sm product-helper-text mb-4">
-                Extract the ZIP from LinkedIn and upload &quot;Connections.csv&quot; here. Data stays private to your account (RLS).
+                Request your LinkedIn data archive, unzip it, and upload <span className="text-foreground/90">Connections.csv</span>{" "}
+                here. Rows are scoped to your JobRaker account only.
               </p>
               <label className="flex items-center gap-2 text-xs product-helper-text mb-3 cursor-pointer">
                 <input
@@ -819,10 +1040,10 @@ export const ReferralsPage = (): JSX.Element => {
                   type="button"
                   variant="outline"
                   className="product-outline-button border-foreground/20 justify-start"
-                  onClick={() => window.open("https://www.linkedin.com/mypreferences/d/download-my-data", "_blank", "noopener,noreferrer")}
+                  onClick={() => window.open(LINKEDIN_DATA_EXPORT_URL, "_blank", "noopener,noreferrer")}
                 >
                   <Linkedin className="w-4 h-4 mr-2 text-[#0a66c2]" />
-                  Get my connections
+                  Get LinkedIn export
                 </Button>
                 <Button
                   type="button"
@@ -844,9 +1065,10 @@ export const ReferralsPage = (): JSX.Element => {
               <div className="w-10 h-10 rounded-full bg-[#ffd700]/15 border border-[#ffd700]/30 flex items-center justify-center mb-4">
                 <Sparkles className="w-5 h-5 text-[#ffd700]" />
               </div>
-              <h3 className="font-semibold text-foreground mb-2">Agentic match scan</h3>
+              <h3 className="font-semibold text-foreground mb-2">Match network → job board</h3>
               <p className="text-sm product-helper-text mb-4">
-                Gemini compares your LinkedIn network to jobs on your JobRaker board and writes structured match suggestions (Basics+).
+                JobRaker compares imported contacts to jobs in your queue and saves ranked suggestions you can act on.
+                Requires Basics or higher; uses the same jobs you track in the Jobs tab.
               </p>
               <p className="text-xs product-helper-text flex items-center gap-1.5 mb-3">
                 <Clock className="w-3.5 h-3.5 text-[#ffd700]/70" />
@@ -855,13 +1077,14 @@ export const ReferralsPage = (): JSX.Element => {
               <Button
                 type="button"
                 disabled={agentRunning || connectionCount === 0}
-                className="w-full bg-foreground/10 border border-[#ffd700]/40 text-[#ffd700] hover:bg-[#ffd700]/10"
+                title={connectionCount === 0 ? "Upload Connections.csv first" : undefined}
+                className="w-full bg-foreground/10 border border-[#ffd700]/40 text-[#ffd700] hover:bg-[#ffd700]/10 disabled:opacity-50"
                 onClick={() => void runAgentScan()}
               >
                 {agentRunning ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Running agent…
+                    Running match…
                   </>
                 ) : (
                   <>
@@ -870,19 +1093,23 @@ export const ReferralsPage = (): JSX.Element => {
                   </>
                 )}
               </Button>
+              {connectionCount === 0 ? (
+                <p className="text-[11px] product-helper-text mt-2">Upload connections in the first card to enable matching.</p>
+              ) : null}
             </Card>
 
             <Card className="product-section-card p-5 sm:p-6 hover:border-[#ffd700]/50 transition-all duration-300">
               <div className="w-10 h-10 rounded-full bg-[#ffd700]/15 border border-[#ffd700]/30 flex items-center justify-center mb-4">
                 <Banknote className="w-5 h-5 text-[#ffd700]" />
               </div>
-              <h3 className="font-semibold text-foreground mb-2">You earn 20%</h3>
+              <h3 className="font-semibold text-foreground mb-2">Referral rewards</h3>
               <p className="text-sm product-helper-text mb-4">
-                Get paid for everything your referral earns from their first billable hour.
+                Qualifying invites can unlock revenue share (often up to 20% on their spend) once they become paying JobRaker
+                members. Exact rates and eligibility are always shown in Billing.
               </p>
               <p className="text-xs product-helper-text flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-[#ffd700]/70" />
-                Starts when they are hired
+                Tracked from signup through hired / paid milestones
               </p>
               <Button
                 type="button"
@@ -891,7 +1118,7 @@ export const ReferralsPage = (): JSX.Element => {
                 className="mt-3 px-0 text-[#ffd700] hover:text-[#ffd700] hover:bg-transparent"
                 onClick={() => navigate("/dashboard/billing")}
               >
-                View billing & payouts
+                View billing &amp; payouts
               </Button>
             </Card>
           </div>
@@ -900,6 +1127,8 @@ export const ReferralsPage = (): JSX.Element => {
             <MyReferralsPanel
               onOpenFitCheck={() => setFitOpen(true)}
               onShareLink={() => void copyReferralLink()}
+              onEmailInvite={openEmailInvite}
+              onOpenWhatsNew={() => setWhatsNewOpen(true)}
               funnelCounts={funnelCounts}
               referrals={referrals}
               loading={loading}
