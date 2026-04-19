@@ -356,10 +356,22 @@ serve(async (req) => {
                             billing_path: "/dashboard/billing",
                           };
                         } else {
+                          const a = (fn.args || {}) as Record<string, unknown>;
+                          const jd =
+                            typeof a.job_description === "string" ? a.job_description
+                            : typeof a.jobDescription === "string" ? a.jobDescription
+                            : "";
                           const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/evaluate-job-fit`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json", Authorization: authHeader! },
-                            body: JSON.stringify(fn.args),
+                            body: JSON.stringify({
+                              jobDescription: jd,
+                              jobId: a.job_id ?? a.jobId,
+                              jobTitle: a.job_title ?? a.jobTitle,
+                              company: a.company,
+                              profileSnapshot: a.profile_snapshot ?? a.profileSnapshot,
+                              resumeText: a.resume_text ?? a.resumeText,
+                            }),
                           });
                           result = await res.json();
                         }

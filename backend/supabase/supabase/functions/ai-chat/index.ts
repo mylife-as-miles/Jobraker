@@ -425,7 +425,7 @@ async function executeTool(
 
     case "generate_cover_letter":
       return callEdgeFunction("generate-cover-letter", {
-        jobDescription: args.job_description,
+        jobDescription: args.job_description ?? args.jobDescription,
         instructions: args.instructions,
       });
 
@@ -442,7 +442,12 @@ async function executeTool(
         };
       }
       return callEdgeFunction("evaluate-job-fit", {
-        job_description: args.job_description,
+        jobDescription: args.job_description ?? args.jobDescription,
+        jobId: args.job_id ?? args.jobId,
+        jobTitle: args.job_title ?? args.jobTitle,
+        company: args.company,
+        profileSnapshot: args.profile_snapshot ?? args.profileSnapshot,
+        resumeText: args.resume_text ?? args.resumeText,
       });
     }
 

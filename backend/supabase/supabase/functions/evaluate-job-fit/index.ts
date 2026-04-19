@@ -8,15 +8,6 @@ import {
   type JobEvaluationResult,
 } from "../_shared/job-evaluation.ts";
 
-interface EvaluateJobFitRequest {
-  jobId?: string;
-  jobTitle?: string;
-  company?: string;
-  jobDescription: string;
-  profileSnapshot?: string;
-  resumeText?: string;
-}
-
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
   const cors = getCorsHeaders(origin || undefined);
@@ -32,14 +23,18 @@ Deno.serve(async (req) => {
       "Job evaluation",
     );
 
-    const {
-      jobId,
-      jobTitle,
-      company,
-      jobDescription,
-      profileSnapshot,
-      resumeText,
-    }: EvaluateJobFitRequest = await req.json();
+    const raw = (await req.json()) as Record<string, unknown>;
+    const jobDescription =
+      (typeof raw.jobDescription === "string" && raw.jobDescription.trim()
+        ? raw.jobDescription
+        : typeof raw.job_description === "string" && raw.job_description.trim()
+        ? raw.job_description
+        : "") as string;
+    const jobId = raw.jobId ?? raw.job_id;
+    const jobTitle = raw.jobTitle ?? raw.job_title;
+    const company = raw.company;
+    const profileSnapshot = raw.profileSnapshot ?? raw.profile_snapshot;
+    const resumeText = raw.resumeText ?? raw.resume_text;
 
     if (!jobDescription) {
       return new Response(
@@ -54,12 +49,12 @@ Deno.serve(async (req) => {
     const evaluation: JobEvaluationResult = await evaluateAndPersistJobFit({
       serviceClient,
       userId: user.id,
-      jobId: jobId || null,
-      jobTitle: jobTitle || null,
-      company: company || null,
+      jobId: (typeof jobId === "string" ? jobId : null) || null,
+      jobTitle: (typeof jobTitle === "string" ? jobTitle : null) || null,
+      company: (typeof company === "string" ? company : null) || null,
       jobDescription,
-      profileSnapshot: profileSnapshot || null,
-      resumeText: resumeText || null,
+      profileSnapshot: (typeof profileSnapshot === "string" ? profileSnapshot : null) || null,
+      resumeText: (typeof resumeText === "string" ? resumeText : null) || null,
     });
 
     return new Response(JSON.stringify(evaluation), {
