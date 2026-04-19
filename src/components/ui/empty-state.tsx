@@ -55,7 +55,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     neutral: { ring: 'ring-foreground/10', glow: 'from-foreground/5 to-foreground/5', accent: 'text-foreground', icon: 'text-foreground', pill: 'bg-foreground/5 text-foreground/60' },
     info: { ring: 'ring-sky-400/30', glow: 'from-sky-500/10 to-sky-500/0', accent: 'text-sky-300', icon: 'text-sky-300', pill: 'bg-sky-500/15 text-sky-300' },
     primary: { ring: 'ring-[#ffd700]/40', glow: 'from-[#fbbf24]/15 to-transparent', accent: 'text-[#ffd700]', icon: 'text-[#ffd700]', pill: 'bg-[#ffd700]/20 text-[#ffd700]' },
-    success: { ring: 'ring-emerald-400/30', glow: 'from-emerald-500/15 to-transparent', accent: 'text-emerald-300', icon: 'text-emerald-300', pill: 'bg-emerald-500/15 text-emerald-300' },
+    success: { ring: 'ring-amber-400/30', glow: 'from-amber-500/15 to-transparent', accent: 'text-amber-300', icon: 'text-amber-300', pill: 'bg-amber-500/15 text-amber-300' },
     warning: { ring: 'ring-amber-400/30', glow: 'from-amber-500/15 to-transparent', accent: 'text-amber-300', icon: 'text-amber-300', pill: 'bg-amber-500/15 text-amber-300' },
     danger: { ring: 'ring-rose-400/30', glow: 'from-rose-500/15 to-transparent', accent: 'text-rose-300', icon: 'text-rose-300', pill: 'bg-rose-500/15 text-rose-300' },
   };

@@ -1151,7 +1151,7 @@ export const ChatPage = () => {
                                             ? "bg-brand animate-pulse"
                                             : tc.status === "error"
                                               ? "bg-red-400"
-                                              : "bg-emerald-400"
+                                              : "bg-amber-400"
                                         }`}
                                       />
                                       <span className='text-muted-foreground'>

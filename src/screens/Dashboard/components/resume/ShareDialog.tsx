@@ -142,8 +142,8 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
                                 </div>
 
                                 <div className="relative overflow-hidden group p-6 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center gap-1 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/80">
-                                    <div className="absolute -right-2 -top-2 w-16 h-16 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all" />
-                                    <Download className="w-5 h-5 text-emerald-500 mb-1" />
+                                    <div className="absolute -right-2 -top-2 w-16 h-16 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all" />
+                                    <Download className="w-5 h-5 text-amber-500 mb-1" />
                                     <span className="text-3xl font-bold tabular-nums">{downloads || 0}</span>
                                     <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest">Downloads</span>
                                 </div>

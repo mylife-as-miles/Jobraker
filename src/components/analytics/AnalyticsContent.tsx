@@ -59,7 +59,7 @@ export function AnalyticsContent({ period = "30d", data = {} as any, insights }:
     if (!value) return <span className="text-[11px] text-foreground/55">0%</span>;
     const positive = value > 0;
     return (
-      <span className={"inline-flex items-center gap-1 text-[11px] font-medium " + (positive ? "text-emerald-500" : "text-rose-500")}>
+      <span className={"inline-flex items-center gap-1 text-[11px] font-medium " + (positive ? "text-amber-500" : "text-rose-500")}>
         {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
         {positive ? "+" : ""}{value}%
       </span>

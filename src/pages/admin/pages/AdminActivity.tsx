@@ -460,7 +460,7 @@ export default function AdminActivity() {
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium ${activity.reference_type === 'job_search'
                         ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                         }`}>
                         {activity.reference_type === 'job_search' ? (
                           <><Search className="w-3 h-3" /> Job Search</>

@@ -1822,7 +1822,7 @@ export const SettingsPage = (): JSX.Element => {
                   <div className='flex items-center justify-between'>
                     <span className='font-bold uppercase tracking-wider text-muted-foreground/80'>Strength</span>
                     <span
-                      className={`font-bold ${passwordCheck.score >= 4 ? "text-emerald-400" : passwordCheck.score >= 3 ? "text-[#ffd700]" : "text-rose-400"}`}
+                      className={`font-bold ${passwordCheck.score >= 4 ? "text-amber-400" : passwordCheck.score >= 3 ? "text-[#ffd700]" : "text-rose-400"}`}
                     >
                       {passwordCheck.strength}
                     </span>
@@ -1844,7 +1844,7 @@ export const SettingsPage = (): JSX.Element => {
                     ].map((r, i) => (
                       <div key={i} className='flex items-center gap-2'>
                         {r.ok ? (
-                          <CheckCircle2 className='w-4 h-4 text-emerald-400' />
+                          <CheckCircle2 className='w-4 h-4 text-amber-400' />
                         ) : (
                           <XCircle className='w-4 h-4 text-muted-foreground/40' />
                         )}
@@ -1889,7 +1889,7 @@ export const SettingsPage = (): JSX.Element => {
                 </div>
                 <div className='flex items-center gap-3'>
                   <span
-                    className={`text-sm px-3 py-1 rounded ${sec?.two_factor_enabled ? "bg-emerald-500/20 text-emerald-400" : "bg-muted/50 text-muted-foreground"}`}
+                    className={`text-sm px-3 py-1 rounded ${sec?.two_factor_enabled ? "bg-amber-500/20 text-amber-400" : "bg-muted/50 text-muted-foreground"}`}
                   >
                     {sec?.two_factor_enabled ? "Enabled" : "Disabled"}
                   </span>
@@ -2203,7 +2203,7 @@ export const SettingsPage = (): JSX.Element => {
                             <span
                               className={`text-xs px-2 py-1 rounded font-medium tracking-wide ${bc.used
                                 ? "bg-red-500/20 text-red-500"
-                                : "bg-emerald-500/20 text-emerald-400"
+                                : "bg-amber-500/20 text-amber-400"
                                 }`}
                             >
                               {bc.used ? "Used" : "Unused"}
@@ -2362,7 +2362,7 @@ export const SettingsPage = (): JSX.Element => {
                               "Unknown Device"}
                           </p>
                           {session.is_current && (
-                            <span className='text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400'>
+                            <span className='text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400'>
                               Current
                             </span>
                           )}
@@ -2451,7 +2451,7 @@ export const SettingsPage = (): JSX.Element => {
                                 ? "bg-orange-500/20 text-orange-400"
                                 : log.risk_level === "medium"
                                   ? "bg-yellow-500/20 text-yellow-400"
-                                  : "bg-emerald-500/20 text-emerald-400"
+                                  : "bg-amber-500/20 text-amber-400"
                               }`}
                           >
                             {log.risk_level}
@@ -2519,7 +2519,7 @@ export const SettingsPage = (): JSX.Element => {
                               {key.key_name}
                             </p>
                             <span
-                              className={`text-xs px-2 py-0.5 rounded ${key.is_active ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-500"}`}
+                              className={`text-xs px-2 py-0.5 rounded ${key.is_active ? "bg-amber-500/20 text-amber-400" : "bg-red-500/20 text-red-500"}`}
                             >
                               {key.is_active ? "Active" : "Revoked"}
                             </span>

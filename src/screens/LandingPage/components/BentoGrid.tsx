@@ -59,7 +59,7 @@ export const BentoGrid = () => {
             className="text-4xl md:text-6xl font-bold font-sans text-foreground mb-6 tracking-tight"
           >
             Everything you need to <br/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#fbbf24] to-emerald-600">dominate the job market.</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#fbbf24] to-amber-600">dominate the job market.</span>
           </motion.h2>
 
           <motion.p

@@ -39,7 +39,7 @@ function MetricTile({ label, value, delta, absolute = false }: MetricTileProps) 
           <span
             className={
               isPositive
-                ? "inline-flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-xs font-bold text-emerald-400"
+                ? "inline-flex items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-xs font-bold text-amber-400"
                 : "inline-flex items-center gap-0.5 rounded-full bg-rose-500/10 px-1.5 py-0.5 text-xs font-bold text-rose-400"
             }
           >

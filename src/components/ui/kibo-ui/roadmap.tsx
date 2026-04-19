@@ -37,7 +37,7 @@ export type RoadmapStatus = 'planned' | 'in-progress' | 'done' | 'blocked';
 const STATUS_META: Record<RoadmapStatus, { label: string; color: string; dot: string; ring: string } > = {
   planned: { label: 'Planned', color: 'text-foreground/70', dot: 'bg-zinc-400', ring: 'ring-zinc-400/30' },
   'in-progress': { label: 'In Progress', color: 'text-amber-200', dot: 'bg-amber-400 animate-pulse', ring: 'ring-amber-400/40' },
-  done: { label: 'Done', color: 'text-emerald-200', dot: 'bg-emerald-400', ring: 'ring-emerald-400/40' },
+  done: { label: 'Done', color: 'text-amber-200', dot: 'bg-amber-400', ring: 'ring-amber-400/40' },
   blocked: { label: 'Blocked', color: 'text-rose-200', dot: 'bg-rose-500', ring: 'ring-rose-500/40' },
 };
 
@@ -156,7 +156,7 @@ export const RoadmapItem = React.forwardRef<HTMLDivElement, RoadmapItemProps>(fu
           <span className={cn('h-2 w-2 rounded-full', s.dot)} aria-hidden />
           {pct != null && (
             <span className='relative mt-2 block h-8 w-1 rounded-full bg-foreground/10 overflow-hidden'>
-              <span className='absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#fbbf24] to-emerald-400' style={{ height: pct + '%' }} />
+              <span className='absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#fbbf24] to-amber-400' style={{ height: pct + '%' }} />
             </span>
           )}
         </div>

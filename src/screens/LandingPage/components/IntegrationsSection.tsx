@@ -26,7 +26,7 @@ export const IntegrationsSection = () => {
 
       <div className="container mx-auto px-4 text-center relative z-10 mb-12">
         <h2 className="text-4xl md:text-6xl font-bold font-mono text-foreground mb-6 tracking-tight">
-          CONNECTED <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#fbbf24] to-emerald-500">ECOSYSTEM</span>
+          CONNECTED <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#fbbf24] to-amber-500">ECOSYSTEM</span>
         </h2>
         <p className="text-gray-400 max-w-2xl mx-auto font-mono text-lg">
           JobRaker acts as the central intelligence, orchestrating your entire job search across every platform.

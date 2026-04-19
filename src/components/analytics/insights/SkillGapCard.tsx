@@ -66,8 +66,8 @@ export function SkillGapCard({
             ) : skillGaps.length === 0 ? (
               /* Resume exists but no gaps — strong alignment */
               <div className="flex h-full min-h-[180px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/40 bg-background/20 backdrop-blur-sm">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
-                  <CheckCircle className="h-5 w-5 text-emerald-400" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10">
+                  <CheckCircle className="h-5 w-5 text-amber-400" />
                 </div>
                 <p className="text-sm font-medium text-muted-foreground/80">
                   Strong skill alignment

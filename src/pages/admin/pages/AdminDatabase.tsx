@@ -405,7 +405,7 @@ export default function AdminDatabase() {
                           Error
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5 text-emerald-400 text-xs">
+                        <div className="flex items-center gap-1.5 text-amber-400 text-xs">
                           <CheckCircle2 className="w-3 h-3" />
                           Active
                         </div>

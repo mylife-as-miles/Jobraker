@@ -68,14 +68,14 @@ export function ApplicationTimelineCard({
                       <div
                         className={`absolute -left-8 top-1.5 h-[22px] w-[22px] rounded-full border-2 flex items-center justify-center ${
                           event.isStatusChange
-                            ? "border-emerald-400 bg-emerald-400/20"
+                            ? "border-amber-400 bg-amber-400/20"
                             : "border-blue-400 bg-blue-400/20"
                         }`}
                       >
                         <div
                           className={`h-2.5 w-2.5 rounded-full ${
                             event.isStatusChange
-                              ? "bg-emerald-400"
+                              ? "bg-amber-400"
                               : "bg-blue-400"
                           }`}
                         />
@@ -106,7 +106,7 @@ export function ApplicationTimelineCard({
                           <span
                             className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                               event.isStatusChange
-                                ? "border border-emerald-400/25 bg-emerald-400/10 text-emerald-400"
+                                ? "border border-amber-400/25 bg-amber-400/10 text-amber-400"
                                 : "border border-blue-400/25 bg-blue-400/10 text-blue-400"
                             }`}
                           >
@@ -117,7 +117,7 @@ export function ApplicationTimelineCard({
                           </span>
 
                           {event.isStatusChange && (
-                            <span className="text-[10px] font-medium text-emerald-400/60">
+                            <span className="text-[10px] font-medium text-amber-400/60">
                               Status changed
                             </span>
                           )}
