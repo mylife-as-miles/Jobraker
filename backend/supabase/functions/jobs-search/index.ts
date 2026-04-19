@@ -121,12 +121,62 @@ Deno.serve(async (req) => {
 
     const jobsInserted = totalInserted;
 
+    // Bill search credits server-side (1 per job persisted, minimum 1 per completed search).
+    const jobsBilled = Math.min(
+      effectiveLimit,
+      Math.max(1, jobsInserted),
+    );
+    const { data: deductRaw, error: deductError } = await serviceClient.rpc(
+      "deduct_job_search_credits",
+      { p_user_id: user.id, p_jobs_count: jobsBilled },
+    );
+    if (deductError) {
+      console.error("[jobs-search] deduct_job_search_credits RPC error:", deductError);
+      return new Response(
+        JSON.stringify({
+          error: "Could not record search credits. Please try again.",
+          code: "billing_error",
+        }),
+        {
+          status: 503,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        },
+      );
+    }
+    const deduct = deductRaw as Record<string, unknown> | null;
+    if (!deduct || deduct.success !== true) {
+      return new Response(
+        JSON.stringify({
+          error: (deduct?.message as string) || "Insufficient credits for this search.",
+          code: "insufficient_credits",
+          current_balance: deduct?.current_balance,
+          required_credits: deduct?.required_credits,
+        }),
+        {
+          status: 402,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        },
+      );
+    }
+
+    const remainingBalance =
+      typeof deduct.remaining_balance === "number"
+        ? deduct.remaining_balance
+        : undefined;
+    const creditsDeducted =
+      typeof deduct.credits_deducted === "number"
+        ? deduct.credits_deducted
+        : jobsBilled;
+
     console.info("[jobs-search] Completed", {
       userId: user.id,
       requestedLimit,
       effectiveLimit,
       discoveredCount: discoveredJobs.length,
       jobsInserted,
+      jobsBilled,
+      creditsDeducted,
+      remainingBalance,
       warningCount: warnings.length,
       elapsed_ms: Date.now() - startedAt,
     });
@@ -141,6 +191,9 @@ Deno.serve(async (req) => {
         creditsBalance,
         subscriptionTier,
         jobsInserted,
+        jobsBilled,
+        creditsDeducted,
+        remainingBalance,
         jobs: discoveredJobs.map((job) => ({
           title: job.title,
           company: job.company,

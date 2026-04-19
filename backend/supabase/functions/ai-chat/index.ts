@@ -254,13 +254,26 @@ serve(async (req) => {
     );
     if (consumeError) {
       console.error("consume_chat_message RPC error:", consumeError);
-    } else if (consumeResult && consumeResult.success === false) {
       return new Response(
         JSON.stringify({
-          error: consumeResult.message,
-          code: consumeResult.reason,
-          balance: consumeResult.balance,
-          free_remaining: consumeResult.free_remaining,
+          error: "Could not verify chat billing. Please try again.",
+          code: "billing_error",
+        }),
+        {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+    const consumed = consumeResult as Record<string, unknown> | null;
+    if (!consumed || consumed.success !== true) {
+      const c = consumed || {};
+      return new Response(
+        JSON.stringify({
+          error: (c.message as string) || "Chat billing failed.",
+          code: (c.reason as string) || "insufficient_credits",
+          balance: c.balance,
+          free_remaining: c.free_remaining,
         }),
         {
           status: 402,
@@ -347,24 +360,29 @@ serve(async (req) => {
                   "consume_ai_chat_tool_surcharge",
                   { p_user_id: userId, p_credits: 1 },
                 );
-                if (surchargeError) {
-                  console.error("consume_ai_chat_tool_surcharge RPC error:", surchargeError);
-                }
-                if (!surchargeError && surchargeResult && surchargeResult.success === false) {
+                const sur = surchargeResult as Record<string, unknown> | null;
+                if (
+                  surchargeError ||
+                  !sur ||
+                  sur.success !== true
+                ) {
+                  if (surchargeError) {
+                    console.error("consume_ai_chat_tool_surcharge RPC error:", surchargeError);
+                  }
                   enqueueEvent("error", {
-                    error: surchargeResult.message ||
-                      "Not enough credits to run agent tools this step. Add credits or switch to Ask mode.",
-                    code: "agent_tool_surcharge",
-                    balance: surchargeResult.balance,
+                    error: surchargeError
+                      ? "Could not charge credits for agent tools. Please try again."
+                      : (sur?.message as string) ||
+                        "Not enough credits to run agent tools this step. Add credits or switch to Ask mode.",
+                    code: surchargeError ? "billing_error" : "agent_tool_surcharge",
+                    balance: sur?.balance,
                   });
                   break;
                 }
-                if (surchargeResult?.success) {
-                  enqueueEvent("agent_surcharge", {
-                    credits_charged: surchargeResult.credits_charged,
-                    balance: surchargeResult.balance,
-                  });
-                }
+                enqueueEvent("agent_surcharge", {
+                  credits_charged: sur.credits_charged,
+                  balance: sur.balance,
+                });
 
                 const toolResults = [];
                 for (const fc of functionCalls) {

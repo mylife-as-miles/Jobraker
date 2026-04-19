@@ -288,6 +288,40 @@ Deno.serve(async (req) => {
       );
     }
 
+    const automationJobCount = jobUrls.length;
+    const { data: deductRaw, error: deductError } = await serviceClient.rpc(
+      "deduct_auto_apply_credits",
+      { p_user_id: userId, p_jobs_count: automationJobCount },
+    );
+    if (deductError) {
+      console.error("apply-to-jobs: deduct_auto_apply_credits RPC error:", deductError);
+      return new Response(
+        JSON.stringify({
+          error: "Could not verify automation credits. Please try again.",
+          code: "billing_error",
+        }),
+        {
+          status: 503,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        },
+      );
+    }
+    const deduct = deductRaw as Record<string, unknown> | null;
+    if (!deduct || deduct.success !== true) {
+      return new Response(
+        JSON.stringify({
+          error: (deduct?.message as string) || "Insufficient credits for auto apply.",
+          code: "insufficient_credits",
+          current_balance: deduct?.current_balance,
+          required_credits: deduct?.required_credits,
+        }),
+        {
+          status: 402,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        },
+      );
+    }
+
     const envKey = Deno.env.get("SKYVERN_API_KEY");
     const headerKey = req.headers.get("x-skyvern-api-key") || req.headers.get("x-api-key");
     const apiKey = envKey || headerKey;
