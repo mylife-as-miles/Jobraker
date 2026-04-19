@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import {
   createGeminiClient,
   createGeminiConfig,
@@ -29,8 +29,10 @@ type JobRow = {
 };
 
 serve(async (req) => {
+  const cors = getCorsHeaders(req.headers.get("origin"));
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: cors });
   }
 
   try {
@@ -56,7 +58,7 @@ serve(async (req) => {
           error: "no_connections",
           message: "Upload LinkedIn connections first.",
         }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
       );
     }
 
@@ -76,7 +78,7 @@ serve(async (req) => {
           error: "no_jobs",
           message: "Save jobs to your board first so we can match your network.",
         }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
       );
     }
 
@@ -174,17 +176,17 @@ ${JSON.stringify(jobPayload)}`;
         connections_scanned: conns.length,
         jobs_considered: jobRows.length,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (error: unknown) {
     if (error instanceof SubscriptionAccessError) {
-      return subscriptionErrorResponse(error, corsHeaders);
+      return subscriptionErrorResponse(error, cors);
     }
     console.error("referrals-agent:", error);
     const message = error instanceof Error ? error.message : "Internal error";
     return new Response(JSON.stringify({ ok: false, error: message }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 });

@@ -121,6 +121,7 @@ serve(async (req) => {
       failure_reason:
         normalized.canonical_stage === "failed" ? failureReason : null,
       updated_at: new Date().toISOString(),
+      provider_run_output: payload,
     };
 
     if (receiptUrl) updatePayload.receipt_url = receiptUrl;

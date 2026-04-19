@@ -159,6 +159,7 @@ serve(async (req) => {
       failure_reason: TERMINAL_FAIL.includes(providerStatus) ? failureReason : null,
       ...(run?.recording_url && { recording_url: run.recording_url }),
       ...(run?.app_url && { app_url: run.app_url }),
+      provider_run_output: run,
     };
 
     const { error: updateErr } = await serviceClient

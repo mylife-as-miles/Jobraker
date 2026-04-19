@@ -44,6 +44,8 @@ export interface ApplicationRecord {
   draft_status?: "draft" | "ready" | "sent" | null;
   ai_confidence_score?: number | null;
   user_review_notes?: string | null;
+  /** Full Skyvern webhook / run payload (workflow block outputs). */
+  provider_run_output?: Record<string, unknown> | null;
 }
 
 type CreateInput = Partial<Omit<ApplicationRecord, "id" | "user_id" | "created_at" | "updated_at">> & {

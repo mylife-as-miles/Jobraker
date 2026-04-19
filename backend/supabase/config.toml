@@ -360,7 +360,8 @@ entrypoint = "./functions/proxy-image/index.ts"
 
 [functions.referrals-agent]
 enabled = true
-verify_jwt = true
+# Must be false so browser OPTIONS preflight reaches the handler; auth is enforced in requireSubscriptionTier.
+verify_jwt = false
 entrypoint = "./functions/referrals-agent/index.ts"
 
 [functions.calculate-match-score]
