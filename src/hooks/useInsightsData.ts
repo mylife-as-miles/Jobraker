@@ -136,7 +136,9 @@ export function useInsightsData(
   period: Period,
   granularity: Granularity,
   analyticsData: AnalyticsData,
+  options?: { enabled?: boolean },
 ): InsightsData {
+  const enabled = options?.enabled ?? true;
   const supabase = useMemo(() => createClient(), []);
 
   const [insightsState, setInsightsState] = useState<InsightsData>({
@@ -153,6 +155,11 @@ export function useInsightsData(
   );
 
   useEffect(() => {
+    if (!enabled) {
+      setInsightsState({ ...EMPTY_INSIGHTS, loading: false, error: null });
+      return;
+    }
+
     // If analyticsData is still loading, reflect that
     if (analyticsData.loading) {
       setInsightsState((prev) => ({ ...prev, loading: true, error: null }));
@@ -487,6 +494,7 @@ export function useInsightsData(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    enabled,
     supabase,
     period,
     granularity,

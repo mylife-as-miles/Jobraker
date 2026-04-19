@@ -5,6 +5,7 @@ import { Button } from '../../../components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { AnalyticsContent } from '../../../components/analytics/AnalyticsContent';
 import { useAnalyticsData } from '../../../hooks/useAnalyticsData';
+import { useInsightsData } from '../../../hooks/useInsightsData';
 import { UpgradePrompt } from '../../../components/UpgradePrompt';
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
 import { hasSubscriptionAccess } from '@/lib/subscriptionAccess';
@@ -19,6 +20,9 @@ export function AnalyticsPage() {
   const hasAnalyticsAccess = hasSubscriptionAccess(subscriptionTier, 'Pro');
   const analytics = useAnalyticsData(period, {
     granularity,
+    enabled: hasAnalyticsAccess,
+  });
+  const insights = useInsightsData(period, granularity, analytics, {
     enabled: hasAnalyticsAccess,
   });
 
@@ -220,7 +224,7 @@ export function AnalyticsPage() {
         )}
 
         <div id='analytics-main-card' data-tour='analytics-main-card'>
-          <AnalyticsContent period={period} data={analytics} />
+          <AnalyticsContent period={period} data={analytics} insights={insights} />
         </div>
           </>
         )}
