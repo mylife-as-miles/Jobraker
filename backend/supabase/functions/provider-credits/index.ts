@@ -99,6 +99,54 @@ async function listProviderCredits(serviceClient: any) {
   };
 }
 
+function findFirecrawlBalance(balances: any[]) {
+  return balances.find((balance) => balance?.provider === "firecrawl") || null;
+}
+
+function shouldRefreshSeededFirecrawlBalance(balance: any) {
+  if (!balance) return true;
+
+  const totalCredits = Number(balance.total_credits || 0);
+  const remainingCredits = Number(balance.remaining_credits || 0);
+
+  return (
+    !balance.last_checked_at ||
+    balance.source === "seed" ||
+    (totalCredits === 0 && remainingCredits === 0)
+  );
+}
+
+async function listProviderCreditsWithSeedRefresh(serviceClient: any, userId: string) {
+  let list = await listProviderCredits(serviceClient);
+  const firecrawlBalance = findFirecrawlBalance(list.balances);
+
+  if (!shouldRefreshSeededFirecrawlBalance(firecrawlBalance)) {
+    return list;
+  }
+
+  try {
+    const refresh = await syncFirecrawlCreditUsage(serviceClient, {
+      source: "admin_list_auto_refresh",
+      userId,
+    });
+    list = await listProviderCredits(serviceClient);
+    return { ...list, refresh };
+  } catch (error) {
+    console.error("provider-credits.firecrawl_auto_refresh_failed", error);
+    return {
+      ...list,
+      warnings: [
+        {
+          provider: "firecrawl",
+          code: "firecrawl_refresh_failed",
+          message:
+            error instanceof Error ? error.message : "Firecrawl refresh failed",
+        },
+      ],
+    };
+  }
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
 
@@ -171,7 +219,10 @@ serve(async (req) => {
       });
     }
 
-    const list = await listProviderCredits(auth.serviceClient);
+    const list = await listProviderCreditsWithSeedRefresh(
+      auth.serviceClient,
+      auth.user.id,
+    );
     return new Response(JSON.stringify({ success: true, ...list }), {
       status: 200,
       headers: { ...corsHeaders, "content-type": "application/json" },
