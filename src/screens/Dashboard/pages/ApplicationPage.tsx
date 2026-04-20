@@ -442,7 +442,7 @@ function ApplicationsListView({
 function ApplicationPage() {
   const navigate = useNavigate();
   const supabase = useMemo(() => createClient(), []);
-  const { success, error: toastError } = useToast();
+  const { success, error: toastError, info } = useToast();
   const {
     applications,
     exportCSV,
@@ -481,6 +481,7 @@ function ApplicationPage() {
   const [interviewAgentLoading, setInterviewAgentLoading] = useState(false);
   const [interviewAgentResult, setInterviewAgentResult] = useState<ScheduleInterviewResponse | null>(null);
   const [gmailSyncing, setGmailSyncing] = useState(false);
+  const [isGmailConnected, setIsGmailConnected] = useState(false);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasInterviewAssistantAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
   const hasGmailIntegrationAccess = hasSubscriptionAccess(subscriptionTier, "Ultimate");
@@ -566,11 +567,61 @@ function ApplicationPage() {
     } catch { }
   }, [showFuture]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const checkGmailConnection = async () => {
+      try {
+        if (loadingTier || !hasGmailIntegrationAccess) {
+          if (!cancelled) setIsGmailConnected(false);
+          return;
+        }
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          if (!cancelled) setIsGmailConnected(false);
+          return;
+        }
+        const { data, error } = await supabase.functions.invoke("gmail-auth", {
+          body: { action: "status" },
+        });
+        if (error) throw error;
+        if (!cancelled && data?.isConnected !== undefined) {
+          setIsGmailConnected(!!data.isConnected);
+        }
+      } catch {
+        if (!cancelled) setIsGmailConnected(false);
+      }
+    };
+    void checkGmailConnection();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasGmailIntegrationAccess, loadingTier, supabase]);
+
   const handleSyncGmail = useCallback(async () => {
     if (!hasGmailIntegrationAccess) {
       toastError(
         "Upgrade required",
         "Gmail application checks are available on the Ultimate plan.",
+      );
+      return;
+    }
+    if (!isGmailConnected) {
+      info(
+        "Gmail not connected",
+        <>
+          Connect your account under{" "}
+          <button
+            type="button"
+            className="font-semibold text-[#1dff00] underline underline-offset-2 hover:brightness-110"
+            onClick={() => navigate("/dashboard/settings/integrations")}
+          >
+            Settings → Integrations
+          </button>
+          , then try again.
+        </>,
+        8000,
       );
       return;
     }
@@ -581,7 +632,21 @@ function ApplicationPage() {
         "sync-gmail-application-events",
         { body: { maxResults: 40 } },
       );
-      if (error) throw error;
+      if (error) {
+        const fromBody =
+          data &&
+          typeof data === "object" &&
+          "error" in data &&
+          typeof (data as { error: unknown }).error === "string"
+            ? (data as { error: string }).error
+            : null;
+        throw new Error(
+          fromBody ||
+            (error as Error & { details?: string }).details ||
+            (error as Error).message ||
+            "Could not check Gmail right now.",
+        );
+      }
 
       const created = Number(data?.created ?? 0);
       const updated = Number(data?.updated ?? 0);
@@ -597,14 +662,25 @@ function ApplicationPage() {
           `${created} added, ${updated} updated, ${classified} job email${classified === 1 ? "" : "s"} found.`,
         );
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message =
-        error?.details || error?.message || "Could not check Gmail right now.";
+        error instanceof Error
+          ? error.message
+          : "Could not check Gmail right now.";
       toastError("Gmail check failed", message);
     } finally {
       setGmailSyncing(false);
     }
-  }, [hasGmailIntegrationAccess, refresh, success, supabase, toastError]);
+  }, [
+    hasGmailIntegrationAccess,
+    isGmailConnected,
+    info,
+    navigate,
+    refresh,
+    success,
+    supabase,
+    toastError,
+  ]);
 
   // Keyboard shortcuts for Gantt view
   useEffect(() => {
@@ -783,7 +859,13 @@ function ApplicationPage() {
             className='border-[#1dff00]/30 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 text-foreground hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
             onClick={handleSyncGmail}
             disabled={gmailSyncing || loadingTier}
-            title='Check Gmail for application confirmations, interviews, offers, and rejections'
+            title={
+              !hasGmailIntegrationAccess
+                ? "Available on Ultimate plan"
+                : !isGmailConnected
+                  ? "Connect Gmail in Settings (Integrations) first, then scan your inbox"
+                  : "Check Gmail for application confirmations, interviews, offers, and rejections"
+            }
           >
             {gmailSyncing ? (
               <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
