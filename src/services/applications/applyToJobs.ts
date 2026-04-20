@@ -25,6 +25,8 @@ export type ApplyToJobsParams = {
   proxy_location?: string;
   webhook_url?: string;
   title?: string;
+  /** Passed through to apply-to-jobs → Skyvern `x-max-steps-override` (default 200, max 500). */
+  max_steps_override?: number;
   email?: string;
   job_id?: string | null;
   job_title?: string | null;

@@ -10,6 +10,29 @@ import { signResumeProxyToken } from "../_shared/resume-proxy-token.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 
+/** Match `backend/supabase/functions/apply-to-jobs` — Skyvern defaults to 50 steps without this header. */
+const DEFAULT_MAX_STEPS_OVERRIDE = 200;
+const MAX_MAX_STEPS_OVERRIDE = 500;
+
+function resolveMaxStepsOverride(body: Record<string, unknown>): number {
+  const fromBody = body?.max_steps_override ?? body?.maxStepsOverride;
+  let n: number | null = null;
+  if (typeof fromBody === "number" && Number.isFinite(fromBody) && fromBody > 0) {
+    n = Math.floor(fromBody);
+  } else if (typeof fromBody === "string" && /^\d+$/.test(fromBody.trim())) {
+    const parsed = parseInt(fromBody.trim(), 10);
+    if (parsed > 0) n = parsed;
+  } else {
+    const envRaw = Deno.env.get("SKYVERN_MAX_STEPS_OVERRIDE");
+    if (envRaw && /^\d+$/.test(envRaw.trim())) {
+      const parsed = parseInt(envRaw.trim(), 10);
+      if (parsed > 0) n = parsed;
+    }
+  }
+  if (n == null) n = DEFAULT_MAX_STEPS_OVERRIDE;
+  return Math.min(MAX_MAX_STEPS_OVERRIDE, Math.max(1, n));
+}
+
 /**
  * Skyvern often cannot fetch Supabase Storage signed URLs from its servers.
  * Replace with our edge `proxy-resume` URL (HMAC token) when possible.
@@ -387,6 +410,7 @@ Deno.serve(async (req) => {
     if (webhookUrl) skyvernRun.webhook_url = webhookUrl;
     if (title) skyvernRun.title = title;
 
+    const maxSteps = resolveMaxStepsOverride(body as Record<string, unknown>);
     const response = await withRetry(
       () =>
         fetch(SKYVERN_ENDPOINT, {
@@ -394,6 +418,7 @@ Deno.serve(async (req) => {
           headers: {
             "content-type": "application/json",
             "x-api-key": apiKey,
+            "x-max-steps-override": String(maxSteps),
           },
           body: JSON.stringify(skyvernRun),
         }),
@@ -499,7 +524,11 @@ Deno.serve(async (req) => {
       JSON.stringify({
         ok: true,
         skyvern: data,
-        submitted: { workflow_id: workflowId, count: jobUrls.length },
+        submitted: {
+          workflow_id: workflowId,
+          count: jobUrls.length,
+          max_steps_override: maxSteps,
+        },
       }),
       {
         headers: { ...corsHeaders, "content-type": "application/json" },

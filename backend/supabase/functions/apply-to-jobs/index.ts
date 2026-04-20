@@ -12,29 +12,32 @@ const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 const AUTOMATION_RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_AUTOMATIONS_PER_WINDOW = 20;
 
-/** Default above Skyvern’s typical 50-step workflow cap (iCIMS / long ATS flows). Override via body.max_steps_override or SKYVERN_MAX_STEPS_OVERRIDE. */
-const DEFAULT_MAX_STEPS_OVERRIDE = 100;
+/** Default above Skyvern’s typical 50-step cap (iCIMS / long ATS). Override via body.max_steps_override or SKYVERN_MAX_STEPS_OVERRIDE. */
+const DEFAULT_MAX_STEPS_OVERRIDE = 200;
+const MAX_MAX_STEPS_OVERRIDE = 500;
 
 const APPLY_AUTOMATION_HINTS = `[JobRaker automation — prioritize these]
 1) Cookie/consent: Dismiss any cookie banner, “Manage preferences”, or privacy overlay first (Accept, Accept all, Reject non-essential, Save & close, or Close/X) so the form and file inputs are not covered.
 2) Resume required: Parameters include a resume file URL (resume). On iCIMS and similar ATS, use device upload (“My Computer”, “Upload”, “Choose file”) and attach that file; prefer PDF; wait until the upload succeeds and validation clears before Next/Continue.
 3) Avoid burning steps only on overlays; complete resume upload, then remaining required fields.`;
 
-function resolveMaxStepsOverride(body: Record<string, unknown>): number | null {
+function resolveMaxStepsOverride(body: Record<string, unknown>): number {
   const fromBody = body?.max_steps_override ?? body?.maxStepsOverride;
+  let n: number | null = null;
   if (typeof fromBody === "number" && Number.isFinite(fromBody) && fromBody > 0) {
-    return Math.floor(fromBody);
+    n = Math.floor(fromBody);
+  } else if (typeof fromBody === "string" && /^\d+$/.test(fromBody.trim())) {
+    const parsed = parseInt(fromBody.trim(), 10);
+    if (parsed > 0) n = parsed;
+  } else {
+    const envRaw = Deno.env.get("SKYVERN_MAX_STEPS_OVERRIDE");
+    if (envRaw && /^\d+$/.test(envRaw.trim())) {
+      const parsed = parseInt(envRaw.trim(), 10);
+      if (parsed > 0) n = parsed;
+    }
   }
-  if (typeof fromBody === "string" && /^\d+$/.test(fromBody.trim())) {
-    const n = parseInt(fromBody.trim(), 10);
-    if (n > 0) return n;
-  }
-  const envRaw = Deno.env.get("SKYVERN_MAX_STEPS_OVERRIDE");
-  if (envRaw && /^\d+$/.test(envRaw.trim())) {
-    const n = parseInt(envRaw.trim(), 10);
-    if (n > 0) return n;
-  }
-  return DEFAULT_MAX_STEPS_OVERRIDE;
+  if (n == null) n = DEFAULT_MAX_STEPS_OVERRIDE;
+  return Math.min(MAX_MAX_STEPS_OVERRIDE, Math.max(1, n));
 }
 
 function appendAutomationHints(base: string): string {
@@ -519,10 +522,8 @@ Deno.serve(async (req) => {
     const skyvernHeaders: Record<string, string> = {
       "content-type": "application/json",
       "x-api-key": apiKey,
+      "x-max-steps-override": String(maxSteps),
     };
-    if (maxSteps != null) {
-      skyvernHeaders["x-max-steps-override"] = String(maxSteps);
-    }
 
     const response = await withRetry(
       () =>
