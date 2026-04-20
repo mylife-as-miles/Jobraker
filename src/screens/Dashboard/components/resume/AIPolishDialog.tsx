@@ -55,19 +55,19 @@ export const AIPolishDialog = ({ open, onClose, originalText, suggestions, onApp
                     {/* Connector Line/Dot */}
                     {targetRect && (
                         <div className="absolute top-6 -left-6 flex items-center">
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#ffd700] shadow-[0_0_10px_#ffd700]" />
-                            <div className="w-6 h-[1px] bg-gradient-to-r from-[#fbbf24] to-[#b45309]/30" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#1dff00] shadow-[0_0_10px_#1dff00]" />
+                            <div className="w-6 h-[1px] bg-gradient-to-r from-[#1dff00] to-[#1dff00]/30" />
                         </div>
                     )}
 
                     {/* Glow effect */}
-                    <div className="absolute -inset-4 border-2 border-[#ffd700] rounded-xl shadow-[0_0_30px_rgba(255,215,0,0.2)] bg-transparent animate-pulse pointer-events-none" />
+                    <div className="absolute -inset-4 border-2 border-[#1dff00] rounded-xl shadow-[0_0_30px_rgba(29,255,0,0.2)] bg-transparent animate-pulse pointer-events-none" />
 
-                    <div className="bg-background border border-[#ffd700]/30 rounded-2xl shadow-2xl overflow-hidden flex flex-col relative z-10">
+                    <div className="bg-background border border-[#1dff00]/30 rounded-2xl shadow-2xl overflow-hidden flex flex-col relative z-10">
 
                         {/* Header */}
-                        <div className="bg-gradient-to-r from-[#fbbf24]/20 to-transparent p-4 border-b border-foreground/5 flex justify-between items-center">
-                            <div className="flex items-center gap-2 text-[#ffd700] font-bold">
+                        <div className="bg-gradient-to-r from-[#1dff00]/20 to-transparent p-4 border-b border-foreground/5 flex justify-between items-center">
+                            <div className="flex items-center gap-2 text-[#1dff00] font-bold">
                                 <Sparkles className="w-5 h-5" />
                                 <span>AI Polish Suggestions</span>
                             </div>
@@ -80,7 +80,7 @@ export const AIPolishDialog = ({ open, onClose, originalText, suggestions, onApp
                         <div className="p-5 space-y-6 max-h-[80vh] overflow-y-auto">
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                                    <Wand2 className="w-8 h-8 text-[#ffd700] animate-spin" />
+                                    <Wand2 className="w-8 h-8 text-[#1dff00] animate-spin" />
                                     <p className="text-sm text-gray-400">Analyzing your content...</p>
                                 </div>
                             ) : (
@@ -88,7 +88,7 @@ export const AIPolishDialog = ({ open, onClose, originalText, suggestions, onApp
                                     {/* Original */}
                                     <div>
                                         <div className="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2">Original</div>
-                                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-slate-300 text-sm line-through decoration-slate-500/50">
+                                        <div className="p-3 bg-[#1dff00]/10 border border-[#1dff00]/20 rounded-lg text-slate-300 text-sm line-through decoration-slate-500/50">
                                             {originalText}
                                         </div>
                                     </div>
@@ -99,19 +99,19 @@ export const AIPolishDialog = ({ open, onClose, originalText, suggestions, onApp
                                             <div key={suggestion.id} className="space-y-3">
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-2">
-                                                        <div className={`text-xs uppercase tracking-wider font-bold ${suggestion.isRecommended ? 'text-[#ffd700]' : 'text-slate-400'}`}>
+                                                        <div className={`text-xs uppercase tracking-wider font-bold ${suggestion.isRecommended ? 'text-[#1dff00]' : 'text-slate-400'}`}>
                                                             Suggestion {index + 1}
                                                         </div>
                                                         {suggestion.isRecommended && (
-                                                            <span className="px-1.5 py-0.5 rounded bg-[#ffd700]/20 text-[#ffd700] text-[10px] font-medium">Recommended</span>
+                                                            <span className="px-1.5 py-0.5 rounded bg-[#1dff00]/20 text-[#1dff00] text-[10px] font-medium">Recommended</span>
                                                         )}
                                                     </div>
                                                     <div className="text-[10px] text-slate-500">{suggestion.label}</div>
                                                 </div>
 
                                                 <div className={`p-4 rounded-lg border transition-colors group cursor-pointer ${selectedSuggestion === suggestion.id
-                                                    ? 'bg-[#ffd700]/10 border-[#ffd700]/50'
-                                                    : 'bg-muted/50 border-foreground/10 hover:bg-[#ffd700]/5 hover:border-[#ffd700]/30'
+                                                    ? 'bg-[#1dff00]/10 border-[#1dff00]/50'
+                                                    : 'bg-muted/50 border-foreground/10 hover:bg-[#1dff00]/5 hover:border-[#1dff00]/30'
                                                     }`}
                                                     onClick={() => setSelectedSuggestion(suggestion.id)}
                                                 >
@@ -125,7 +125,7 @@ export const AIPolishDialog = ({ open, onClose, originalText, suggestions, onApp
                                                                 e.stopPropagation();
                                                                 onApply(suggestion.content);
                                                             }}
-                                                            className="flex-1 bg-[#ffd700] hover:bg-[#ca8a04] text-black text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1 shadow-lg shadow-[#ffd700]/20 transition-all"
+                                                            className="flex-1 bg-[#1dff00] hover:bg-[#1dff00] text-black text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1 shadow-lg shadow-[#1dff00]/20 transition-all"
                                                         >
                                                             <Check className="w-4 h-4" /> Apply
                                                         </button>

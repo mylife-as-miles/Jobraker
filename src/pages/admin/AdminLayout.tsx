@@ -78,7 +78,7 @@ export default function AdminLayout() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-background flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#ffd700]/20 border-t-[#ffd700] rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-16 h-16 border-4 border-[#1dff00]/20 border-t-[#1dff00] rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-400 text-sm">Verifying admin access...</p>
         </div>
       </div>
@@ -92,10 +92,10 @@ export default function AdminLayout() {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full bg-gradient-to-br from-red-900/20 to-red-950/20 border border-red-500/50 rounded-2xl p-8 text-center"
+          className="max-w-md w-full bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/20 border border-[#1dff00]/50 rounded-2xl p-8 text-center"
         >
-          <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6">
-            <ShieldAlert className="w-10 h-10 text-red-500" />
+          <div className="w-20 h-20 rounded-full bg-[#1dff00]/20 flex items-center justify-center mx-auto mb-6">
+            <ShieldAlert className="w-10 h-10 text-[#1dff00]" />
           </div>
           <h1 className="text-2xl font-bold text-white mb-3">Access Denied</h1>
           <p className="text-gray-400 mb-6">
@@ -103,7 +103,7 @@ export default function AdminLayout() {
           </p>
           <Button
             onClick={() => navigate('/dashboard')}
-            className="bg-[#ffd700] hover:bg-[#ffd700]/90 text-black font-semibold"
+            className="bg-[#1dff00] hover:bg-[#1dff00]/90 text-black font-semibold"
           >
             Return to Dashboard
           </Button>
@@ -132,22 +132,22 @@ export default function AdminLayout() {
         style={{
           transform: isDesktop ? 'translateX(0)' : sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
         }}
-        className="fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-background via-background to-background border-r border-[#ffd700]/20 transition-transform duration-300 backdrop-blur-xl shadow-[0_4px_18px_-4px_rgba(0,0,0,0.6)]"
+        className="fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-background via-background to-background border-r border-[#1dff00]/20 transition-transform duration-300 backdrop-blur-xl shadow-[0_4px_18px_-4px_rgba(0,0,0,0.6)]"
       >
         {/* Logo & Close Button */}
-        <div className="flex items-center justify-between h-20 px-6 border-b border-[#ffd700]/20">
+        <div className="flex items-center justify-between h-20 px-6 border-b border-[#1dff00]/20">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#fbbf24]/20 to-background/10 border border-[#ffd700]/30 flex items-center justify-center shadow-inner">
-              <LayoutDashboard className="w-6 h-6 text-[#ffd700]" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-background/10 border border-[#1dff00]/30 flex items-center justify-center shadow-inner">
+              <LayoutDashboard className="w-6 h-6 text-[#1dff00]" />
             </div>
             <div>
-              <h1 className="text-lg font-bold bg-gradient-to-r from-[#fbbf24] via-[#6dffb0] to-[#b45309] bg-clip-text text-transparent">Admin Portal</h1>
+              <h1 className="text-lg font-bold bg-gradient-to-r from-[#1dff00] via-[#6dffb0] to-[#1dff00] bg-clip-text text-transparent">Admin Portal</h1>
               <p className="text-xs text-gray-400">JobRaker Analytics</p>
             </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-gray-400 hover:text-[#ffd700] transition-colors"
+            className="lg:hidden text-gray-400 hover:text-[#1dff00] transition-colors"
           >
             <X className="w-6 h-6" />
           </button>
@@ -169,18 +169,18 @@ export default function AdminLayout() {
                 whileHover={{ x: 4 }}
                 whileTap={{ scale: 0.98 }}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive
-                  ? 'bg-gradient-to-r from-[#fbbf24]/20 to-background/10 text-[#ffd700] shadow-lg shadow-[#ffd700]/10 border border-[#ffd700]/30'
-                  : 'text-gray-400 hover:text-white hover:bg-foreground/5 border border-transparent hover:border-[#ffd700]/20'
+                  ? 'bg-gradient-to-r from-[#1dff00]/20 to-background/10 text-[#1dff00] shadow-lg shadow-[#1dff00]/10 border border-[#1dff00]/30'
+                  : 'text-gray-400 hover:text-white hover:bg-foreground/5 border border-transparent hover:border-[#1dff00]/20'
                   }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-[#ffd700]' : ''}`} />
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-[#1dff00]' : ''}`} />
                   <span>{item.name}</span>
                 </div>
                 {isActive && (
                   <motion.div
                     layoutId="activeIndicator"
-                    className="w-1.5 h-1.5 rounded-full bg-[#ffd700] shadow-[0_0_8px_rgba(255,215,0,0.5)]"
+                    className="w-1.5 h-1.5 rounded-full bg-[#1dff00] shadow-[0_0_8px_rgba(29,255,0,0.5)]"
                   />
                 )}
               </motion.button>
@@ -189,10 +189,10 @@ export default function AdminLayout() {
         </nav>
 
         {/* Admin Info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#ffd700]/20">
-          <div className="bg-gradient-to-br from-[#fbbf24]/10 to-background/5 rounded-xl p-4 border border-[#ffd700]/20">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#1dff00]/20">
+          <div className="bg-gradient-to-br from-[#1dff00]/10 to-background/5 rounded-xl p-4 border border-[#1dff00]/20">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#fbbf24] to-background flex items-center justify-center text-black font-bold">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1dff00] to-background flex items-center justify-center text-black font-bold">
                 A
               </div>
               <div>
@@ -207,12 +207,12 @@ export default function AdminLayout() {
       {/* Main Content */}
       <div className="lg:pl-72">
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 h-20 bg-gradient-to-br from-background/80 via-background/80 to-background/80 backdrop-blur-xl border-b border-[#ffd700]/20">
+        <header className="sticky top-0 z-30 h-20 bg-gradient-to-br from-background/80 via-background/80 to-background/80 backdrop-blur-xl border-b border-[#1dff00]/20">
           <div className="flex items-center justify-between h-full px-6">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden text-gray-400 hover:text-[#ffd700] transition-colors"
+                className="lg:hidden text-gray-400 hover:text-[#1dff00] transition-colors"
               >
                 <Menu className="w-6 h-6" />
               </button>
@@ -232,7 +232,7 @@ export default function AdminLayout() {
               <Button
                 onClick={() => navigate('/dashboard')}
                 variant="outline"
-                className="border-[#ffd700]/30 hover:border-[#ffd700] hover:bg-[#ffd700]/10 text-gray-300 hover:text-[#ffd700] transition-all"
+                className="border-[#1dff00]/30 hover:border-[#1dff00] hover:bg-[#1dff00]/10 text-gray-300 hover:text-[#1dff00] transition-all"
               >
                 Back to Dashboard
               </Button>

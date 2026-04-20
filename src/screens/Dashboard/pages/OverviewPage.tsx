@@ -52,17 +52,17 @@ export const OverviewPage = (): JSX.Element => {
       let className = "";
       let inner: JSX.Element | string;
       if (n.type === "application") {
-        className = `${baseSize} ${shared} bg-[#ffd700]/15 ring-[#ffd700]/40 text-[#b6ffb6] group-hover:ring-[#ffd700]/60`;
+        className = `${baseSize} ${shared} bg-[#1dff00]/15 ring-[#1dff00]/40 text-[#b6ffb6] group-hover:ring-[#1dff00]/60`;
         inner = (n.company || "A").charAt(0).toUpperCase();
       } else if (n.type === "interview") {
         className = `${baseSize} ${shared} bg-background/40 ring-[#56c2ff]/30 text-[#56c2ff] group-hover:ring-[#56c2ff]/60`;
         inner = <Building2 className='w-4 h-4 sm:w-5 sm:h-5' />;
       } else if (n.type === "company") {
-        className = `${baseSize} ${shared} bg-background ring-foreground/10 text-foreground group-hover:ring-[#ffd700]/50`;
+        className = `${baseSize} ${shared} bg-background ring-foreground/10 text-foreground group-hover:ring-[#1dff00]/50`;
         inner = (n.company || "C").charAt(0).toUpperCase();
       } else {
         // system / fallback
-        className = `${baseSize} ${shared} bg-[#3a1212] ring-[#ff6b6b]/40 text-[#ff9e9e] group-hover:ring-[#ff6b6b]/70`;
+        className = `${baseSize} ${shared} bg-[#1dff00] ring-[#1dff00]/40 text-[#1dff00] group-hover:ring-[#1dff00]/70`;
         inner = <AlertCircle className='w-4 h-4 sm:w-5 sm:h-5' />;
       }
       return {
@@ -263,10 +263,10 @@ export const OverviewPage = (): JSX.Element => {
 
       // Improved distinctive palette for accessibility / color meaning
       const palette: Record<string, string> = {
-        Applied: "#ffd700",
+        Applied: "#1dff00",
         Interview: "#00b2ff",
-        Offer: "#ffd700",
-        Rejected: "#ff4d4d",
+        Offer: "#1dff00",
+        Rejected: "#1dff00",
       };
       const series = statuses.map((s) => ({
         key: s,
@@ -404,7 +404,7 @@ export const OverviewPage = (): JSX.Element => {
                     <h2 className='text-lg sm:text-xl lg:text-2xl font-bold text-foreground'>
                       Applications
                     </h2>
-                    <span className='px-2 py-0.5 rounded-full bg-[#ffd700]/10 border border-[#ffd700]/20 text-xs font-medium text-[#ffd700]'>
+                    <span className='px-2 py-0.5 rounded-full bg-[#1dff00]/10 border border-[#1dff00]/20 text-xs font-medium text-[#1dff00]'>
                       {totals.totalInWindow} Total
                     </span>
                   </div>
@@ -462,13 +462,13 @@ export const OverviewPage = (): JSX.Element => {
                           : statusFilter?.includes(s as ApplicationStatus);
                       const baseColors: Record<string, string> = {
                         Applied:
-                          "bg-[#ffd700]/10 text-[#ffd700] border-[#ffd700]/30 hover:bg-[#ffd700]/20",
+                          "bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/30 hover:bg-[#1dff00]/20",
                         Interview:
                           "bg-background/10 text-[#56c2ff] border-[#00b2ff]/30 hover:bg-background/20",
                         Offer:
-                          "bg-[#ffd700]/10 text-[#ffd700] border-[#ffd700]/30 hover:bg-[#ffd700]/20",
+                          "bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/30 hover:bg-[#1dff00]/20",
                         Rejected:
-                          "bg-[#ff4d4d]/10 text-[#ff9e9e] border-[#ff4d4d]/30 hover:bg-[#ff4d4d]/20",
+                          "bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/30 hover:bg-[#1dff00]/20",
                         All: "bg-foreground/5 text-foreground/80 border-foreground/10 hover:bg-foreground/10",
                       };
                       const activeClass = active
@@ -531,23 +531,23 @@ export const OverviewPage = (): JSX.Element => {
                   </motion.div>
                   <motion.div
                     whileHover={{ y: -2 }}
-                    className='p-4 rounded-xl bg-gradient-to-br from-[#ffd700]/10 to-transparent border border-[#ffd700]/10'
+                    className='p-4 rounded-xl bg-gradient-to-br from-[#1dff00]/10 to-transparent border border-[#1dff00]/10'
                   >
-                    <div className='text-2xl lg:text-3xl font-bold text-[#ffd700] mb-1'>
+                    <div className='text-2xl lg:text-3xl font-bold text-[#1dff00] mb-1'>
                       {Math.round(stats.offerRate * 100)}%
                     </div>
-                    <div className='text-xs text-[#ffd700]/70 font-medium uppercase tracking-wider'>
+                    <div className='text-xs text-[#1dff00]/70 font-medium uppercase tracking-wider'>
                       Offer Rate
                     </div>
                   </motion.div>
                   <motion.div
                     whileHover={{ y: -2 }}
-                    className='p-4 rounded-xl bg-gradient-to-br from-[#ff4d4d]/10 to-transparent border border-[#ff4d4d]/10'
+                    className='p-4 rounded-xl bg-gradient-to-br from-[#1dff00]/10 to-transparent border border-[#1dff00]/10'
                   >
-                    <div className='text-2xl lg:text-3xl font-bold text-[#ff4d4d] mb-1'>
+                    <div className='text-2xl lg:text-3xl font-bold text-[#1dff00] mb-1'>
                       {Math.round(stats.rejectionRate * 100)}%
                     </div>
-                    <div className='text-xs text-[#ff4d4d]/70 font-medium uppercase tracking-wider'>
+                    <div className='text-xs text-[#1dff00]/70 font-medium uppercase tracking-wider'>
                       Rejection Rate
                     </div>
                   </motion.div>
@@ -614,7 +614,7 @@ export const OverviewPage = (): JSX.Element => {
                           m === "month" ? "week" : "month",
                         )
                       }
-                      className='text-[10px] sm:text-xs px-2 py-1 border border-[#ffd700]/20 hover:border-[#ffd700]/50 hover:bg-[#ffd700]/10 text-[#ffd700]'
+                      className='text-[10px] sm:text-xs px-2 py-1 border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/10 text-[#1dff00]'
                     >
                       {calendarViewMode === "month"
                         ? "Switch to Week"
@@ -643,7 +643,7 @@ export const OverviewPage = (): JSX.Element => {
                   <div className='mt-3 text-center text-[10px] sm:text-xs text-[#888] flex flex-col items-center gap-1'>
                     <div>
                       Range:{" "}
-                      <span className='text-[#ffd700] font-medium'>
+                      <span className='text-[#1dff00] font-medium'>
                         {selectedRange.start.toLocaleDateString()} →{" "}
                         {selectedRange.end.toLocaleDateString()}
                       </span>
@@ -653,7 +653,7 @@ export const OverviewPage = (): JSX.Element => {
                         setSelectedRange(null);
                         localStorage.removeItem("calendar_last_range");
                       }}
-                      className='px-2 py-0.5 rounded border border-foreground/10 hover:border-[#ffd700]/40 hover:text-[#ffd700] hover:bg-[#ffd700]/10 text-[10px]'
+                      className='px-2 py-0.5 rounded border border-foreground/10 hover:border-[#1dff00]/40 hover:text-[#1dff00] hover:bg-[#1dff00]/10 text-[10px]'
                     >
                       Clear
                     </button>
@@ -744,7 +744,7 @@ export const OverviewPage = (): JSX.Element => {
                 id='overview-notifications'
                 className='relative overflow-hidden bg-card/50 border border-border/40 backdrop-blur-xl p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-brand/20 hover:border-brand/50 transition-all duration-500 group'
               >
-                <div className='absolute -top-24 -right-24 w-72 h-72 rounded-full bg-[#ffd700]/5 blur-3xl group-hover:bg-[#ffd700]/10 transition' />
+                <div className='absolute -top-24 -right-24 w-72 h-72 rounded-full bg-[#1dff00]/5 blur-3xl group-hover:bg-[#1dff00]/10 transition' />
                 <div className='flex items-center justify-between mb-4 sm:mb-5 relative z-10'>
                   <div>
                     <h2 className='text-lg sm:text-xl lg:text-2xl font-bold text-foreground tracking-tight flex items-center gap-2'>
@@ -761,7 +761,7 @@ export const OverviewPage = (): JSX.Element => {
                     variant='ghost'
                     size='sm'
                     onClick={() => navigate("/dashboard/notifications")}
-                    className='text-foreground/70 hover:text-[#ffd700] hover:bg-[#ffd700]/10 hover:scale-105 transition-all duration-300 text-xs sm:text-sm font-medium border border-transparent hover:border-[#ffd700]/40 px-3'
+                    className='text-foreground/70 hover:text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-105 transition-all duration-300 text-xs sm:text-sm font-medium border border-transparent hover:border-[#1dff00]/40 px-3'
                   >
                     View all
                   </Button>
@@ -785,10 +785,10 @@ export const OverviewPage = (): JSX.Element => {
                     </div>
                   )}
                   {mappedNotifs.length === 0 && !notifLoading && (
-                    <div className='flex items-center justify-center p-8 border border-dashed border-[#ffd700]/30 rounded-xl bg-foreground/5'>
+                    <div className='flex items-center justify-center p-8 border border-dashed border-[#1dff00]/30 rounded-xl bg-foreground/5'>
                       <div className='text-center'>
                         <div className='mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3'>
-                          <Inbox className='w-6 h-6 text-[#ffd700]' />
+                          <Inbox className='w-6 h-6 text-[#1dff00]' />
                         </div>
                         <p className='text-foreground/70 font-medium'>
                           You’re all caught up
@@ -813,13 +813,13 @@ export const OverviewPage = (): JSX.Element => {
                         }}
                         whileHover={{ scale: 1.015 }}
                         whileTap={{ scale: 0.985 }}
-                        className='w-full text-left flex items-start gap-3 p-2.5 sm:p-3 rounded-xl border border-foreground/10  bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 hover:border-[#ffd700]/40 transition-all duration-400 group relative overflow-hidden'
+                        className='w-full text-left flex items-start gap-3 p-2.5 sm:p-3 rounded-xl border border-foreground/10  bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 hover:border-[#1dff00]/40 transition-all duration-400 group relative overflow-hidden'
                       >
                         {notification.icon}
                         <div className='flex-1 min-w-0'>
                           <p className='text-[11px] sm:text-sm text-foreground font-medium leading-relaxed tracking-tight truncate flex items-center gap-2'>
                             {notification.title}
-                            <span className='hidden md:inline-flex text-[9px] px-1.5 py-0.5 rounded bg-foreground/10 border border-[#ffd700]/30 text-[#ffd700] font-semibold tracking-wide'>
+                            <span className='hidden md:inline-flex text-[9px] px-1.5 py-0.5 rounded bg-foreground/10 border border-[#1dff00]/30 text-[#1dff00] font-semibold tracking-wide'>
                               NEW
                             </span>
                           </p>
@@ -827,7 +827,7 @@ export const OverviewPage = (): JSX.Element => {
                             {notification.time}
                           </p>
                         </div>
-                        <span className='absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-gradient-to-r from-transparent via-[#ffd700]/5 to-transparent' />
+                        <span className='absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-gradient-to-r from-transparent via-[#1dff00]/5 to-transparent' />
                       </motion.button>
                     ))}
                 </div>

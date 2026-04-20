@@ -32,7 +32,7 @@ export function ChikoritaTemplate({ pageIndex = 0, pageLayout }: TemplateProps) 
 	};
 	const resumeData = useResumeTemplateData();
 	const storeLayout = resumeData.metadata.layout.pages[pageIndex];
-	const themePrimary = resumeData.metadata.theme?.primary || '#b45309';
+	const themePrimary = resumeData.metadata.theme?.primary || '#1dff00';
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;

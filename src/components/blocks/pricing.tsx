@@ -44,7 +44,7 @@ export function Pricing({
 
       <div className="flex justify-center mb-10">
         <div
-          className="inline-flex items-center rounded-full border border-[#ffd700]/25 bg-[#090b0f] p-1 shadow-[inset_0_0_0_1px_rgba(255,215,0,0.06)]"
+          className="inline-flex items-center rounded-full border border-[#1dff00]/25 bg-[#090b0f] p-1 shadow-[inset_0_0_0_1px_rgba(29,255,0,0.06)]"
           aria-label="Billing period"
         >
           <button
@@ -53,9 +53,9 @@ export function Pricing({
             onClick={() => setIsMonthly(true)}
             className={cn(
               "h-9 rounded-full px-4 text-sm font-semibold transition-all duration-200 active:scale-[0.98]",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffd700] focus-visible:ring-offset-2 focus-visible:ring-offset-black",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1dff00] focus-visible:ring-offset-2 focus-visible:ring-offset-black",
               isMonthly
-                ? "bg-[#ffd700] text-black shadow-[0_0_18px_rgba(255,215,0,0.26)]"
+                ? "bg-[#1dff00] text-black shadow-[0_0_18px_rgba(29,255,0,0.26)]"
                 : "text-neutral-400 hover:text-foreground"
             )}
           >
@@ -67,9 +67,9 @@ export function Pricing({
             onClick={() => setIsMonthly(false)}
             className={cn(
               "h-9 rounded-full px-4 text-sm font-semibold transition-all duration-200 active:scale-[0.98]",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffd700] focus-visible:ring-offset-2 focus-visible:ring-offset-black",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1dff00] focus-visible:ring-offset-2 focus-visible:ring-offset-black",
               !isMonthly
-                ? "bg-[#ffd700] text-black shadow-[0_0_18px_rgba(255,215,0,0.26)]"
+                ? "bg-[#1dff00] text-black shadow-[0_0_18px_rgba(29,255,0,0.26)]"
                 : "text-neutral-400 hover:text-foreground"
             )}
           >
@@ -100,15 +100,15 @@ export function Pricing({
             className={cn(
               `rounded-2xl border-[1px] p-6 bg-background text-center lg:flex lg:flex-col lg:justify-center relative`,
               plan.isPopular
-                ? "border-[#ffd700] border-2 shadow-[0_0_34px_rgba(255,215,0,0.16)]"
-                : "border-[#ffd700]/20 hover:border-[#ffd700]/35",
+                ? "border-[#1dff00] border-2 shadow-[0_0_34px_rgba(29,255,0,0.16)]"
+                : "border-[#1dff00]/20 hover:border-[#1dff00]/35",
               "flex flex-col",
               !plan.isPopular && "mt-5",
               plan.isPopular ? "z-10" : "z-0"
             )}
           >
             {plan.isPopular && (
-              <div className="absolute top-0 right-0 bg-[#ffd700] py-0.5 px-2 rounded-bl-xl rounded-tr-xl flex items-center">
+              <div className="absolute top-0 right-0 bg-[#1dff00] py-0.5 px-2 rounded-bl-xl rounded-tr-xl flex items-center">
                 <Star className="text-black h-4 w-4 fill-current" />
                 <span className="text-black ml-1 font-sans font-semibold">
                   Popular
@@ -116,7 +116,7 @@ export function Pricing({
               </div>
             )}
             <div className="flex-1 flex flex-col">
-              <p className="text-base font-semibold text-[#ffd700]/70">
+              <p className="text-base font-semibold text-[#1dff00]/70">
                 {plan.name}
               </p>
               <div className="mt-6 flex items-center justify-center gap-x-2">
@@ -145,7 +145,7 @@ export function Pricing({
                   
                   return (
                     <li key={idx} className="flex items-start gap-2">
-                      <Check className="h-4 w-4 text-[#ffd700] mt-1 flex-shrink-0" />
+                      <Check className="h-4 w-4 text-[#1dff00] mt-1 flex-shrink-0" />
                       <span className="text-left">
                         {featureName}
                         {featureValue && <span className="text-neutral-400 ml-1">• {featureValue}</span>}
@@ -155,17 +155,17 @@ export function Pricing({
                 })}
               </ul>
 
-              <hr className="w-full my-4 border-[#ffd700]/10" />
+              <hr className="w-full my-4 border-[#1dff00]/10" />
 
               <Button
                 onClick={() => window.location.href = plan.href}
                 variant="outline"
                 className={cn(
                   "group relative w-full gap-2 overflow-hidden text-lg font-semibold tracking-tighter",
-                  "transform-gpu ring-offset-current transition-all duration-300 ease-out hover:ring-2 hover:ring-[#ffd700] hover:ring-offset-1 hover:ring-offset-black hover:bg-[#ffd700] hover:text-black",
+                  "transform-gpu ring-offset-current transition-all duration-300 ease-out hover:ring-2 hover:ring-[#1dff00] hover:ring-offset-1 hover:ring-offset-black hover:bg-[#1dff00] hover:text-black",
                   plan.isPopular
-                    ? "!border-[#ffd700] !bg-[#ffd700] !text-black"
-                    : "!border-[#ffd700]/40 !bg-background !text-[#ffd700]"
+                    ? "!border-[#1dff00] !bg-[#1dff00] !text-black"
+                    : "!border-[#1dff00]/40 !bg-background !text-[#1dff00]"
                 )}
               >
                 {plan.buttonText}

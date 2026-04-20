@@ -235,8 +235,8 @@ function CheckCandidateFitModal({
           onClick={() => inputRef.current?.click()}
           className={`cursor-pointer rounded-xl border-2 border-dashed px-4 py-10 text-center transition-all duration-300 ${
             dragOver
-              ? "border-[#ffd700]/70 bg-[#ffd700]/5"
-              : "border-foreground/20 bg-foreground/[0.03] hover:border-[#ffd700]/40"
+              ? "border-[#1dff00]/70 bg-[#1dff00]/5"
+              : "border-foreground/20 bg-foreground/[0.03] hover:border-[#1dff00]/40"
           }`}
         >
           <input
@@ -252,7 +252,7 @@ function CheckCandidateFitModal({
           />
           {parsing ? (
             <div className="flex flex-col items-center gap-2 text-foreground/80">
-              <Loader2 className="h-8 w-8 animate-spin text-[#ffd700]" />
+              <Loader2 className="h-8 w-8 animate-spin text-[#1dff00]" />
               <span className="text-sm">Reading resume…</span>
             </div>
           ) : (
@@ -281,7 +281,7 @@ function CheckCandidateFitModal({
         </div>
 
         {result && (
-          <div className="rounded-xl border border-[#ffd700]/25 bg-[#ffd700]/5 p-4 space-y-2">
+          <div className="rounded-xl border border-[#1dff00]/25 bg-[#1dff00]/5 p-4 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold text-foreground">{decisionLabel(result.canonical_decision)}</span>
               <span className="text-xs product-helper-text">
@@ -318,7 +318,7 @@ function CheckCandidateFitModal({
           <Button
             type="button"
             disabled={parsing || analyzing || !resumeText.trim()}
-            className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90"
+            className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
             onClick={() => void onAnalyze()}
           >
             {analyzing ? (
@@ -367,7 +367,7 @@ function ReferralsProgramInfoModal({
           </li>
         </ul>
         <div className="flex flex-wrap gap-2 pt-2">
-          <Button type="button" className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90" onClick={onOpenBilling}>
+          <Button type="button" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={onOpenBilling}>
             Open billing &amp; payouts
           </Button>
           <Button type="button" variant="outline" className="product-outline-button border-foreground/20" onClick={onClose}>
@@ -445,7 +445,7 @@ function ReferralsWhatsNewModal({ open, onClose }: { open: boolean; onClose: () 
         <li>Track each invite through signup, applications, and milestones in My referrals.</li>
         <li>Pre-screen a resume against any role with Check candidate fit.</li>
       </ul>
-      <Button type="button" className="mt-4 bg-[#ffd700] text-black hover:bg-[#ffd700]/90" onClick={onClose}>
+      <Button type="button" className="mt-4 bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={onClose}>
         Got it
       </Button>
     </Modal>
@@ -562,7 +562,7 @@ function MyReferralsPanel({
                 onClick={() => setTimeframe(tf.id)}
                 className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
                   timeframe === tf.id
-                    ? "bg-[#ffd700]/20 text-[#ffd700] border border-[#ffd700]/35"
+                    ? "bg-[#1dff00]/20 text-[#1dff00] border border-[#1dff00]/35"
                     : "text-foreground/55 hover:text-foreground/90"
                 }`}
               >
@@ -586,10 +586,10 @@ function MyReferralsPanel({
                   setStatusFilter(stage.id);
                 }}
                 className={`px-3 py-4 text-left transition-colors ${
-                  active ? "bg-[#ffd700]/10 border-b-2 border-[#ffd700] -mb-px" : "hover:bg-foreground/[0.03]"
+                  active ? "bg-[#1dff00]/10 border-b-2 border-[#1dff00] -mb-px" : "hover:bg-foreground/[0.03]"
                 }`}
               >
-                <p className={`text-[11px] sm:text-xs font-medium leading-tight ${active ? "text-[#ffd700]" : "product-helper-text"}`}>
+                <p className={`text-[11px] sm:text-xs font-medium leading-tight ${active ? "text-[#1dff00]" : "product-helper-text"}`}>
                   {stage.label}
                 </p>
                 <p className="text-2xl font-bold text-foreground tabular-nums mt-1">{counts[stage.id]}</p>
@@ -630,11 +630,11 @@ function MyReferralsPanel({
 
       {loading ? (
         <Card className="product-section-card p-10 text-center border-foreground/15">
-          <Loader2 className="w-8 h-8 animate-spin text-[#ffd700] mx-auto" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#1dff00] mx-auto" />
           <p className="text-sm product-helper-text mt-3">Loading referrals…</p>
         </Card>
       ) : filteredReferrals.length === 0 ? (
-        <Card className="product-section-card py-16 px-6 text-center border-dashed border-foreground/15 hover:border-[#ffd700]/30 transition-colors">
+        <Card className="product-section-card py-16 px-6 text-center border-dashed border-foreground/15 hover:border-[#1dff00]/30 transition-colors">
           <div className="w-14 h-14 rounded-full bg-foreground/5 border border-foreground/10 flex items-center justify-center mx-auto mb-4">
             <UserPlus className="w-7 h-7 text-foreground/40" />
           </div>
@@ -645,14 +645,14 @@ function MyReferralsPanel({
           </p>
           <p className="text-xs product-helper-text max-w-sm mx-auto mt-2">
             Pre-screen candidates with{" "}
-            <button type="button" className="text-[#ffd700] hover:underline" onClick={onOpenFitCheck}>
+            <button type="button" className="text-[#1dff00] hover:underline" onClick={onOpenFitCheck}>
               Check candidate fit
             </button>{" "}
             before you share your link.
           </p>
           <Button
             type="button"
-            className="mt-6 bg-[#ffd700] text-black hover:bg-[#ffd700]/90"
+            className="mt-6 bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
             onClick={onShareLink}
           >
             <Link2 className="w-4 h-4 mr-2" />
@@ -681,7 +681,7 @@ function MyReferralsPanel({
                       <td className="px-4 py-3 text-foreground">{name}</td>
                       <td className="px-4 py-3 product-helper-text">{r.referred_email || "—"}</td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex rounded-full border border-[#ffd700]/30 bg-[#ffd700]/10 px-2 py-0.5 text-xs text-[#ffd700]">
+                        <span className="inline-flex rounded-full border border-[#1dff00]/30 bg-[#1dff00]/10 px-2 py-0.5 text-xs text-[#1dff00]">
                           {FUNNEL_STAGES.find((s) => s.id === r.funnel_stage)?.label || r.funnel_stage}
                         </span>
                       </td>
@@ -815,7 +815,7 @@ export const ReferralsPage = (): JSX.Element => {
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Referrals</h1>
               <button
                 type="button"
-                className="rounded-full p-1 text-foreground/40 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+                className="rounded-full p-1 text-foreground/40 hover:text-[#1dff00] hover:bg-[#1dff00]/10 transition-colors"
                 title="How JobRaker referrals work"
                 aria-label="About referrals"
                 onClick={() => setInfoOpen(true)}
@@ -835,12 +835,12 @@ export const ReferralsPage = (): JSX.Element => {
                   type="button"
                   onClick={() => setTab(t.id)}
                   className={`pb-3 text-sm font-medium transition-colors relative ${
-                    tab === t.id ? "text-[#ffd700]" : "text-foreground/50 hover:text-foreground/80"
+                    tab === t.id ? "text-[#1dff00]" : "text-foreground/50 hover:text-foreground/80"
                   }`}
                 >
                   {t.label}
                   {tab === t.id ? (
-                    <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-[#ffd700] rounded-full shadow-[0_0_8px_rgba(255,215,0,0.45)]" />
+                    <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-[#1dff00] rounded-full shadow-[0_0_8px_rgba(29,255,0,0.45)]" />
                   ) : null}
                 </button>
               ))}
@@ -886,22 +886,22 @@ export const ReferralsPage = (): JSX.Element => {
                   <Button
                     type="button"
                     size="sm"
-                    className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90"
+                    className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
                     onClick={() => setFitOpen(true)}
                   >
                     Check candidate fit
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] product-helper-text justify-end">
-                  <button type="button" className="underline-offset-2 hover:underline text-[#ffd700]/90" onClick={() => navigate("/dashboard/settings")}>
+                  <button type="button" className="underline-offset-2 hover:underline text-[#1dff00]/90" onClick={() => navigate("/dashboard/settings")}>
                     Settings
                   </button>
                   <span className="text-foreground/20">·</span>
-                  <button type="button" className="underline-offset-2 hover:underline text-[#ffd700]/90" onClick={() => navigate("/dashboard/billing")}>
+                  <button type="button" className="underline-offset-2 hover:underline text-[#1dff00]/90" onClick={() => navigate("/dashboard/billing")}>
                     Billing
                   </button>
                   <span className="text-foreground/20">·</span>
-                  <button type="button" className="underline-offset-2 hover:underline text-[#ffd700]/90" onClick={() => setWhatsNewOpen(true)}>
+                  <button type="button" className="underline-offset-2 hover:underline text-[#1dff00]/90" onClick={() => setWhatsNewOpen(true)}>
                     What&apos;s new
                   </button>
                 </div>
@@ -950,7 +950,7 @@ export const ReferralsPage = (): JSX.Element => {
                   <Button
                     type="button"
                     size="sm"
-                    className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90"
+                    className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
                     onClick={() => setFitOpen(true)}
                   >
                     Check candidate fit
@@ -959,7 +959,7 @@ export const ReferralsPage = (): JSX.Element => {
                 <div className="flex gap-2 text-[11px] product-helper-text justify-end">
                   <button
                     type="button"
-                    className="underline-offset-2 hover:underline text-[#ffd700]/90"
+                    className="underline-offset-2 hover:underline text-[#1dff00]/90"
                     onClick={() => navigate("/dashboard/settings")}
                   >
                     Settings
@@ -967,7 +967,7 @@ export const ReferralsPage = (): JSX.Element => {
                   <span className="text-foreground/20">·</span>
                   <button
                     type="button"
-                    className="underline-offset-2 hover:underline text-[#ffd700]/90"
+                    className="underline-offset-2 hover:underline text-[#1dff00]/90"
                     onClick={() => setWhatsNewOpen(true)}
                   >
                     What&apos;s new
@@ -992,7 +992,7 @@ export const ReferralsPage = (): JSX.Element => {
 
         {tab === "connections" ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-            <Card className="product-section-card p-5 sm:p-6 hover:border-[#ffd700]/50 transition-all duration-300 md:col-span-1">
+            <Card className="product-section-card p-5 sm:p-6 hover:border-[#1dff00]/50 transition-all duration-300 md:col-span-1">
               <input
                 ref={csvInputRef}
                 type="file"
@@ -1012,7 +1012,7 @@ export const ReferralsPage = (): JSX.Element => {
                 <h3 className="font-semibold text-foreground">Upload connections</h3>
                 <button
                   type="button"
-                  className="rounded-full p-1 text-foreground/35 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+                  className="rounded-full p-1 text-foreground/35 hover:text-[#1dff00] hover:bg-[#1dff00]/10 transition-colors"
                   aria-label="Help with LinkedIn export"
                   onClick={() => setHelpOpen(true)}
                 >
@@ -1028,7 +1028,7 @@ export const ReferralsPage = (): JSX.Element => {
                   type="checkbox"
                   checked={replaceNetwork}
                   onChange={(e) => setReplaceNetwork(e.target.checked)}
-                  className="accent-[#ffd700] rounded"
+                  className="accent-[#1dff00] rounded"
                 />
                 Replace previous import (clear old connections)
               </label>
@@ -1048,7 +1048,7 @@ export const ReferralsPage = (): JSX.Element => {
                 <Button
                   type="button"
                   disabled={importing}
-                  className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90 justify-start"
+                  className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 justify-start"
                   onClick={() => csvInputRef.current?.click()}
                 >
                   {importing ? (
@@ -1061,9 +1061,9 @@ export const ReferralsPage = (): JSX.Element => {
               </div>
             </Card>
 
-            <Card className="product-section-card p-5 sm:p-6 hover:border-[#ffd700]/50 transition-all duration-300">
-              <div className="w-10 h-10 rounded-full bg-[#ffd700]/15 border border-[#ffd700]/30 flex items-center justify-center mb-4">
-                <Sparkles className="w-5 h-5 text-[#ffd700]" />
+            <Card className="product-section-card p-5 sm:p-6 hover:border-[#1dff00]/50 transition-all duration-300">
+              <div className="w-10 h-10 rounded-full bg-[#1dff00]/15 border border-[#1dff00]/30 flex items-center justify-center mb-4">
+                <Sparkles className="w-5 h-5 text-[#1dff00]" />
               </div>
               <h3 className="font-semibold text-foreground mb-2">Match network → job board</h3>
               <p className="text-sm product-helper-text mb-4">
@@ -1071,14 +1071,14 @@ export const ReferralsPage = (): JSX.Element => {
                 Requires Basics or higher; uses the same jobs you track in the Jobs tab.
               </p>
               <p className="text-xs product-helper-text flex items-center gap-1.5 mb-3">
-                <Clock className="w-3.5 h-3.5 text-[#ffd700]/70" />
+                <Clock className="w-3.5 h-3.5 text-[#1dff00]/70" />
                 {suggestionCount} saved suggestions
               </p>
               <Button
                 type="button"
                 disabled={agentRunning || connectionCount === 0}
                 title={connectionCount === 0 ? "Upload Connections.csv first" : undefined}
-                className="w-full bg-foreground/10 border border-[#ffd700]/40 text-[#ffd700] hover:bg-[#ffd700]/10 disabled:opacity-50"
+                className="w-full bg-foreground/10 border border-[#1dff00]/40 text-[#1dff00] hover:bg-[#1dff00]/10 disabled:opacity-50"
                 onClick={() => void runAgentScan()}
               >
                 {agentRunning ? (
@@ -1098,9 +1098,9 @@ export const ReferralsPage = (): JSX.Element => {
               ) : null}
             </Card>
 
-            <Card className="product-section-card p-5 sm:p-6 hover:border-[#ffd700]/50 transition-all duration-300">
-              <div className="w-10 h-10 rounded-full bg-[#ffd700]/15 border border-[#ffd700]/30 flex items-center justify-center mb-4">
-                <Banknote className="w-5 h-5 text-[#ffd700]" />
+            <Card className="product-section-card p-5 sm:p-6 hover:border-[#1dff00]/50 transition-all duration-300">
+              <div className="w-10 h-10 rounded-full bg-[#1dff00]/15 border border-[#1dff00]/30 flex items-center justify-center mb-4">
+                <Banknote className="w-5 h-5 text-[#1dff00]" />
               </div>
               <h3 className="font-semibold text-foreground mb-2">Referral rewards</h3>
               <p className="text-sm product-helper-text mb-4">
@@ -1108,14 +1108,14 @@ export const ReferralsPage = (): JSX.Element => {
                 members. Exact rates and eligibility are always shown in Billing.
               </p>
               <p className="text-xs product-helper-text flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-[#ffd700]/70" />
+                <Clock className="w-3.5 h-3.5 text-[#1dff00]/70" />
                 Tracked from signup through hired / paid milestones
               </p>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="mt-3 px-0 text-[#ffd700] hover:text-[#ffd700] hover:bg-transparent"
+                className="mt-3 px-0 text-[#1dff00] hover:text-[#1dff00] hover:bg-transparent"
                 onClick={() => navigate("/dashboard/billing")}
               >
                 View billing &amp; payouts

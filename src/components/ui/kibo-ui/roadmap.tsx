@@ -36,8 +36,8 @@ export type RoadmapStatus = 'planned' | 'in-progress' | 'done' | 'blocked';
 
 const STATUS_META: Record<RoadmapStatus, { label: string; color: string; dot: string; ring: string } > = {
   planned: { label: 'Planned', color: 'text-foreground/70', dot: 'bg-zinc-400', ring: 'ring-zinc-400/30' },
-  'in-progress': { label: 'In Progress', color: 'text-amber-200', dot: 'bg-amber-400 animate-pulse', ring: 'ring-amber-400/40' },
-  done: { label: 'Done', color: 'text-amber-200', dot: 'bg-amber-400', ring: 'ring-amber-400/40' },
+  'in-progress': { label: 'In Progress', color: 'text-[#1dff00]', dot: 'bg-[#1dff00] animate-pulse', ring: 'ring-[#1dff00]/40' },
+  done: { label: 'Done', color: 'text-[#1dff00]', dot: 'bg-[#1dff00]', ring: 'ring-[#1dff00]/40' },
   blocked: { label: 'Blocked', color: 'text-rose-200', dot: 'bg-rose-500', ring: 'ring-rose-500/40' },
 };
 
@@ -143,8 +143,8 @@ export const RoadmapItem = React.forwardRef<HTMLDivElement, RoadmapItemProps>(fu
   return (
     <div
       ref={ref}
-      className={cn('group relative rounded-xl border border-foreground/10 bg-gradient-to-br from-white/[0.05] to-white/[0.02] p-3 shadow-sm hover:border-[#ffd700]/40 transition-colors',
-        'hover:shadow-[0_0_0_1px_rgba(255,215,0,0.25),0_4px_18px_-6px_rgba(255,215,0,0.45)]',
+      className={cn('group relative rounded-xl border border-foreground/10 bg-gradient-to-br from-white/[0.05] to-white/[0.02] p-3 shadow-sm hover:border-[#1dff00]/40 transition-colors',
+        'hover:shadow-[0_0_0_1px_rgba(29,255,0,0.25),0_4px_18px_-6px_rgba(29,255,0,0.45)]',
         className
       )}
       data-status={status}
@@ -156,13 +156,13 @@ export const RoadmapItem = React.forwardRef<HTMLDivElement, RoadmapItemProps>(fu
           <span className={cn('h-2 w-2 rounded-full', s.dot)} aria-hidden />
           {pct != null && (
             <span className='relative mt-2 block h-8 w-1 rounded-full bg-foreground/10 overflow-hidden'>
-              <span className='absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#fbbf24] to-amber-400' style={{ height: pct + '%' }} />
+              <span className='absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#1dff00] to-[#1dff00]' style={{ height: pct + '%' }} />
             </span>
           )}
         </div>
         <div className='min-w-0 flex-1'>
           <div className='flex items-start gap-2'>
-            {icon && <div className='mt-0.5 h-5 w-5 text-[#ffd700]'>{icon}</div>}
+            {icon && <div className='mt-0.5 h-5 w-5 text-[#1dff00]'>{icon}</div>}
             <h4 className='text-sm font-medium text-white leading-tight truncate'>{title}</h4>
             {meta && <div className='ml-auto text-[11px] text-foreground/50 flex-shrink-0'>{meta}</div>}
           </div>
@@ -187,7 +187,7 @@ export const RoadmapItem = React.forwardRef<HTMLDivElement, RoadmapItemProps>(fu
           </div>
         </div>
       </div>
-      <div className='pointer-events-none absolute inset-0 rounded-xl border border-transparent group-hover:border-[#ffd700]/30 transition-colors' />
+      <div className='pointer-events-none absolute inset-0 rounded-xl border border-transparent group-hover:border-[#1dff00]/30 transition-colors' />
     </div>
   );
 });

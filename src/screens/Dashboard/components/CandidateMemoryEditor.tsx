@@ -214,10 +214,10 @@ export function CandidateMemoryEditor({
   };
 
   return (
-    <Card className='product-section-card p-6 hover:border-[#ffd700]/60 hover:shadow-lg transition-all duration-300'>
+    <Card className='product-section-card p-6 hover:border-[#1dff00]/60 hover:shadow-lg transition-all duration-300'>
       <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
         <div className='space-y-2'>
-          <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-[#ffd700]/80'>
+          <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-[#1dff00]/80'>
             <BrainCircuit className='h-3.5 w-3.5' />
             Candidate Memory
           </div>
@@ -268,7 +268,7 @@ export function CandidateMemoryEditor({
       <div className='mt-6 grid gap-4 xl:grid-cols-3'>
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-            <Sparkles className='h-4 w-4 text-[#ffd700]' />
+            <Sparkles className='h-4 w-4 text-[#1dff00]' />
             Preferred narratives
           </div>
           <textarea
@@ -282,7 +282,7 @@ export function CandidateMemoryEditor({
 
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-            <Flag className='h-4 w-4 text-[#ffd166]' />
+            <Flag className='h-4 w-4 text-[#1dff00]' />
             Red flags
           </div>
           <textarea
@@ -296,7 +296,7 @@ export function CandidateMemoryEditor({
 
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-            <Briefcase className='h-4 w-4 text-[#ffd700]' />
+            <Briefcase className='h-4 w-4 text-[#1dff00]' />
             Target archetypes
           </div>
           <textarea
@@ -313,14 +313,14 @@ export function CandidateMemoryEditor({
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='flex items-center justify-between gap-3'>
             <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-              <Bookmark className='h-4 w-4 text-[#ffd700]' />
+              <Bookmark className='h-4 w-4 text-[#1dff00]' />
               Proof points
             </div>
             <Button
               type='button'
               size='sm'
               variant='outline'
-              className='border-[#ffd700]/30 text-[#ffd700] hover:bg-[#ffd700]/10'
+              className='border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10'
               onClick={() =>
                 setProofPoints((prev) => [
                   ...prev,
@@ -388,7 +388,7 @@ export function CandidateMemoryEditor({
                     type='button'
                     size='sm'
                     variant='ghost'
-                    className='text-red-400 hover:bg-red-500/10 hover:text-red-300'
+                    className='text-[#1dff00] hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
                     onClick={() =>
                       setProofPoints((prev) =>
                         prev.filter((_, itemIndex) => itemIndex !== index),
@@ -407,14 +407,14 @@ export function CandidateMemoryEditor({
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='flex items-center justify-between gap-3'>
             <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-              <Sparkles className='h-4 w-4 text-[#ffd700]' />
+              <Sparkles className='h-4 w-4 text-[#1dff00]' />
               Interview story bank
             </div>
             <Button
               type='button'
               size='sm'
               variant='outline'
-              className='border-[#ffd700]/30 text-[#ffd700] hover:bg-[#ffd700]/10'
+              className='border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10'
               onClick={() =>
                 setStories((prev) => [
                   ...prev,
@@ -477,7 +477,7 @@ export function CandidateMemoryEditor({
                     type='button'
                     size='sm'
                     variant='ghost'
-                    className='text-red-400 hover:bg-red-500/10 hover:text-red-300'
+                    className='text-[#1dff00] hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
                     onClick={() =>
                       setStories((prev) =>
                         prev.filter((_, itemIndex) => itemIndex !== index),
@@ -497,14 +497,14 @@ export function CandidateMemoryEditor({
       <div className='mt-6 rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
         <div className='flex items-center justify-between gap-3'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-            <Briefcase className='h-4 w-4 text-[#ffd700]' />
+            <Briefcase className='h-4 w-4 text-[#1dff00]' />
             Tracked companies
           </div>
           <Button
             type='button'
             size='sm'
             variant='outline'
-            className='border-[#ffd700]/30 text-[#ffd700] hover:bg-[#ffd700]/10'
+            className='border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10'
             onClick={() =>
               setTrackedCompanies((prev) => [
                 ...prev,
@@ -570,7 +570,7 @@ export function CandidateMemoryEditor({
                   type='button'
                   size='sm'
                   variant='ghost'
-                  className='text-red-400 hover:bg-red-500/10 hover:text-red-300'
+                  className='text-[#1dff00] hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
                   onClick={() =>
                     setTrackedCompanies((prev) =>
                       prev.filter((_, itemIndex) => itemIndex !== index),
@@ -593,7 +593,7 @@ export function CandidateMemoryEditor({
         </p>
         <Button
           type='button'
-          className='bg-[#ffd700] text-black hover:bg-[#ffd700]/90'
+          className='bg-[#1dff00] text-black hover:bg-[#1dff00]/90'
           onClick={() => void handleSave()}
           disabled={loading || saving}
         >

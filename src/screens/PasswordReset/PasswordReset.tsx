@@ -64,7 +64,7 @@ const PasswordReset = () => {
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg">
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#fbbf24]/20 via-transparent to-[#b45309]/20 opacity-50 rounded-xl sm:rounded-2xl" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/20 via-transparent to-[#1dff00]/20 opacity-50 rounded-xl sm:rounded-2xl" />
           <Card className="relative bg-foreground/5 border border-foreground/10 rounded-xl sm:rounded-2xl shadow-2xl backdrop-blur-[18px]">
             <CardContent className="p-4 sm:p-6 lg:p-8">
               {loading ? (
@@ -98,7 +98,7 @@ const PasswordReset = () => {
                     <div className="space-y-2 text-xs sm:text-sm">
                       <div className="flex items-center justify-between">
                         <span className="text-foreground/80">Strength</span>
-                        <span className={`font-semibold ${check.score >= 4 ? 'text-[#ffd700]' : check.score >= 3 ? 'text-yellow-300' : 'text-red-400'}`}>{check.strength}</span>
+                        <span className={`font-semibold ${check.score >= 4 ? 'text-[#1dff00]' : check.score >= 3 ? 'text-[#1dff00]' : 'text-[#1dff00]'}`}>{check.strength}</span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-foreground/80">
                         {[
@@ -111,9 +111,9 @@ const PasswordReset = () => {
                         ].map((r, i) => (
                           <div key={i} className="flex items-center gap-2">
                             {r.ok ? (
-                              <CheckCircle2 className="w-4 h-4 text-[#ffd700]" />
+                              <CheckCircle2 className="w-4 h-4 text-[#1dff00]" />
                             ) : (
-                              <XCircle className="w-4 h-4 text-red-400" />
+                              <XCircle className="w-4 h-4 text-[#1dff00]" />
                             )}
                             <span className={r.ok ? 'text-foreground/90' : 'text-foreground/60'}>{r.label}</span>
                           </div>
@@ -125,7 +125,7 @@ const PasswordReset = () => {
                     <Button
                       type="submit"
                       disabled={submitting || !check.valid || password !== confirm}
-                      className="w-full shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(255,215,0,1)_0%,rgba(180,83,9,1)_85%)] text-foreground font-bold rounded-xl disabled:opacity-60"
+                      className="w-full shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(29,255,0,1)_85%)] text-foreground font-bold rounded-xl disabled:opacity-60"
                     >
                       Update Password
                     </Button>

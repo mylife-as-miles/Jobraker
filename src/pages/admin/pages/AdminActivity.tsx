@@ -32,11 +32,11 @@ function ActivityDetailPanel({
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 20 }}
-          className="w-full max-w-md h-full bg-background border-l border-[#ffd700]/20 shadow-2xl overflow-y-auto"
+          className="w-full max-w-md h-full bg-background border-l border-[#1dff00]/20 shadow-2xl overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="p-6 border-b border-[#ffd700]/10 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
+          <div className="p-6 border-b border-[#1dff00]/10 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
             <div>
               <h2 className="text-xl font-bold text-white">Activity Details</h2>
               <p className="text-sm text-gray-400 font-mono text-xs mt-1">{transaction.id}</p>
@@ -51,8 +51,8 @@ function ActivityDetailPanel({
 
           <div className="p-6 space-y-8">
             {/* Action Badge */}
-            <div className="flex flex-col items-center justify-center p-8 rounded-2xl border bg-[#ffd700]/5 border-[#ffd700]/20">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 bg-[#ffd700]/10 text-[#ffd700]">
+            <div className="flex flex-col items-center justify-center p-8 rounded-2xl border bg-[#1dff00]/5 border-[#1dff00]/20">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 bg-[#1dff00]/10 text-[#1dff00]">
                 {transaction.reference_type === 'job_search' ? <Search className="w-8 h-8" /> : <Zap className="w-8 h-8" />}
               </div>
               <h3 className="text-2xl font-bold text-white capitalize text-center">
@@ -106,7 +106,7 @@ function ActivityDetailPanel({
                 <div className="p-4 bg-gray-800/30 rounded-xl border border-gray-800 col-span-2">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-400 text-xs">Cost</span>
-                    <span className="text-red-400 font-mono font-bold">-{Math.abs(transaction.amount)} Credits</span>
+                    <span className="text-[#1dff00] font-mono font-bold">-{Math.abs(transaction.amount)} Credits</span>
                   </div>
                 </div>
               </div>
@@ -228,7 +228,7 @@ export default function AdminActivity() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-[#ffd700] animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-[#1dff00] animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Loading activity data...</p>
         </div>
       </div>
@@ -248,13 +248,13 @@ export default function AdminActivity() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-[#fbbf24]/10 to-background/10 border border-[#ffd700]/30 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-xl bg-[#ffd700]/20 flex items-center justify-center">
-              <Search className="w-6 h-6 text-[#ffd700]" />
+            <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">
+              <Search className="w-6 h-6 text-[#1dff00]" />
             </div>
-            <div className="flex items-center gap-1 text-[#ffd700]">
+            <div className="flex items-center gap-1 text-[#1dff00]">
               <TrendingUp className="w-4 h-4" />
               <span className="text-sm font-medium">Recent</span>
             </div>
@@ -268,13 +268,13 @@ export default function AdminActivity() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-[#fbbf24]/10 to-background/10 border border-[#ffd700]/30 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-xl bg-[#ffd700]/20 flex items-center justify-center">
-              <Zap className="w-6 h-6 text-[#ffd700]" />
+            <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">
+              <Zap className="w-6 h-6 text-[#1dff00]" />
             </div>
-            <div className="flex items-center gap-1 text-[#ffd700]">
+            <div className="flex items-center gap-1 text-[#1dff00]">
               <TrendingUp className="w-4 h-4" />
               <span className="text-sm font-medium">Recent</span>
             </div>
@@ -309,7 +309,7 @@ export default function AdminActivity() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-background border border-[#ffd700]/20 rounded-2xl p-6"
+        className="bg-background border border-[#1dff00]/20 rounded-2xl p-6"
       >
         <div className="mb-6">
           <h3 className="text-xl font-bold text-white mb-1">Activity Trend</h3>
@@ -355,9 +355,9 @@ export default function AdminActivity() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="bg-background border border-[#ffd700]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#ffd700]/5"
+        className="bg-background border border-[#1dff00]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#1dff00]/5"
       >
-        <div className="p-6 border-b border-[#ffd700]/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-6 border-b border-[#1dff00]/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h3 className="text-xl font-bold text-white mb-1">Recent Activity</h3>
             <p className="text-sm text-gray-400">Detailed user actions</p>
@@ -371,7 +371,7 @@ export default function AdminActivity() {
                 placeholder="Search user or description..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white text-sm focus:border-[#ffd700] focus:outline-none w-64 transition-all focus:ring-1 focus:ring-[#ffd700]"
+                className="pl-9 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white text-sm focus:border-[#1dff00] focus:outline-none w-64 transition-all focus:ring-1 focus:ring-[#1dff00]"
               />
             </div>
 
@@ -380,7 +380,7 @@ export default function AdminActivity() {
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value as any)}
-                className="pl-9 pr-10 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white text-sm appearance-none focus:border-[#ffd700] focus:outline-none cursor-pointer transition-all"
+                className="pl-9 pr-10 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white text-sm appearance-none focus:border-[#1dff00] focus:outline-none cursor-pointer transition-all"
               >
                 <option value="all">All Actions</option>
                 <option value="job_search">Job Search</option>
@@ -460,7 +460,7 @@ export default function AdminActivity() {
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium ${activity.reference_type === 'job_search'
                         ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                        : 'bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/20'
                         }`}>
                         {activity.reference_type === 'job_search' ? (
                           <><Search className="w-3 h-3" /> Job Search</>
@@ -472,7 +472,7 @@ export default function AdminActivity() {
                     <td className="px-6 py-4 text-gray-400 text-sm max-w-[200px] truncate" title={activity.description}>
                       {activity.description}
                     </td>
-                    <td className="px-6 py-4 text-right font-medium text-red-400">
+                    <td className="px-6 py-4 text-right font-medium text-[#1dff00]">
                       -{Math.abs(activity.amount)}
                     </td>
                     <td className="px-6 py-4 text-right">

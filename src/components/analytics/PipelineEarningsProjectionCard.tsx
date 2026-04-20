@@ -94,14 +94,14 @@ export function PipelineEarningsProjectionCard({
   };
 
   return (
-    <Card className="rounded-2xl border border-[#ffd700]/25 bg-gradient-to-br from-card via-card to-foreground/[0.02] p-5 sm:p-6 shadow-[0_0_40px_rgba(255,215,0,0.06)]">
+    <Card className="rounded-2xl border border-[#1dff00]/25 bg-gradient-to-br from-card via-card to-foreground/[0.02] p-5 sm:p-6 shadow-[0_0_40px_rgba(29,255,0,0.06)]">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold tracking-tight text-foreground">
               How much am I in line to earn?
             </h2>
-            <span className="inline-flex items-center gap-1 rounded-full border border-[#ffd700]/30 bg-[#ffd700]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#ffd700]">
+            <span className="inline-flex items-center gap-1 rounded-full border border-[#1dff00]/30 bg-[#1dff00]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#1dff00]">
               <Sparkles className="h-3 w-3" />
               Estimate
             </span>
@@ -119,7 +119,7 @@ export function PipelineEarningsProjectionCard({
               type="button"
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 viewMode === "simulated"
-                  ? "bg-[#ffd700]/20 text-[#ffd700] shadow-sm"
+                  ? "bg-[#1dff00]/20 text-[#1dff00] shadow-sm"
                   : "text-foreground/50 hover:text-foreground/80"
               }`}
               onClick={() => setViewMode("simulated")}
@@ -131,7 +131,7 @@ export function PipelineEarningsProjectionCard({
               type="button"
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 viewMode === "face"
-                  ? "bg-[#ffd700]/20 text-[#ffd700] shadow-sm"
+                  ? "bg-[#1dff00]/20 text-[#1dff00] shadow-sm"
                   : "text-foreground/50 hover:text-foreground/80"
               }`}
               onClick={() => setViewMode("face")}
@@ -173,7 +173,7 @@ export function PipelineEarningsProjectionCard({
               type="checkbox"
               checked={includeInterview}
               onChange={(e) => setIncludeInterview(e.target.checked)}
-              className="accent-[#ffd700] rounded"
+              className="accent-[#1dff00] rounded"
             />
             Include interviews
           </label>
@@ -254,19 +254,19 @@ export function PipelineEarningsProjectionCard({
                 <Tooltip
                   contentStyle={{
                     background: "rgba(12,14,18,0.95)",
-                    border: "1px solid rgba(255,215,0,0.25)",
+                    border: "1px solid rgba(29,255,0,0.25)",
                     borderRadius: 12,
                     fontSize: 12,
                   }}
                   formatter={(value: number, name: string) => [usd0.format(value), name]}
                 />
                 <Area type="monotone" dataKey="optimistic" name="Optimistic" stroke="#34d399" fill="url(#optGrad)" fillOpacity={0.15} strokeWidth={1.5} />
-                <Area type="monotone" dataKey="expected" name="Expected" stroke="#ffd700" fill="url(#expGrad)" fillOpacity={0.2} strokeWidth={2} />
+                <Area type="monotone" dataKey="expected" name="Expected" stroke="#1dff00" fill="url(#expGrad)" fillOpacity={0.2} strokeWidth={2} />
                 <Line type="monotone" dataKey="conservative" name="Conservative" stroke="#94a3b8" dot={false} strokeWidth={1.5} strokeDasharray="4 4" />
                 <defs>
                   <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ffd700" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#ffd700" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#1dff00" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#1dff00" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="optGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#34d399" stopOpacity={0.3} />
@@ -280,7 +280,7 @@ export function PipelineEarningsProjectionCard({
 
         <div className="flex flex-col justify-center gap-3 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4 lg:border-l lg:border-t-0 lg:border-foreground/10">
           <p className="text-[11px] font-medium uppercase tracking-wider text-foreground/45">Expected annual (weighted)</p>
-          <p className="text-3xl font-bold tabular-nums text-[#ffd700]">{usd0.format(model.totals.expected)}</p>
+          <p className="text-3xl font-bold tabular-nums text-[#1dff00]">{usd0.format(model.totals.expected)}</p>
           <div className="space-y-1 text-xs text-foreground/55">
             <p>
               Band: {usd0.format(model.totals.conservative)} — {usd0.format(model.totals.optimistic)}

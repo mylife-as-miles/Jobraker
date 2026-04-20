@@ -5,10 +5,10 @@
 @layer base {
   :root {
     /* Product gold gradient (shell / brand accents). */
-    --brand-from: #ffd700;
-    --brand-to: #b45309;
-    --brand-mid: #fbbf24;
-    --brand: 48 96% 50%;
+    --brand-from: #1dff00;
+    --brand-to: #1dff00;
+    --brand-mid: #1dff00;
+    --brand: 113 100% 50%;
     --chart-1: hsl(var(--brand));
     --chart-2: hsl(var(--brand) / 0.9);
     --chart-3: hsl(var(--brand) / 0.8);
@@ -17,10 +17,10 @@
   }
 
   .dark {
-    --brand-from: #ffd700;
-    --brand-to: #b45309;
-    --brand-mid: #fbbf24;
-    --brand: 48 96% 50%;
+    --brand-from: #1dff00;
+    --brand-to: #1dff00;
+    --brand-mid: #1dff00;
+    --brand: 113 100% 50%;
     --chart-1: hsl(var(--brand));
     --chart-2: hsl(var(--brand) / 0.9);
     --chart-3: hsl(var(--brand) / 0.8);

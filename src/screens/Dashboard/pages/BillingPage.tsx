@@ -586,7 +586,7 @@ export const BillingPage = () => {
       case 'Ultimate':
         return <Crown className="w-5 h-5 text-purple-400" />;
       default:
-        return <Coins className="w-5 h-5 text-[#ffd700]" />;
+        return <Coins className="w-5 h-5 text-[#1dff00]" />;
     }
   };
 
@@ -597,7 +597,7 @@ export const BillingPage = () => {
       case 'Ultimate':
         return 'from-purple-500 via-purple-600 to-purple-700';
       default:
-        return 'from-[#fbbf24] via-[#f59e0b] to-[#b45309]';
+        return 'from-[#1dff00] via-[#1dff00] to-[#1dff00]';
     }
   };
 
@@ -613,11 +613,11 @@ export const BillingPage = () => {
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'bonus':
-        return { icon: <Sparkles className="w-4 h-4" />, color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20' };
+        return { icon: <Sparkles className="w-4 h-4" />, color: 'text-[#1dff00] bg-[#1dff00]/10 border-[#1dff00]/20' };
       case 'refill':
-        return { icon: <TrendingUp className="w-4 h-4" />, color: 'text-amber-400 bg-amber-400/10 border-amber-400/20' };
+        return { icon: <TrendingUp className="w-4 h-4" />, color: 'text-[#1dff00] bg-[#1dff00]/10 border-[#1dff00]/20' };
       case 'spend':
-        return { icon: <ArrowUpRight className="w-4 h-4" />, color: 'text-red-400 bg-red-400/10 border-red-400/20' };
+        return { icon: <ArrowUpRight className="w-4 h-4" />, color: 'text-[#1dff00] bg-[#1dff00]/10 border-[#1dff00]/20' };
       default:
         return { icon: <Coins className="w-4 h-4" />, color: 'text-gray-400 bg-gray-400/10 border-gray-400/20' };
     }
@@ -647,15 +647,15 @@ export const BillingPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background selection:bg-[#ffd700]/30">
+    <div className="min-h-screen bg-background selection:bg-[#1dff00]/30">
       {/* Hero Section */}
       <div className="relative overflow-hidden border-b border-foreground/10 bg-gradient-to-br from-background to-background">
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#ffd700]/5 rounded-full blur-[120px] mix-blend-screen animate-pulse" />
+          <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#1dff00]/5 rounded-full blur-[120px] mix-blend-screen animate-pulse" />
           <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-[120px] mix-blend-screen animate-pulse" style={{ animationDelay: '2s' }} />
           {/* Grid overlay */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffd70005_1px,transparent_1px),linear-gradient(to_bottom,#ffd70005_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#1dff0005_1px,transparent_1px),linear-gradient(to_bottom,#1dff0005_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -668,7 +668,7 @@ export const BillingPage = () => {
               <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">
                 Billing &
               </span>{' '}
-              <span className="text-[#ffd700] drop-shadow-[0_0_15px_rgba(255,215,0,0.3)]">
+              <span className="text-[#1dff00] drop-shadow-[0_0_15px_rgba(29,255,0,0.3)]">
                 Credits
               </span>
             </h1>
@@ -685,14 +685,14 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="relative overflow-hidden border-foreground/10 bg-foreground/[0.03] backdrop-blur-xl group hover:border-[#ffd700]/30 transition-colors duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#fbbf24]/5 to-transparent opacity-50" />
+              <Card className="relative overflow-hidden border-foreground/10 bg-foreground/[0.03] backdrop-blur-xl group hover:border-[#1dff00]/30 transition-colors duration-300">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 to-transparent opacity-50" />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
-                    <div className="p-3 rounded-xl bg-[#ffd700]/10 border border-[#ffd700]/20 group-hover:bg-[#ffd700]/20 transition-colors">
-                      <Coins className="w-6 h-6 text-[#ffd700]" />
+                    <div className="p-3 rounded-xl bg-[#1dff00]/10 border border-[#1dff00]/20 group-hover:bg-[#1dff00]/20 transition-colors">
+                      <Coins className="w-6 h-6 text-[#1dff00]" />
                     </div>
-                    <span className="text-[10px] tracking-wider font-bold text-[#ffd700] bg-[#ffd700]/10 px-2.5 py-1 rounded-full border border-[#ffd700]/20">
+                    <span className="text-[10px] tracking-wider font-bold text-[#1dff00] bg-[#1dff00]/10 px-2.5 py-1 rounded-full border border-[#1dff00]/20">
                       BALANCE
                     </span>
                   </div>
@@ -722,7 +722,7 @@ export const BillingPage = () => {
                     <span className={`text-[10px] tracking-wider font-bold px-2.5 py-1 rounded-full border ${
                       subscriptionTier === 'Pro' ? 'bg-blue-500/10 text-blue-300 border-blue-500/20' :
                       subscriptionTier === 'Ultimate' ? 'bg-purple-500/10 text-purple-300 border-purple-500/20' :
-                      'bg-[#ffd700]/10 text-[#ffd700] border-[#ffd700]/20'
+                      'bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/20'
                     }`}>
                       ACTIVE PLAN
                     </span>
@@ -811,7 +811,7 @@ export const BillingPage = () => {
                 {activeTab === tab.id && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute inset-0 bg-[#ffd700] rounded-full"
+                    className="absolute inset-0 bg-[#1dff00] rounded-full"
                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                   />
                 )}
@@ -870,7 +870,7 @@ export const BillingPage = () => {
                     onClick={() => setBillingInterval('yearly')}
                     className={`relative px-4 sm:px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors inline-flex items-center gap-2 ${
                       billingInterval === 'yearly'
-                        ? 'bg-[#ffd700] text-background shadow-md'
+                        ? 'bg-[#1dff00] text-background shadow-md'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -922,7 +922,7 @@ export const BillingPage = () => {
                           <span className={`text-[10px] font-bold px-3 py-1 rounded-full shadow-lg border ${
                             isUltimate
                               ? 'bg-purple-500 text-foreground border-purple-400'
-                              : 'bg-[#ffd700] text-background border-[#ffd700]'
+                              : 'bg-[#1dff00] text-background border-[#1dff00]'
                           }`}>
                             {isUltimate
                               ? billingInterval === 'quarterly'
@@ -941,17 +941,17 @@ export const BillingPage = () => {
                       
                       <Card className={`group relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden transition-all duration-300 ${
                         isCurrentPlan 
-                          ? 'border-[#ffd700]/50 bg-gradient-to-b from-[#fbbf24]/10 to-transparent shadow-[0_0_40px_-10px_rgba(255,215,0,0.2)]'
+                          ? 'border-[#1dff00]/50 bg-gradient-to-b from-[#1dff00]/10 to-transparent shadow-[0_0_40px_-10px_rgba(29,255,0,0.2)]'
                           : isPro && (billingInterval === 'yearly' || billingInterval === 'quarterly')
                           ? 'ring-2 ring-blue-400/45 border-blue-400/25 bg-foreground/[0.02] hover:bg-foreground/[0.04] shadow-[0_0_36px_-10px_rgba(59,130,246,0.25)] hover:-translate-y-1'
-                          : 'border-foreground/10 bg-foreground/[0.02] hover:bg-foreground/[0.04] hover:border-foreground/20 hover:shadow-xl hover:shadow-[#ffd700]/5 hover:-translate-y-1'
+                          : 'border-foreground/10 bg-foreground/[0.02] hover:bg-foreground/[0.04] hover:border-foreground/20 hover:shadow-xl hover:shadow-[#1dff00]/5 hover:-translate-y-1'
                       }`}>
                         {/* Gradient accent top border */}
                         <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${getTierGradient(plan.name)} opacity-70`} />
 
                         {isCurrentPlan && (
                           <div className="absolute top-4 right-4 z-10">
-                            <span className="px-2.5 py-1 text-[10px] font-bold bg-[#ffd700] text-background border border-[#ffd700] rounded-full flex items-center gap-1 shadow-md">
+                            <span className="px-2.5 py-1 text-[10px] font-bold bg-[#1dff00] text-background border border-[#1dff00] rounded-full flex items-center gap-1 shadow-md">
                               <Check className="w-3 h-3" />
                               CURRENT
                             </span>
@@ -968,7 +968,7 @@ export const BillingPage = () => {
                                   <div className={`mb-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br sm:h-14 sm:w-14 ${
                                     plan.name === 'Pro' ? 'from-blue-500/20 to-transparent border-blue-500/20' :
                                     plan.name === 'Ultimate' ? 'from-purple-500/20 to-transparent border-purple-500/20' :
-                                    'from-[#fbbf24]/20 to-transparent border-[#ffd700]/20'
+                                    'from-[#1dff00]/20 to-transparent border-[#1dff00]/20'
                                   } border border-foreground/5`}>
                                     {getTierIcon(plan.name)}
                                   </div>
@@ -1035,7 +1035,7 @@ export const BillingPage = () => {
                                   ) : null}
                                   {pricing.savingsBadge &&
                                   (billingInterval === 'yearly' || billingInterval === 'quarterly') ? (
-                                    <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#ffd700] bg-[#ffd700]/10 border border-[#ffd700]/25 rounded-full px-2.5 py-1 mt-1">
+                                    <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1dff00] bg-[#1dff00]/10 border border-[#1dff00]/25 rounded-full px-2.5 py-1 mt-1">
                                       <Percent className="w-3.5 h-3.5 shrink-0" />
                                       {pricing.savingsBadge}
                                     </div>
@@ -1048,7 +1048,7 @@ export const BillingPage = () => {
                                     <div className="p-1.5 rounded-lg bg-background/40 shrink-0 mt-0.5">
                                       <Zap className={`w-4 h-4 ${
                                         plan.name === 'Pro' ? 'text-blue-400' :
-                                        plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#ffd700]'
+                                        plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
                                       }`} />
                                     </div>
                                     <div className="min-w-0 flex-1 flex flex-col gap-1.5">
@@ -1075,7 +1075,7 @@ export const BillingPage = () => {
                                     <div className="p-1.5 rounded-lg bg-background/40 shrink-0 mt-0.5">
                                       <Target className={`w-4 h-4 ${
                                         plan.name === 'Pro' ? 'text-blue-400' :
-                                        plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#ffd700]'
+                                        plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
                                       }`} />
                                     </div>
                                     <div className="min-w-0 flex-1 flex flex-col gap-1.5">
@@ -1147,7 +1147,7 @@ export const BillingPage = () => {
                                         <div className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
                                           plan.name === 'Pro' ? 'bg-blue-500/20 text-blue-400' :
                                           plan.name === 'Ultimate' ? 'bg-purple-500/20 text-purple-400' :
-                                          'bg-[#ffd700]/20 text-[#ffd700]'
+                                          'bg-[#1dff00]/20 text-[#1dff00]'
                                         }`}>
                                           <Check className="w-2.5 h-2.5" />
                                         </div>
@@ -1183,7 +1183,7 @@ export const BillingPage = () => {
                                 isCurrentPlan
                                   ? 'bg-foreground/5 text-foreground/50 cursor-default border border-foreground/5'
                                   : plan.name === 'Basics'
-                                  ? 'bg-[#ffd700] text-background hover:bg-[#ffd700] hover:brightness-110 hover:shadow-[0_0_20px_rgba(255,215,0,0.4)] hover:scale-[1.02]'
+                                  ? 'bg-[#1dff00] text-background hover:bg-[#1dff00] hover:brightness-110 hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] hover:scale-[1.02]'
                                   : plan.name === 'Pro'
                                   ? 'bg-blue-500 text-foreground hover:bg-blue-600 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-[1.02]'
                                   : plan.name === 'Ultimate'
@@ -1253,7 +1253,7 @@ export const BillingPage = () => {
                   >
                     {pack.is_popular && (
                       <div className="absolute -top-3 left-0 right-0 flex justify-center z-10">
-                        <span className="bg-[#ffd700] text-background text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-[#ffd700]/20">
+                        <span className="bg-[#1dff00] text-background text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-[#1dff00]/20">
                           BEST VALUE
                         </span>
                       </div>
@@ -1261,18 +1261,18 @@ export const BillingPage = () => {
 
                     <Card className={`relative overflow-hidden transition-all duration-300 group hover:scale-105 ${
                       pack.is_popular
-                        ? 'border-[#ffd700]/30 bg-gradient-to-b from-[#fbbf24]/5 to-transparent'
+                        ? 'border-[#1dff00]/30 bg-gradient-to-b from-[#1dff00]/5 to-transparent'
                         : 'border-foreground/10 bg-foreground/[0.02] hover:bg-foreground/[0.04]'
                     }`}>
                       <CardContent className="p-6 flex flex-col items-center text-center">
                         <div className={`p-3 rounded-2xl mb-4 ${
-                          pack.is_popular ? 'bg-[#ffd700]/10 text-[#ffd700]' : 'bg-foreground/5 text-gray-400 group-hover:text-foreground group-hover:bg-foreground/10'
+                          pack.is_popular ? 'bg-[#1dff00]/10 text-[#1dff00]' : 'bg-foreground/5 text-gray-400 group-hover:text-foreground group-hover:bg-foreground/10'
                         } transition-colors`}>
                           <Package className="w-8 h-8" />
                         </div>
 
                         {pack.bonus_credits > 0 && (
-                          <span className="mb-2 text-[10px] font-bold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full flex items-center gap-1 border border-yellow-400/20">
+                          <span className="mb-2 text-[10px] font-bold text-[#1dff00] bg-[#1dff00]/10 px-2 py-0.5 rounded-full flex items-center gap-1 border border-[#1dff00]/20">
                             <Sparkles className="w-3 h-3" />
                             +{pack.bonus_credits} BONUS
                           </span>
@@ -1295,7 +1295,7 @@ export const BillingPage = () => {
                           <Button
                             className={`w-full font-bold transition-all duration-300 ${
                               pack.is_popular
-                                ? 'bg-[#ffd700] text-background hover:bg-[#ffd700] hover:brightness-110 shadow-[0_0_20px_rgba(255,215,0,0.3)]'
+                                ? 'bg-[#1dff00] text-background hover:bg-[#1dff00] hover:brightness-110 shadow-[0_0_20px_rgba(29,255,0,0.3)]'
                                 : 'bg-foreground/10 text-foreground hover:bg-foreground/20'
                             }`}
                             disabled={processingPayment}
@@ -1321,7 +1321,7 @@ export const BillingPage = () => {
                   { icon: <Target className="w-6 h-6" />, title: 'Instant Delivery', desc: 'Start applying in seconds' },
                 ].map((benefit, idx) => (
                   <div key={idx} className="flex flex-col items-center text-center p-6 rounded-2xl bg-foreground/[0.02] border border-foreground/5 hover:bg-foreground/[0.04] transition-colors">
-                    <div className="p-3 rounded-full bg-[#ffd700]/10 text-[#ffd700] mb-3">
+                    <div className="p-3 rounded-full bg-[#1dff00]/10 text-[#1dff00] mb-3">
                       {benefit.icon}
                     </div>
                     <p className="font-bold text-foreground mb-1">{benefit.title}</p>
@@ -1413,10 +1413,10 @@ export const BillingPage = () => {
                             <p className="text-xs text-gray-500 mt-0.5">{item.note}</p>
                           </div>
                           <div className="flex items-center gap-1.5 pl-4 flex-shrink-0">
-                            <span className={`text-lg font-bold font-mono ${item.cost === 0 ? 'text-[#ffd700]' : 'text-foreground'}`}>
+                            <span className={`text-lg font-bold font-mono ${item.cost === 0 ? 'text-[#1dff00]' : 'text-foreground'}`}>
                               {item.cost === 0 ? 'FREE' : item.cost}
                             </span>
-                            {item.cost > 0 && <Coins className="w-3.5 h-3.5 text-[#ffd700]" />}
+                            {item.cost > 0 && <Coins className="w-3.5 h-3.5 text-[#1dff00]" />}
                           </div>
                         </div>
                       ))}
@@ -1464,10 +1464,10 @@ export const BillingPage = () => {
                             <p className="text-xs text-gray-500 mt-0.5">{item.note}</p>
                           </div>
                           <div className="flex items-center gap-1.5 pl-4 flex-shrink-0">
-                            <span className={`text-lg font-bold font-mono ${item.cost === 0 ? 'text-[#ffd700]' : 'text-foreground'}`}>
+                            <span className={`text-lg font-bold font-mono ${item.cost === 0 ? 'text-[#1dff00]' : 'text-foreground'}`}>
                               {item.cost === 0 ? 'FREE' : item.cost}
                             </span>
-                            {item.cost > 0 && <Coins className="w-3.5 h-3.5 text-[#ffd700]" />}
+                            {item.cost > 0 && <Coins className="w-3.5 h-3.5 text-[#1dff00]" />}
                           </div>
                         </div>
                       ))}
@@ -1481,7 +1481,7 @@ export const BillingPage = () => {
                 const tierOrder = ['Free', 'Basics', 'Pro', 'Ultimate'] as const;
                 const tierColors: Record<string, { text: string; accent: string; bg: string }> = {
                   Free: { text: 'text-gray-400', accent: 'text-foreground', bg: 'bg-foreground/5' },
-                  Basics: { text: 'text-[#ffd700]', accent: 'text-[#ffd700]', bg: 'bg-[#ffd700]/5' },
+                  Basics: { text: 'text-[#1dff00]', accent: 'text-[#1dff00]', bg: 'bg-[#1dff00]/5' },
                   Pro: { text: 'text-blue-400', accent: 'text-blue-300', bg: 'bg-blue-500/5' },
                   Ultimate: { text: 'text-purple-400', accent: 'text-purple-300', bg: 'bg-purple-500/5' },
                 };
@@ -1643,7 +1643,7 @@ export const BillingPage = () => {
                             onClick={() => setBillingInterval('monthly')}
                             className={`rounded-full px-3 py-1 font-semibold transition-all ${
                               billingInterval === 'monthly'
-                                ? 'bg-[#ffd700] text-background shadow-sm'
+                                ? 'bg-[#1dff00] text-background shadow-sm'
                                 : 'text-gray-400 hover:text-foreground'
                             }`}
                           >
@@ -1653,7 +1653,7 @@ export const BillingPage = () => {
                             onClick={() => setBillingInterval('quarterly')}
                             className={`rounded-full px-3 py-1 font-semibold transition-all inline-flex items-center gap-1 ${
                               billingInterval === 'quarterly'
-                                ? 'bg-[#ffd700] text-background shadow-sm'
+                                ? 'bg-[#1dff00] text-background shadow-sm'
                                 : 'text-gray-400 hover:text-foreground'
                             }`}
                           >
@@ -1664,7 +1664,7 @@ export const BillingPage = () => {
                             onClick={() => setBillingInterval('yearly')}
                             className={`rounded-full px-3 py-1 font-semibold transition-all ${
                               billingInterval === 'yearly'
-                                ? 'bg-[#ffd700] text-background shadow-sm'
+                                ? 'bg-[#1dff00] text-background shadow-sm'
                                 : 'text-gray-400 hover:text-foreground'
                             }`}
                           >
@@ -1723,7 +1723,7 @@ export const BillingPage = () => {
                                         </span>
                                       )}
                                       {pricing.savingsBadge && (
-                                        <span className="rounded-full bg-[#ffd700]/10 border border-[#ffd700]/30 px-2 py-0.5 text-[10px] font-bold text-[#ffd700]">
+                                        <span className="rounded-full bg-[#1dff00]/10 border border-[#1dff00]/30 px-2 py-0.5 text-[10px] font-bold text-[#1dff00]">
                                           {pricing.savingsBadge}
                                         </span>
                                       )}
@@ -1743,7 +1743,7 @@ export const BillingPage = () => {
                                           }
                                           className={`mt-1 h-7 rounded-full px-4 text-[10px] font-bold tracking-wide transition-all ${
                                             tier === 'Basics'
-                                              ? 'bg-[#ffd700] text-background hover:brightness-110'
+                                              ? 'bg-[#1dff00] text-background hover:brightness-110'
                                               : tier === 'Pro'
                                                 ? 'bg-blue-500 text-white hover:bg-blue-600'
                                                 : 'bg-purple-600 text-white hover:bg-purple-700'
@@ -1764,7 +1764,7 @@ export const BillingPage = () => {
                                 <tr key={`h-${section.title}`}>
                                   <td
                                     colSpan={tierOrder.length + 1}
-                                    className="px-5 pt-5 pb-2 text-xs font-bold uppercase tracking-widest text-[#ffd700]"
+                                    className="px-5 pt-5 pb-2 text-xs font-bold uppercase tracking-widest text-[#1dff00]"
                                   >
                                     {section.title}
                                   </td>
@@ -1868,7 +1868,7 @@ export const BillingPage = () => {
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className={`text-lg font-bold font-mono ${
-                                transaction.amount > 0 ? 'text-[#ffd700]' : 'text-foreground'
+                                transaction.amount > 0 ? 'text-[#1dff00]' : 'text-foreground'
                               }`}>
                                 {transaction.amount > 0 ? '+' : ''}{transaction.amount}
                               </p>

@@ -93,8 +93,8 @@ export function BillingFAQSection() {
         <CardHeader className="border-b border-foreground/10 bg-foreground/[0.02] pb-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#ffd700]/25 bg-[#ffd700]/10">
-                <HelpCircle className="h-5 w-5 text-[#ffd700]" aria-hidden />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#1dff00]/25 bg-[#1dff00]/10">
+                <HelpCircle className="h-5 w-5 text-[#1dff00]" aria-hidden />
               </div>
               <div>
                 <CardTitle id="billing-faq-heading" className="text-xl font-bold text-foreground sm:text-2xl">
@@ -128,7 +128,7 @@ export function BillingFAQSection() {
                       {item.question}
                     </span>
                     <ChevronDown
-                      className={`h-5 w-5 shrink-0 text-[#ffd700] transition-transform duration-200 ${
+                      className={`h-5 w-5 shrink-0 text-[#1dff00] transition-transform duration-200 ${
                         isOpen ? "rotate-180" : ""
                       }`}
                       aria-hidden

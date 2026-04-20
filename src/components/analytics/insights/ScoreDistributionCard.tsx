@@ -37,13 +37,13 @@ export function ScoreDistributionCard({
     >
       <Card className="relative h-full overflow-hidden border border-border/40 bg-card/40 backdrop-blur-xl shadow-2xl transition-all duration-300">
         {/* Decorative gradient background */}
-        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[#f59e0b]/5 blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-[#f59e0b]/5 blur-3xl" />
+        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[#1dff00]/5 blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-[#1dff00]/5 blur-3xl" />
 
         <div className="relative z-10 flex h-full flex-col p-5 sm:p-6">
           {/* Header */}
           <div className="mb-6 space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#f59e0b]/25 bg-[#f59e0b]/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-[#f59e0b]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#1dff00]/25 bg-[#1dff00]/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-[#1dff00]">
               <BarChart3 className="h-3.5 w-3.5" />
               Score distribution
             </div>
@@ -118,7 +118,7 @@ export function ScoreDistributionCard({
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-background/60 backdrop-blur-xl transition-all duration-500">
                 <div className="flex items-center gap-3 rounded-full border border-border/40 bg-card/80 px-5 py-2.5 text-xs font-medium text-foreground/80 shadow-2xl backdrop-blur-md">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#f59e0b]/20 border-t-[#f59e0b]" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#1dff00]/20 border-t-[#1dff00]" />
                   Analyzing score distribution...
                 </div>
               </div>

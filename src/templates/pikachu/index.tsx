@@ -28,7 +28,7 @@ export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 	};
 	const resumeData = useResumeTemplateData();
 	const storeLayout = resumeData.metadata.layout.pages[pageIndex];
-	const themePrimary = resumeData.metadata.theme?.primary || '#f59e0b';
+	const themePrimary = resumeData.metadata.theme?.primary || '#1dff00';
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;

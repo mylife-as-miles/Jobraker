@@ -21,8 +21,8 @@ const SelectTrigger = React.forwardRef<
       // Theme surface
       "border border-foreground/15 bg-foreground/10 text-white placeholder:text-foreground/50 backdrop-blur-sm",
       // Hover / focus / open accents
-      "transition-all duration-300 hover:border-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#ffd700]/40 focus:border-[#ffd700]/60",
-      "data-[state=open]:border-[#ffd700]/60 data-[state=open]:ring-2 data-[state=open]:ring-[#ffd700]/30",
+      "transition-all duration-300 hover:border-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#1dff00]/40 focus:border-[#1dff00]/60",
+      "data-[state=open]:border-[#1dff00]/60 data-[state=open]:ring-2 data-[state=open]:ring-[#1dff00]/30",
       // Disabled
       "disabled:cursor-not-allowed disabled:opacity-50",
       className
@@ -81,12 +81,12 @@ const SelectContent = React.forwardRef<
       className={cn(
         // Container and surface
         "z-50 max-h-96 min-w-[8rem] overflow-y-auto rounded-xl border bg-background/80 text-white backdrop-blur-md",
-        "border-foreground/15 shadow-[0_10px_30px_-10px_rgba(255,215,0,0.25)]",
+        "border-foreground/15 shadow-[0_10px_30px_-10px_rgba(29,255,0,0.25)]",
         // Animations
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
         // Ring accent when open
-        "data-[state=open]:ring-1 data-[state=open]:ring-[#ffd700]/25",
+        "data-[state=open]:ring-1 data-[state=open]:ring-[#1dff00]/25",
         position === "popper" &&
           "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
         className
@@ -145,7 +145,7 @@ const SelectItem = React.forwardRef<
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <Check className="h-4 w-4 text-[#ffd700]" />
+        <Check className="h-4 w-4 text-[#1dff00]" />
       </SelectPrimitive.ItemIndicator>
     </span>
 

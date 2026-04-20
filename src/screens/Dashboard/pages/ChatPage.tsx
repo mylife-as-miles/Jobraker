@@ -1,7 +1,7 @@
 // Clean AI-elements only Chat Page implementation
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { nanoid } from "nanoid";
-import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
+import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/light";
 import atomOneDarkStyle from "react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark";
 import js from "react-syntax-highlighter/dist/esm/languages/hljs/javascript";
 import ts from "react-syntax-highlighter/dist/esm/languages/hljs/typescript";
@@ -1104,7 +1104,7 @@ export const ChatPage = () => {
                                 e.stopPropagation();
                                 deleteSession(s.id);
                               }}
-                              className='p-1 hover:text-red-400 text-foreground/60 rounded'
+                              className='p-1 hover:text-[#1dff00] text-foreground/60 rounded'
                             >
                               <Trash2 size={12} />
                             </button>
@@ -1285,8 +1285,8 @@ export const ChatPage = () => {
                                           tc.status === "running"
                                             ? "bg-brand animate-pulse"
                                             : tc.status === "error"
-                                              ? "bg-red-400"
-                                              : "bg-amber-400"
+                                              ? "bg-[#1dff00]"
+                                              : "bg-[#1dff00]"
                                         }`}
                                       />
                                       <span className='text-muted-foreground'>
@@ -1613,7 +1613,7 @@ export const ChatPage = () => {
                               if (fileInputRef.current)
                                 fileInputRef.current.value = "";
                             }}
-                            className='ml-1 hover:text-red-500'
+                            className='ml-1 hover:text-[#1dff00]'
                           >
                             <X size={12} />
                           </button>

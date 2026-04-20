@@ -50,10 +50,10 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
       {section.items.map((item) => (
         <div
           key={item.id}
-          className='product-section-card-muted overflow-hidden rounded-lg transition-all hover:border-[#ffd700]/60'
+          className='product-section-card-muted overflow-hidden rounded-lg transition-all hover:border-[#1dff00]/60'
         >
           <div
-            className='product-section-card flex cursor-pointer items-center gap-3 p-3 hover:bg-[#fff2b3]'
+            className='product-section-card flex cursor-pointer items-center gap-3 p-3 hover:bg-[#1dff00]/15'
             onClick={() =>
               setExpandedItem(expandedItem === item.id ? null : item.id)
             }
@@ -74,7 +74,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
               <Button
                 variant='ghost'
                 size='icon'
-                className='product-helper-text h-7 w-7 hover:bg-red-500/10 hover:text-red-500'
+                className='product-helper-text h-7 w-7 hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
                 onClick={(e) => {
                   e.stopPropagation();
                   removeSectionItem(sectionId, item.id);
@@ -217,7 +217,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
 
       <Button
         variant='outline'
-        className='product-outline-button w-full border-dashed hover:border-[#ffd700] hover:text-[#ffd700]'
+        className='product-outline-button w-full border-dashed hover:border-[#1dff00] hover:text-[#1dff00]'
         onClick={handleAddItem}
       >
         <Plus className='w-4 h-4 mr-2' />

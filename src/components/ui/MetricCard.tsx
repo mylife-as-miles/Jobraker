@@ -41,9 +41,9 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   const getTrendColor = (trend?: string) => {
     switch (trend) {
       case 'up':
-        return 'text-amber-400';
+        return 'text-[#1dff00]';
       case 'down':
-        return 'text-red-400';
+        return 'text-[#1dff00]';
       default:
         return 'text-foreground/60';
     }
@@ -82,7 +82,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 {icon && (
-                  <div className="w-8 h-8 rounded-lg bg-[#ffd700]/20 flex items-center justify-center text-[#ffd700]">
+                  <div className="w-8 h-8 rounded-lg bg-[#1dff00]/20 flex items-center justify-center text-[#1dff00]">
                     {icon}
                   </div>
                 )}
@@ -96,7 +96,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.3 }}
                   className={cn(
-                    "font-bold text-[#ffd700] tracking-tight",
+                    "font-bold text-[#1dff00] tracking-tight",
                     valueSizeClasses[size]
                   )}
                 >

@@ -1,9 +1,9 @@
 import React from "react";
 
 export function getMatchScoreClasses(score: number) {
-  if (score >= 90) return "text-green-400 bg-green-400/20 border-green-400/30";
-  if (score >= 75) return "text-yellow-400 bg-yellow-400/20 border-yellow-400/30";
-  return "text-red-400 bg-red-400/20 border-red-400/30";
+  if (score >= 90) return "text-[#1dff00] bg-[#1dff00]/20 border-[#1dff00]/30";
+  if (score >= 75) return "text-[#1dff00] bg-[#1dff00]/20 border-[#1dff00]/30";
+  return "text-[#1dff00] bg-[#1dff00]/20 border-[#1dff00]/30";
 }
 
 export default function MatchScoreBadge({

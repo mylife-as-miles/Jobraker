@@ -407,7 +407,7 @@ export default function AdminSubscriptions() {
     switch (name.toLowerCase()) {
       case 'ultimate': return <Crown className="w-5 h-5 text-purple-400" />;
       case 'pro': return <Zap className="w-5 h-5 text-blue-400" />;
-      case 'basics': return <Star className="w-5 h-5 text-yellow-400" />;
+      case 'basics': return <Star className="w-5 h-5 text-[#1dff00]" />;
       default: return <User className="w-5 h-5 text-gray-400" />;
     }
   };
@@ -415,8 +415,8 @@ export default function AdminSubscriptions() {
   const getTierGradient = (name: string) => {
     switch (name.toLowerCase()) {
       case 'ultimate': return 'from-purple-500/20 to-pink-500/20 border-purple-500/30';
-      case 'pro': return 'from-blue-500/20 to-amber-500/20 border-blue-500/30';
-      case 'basics': return 'from-yellow-500/20 to-orange-500/20 border-yellow-500/30';
+      case 'pro': return 'from-blue-500/20 to-[#1dff00]/20 border-blue-500/30';
+      case 'basics': return 'from-[#1dff00]/20 to-[#1dff00]/20 border-[#1dff00]/30';
       default: return 'from-gray-500/20 to-gray-600/20 border-gray-500/30';
     }
   };
@@ -425,7 +425,7 @@ export default function AdminSubscriptions() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-[#ffd700] animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-[#1dff00] animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Loading subscription plans...</p>
         </div>
       </div>
@@ -447,7 +447,7 @@ export default function AdminSubscriptions() {
             resetForm();
             setIsCreateDialogOpen(true);
           }}
-          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#fbbf24] to-background text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-[#ffd700]/20 transition-all"
+          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#1dff00] to-background text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all"
         >
           <Plus className="w-5 h-5" />
           Create Plan
@@ -456,12 +456,12 @@ export default function AdminSubscriptions() {
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-400">Total Plans</p>
-              <div className="w-10 h-10 rounded-lg bg-[#ffd700]/20 flex items-center justify-center">
-                <Crown className="w-5 h-5 text-[#ffd700]" />
+              <div className="w-10 h-10 rounded-lg bg-[#1dff00]/20 flex items-center justify-center">
+                <Crown className="w-5 h-5 text-[#1dff00]" />
               </div>
             </div>
             <p className="text-3xl font-bold text-white">{plans.length}</p>
@@ -469,7 +469,7 @@ export default function AdminSubscriptions() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-400">Avg. Price</p>
@@ -484,7 +484,7 @@ export default function AdminSubscriptions() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-400">Avg. Credits</p>
@@ -499,12 +499,12 @@ export default function AdminSubscriptions() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-400">Total Subscribers</p>
-              <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                <Users className="w-5 h-5 text-amber-400" />
+              <div className="w-10 h-10 rounded-lg bg-[#1dff00]/20 flex items-center justify-center">
+                <Users className="w-5 h-5 text-[#1dff00]" />
               </div>
             </div>
             <p className="text-3xl font-bold text-white">
@@ -514,7 +514,7 @@ export default function AdminSubscriptions() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-400">MRR</p>
@@ -542,7 +542,7 @@ export default function AdminSubscriptions() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className={`group relative overflow-hidden bg-gradient-to-br ${getTierGradient(plan.name)} border transition-all hover:shadow-xl hover:shadow-[#ffd700]/10 hover:-translate-y-1`}>
+            <Card className={`group relative overflow-hidden bg-gradient-to-br ${getTierGradient(plan.name)} border transition-all hover:shadow-xl hover:shadow-[#1dff00]/10 hover:-translate-y-1`}>
               <CardContent className="p-6">
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
@@ -556,7 +556,7 @@ export default function AdminSubscriptions() {
                     </div>
                   </div>
                   {!plan.is_active && (
-                    <span className="px-2 py-1 text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg">
+                    <span className="px-2 py-1 text-xs font-medium bg-[#1dff00]/20 text-[#1dff00] border border-[#1dff00]/30 rounded-lg">
                       Inactive
                     </span>
                   )}
@@ -573,7 +573,7 @@ export default function AdminSubscriptions() {
 
                 {/* Credits */}
                 <div className="flex items-center gap-2 p-3 bg-background/30 rounded-lg mb-4">
-                  <Zap className="w-4 h-4 text-[#ffd700]" />
+                  <Zap className="w-4 h-4 text-[#1dff00]" />
                   <span className="text-sm text-white font-medium">{plan.credits_per_month} credits</span>
                   <span className="text-xs text-gray-500">per cycle</span>
                 </div>
@@ -582,7 +582,7 @@ export default function AdminSubscriptions() {
                 <div className="space-y-2 mb-4">
                   {plan.features?.slice(0, 3).map((feature, idx) => (
                     <div key={idx} className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-[#ffd700] mt-0.5 flex-shrink-0" />
+                      <Check className="w-4 h-4 text-[#1dff00] mt-0.5 flex-shrink-0" />
                       <span className="text-sm text-gray-300 line-clamp-1">{feature}</span>
                     </div>
                   ))}
@@ -621,7 +621,7 @@ export default function AdminSubscriptions() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleDuplicate(plan)}
-                    className="p-2 bg-[#ffd700]/20 hover:bg-[#ffd700]/30 text-[#ffd700] rounded-lg transition-colors flex items-center justify-center"
+                    className="p-2 bg-[#1dff00]/20 hover:bg-[#1dff00]/30 text-[#1dff00] rounded-lg transition-colors flex items-center justify-center"
                     title="Duplicate"
                   >
                     <Copy className="w-4 h-4" />
@@ -630,7 +630,7 @@ export default function AdminSubscriptions() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => openDeleteDialog(plan)}
-                    className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors flex items-center justify-center"
+                    className="p-2 bg-[#1dff00]/20 hover:bg-[#1dff00]/30 text-[#1dff00] rounded-lg transition-colors flex items-center justify-center"
                     title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -653,7 +653,7 @@ export default function AdminSubscriptions() {
               resetForm();
               setIsCreateDialogOpen(true);
             }}
-            className="px-6 py-3 bg-gradient-to-r from-[#fbbf24] to-background text-black font-semibold rounded-xl"
+            className="px-6 py-3 bg-gradient-to-r from-[#1dff00] to-background text-black font-semibold rounded-xl"
           >
             Create Your First Plan
           </motion.button>
@@ -671,7 +671,7 @@ export default function AdminSubscriptions() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => { fetchSubscribers(); fetchPlans(); }}
-            className="p-2.5 rounded-xl border border-[#ffd700]/30 text-[#ffd700] hover:bg-[#ffd700]/10 transition-all"
+            className="p-2.5 rounded-xl border border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10 transition-all"
             title="Refresh"
           >
             <RefreshCw className="w-5 h-5" />
@@ -679,7 +679,7 @@ export default function AdminSubscriptions() {
         </div>
 
         {/* Subscriber Filters */}
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="relative">
@@ -689,7 +689,7 @@ export default function AdminSubscriptions() {
                   placeholder="Search subscribers..."
                   value={subscriberSearch}
                   onChange={(e) => setSubscriberSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-[#ffd700] focus:outline-none transition-colors"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
                 />
               </div>
               <div className="relative">
@@ -697,7 +697,7 @@ export default function AdminSubscriptions() {
                 <select
                   value={subscriberPlanFilter}
                   onChange={(e) => setSubscriberPlanFilter(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white appearance-none focus:border-[#ffd700] focus:outline-none transition-colors cursor-pointer"
+                  className="w-full pl-10 pr-10 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white appearance-none focus:border-[#1dff00] focus:outline-none transition-colors cursor-pointer"
                 >
                   <option value="all">All Plans</option>
                   {plans.map(p => (
@@ -715,15 +715,15 @@ export default function AdminSubscriptions() {
         </Card>
 
         {/* Subscribers Table */}
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20 overflow-hidden">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 overflow-hidden">
           {loadingSubscribers ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 text-[#ffd700] animate-spin" />
+              <Loader2 className="w-8 h-8 text-[#1dff00] animate-spin" />
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-800/50 border-b border-[#ffd700]/20">
+                <thead className="bg-gray-800/50 border-b border-[#1dff00]/20">
                   <tr>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">
                       <div className="flex items-center gap-2"><Mail className="w-4 h-4" /> User</div>
@@ -762,10 +762,10 @@ export default function AdminSubscriptions() {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex px-3 py-1 rounded-lg border text-sm font-medium ${sub.status === 'active'
-                          ? 'bg-[#ffd700]/20 text-[#ffd700] border-[#ffd700]/30'
+                          ? 'bg-[#1dff00]/20 text-[#1dff00] border-[#1dff00]/30'
                           : sub.status === 'canceled'
-                            ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                            : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                            ? 'bg-[#1dff00]/20 text-[#1dff00] border-[#1dff00]/30'
+                            : 'bg-[#1dff00]/20 text-[#1dff00] border-[#1dff00]/30'
                           }`}>
                           {sub.status}
                         </span>
@@ -899,25 +899,25 @@ function ViewPlanDialog({
         className="relative max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden rounded-3xl"
       >
         {/* Animated gradient border glow */}
-        <div className="absolute -inset-1 bg-gradient-to-r from-[#fbbf24]/20 via-amber-500/20 to-purple-500/20 rounded-3xl blur-2xl animate-pulse" />
+        <div className="absolute -inset-1 bg-gradient-to-r from-[#1dff00]/20 via-[#1dff00]/20 to-purple-500/20 rounded-3xl blur-2xl animate-pulse" />
 
-        <div className="relative bg-gradient-to-br from-background/95 via-[#111111]/95 to-background/95 backdrop-blur-xl border border-[#ffd700]/20 rounded-3xl overflow-y-auto max-h-[90vh] shadow-2xl">
+        <div className="relative bg-gradient-to-br from-background/95 via-[#111111]/95 to-background/95 backdrop-blur-xl border border-[#1dff00]/20 rounded-3xl overflow-y-auto max-h-[90vh] shadow-2xl">
           {/* Sticky Header with glass effect */}
-          <div className="sticky top-0 z-10 bg-gradient-to-br from-background/98 via-[#111111]/98 to-background/98 backdrop-blur-xl border-b border-[#ffd700]/20 p-6">
+          <div className="sticky top-0 z-10 bg-gradient-to-br from-background/98 via-[#111111]/98 to-background/98 backdrop-blur-xl border-b border-[#1dff00]/20 p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
-                  className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#fbbf24]/20 to-amber-500/20 flex items-center justify-center backdrop-blur-sm border border-[#ffd700]/30 shadow-lg shadow-[#ffd700]/20"
+                  className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/20 flex items-center justify-center backdrop-blur-sm border border-[#1dff00]/30 shadow-lg shadow-[#1dff00]/20"
                 >
-                  <Crown className="w-7 h-7 text-[#ffd700]" />
+                  <Crown className="w-7 h-7 text-[#1dff00]" />
                 </motion.div>
                 <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-white via-[#ffd700] to-amber-300 bg-clip-text text-transparent">
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-white via-[#1dff00] to-[#1dff00] bg-clip-text text-transparent">
                     {plan.name}
                   </h2>
                   <p className="text-sm text-gray-400 flex items-center gap-2 mt-1">
-                    <Sparkles className="w-3 h-3 text-[#ffd700]" />
+                    <Sparkles className="w-3 h-3 text-[#1dff00]" />
                     Complete plan details and configuration
                   </p>
                 </div>
@@ -926,9 +926,9 @@ function ViewPlanDialog({
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
-                className="p-2.5 hover:bg-foreground/5 rounded-xl transition-all duration-200 border border-transparent hover:border-[#ffd700]/30 group"
+                className="p-2.5 hover:bg-foreground/5 rounded-xl transition-all duration-200 border border-transparent hover:border-[#1dff00]/30 group"
               >
-                <X className="w-5 h-5 group-hover:text-[#ffd700] transition-colors" />
+                <X className="w-5 h-5 group-hover:text-[#1dff00] transition-colors" />
               </motion.button>
             </div>
           </div>
@@ -950,14 +950,14 @@ function ViewPlanDialog({
               </motion.div>
               <motion.div
                 whileHover={{ scale: 1.02, y: -2 }}
-                className="p-5 bg-gradient-to-br from-black/40 to-[#b45309]/10 rounded-2xl border border-[#ffd700]/30 backdrop-blur-sm relative overflow-hidden group"
+                className="p-5 bg-gradient-to-br from-black/40 to-[#1dff00]/10 rounded-2xl border border-[#1dff00]/30 backdrop-blur-sm relative overflow-hidden group"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#ffd700]/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#1dff00]/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                 <p className="text-sm text-gray-400 mb-1 flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-[#ffd700]" />
+                  <Zap className="w-4 h-4 text-[#1dff00]" />
                   Credits
                 </p>
-                <p className="text-3xl font-bold text-[#ffd700]">{plan.credits_per_month}</p>
+                <p className="text-3xl font-bold text-[#1dff00]">{plan.credits_per_month}</p>
                 <p className="text-xs text-gray-500 mt-1">per cycle</p>
               </motion.div>
             </div>
@@ -974,7 +974,7 @@ function ViewPlanDialog({
             {/* Features with enhanced styling */}
             <div>
               <h4 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#ffd700]" />
+                <Sparkles className="w-4 h-4 text-[#1dff00]" />
                 Features Included
               </h4>
               <div className="grid grid-cols-1 gap-3">
@@ -985,10 +985,10 @@ function ViewPlanDialog({
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: idx * 0.05 }}
                     whileHover={{ scale: 1.02, x: 4 }}
-                    className="flex items-start gap-3 p-3 bg-gradient-to-r from-black/40 to-[#b45309]/5 rounded-xl border border-[#ffd700]/20 backdrop-blur-sm group"
+                    className="flex items-start gap-3 p-3 bg-gradient-to-r from-black/40 to-[#1dff00]/5 rounded-xl border border-[#1dff00]/20 backdrop-blur-sm group"
                   >
-                    <div className="w-5 h-5 rounded-full bg-[#ffd700]/20 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
-                      <Check className="w-3 h-3 text-[#ffd700]" />
+                    <div className="w-5 h-5 rounded-full bg-[#1dff00]/20 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
+                      <Check className="w-3 h-3 text-[#1dff00]" />
                     </div>
                     <span className="text-sm text-gray-200">{feature}</span>
                   </motion.div>
@@ -1000,17 +1000,17 @@ function ViewPlanDialog({
             {(plan.max_resumes || plan.max_cover_letters) && (
               <div>
                 <h4 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-amber-400" />
+                  <TrendingUp className="w-4 h-4 text-[#1dff00]" />
                   Usage Limits
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
                   {plan.max_resumes && (
                     <motion.div
                       whileHover={{ scale: 1.05 }}
-                      className="p-4 bg-gradient-to-br from-black/40 to-amber-950/20 rounded-xl border border-amber-500/30 backdrop-blur-sm"
+                      className="p-4 bg-gradient-to-br from-black/40 to-[#1dff00]/20 rounded-xl border border-[#1dff00]/30 backdrop-blur-sm"
                     >
                       <p className="text-xs text-gray-400 mb-2">Max Resumes</p>
-                      <p className="text-2xl font-bold text-amber-400">{plan.max_resumes}</p>
+                      <p className="text-2xl font-bold text-[#1dff00]">{plan.max_resumes}</p>
                     </motion.div>
                   )}
                   {plan.max_cover_letters && (
@@ -1036,14 +1036,14 @@ function ViewPlanDialog({
                       <motion.div
                         animate={{ scale: [1, 1.2, 1] }}
                         transition={{ repeat: Infinity, duration: 2 }}
-                        className="w-2.5 h-2.5 rounded-full bg-[#ffd700] shadow-lg shadow-[#ffd700]/50"
+                        className="w-2.5 h-2.5 rounded-full bg-[#1dff00] shadow-lg shadow-[#1dff00]/50"
                       />
-                      <span className="text-sm text-[#ffd700] font-semibold">Active</span>
+                      <span className="text-sm text-[#1dff00] font-semibold">Active</span>
                     </>
                   ) : (
                     <>
-                      <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                      <span className="text-sm text-red-400 font-semibold">Inactive</span>
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#1dff00]/100" />
+                      <span className="text-sm text-[#1dff00] font-semibold">Inactive</span>
                     </>
                   )}
                 </div>
@@ -1137,7 +1137,7 @@ function PlanFormDialog({
         className="relative max-w-3xl w-full mx-4 max-h-[90vh] overflow-hidden rounded-3xl"
       >
         {/* Animated gradient border glow */}
-        <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/30 via-[#ffd700]/30 to-purple-500/30 rounded-3xl blur-2xl animate-pulse" />
+        <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/30 via-[#1dff00]/30 to-purple-500/30 rounded-3xl blur-2xl animate-pulse" />
 
         <div className="relative bg-gradient-to-br from-background/95 via-[#111111]/95 to-background/95 backdrop-blur-xl border border-blue-500/20 rounded-3xl overflow-y-auto max-h-[90vh] shadow-2xl">
           {/* Enhanced Sticky Header */}
@@ -1147,12 +1147,12 @@ function PlanFormDialog({
                 <motion.div
                   whileHover={{ rotate: 360 }}
                   transition={{ duration: 0.5 }}
-                  className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-[#b45309]/20 flex items-center justify-center backdrop-blur-sm border border-blue-500/30 shadow-lg shadow-blue-500/20"
+                  className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-[#1dff00]/20 flex items-center justify-center backdrop-blur-sm border border-blue-500/30 shadow-lg shadow-blue-500/20"
                 >
-                  {isEdit ? <Edit className="w-7 h-7 text-blue-400" /> : <Plus className="w-7 h-7 text-[#ffd700]" />}
+                  {isEdit ? <Edit className="w-7 h-7 text-blue-400" /> : <Plus className="w-7 h-7 text-[#1dff00]" />}
                 </motion.div>
                 <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-white via-blue-200 to-[#b45309] bg-clip-text text-transparent">
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-white via-blue-200 to-[#1dff00] bg-clip-text text-transparent">
                     {isEdit ? 'Edit Subscription Plan' : 'Create New Plan'}
                   </h2>
                   <p className="text-sm text-gray-400 flex items-center gap-2 mt-1">
@@ -1181,7 +1181,7 @@ function PlanFormDialog({
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#ffd700] focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
                   placeholder="e.g., Pro, Ultimate"
                 />
               </div>
@@ -1190,7 +1190,7 @@ function PlanFormDialog({
                 <select
                   value={formData.billing_cycle}
                   onChange={(e) => setFormData({ ...formData, billing_cycle: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-[#ffd700] focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-[#1dff00] focus:outline-none transition-colors"
                 >
                   <option value="monthly">Monthly</option>
                   <option value="yearly">Yearly</option>
@@ -1206,7 +1206,7 @@ function PlanFormDialog({
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#ffd700] focus:outline-none transition-colors resize-none"
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors resize-none"
                 placeholder="Brief description of the plan..."
               />
             </div>
@@ -1219,7 +1219,7 @@ function PlanFormDialog({
                   type="number"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#ffd700] focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
                   placeholder="0.00"
                   step="0.01"
                   min="0"
@@ -1231,7 +1231,7 @@ function PlanFormDialog({
                   type="number"
                   value={formData.credits_per_month}
                   onChange={(e) => setFormData({ ...formData, credits_per_month: parseInt(e.target.value) })}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#ffd700] focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
                   placeholder="0"
                   min="0"
                 />
@@ -1246,7 +1246,7 @@ function PlanFormDialog({
                   type="number"
                   value={formData.max_resumes || ''}
                   onChange={(e) => setFormData({ ...formData, max_resumes: e.target.value ? parseInt(e.target.value) : undefined })}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#ffd700] focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
                   placeholder="Unlimited"
                   min="0"
                 />
@@ -1257,7 +1257,7 @@ function PlanFormDialog({
                   type="number"
                   value={formData.max_cover_letters || ''}
                   onChange={(e) => setFormData({ ...formData, max_cover_letters: e.target.value ? parseInt(e.target.value) : undefined })}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#ffd700] focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
                   placeholder="Unlimited"
                   min="0"
                 />
@@ -1273,14 +1273,14 @@ function PlanFormDialog({
                   value={featureInput}
                   onChange={(e) => setFeatureInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())}
-                  className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#ffd700] focus:outline-none transition-colors"
+                  className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
                   placeholder="Add a feature..."
                 />
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={addFeature}
-                  className="px-6 py-3 bg-[#ffd700]/20 text-[#ffd700] border border-[#ffd700]/30 rounded-lg font-medium hover:bg-[#ffd700]/30 transition-colors"
+                  className="px-6 py-3 bg-[#1dff00]/20 text-[#1dff00] border border-[#1dff00]/30 rounded-lg font-medium hover:bg-[#1dff00]/30 transition-colors"
                 >
                   Add
                 </motion.button>
@@ -1289,14 +1289,14 @@ function PlanFormDialog({
                 {formData.features?.map((feature, idx) => (
                   <div key={idx} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg group">
                     <div className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-[#ffd700]" />
+                      <Check className="w-4 h-4 text-[#1dff00]" />
                       <span className="text-sm text-white">{feature}</span>
                     </div>
                     <button
                       onClick={() => removeFeature(idx)}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[#1dff00]/20 rounded transition-all"
                     >
-                      <X className="w-4 h-4 text-red-400" />
+                      <X className="w-4 h-4 text-[#1dff00]" />
                     </button>
                   </div>
                 ))}
@@ -1310,7 +1310,7 @@ function PlanFormDialog({
                 id="is_active"
                 checked={formData.is_active}
                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                className="w-5 h-5 rounded border-gray-700 bg-gray-800 text-[#ffd700] focus:ring-[#ffd700] focus:ring-offset-0"
+                className="w-5 h-5 rounded border-gray-700 bg-gray-800 text-[#1dff00] focus:ring-[#1dff00] focus:ring-offset-0"
               />
               <label htmlFor="is_active" className="text-sm font-medium text-gray-300 cursor-pointer">
                 Plan is active and available for subscription
@@ -1331,7 +1331,7 @@ function PlanFormDialog({
                 whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(29, 255, 0, 0.3)" }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onSave}
-                className="flex-1 px-8 py-3.5 bg-gradient-to-r from-[#fbbf24] to-background text-black rounded-xl font-bold hover:shadow-2xl hover:shadow-[#ffd700]/30 transition-all duration-200 border border-[#ffd700]/50"
+                className="flex-1 px-8 py-3.5 bg-gradient-to-r from-[#1dff00] to-background text-black rounded-xl font-bold hover:shadow-2xl hover:shadow-[#1dff00]/30 transition-all duration-200 border border-[#1dff00]/50"
               >
                 {isEdit ? 'Save Changes' : 'Create Plan'}
               </motion.button>
@@ -1368,7 +1368,7 @@ function DeleteConfirmDialog({
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="absolute inset-0 bg-gradient-to-br from-black/90 via-red-900/10 to-black/90 backdrop-blur-md"
+        className="absolute inset-0 bg-gradient-to-br from-black/90 via-[#1dff00]/10 to-black/90 backdrop-blur-md"
         onClick={onClose}
       />
 
@@ -1380,21 +1380,21 @@ function DeleteConfirmDialog({
         className="relative max-w-md w-full mx-4 overflow-hidden rounded-3xl"
       >
         {/* Pulsing red border glow */}
-        <div className="absolute -inset-1 bg-gradient-to-r from-red-500/40 via-orange-500/40 to-red-500/40 rounded-3xl blur-2xl animate-pulse" />
+        <div className="absolute -inset-1 bg-gradient-to-r from-[#1dff00]/40 via-[#1dff00]/40 to-[#1dff00]/40 rounded-3xl blur-2xl animate-pulse" />
 
-        <div className="relative bg-gradient-to-br from-background/95 via-[#1a0a0a]/95 to-background/95 backdrop-blur-xl border border-red-500/30 rounded-3xl shadow-2xl">
+        <div className="relative bg-gradient-to-br from-background/95 via-[#1a0a0a]/95 to-background/95 backdrop-blur-xl border border-[#1dff00]/30 rounded-3xl shadow-2xl">
           <div className="p-8">
             {/* Warning Header */}
             <div className="flex items-center gap-4 mb-6">
               <motion.div
                 animate={{ scale: [1, 1.1, 1] }}
                 transition={{ repeat: Infinity, duration: 2 }}
-                className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center backdrop-blur-sm border border-red-500/30 shadow-lg shadow-red-500/20"
+                className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/20 flex items-center justify-center backdrop-blur-sm border border-[#1dff00]/30 shadow-lg shadow-[#1dff00]/20"
               >
-                <Trash2 className="w-8 h-8 text-red-400" />
+                <Trash2 className="w-8 h-8 text-[#1dff00]" />
               </motion.div>
               <div>
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-[#1dff00] to-[#1dff00] bg-clip-text text-transparent">
                   Delete Plan?
                 </h2>
                 <p className="text-gray-400 text-sm mt-1">
@@ -1408,11 +1408,11 @@ function DeleteConfirmDialog({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="p-5 bg-gradient-to-br from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-2xl mb-6 backdrop-blur-sm"
+              className="p-5 bg-gradient-to-br from-[#1dff00]/10 to-[#1dff00]/10 border border-[#1dff00]/30 rounded-2xl mb-6 backdrop-blur-sm"
             >
               <p className="text-sm text-white mb-3 flex items-center gap-2">
-                <Crown className="w-4 h-4 text-red-400" />
-                Deleting: <span className="font-bold text-red-300">{plan.name}</span>
+                <Crown className="w-4 h-4 text-[#1dff00]" />
+                Deleting: <span className="font-bold text-[#1dff00]">{plan.name}</span>
               </p>
               <p className="text-xs text-gray-300 leading-relaxed">
                 All users subscribed to this plan will need to be migrated to another plan. This will affect billing and access.
@@ -1430,10 +1430,10 @@ function DeleteConfirmDialog({
                 Cancel
               </motion.button>
               <motion.button
-                whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(239, 68, 68, 0.4)" }}
+                whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(29, 255, 0, 0.4)" }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onConfirm}
-                className="flex-1 px-6 py-3.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-bold hover:shadow-2xl hover:shadow-red-500/30 transition-all duration-200 border border-red-500/50"
+                className="flex-1 px-6 py-3.5 bg-gradient-to-r from-[#1dff00] to-[#1dff00] hover:from-[#1dff00] hover:to-[#1dff00] text-white rounded-xl font-bold hover:shadow-2xl hover:shadow-[#1dff00]/30 transition-all duration-200 border border-[#1dff00]/50"
               >
                 Delete Plan
               </motion.button>
@@ -1449,8 +1449,8 @@ function DeleteConfirmDialog({
 function getPlanBadgeClass(name: string) {
   switch (name) {
     case 'Ultimate': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-    case 'Pro': return 'bg-[#ffd700]/20 text-[#ffd700] border-[#ffd700]/30';
-    case 'Basics': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+    case 'Pro': return 'bg-[#1dff00]/20 text-[#1dff00] border-[#1dff00]/30';
+    case 'Basics': return 'bg-[#1dff00]/20 text-[#1dff00] border-[#1dff00]/30';
     default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
   }
 }
@@ -1459,7 +1459,7 @@ function getPlanBadgeIcon(name: string) {
   switch (name) {
     case 'Ultimate': return <Crown className="w-4 h-4 text-purple-400" />;
     case 'Pro': return <Zap className="w-4 h-4 text-blue-400" />;
-    case 'Basics': return <Star className="w-4 h-4 text-yellow-400" />;
+    case 'Basics': return <Star className="w-4 h-4 text-[#1dff00]" />;
     default: return <User className="w-4 h-4 text-gray-400" />;
   }
 }
@@ -1484,15 +1484,15 @@ function SubscriberRowActions({ onChangePlan, onCancel, isActive }: { onChangePl
               initial={{ opacity: 0, scale: 0.95, y: -5 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -5 }}
-              className="absolute right-0 top-full mt-1 w-48 bg-background border border-[#ffd700]/20 rounded-xl shadow-2xl z-50 overflow-hidden"
+              className="absolute right-0 top-full mt-1 w-48 bg-background border border-[#1dff00]/20 rounded-xl shadow-2xl z-50 overflow-hidden"
             >
               <button onClick={() => { setOpen(false); onChangePlan(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
-                <ArrowRightLeft className="w-4 h-4 text-yellow-400" /> Change Plan
+                <ArrowRightLeft className="w-4 h-4 text-[#1dff00]" /> Change Plan
               </button>
               {isActive && (
                 <>
                   <div className="border-t border-gray-700/50" />
-                  <button onClick={() => { setOpen(false); onCancel(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all">
+                  <button onClick={() => { setOpen(false); onCancel(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#1dff00] hover:text-[#1dff00] hover:bg-[#1dff00]/10 transition-all">
                     <Ban className="w-4 h-4" /> Cancel Subscription
                   </button>
                 </>
@@ -1529,7 +1529,7 @@ function SubscriberChangePlanDialog({
 
   const planIcons: Record<string, React.ReactNode> = {
     'Free': <User className="w-5 h-5 text-gray-400" />,
-    'Basics': <Star className="w-5 h-5 text-yellow-400" />,
+    'Basics': <Star className="w-5 h-5 text-[#1dff00]" />,
     'Pro': <Zap className="w-5 h-5 text-blue-400" />,
     'Ultimate': <Crown className="w-5 h-5 text-purple-400" />,
   };
@@ -1548,12 +1548,12 @@ function SubscriberChangePlanDialog({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-gradient-to-br from-background via-[#111111] to-background border border-yellow-500/30 rounded-2xl w-full max-w-md shadow-2xl shadow-yellow-500/10"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#1dff00]/30 rounded-2xl w-full max-w-md shadow-2xl shadow-[#1dff00]/10"
         >
-          <div className="px-6 pt-6 pb-4 border-b border-yellow-500/20">
+          <div className="px-6 pt-6 pb-4 border-b border-[#1dff00]/20">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-                <ArrowRightLeft className="w-5 h-5 text-yellow-400" />
+              <div className="w-10 h-10 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">
+                <ArrowRightLeft className="w-5 h-5 text-[#1dff00]" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-white">Change Plan</h3>
@@ -1561,7 +1561,7 @@ function SubscriberChangePlanDialog({
               </div>
             </div>
             <p className="text-sm text-gray-400">
-              Current: <span className="text-yellow-400 font-semibold">{subscriber.plan_name}</span>
+              Current: <span className="text-[#1dff00] font-semibold">{subscriber.plan_name}</span>
             </p>
           </div>
 
@@ -1574,11 +1574,11 @@ function SubscriberChangePlanDialog({
                 whileTap={{ scale: 0.99 }}
                 onClick={() => setSelectedPlanId(plan.id)}
                 className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl border transition-all ${selectedPlanId === plan.id
-                  ? 'bg-[#ffd700]/10 border-[#ffd700] shadow-lg shadow-[#ffd700]/10'
+                  ? 'bg-[#1dff00]/10 border-[#1dff00] shadow-lg shadow-[#1dff00]/10'
                   : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
                   }`}
               >
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selectedPlanId === plan.id ? 'bg-[#ffd700]/20' : 'bg-gray-700/50'
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selectedPlanId === plan.id ? 'bg-[#1dff00]/20' : 'bg-gray-700/50'
                   }`}>
                   {planIcons[plan.name] || <Star className="w-5 h-5 text-gray-400" />}
                 </div>
@@ -1587,7 +1587,7 @@ function SubscriberChangePlanDialog({
                   <p className="text-xs text-gray-400">{plan.credits_per_month} credits/{plan.billing_cycle}</p>
                 </div>
                 <p className="text-white font-bold">${plan.price}</p>
-                {selectedPlanId === plan.id && <CheckCircle2 className="w-5 h-5 text-[#ffd700]" />}
+                {selectedPlanId === plan.id && <CheckCircle2 className="w-5 h-5 text-[#1dff00]" />}
               </motion.button>
             ))}
           </div>
@@ -1604,7 +1604,7 @@ function SubscriberChangePlanDialog({
                 if (plan) onConfirm(subscriber, plan.id, plan.name);
               }}
               disabled={loading || !selectedPlanId}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-[#1dff00] to-[#1dff00] text-black font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightLeft className="w-4 h-4" />}
               Change Plan
@@ -1646,22 +1646,22 @@ function SubscriberCancelDialog({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-gradient-to-br from-background via-[#111111] to-background border border-red-500/30 rounded-2xl w-full max-w-md shadow-2xl shadow-red-500/10"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#1dff00]/30 rounded-2xl w-full max-w-md shadow-2xl shadow-[#1dff00]/10"
         >
-          <div className="px-6 pt-6 pb-4 border-b border-red-500/20">
+          <div className="px-6 pt-6 pb-4 border-b border-[#1dff00]/20">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
-                <AlertTriangle className="w-6 h-6 text-red-400" />
+              <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-[#1dff00]" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-white">Cancel Subscription</h3>
-                <p className="text-sm text-red-400">This will revoke plan access</p>
+                <p className="text-sm text-[#1dff00]">This will revoke plan access</p>
               </div>
             </div>
           </div>
 
           <div className="p-6">
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+            <div className="bg-[#1dff00]/10 border border-[#1dff00]/20 rounded-xl p-4">
               <p className="text-sm text-gray-300">
                 Cancel subscription for <strong className="text-white">{subscriber.email}</strong> on the <strong className="text-white">{subscriber.plan_name}</strong> plan?
               </p>
@@ -1678,7 +1678,7 @@ function SubscriberCancelDialog({
               whileTap={{ scale: 0.98 }}
               onClick={onConfirm}
               disabled={loading}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-[#1dff00] to-[#1dff00] text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
               Cancel Subscription

@@ -65,14 +65,14 @@ const providerCopy: Record<ProviderName, {
     title: 'Firecrawl',
     description: 'Exact balance from the Firecrawl credit usage API.',
     icon: Cloud,
-    accent: 'text-orange-300 bg-orange-500/15 border-orange-400/30',
+    accent: 'text-[#1dff00] bg-[#1dff00]/15 border-[#1dff00]/30',
     note: 'Job search refreshes this from Firecrawl automatically after provider usage.',
   },
   skyvern: {
     title: 'Skyvern',
     description: 'Manual balance reduced by terminal run step counts.',
     icon: Wand2,
-    accent: 'text-sky-300 bg-sky-500/15 border-sky-400/30',
+    accent: 'text-[#2dd4bf] bg-[#2dd4bf]/15 border-[#2dd4bf]/30',
     note: 'Set total and remaining credits here; completed Skyvern run output subtracts step_count once per run.',
   },
 };
@@ -129,7 +129,7 @@ function ProviderCard({
     <motion.div
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-background via-[#101010] to-background border border-[#ffd700]/20 rounded-2xl p-6 shadow-2xl shadow-[#ffd700]/5"
+      className="bg-gradient-to-br from-background via-[#101010] to-background border border-[#1dff00]/20 rounded-2xl p-6 shadow-2xl shadow-[#1dff00]/5"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4">
@@ -143,7 +143,7 @@ function ProviderCard({
         </div>
         <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold ${
           isLow
-            ? 'bg-red-500/15 text-red-300 border-red-400/30'
+            ? 'bg-[#1dff00]/15 text-[#1dff00] border-[#1dff00]/30'
             : 'bg-emerald-500/15 text-emerald-300 border-emerald-400/30'
         }`}>
           {isLow ? <AlertTriangle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -158,11 +158,11 @@ function ProviderCard({
         </div>
         <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
           <p className="text-xs uppercase tracking-wider text-gray-500">Used</p>
-          <p className="mt-2 text-3xl font-bold text-red-300">{formatNumber(used)}</p>
+          <p className="mt-2 text-3xl font-bold text-[#1dff00]">{formatNumber(used)}</p>
         </div>
         <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
           <p className="text-xs uppercase tracking-wider text-gray-500">Total</p>
-          <p className="mt-2 text-3xl font-bold text-[#ffd700]">{formatNumber(total)}</p>
+          <p className="mt-2 text-3xl font-bold text-[#1dff00]">{formatNumber(total)}</p>
         </div>
       </div>
 
@@ -173,7 +173,7 @@ function ProviderCard({
         </div>
         <div className="h-3 rounded-full bg-gray-800 overflow-hidden border border-gray-700">
           <div
-            className={`h-full rounded-full ${isLow ? 'bg-red-400' : 'bg-[#ffd700]'}`}
+            className={`h-full rounded-full ${isLow ? 'bg-[#1dff00]' : 'bg-[#1dff00]'}`}
             style={{ width: `${percentage}%` }}
           />
         </div>
@@ -187,7 +187,7 @@ function ProviderCard({
             min={0}
             value={draft.total_credits}
             onChange={(event) => onDraftChange({ total_credits: event.target.value })}
-            className="w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]"
+            className="w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-[#1dff00]"
           />
         </label>
         <label className="space-y-2">
@@ -197,7 +197,7 @@ function ProviderCard({
             min={0}
             value={draft.remaining_credits}
             onChange={(event) => onDraftChange({ remaining_credits: event.target.value })}
-            className="w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]"
+            className="w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-[#1dff00]"
           />
         </label>
         <label className="space-y-2">
@@ -207,7 +207,7 @@ function ProviderCard({
             min={0}
             value={draft.alert_threshold}
             onChange={(event) => onDraftChange({ alert_threshold: event.target.value })}
-            className="w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]"
+            className="w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-[#1dff00]"
           />
         </label>
         <label className="space-y-2">
@@ -217,7 +217,7 @@ function ProviderCard({
             value={draft.alert_email}
             placeholder="Resend account owner email"
             onChange={(event) => onDraftChange({ alert_email: event.target.value })}
-            className="w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]"
+            className="w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-[#1dff00]"
           />
           <p className="text-xs text-gray-500">
             Resend free/testing mode sends only to the account owner email configured in Supabase secrets.
@@ -231,7 +231,7 @@ function ProviderCard({
             type="checkbox"
             checked={draft.alert_enabled}
             onChange={(event) => onDraftChange({ alert_enabled: event.target.checked })}
-            className="h-4 w-4 rounded border-gray-700 bg-gray-950 accent-[#ffd700]"
+            className="h-4 w-4 rounded border-gray-700 bg-gray-950 accent-[#1dff00]"
           />
           Send Resend email when remaining credits fall below threshold
         </label>
@@ -240,7 +240,7 @@ function ProviderCard({
             <button
               onClick={onRefresh}
               disabled={busy}
-              className="inline-flex items-center gap-2 rounded-xl border border-orange-400/30 bg-orange-500/10 px-4 py-2.5 text-sm font-semibold text-orange-200 hover:bg-orange-500/20 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl border border-[#1dff00]/30 bg-[#1dff00]/10 px-4 py-2.5 text-sm font-semibold text-[#1dff00] hover:bg-[#1dff00]/20 disabled:opacity-60"
             >
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               Refresh from API
@@ -249,7 +249,7 @@ function ProviderCard({
           <button
             onClick={onSave}
             disabled={busy}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#ffd700] px-4 py-2.5 text-sm font-semibold text-black hover:bg-[#fbbf24] disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#1dff00] px-4 py-2.5 text-sm font-semibold text-black hover:bg-[#1dff00] disabled:opacity-60"
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save settings
@@ -257,7 +257,7 @@ function ProviderCard({
         </div>
       </div>
 
-      <div className="mt-5 rounded-xl border border-[#ffd700]/10 bg-[#ffd700]/5 p-4 text-sm text-gray-300">
+      <div className="mt-5 rounded-xl border border-[#1dff00]/10 bg-[#1dff00]/5 p-4 text-sm text-gray-300">
         <p>{copy.note}</p>
         <p className="mt-2 text-xs text-gray-500">
           Last checked: {formatDate(balance.last_checked_at)} · Source: {balance.source || 'unknown'}
@@ -437,7 +437,7 @@ export default function AdminProviderCredits() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-[#ffd700] animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-[#1dff00] animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Loading provider credit monitor...</p>
         </div>
       </div>
@@ -448,7 +448,7 @@ export default function AdminProviderCredits() {
     <div className="space-y-6">
       <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#ffd700]/20 bg-[#ffd700]/10 px-3 py-1 text-xs font-semibold text-[#ffd700] mb-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#1dff00]/20 bg-[#1dff00]/10 px-3 py-1 text-xs font-semibold text-[#1dff00] mb-3">
             <BellRing className="w-3.5 h-3.5" />
             Provider spend guardrails
           </div>
@@ -459,7 +459,7 @@ export default function AdminProviderCredits() {
         </div>
         <button
           onClick={loadData}
-          className="inline-flex items-center gap-2 rounded-xl border border-[#ffd700]/30 px-4 py-2.5 text-sm font-semibold text-[#ffd700] hover:bg-[#ffd700]/10"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#1dff00]/30 px-4 py-2.5 text-sm font-semibold text-[#1dff00] hover:bg-[#1dff00]/10"
         >
           <RefreshCw className="w-4 h-4" />
           Reload
@@ -467,7 +467,7 @@ export default function AdminProviderCredits() {
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-red-200">
+        <div className="rounded-2xl border border-[#1dff00]/30 bg-[#1dff00]/10 p-4 text-[#1dff00]">
           {error}
         </div>
       )}
@@ -495,11 +495,11 @@ export default function AdminProviderCredits() {
       <motion.div
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-background border border-[#ffd700]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#ffd700]/5"
+        className="bg-background border border-[#1dff00]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#1dff00]/5"
       >
-        <div className="p-6 border-b border-[#ffd700]/20 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#ffd700]/10 border border-[#ffd700]/20 flex items-center justify-center">
-            <History className="w-5 h-5 text-[#ffd700]" />
+        <div className="p-6 border-b border-[#1dff00]/20 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#1dff00]/10 border border-[#1dff00]/20 flex items-center justify-center">
+            <History className="w-5 h-5 text-[#1dff00]" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-white">Provider Credit Ledger</h2>
@@ -534,7 +534,7 @@ export default function AdminProviderCredits() {
                       {formatDate(tx.created_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-2 rounded-lg border border-[#ffd700]/20 bg-[#ffd700]/10 px-2.5 py-1 text-xs font-semibold text-[#ffd700]">
+                      <span className="inline-flex items-center gap-2 rounded-lg border border-[#1dff00]/20 bg-[#1dff00]/10 px-2.5 py-1 text-xs font-semibold text-[#1dff00]">
                         <WalletCards className="w-3.5 h-3.5" />
                         {providerCopy[tx.provider]?.title || tx.provider}
                       </span>
@@ -543,7 +543,7 @@ export default function AdminProviderCredits() {
                       {tx.event_type.replace('_', ' ')}
                     </td>
                     <td className={`px-6 py-4 whitespace-nowrap text-right font-mono font-bold ${
-                      tx.amount < 0 ? 'text-red-300' : tx.amount > 0 ? 'text-emerald-300' : 'text-gray-400'
+                      tx.amount < 0 ? 'text-[#1dff00]' : tx.amount > 0 ? 'text-emerald-300' : 'text-gray-400'
                     }`}>
                       {tx.amount > 0 ? '+' : ''}{formatNumber(tx.amount)}
                     </td>

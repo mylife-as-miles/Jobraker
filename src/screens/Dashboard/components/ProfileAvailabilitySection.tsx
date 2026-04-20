@@ -290,7 +290,7 @@ export function ProfileAvailabilitySection({
     >
       <Card
         id="profile-availability"
-        className="product-section-card p-6 sm:p-8 hover:border-[#ffd700]/60 hover:shadow-lg transition-all duration-300 overflow-hidden"
+        className="product-section-card p-6 sm:p-8 hover:border-[#1dff00]/60 hover:shadow-lg transition-all duration-300 overflow-hidden"
       >
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,240px)_1fr] gap-8 lg:gap-10 border-t border-b border-foreground/10 py-8 -mt-2 -mb-2">
           <div className="space-y-4 lg:pr-4">
@@ -299,9 +299,9 @@ export function ProfileAvailabilitySection({
               Set when you are typically available for work.
             </p>
             {missingFields.length > 0 && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2.5 text-sm text-red-400/95">
+              <div className="rounded-lg border border-[#1dff00]/30 bg-[#1dff00]/5 px-3 py-2.5 text-sm text-[#1dff00]/95">
                 <p className="font-medium mb-1">Your availability is incomplete</p>
-                <ul className="list-disc list-inside text-red-400/80 space-y-0.5">
+                <ul className="list-disc list-inside text-[#1dff00]/80 space-y-0.5">
                   {missingFields.map((m) => (
                     <li key={m}>{m}</li>
                   ))}
@@ -317,7 +317,7 @@ export function ProfileAvailabilitySection({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
               <div className="space-y-1.5 sm:col-span-1">
                 <label className="text-sm font-semibold text-foreground">
-                  Availability to start <span className="text-red-400">*</span>
+                  Availability to start <span className="text-[#1dff00]">*</span>
                 </label>
                 <p className="text-xs product-helper-text">How soon you could begin a new role if offered</p>
                 <Select value={availabilityStart || undefined} onValueChange={setAvailabilityStart}>
@@ -336,7 +336,7 @@ export function ProfileAvailabilitySection({
 
               <div className="space-y-1.5 sm:col-span-1">
                 <label className="text-sm font-semibold text-foreground">
-                  Preferred time commitment <span className="text-red-400">*</span>
+                  Preferred time commitment <span className="text-[#1dff00]">*</span>
                 </label>
                 <p className="text-xs product-helper-text">Ideal number of hours you&apos;d like to work each week</p>
                 <input
@@ -352,7 +352,7 @@ export function ProfileAvailabilitySection({
 
               <div className="space-y-1.5 sm:col-span-2">
                 <label className="text-sm font-semibold text-foreground">
-                  Timezone <span className="text-red-400">*</span>
+                  Timezone <span className="text-[#1dff00]">*</span>
                 </label>
                 <p className="text-xs product-helper-text">
                   Select the time zone you primarily work from. This will be used to interpret your weekly availability
@@ -379,7 +379,7 @@ export function ProfileAvailabilitySection({
                   <button
                     type="button"
                     onClick={resetBusinessWeek}
-                    className="mt-0.5 p-1.5 rounded-lg text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+                    className="mt-0.5 p-1.5 rounded-lg text-[#1dff00] hover:bg-[#1dff00]/10 transition-colors"
                     title="Reset to Mon–Fri 9am–5pm"
                     aria-label="Reset working hours to weekday default"
                   >
@@ -406,7 +406,7 @@ export function ProfileAvailabilitySection({
                       <div
                         className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
                           enabled
-                            ? "bg-[#ffd700] text-black shadow-md shadow-[#ffd700]/25"
+                            ? "bg-[#1dff00] text-black shadow-md shadow-[#1dff00]/25"
                             : "bg-foreground/10 text-foreground/45"
                         }`}
                       >
@@ -418,7 +418,7 @@ export function ProfileAvailabilitySection({
                           <button
                             type="button"
                             onClick={() => addSlot(dayIndex)}
-                            className="w-8 h-8 rounded-full border border-foreground/20 flex items-center justify-center text-foreground/70 hover:border-[#ffd700]/50 hover:text-[#ffd700] transition-colors"
+                            className="w-8 h-8 rounded-full border border-foreground/20 flex items-center justify-center text-foreground/70 hover:border-[#1dff00]/50 hover:text-[#1dff00] transition-colors"
                             aria-label={`Add hours for day ${dayIndex}`}
                           >
                             <Plus className="w-4 h-4" />
@@ -445,7 +445,7 @@ export function ProfileAvailabilitySection({
                                 <button
                                   type="button"
                                   onClick={() => removeSlot(dayIndex, si)}
-                                  className="p-1.5 rounded-lg text-foreground/50 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                  className="p-1.5 rounded-lg text-foreground/50 hover:text-[#1dff00] hover:bg-[#1dff00]/10 transition-colors"
                                   aria-label="Remove time range"
                                 >
                                   <X className="w-4 h-4" />
@@ -456,7 +456,7 @@ export function ProfileAvailabilitySection({
                           <button
                             type="button"
                             onClick={() => addSlot(dayIndex)}
-                            className="w-8 h-8 rounded-full border border-foreground/20 flex items-center justify-center text-foreground/70 hover:border-[#ffd700]/50 hover:text-[#ffd700] transition-colors shrink-0"
+                            className="w-8 h-8 rounded-full border border-foreground/20 flex items-center justify-center text-foreground/70 hover:border-[#1dff00]/50 hover:text-[#1dff00] transition-colors shrink-0"
                             aria-label="Add another range"
                           >
                             <Plus className="w-4 h-4" />
@@ -472,7 +472,7 @@ export function ProfileAvailabilitySection({
             <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4 sm:p-5 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-start gap-2.5">
-                  <Calendar className="w-4 h-4 text-[#ffd700] mt-1 shrink-0" />
+                  <Calendar className="w-4 h-4 text-[#1dff00] mt-1 shrink-0" />
                   <div>
                     <h4 className="text-sm font-semibold text-foreground">Date-specific hours</h4>
                     <p className="text-xs product-helper-text mt-0.5">
@@ -520,14 +520,14 @@ export function ProfileAvailabilitySection({
                                 slots: e.target.checked ? [] : [{ start: "09:00", end: "17:00" }],
                               })
                             }
-                            className="accent-[#ffd700] rounded"
+                            className="accent-[#1dff00] rounded"
                           />
                           Unavailable this day
                         </label>
                         <button
                           type="button"
                           onClick={() => removeException(ex.id)}
-                          className="p-1.5 rounded-lg text-foreground/50 hover:text-red-400 ml-auto"
+                          className="p-1.5 rounded-lg text-foreground/50 hover:text-[#1dff00] ml-auto"
                           aria-label="Remove exception"
                         >
                           <X className="w-4 h-4" />
@@ -563,7 +563,7 @@ export function ProfileAvailabilitySection({
                               <button
                                 type="button"
                                 onClick={() => removeExceptionSlot(ex.id, si)}
-                                className="p-1 text-foreground/50 hover:text-red-400"
+                                className="p-1 text-foreground/50 hover:text-[#1dff00]"
                                 aria-label="Remove slot"
                               >
                                 <X className="w-3.5 h-3.5" />
@@ -574,7 +574,7 @@ export function ProfileAvailabilitySection({
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="text-xs h-8 text-[#ffd700] hover:text-[#ffd700] hover:bg-[#ffd700]/10"
+                            className="text-xs h-8 text-[#1dff00] hover:text-[#1dff00] hover:bg-[#1dff00]/10"
                             onClick={() => addExceptionSlot(ex.id)}
                           >
                             <Plus className="w-3 h-3 mr-1" />
@@ -593,7 +593,7 @@ export function ProfileAvailabilitySection({
                 type="button"
                 size="sm"
                 disabled={loading || saving || missingFields.length > 0}
-                className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90"
+                className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
                 onClick={() => void handleSave()}
               >
                 {saving ? "Saving…" : "Save availability"}

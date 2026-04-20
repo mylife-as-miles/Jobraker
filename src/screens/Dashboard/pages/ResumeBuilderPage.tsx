@@ -896,11 +896,11 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
               value={resumeData.title || ""}
               onChange={(e) => setResumeTitle(e.target.value)}
               placeholder="Untitled Resume"
-              className='product-page-title w-full min-w-0 rounded-md bg-transparent px-2 py-1 text-base font-semibold outline-none transition-all hover:bg-muted/30 focus:bg-muted/50 focus:ring-1 focus:ring-[#ffd700]/50 md:text-lg'
+              className='product-page-title w-full min-w-0 rounded-md bg-transparent px-2 py-1 text-base font-semibold outline-none transition-all hover:bg-muted/30 focus:bg-muted/50 focus:ring-1 focus:ring-[#1dff00]/50 md:text-lg'
             />
             <button
               onClick={() => titleInputRef.current?.focus()}
-              className='product-helper-text p-1 hover:text-[#ffd700] transition-all opacity-60 hover:opacity-100 transition-opacity focus:opacity-100'
+              className='product-helper-text p-1 hover:text-[#1dff00] transition-all opacity-60 hover:opacity-100 transition-opacity focus:opacity-100'
             >
               <Edit2 className='w-3.5 h-3.5' />
             </button>
@@ -928,7 +928,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           <button
             onClick={() => aiPolishSummary()}
             disabled={aiLoading || loadingTier}
-            className='flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 rounded-lg bg-[#ffd700] hover:bg-[#ca8a04] text-black text-xs md:text-sm font-bold transition-all shadow-[0_0_15px_rgba(255,215,0,0.3)] whitespace-nowrap disabled:opacity-60'
+            className='flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#1dff00] text-black text-xs md:text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] whitespace-nowrap disabled:opacity-60'
           >
             <Sparkles className='w-4 h-4 shrink-0' />
             <span className='hidden sm:inline'>
@@ -940,7 +940,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           <button
             onClick={aiGenerateResume}
             disabled={aiLoading || loadingTier}
-            className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-[#ffd700]/60 hover:bg-[#fff2b3] dark:hover:bg-white/10 dark:hover:border-white/20'
+            className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-[#1dff00]/60 hover:bg-[#1dff00]/15 dark:hover:bg-white/10 dark:hover:border-white/20'
           >
             <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
             <span className='hidden sm:inline'>
@@ -996,9 +996,9 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
               <h3 className='product-helper-text text-xs font-bold uppercase tracking-wider'>
                 Content
               </h3>
-              <div className='text-[10px] text-[#ffd700] flex items-center gap-1 font-medium'>
+              <div className='text-[10px] text-[#1dff00] flex items-center gap-1 font-medium'>
                 <span
-                  className={`w-1.5 h-1.5 rounded-full ${saving ? "bg-yellow-500 animate-pulse" : "bg-[#ffd700]"}`}
+                  className={`w-1.5 h-1.5 rounded-full ${saving ? "bg-[#1dff00]/100 animate-pulse" : "bg-[#1dff00]"}`}
                 />
                 {editorStatusLabel}
               </div>
@@ -1006,14 +1006,14 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
             {/* Personal Info Section */}
             <div
-              className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === "personal" ? "ring-1 ring-[#ffd700]/50" : "hover:border-[#ffd700]/30"}`}
+              className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === "personal" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
             >
               <div
                 className='p-5 flex items-center justify-between cursor-pointer'
                 onClick={() => toggleSection("personal")}
               >
                 <div className='flex items-center gap-3'>
-                  <User className='w-5 h-5 text-[#ffd700]' />
+                  <User className='w-5 h-5 text-[#1dff00]' />
                   <h4 className='font-semibold product-page-title'>
                     Personal Info
                   </h4>
@@ -1038,14 +1038,14 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             {/* Summary Section */}
             {!summary.hidden && (
               <div
-                className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === "summary" ? "ring-1 ring-[#ffd700]/50" : "hover:border-[#ffd700]/30"}`}
+                className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === "summary" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
               >
                 <div
                   className='p-5 flex items-center justify-between cursor-pointer'
                   onClick={() => toggleSection("summary")}
                 >
                   <div className='flex items-center gap-3'>
-                    <FileText className='w-5 h-5 text-[#ffd700]' />
+                    <FileText className='w-5 h-5 text-[#1dff00]' />
                     <h4 className='font-semibold product-page-title'>
                       Summary
                     </h4>
@@ -1063,7 +1063,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                       value={summary.content || ""}
                       onChange={(e) => setSummary(e.target.value)}
                       rows={4}
-                      className='product-input-surface w-full rounded-lg px-3 py-2 text-sm outline-none transition-all focus:border-[#ffd700] focus:ring-1 focus:ring-[#ffd700]'
+                      className='product-input-surface w-full rounded-lg px-3 py-2 text-sm outline-none transition-all focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00]'
                       placeholder='Brief professional summary...'
                     />
                   </div>
@@ -1081,21 +1081,21 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
               return (
                 <div
                   key={sectionId}
-                  className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? "ring-1 ring-[#ffd700]/50" : "hover:border-[#ffd700]/30"}`}
+                  className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
                 >
                   <div
                     className='p-5 flex items-center justify-between cursor-pointer'
                     onClick={() => toggleSection(sectionId)}
                   >
                     <div className='flex items-center gap-3'>
-                      <Icon className='w-5 h-5 text-[#ffd700]' />
+                      <Icon className='w-5 h-5 text-[#1dff00]' />
                       <h4 className='font-semibold product-page-title'>
                         {section.title}
                       </h4>
                     </div>
                     <div className='flex items-center gap-2'>
                       <button
-                        className='p-1 hover:bg-muted rounded product-helper-text hover:text-red-500 transition-colors'
+                        className='p-1 hover:bg-muted rounded product-helper-text hover:text-[#1dff00] transition-colors'
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleSectionVisibility(sectionId);
@@ -1129,7 +1129,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             <div className='pt-4 pb-20'>
               <Button
                 variant='outline'
-                className='w-full py-6 border-dashed border-gray-300 dark:border-foreground/20 hover:border-[#ffd700] hover:text-[#ffd700] hover:bg-[#ffd700]/5'
+                className='w-full py-6 border-dashed border-gray-300 dark:border-foreground/20 hover:border-[#1dff00] hover:text-[#1dff00] hover:bg-[#1dff00]/5'
                 onClick={() => setIsAddSectionOpen(true)}
               >
                 <Plus className='w-5 h-5 mr-2' />
@@ -1148,13 +1148,13 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             <div className='absolute right-4 top-4 z-10 flex flex-col gap-2 md:right-8 md:top-8'>
               <button
                 onClick={() => setZoom((z) => Math.min(z + 0.1, 1.5))}
-                className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
+                className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#1dff00]'
               >
                 <ZoomIn className='w-4 h-4 md:w-5 md:h-5' />
               </button>
               <button
                 onClick={() => setZoom((z) => Math.max(z - 0.1, 0.5))}
-                className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
+                className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#1dff00]'
               >
                 <ZoomOut className='w-4 h-4 md:w-5 md:h-5' />
               </button>
@@ -1192,7 +1192,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             onClick={() => setMobileView("editor")}
             className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
               mobileView === "editor"
-                ? "text-[#ffd700] bg-[#ffd700]/5"
+                ? "text-[#1dff00] bg-[#1dff00]/5"
                 : "text-muted-foreground"
             }`}
           >
@@ -1204,7 +1204,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             onClick={() => setMobileView("preview")}
             className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
               mobileView === "preview"
-                ? "text-[#ffd700] bg-[#ffd700]/5"
+                ? "text-[#1dff00] bg-[#1dff00]/5"
                 : "text-muted-foreground"
             }`}
           >

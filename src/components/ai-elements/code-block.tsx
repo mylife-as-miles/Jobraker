@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes, ReactNode } from "react";
 import { createContext, useContext, useState } from "react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import oneDarkStyle from "react-syntax-highlighter/dist/styles/atom-one-dark";
-import oneLightStyle from "react-syntax-highlighter/dist/styles/atom-one-light";
+import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/light";
+import oneDarkStyle from "react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark";
+import oneLightStyle from "react-syntax-highlighter/dist/esm/styles/hljs/atom-one-light";
 
 type CodeBlockContextType = {
   code: string;

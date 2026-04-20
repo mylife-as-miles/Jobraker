@@ -62,13 +62,13 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.1 }} className="h-full">
       <Card className="relative h-full overflow-hidden border border-border/40 bg-card/40 backdrop-blur-xl shadow-2xl transition-all duration-300">
         {/* Decorative Gradient Background */}
-        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-amber-500/5 blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-amber-500/5 blur-3xl" />
+        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[#1dff00]/5 blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-[#1dff00]/5 blur-3xl" />
 
         <div className="relative z-10 flex h-full flex-col p-5 sm:p-6">
           <div className="mb-6 flex items-start justify-between gap-3">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-amber-400">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#1dff00]/25 bg-[#1dff00]/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-[#1dff00]">
                 <Sparkles className="h-3.5 w-3.5" />
                 Match quality
               </div>
@@ -83,7 +83,7 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
                   {Math.round(average)}%
                 </span>
                 {delta !== 0 ? (
-                  <div className={delta > 0 ? "flex items-center gap-0.5 text-xs text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded-full" : "flex items-center gap-0.5 text-xs text-rose-400 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded-full"}>
+                  <div className={delta > 0 ? "flex items-center gap-0.5 text-xs text-[#1dff00] font-bold bg-[#1dff00]/10 px-1.5 py-0.5 rounded-full" : "flex items-center gap-0.5 text-xs text-rose-400 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded-full"}>
                     {delta > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                     {delta > 0 ? "+" : ""}{delta}
                   </div>
@@ -106,7 +106,7 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start gap-3">
-                          <div className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10 text-[11px] font-bold text-amber-300">
+                          <div className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#1dff00]/20 bg-[#1dff00]/10 text-[11px] font-bold text-[#1dff00]">
                             {String(item.rank).padStart(2, "0")}
                           </div>
                           <div className="min-w-0">
@@ -169,7 +169,7 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
             {loading ? (
               <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-background/60 backdrop-blur-xl transition-all duration-500">
                 <div className="flex items-center gap-3 rounded-full border border-border/40 bg-card/80 px-5 py-2.5 text-xs font-medium text-foreground/80 shadow-2xl backdrop-blur-md">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-500/20 border-t-amber-500" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#1dff00]/20 border-t-[#1dff00]/200" />
                   Analyzing matches...
                 </div>
               </div>
@@ -180,7 +180,7 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-6 rounded-2xl border border-border/30 bg-amber-500/5 p-4 text-sm text-foreground/80 ring-1 ring-amber-500/10"
+              className="mt-6 rounded-2xl border border-border/30 bg-[#1dff00]/5 p-4 text-sm text-foreground/80 ring-1 ring-[#1dff00]/10"
             >
               <div className="flex items-center gap-2 mb-2">
                 <span className="font-bold text-foreground" title={highlight.name}>{compactRoleLabel(highlight.name)}</span>

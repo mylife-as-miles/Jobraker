@@ -40,11 +40,11 @@ export const TestimonialGridSection = () => {
     <section className="py-24 bg-background">
       <div className="container mx-auto px-4">
         <div className="mx-auto mb-16 max-w-3xl text-center">
-          <p className="mb-4 font-mono text-xs uppercase tracking-[0.28em] text-[#ffd700]/70">
+          <p className="mb-4 font-mono text-xs uppercase tracking-[0.28em] text-[#1dff00]/70">
             Proof points
           </p>
           <h2 className="text-3xl md:text-5xl font-bold font-mono text-foreground">
-            Why candidates stop doing it <span className="text-[#ffd700]">manually</span>
+            Why candidates stop doing it <span className="text-[#1dff00]">manually</span>
           </h2>
           <p className="mx-auto mt-5 max-w-2xl text-base md:text-lg leading-relaxed text-neutral-400">
             JobRaker is built around the moments that make a search slow down:
@@ -65,11 +65,11 @@ export const TestimonialGridSection = () => {
                 delay: i * 0.04,
                 ease: [0.23, 1, 0.32, 1],
               }}
-              className="group relative overflow-hidden p-7 bg-[#0b0f16] border border-[#ffd700]/15 rounded-xl hover:border-[#ffd700]/45 transition-colors duration-200"
+              className="group relative overflow-hidden p-7 bg-[#0b0f16] border border-[#1dff00]/15 rounded-xl hover:border-[#1dff00]/45 transition-colors duration-200"
             >
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#ffd700]/70 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#1dff00]/70 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
               <div className="mb-7 flex items-center justify-between">
-                <span className="font-mono text-xs font-bold uppercase tracking-[0.24em] text-[#ffd700]">
+                <span className="font-mono text-xs font-bold uppercase tracking-[0.24em] text-[#1dff00]">
                   {point.label}
                 </span>
                 <span className="font-mono text-xs text-neutral-600">
@@ -80,7 +80,7 @@ export const TestimonialGridSection = () => {
                 "{point.before}"
               </p>
               <div className="mt-7 flex gap-3 border-t border-white/10 pt-5">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#ffd700]" />
+                <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#1dff00]" />
                 <p className="text-sm leading-relaxed text-neutral-400">
                   {point.after}
                 </p>

@@ -47,20 +47,20 @@
 
 /* Focus state */
 .styled-input:focus {
-  border-color: #ffd700;
+  border-color: #1dff00;
   background-color: rgba(245, 245, 245, 1);
   box-shadow: 0 0 0 2px rgba(29, 255, 0, 0.2);
 }
 
 /* Error state */
 .styled-input.error {
-  border-color: #f44336;
-  background-color: rgba(255, 235, 238, 0.9);
+  border-color: #1dff00;
+  background-color: rgba(29, 255, 0, 0.9);
 }
 
 .styled-input.error:focus {
-  border-color: #f44336;
-  box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
+  border-color: #1dff00;
+  box-shadow: 0 0 0 2px rgba(29, 255, 0, 0.2);
 }
 
 /* Container for input groups */
@@ -105,14 +105,14 @@
 }
 
 .styled-input.dark:focus {
-  border-color: #ffd700;
+  border-color: #1dff00;
   background-color: rgba(255, 255, 255, 0.1);
   box-shadow: 0 0 0 2px rgba(29, 255, 0, 0.3);
 }
 
 /* Accessibility improvements */
 .styled-input:focus-visible {
-  outline: 2px solid #ffd700;
+  outline: 2px solid #1dff00;
   outline-offset: 2px;
 }
 
@@ -124,7 +124,7 @@
   }
   
   .styled-input:focus {
-    border-color: #ffd700;
+    border-color: #1dff00;
     box-shadow: 0 0 0 3px rgba(29, 255, 0, 0.5);
   }
 }

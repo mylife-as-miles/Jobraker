@@ -16,7 +16,7 @@ export default function MatchScoreBreakdown({
           <h4 className="text-white font-semibold mb-2">Matched skills</h4>
           <div className="flex flex-wrap gap-2">
             {matched.map((s, i) => (
-              <span key={i} className="px-2 py-1 bg-[#ffd70020] text-[#ffd700] text-xs rounded border border-[#ffd700]/30">
+              <span key={i} className="px-2 py-1 bg-[#1dff0020] text-[#1dff00] text-xs rounded border border-[#1dff00]/30">
                 {s}
               </span>
             ))}

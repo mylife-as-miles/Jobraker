@@ -21,7 +21,7 @@ export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
         placeholder:text-[#757575] 
         text-base
         hover:border-[#BDBDBD] 
-        focus:border-[#ffd700] 
+        focus:border-[#1dff00] 
         focus:bg-[#F5F5F5]
         backdrop-blur-sm
       `,
@@ -34,7 +34,7 @@ export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
         placeholder:text-foreground/40 
         text-base
         hover:border-foreground/30 
-        focus:border-[#ffd700] 
+        focus:border-[#1dff00] 
         focus:bg-foreground/10
         backdrop-blur-[8px]
       `,
@@ -47,7 +47,7 @@ export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
         placeholder:text-[#757575] 
         text-base
         hover:border-[#BDBDBD] 
-        focus:border-[#ffd700] 
+        focus:border-[#1dff00] 
         focus:bg-[#F5F5F5]/50
       `
     };
@@ -64,13 +64,13 @@ export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
           className={cn(
             baseStyles,
             variantStyles[variant],
-            error && "border-red-500 focus:border-red-500",
+            error && "border-[#1dff00] focus:border-[#1dff00]",
             className
           )}
           {...props}
         />
         {error && (
-          <p className="text-sm text-red-500 mt-1">{error}</p>
+          <p className="text-sm text-[#1dff00] mt-1">{error}</p>
         )}
       </div>
     );

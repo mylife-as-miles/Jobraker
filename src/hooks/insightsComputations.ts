@@ -223,10 +223,10 @@ export function computeScoreDistribution(
   const total = scores.length;
 
   const buckets: ScoreDistributionBucket[] = [
-    { range: "90–100", count: 0, percentage: 0, color: "#ffd700" },
+    { range: "90–100", count: 0, percentage: 0, color: "#1dff00" },
     { range: "75–89", count: 0, percentage: 0, color: "#56c2ff" },
-    { range: "60–74", count: 0, percentage: 0, color: "#f59e0b" },
-    { range: "<60", count: 0, percentage: 0, color: "#ef4444" },
+    { range: "60–74", count: 0, percentage: 0, color: "#1dff00" },
+    { range: "<60", count: 0, percentage: 0, color: "#1dff00" },
   ];
 
   for (const score of scores) {

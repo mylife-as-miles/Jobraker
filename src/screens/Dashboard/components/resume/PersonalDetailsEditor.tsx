@@ -139,7 +139,7 @@ export const PersonalDetailsEditor = ({
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => removeProfile(index)}
-                                className="product-helper-text self-end hover:bg-red-500/10 hover:text-red-500 sm:self-start"
+                                className="product-helper-text self-end hover:bg-[#1dff00]/10 hover:text-[#1dff00] sm:self-start"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </Button>
@@ -148,7 +148,7 @@ export const PersonalDetailsEditor = ({
                 </div>
                 <Button
                     variant="outline"
-                    className="product-outline-button mt-3 w-full border-dashed hover:border-[#ffd700] hover:text-[#ffd700]"
+                    className="product-outline-button mt-3 w-full border-dashed hover:border-[#1dff00] hover:text-[#1dff00]"
                     onClick={handleAddProfile}
                 >
                     <Plus className="w-4 h-4 mr-2" />

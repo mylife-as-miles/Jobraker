@@ -220,7 +220,7 @@ const TabButton = ({ isActive, onClick, icon, label }: { isActive: boolean; onCl
         className={`
             flex flex-col items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all min-w-[70px]
             ${isActive
-                ? 'bg-white dark:bg-muted text-[#ffd700] shadow-sm'
+                ? 'bg-white dark:bg-muted text-[#1dff00] shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-foreground hover:bg-gray-100 dark:hover:bg-muted/50'}
         `}
     >

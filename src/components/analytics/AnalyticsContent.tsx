@@ -60,7 +60,7 @@ export function AnalyticsContent({ period = "30d", data = {} as any, insights }:
     if (!value) return <span className="text-[11px] text-foreground/55">0%</span>;
     const positive = value > 0;
     return (
-      <span className={"inline-flex items-center gap-1 text-[11px] font-medium " + (positive ? "text-amber-500" : "text-rose-500")}>
+      <span className={"inline-flex items-center gap-1 text-[11px] font-medium " + (positive ? "text-[#1dff00]" : "text-rose-500")}>
         {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
         {positive ? "+" : ""}{value}%
       </span>
@@ -72,10 +72,10 @@ export function AnalyticsContent({ period = "30d", data = {} as any, insights }:
       <PipelineEarningsProjectionCard period={period} />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-        <button type="button" onClick={() => gotoApplications()} className="rounded-2xl border border-border bg-card/85 p-4 text-left transition hover:border-[#ffd700]/35 hover:bg-card">
+        <button type="button" onClick={() => gotoApplications()} className="rounded-2xl border border-border bg-card/85 p-4 text-left transition hover:border-[#1dff00]/35 hover:bg-card">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-foreground/55">Applications</span>
-            <div className="rounded-full bg-[#ffd700]/10 p-2 text-[#ffd700]"><Briefcase className="h-4 w-4" /></div>
+            <div className="rounded-full bg-[#1dff00]/10 p-2 text-[#1dff00]"><Briefcase className="h-4 w-4" /></div>
           </div>
           <div className="flex items-end justify-between gap-2">
             <div className="text-3xl font-bold text-foreground">{metrics.applications}</div>
@@ -94,10 +94,10 @@ export function AnalyticsContent({ period = "30d", data = {} as any, insights }:
           </div>
         </button>
 
-        <button type="button" onClick={gotoJobs} className="rounded-2xl border border-border bg-card/85 p-4 text-left transition hover:border-[#f59e0b]/35 hover:bg-card">
+        <button type="button" onClick={gotoJobs} className="rounded-2xl border border-border bg-card/85 p-4 text-left transition hover:border-[#1dff00]/35 hover:bg-card">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-foreground/55">Jobs found</span>
-            <div className="rounded-full bg-[#f59e0b]/10 p-2 text-[#f59e0b]"><Globe className="h-4 w-4" /></div>
+            <div className="rounded-full bg-[#1dff00]/10 p-2 text-[#1dff00]"><Globe className="h-4 w-4" /></div>
           </div>
           <div className="flex items-end justify-between gap-2">
             <div className="text-3xl font-bold text-foreground">{metrics.jobsFound}</div>

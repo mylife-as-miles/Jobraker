@@ -58,13 +58,13 @@ export const PublicResumePage = () => {
     };
 
     if (loading) return <div className="flex items-center justify-center h-screen product-page-shell text-foreground"><Loader2 className="animate-spin w-8 h-8" /></div>;
-    if (error) return <div className="flex flex-col items-center justify-center h-screen gap-4 product-page-shell text-foreground"><AlertCircle className="w-10 h-10 text-red-500" /><p className="text-lg">{error}</p></div>;
+    if (error) return <div className="flex flex-col items-center justify-center h-screen gap-4 product-page-shell text-foreground"><AlertCircle className="w-10 h-10 text-[#1dff00]" /><p className="text-lg">{error}</p></div>;
 
     return (
         <div className="product-page-shell min-h-screen flex flex-col">
             <header className="sticky top-0 z-50 flex items-center justify-between border-b border-border/40 bg-background/95 px-8 backdrop-blur supports-[backdrop-filter]:bg-background/85 h-16">
                 <span className="product-page-title text-xl font-bold">{resumeData.basics.name}</span>
-                <Button onClick={handleDownload} className="bg-[#ffd700] text-black hover:bg-[#ca8a04]">
+                <Button onClick={handleDownload} className="bg-[#1dff00] text-black hover:bg-[#1dff00]">
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF
                 </Button>

@@ -143,7 +143,7 @@ export function useAppearanceSettings() {
       if (t) {
         applyAppearanceToDOM({
           theme: t,
-          accent_color: a || "#ffd700",
+          accent_color: a || "#1dff00",
           reduce_motion: r,
         });
       }
@@ -208,7 +208,7 @@ export function useAppearanceSettings() {
         .insert({
           id: userId,
           theme: "auto",
-          accent_color: "#ffd700",
+          accent_color: "#1dff00",
           reduce_motion: false,
           ...payload,
         })

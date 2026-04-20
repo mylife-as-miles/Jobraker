@@ -115,7 +115,7 @@ function buildResumeRebuildPrompt(
       "a",
       {
         href: "/dashboard/resume",
-        className: "font-medium text-[#ffd700] underline underline-offset-4 hover:text-[#fde68a]",
+        className: "font-medium text-[#1dff00] underline underline-offset-4 hover:text-[#1dff00]",
       },
       "Open the Resume section",
     ),

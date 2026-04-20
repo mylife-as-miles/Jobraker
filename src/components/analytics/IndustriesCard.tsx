@@ -43,14 +43,14 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
           <div className="mb-4 grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-border bg-background/60 p-3">
               <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-foreground/50">
-                <SearchCheck className="h-4 w-4 text-[#ffd700]" />
+                <SearchCheck className="h-4 w-4 text-[#1dff00]" />
                 Jobs found
               </div>
               <div className="mt-2 text-xl font-semibold text-foreground">{metrics.jobsFound}</div>
             </div>
             <div className="rounded-2xl border border-border bg-background/60 p-3">
               <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-foreground/50">
-                <Layers className="h-4 w-4 text-[#f59e0b]" />
+                <Layers className="h-4 w-4 text-[#1dff00]" />
                 Interviews
               </div>
               <div className="mt-2 text-xl font-semibold text-foreground">{metrics.interviews}</div>
@@ -65,7 +65,7 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
                   <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "rgba(100,116,139,0.9)", fontSize: 12 }} />
                   <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "rgba(71,85,105,1)", fontSize: 12 }} width={96} />
                   <Tooltip
-                    cursor={{ fill: "rgba(255,215,0,0.06)" }}
+                    cursor={{ fill: "rgba(29,255,0,0.06)" }}
                     contentStyle={{ borderRadius: 16, border: "1px solid rgba(148,163,184,0.18)", background: "rgba(15, 23, 42, 0.92)", color: "#f8fafc" }}
                     formatter={(value) => [value, "Jobs"]}
                   />

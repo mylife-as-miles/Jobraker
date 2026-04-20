@@ -51,7 +51,7 @@ export const FAQSection = () => {
   return (
     <section className="py-24 bg-background max-w-3xl mx-auto px-4">
       <h2 className="text-3xl md:text-5xl font-bold font-mono text-center text-foreground mb-12">
-        SYSTEM <span className="text-[#ffd700]">FAQ</span>
+        SYSTEM <span className="text-[#1dff00]">FAQ</span>
       </h2>
 
       <div className="space-y-4">
@@ -62,7 +62,7 @@ export const FAQSection = () => {
               className="w-full flex items-center justify-between p-6 text-left bg-black hover:bg-white/5 transition-colors"
             >
               <span className="text-foreground font-mono font-bold">{faq.question}</span>
-              <ChevronDown className={`w-5 h-5 text-[#ffd700] transition-transform ${openIndex === i ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-5 h-5 text-[#1dff00] transition-transform ${openIndex === i ? 'rotate-180' : ''}`} />
             </button>
             <AnimatePresence>
               {openIndex === i && (

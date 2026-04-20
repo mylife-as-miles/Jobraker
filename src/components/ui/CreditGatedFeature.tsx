@@ -130,7 +130,7 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
             <div className="flex items-center justify-between p-3 bg-background border border-foreground/10 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-foreground/80">Current Balance</p>
-                <p className="text-lg font-bold text-[#ffd700]">{access.currentBalance}</p>
+                <p className="text-lg font-bold text-[#1dff00]">{access.currentBalance}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground/80">Cost</p>
@@ -174,17 +174,17 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
 
   // User doesn't have enough credits
   const defaultFallback = (
-    <Card className={`border-red-200 bg-red-50 ${className}`}>
+    <Card className={`border-[#1dff00] bg-[#1dff00]/10 ${className}`}>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg text-red-800">
+        <CardTitle className="flex items-center gap-2 text-lg text-[#1dff00]">
           <LockIcon className="w-5 h-5" />
           Insufficient Credits
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Alert className="border-red-200 bg-red-100">
-          <AlertTriangle className="w-4 h-4 text-red-600" />
-          <AlertDescription className="text-red-800">
+        <Alert className="border-[#1dff00] bg-[#1dff00]/10">
+          <AlertTriangle className="w-4 h-4 text-[#1dff00]" />
+          <AlertDescription className="text-[#1dff00]">
             You need {access.creditsRequired} credits to use this feature. 
             You currently have {access.currentBalance} credits.
           </AlertDescription>
@@ -197,7 +197,7 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
         <div className="grid grid-cols-2 gap-4 text-center">
           <div className="p-3 bg-background border border-foreground/10 rounded-lg">
             <p className="text-sm text-foreground/60">Required</p>
-            <p className="text-lg font-bold text-red-400">{access.creditsRequired}</p>
+            <p className="text-lg font-bold text-[#1dff00]">{access.creditsRequired}</p>
           </div>
           <div className="p-3 bg-background border border-foreground/10 rounded-lg">
             <p className="text-sm text-foreground/60">Available</p>

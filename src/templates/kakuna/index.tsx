@@ -14,7 +14,7 @@ const sectionClassName = cn(
 
 /**
  * Template: Kakuna ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Centered Elegance
- * A refined centered template with an amber accent and symmetrical headings.
+ * A refined centered template with a green accent and symmetrical headings.
  */
 export function KakunaTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 	const defaultLayout = {
@@ -24,7 +24,7 @@ export function KakunaTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 	};
 	const resumeData = useResumeTemplateData();
 	const storeLayout = resumeData.metadata.layout.pages[pageIndex];
-	const themePrimary = resumeData.metadata.theme?.primary || '#d97706';
+	const themePrimary = resumeData.metadata.theme?.primary || '#1dff00';
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;

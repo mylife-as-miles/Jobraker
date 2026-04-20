@@ -47,12 +47,12 @@ export const ListEditor = ({ sectionId }: ListEditorProps) => {
         {section.items.map((item) => (
           <div
             key={item.id}
-            className='product-section-card-muted group flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-foreground transition-all hover:border-[#ffd700]/60 hover:bg-[#fff2b3]'
+            className='product-section-card-muted group flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-foreground transition-all hover:border-[#1dff00]/60 hover:bg-[#1dff00]/15'
           >
             <span>{item.name}</span>
             <button
               onClick={() => removeSectionItem(sectionId, item.id)}
-              className='p-0.5 rounded-full hover:bg-red-500/20 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all'
+              className='p-0.5 rounded-full hover:bg-[#1dff00]/20 hover:text-[#1dff00] opacity-0 group-hover:opacity-100 transition-all'
             >
               <X className='w-3 h-3' />
             </button>
@@ -71,7 +71,7 @@ export const ListEditor = ({ sectionId }: ListEditorProps) => {
         <Button
           onClick={handleAddItem}
           disabled={!newItemName.trim()}
-          className='bg-[#ffd700] text-black hover:bg-[#ca8a04] sm:w-auto'
+          className='bg-[#1dff00] text-black hover:bg-[#1dff00] sm:w-auto'
         >
           <Plus className='w-4 h-4' />
         </Button>

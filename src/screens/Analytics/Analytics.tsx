@@ -152,7 +152,7 @@ export const Analytics = (): JSX.Element => {
         {(analytics.error || analytics.lastUpdated) && (
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-2">
             {analytics.error ? (
-              <p className="text-[11px] sm:text-xs text-red-400">{analytics.error}</p>
+              <p className="text-[11px] sm:text-xs text-[#1dff00]">{analytics.error}</p>
             ) : (
               <p className="product-helper-text text-[11px] sm:text-xs">Last updated {new Date(analytics.lastUpdated!).toLocaleString()}</p>
             )}

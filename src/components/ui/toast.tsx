@@ -122,11 +122,11 @@ export function Toaster({ toasts, onClose }: { toasts: ToastItem[]; onClose: (id
 function variantBorderClass(v: ToastVariant) {
   switch (v) {
     case "success":
-      return "border-[#ffd700]/40";
+      return "border-[#1dff00]/40";
     case "error":
-      return "border-red-500/40";
+      return "border-[#1dff00]/40";
     case "warning":
-      return "border-yellow-500/40";
+      return "border-[#1dff00]/40";
     default:
       return "border-border";
   }
@@ -135,11 +135,11 @@ function variantBorderClass(v: ToastVariant) {
 function variantDotClass(v: ToastVariant) {
   switch (v) {
     case "success":
-      return "bg-[#ffd700] shadow-[0_0_12px_#ffd700]";
+      return "bg-[#1dff00] shadow-[0_0_12px_#1dff00]";
     case "error":
-      return "bg-red-500 shadow-[0_0_12px_#ef4444]";
+      return "bg-[#1dff00]/100 shadow-[0_0_12px_#1dff00]";
     case "warning":
-      return "bg-yellow-400 shadow-[0_0_12px_#f59e0b]";
+      return "bg-[#1dff00] shadow-[0_0_12px_#1dff00]";
     default:
       return "bg-muted-foreground";
   }

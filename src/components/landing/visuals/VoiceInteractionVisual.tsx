@@ -6,7 +6,7 @@ export const VoiceInteractionVisual = () => {
     <div className="w-full h-full min-h-[200px] flex items-center justify-center relative overflow-hidden bg-background">
       {/* Background Mesh */}
       <div className="absolute inset-0 opacity-20" style={{
-          backgroundImage: 'radial-gradient(#ffd700 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(#1dff00 1px, transparent 1px)',
           backgroundSize: '20px 20px'
       }} />
 
@@ -15,10 +15,10 @@ export const VoiceInteractionVisual = () => {
         <motion.div
           animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          className="w-16 h-16 rounded-full bg-[#ffd700]/20 blur-md absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          className="w-16 h-16 rounded-full bg-[#1dff00]/20 blur-md absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
         />
-        <div className="w-12 h-12 rounded-full border-2 border-[#ffd700] flex items-center justify-center relative bg-black z-20 shadow-[0_0_15px_rgba(255,215,0,0.3)]">
-           <div className="w-4 h-4 rounded-full bg-[#ffd700]" />
+        <div className="w-12 h-12 rounded-full border-2 border-[#1dff00] flex items-center justify-center relative bg-black z-20 shadow-[0_0_15px_rgba(29,255,0,0.3)]">
+           <div className="w-4 h-4 rounded-full bg-[#1dff00]" />
         </div>
       </div>
 
@@ -34,7 +34,7 @@ export const VoiceInteractionVisual = () => {
                    repeatType: "reverse",
                    delay: i * 0.1
                }}
-               className="w-1 bg-[#ffd700]/50 rounded-full"
+               className="w-1 bg-[#1dff00]/50 rounded-full"
             />
          ))}
       </div>
@@ -51,7 +51,7 @@ export const VoiceInteractionVisual = () => {
                    repeatType: "reverse",
                    delay: i * 0.1
                }}
-               className="w-1 bg-[#ffd700]/50 rounded-full"
+               className="w-1 bg-[#1dff00]/50 rounded-full"
             />
          ))}
       </div>
@@ -60,7 +60,7 @@ export const VoiceInteractionVisual = () => {
       <motion.div
          initial={{ opacity: 0 }}
          animate={{ opacity: 1 }}
-         className="absolute bottom-4 text-[10px] font-mono text-[#ffd700] uppercase tracking-widest"
+         className="absolute bottom-4 text-[10px] font-mono text-[#1dff00] uppercase tracking-widest"
       >
          Listening...
       </motion.div>

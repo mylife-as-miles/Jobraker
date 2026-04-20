@@ -31,7 +31,7 @@ export function GlalieTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 	};
 	const resumeData = useResumeTemplateData();
 	const storeLayout = resumeData.metadata.layout.pages[pageIndex];
-	const themePrimary = resumeData.metadata.theme?.primary || '#0ea5e9';
+	const themePrimary = resumeData.metadata.theme?.primary || '#2dd4bf';
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;

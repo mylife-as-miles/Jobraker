@@ -262,7 +262,7 @@ export function useAnalyticsData(
       const interviews = apps.filter((a: any) => String(a.status).toLowerCase() === "interview").length;
       const jobsFound = jobs.length;
       
-      const sourcePalette = ['#ffd700', '#56c2ff', '#f59e0b', '#fb7185', '#a78bfa', '#14b8a6'];
+      const sourcePalette = ['#1dff00', '#56c2ff', '#1dff00', '#fb7185', '#a78bfa', '#14b8a6'];
       const sourceCounts = groupCounts(
         jobs.map((job: any) => {
           const rawSource = String(job.source_type || '').trim();
@@ -364,8 +364,8 @@ export function useAnalyticsData(
       // Bars and donut
       const bar = [
         { name: 'Jobs found', value: jobsFound, color: '#3B82F6' },
-        { name: 'Applications', value: applications, color: '#ffd700' },
-        { name: 'Interviews', value: interviews, color: '#F59E0B' },
+        { name: 'Applications', value: applications, color: '#1dff00' },
+        { name: 'Interviews', value: interviews, color: '#1dff00' },
       ];
 
       const statusCounts = groupCounts(apps.map((a: any) => a.status || 'Unknown'));
@@ -577,19 +577,19 @@ function groupCounts(items: string[]) {
 
 function pickColor(name: string) {
   const key = name.toLowerCase();
-  if (/interview/.test(key)) return '#F59E0B';
+  if (/interview/.test(key)) return '#1dff00';
   if (/offer/.test(key)) return '#10B981';
-  if (/reject/.test(key)) return '#EF4444';
+  if (/reject/.test(key)) return '#1dff00';
   if (/withdraw/.test(key)) return '#94A3B8';
-  if (/pending|appl/.test(key)) return '#ffd700';
+  if (/pending|appl/.test(key)) return '#1dff00';
   return '#3B82F6';
 }
 
 function matchScoreColor(score: number) {
-  if (score >= 90) return '#ffd700';
-  if (score >= 75) return '#FACC15';
-  if (score >= 60) return '#FB923C';
-  return '#F87171';
+  if (score >= 90) return '#1dff00';
+  if (score >= 75) return '#1dff00';
+  if (score >= 60) return '#1dff00';
+  return '#1dff00';
 }
 
 function clampScore(score: number) {

@@ -27,7 +27,7 @@ export const AnimatedSVGBackground: React.FC = () => {
         <defs>
           {/* Animated gradient */}
           <linearGradient id="grid-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ffd700" stopOpacity="0.1">
+            <stop offset="0%" stopColor="#1dff00" stopOpacity="0.1">
               <animate
                 attributeName="stop-opacity"
                 values="0.1;0.3;0.1"
@@ -35,7 +35,7 @@ export const AnimatedSVGBackground: React.FC = () => {
                 repeatCount="indefinite"
               />
             </stop>
-            <stop offset="100%" stopColor="#b45309" stopOpacity="0.05">
+            <stop offset="100%" stopColor="#1dff00" stopOpacity="0.05">
               <animate
                 attributeName="stop-opacity"
                 values="0.05;0.15;0.05"
@@ -83,7 +83,7 @@ export const AnimatedSVGBackground: React.FC = () => {
         <polygon
           points="50 1 95 25 95 75 50 99 5 75 5 25"
           fill="none"
-          stroke="#ffd700"
+          stroke="#1dff00"
           strokeWidth="1"
         />
       </motion.svg>
@@ -104,8 +104,8 @@ export const AnimatedSVGBackground: React.FC = () => {
           delay: 2,
         }}
       >
-        <circle cx="50" cy="50" r="40" fill="none" stroke="#ffd700" strokeWidth="0.5" />
-        <circle cx="50" cy="50" r="30" fill="none" stroke="#b45309" strokeWidth="0.5">
+        <circle cx="50" cy="50" r="40" fill="none" stroke="#1dff00" strokeWidth="0.5" />
+        <circle cx="50" cy="50" r="30" fill="none" stroke="#1dff00" strokeWidth="0.5">
           <animate
             attributeName="r"
             values="30;35;30"
@@ -136,8 +136,8 @@ export const AnimatedSVGBackground: React.FC = () => {
         </path>
         <defs>
           <linearGradient id="wave-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#ffd700" />
-            <stop offset="100%" stopColor="#b45309" />
+            <stop offset="0%" stopColor="#1dff00" />
+            <stop offset="100%" stopColor="#1dff00" />
           </linearGradient>
         </defs>
       </svg>
@@ -146,7 +146,7 @@ export const AnimatedSVGBackground: React.FC = () => {
       {particles.map((particle) => (
         <motion.div
           key={particle.id}
-          className="absolute w-1 h-1 bg-[#ffd700] rounded-full"
+          className="absolute w-1 h-1 bg-[#1dff00] rounded-full"
           style={{
             left: `${particle.left}%`,
             top: `${particle.top}%`,
@@ -182,7 +182,7 @@ export const AnimatedSVGBackground: React.FC = () => {
           cy="100"
           r="80"
           fill="none"
-          stroke="#ffd700"
+          stroke="#1dff00"
           strokeWidth="0.5"
           strokeDasharray="5,5"
         />
@@ -191,7 +191,7 @@ export const AnimatedSVGBackground: React.FC = () => {
           cy="100"
           r="60"
           fill="none"
-          stroke="#ffd700"
+          stroke="#1dff00"
           strokeWidth="0.5"
           strokeDasharray="3,3"
         />
@@ -204,8 +204,8 @@ export const AnimatedSVGBackground: React.FC = () => {
       >
         <defs>
           <linearGradient id="blob-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ffd700" />
-            <stop offset="100%" stopColor="#b45309" />
+            <stop offset="0%" stopColor="#1dff00" />
+            <stop offset="100%" stopColor="#1dff00" />
           </linearGradient>
         </defs>
         <path fill="url(#blob-gradient)">

@@ -182,11 +182,11 @@ const FeatureDemo: React.FC<FeatureDemoProps> = ({
       featureName={featureName}
       showPreview={true}
       fallback={
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-[#1dff00] bg-[#1dff00]/10">
           <CardContent className="p-6 text-center">
-            <h3 className="font-semibold text-red-800 mb-2">{title}</h3>
-            <p className="text-red-600 mb-4">{description}</p>
-            <Badge className="bg-red-100 text-red-800">Insufficient Credits</Badge>
+            <h3 className="font-semibold text-[#1dff00] mb-2">{title}</h3>
+            <p className="text-[#1dff00] mb-4">{description}</p>
+            <Badge className="bg-[#1dff00]/10 text-[#1dff00]">Insufficient Credits</Badge>
           </CardContent>
         </Card>
       }
@@ -225,7 +225,7 @@ const SystemStatsCard: React.FC = () => {
       <CardContent className="space-y-3">
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600">Credits Balance</span>
-          <Badge className={credits.balance && credits.balance.balance > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+          <Badge className={credits.balance && credits.balance.balance > 0 ? "bg-green-100 text-green-800" : "bg-[#1dff00]/10 text-[#1dff00]"}>
             {credits.loading ? '...' : credits.balance?.balance || 0}
           </Badge>
         </div>

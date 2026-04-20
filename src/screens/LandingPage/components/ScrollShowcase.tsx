@@ -40,7 +40,7 @@ export const ScrollShowcase = () => {
 
 const ShowcaseStep = ({ step, index, total }: { step: typeof steps[0], index: number, total: number }) => {
   return (
-    <div className="min-h-screen sticky top-0 flex items-center justify-center overflow-hidden border-t border-[#ffd700]/10 bg-background">
+    <div className="min-h-screen sticky top-0 flex items-center justify-center overflow-hidden border-t border-[#1dff00]/10 bg-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
 
@@ -51,7 +51,7 @@ const ShowcaseStep = ({ step, index, total }: { step: typeof steps[0], index: nu
             transition={{ duration: 0.8 }}
             className="order-2 lg:order-1"
           >
-            <div className="text-[#ffd700] text-6xl md:text-8xl font-mono font-bold opacity-20 mb-4">
+            <div className="text-[#1dff00] text-6xl md:text-8xl font-mono font-bold opacity-20 mb-4">
               {step.num}
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6 font-mono">
@@ -68,9 +68,9 @@ const ShowcaseStep = ({ step, index, total }: { step: typeof steps[0], index: nu
               initial={{ scale: 0.8, opacity: 0 }}
               whileInView={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.8 }}
-              className="relative aspect-video rounded-xl overflow-hidden border border-[#ffd700]/30 shadow-[0_0_50px_rgba(255,215,0,0.1)]"
+              className="relative aspect-video rounded-xl overflow-hidden border border-[#1dff00]/30 shadow-[0_0_50px_rgba(29,255,0,0.1)]"
             >
-              <div className="absolute inset-0 bg-[#ffd700]/10 mix-blend-overlay z-10" />
+              <div className="absolute inset-0 bg-[#1dff00]/10 mix-blend-overlay z-10" />
               <img
                 src={step.image}
                 alt={step.title}
@@ -78,12 +78,12 @@ const ShowcaseStep = ({ step, index, total }: { step: typeof steps[0], index: nu
               />
 
               {/* Overlay UI Mockup */}
-              <div className="absolute bottom-4 left-4 right-4 bg-background/80 backdrop-blur-md border border-[#ffd700]/20 p-4 rounded z-20">
+              <div className="absolute bottom-4 left-4 right-4 bg-background/80 backdrop-blur-md border border-[#1dff00]/20 p-4 rounded z-20">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-[#ffd700] rounded-full animate-pulse" />
-                  <div className="h-2 w-2/3 bg-[#ffd700]/20 rounded" />
+                  <div className="w-2 h-2 bg-[#1dff00] rounded-full animate-pulse" />
+                  <div className="h-2 w-2/3 bg-[#1dff00]/20 rounded" />
                 </div>
-                <div className="mt-2 h-2 w-1/2 bg-[#ffd700]/10 rounded" />
+                <div className="mt-2 h-2 w-1/2 bg-[#1dff00]/10 rounded" />
               </div>
             </motion.div>
           </div>

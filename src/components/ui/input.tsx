@@ -37,7 +37,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           sizeClasses[inputSize],
           "font-medium tracking-wide leading-relaxed placeholder:opacity-80",
           // Invalid state (when aria-invalid is set by form libs or manually)
-          "aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus-visible:ring-red-500",
+          "aria-[invalid=true]:border-[#1dff00] aria-[invalid=true]:focus-visible:ring-[#1dff00]",
           // Responsive text sizing
           inputSize === "lg" && "text-base sm:text-lg",
           inputSize === "xl" && "text-lg sm:text-xl",

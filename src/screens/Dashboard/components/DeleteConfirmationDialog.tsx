@@ -31,7 +31,7 @@ export const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> =
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="bg-zinc-950 border-zinc-800 text-foreground sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-xl text-red-500">
+                    <DialogTitle className="flex items-center gap-2 text-xl text-[#1dff00]">
                         <Trash2 className="w-5 h-5" />
                         {title}
                     </DialogTitle>
@@ -52,7 +52,7 @@ export const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> =
                     <Button
                         onClick={onConfirm}
                         disabled={loading}
-                        className="bg-red-600 text-foreground hover:bg-red-700 font-semibold"
+                        className="bg-[#1dff00] text-foreground hover:bg-[#1dff00] font-semibold"
                     >
                         {loading ? 'Deleting...' : 'Delete'}
                     </Button>

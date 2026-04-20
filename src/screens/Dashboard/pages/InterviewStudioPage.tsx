@@ -42,7 +42,7 @@ const AudioVisualizer = ({ isActive }: { isActive: boolean }) => {
       {[...Array(12)].map((_, i) => (
         <motion.div
           key={i}
-          className={`w-1 rounded-full ${isActive ? "bg-[#ffd700]" : "bg-zinc-700"}`}
+          className={`w-1 rounded-full ${isActive ? "bg-[#1dff00]" : "bg-zinc-700"}`}
           animate={
             isActive
               ? {
@@ -328,21 +328,21 @@ export const InterviewStudioPage: React.FC = () => {
   return (
     <div className='h-full bg-background text-foreground overflow-hidden flex flex-col relative'>
       {/* Background Grid */}
-      <div className='absolute inset-0 bg-[linear-gradient(rgba(255,215,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,215,0,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none' />
+      <div className='absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none' />
 
       {/* Main Content Area */}
       <div className='flex-1 flex flex-col xl:grid xl:grid-cols-12 gap-4 p-4 min-h-0 z-10 overflow-y-auto xl:overflow-hidden'>
         {/* HEADER (Mobile Only - usually redundant if sidebar exists, but good for context) */}
         <div className='xl:col-span-12 flex items-center justify-between shrink-0 xl:mb-2'>
           <div className='flex items-center gap-2'>
-            <span className='w-2 h-2 bg-[#ffd700] rounded-full shadow-[0_0_8px_#ffd700]' />
+            <span className='w-2 h-2 bg-[#1dff00] rounded-full shadow-[0_0_8px_#1dff00]' />
             <h1 className='font-bold font-mono tracking-tight text-lg'>
               Interview Studio
             </h1>
           </div>
           {isRecording && (
-            <div className='flex items-center gap-2 px-2 py-0.5 rounded-full bg-[#ffd700]/10 border border-[#ffd700]/30 text-[#ffd700] text-[10px] uppercase font-mono'>
-              <div className='w-1.5 h-1.5 rounded-full bg-[#ffd700] animate-pulse' />
+            <div className='flex items-center gap-2 px-2 py-0.5 rounded-full bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] text-[10px] uppercase font-mono'>
+              <div className='w-1.5 h-1.5 rounded-full bg-[#1dff00] animate-pulse' />
               {isAIActive ? "AI Speaking" : formatTime(elapsedSeconds)}
             </div>
           )}
@@ -415,7 +415,7 @@ export const InterviewStudioPage: React.FC = () => {
                 size='icon'
                 onClick={toggleMic}
                 disabled={isRecording}
-                className={`h-9 w-9 rounded-full ${!micEnabled ? "bg-red-500/10 text-red-500" : "text-foreground hover:text-foreground hover:bg-foreground/5"}`}
+                className={`h-9 w-9 rounded-full ${!micEnabled ? "bg-[#1dff00]/10 text-[#1dff00]" : "text-foreground hover:text-foreground hover:bg-foreground/5"}`}
               >
                 {micEnabled ? <Mic size={18} /> : <MicOff size={18} />}
               </Button>
@@ -424,7 +424,7 @@ export const InterviewStudioPage: React.FC = () => {
                 size='icon'
                 onClick={toggleCamera}
                 disabled={isRecording}
-                className={`h-9 w-9 rounded-full ${!cameraEnabled ? "bg-red-500/10 text-red-500" : "text-foreground hover:text-foreground hover:bg-foreground/5"}`}
+                className={`h-9 w-9 rounded-full ${!cameraEnabled ? "bg-[#1dff00]/10 text-[#1dff00]" : "text-foreground hover:text-foreground hover:bg-foreground/5"}`}
               >
                 {cameraEnabled ? <Camera size={18} /> : <Video size={18} />}
               </Button>
@@ -493,7 +493,7 @@ export const InterviewStudioPage: React.FC = () => {
                   isRecording ? handleStopRecording : handleStartRecording
                 }
                 disabled={!streamInitialized || isConnecting}
-                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-red-500 hover:bg-red-600 shadow-red-900/20" : "bg-[#ffd700] hover:bg-[#ffd700]/90 shadow-[#ffd700]/20"} shadow-lg hover:scale-105 active:scale-95`}
+                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-[#1dff00]/100 hover:bg-[#1dff00] shadow-[#1dff00]/20" : "bg-[#1dff00] hover:bg-[#1dff00]/90 shadow-[#1dff00]/20"} shadow-lg hover:scale-105 active:scale-95`}
               >
                 {isConnecting ? (
                   <div className='w-5 h-5 border-2 border-background/30 border-t-black rounded-full animate-spin' />
@@ -524,7 +524,7 @@ export const InterviewStudioPage: React.FC = () => {
                 variant='ghost'
                 size='sm'
                 onClick={() => setIsScriptEditing(!isScriptEditing)}
-                className={`h-6 text-[10px] px-2 uppercase tracking-wider ${isScriptEditing ? "text-[#ffd700] bg-[#ffd700]/10 hover:bg-[#ffd700]/20" : "text-foreground hover:text-foreground"}`}
+                className={`h-6 text-[10px] px-2 uppercase tracking-wider ${isScriptEditing ? "text-[#1dff00] bg-[#1dff00]/10 hover:bg-[#1dff00]/20" : "text-foreground hover:text-foreground"}`}
               >
                 {isScriptEditing ? (
                   <span className='flex items-center gap-1'>
@@ -544,7 +544,7 @@ export const InterviewStudioPage: React.FC = () => {
               />
               {!isScriptEditing && isRecording && (
                 <div className='absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-foreground/5 to-transparent pointer-events-none flex items-end justify-center pb-2'>
-                  <span className='text-[10px] text-[#ffd700] animate-pulse'>
+                  <span className='text-[10px] text-[#1dff00] animate-pulse'>
                     Auto-scrolling...
                   </span>
                 </div>
@@ -559,7 +559,7 @@ export const InterviewStudioPage: React.FC = () => {
                 <Activity size={12} /> AI Coach
               </h3>
               {isRecording && (
-                <span className='px-1.5 py-0.5 rounded bg-[#ffd700] text-foreground text-[9px] font-bold animate-pulse'>
+                <span className='px-1.5 py-0.5 rounded bg-[#1dff00] text-foreground text-[9px] font-bold animate-pulse'>
                   LIVE
                 </span>
               )}
@@ -573,7 +573,7 @@ export const InterviewStudioPage: React.FC = () => {
                 </span>
                 <div className='flex items-baseline gap-1 mt-1'>
                   <span
-                    className={`text-2xl font-bold ${wpm > 160 ? "text-orange-400" : "text-foreground"}`}
+                    className={`text-2xl font-bold ${wpm > 160 ? "text-[#1dff00]" : "text-foreground"}`}
                   >
                     {wpm}
                   </span>
@@ -594,7 +594,7 @@ export const InterviewStudioPage: React.FC = () => {
                 </span>
                 <div className='flex items-baseline gap-1 mt-1'>
                   <span
-                    className={`text-2xl font-bold ${fillerWordCount > 5 ? "text-yellow-400" : "text-foreground"}`}
+                    className={`text-2xl font-bold ${fillerWordCount > 5 ? "text-[#1dff00]" : "text-foreground"}`}
                   >
                     {fillerWordCount}
                   </span>
@@ -604,7 +604,7 @@ export const InterviewStudioPage: React.FC = () => {
                 </div>
                 <div className='h-1 w-full bg-foreground/60 rounded-full mt-2 overflow-hidden'>
                   <motion.div
-                    className='h-full bg-yellow-500'
+                    className='h-full bg-[#1dff00]/100'
                     animate={{
                       width: `${Math.min(100, (fillerWordCount / 10) * 100)}%`,
                     }}
@@ -645,7 +645,7 @@ export const InterviewStudioPage: React.FC = () => {
               </div>
               <div className='flex items-center justify-between text-sm'>
                 <span className='text-foreground/50'>Sentiment</span>
-                <span className='text-sky-400'>{sentimentLabel}</span>
+                <span className='text-[#2dd4bf]'>{sentimentLabel}</span>
               </div>
               <div className='flex items-center justify-between text-sm'>
                 <span className='text-foreground/50'>Eye Contact</span>
@@ -663,7 +663,7 @@ export const InterviewStudioPage: React.FC = () => {
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
-            className='absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 bg-red-900/90 text-foreground rounded-lg shadow-xl flex items-center gap-3 border border-red-500/50 z-50'
+            className='absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 bg-[#1dff00]/90 text-foreground rounded-lg shadow-xl flex items-center gap-3 border border-[#1dff00]/50 z-50'
           >
             <AlertCircle size={18} />
             <span className='text-sm'>{permissionError}</span>

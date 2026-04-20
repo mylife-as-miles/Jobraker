@@ -80,14 +80,14 @@ export const CreditDisplay: React.FC<CreditDisplayProps> = ({
 
   if (compact) {
     return (
-      <Card className="w-48 bg-gradient-to-r from-amber-50 to-amber-100/80 border-amber-200">
+      <Card className="w-48 bg-gradient-to-r from-[#1dff00] to-[#1dff00]/80 border-[#1dff00]">
         <CardContent className="p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Coins className="w-4 h-4 text-amber-600" />
+              <Coins className="w-4 h-4 text-[#1dff00]" />
               <span className="text-sm font-medium text-gray-700">Credits</span>
             </div>
-            <span className="text-lg font-bold text-amber-800">{credits.balance}</span>
+            <span className="text-lg font-bold text-[#1dff00]">{credits.balance}</span>
           </div>
         </CardContent>
       </Card>
@@ -98,14 +98,14 @@ export const CreditDisplay: React.FC<CreditDisplayProps> = ({
     <Card className="w-full">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <Coins className="w-5 h-5 text-amber-600" />
+          <Coins className="w-5 h-5 text-[#1dff00]" />
           Credit Balance
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-2xl font-bold text-amber-800">{credits.balance}</p>
+            <p className="text-2xl font-bold text-[#1dff00]">{credits.balance}</p>
             <p className="text-sm text-gray-500">Available Credits</p>
           </div>
           <div className="text-right">
@@ -228,8 +228,8 @@ const CreditHistoryModal: React.FC<CreditHistoryModalProps> = ({ userId, onClose
                   </div>
                   <div className={`text-sm font-medium ${
                     transaction.type === 'earned' || transaction.type === 'bonus' || transaction.type === 'refunded'
-                      ? 'text-amber-600' 
-                      : 'text-red-600'
+                      ? 'text-[#1dff00]' 
+                      : 'text-[#1dff00]'
                   }`}>
                     {(transaction.type === 'earned' || transaction.type === 'bonus' || transaction.type === 'refunded') ? '+' : '-'}{transaction.amount}
                   </div>

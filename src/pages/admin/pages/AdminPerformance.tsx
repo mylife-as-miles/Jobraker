@@ -47,16 +47,16 @@ function DiagnosticsPanel({
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 20 }}
-          className="w-full max-w-md h-full bg-background border-l border-[#ffd700]/20 shadow-2xl overflow-y-auto"
+          className="w-full max-w-md h-full bg-background border-l border-[#1dff00]/20 shadow-2xl overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="p-6 border-b border-[#ffd700]/10 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
+          <div className="p-6 border-b border-[#1dff00]/10 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
             <div>
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                {service.type === 'database' && <Database className="w-5 h-5 text-[#ffd700]" />}
-                {service.type === 'auth' && <Shield className="w-5 h-5 text-[#ffd700]" />}
-                {service.type === 'storage' && <HardDrive className="w-5 h-5 text-[#ffd700]" />}
+                {service.type === 'database' && <Database className="w-5 h-5 text-[#1dff00]" />}
+                {service.type === 'auth' && <Shield className="w-5 h-5 text-[#1dff00]" />}
+                {service.type === 'storage' && <HardDrive className="w-5 h-5 text-[#1dff00]" />}
                 {service.name} Diagnostics
               </h2>
               <p className="text-sm text-gray-400 font-mono text-xs mt-1">System Health Check</p>
@@ -72,16 +72,16 @@ function DiagnosticsPanel({
           <div className="p-6 space-y-8">
             {/* Status Badge */}
             <div className={`flex flex-col items-center justify-center p-8 rounded-2xl border ${service.status === 'healthy'
-              ? 'bg-[#ffd700]/5 border-[#ffd700]/20'
-              : 'bg-red-500/5 border-red-500/20'
+              ? 'bg-[#1dff00]/5 border-[#1dff00]/20'
+              : 'bg-[#1dff00]/5 border-[#1dff00]/20'
               }`}>
               <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${service.status === 'healthy'
-                ? 'bg-[#ffd700]/10 text-[#ffd700]'
-                : 'bg-red-500/10 text-red-500'
+                ? 'bg-[#1dff00]/10 text-[#1dff00]'
+                : 'bg-[#1dff00]/10 text-[#1dff00]'
                 }`}>
                 {service.status === 'healthy' ? <CheckCircle2 className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
               </div>
-              <h3 className={`text-2xl font-bold capitalize ${service.status === 'healthy' ? 'text-[#ffd700]' : 'text-red-500'}`}>
+              <h3 className={`text-2xl font-bold capitalize ${service.status === 'healthy' ? 'text-[#1dff00]' : 'text-[#1dff00]'}`}>
                 {service.status}
               </h3>
               <p className="text-gray-400 mt-2 text-sm font-medium">
@@ -250,18 +250,18 @@ export default function AdminPerformance() {
         <motion.div
           layout
           className={`border rounded-2xl p-6 relative overflow-hidden ${systemStatus === 'Healthy'
-            ? 'bg-[#ffd700]/5 border-[#ffd700]/20'
-            : 'bg-red-500/5 border-red-500/20'
+            ? 'bg-[#1dff00]/5 border-[#1dff00]/20'
+            : 'bg-[#1dff00]/5 border-[#1dff00]/20'
             }`}
         >
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${systemStatus === 'Healthy' ? 'bg-[#ffd700]/20 text-[#ffd700]' : 'bg-red-500/20 text-red-500'
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${systemStatus === 'Healthy' ? 'bg-[#1dff00]/20 text-[#1dff00]' : 'bg-[#1dff00]/20 text-[#1dff00]'
               }`}>
               <Activity className="w-6 h-6" />
             </div>
             <div>
               <p className="text-sm text-gray-400">System Status</p>
-              <p className={`text-2xl font-bold ${systemStatus === 'Healthy' ? 'text-[#ffd700]' : 'text-red-500'
+              <p className={`text-2xl font-bold ${systemStatus === 'Healthy' ? 'text-[#1dff00]' : 'text-[#1dff00]'
                 }`}>{systemStatus}</p>
             </div>
           </div>
@@ -318,7 +318,7 @@ export default function AdminPerformance() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-background border border-[#ffd700]/20 rounded-2xl p-6"
+        className="bg-background border border-[#1dff00]/20 rounded-2xl p-6"
       >
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -326,7 +326,7 @@ export default function AdminPerformance() {
             <p className="text-sm text-gray-400">Real-time service response times</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 text-xs text-[#ffd700]"><div className="w-2 h-2 rounded-full bg-[#ffd700]" /> Database</span>
+            <span className="flex items-center gap-1 text-xs text-[#1dff00]"><div className="w-2 h-2 rounded-full bg-[#1dff00]" /> Database</span>
             <span className="flex items-center gap-1 text-xs text-blue-400"><div className="w-2 h-2 rounded-full bg-blue-400" /> Auth</span>
             <span className="flex items-center gap-1 text-xs text-purple-400"><div className="w-2 h-2 rounded-full bg-purple-400" /> Storage</span>
           </div>
@@ -336,8 +336,8 @@ export default function AdminPerformance() {
           <AreaChart data={history}>
             <defs>
               <linearGradient id="colorDb" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ffd700" stopOpacity={0.1} />
-                <stop offset="95%" stopColor="#ffd700" stopOpacity={0} />
+                <stop offset="5%" stopColor="#1dff00" stopOpacity={0.1} />
+                <stop offset="95%" stopColor="#1dff00" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
@@ -371,7 +371,7 @@ export default function AdminPerformance() {
             <Area
               type="monotone"
               dataKey="database"
-              stroke="#ffd700"
+              stroke="#1dff00"
               strokeWidth={2}
               fillOpacity={1}
               fill="url(#colorDb)"
@@ -402,9 +402,9 @@ export default function AdminPerformance() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-background border border-[#ffd700]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#ffd700]/5"
+        className="bg-background border border-[#1dff00]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#1dff00]/5"
       >
-        <div className="p-6 border-b border-[#ffd700]/20">
+        <div className="p-6 border-b border-[#1dff00]/20">
           <h3 className="text-xl font-bold text-white mb-1">Service Health Checks</h3>
           <p className="text-sm text-gray-400">Core system component status</p>
         </div>
@@ -436,10 +436,10 @@ export default function AdminPerformance() {
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${service.type === 'database' ? 'bg-[#ffd700]/20' :
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${service.type === 'database' ? 'bg-[#1dff00]/20' :
                           service.type === 'auth' ? 'bg-blue-500/20' : 'bg-purple-500/20'
                           }`}>
-                          {service.type === 'database' && <Database className={`w-4 h-4 ${service.type === 'database' ? 'text-[#ffd700]' : ''}`} />}
+                          {service.type === 'database' && <Database className={`w-4 h-4 ${service.type === 'database' ? 'text-[#1dff00]' : ''}`} />}
                           {service.type === 'auth' && <Shield className="w-4 h-4 text-blue-400" />}
                           {service.type === 'storage' && <HardDrive className="w-4 h-4 text-purple-400" />}
                         </div>
@@ -448,8 +448,8 @@ export default function AdminPerformance() {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${service.status === 'healthy'
-                        ? 'bg-[#ffd700]/10 text-[#ffd700] border border-[#ffd700]/20'
-                        : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                        ? 'bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20'
+                        : 'bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20'
                         }`}>
                         {service.status === 'healthy' && <CheckCircle2 className="w-3 h-3" />}
                         {service.status === 'degraded' && <AlertCircle className="w-3 h-3" />}

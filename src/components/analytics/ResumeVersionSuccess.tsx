@@ -38,7 +38,7 @@ export function ResumeVersionSuccess({ period, data }: { period: Period; data: a
         <div className="flex h-full flex-col p-5 sm:p-6">
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#f59e0b]/25 bg-[#f59e0b]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#f59e0b]">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#1dff00]/25 bg-[#1dff00]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#1dff00]">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Status mix
               </div>

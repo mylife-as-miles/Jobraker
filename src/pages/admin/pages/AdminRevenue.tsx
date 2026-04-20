@@ -93,7 +93,7 @@ export default function AdminRevenue() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-[#ffd700] animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-[#1dff00] animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Loading revenue data...</p>
         </div>
       </div>
@@ -110,13 +110,13 @@ export default function AdminRevenue() {
         </div>
 
         {/* Time Range Selector */}
-        <div className="flex gap-2 bg-gradient-to-br from-background via-[#111111] to-background border border-[#ffd700]/20 rounded-xl p-1">
+        <div className="flex gap-2 bg-gradient-to-br from-background via-[#111111] to-background border border-[#1dff00]/20 rounded-xl p-1">
           {[30, 60, 90].map((days) => (
             <button
               key={days}
               onClick={() => setTimeRange(days as any)}
               className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${timeRange === days
-                ? 'bg-[#ffd700] text-black shadow-lg shadow-[#ffd700]/50'
+                ? 'bg-[#1dff00] text-black shadow-lg shadow-[#1dff00]/50'
                 : 'text-gray-400 hover:text-white'
                 }`}
             >
@@ -132,13 +132,13 @@ export default function AdminRevenue() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Card className="bg-gradient-to-br from-[#fbbf24]/10 to-background/10 border-[#ffd700]/30 hover:border-[#ffd700]/60 hover:shadow-lg hover:shadow-[#ffd700]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#fbbf24]/20 to-background/20 border border-[#ffd700]/30 flex items-center justify-center">
-                  <DollarSign className="w-6 h-6 text-[#ffd700]" />
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-background/20 border border-[#1dff00]/30 flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-[#1dff00]" />
                 </div>
-                <div className="flex items-center gap-1 text-[#ffd700]">
+                <div className="flex items-center gap-1 text-[#1dff00]">
                   <ArrowUp className="w-4 h-4" />
                   <span className="text-sm font-medium">+12.5%</span>
                 </div>
@@ -154,13 +154,13 @@ export default function AdminRevenue() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className="bg-gradient-to-br from-[#fbbf24]/10 to-background/10 border-[#ffd700]/30 hover:border-[#ffd700]/60 hover:shadow-lg hover:shadow-[#ffd700]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#fbbf24]/20 to-background/20 border border-[#ffd700]/30 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-[#ffd700]" />
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-background/20 border border-[#1dff00]/30 flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-[#1dff00]" />
                 </div>
-                <div className="flex items-center gap-1 text-[#ffd700]">
+                <div className="flex items-center gap-1 text-[#1dff00]">
                   <ArrowUp className="w-4 h-4" />
                   <span className="text-sm font-medium">+8.2%</span>
                 </div>
@@ -176,13 +176,13 @@ export default function AdminRevenue() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card className="bg-gradient-to-br from-[#fbbf24]/10 to-background/10 border-[#ffd700]/30 hover:border-[#ffd700]/60 hover:shadow-lg hover:shadow-[#ffd700]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#fbbf24]/20 to-background/20 border border-[#ffd700]/30 flex items-center justify-center">
-                  <CreditCard className="w-6 h-6 text-[#ffd700]" />
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-background/20 border border-[#1dff00]/30 flex items-center justify-center">
+                  <CreditCard className="w-6 h-6 text-[#1dff00]" />
                 </div>
-                <div className="flex items-center gap-1 text-[#ffd700]">
+                <div className="flex items-center gap-1 text-[#1dff00]">
                   <ArrowUp className="w-4 h-4" />
                   <span className="text-sm font-medium">+15.3%</span>
                 </div>
@@ -198,13 +198,13 @@ export default function AdminRevenue() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="bg-gradient-to-br from-[#fbbf24]/10 to-background/10 border-[#ffd700]/30 hover:border-[#ffd700]/60 hover:shadow-lg hover:shadow-[#ffd700]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#fbbf24]/20 to-background/20 border border-[#ffd700]/30 flex items-center justify-center">
-                  <Users className="w-6 h-6 text-[#ffd700]" />
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-background/20 border border-[#1dff00]/30 flex items-center justify-center">
+                  <Users className="w-6 h-6 text-[#1dff00]" />
                 </div>
-                <div className="flex items-center gap-1 text-[#ffd700]">
+                <div className="flex items-center gap-1 text-[#1dff00]">
                   <ArrowUp className="w-4 h-4" />
                   <span className="text-sm font-medium">+23.1%</span>
                 </div>
@@ -222,7 +222,7 @@ export default function AdminRevenue() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20 hover:border-[#ffd700]/50 hover:shadow-lg hover:shadow-[#ffd700]/20 transition-all duration-300">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
           <CardHeader>
             <CardTitle>Revenue Trend</CardTitle>
             <p className="text-sm text-gray-400">Daily revenue and MRR over time</p>
@@ -232,12 +232,12 @@ export default function AdminRevenue() {
               <ComposedChart data={chartData}>
                 <defs>
                   <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ffd700" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#ffd700" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#1dff00" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#1dff00" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="mrrGradient2" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#b45309" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#b45309" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#1dff00" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#1dff00" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -253,7 +253,7 @@ export default function AdminRevenue() {
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#1f2937',
-                    border: '1px solid #ffd700',
+                    border: '1px solid #1dff00',
                     borderRadius: '8px',
                     color: '#fff'
                   }}
@@ -262,7 +262,7 @@ export default function AdminRevenue() {
                 <Area
                   type="monotone"
                   dataKey="revenue"
-                  stroke="#ffd700"
+                  stroke="#1dff00"
                   strokeWidth={2}
                   fill="url(#revenueGradient)"
                   name="Revenue"
@@ -270,7 +270,7 @@ export default function AdminRevenue() {
                 <Line
                   type="monotone"
                   dataKey="mrr"
-                  stroke="#b45309"
+                  stroke="#1dff00"
                   strokeWidth={2}
                   name="MRR"
                   dot={false}
@@ -288,7 +288,7 @@ export default function AdminRevenue() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20 hover:border-[#ffd700]/50 hover:shadow-lg hover:shadow-[#ffd700]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardHeader>
               <CardTitle>New Subscriptions</CardTitle>
               <p className="text-sm text-gray-400">Daily subscription growth</p>
@@ -309,12 +309,12 @@ export default function AdminRevenue() {
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#1f2937',
-                      border: '1px solid #ffd700',
+                      border: '1px solid #1dff00',
                       borderRadius: '8px',
                       color: '#fff'
                     }}
                   />
-                  <Bar dataKey="newSubs" fill="#ffd700" radius={[8, 8, 0, 0]} name="New Subscriptions" />
+                  <Bar dataKey="newSubs" fill="#1dff00" radius={[8, 8, 0, 0]} name="New Subscriptions" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -326,7 +326,7 @@ export default function AdminRevenue() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20 hover:border-[#ffd700]/50 hover:shadow-lg hover:shadow-[#ffd700]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardHeader>
               <CardTitle>Revenue Breakdown</CardTitle>
               <p className="text-sm text-gray-400">Revenue by subscription tier</p>
@@ -357,10 +357,10 @@ export default function AdminRevenue() {
                 {(() => {
                   const proData = getTierData('Pro');
                   return (
-                    <div className="flex items-center justify-between p-4 bg-[#ffd700]/10 border border-[#ffd700]/20 rounded-xl">
+                    <div className="flex items-center justify-between p-4 bg-[#1dff00]/10 border border-[#1dff00]/20 rounded-xl">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-[#ffd700]/20 flex items-center justify-center">
-                          <DollarSign className="w-5 h-5 text-[#ffd700]" />
+                        <div className="w-10 h-10 rounded-lg bg-[#1dff00]/20 flex items-center justify-center">
+                          <DollarSign className="w-5 h-5 text-[#1dff00]" />
                         </div>
                         <div>
                           <p className="text-white font-medium">Pro Plan</p>
@@ -369,7 +369,7 @@ export default function AdminRevenue() {
                       </div>
                       <div className="text-right">
                         <p className="text-xl font-bold text-white">${proData.revenue.toLocaleString()}</p>
-                        <p className="text-sm text-[#ffd700]">{proData.percentage}% of MRR</p>
+                        <p className="text-sm text-[#1dff00]">{proData.percentage}% of MRR</p>
                       </div>
                     </div>
                   );
@@ -378,10 +378,10 @@ export default function AdminRevenue() {
                 {(() => {
                   const basicsData = getTierData('Basics');
                   return (
-                    <div className="flex items-center justify-between p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+                    <div className="flex items-center justify-between p-4 bg-[#1dff00]/10 border border-[#1dff00]/20 rounded-xl">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                          <DollarSign className="w-5 h-5 text-yellow-400" />
+                        <div className="w-10 h-10 rounded-lg bg-[#1dff00]/20 flex items-center justify-center">
+                          <DollarSign className="w-5 h-5 text-[#1dff00]" />
                         </div>
                         <div>
                           <p className="text-white font-medium">Basics Plan</p>
@@ -390,7 +390,7 @@ export default function AdminRevenue() {
                       </div>
                       <div className="text-right">
                         <p className="text-xl font-bold text-white">${basicsData.revenue.toLocaleString()}</p>
-                        <p className="text-sm text-yellow-400">{basicsData.percentage}% of MRR</p>
+                        <p className="text-sm text-[#1dff00]">{basicsData.percentage}% of MRR</p>
                       </div>
                     </div>
                   );
@@ -428,7 +428,7 @@ export default function AdminRevenue() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7 }}
       >
-        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#ffd700]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Recent Transactions</CardTitle>
@@ -445,14 +445,14 @@ export default function AdminRevenue() {
                   placeholder="Search user, email, or description..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#ffd700]/50"
+                  className="w-full pl-10 pr-4 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#1dff00]/50"
                 />
               </div>
               <div className="flex gap-2">
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value)}
-                  className="px-4 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#ffd700]/50"
+                  className="px-4 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#1dff00]/50"
                 >
                   <option value="all">All Types</option>
                   <option value="purchase">Purchase</option>
@@ -504,7 +504,7 @@ export default function AdminRevenue() {
                             )}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-white group-hover:text-[#ffd700] transition-colors">
+                            <p className="text-sm font-medium text-white group-hover:text-[#1dff00] transition-colors">
                               {tx.user?.full_name || 'Unknown User'}
                             </p>
                             <p className="text-xs text-gray-500">{tx.user?.email}</p>
@@ -512,10 +512,10 @@ export default function AdminRevenue() {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${tx.transaction_type === 'purchase' ? 'bg-[#ffd700]/10 text-[#ffd700] border-[#ffd700]/20' :
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${tx.transaction_type === 'purchase' ? 'bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/20' :
                             tx.transaction_type === 'bonus' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
-                              tx.transaction_type === 'refund' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
-                                'bg-red-500/10 text-red-400 border-red-500/20'
+                              tx.transaction_type === 'refund' ? 'bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/20' :
+                                'bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/20'
                           }`}>
                           {tx.transaction_type === 'purchase' && <DollarSign className="w-3 h-3 mr-1" />}
                           {tx.transaction_type === 'bonus' && <ArrowUp className="w-3 h-3 mr-1" />}
@@ -530,7 +530,7 @@ export default function AdminRevenue() {
                         )}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className={`font-mono font-medium ${tx.amount > 0 ? 'text-[#ffd700]' : 'text-gray-400'
+                        <span className={`font-mono font-medium ${tx.amount > 0 ? 'text-[#1dff00]' : 'text-gray-400'
                           }`}>
                           {tx.amount > 0 ? '+' : ''}{tx.amount}
                         </span>
@@ -571,7 +571,7 @@ export default function AdminRevenue() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: "spring", damping: 20 }}
-              className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-background border-l border-[#ffd700]/20 z-50 overflow-y-auto"
+              className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-background border-l border-[#1dff00]/20 z-50 overflow-y-auto"
             >
               <div className="p-6">
                 <div className="flex items-center justify-between mb-8">
@@ -583,9 +583,9 @@ export default function AdminRevenue() {
 
                 <div className="space-y-8">
                   {/* Amount Badge */}
-                  <div className="text-center p-6 bg-gradient-to-br from-[#fbbf24]/10 to-transparent rounded-2xl border border-[#ffd700]/20">
+                  <div className="text-center p-6 bg-gradient-to-br from-[#1dff00]/10 to-transparent rounded-2xl border border-[#1dff00]/20">
                     <p className="text-sm text-gray-400 mb-1">Amount</p>
-                    <p className="text-4xl font-bold text-[#ffd700]">
+                    <p className="text-4xl font-bold text-[#1dff00]">
                       {selectedTransaction.amount > 0 ? '+' : ''}{selectedTransaction.amount}
                       <span className="text-lg text-gray-500 ml-2">credits</span>
                     </p>

@@ -169,9 +169,9 @@ export function LowCreditsPromoModal({
 
           {/* Coupon strip */}
           <div className="rounded-xl border border-white/10 bg-zinc-900/80 overflow-hidden">
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-[#ffd700]/10">
-              <Check className="h-4 w-4 text-[#ffd700] shrink-0" strokeWidth={3} />
-              <span className="text-xs font-semibold text-[#ffd700]">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-[#1dff00]/10">
+              <Check className="h-4 w-4 text-[#1dff00] shrink-0" strokeWidth={3} />
+              <span className="text-xs font-semibold text-[#1dff00]">
                 {PROMO_CODE_DISPLAY} promocode is applied
               </span>
             </div>
@@ -210,7 +210,7 @@ export function LowCreditsPromoModal({
               onUpgrade();
               handleClose();
             }}
-            className="w-full h-12 rounded-xl bg-[#ffd700] text-black font-bold text-sm sm:text-base hover:bg-[#ffd700] hover:brightness-110 shadow-[0_0_24px_rgba(255,215,0,0.35)] hover:shadow-[0_0_32px_rgba(255,215,0,0.45)] transition-all"
+            className="w-full h-12 rounded-xl bg-[#1dff00] text-black font-bold text-sm sm:text-base hover:bg-[#1dff00] hover:brightness-110 shadow-[0_0_24px_rgba(29,255,0,0.35)] hover:shadow-[0_0_32px_rgba(29,255,0,0.45)] transition-all"
           >
             Get your upgrade discount
           </Button>

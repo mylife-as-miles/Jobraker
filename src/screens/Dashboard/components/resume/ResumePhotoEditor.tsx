@@ -135,7 +135,7 @@ export const ResumePhotoEditor = ({
   return (
     <div className="col-span-2 rounded-xl border border-border/50 bg-[hsl(var(--product-surface-muted))] p-4">
       <div className="flex items-start gap-4">
-        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-[#ffd700]/35 bg-white shadow-sm">
+        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-[#1dff00]/35 bg-white shadow-sm">
           {previewUrl ? (
             <img
               src={previewUrl}
@@ -143,7 +143,7 @@ export const ResumePhotoEditor = ({
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#fff6cc,transparent)] text-[#7a6a16]">
+            <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#1dff00,transparent)] text-[#1dff00]">
               <ImagePlus className="h-6 w-6" />
             </div>
           )}
@@ -174,7 +174,7 @@ export const ResumePhotoEditor = ({
           variant="outline"
           onClick={handleUseProfileImage}
           disabled={!hasProfileAvatar || syncingProfilePhoto || uploading}
-          className="product-outline-button border-[#ffd700]/45 hover:border-[#ffd700] hover:text-[#7a5d00]"
+          className="product-outline-button border-[#1dff00]/45 hover:border-[#1dff00] hover:text-[#7a5d00]"
         >
           <ImagePlus className="mr-2 h-4 w-4" />
           Use Profile Image
@@ -223,7 +223,7 @@ export const ResumePhotoEditor = ({
             type="button"
             variant="outline"
             onClick={handleRemove}
-            className="product-outline-button hover:border-red-400 hover:text-red-500"
+            className="product-outline-button hover:border-[#1dff00] hover:text-[#1dff00]"
           >
             <Trash2 className="mr-2 h-4 w-4" />
             Remove Photo

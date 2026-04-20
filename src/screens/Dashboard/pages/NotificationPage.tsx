@@ -62,12 +62,12 @@ export const NotificationPage = (): JSX.Element => {
       switch (type) {
         case "interview":
           return {
-            bgColor: "#ffd700",
+            bgColor: "#1dff00",
             icon: <Calendar className="w-4 h-4 text-black" />,
           };
         case "system":
           return {
-            bgColor: "#ffd700",
+            bgColor: "#1dff00",
             icon: <AlertCircle className="w-4 h-4 text-black" />,
           };
         case "company":
@@ -87,12 +87,12 @@ export const NotificationPage = (): JSX.Element => {
           };
         case "credit":
           return {
-            bgColor: "#eab308", // Yellow-500
+            bgColor: "#1dff00",
             icon: <Coins className="w-4 h-4 text-black" />,
           };
         default:
           return {
-            bgColor: "#ffd700",
+            bgColor: "#1dff00",
             icon: <Bell className="w-4 h-4 text-black" />,
           };
       }
@@ -135,9 +135,9 @@ export const NotificationPage = (): JSX.Element => {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
-        return "border-l-red-500";
+        return "border-l-[#1dff00]/200";
       case "medium":
-        return "border-l-yellow-500";
+        return "border-l-[#1dff00]/200";
       case "low":
         return "border-l-green-500";
       default:
@@ -185,7 +185,7 @@ export const NotificationPage = (): JSX.Element => {
                 await bulkRemove(selectedIds);
                 setSelectedIds([]);
               }}
-              className="product-outline-button text-red-500 hover:border-red-400/50 hover:bg-red-500/10 hover:text-red-600 hover:scale-105 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
+              className="product-outline-button text-[#1dff00] hover:border-[#1dff00]/50 hover:bg-[#1dff00]/10 hover:text-[#1dff00] hover:scale-105 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete Selected
@@ -230,7 +230,7 @@ export const NotificationPage = (): JSX.Element => {
                     size="sm"
                     onClick={() => { setFilter(filterOption.key); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notifications_filter', filter: filterOption.key } })); } catch { } }}
                     className={`${filter === filterOption.key
-                        ? "product-control-button-active hover:bg-[#fff2b3]"
+                        ? "product-control-button-active hover:bg-[#1dff00]/15"
                         : "product-control-button"
                       }`}
                   >
@@ -253,7 +253,7 @@ export const NotificationPage = (): JSX.Element => {
                 <label className="product-helper-text flex cursor-pointer select-none items-center gap-1 text-[10px] uppercase tracking-wide">
                   <input
                     type="checkbox"
-                    className="accent-[#ffd700] w-3 h-3"
+                    className="accent-[#1dff00] w-3 h-3"
                     checked={autoMarkSeen}
                     onChange={(e) => {
                       const v = e.target.checked; setAutoMarkSeen(v); try { localStorage.setItem('notifications:autoMarkSeen', v ? 'true' : 'false'); window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notifications_auto_seen_toggle', value: v } })); } catch { }
@@ -269,8 +269,8 @@ export const NotificationPage = (): JSX.Element => {
               {filteredNotifications.length === 0 && !loading && (
                 <div className="p-8 flex items-center justify-center">
                   <div className="text-center">
-                    <div className="mx-auto w-14 h-14 rounded-full bg-[#ffd700]/10 flex items-center justify-center mb-3">
-                      <Inbox className="w-7 h-7 text-[#ffd700]" />
+                    <div className="mx-auto w-14 h-14 rounded-full bg-[#1dff00]/10 flex items-center justify-center mb-3">
+                      <Inbox className="w-7 h-7 text-[#1dff00]" />
                     </div>
                     <p className="text-foreground font-medium">No notifications</p>
                     <p className="product-helper-text text-xs">You'll see updates from your job search here.</p>
@@ -323,13 +323,13 @@ export const NotificationPage = (): JSX.Element => {
                             size="sm"
                             disabled={!supportsStar}
                             title={supportsStar ? '' : 'Starring requires a DB migration. Please update.'}
-                            className={`product-helper-text hover:text-yellow-400 hover:scale-110 transition-all duration-300 p-1 ${!supportsStar ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`product-helper-text hover:text-[#1dff00] hover:scale-110 transition-all duration-300 p-1 ${!supportsStar ? 'opacity-50 cursor-not-allowed' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (supportsStar) { toggleStar(notification.id); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notification_star_toggle', id: notification.id, active: !notification.isStarred } })); } catch { } }
                             }}
                           >
-                            <Star className={`w-3 h-3 ${notification.isStarred ? "fill-current text-yellow-400" : ""}`} />
+                            <Star className={`w-3 h-3 ${notification.isStarred ? "fill-current text-[#1dff00]" : ""}`} />
                           </Button>
                           <Button
                             variant="ghost"
@@ -345,17 +345,17 @@ export const NotificationPage = (): JSX.Element => {
                         <p className="text-xs product-helper-text flex items-center gap-1">
                           {notification.timestamp}
                           {!notification.seen_at && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#ffd700]/15 text-[#ffd700] text-[10px] font-semibold tracking-wide animate-pulse">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#1dff00]/15 text-[#1dff00] text-[10px] font-semibold tracking-wide animate-pulse">
                               New
                             </span>
                           )}
                         </p>
                         {notification.priority && (
-                          <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted/50 border ${notification.priority === 'high' ? 'border-red-500 text-red-400' : notification.priority === 'medium' ? 'border-yellow-500 text-yellow-400' : 'border-slate-500 text-slate-400'}`}>{notification.priority}</span>
+                          <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted/50 border ${notification.priority === 'high' ? 'border-[#1dff00] text-[#1dff00]' : notification.priority === 'medium' ? 'border-[#1dff00] text-[#1dff00]' : 'border-slate-500 text-slate-400'}`}>{notification.priority}</span>
                         )}
                       </div>
                       {!notification.isRead && (
-                        <div className="w-2 h-2 bg-[#ffd700] rounded-full mt-1"></div>
+                        <div className="w-2 h-2 bg-[#1dff00] rounded-full mt-1"></div>
                       )}
                     </div>
                   </div>
@@ -366,7 +366,7 @@ export const NotificationPage = (): JSX.Element => {
                   <Button
                     variant="ghost"
                     onClick={() => loadMore()}
-                    className="w-full text-[#ffd700] hover:bg-[#ffd700]/10"
+                    className="w-full text-[#1dff00] hover:bg-[#1dff00]/10"
                   >Load more</Button>
                 </div>
               )}
@@ -391,7 +391,7 @@ export const NotificationPage = (): JSX.Element => {
                         {selectedNotificationData.timestamp}
                       </p>
                       {selectedNotificationData.priority && (
-                        <p className="mt-1 text-xs product-helper-text">Priority: <span className={`font-semibold ${selectedNotificationData.priority === 'high' ? 'text-red-400' : selectedNotificationData.priority === 'medium' ? 'text-yellow-400' : 'text-slate-400'}`}>{selectedNotificationData.priority}</span></p>
+                        <p className="mt-1 text-xs product-helper-text">Priority: <span className={`font-semibold ${selectedNotificationData.priority === 'high' ? 'text-[#1dff00]' : selectedNotificationData.priority === 'medium' ? 'text-[#1dff00]' : 'text-slate-400'}`}>{selectedNotificationData.priority}</span></p>
                       )}
                     </div>
                     <div className="flex items-center space-x-2">
@@ -406,7 +406,7 @@ export const NotificationPage = (): JSX.Element => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="product-helper-text hover:text-red-400 hover:scale-110 transition-all duration-300"
+                        className="product-helper-text hover:text-[#1dff00] hover:scale-110 transition-all duration-300"
                         onClick={() => {
                           if (!selectedNotification) return;
                           remove(selectedNotification);
@@ -436,7 +436,7 @@ export const NotificationPage = (): JSX.Element => {
                       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-foreground/10">
                         {selectedNotificationData.action_url && (
                           <Button
-                            className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90 hover:scale-105 transition-all duration-300"
+                            className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
                             onClick={() => {
                               const item = items.find(i => i.id === selectedNotification);
                               if (item?.action_url) window.open(item.action_url, '_blank');
@@ -484,7 +484,6 @@ export const NotificationPage = (): JSX.Element => {
 
 // Auto-mark seen: attach after component definition to keep file tidy (hook inside component not extracted earlier)
 // We place the effect inside component but need logic - moved here would require refactor; instead integrate inside component above.
-
 
 
 

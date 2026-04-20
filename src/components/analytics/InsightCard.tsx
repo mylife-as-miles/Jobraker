@@ -77,7 +77,7 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
         <div className="flex h-full flex-col p-5 sm:p-6">
           <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#ffd700]/25 bg-[#ffd700]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#ffd700]">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#1dff00]/25 bg-[#1dff00]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#1dff00]">
                 <Sparkles className="h-3.5 w-3.5" />
                 Activity trend
               </div>
@@ -97,7 +97,7 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
               </div>
               <div className="rounded-2xl border border-border bg-background/70 p-4">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-foreground/55">
-                  <Target className="h-4 w-4 text-[#ffd700]" />
+                  <Target className="h-4 w-4 text-[#1dff00]" />
                   Applications
                 </div>
                 <div className="mt-3 text-3xl font-bold text-foreground">{metrics.applications}</div>
@@ -130,8 +130,8 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
                       <stop offset="95%" stopColor="#56c2ff" stopOpacity={0.03} />
                     </linearGradient>
                     <linearGradient id="insightApps" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ffd700" stopOpacity={0.24} />
-                      <stop offset="95%" stopColor="#ffd700" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor="#1dff00" stopOpacity={0.24} />
+                      <stop offset="95%" stopColor="#1dff00" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.16)" vertical={false} />
@@ -140,7 +140,7 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
                   <Tooltip contentStyle={{ borderRadius: 16, border: "1px solid rgba(148,163,184,0.18)", background: "rgba(15, 23, 42, 0.92)", color: "#f8fafc", boxShadow: "0 18px 40px rgba(15, 23, 42, 0.35)" }} />
                   <Legend />
                   <Area type="monotone" dataKey="jobs" name="Jobs found" stroke="#56c2ff" fill="url(#insightJobs)" strokeWidth={2.5} />
-                  <Line type="monotone" dataKey="applications" name="Applications" stroke="#ffd700" strokeWidth={3} dot={{ r: 3, fill: "#ffd700" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="applications" name="Applications" stroke="#1dff00" strokeWidth={3} dot={{ r: 3, fill: "#1dff00" }} activeDot={{ r: 5 }} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (

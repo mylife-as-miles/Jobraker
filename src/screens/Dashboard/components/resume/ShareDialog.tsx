@@ -104,7 +104,7 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
                             checked={!!isPublic}
                             onCheckedChange={handleToggle}
                             disabled={loading || !canShare}
-                            className="data-[state=checked]:bg-[#ffd700] data-[state=checked]:dark:bg-[#ffd700]"
+                            className="data-[state=checked]:bg-[#1dff00] data-[state=checked]:dark:bg-[#1dff00]"
                         />
                     </div>
 
@@ -113,8 +113,8 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
                             <div className="space-y-3">
                                 <label className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] ml-1">Share Link</label>
                                 <div className="flex items-center gap-3 p-4 bg-zinc-100/50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-2xl group transition-all hover:border-zinc-300 dark:hover:border-white/20">
-                                    <div className="w-8 h-8 rounded-lg bg-[#ffd700]/10 flex items-center justify-center shrink-0">
-                                        <Globe className="w-4 h-4 text-[#ffd700]" />
+                                    <div className="w-8 h-8 rounded-lg bg-[#1dff00]/10 flex items-center justify-center shrink-0">
+                                        <Globe className="w-4 h-4 text-[#1dff00]" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-mono text-zinc-500 dark:text-zinc-400 truncate">
@@ -142,8 +142,8 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
                                 </div>
 
                                 <div className="relative overflow-hidden group p-6 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center gap-1 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/80">
-                                    <div className="absolute -right-2 -top-2 w-16 h-16 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all" />
-                                    <Download className="w-5 h-5 text-amber-500 mb-1" />
+                                    <div className="absolute -right-2 -top-2 w-16 h-16 bg-[#1dff00]/10 rounded-full blur-2xl group-hover:bg-[#1dff00]/20 transition-all" />
+                                    <Download className="w-5 h-5 text-[#1dff00] mb-1" />
                                     <span className="text-3xl font-bold tabular-nums">{downloads || 0}</span>
                                     <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest">Downloads</span>
                                 </div>

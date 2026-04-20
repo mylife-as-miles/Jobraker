@@ -72,7 +72,7 @@ export function ScoreTrendCard({
                   <div
                     className={
                       scoreDelta > 0
-                        ? "flex items-center gap-0.5 text-xs text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded-full"
+                        ? "flex items-center gap-0.5 text-xs text-[#1dff00] font-bold bg-[#1dff00]/10 px-1.5 py-0.5 rounded-full"
                         : "flex items-center gap-0.5 text-xs text-rose-400 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded-full"
                     }
                   >

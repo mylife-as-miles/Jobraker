@@ -89,16 +89,16 @@ const Header = () => {
   const navigate = useNavigate();
   return (
     <div className="max-w-7xl relative mx-auto py-20 md:py-32 px-4 w-full left-0 top-0">
-      <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full border border-[#ffd700]/30 bg-[#ffd700]/5 text-[#ffd700] text-xs font-mono tracking-widest uppercase mb-8">
+      <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full border border-[#1dff00]/30 bg-[#1dff00]/5 text-[#1dff00] text-xs font-mono tracking-widest uppercase mb-8">
         <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ffd700] opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ffd700]"></span>
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1dff00] opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1dff00]"></span>
         </span>
         <span>AI Agent V2.0 Online</span>
       </div>
       <h1 className="text-4xl md:text-7xl font-bold dark:text-foreground font-mono">
         Your Job Search <br />
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#fbbf24] to-background">
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1dff00] to-background">
           On Autopilot
         </span>
       </h1>
@@ -110,14 +110,14 @@ const Header = () => {
       <div className="flex flex-col sm:flex-row items-center gap-4 mt-10">
         <Button
           onClick={() => navigate('/signup')}
-          className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90 h-12 px-8 text-lg font-bold rounded-none border border-[#ffd700]"
+          className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 h-12 px-8 text-lg font-bold rounded-none border border-[#1dff00]"
         >
           DEPLOY AGENT
           <ArrowRight className="w-5 h-5 ml-2" />
         </Button>
         <Button
           variant="outline"
-          className="border-[#ffd700] text-[#ffd700] bg-transparent hover:bg-[#ffd700]/10 h-12 px-8 text-lg font-mono rounded-none"
+          className="border-[#1dff00] text-[#1dff00] bg-transparent hover:bg-[#1dff00]/10 h-12 px-8 text-lg font-mono rounded-none"
         >
           <Terminal className="w-5 h-5 mr-2" />
           VIEW LOGS
@@ -151,7 +151,7 @@ export const ProductCard = ({
     >
       <div className="block group-hover/product:shadow-2xl opacity-40 group-hover/product:opacity-100 transition duration-500">
         <div
-          className="absolute inset-0 bg-cover bg-center rounded-xl border border-[#ffd700]/30"
+          className="absolute inset-0 bg-cover bg-center rounded-xl border border-[#1dff00]/30"
           style={{ backgroundImage: `url(${product.thumbnail})` }}
         />
         <div className="absolute inset-0 bg-background/50 group-hover/product:bg-background/0 transition duration-500 rounded-xl pointer-events-none" />

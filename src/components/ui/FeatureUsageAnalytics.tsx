@@ -43,7 +43,7 @@ export const FeatureUsageAnalytics: React.FC<FeatureUsageAnalyticsProps> = ({
   const pieData = featureUsage.slice(0, 5).map((usage, index) => ({
     name: usage.featureName.replace(/_/g, ' '),
     value: usage.totalCredits,
-    color: ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00'][index]
+    color: ['#8884d8', '#82ca9d', '#1dff00', '#1dff00', '#00ff00'][index]
   }));
 
   const totalCreditsUsed = featureUsage.reduce((sum, usage) => sum + usage.totalCredits, 0);

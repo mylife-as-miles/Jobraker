@@ -125,9 +125,9 @@ export default function AdminCheckCredits() {
   if (isAdmin === false) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-red-900/20 border border-red-500/50 rounded-lg p-8 text-center">
-          <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6">
-            <ShieldAlert className="w-10 h-10 text-red-500" />
+        <div className="max-w-md w-full bg-[#1dff00]/20 border border-[#1dff00]/50 rounded-lg p-8 text-center">
+          <div className="w-20 h-20 rounded-full bg-[#1dff00]/20 flex items-center justify-center mx-auto mb-6">
+            <ShieldAlert className="w-10 h-10 text-[#1dff00]" />
           </div>
           <h1 className="text-2xl font-bold text-white mb-3">Access Denied</h1>
           <p className="text-gray-400 mb-6">
@@ -170,8 +170,8 @@ export default function AdminCheckCredits() {
         </div>
 
         {error && (
-          <div className="bg-red-900/20 border border-red-500 rounded-lg p-4 mb-6">
-            <p className="text-red-400">{error}</p>
+          <div className="bg-[#1dff00]/20 border border-[#1dff00] rounded-lg p-4 mb-6">
+            <p className="text-[#1dff00]">{error}</p>
           </div>
         )}
 
@@ -211,7 +211,7 @@ export default function AdminCheckCredits() {
                   </div>
                   <div className="bg-gray-700 rounded p-4">
                     <p className="text-gray-400 text-sm">Total Consumed</p>
-                    <p className="text-2xl font-bold text-red-400">{result.credits.lifetime_spent ?? result.credits.total_consumed ?? 0}</p>
+                    <p className="text-2xl font-bold text-[#1dff00]">{result.credits.lifetime_spent ?? result.credits.total_consumed ?? 0}</p>
                   </div>
                   <div className="bg-gray-700 rounded p-4">
                     <p className="text-gray-400 text-sm">Last Updated</p>
@@ -269,13 +269,13 @@ export default function AdminCheckCredits() {
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
                               tx.type === 'earned' || tx.type === 'bonus' ? 'bg-green-900/30 text-green-400' :
                               tx.type === 'refund' ? 'bg-blue-900/30 text-blue-400' :
-                              'bg-red-900/30 text-red-400'
+                              'bg-[#1dff00]/30 text-[#1dff00]'
                             }`}>
                               {tx.type}
                             </span>
                           </td>
                           <td className={`py-2 text-right font-medium ${
-                            tx.type === 'consumed' ? 'text-red-400' : 'text-green-400'
+                            tx.type === 'consumed' ? 'text-[#1dff00]' : 'text-green-400'
                           }`}>
                             {tx.type === 'consumed' ? '-' : '+'}{tx.amount}
                           </td>
@@ -293,9 +293,9 @@ export default function AdminCheckCredits() {
 
             {/* Debug Info */}
             {Object.values(result.errors).some(e => e) && (
-              <div className="bg-yellow-900/20 border border-yellow-500 rounded-lg p-4">
-                <h3 className="text-yellow-400 font-bold mb-2">Errors/Warnings</h3>
-                <pre className="text-yellow-300 text-xs overflow-auto">
+              <div className="bg-[#1dff00]/20 border border-[#1dff00] rounded-lg p-4">
+                <h3 className="text-[#1dff00] font-bold mb-2">Errors/Warnings</h3>
+                <pre className="text-[#1dff00] text-xs overflow-auto">
                   {JSON.stringify(result.errors, null, 2)}
                 </pre>
               </div>

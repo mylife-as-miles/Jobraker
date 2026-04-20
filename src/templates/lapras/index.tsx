@@ -42,7 +42,7 @@ export function LaprasTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 	);
 	const headingNegativeMargin =
 		(resumeData.metadata.typography.font.size || 16) + 6;
-	const themePrimary = resumeData.metadata.theme?.primary || '#0369a1';
+	const themePrimary = resumeData.metadata.theme?.primary || '#2dd4bf';
 
 	const style = useMemo(() => {
 		return {

@@ -158,10 +158,10 @@ export const AddSectionDialog = ({
             <button
               key={section.id}
               onClick={() => handleAddStandard(section.id)}
-              className='product-section-card-muted group flex flex-col items-start p-4 text-left transition-all hover:border-[#ffd700]/60 hover:bg-[#fff2b3]'
+              className='product-section-card-muted group flex flex-col items-start p-4 text-left transition-all hover:border-[#1dff00]/60 hover:bg-[#1dff00]/15'
             >
               <div className='flex items-center gap-2 mb-2'>
-                <section.icon className='product-helper-text h-4 w-4 transition-colors group-hover:text-[#ffd700]' />
+                <section.icon className='product-helper-text h-4 w-4 transition-colors group-hover:text-[#1dff00]' />
                 <span className='font-semibold text-sm'>{section.label}</span>
               </div>
               <p className='product-helper-text text-xs'>
@@ -183,7 +183,7 @@ export const AddSectionDialog = ({
             <Button
               onClick={handleAddCustom}
               disabled={!customName.trim()}
-              className='bg-[#ffd700] text-black hover:bg-[#ca8a04]'
+              className='bg-[#1dff00] text-black hover:bg-[#1dff00]'
             >
               <Plus className='w-4 h-4 mr-2' />
               Add
