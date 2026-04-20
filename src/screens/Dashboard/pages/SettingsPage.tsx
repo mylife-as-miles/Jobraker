@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Skeleton } from "../../../components/ui/skeleton";
@@ -314,6 +314,7 @@ export const SettingsPage = (): JSX.Element => {
   const [totpCode, setTotpCode] = useState<string>("");
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [isGmailConnected, setIsGmailConnected] = useState(false);
+  const [gmailDisconnecting, setGmailDisconnecting] = useState(false);
   // API Key state
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [newApiKeyName, setNewApiKeyName] = useState("");
@@ -424,7 +425,8 @@ export const SettingsPage = (): JSX.Element => {
       }
 
       const { redirectUrl } = data;
-      window.open(redirectUrl, "_blank", "noopener,noreferrer");
+      // Do not use noopener: OAuth popup must keep window.opener so /auth/callback/gmail can postMessage back.
+      window.open(redirectUrl, "_blank", "width=520,height=720");
     } catch (error: any) {
       const errorMessage =
         error.details ||
@@ -434,44 +436,114 @@ export const SettingsPage = (): JSX.Element => {
     }
   };
 
-  useEffect(() => {
-    const checkGmailConnection = async () => {
-      try {
-        if (loadingTier || !hasGmailIntegrationAccess) {
-          setIsGmailConnected(false);
-          return;
-        }
-
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) {
-          return;
-        }
-
-        const { data, error } = await supabase.functions.invoke(
-          "gmail-auth",
-          {
-            body: {
-              action: "status",
-            },
-          },
-        );
-
-        if (error) {
-          throw error;
-        }
-
-        if (data?.isConnected !== undefined) {
-          setIsGmailConnected(data.isConnected);
-        }
-      } catch (error: any) {
-        console.error("Failed to check Gmail connection status:", error);
+  const checkGmailConnection = useCallback(async () => {
+    try {
+      if (loadingTier || !hasGmailIntegrationAccess) {
+        setIsGmailConnected(false);
+        return;
       }
-    };
 
-    checkGmailConnection();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("gmail-auth", {
+        body: {
+          action: "status",
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.isConnected !== undefined) {
+        setIsGmailConnected(!!data.isConnected);
+      }
+    } catch (error: unknown) {
+      console.error("Failed to check Gmail connection status:", error);
+    }
   }, [hasGmailIntegrationAccess, loadingTier, supabase]);
+
+  const handleDisconnectGmail = useCallback(async () => {
+    if (!hasGmailIntegrationAccess) {
+      toastError(
+        "Upgrade required",
+        "Gmail integration is available on the Ultimate plan.",
+      );
+      return;
+    }
+    setGmailDisconnecting(true);
+    try {
+      const { error } = await supabase.functions.invoke("gmail-auth", {
+        body: { action: "disconnect" },
+      });
+      if (error) {
+        throw error;
+      }
+      await checkGmailConnection();
+      success(
+        "Gmail disconnected",
+        "JobRaker no longer has access to your inbox. You can reconnect anytime.",
+      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Could not disconnect Gmail.";
+      toastError("Disconnect failed", message);
+    } finally {
+      setGmailDisconnecting(false);
+    }
+  }, [
+    hasGmailIntegrationAccess,
+    supabase,
+    checkGmailConnection,
+    success,
+    toastError,
+  ]);
+
+  useEffect(() => {
+    void checkGmailConnection();
+  }, [checkGmailConnection]);
+
+  useEffect(() => {
+    if (activeTab === "integrations") {
+      void checkGmailConnection();
+    }
+  }, [activeTab, checkGmailConnection]);
+
+  useEffect(() => {
+    if (activeTab !== "integrations" || !hasGmailIntegrationAccess) {
+      return;
+    }
+    let debounce: ReturnType<typeof setTimeout>;
+    const onFocus = () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => void checkGmailConnection(), 300);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearTimeout(debounce);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [activeTab, hasGmailIntegrationAccess, checkGmailConnection]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("gmail") !== "connected") {
+      return;
+    }
+    params.delete("gmail");
+    const next = params.toString();
+    navigate(
+      { pathname: location.pathname, search: next ? `?${next}` : "" },
+      { replace: true },
+    );
+    void checkGmailConnection();
+    success("Gmail connected successfully!");
+  }, [location.pathname, location.search, navigate, checkGmailConnection, success]);
 
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
@@ -485,7 +557,9 @@ export const SettingsPage = (): JSX.Element => {
       if (messageType === "gmail-auth-error") {
         toastError(
           "Failed to connect Gmail",
-          event.data?.message || "Please try again.",
+          typeof event.data === "object" && event.data && "message" in event.data
+            ? String((event.data as { message?: string }).message)
+            : "Please try again.",
         );
         return;
       }
@@ -499,7 +573,7 @@ export const SettingsPage = (): JSX.Element => {
           return;
         }
 
-        setIsGmailConnected(true);
+        await checkGmailConnection();
         success("Gmail connected successfully!");
       }
     };
@@ -509,7 +583,7 @@ export const SettingsPage = (): JSX.Element => {
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [hasGmailIntegrationAccess, supabase, success, toastError]);
+  }, [hasGmailIntegrationAccess, checkGmailConnection, success, toastError]);
 
   const initials = useMemo(() => {
     const a = (formData.firstName || "").trim();
@@ -3852,18 +3926,41 @@ export const SettingsPage = (): JSX.Element => {
                     </p>
                   </div>
                 </div>
-                <Button
-                  variant='outline'
-                  className={`border-border/40 transition-all ${isGmailConnected
-                    ? "text-[#1dff00] border-[#1dff00]/30 bg-[#1dff00]/10"
-                    : "text-muted-foreground hover:text-foreground hover:bg-[#1dff00]/10 hover:border-[#1dff00]/30"
-                    }`}
-                  onClick={handleConnectGmail}
-                  disabled={loadingTier || isGmailConnected}
-                >
-                  <Link className='w-4 h-4 mr-2' />
-                  {isGmailConnected ? "Connected" : "Connect"}
-                </Button>
+                <div className='flex flex-wrap items-center justify-end gap-2'>
+                  {isGmailConnected ? (
+                    <>
+                      <span
+                        className='inline-flex items-center gap-2 rounded-lg border border-[#1dff00]/30 bg-[#1dff00]/10 px-3 py-2 text-sm font-medium text-[#1dff00]'
+                        aria-live='polite'
+                      >
+                        <Link className='w-4 h-4 shrink-0' aria-hidden />
+                        Connected
+                      </span>
+                      <Button
+                        type='button'
+                        variant='outline'
+                        className='border-rose-500/35 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-400/50'
+                        onClick={handleDisconnectGmail}
+                        disabled={loadingTier || gmailDisconnecting}
+                      >
+                        {gmailDisconnecting ? (
+                          <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
+                        ) : null}
+                        Disconnect
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant='outline'
+                      className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#1dff00]/10 hover:border-[#1dff00]/30 transition-all'
+                      onClick={handleConnectGmail}
+                      disabled={loadingTier}
+                    >
+                      <Link className='w-4 h-4 mr-2' />
+                      Connect
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
             {!loadingTier && !hasGmailIntegrationAccess && (

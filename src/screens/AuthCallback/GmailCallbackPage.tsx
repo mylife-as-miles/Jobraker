@@ -15,10 +15,6 @@ const GmailCallbackPage = () => {
       const state = params.get("state");
       const targetOrigin = window.location.origin;
 
-      const notifyOpener = (payload: Record<string, string>) => {
-        window.opener?.postMessage(payload, targetOrigin);
-      };
-
       try {
         if (oauthError) {
           throw new Error(oauthError);
@@ -45,15 +41,26 @@ const GmailCallbackPage = () => {
         if (!cancelled) {
           setMessage("Gmail connected. You can close this window.");
         }
-        notifyOpener({ type: "gmail-auth-success" });
-        window.setTimeout(() => window.close(), 500);
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage({ type: "gmail-auth-success" }, targetOrigin);
+          window.setTimeout(() => window.close(), 500);
+        } else {
+          window.location.replace(
+            `${window.location.origin}/dashboard/settings/integrations?gmail=connected`,
+          );
+        }
       } catch (error: any) {
         const errorMessage =
           error?.details || error?.message || "Gmail connection failed.";
         if (!cancelled) {
           setMessage(errorMessage);
         }
-        notifyOpener({ type: "gmail-auth-error", message: errorMessage });
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(
+            { type: "gmail-auth-error", message: errorMessage },
+            targetOrigin,
+          );
+        }
       }
     };
 
