@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   Crown,
-  ShieldAlert
+  ShieldAlert,
+  WalletCards
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,6 +26,7 @@ const navigation = [
   { name: 'Subscriptions', icon: Crown, path: '/admin/subscriptions' },
   { name: 'Revenue', icon: TrendingUp, path: '/admin/revenue' },
   { name: 'Credits', icon: CreditCard, path: '/admin/credits' },
+  { name: 'Provider Credits', icon: WalletCards, path: '/admin/provider-credits' },
   { name: 'Activity', icon: Activity, path: '/admin/activity' },
   { name: 'Database', icon: Database, path: '/admin/database' },
   { name: 'Performance', icon: Zap, path: '/admin/performance' },

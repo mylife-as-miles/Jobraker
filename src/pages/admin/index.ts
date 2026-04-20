@@ -3,6 +3,7 @@ import AdminOverview from './pages/AdminOverview';
 import AdminUsers from './pages/AdminUsers';
 import AdminRevenue from './pages/AdminRevenue';
 import AdminCredits from './pages/AdminCredits';
+import AdminProviderCredits from './pages/AdminProviderCredits';
 import AdminActivity from './pages/AdminActivity';
 import AdminDatabase from './pages/AdminDatabase';
 import AdminPerformance from './pages/AdminPerformance';
@@ -14,6 +15,7 @@ export {
   AdminUsers,
   AdminRevenue,
   AdminCredits,
+  AdminProviderCredits,
   AdminActivity,
   AdminDatabase,
   AdminPerformance,

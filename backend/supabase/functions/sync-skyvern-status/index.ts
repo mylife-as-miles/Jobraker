@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders } from "../_shared/types.ts";
+import { recordSkyvernUsageFromOutput } from "../_shared/provider-credits.ts";
 
 const TERMINAL_SUCCESS = ["succeeded", "completed"];
 const TERMINAL_FAIL = [
@@ -170,6 +171,17 @@ serve(async (req) => {
 
     if (updateErr) {
       console.error("sync-skyvern-status update error", updateErr);
+    }
+
+    try {
+      await recordSkyvernUsageFromOutput(serviceClient, run, {
+        runId,
+        status: providerStatus,
+        userId: user.id,
+        source: "sync-skyvern-status",
+      });
+    } catch (creditError) {
+      console.warn("sync-skyvern-status Skyvern credit record failed", creditError);
     }
 
     return new Response(JSON.stringify({

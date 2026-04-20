@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { recordSkyvernUsageFromOutput } from "../_shared/provider-credits.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -72,6 +73,19 @@ serve(async (req) => {
         status: 404,
         headers: { "Content-Type": "application/json" },
       });
+    }
+
+    try {
+      await recordSkyvernUsageFromOutput(supabase, payload, {
+        runId,
+        status: providerStatus,
+        userId: applicationRow.user_id,
+        applicationId: applicationRow.id,
+        jobId: applicationRow.job_id,
+        source: "skyvern-webhook",
+      });
+    } catch (creditError) {
+      console.warn("Failed to record Skyvern provider credits", creditError);
     }
 
     const isFailed =

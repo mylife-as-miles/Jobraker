@@ -1,6 +1,7 @@
 import { getCorsHeaders } from "../_shared/types.ts";
 import { discoverJobsFirecrawl } from "../_shared/discovery-hybrid.ts";
 import { persistDiscoveredJobs } from "../_shared/jobs.ts";
+import { syncFirecrawlCreditUsage } from "../_shared/provider-credits.ts";
 import {
   requireAuthenticatedUser,
   resolveJobSearchExecutionLimits,
@@ -167,6 +168,27 @@ Deno.serve(async (req) => {
       typeof deduct.credits_deducted === "number"
         ? deduct.credits_deducted
         : jobsBilled;
+    let providerCreditSync: Record<string, unknown> | null = null;
+
+    try {
+      const syncResult = await syncFirecrawlCreditUsage(serviceClient, {
+        source: "jobs-search",
+        userId: user.id,
+        requestedLimit,
+        effectiveLimit,
+        jobsInserted,
+        jobsBilled,
+      });
+      providerCreditSync = {
+        remainingCredits: syncResult.usage.remainingCredits,
+        planCredits: syncResult.usage.planCredits,
+        billingPeriodStart: syncResult.usage.billingPeriodStart,
+        billingPeriodEnd: syncResult.usage.billingPeriodEnd,
+        alert: syncResult.alert,
+      };
+    } catch (providerCreditError) {
+      console.warn("[jobs-search] Firecrawl credit sync failed", providerCreditError);
+    }
 
     console.info("[jobs-search] Completed", {
       userId: user.id,
@@ -194,6 +216,7 @@ Deno.serve(async (req) => {
         jobsBilled,
         creditsDeducted,
         remainingBalance,
+        providerCreditSync,
         jobs: discoveredJobs.map((job) => ({
           title: job.title,
           company: job.company,

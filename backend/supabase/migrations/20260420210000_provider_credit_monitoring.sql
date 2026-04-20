@@ -354,5 +354,11 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.provider_credit_balances TO authe
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.provider_credit_transactions TO authenticated;
 GRANT ALL ON public.provider_credit_balances TO service_role;
 GRANT ALL ON public.provider_credit_transactions TO service_role;
+REVOKE ALL ON FUNCTION public.set_provider_credit_balance(text, integer, integer, integer, text, boolean, text, text, jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.set_provider_credit_balance(text, integer, integer, integer, text, boolean, text, text, jsonb) FROM anon;
+REVOKE ALL ON FUNCTION public.set_provider_credit_balance(text, integer, integer, integer, text, boolean, text, text, jsonb) FROM authenticated;
+REVOKE ALL ON FUNCTION public.record_provider_credit_usage(text, integer, text, text, text, jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.record_provider_credit_usage(text, integer, text, text, text, jsonb) FROM anon;
+REVOKE ALL ON FUNCTION public.record_provider_credit_usage(text, integer, text, text, text, jsonb) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.set_provider_credit_balance(text, integer, integer, integer, text, boolean, text, text, jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_provider_credit_usage(text, integer, text, text, text, jsonb) TO service_role;

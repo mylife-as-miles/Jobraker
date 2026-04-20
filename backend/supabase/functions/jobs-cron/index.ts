@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/types.ts";
 import { discoverJobsFirecrawl } from "../_shared/discovery-hybrid.ts";
 import { persistDiscoveredJobs } from "../_shared/jobs.ts";
+import { syncFirecrawlCreditUsage } from "../_shared/provider-credits.ts";
 import {
   requireAuthenticatedUser,
   resolveJobSearchExecutionLimits,
@@ -27,6 +28,7 @@ interface CronRunResult {
   creditsBalance?: number;
   subscriptionTier?: string;
   creditDeduction?: unknown;
+  providerCreditSync?: unknown;
 }
 
 async function loadProfileSearchScope(
@@ -125,6 +127,28 @@ async function runDiscoveryForUser(
     creditDeduction = data ?? null;
   }
 
+  let providerCreditSync: unknown = null;
+  try {
+    const syncResult = await syncFirecrawlCreditUsage(serviceClient, {
+      source: "jobs-cron",
+      userId,
+      trigger,
+      requestedLimit,
+      effectiveLimit,
+      jobsInserted: totalInserted,
+      jobsFound: discoveredJobs.length,
+    });
+    providerCreditSync = {
+      remainingCredits: syncResult.usage.remainingCredits,
+      planCredits: syncResult.usage.planCredits,
+      billingPeriodStart: syncResult.usage.billingPeriodStart,
+      billingPeriodEnd: syncResult.usage.billingPeriodEnd,
+      alert: syncResult.alert,
+    };
+  } catch (providerCreditError) {
+    console.warn("jobs-cron Firecrawl credit sync failed", providerCreditError);
+  }
+
   return {
     ok: true,
     searchQuery,
@@ -137,6 +161,7 @@ async function runDiscoveryForUser(
     creditsBalance,
     subscriptionTier,
     creditDeduction,
+    providerCreditSync,
   };
 }
 

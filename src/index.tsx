@@ -34,6 +34,7 @@ import {
   AdminUsers,
   AdminRevenue,
   AdminCredits,
+  AdminProviderCredits,
   AdminActivity,
   AdminDatabase,
   AdminPerformance,
@@ -198,6 +199,7 @@ function AnimatedRoutes() {
           <Route path='subscriptions' element={<AdminSubscriptions />} />
           <Route path='revenue' element={<AdminRevenue />} />
           <Route path='credits' element={<AdminCredits />} />
+          <Route path='provider-credits' element={<AdminProviderCredits />} />
           <Route path='activity' element={<AdminActivity />} />
           <Route path='database' element={<AdminDatabase />} />
           <Route path='performance' element={<AdminPerformance />} />
