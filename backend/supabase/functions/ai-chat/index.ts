@@ -15,6 +15,10 @@ import {
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import {
+  agentSearchJobRelatedEmails,
+  agentSendJobRelatedEmail,
+} from "../_shared/gmail-job-agent-tools.ts";
 
 console.log("JobRaker AI Chat Starting...");
 
@@ -93,7 +97,8 @@ const ACCOUNT_ACCESS_RULES = `
 You are inside the authenticated user's JobRaker workspace.
 You DO have access to the user's JobRaker account data provided in this prompt and, in agent mode, through the available tools.
 Do not claim that you lack access to the user's JobRaker profile, resumes, tracked jobs, applications, credits, cover letters, or recent conversations when that information is present in context or retrievable through tools.
-Only describe limitations for external systems that are not connected here, such as LinkedIn dashboards, Indeed, external inboxes, or third-party job boards.
+Only describe limitations for external systems that are not connected here, such as LinkedIn dashboards, Indeed, or third-party job boards when Gmail is not connected.
+If the user has connected Gmail in JobRaker Settings, job-related inbox tools may be available in agent mode (search/send guardrails still apply).
 When the user asks for totals, counts, lists, or recent activity inside JobRaker, answer from the account context or tools first before giving generic advice.
 `;
 
@@ -196,11 +201,44 @@ const AGENT_FUNCTION_DECLARATIONS = [
       name: "polish_content",
       description: "Improve professional text.",
       parameters: { type: "object", properties: { content: { type: "string" }, instruction: { type: "string" } }, required: ["content"] }
-  }
+  },
+  {
+    name: "search_gmail_job_emails",
+    description:
+      "Search the user's Gmail ONLY for job-search correspondence (applications, interviews, offers, rejections, assessments, recruiter mail). Uses a fixed job-related query on the server; cannot search arbitrary personal mail. Requires Gmail connected in Settings → Integrations.",
+    parameters: {
+      type: "object",
+      properties: {
+        max_results: {
+          type: "number",
+          description: "Max messages to return (1–15, default 8).",
+        },
+        refine_query: {
+          type: "string",
+          description:
+            "Optional extra Gmail search terms to AND with the job filter (e.g. company or role). Letters, numbers, spaces, basic punctuation only.",
+        },
+      },
+    },
+  },
+  {
+    name: "send_gmail_job_email",
+    description:
+      "Send an email from the user's Gmail address ONLY for professional job-related communication (recruiter follow-up, thank-you after interview, application status). The server rejects content that does not look job-related. Always confirm recipient, subject, and body with the user before calling. Requires Gmail connected with send permission.",
+    parameters: {
+      type: "object",
+      properties: {
+        to: { type: "string", description: "Recipient email address" },
+        subject: { type: "string", description: "Email subject line" },
+        body: { type: "string", description: "Plain-text body" },
+      },
+      required: ["to", "subject", "body"],
+    },
+  },
 ];
 
 serve(async (req) => {
-  const cors = getCorsHeaders(req.headers.get("origin"));
+  const cors = getCorsHeaders(req.headers.get("origin"), req);
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: cors });
   }
@@ -336,7 +374,13 @@ serve(async (req) => {
     }
 
     if (mode === "agent") {
-      systemInstruction = `You are JobRaker Agent. Be proactive, use tools to help the user, and answer from JobRaker data before falling back to general advice. Confirm before applying, deleting, or triggering any side-effectful workflow.\n\n${systemInstruction}`;
+      const gmailJobRules = `
+Job-related Gmail (only when tools are available):
+- search_gmail_job_emails searches using a fixed job-search filter on the server; it is not a full inbox search.
+- send_gmail_job_email sends only if the message clearly relates to the user's job search; the server may reject other content. Always show the user the exact To, Subject, and body and obtain explicit confirmation before sending.
+Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.`;
+      systemInstruction =
+        `You are JobRaker Agent. Be proactive, use tools to help the user, and answer from JobRaker data before falling back to general advice. Confirm before applying, deleting, sending email, or triggering any side-effectful workflow.\n\n${gmailJobRules.trim()}\n\n${systemInstruction}`;
     }
 
     const chatConfig: Record<string, unknown> = {
@@ -489,6 +533,25 @@ serve(async (req) => {
                           .order("created_at", { ascending: false })
                           .limit(fn.args.limit || 10);
                         result = { success: true, jobs: data || [] };
+                    } else if (fn.name === "search_gmail_job_emails") {
+                        result = await agentSearchJobRelatedEmails(
+                          serviceClient,
+                          userId,
+                          (fn.args || {}) as {
+                            max_results?: number;
+                            refine_query?: string;
+                          },
+                        );
+                    } else if (fn.name === "send_gmail_job_email") {
+                        result = await agentSendJobRelatedEmail(
+                          serviceClient,
+                          userId,
+                          (fn.args || {}) as {
+                            to?: string;
+                            subject?: string;
+                            body?: string;
+                          },
+                        );
                     } else if (fn.name === "evaluate_job_fit") {
                         const t = normalizeSubscriptionTier(subscriptionTier);
                         if (t === "Free") {

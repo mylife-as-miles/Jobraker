@@ -9,6 +9,8 @@ import {
 
 const GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
+  /** Needed for JobRaker Agent job-related outbound mail (recruiter follow-ups, thank-yous). */
+  "https://www.googleapis.com/auth/gmail.send",
 ];
 
 type Action = "initiate" | "callback" | "status" | "disconnect";
