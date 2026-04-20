@@ -31,6 +31,10 @@ const DEFAULT_QUERY = [
   "unfortunately",
   "OR",
   "assessment",
+  "OR",
+  '"withdraw your application"',
+  "OR",
+  '"application withdrawn"',
   ")",
 ].join(" ");
 
@@ -97,7 +101,14 @@ type ApplicationStatus =
   | "Offer"
   | "Rejected"
   | "Withdrawn";
-type GmailEventType = "application_confirmation" | "interview" | "offer" | "rejection" | "assessment" | "other";
+type GmailEventType =
+  | "application_confirmation"
+  | "interview"
+  | "offer"
+  | "rejection"
+  | "assessment"
+  | "withdrawal"
+  | "other";
 
 type JobUrlRow = {
   apply_url: string | null;
@@ -124,8 +135,8 @@ type ParsedAddress = {
 
 type ClassifiedMessage = {
   eventType: GmailEventType;
-  status: "Applied" | "Interview" | "Offer" | "Rejected" | null;
-  canonicalStage: "submitted" | "interview" | "offer" | "rejected" | null;
+  status: ApplicationStatus | null;
+  canonicalStage: string | null;
   confidence: number;
   company: string | null;
   jobTitle: string | null;
@@ -514,6 +525,21 @@ function classifyMessage(
     };
   }
 
+  if (
+    /\b(you\s+)?withdrew|withdraw\s+your\s+application|withdrawal\s+of\s+your\s+application|application\s+(?:has\s+been\s+)?withdrawn|successfully\s+withdrawn|retract(?:ed|ing)?\s+your\s+application\b/i
+      .test(combined)
+  ) {
+    return {
+      eventType: "withdrawal",
+      status: "Withdrawn",
+      canonicalStage: "withdrawn",
+      confidence: 0.88,
+      company,
+      jobTitle,
+      nextStep: "This role is marked as withdrawn.",
+    };
+  }
+
   if (/\b(assessment|coding challenge|take-?home|complete (your )?(assessment|test)|online test)\b/i.test(combined)) {
     return {
       eventType: "assessment",
@@ -787,13 +813,21 @@ function findMatchingApplication(
   return best && best.score >= 0.5 ? best.app : null;
 }
 
-function shouldUpdateStatus(current: ApplicationStatus, next: ClassifiedMessage["status"]) {
+function shouldUpdateStatus(
+  current: ApplicationStatus,
+  next: ClassifiedMessage["status"],
+) {
   if (!next || current === next) return false;
-  if (current === "Offer") return false;
+  if (current === "Offer") {
+    return next === "Rejected" || next === "Withdrawn";
+  }
   if (next === "Offer") return true;
   if (next === "Rejected") return current !== "Withdrawn";
+  if (next === "Withdrawn") return current !== "Withdrawn";
   if (next === "Interview") {
-    return ["Draft", "Pending", "Applied", "Failed"].includes(current);
+    return ["Draft", "Pending", "Applied", "Failed", "Terminated"].includes(
+      current,
+    );
   }
   if (next === "Applied") {
     return ["Draft", "Pending", "Failed"].includes(current);
@@ -844,6 +878,13 @@ function notificationFor(classified: ClassifiedMessage, company: string, jobTitl
         title: `Application confirmed: ${jobTitle}`,
         message: `${company} confirmed or started an application.`,
         priority: "low",
+      };
+    case "withdrawal":
+      return {
+        type: "application",
+        title: `Withdrawal: ${jobTitle}`,
+        message: `${company} indicates your application was withdrawn.`,
+        priority: "medium",
       };
     default:
       return null;
@@ -928,16 +969,20 @@ serve(async (req) => {
     const list = await listGmailMessages(accessToken, query, maxResults);
     const ids = list.map((message) => message.id);
 
+    /** Skip only messages already processed and linked to an application (retry orphans until they match). */
     const existingIds = new Set<string>();
     if (ids.length > 0 && !force) {
       const { data: existingEvents, error: existingError } = await serviceClient
         .from("gmail_application_events")
-        .select("gmail_message_id")
+        .select("gmail_message_id, application_id")
         .eq("user_id", user.id)
         .in("gmail_message_id", ids);
       if (existingError) throw existingError;
       for (const event of existingEvents || []) {
-        if (typeof event.gmail_message_id === "string") {
+        if (
+          typeof event.gmail_message_id === "string" &&
+          event.application_id != null
+        ) {
           existingIds.add(event.gmail_message_id);
         }
       }
@@ -960,6 +1005,7 @@ serve(async (req) => {
     let createdCount = 0;
     let updatedCount = 0;
     let skippedExistingCount = 0;
+    let skippedNoMatchCount = 0;
     let latestHistoryId: string | null = null;
     const events: Array<Record<string, unknown>> = [];
 
@@ -987,10 +1033,8 @@ serve(async (req) => {
         continue;
       }
 
-      classifiedCount += 1;
       const company = classified.company || "Unknown company";
       const jobTitle = fallbackJobTitle(classified);
-      let applicationId: string | null = null;
       const emailMatchText = `${subject}\n${message.snippet || ""}\n${bodyText}`;
       const matched = findMatchingApplication(
         applications,
@@ -998,73 +1042,78 @@ serve(async (req) => {
         emailMatchText,
       );
 
-      if (matched) {
-        applicationId = matched.id;
-        const shouldUpdate = shouldUpdateStatus(matched.status, classified.status);
-        const patch: Record<string, unknown> = {
-          updated_at: new Date().toISOString(),
-          provider_status: `gmail:${classified.eventType}`,
-        };
-        if (classified.nextStep) patch.next_step = classified.nextStep;
-        if (shouldUpdate && classified.status && classified.canonicalStage) {
-          patch.status = classified.status;
-          patch.canonical_stage = classified.canonicalStage;
-        }
+      if (!matched) {
+        skippedNoMatchCount += 1;
+        const { error: orphanEventError } = await serviceClient
+          .from("gmail_application_events")
+          .upsert(
+            {
+              user_id: user.id,
+              application_id: null,
+              gmail_message_id: message.id,
+              gmail_thread_id: message.threadId || listed.threadId || null,
+              event_type: classified.eventType,
+              status: classified.status,
+              confidence: classified.confidence,
+              company,
+              job_title: jobTitle,
+              sender_name: from.name,
+              sender_email: from.email,
+              subject,
+              snippet: message.snippet || null,
+              received_at: receivedAt,
+              processed_at: new Date().toISOString(),
+              raw: {
+                labelIds: message.labelIds || [],
+                query,
+                bodyPreview: bodyText.slice(0, 2000),
+                skippedReason: "no_matched_application",
+              },
+            },
+            { onConflict: "user_id,gmail_message_id" },
+          );
+        if (orphanEventError) throw orphanEventError;
+        continue;
+      }
 
-        if (Object.keys(patch).length > 2 || shouldUpdate) {
-          const { error: updateError } = await serviceClient
-            .from("applications")
-            .update(patch)
-            .eq("id", matched.id)
-            .eq("user_id", user.id);
-          if (updateError) throw updateError;
+      classifiedCount += 1;
+      let applicationId: string | null = matched.id;
 
-          if (shouldUpdate && classified.status) {
-            matched.status = classified.status;
-            matched.canonical_stage = classified.canonicalStage || matched.canonical_stage;
-          }
-          updatedCount += shouldUpdate ? 1 : 0;
+      const shouldUpdate = shouldUpdateStatus(matched.status, classified.status);
+      const patch: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+        provider_status: `gmail:${classified.eventType}`,
+      };
+      if (classified.nextStep) patch.next_step = classified.nextStep;
+      if (shouldUpdate && classified.status && classified.canonicalStage) {
+        patch.status = classified.status;
+        patch.canonical_stage = classified.canonicalStage;
+      }
 
-          if (matched.job_id && classified.canonicalStage) {
-            await serviceClient
-              .from("jobs")
-              .update({
-                canonical_status: classified.canonicalStage,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", matched.job_id)
-              .eq("user_id", user.id);
-          }
-        }
-      } else {
-        const { data: inserted, error: insertError } = await serviceClient
+      if (Object.keys(patch).length > 2 || shouldUpdate) {
+        const { error: updateError } = await serviceClient
           .from("applications")
-          .insert({
-            user_id: user.id,
-            job_title: jobTitle,
-            company,
-            location: "",
-            applied_date: receivedAt,
-            status: classified.status || "Applied",
-            canonical_stage: classified.canonicalStage || "submitted",
-            notes: `Detected from Gmail: ${subject || "(no subject)"}\n\n${message.snippet || ""}`.slice(0, 1800),
-            next_step: classified.nextStep,
-            draft_status: "sent",
-            ai_confidence_score: Math.round(classified.confidence * 100),
-          })
-          .select(
-            "id, job_id, job_title, company, status, canonical_stage, notes, app_url, jobs(apply_url, source_id)",
-          )
-          .single();
-        if (insertError) throw insertError;
-        const insertedApp = {
-          ...(inserted as ApplicationRow),
-          app_url: (inserted as { app_url?: string | null }).app_url ?? null,
-          jobs: (inserted as { jobs?: ApplicationRow["jobs"] }).jobs ?? null,
-        };
-        applicationId = insertedApp.id;
-        applications.push(insertedApp);
-        createdCount += 1;
+          .update(patch)
+          .eq("id", matched.id)
+          .eq("user_id", user.id);
+        if (updateError) throw updateError;
+
+        if (shouldUpdate && classified.status) {
+          matched.status = classified.status;
+          matched.canonical_stage = classified.canonicalStage || matched.canonical_stage;
+        }
+        updatedCount += shouldUpdate ? 1 : 0;
+
+        if (matched.job_id && classified.canonicalStage) {
+          await serviceClient
+            .from("jobs")
+            .update({
+              canonical_status: classified.canonicalStage,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", matched.job_id)
+            .eq("user_id", user.id);
+        }
       }
 
       const { error: eventError } = await serviceClient
@@ -1135,6 +1184,7 @@ serve(async (req) => {
         created: createdCount,
         updated: updatedCount,
         skippedExisting: skippedExistingCount,
+        skippedNoMatch: skippedNoMatchCount,
         events,
       },
       200,

@@ -673,18 +673,29 @@ function ApplicationPage() {
         );
       }
 
-      const created = Number(data?.created ?? 0);
       const updated = Number(data?.updated ?? 0);
       const classified = Number(data?.classified ?? 0);
       const scanned = Number(data?.scanned ?? 0);
+      const skippedNoMatch = Number(
+        data && typeof data === "object" && "skippedNoMatch" in data
+          ? (data as { skippedNoMatch?: unknown }).skippedNoMatch
+          : 0,
+      );
       await refresh();
 
       if (classified === 0) {
-        success("Gmail checked", `Scanned ${scanned} messages; no new job updates found.`);
+        const orphanHint =
+          skippedNoMatch > 0
+            ? ` (${skippedNoMatch} inbox message${skippedNoMatch === 1 ? "" : "s"} had no matching application).`
+            : "";
+        success(
+          "Gmail checked",
+          `Scanned ${scanned} messages; no updates to existing applications.${orphanHint}`,
+        );
       } else {
         success(
           "Gmail checked",
-          `${created} added, ${updated} updated, ${classified} job email${classified === 1 ? "" : "s"} found.`,
+          `${updated} application${updated === 1 ? "" : "s"} updated from ${classified} matched email${classified === 1 ? "" : "s"}.`,
         );
       }
     } catch (error: unknown) {
