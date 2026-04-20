@@ -44,6 +44,30 @@ function normalizeChatImages(raw: unknown): { mimeType: string; data: string }[]
   return out.length ? out : undefined;
 }
 
+/** Extract incremental/cumulative text from a @google/genai stream chunk. */
+function streamChunkText(chunk: unknown): string {
+  const c = chunk as Record<string, unknown> | null;
+  if (!c) return "";
+  const textField = c.text;
+  if (typeof textField === "function") {
+    try {
+      const v = (textField as () => unknown)();
+      return typeof v === "string" ? v : "";
+    } catch {
+      return "";
+    }
+  }
+  if (typeof textField === "string") return textField;
+  const candidates = c.candidates as
+    | Array<{ content?: { parts?: Array<{ text?: string }> } }>
+    | undefined;
+  const parts = candidates?.[0]?.content?.parts;
+  if (Array.isArray(parts)) {
+    return parts.filter((p) => typeof p?.text === "string").map((p) => p.text!).join("");
+  }
+  return "";
+}
+
 /** Gemini multimodal user turn */
 function buildGeminiUserParts(
   text: string,
@@ -283,6 +307,7 @@ serve(async (req) => {
     }
 
     const genAI = createGeminiClient();
+    const modelName = requestedModel || GEMINI_MODEL;
     let userContext = null;
     try {
       userContext = await fetchUserContext(user.id, authHeader);
@@ -311,17 +336,18 @@ serve(async (req) => {
       systemInstruction = `You are JobRaker Agent. Be proactive, use tools to help the user, and answer from JobRaker data before falling back to general advice. Confirm before applying, deleting, or triggering any side-effectful workflow.\n\n${systemInstruction}`;
     }
 
-    const modelParams: any = {
-      model: requestedModel || GEMINI_MODEL,
-      systemInstruction,
+    const chatConfig: Record<string, unknown> = {
+      systemInstruction: {
+        role: "system",
+        parts: [{ text: systemInstruction }],
+      },
+      thinkingConfig: { thinkingLevel: "MEDIUM" },
     };
     if (mode === "agent") {
-      modelParams.tools = [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }];
+      chatConfig.tools = [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }];
     } else if (webSearch) {
-      modelParams.tools = [{ googleSearch: {} }];
+      chatConfig.tools = [{ googleSearch: {} }];
     }
-
-    const model = genAI.getGenerativeModel(modelParams);
 
     const history = normalizedMessages.slice(0, -1).map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
@@ -342,13 +368,19 @@ serve(async (req) => {
 
         try {
           if (mode === "agent") {
-            const chat = model.startChat({ history });
-            let response = await withGeminiRetry(() => chat.sendMessage(lastUserParts));
+            const chat = genAI.chats.create({
+              model: modelName,
+              config: chatConfig,
+              history,
+            });
+            let response = await withGeminiRetry(() =>
+              chat.sendMessage({ message: lastUserParts }),
+            );
             let turnCount = 0;
 
             while (turnCount < 5) {
               turnCount++;
-              const parts = response.response.candidates?.[0]?.content?.parts || [];
+              const parts = response.candidates?.[0]?.content?.parts || [];
               const text = parts.find(p => p.text)?.text;
               const functionCalls = parts.filter(p => p.functionCall);
 
@@ -490,22 +522,26 @@ serve(async (req) => {
                   toolResults.push({ functionResponse: { name: fn.name, response: result } });
                   enqueueEvent("tool_call", { name: fn.name, args: fn.args, result });
                 }
-                response = await withGeminiRetry(() => chat.sendMessage(toolResults));
+                response = await withGeminiRetry(() =>
+                  chat.sendMessage({
+                    message: { role: "user", parts: toolResults },
+                  }),
+                );
               } else {
                 break;
               }
             }
           } else {
-            const result = await withGeminiRetry(() =>
-              model.generateContentStream({
-                contents: [
-                  ...history,
-                  { role: "user", parts: lastUserParts },
-                ],
-              }),
+            const chat = genAI.chats.create({
+              model: modelName,
+              config: chatConfig,
+              history,
+            });
+            const stream = await withGeminiRetry(() =>
+              chat.sendMessageStream({ message: lastUserParts }),
             );
-            for await (const chunk of result.stream) {
-              const text = chunk.text();
+            for await (const chunk of stream) {
+              const text = streamChunkText(chunk);
               if (text) enqueueEvent("message", { delta: text });
             }
           }
