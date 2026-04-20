@@ -6,6 +6,10 @@ import {
   useApplications,
   type ApplicationStatus,
 } from "../../../hooks/useApplications";
+import { APPLICATION_STATUS_OPTIONS } from "@/lib/applicationState";
+
+/** All + pipeline statuses for filters, URL params, and prefs */
+const APPLICATION_STATUS_FILTERS = ["All", ...APPLICATION_STATUS_OPTIONS] as const;
 import { Skeleton } from "../../../components/ui/skeleton";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
@@ -161,8 +165,30 @@ function getApplicationStatusColor(status: ApplicationStatus) {
   if (status === "Interview") return "#1dff00";
   if (status === "Offer") return "#10B981";
   if (status === "Rejected") return "#1dff00";
+  if (status === "Failed") return "#f97316";
+  if (status === "Terminated") return "#e11d48";
   if (status === "Withdrawn") return "#94A3B8";
   return "#6B7280";
+}
+
+function StatusBadge({ status }: { status: ApplicationStatus }) {
+  const dc = getApplicationStatusColor(status);
+  return (
+    <span
+      className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border'
+      style={{
+        backgroundColor: `${dc}18`,
+        borderColor: `${dc}45`,
+        color: dc,
+      }}
+    >
+      <span
+        className='h-1.5 w-1.5 rounded-full shadow-[0_0_4px_currentColor]'
+        style={{ backgroundColor: dc }}
+      />
+      {status}
+    </span>
+  );
 }
 
 function ApplicationsListView({
@@ -193,15 +219,7 @@ function ApplicationsListView({
   refresh: () => Promise<unknown>;
   setDetailId: (id: string) => void;
 }) {
-  const statuses: ApplicationStatus[] = [
-    "Draft",
-    "Pending",
-    "Applied",
-    "Interview",
-    "Offer",
-    "Rejected",
-    "Withdrawn",
-  ];
+  const statuses: ApplicationStatus[] = [...APPLICATION_STATUS_OPTIONS];
 
   return (
     <div className='overflow-hidden rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background shadow-[0_0_30px_rgba(29,255,0,0.15)] backdrop-blur-xl'>
@@ -489,19 +507,7 @@ function ApplicationPage() {
       const qsStatus = u.searchParams.get("status");
       const qsQuery = u.searchParams.get("q");
       const qsView = u.searchParams.get("view");
-      if (
-        qsStatus &&
-        [
-          "All",
-          "Draft",
-          "Pending",
-          "Applied",
-          "Interview",
-          "Offer",
-          "Rejected",
-          "Withdrawn",
-        ].includes(qsStatus)
-      )
+      if (qsStatus && (APPLICATION_STATUS_FILTERS as readonly string[]).includes(qsStatus))
         setSelectedStatus(qsStatus as any);
       if (typeof qsQuery === "string" && qsQuery.length)
         setSearchQuery(qsQuery);
@@ -530,16 +536,7 @@ function ApplicationPage() {
           setViewMode(p.viewMode);
         if (
           !qsStatus &&
-          [
-            "All",
-            "Draft",
-            "Pending",
-            "Applied",
-            "Interview",
-            "Offer",
-            "Rejected",
-            "Withdrawn",
-          ].includes(p.selectedStatus)
+          (APPLICATION_STATUS_FILTERS as readonly string[]).includes(p.selectedStatus)
         )
           setSelectedStatus(p.selectedStatus as any);
         if (["score", "recent", "company", "status"].includes(p.sortBy))
@@ -914,29 +911,9 @@ function ApplicationPage() {
             className='flex flex-wrap gap-2 items-center'
             data-tour='application-status-filters'
           >
-            {(
-              [
-                "All",
-                "Draft",
-                "Pending",
-                "Applied",
-                "Interview",
-                "Offer",
-                "Rejected",
-                "Withdrawn",
-              ] as const
-            ).map((s) => {
-              const statusColors: Record<string, string> = {
-                All: "#ffffff",
-                Draft: "#2dd4bf",
-                Pending: "#6B7280",
-                Applied: "#1dff00",
-                Interview: "#1dff00",
-                Offer: "#10B981",
-                Rejected: "#1dff00",
-                Withdrawn: "#94A3B8",
-              };
-              const color = statusColors[s] || "#ffffff";
+            {APPLICATION_STATUS_FILTERS.map((s) => {
+              const color =
+                s === "All" ? "#ffffff" : getApplicationStatusColor(s);
               const isActive = selectedStatus === s;
 
               return (
@@ -1054,6 +1031,14 @@ function ApplicationPage() {
                     <span className='font-medium'>Applied</span>
                   </span>
                   <span className='inline-flex items-center gap-2'>
+                    <span className='h-3 w-8 rounded-md bg-gradient-to-r from-[#f97316] to-[#ea580c] shadow-lg shadow-orange-500/20' />
+                    <span className='font-medium'>Failed</span>
+                  </span>
+                  <span className='inline-flex items-center gap-2'>
+                    <span className='h-3 w-8 rounded-md bg-gradient-to-r from-[#e11d48] to-[#be123c] shadow-lg shadow-rose-600/20' />
+                    <span className='font-medium'>Terminated</span>
+                  </span>
+                  <span className='inline-flex items-center gap-2'>
                     <span className='h-3 w-8 rounded-md bg-gradient-to-r from-[#1dff00] to-[#1dff00] shadow-lg shadow-[#1dff00]/20' />
                     <span className='font-medium'>Interview</span>
                   </span>
@@ -1161,29 +1146,9 @@ function ApplicationPage() {
                   }}
                   className='divide-y divide-[#1dff00]/5'
                 >
-                  {(
-                    [
-                      "Pending",
-                      "Applied",
-                      "Interview",
-                      "Offer",
-                      "Rejected",
-                      "Withdrawn",
-                    ] as ApplicationStatus[]
-                  ).map((status) => {
+                  {APPLICATION_STATUS_OPTIONS.map((status) => {
                     const rows = filtered.filter((a) => a.status === status);
-                    const color =
-                      status === "Applied"
-                        ? "#1dff00"
-                        : status === "Interview"
-                          ? "#1dff00"
-                          : status === "Offer"
-                            ? "#10B981"
-                            : status === "Rejected"
-                              ? "#1dff00"
-                              : status === "Withdrawn"
-                                ? "#94A3B8"
-                                : "#6B7280";
+                    const color = getApplicationStatusColor(status);
                     if (rows.length === 0 && selectedStatus !== "All")
                       return null;
                     return (
@@ -1446,15 +1411,11 @@ function ApplicationPage() {
             )}
             {viewMode === "kanban" && (
               <KanbanProvider
-                columns={[
-                  { id: "Draft", name: "Draft", color: "#2dd4bf" },
-                  { id: "Pending", name: "Pending", color: "#6B7280" },
-                  { id: "Applied", name: "Applied", color: "#1dff00" },
-                  { id: "Interview", name: "Interview", color: "#1dff00" },
-                  { id: "Offer", name: "Offer", color: "#10B981" },
-                  { id: "Rejected", name: "Rejected", color: "#1dff00" },
-                  { id: "Withdrawn", name: "Withdrawn", color: "#94A3B8" },
-                ]}
+                columns={APPLICATION_STATUS_OPTIONS.map((id) => ({
+                  id,
+                  name: id,
+                  color: getApplicationStatusColor(id),
+                }))}
                 data={kanbanData.map((a) => ({
                   ...a,
                   id: a.id,
@@ -1565,32 +1526,7 @@ function ApplicationPage() {
             {/* Header Section with Status Badge */}
             <div className='relative pb-6 border-b border-[#1dff00]/10'>
               <div className='absolute top-0 right-0'>
-                <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${detailApp.status === "Applied"
-                    ? "bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20"
-                    : detailApp.status === "Interview"
-                      ? "bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20"
-                      : detailApp.status === "Offer"
-                        ? "bg-lime-400/10 text-lime-400 border border-lime-400/20"
-                        : detailApp.status === "Rejected"
-                          ? "bg-rose-400/10 text-rose-400 border border-rose-400/20"
-                          : "bg-gray-400/10 text-gray-400 border border-gray-400/20"
-                    }`}
-                >
-                  <div
-                    className={`h-1.5 w-1.5 rounded-full ${detailApp.status === "Applied"
-                      ? "bg-[#1dff00]"
-                      : detailApp.status === "Interview"
-                        ? "bg-[#1dff00]"
-                        : detailApp.status === "Offer"
-                          ? "bg-lime-400"
-                          : detailApp.status === "Rejected"
-                            ? "bg-rose-400"
-                            : "bg-gray-400"
-                      } shadow-[0_0_4px_currentColor]`}
-                  />
-                  {detailApp.status}
-                </span>
+                <StatusBadge status={detailApp.status} />
               </div>
               <div className='space-y-2 pr-32'>
                 <h2 className='text-2xl font-bold text-foreground'>
@@ -2477,15 +2413,7 @@ function GanttSkeleton() {
 function ListSkeleton() {
   return (
     <div className='border border-foreground/10 rounded-xl bg-foreground/30 overflow-hidden divide-y divide-foreground/5'>
-      {[
-        "Draft",
-        "Pending",
-        "Applied",
-        "Interview",
-        "Offer",
-        "Rejected",
-        "Withdrawn",
-      ].map((col) => (
+      {APPLICATION_STATUS_OPTIONS.map((col) => (
         <div key={col} className='flex flex-col'>
           <div className='sticky top-0 z-10 backdrop-blur supports-[backdrop-filter]:bg-foreground/40 px-3 py-2 flex items-center gap-2'>
             <Skeleton className='h-3 w-24 bg-foreground/10' />
@@ -2517,16 +2445,8 @@ function ListSkeleton() {
 
 function KanbanSkeleton() {
   return (
-    <div className='grid gap-4 md:grid-cols-3 lg:grid-cols-7'>
-      {[
-        "Draft",
-        "Pending",
-        "Applied",
-        "Interview",
-        "Offer",
-        "Rejected",
-        "Withdrawn",
-      ].map((col) => (
+    <div className='grid gap-4 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9'>
+      {APPLICATION_STATUS_OPTIONS.map((col) => (
         <div
           key={col}
           className='flex flex-col gap-3 rounded-xl border border-foreground/10 bg-foreground/30 p-3'
@@ -2648,16 +2568,6 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
   // We'll accept mutation through a custom event dispatched by parent for decoupling; simpler: we can attach updater on window in ApplicationPage before definition.
   // For brevity & low risk, we'll look for a global set by parent: (window as any).__apps_update.
 
-  const statusColors: Record<string, string> = {
-    Draft: "#2dd4bf",
-    Applied: "#1dff00",
-    Interview: "#1dff00",
-    Offer: "#10B981",
-    Rejected: "#1dff00",
-    Pending: "#6B7280",
-    Withdrawn: "#94A3B8",
-  };
-
   const columns = useMemo<ColumnDef<ApplicationRow, any>[]>(
     () => [
       {
@@ -2732,16 +2642,8 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           const row = info.row.original as ApplicationRow & { id: string };
           const value = info.getValue() as string;
           const isEditing = editingStatusId === row.id;
-          const selectableStatuses: ApplicationStatus[] = [
-            "Draft",
-            "Pending",
-            "Applied",
-            "Interview",
-            "Offer",
-            "Rejected",
-            "Withdrawn",
-          ];
-          const color = statusColors[value] || "#6B7280";
+          const selectableStatuses = APPLICATION_STATUS_OPTIONS;
+          const color = getApplicationStatusColor(value as ApplicationStatus);
           return (
             <div
               className='relative'
@@ -2776,7 +2678,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
               {isEditing && (
                 <div className='absolute z-30 top-0 left-0 min-w-[140px] rounded-xl border border-[#1dff00]/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-2 shadow-[0_0_30px_rgba(29,255,0,0.2)] flex flex-col gap-1'>
                   {selectableStatuses.map((s) => {
-                    const sColor = statusColors[s] || "#6B7280";
+                    const sColor = getApplicationStatusColor(s);
                     return (
                       <button
                         key={s}

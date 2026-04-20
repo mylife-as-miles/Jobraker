@@ -263,7 +263,7 @@ export const Gantt: React.FC<GanttProps> = ({
                       <div key={item.id} className="relative group/item hover:bg-white/[0.02] transition-colors" style={{ height }}>
                         <div className="absolute inset-y-0 left-0 flex items-center pl-4 pr-3 w-64 overflow-hidden">
                           <div className="flex items-center gap-2 w-full">
-                            <div className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${item.status === 'Applied' ? 'bg-[#1dff00]' : item.status === 'Interview' ? 'bg-[#1dff00]' : item.status === 'Offer' ? 'bg-lime-400' : item.status === 'Rejected' ? 'bg-rose-400' : 'bg-gray-400'} shadow-[0_0_4px_currentColor]`} />
+                            <div className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${item.status === 'Applied' ? 'bg-[#1dff00]' : item.status === 'Interview' ? 'bg-[#1dff00]' : item.status === 'Failed' ? 'bg-orange-400' : item.status === 'Terminated' ? 'bg-rose-600' : item.status === 'Offer' ? 'bg-lime-400' : item.status === 'Rejected' ? 'bg-rose-400' : 'bg-gray-400'} shadow-[0_0_4px_currentColor]`} />
                             <div className="truncate text-xs font-medium text-foreground/80">
                               {renderLabel ? renderLabel(item) : item.label}
                             </div>
@@ -321,7 +321,7 @@ export const Gantt: React.FC<GanttProps> = ({
                               {/* Enhanced Tooltip */}
                               <div className="absolute z-30 hidden group-hover:flex -top-3 left-1/2 -translate-y-full -translate-x-1/2 min-w-[220px] max-w-[280px] flex-col rounded-xl border border-[#1dff00]/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-3 shadow-[0_0_30px_rgba(29,255,0,0.2)]">
                                 <div className="flex items-center gap-2 mb-2 pb-2 border-b border-foreground/10">
-                                  <div className={`h-2 w-2 rounded-full ${item.status === 'Applied' ? 'bg-[#1dff00]' : item.status === 'Interview' ? 'bg-[#1dff00]' : item.status === 'Offer' ? 'bg-lime-400' : item.status === 'Rejected' ? 'bg-rose-400' : 'bg-gray-400'}`} />
+                                  <div className={`h-2 w-2 rounded-full ${item.status === 'Applied' ? 'bg-[#1dff00]' : item.status === 'Interview' ? 'bg-[#1dff00]' : item.status === 'Failed' ? 'bg-orange-400' : item.status === 'Terminated' ? 'bg-rose-600' : item.status === 'Offer' ? 'bg-lime-400' : item.status === 'Rejected' ? 'bg-rose-400' : 'bg-gray-400'}`} />
                                   <div className="font-semibold text-white text-sm truncate">{item.label}</div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
@@ -365,6 +365,8 @@ function statusColor(status?: string): { bg: string; fg: string } {
     case 'Draft':
       return { bg: 'linear-gradient(90deg,#2dd4bf,#2dd4bf)', fg: '#0c1a24' };
     case 'Applied': return { bg: 'linear-gradient(90deg,#1dff00,#1dff00)', fg: '#041f11' };
+    case 'Failed': return { bg: 'linear-gradient(90deg,#f97316,#ea580c)', fg: '#1a0a00' };
+    case 'Terminated': return { bg: 'linear-gradient(90deg,#e11d48,#9f1239)', fg: '#fff1f2' };
     case 'Interview': return { bg: 'linear-gradient(90deg,#1dff00,#1dff00)', fg: '#2d1e04' };
     case 'Offer': return { bg: 'linear-gradient(90deg,#84cc16,#166534)', fg: '#0b1f0f' };
     case 'Rejected': return { bg: 'linear-gradient(90deg,#fb7185,#1dff00)', fg: '#2f070f' };
@@ -380,6 +382,10 @@ function statusAccent(status?: string): string {
       return "#2dd4bf";
     case "Applied":
       return "#1dff00";
+    case "Failed":
+      return "#f97316";
+    case "Terminated":
+      return "#e11d48";
     case "Interview":
       return "#1dff00";
     case "Offer":

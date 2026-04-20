@@ -87,7 +87,16 @@ type GoogleTokenResponse = {
   error_description?: string;
 };
 
-type ApplicationStatus = "Draft" | "Pending" | "Applied" | "Failed" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
+type ApplicationStatus =
+  | "Draft"
+  | "Pending"
+  | "Applied"
+  | "Failed"
+  | "Terminated"
+  | "Interview"
+  | "Offer"
+  | "Rejected"
+  | "Withdrawn";
 type GmailEventType = "application_confirmation" | "interview" | "offer" | "rejection" | "assessment" | "other";
 
 type ApplicationRow = {

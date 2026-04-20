@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CalendarDays, Briefcase, Clock, Building2, BellPlus } from 'lucide-react';
 import MatchScoreBadge from '../../jobs/MatchScoreBadge';
 import { ApplicationRecord } from '../../../hooks/useApplications';
+import { APPLICATION_STATUS_OPTIONS } from '@/lib/applicationState';
 import Modal from '../modal';
 import { Button } from '../button';
 
@@ -17,7 +18,7 @@ export interface CalendarDayDetailProps {
 }
 
 
-const ALL_STATUSES: ApplicationRecord['status'][] = ["Pending","Applied","Interview","Offer","Rejected","Withdrawn"];
+const ALL_STATUSES: ApplicationRecord['status'][] = APPLICATION_STATUS_OPTIONS;
 
 // Helper function to format date at midnight local time to avoid timezone shift
 // This ensures the selected calendar date is preserved regardless of timezone

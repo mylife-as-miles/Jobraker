@@ -77,6 +77,7 @@ const RECOVERABLE_JOB_STATES: ApplicationCanonicalStage[] = [
   "queued",
   "submitted",
   "failed",
+  "terminated",
   "interview",
   "offer",
   "rejected",

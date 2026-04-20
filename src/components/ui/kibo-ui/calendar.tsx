@@ -1,6 +1,7 @@
 "use client";
 import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
+import { APPLICATION_STATUS_OPTIONS } from "@/lib/applicationState";
 
 export interface CalendarEvent {
   id: string;
@@ -205,8 +206,11 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
   const statusColor = (status?: string) => {
     if (!status) return "#5a5a5a";
     const pal: Record<string, string> = {
+      draft: "#2dd4bf",
       pending: "#8b8b8b",
       applied: "#1dff00",
+      failed: "#f97316",
+      terminated: "#e11d48",
       interview: "#56c2ff",
       offer: "#f8d74a",
       rejected: "#1dff00",
@@ -546,14 +550,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
       )}
       {showLegend && (
         <div className='flex flex-wrap gap-2 mb-3 text-[10px] sm:text-xs'>
-          {[
-            "Pending",
-            "Applied",
-            "Interview",
-            "Offer",
-            "Rejected",
-            "Withdrawn",
-          ].map((s) => (
+          {APPLICATION_STATUS_OPTIONS.map((s) => (
             <span
               key={s}
               className='inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-foreground/10 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] text-foreground/60 shadow-sm hover:border-[#1dff00]/30 hover:text-foreground/80 transition'
@@ -608,14 +605,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
       {/* Status Filters */}
       {onStatusFiltersChange && (
         <div className='flex flex-wrap gap-1 mb-2 text-[10px] sm:text-[11px]'>
-          {[
-            "Pending",
-            "Applied",
-            "Interview",
-            "Offer",
-            "Rejected",
-            "Withdrawn",
-          ].map((s) => {
+          {APPLICATION_STATUS_OPTIONS.map((s) => {
             const active =
               !statusFilters ||
               statusFilters.length === 0 ||
@@ -627,14 +617,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                 onClick={() => {
                   let next: string[] = [];
                   if (!statusFilters || statusFilters.length === 0) {
-                    next = [
-                      "Pending",
-                      "Applied",
-                      "Interview",
-                      "Offer",
-                      "Rejected",
-                      "Withdrawn",
-                    ].filter((x) => x !== s);
+                    next = [...APPLICATION_STATUS_OPTIONS].filter((x) => x !== s);
                   } else {
                     next = active
                       ? statusFilters.filter((x) => x !== s)

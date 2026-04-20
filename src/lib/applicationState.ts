@@ -16,6 +16,7 @@ export type ApplicationCanonicalStage =
   | "queued"
   | "submitted"
   | "failed"
+  | "terminated"
   | "interview"
   | "offer"
   | "rejected"
@@ -26,6 +27,7 @@ export type ApplicationStatus =
   | "Pending"
   | "Applied"
   | "Failed"
+  | "Terminated"
   | "Interview"
   | "Offer"
   | "Rejected"
@@ -36,6 +38,7 @@ export const APPLICATION_STATUS_OPTIONS: ApplicationStatus[] = [
   "Pending",
   "Applied",
   "Failed",
+  "Terminated",
   "Interview",
   "Offer",
   "Rejected",
@@ -53,6 +56,7 @@ const DISPLAY_TO_CANONICAL: Record<ApplicationStatus, ApplicationCanonicalStage>
   Pending: "queued",
   Applied: "submitted",
   Failed: "failed",
+  Terminated: "terminated",
   Interview: "interview",
   Offer: "offer",
   Rejected: "rejected",
@@ -64,6 +68,7 @@ const CANONICAL_TO_DISPLAY: Record<ApplicationCanonicalStage, ApplicationStatus>
   queued: "Pending",
   submitted: "Applied",
   failed: "Failed",
+  terminated: "Terminated",
   interview: "Interview",
   offer: "Offer",
   rejected: "Rejected",
@@ -97,6 +102,7 @@ export function displayStatusFromCanonicalStage(
     case "Pending":
     case "Applied":
     case "Failed":
+    case "Terminated":
     case "Interview":
     case "Offer":
     case "Rejected":
