@@ -380,7 +380,7 @@ Job-related Gmail (only when tools are available):
 - send_gmail_job_email sends only if the message clearly relates to the user's job search; the server may reject other content. Always show the user the exact To, Subject, and body and obtain explicit confirmation before sending.
 Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.`;
       systemInstruction =
-        `You are JobRaker Agent. Be proactive, use tools to help the user, and answer from JobRaker data before falling back to general advice. Confirm before applying, deleting, sending email, or triggering any side-effectful workflow.\n\n${gmailJobRules.trim()}\n\n${systemInstruction}`;
+        `You are JobRaker Agent. Be proactive, use tools to help the user, and answer from JobRaker data before falling back to general advice. Confirm before applying, deleting, sending email, or triggering any side-effectful workflow.\nAfter every batch of tool calls, you MUST reply in plain language: what you did, the result, and the next step or a direct answer (never end with only tools and no message).\n\n${gmailJobRules.trim()}\n\n${systemInstruction}`;
     }
 
     const chatConfig: Record<string, unknown> = {
@@ -431,53 +431,79 @@ Never use Gmail tools for personal, medical, financial (non-compensation job off
               config: chatConfig,
               history,
             });
+            /** Max tool *rounds* (each round may include multiple parallel function calls). */
+            const MAX_AGENT_TOOL_ROUNDS = 12;
+
             let response = await withGeminiRetry(() =>
               chat.sendMessage({ message: lastUserParts }),
             );
-            let turnCount = 0;
+            let toolRounds = 0;
+            let streamedAnyAssistantText = false;
+            let agentStoppedForBilling = false;
 
-            while (turnCount < 5) {
-              turnCount++;
+            while (true) {
               const parts = response.candidates?.[0]?.content?.parts || [];
-              const text = parts.find(p => p.text)?.text;
-              const functionCalls = parts.filter(p => p.functionCall);
-
-              if (text) enqueueEvent("message", { delta: text });
-
-              if (functionCalls.length > 0) {
-                // Option C: extra credit per agent tool round (Ask mode has no surcharge)
-                const { data: surchargeResult, error: surchargeError } = await serviceClient.rpc(
-                  "consume_ai_chat_tool_surcharge",
-                  { p_user_id: userId, p_credits: 1 },
-                );
-                const sur = surchargeResult as Record<string, unknown> | null;
-                const surchargeOk =
-                  sur &&
-                  (sur.success === true || sur.success === "true" || sur.success === "t");
-                if (surchargeError || !surchargeOk) {
-                  if (surchargeError) {
-                    console.error("consume_ai_chat_tool_surcharge RPC error:", surchargeError);
-                  }
-                  const rpcMsg =
-                    typeof sur?.message === "string" ? sur.message : null;
-                  enqueueEvent("error", {
-                    error: surchargeError
-                      ? `Could not charge credits for agent tools. ${(surchargeError as { message?: string }).message || "Please try again."}`
-                      : rpcMsg ||
-                        "Not enough credits to run agent tools this step. Add credits or switch to Ask mode.",
-                    code: surchargeError ? "billing_error" : "agent_tool_surcharge",
-                    balance: sur?.balance,
-                    reason: sur?.reason,
-                  });
-                  break;
+              let textDelta = "";
+              for (const p of parts) {
+                const pr = p as { text?: string };
+                if (typeof pr.text === "string" && pr.text.length > 0) {
+                  textDelta += pr.text;
                 }
-                enqueueEvent("agent_surcharge", {
-                  credits_charged: sur.credits_charged,
-                  balance: sur.balance,
-                });
+              }
+              if (textDelta) {
+                streamedAnyAssistantText = true;
+                enqueueEvent("message", { delta: textDelta });
+              }
 
-                const toolResults = [];
-                for (const fc of functionCalls) {
+              const functionCalls = parts.filter((p) => p.functionCall);
+              if (functionCalls.length === 0) {
+                break;
+              }
+
+              toolRounds += 1;
+              if (toolRounds > MAX_AGENT_TOOL_ROUNDS) {
+                enqueueEvent("message", {
+                  delta:
+                    "\n\n—\n*I reached the maximum number of tool steps for this turn. Ask me to **continue** if you need more (e.g. finish applying or summarize).*",
+                });
+                streamedAnyAssistantText = true;
+                break;
+              }
+
+              // Option C: extra credit per agent tool round (Ask mode has no surcharge)
+              const { data: surchargeResult, error: surchargeError } = await serviceClient.rpc(
+                "consume_ai_chat_tool_surcharge",
+                { p_user_id: userId, p_credits: 1 },
+              );
+              const sur = surchargeResult as Record<string, unknown> | null;
+              const surchargeOk =
+                sur &&
+                (sur.success === true || sur.success === "true" || sur.success === "t");
+              if (surchargeError || !surchargeOk) {
+                if (surchargeError) {
+                  console.error("consume_ai_chat_tool_surcharge RPC error:", surchargeError);
+                }
+                const rpcMsg =
+                  typeof sur?.message === "string" ? sur.message : null;
+                enqueueEvent("error", {
+                  error: surchargeError
+                    ? `Could not charge credits for agent tools. ${(surchargeError as { message?: string }).message || "Please try again."}`
+                    : rpcMsg ||
+                      "Not enough credits to run agent tools this step. Add credits or switch to Ask mode.",
+                  code: surchargeError ? "billing_error" : "agent_tool_surcharge",
+                  balance: sur?.balance,
+                  reason: sur?.reason,
+                });
+                agentStoppedForBilling = true;
+                break;
+              }
+              enqueueEvent("agent_surcharge", {
+                credits_charged: sur.credits_charged,
+                balance: sur.balance,
+              });
+
+              const toolResults = [];
+              for (const fc of functionCalls) {
                   const fn = fc.functionCall;
                   console.log(`[Agent] Executing: ${fn.name}`);
                   let result;
@@ -601,14 +627,22 @@ Never use Gmail tools for personal, medical, financial (non-compensation job off
                   toolResults.push({ functionResponse: { name: fn.name, response: result } });
                   enqueueEvent("tool_call", { name: fn.name, args: fn.args, result });
                 }
-                response = await withGeminiRetry(() =>
-                  chat.sendMessage({
-                    message: { role: "user", parts: toolResults },
-                  }),
-                );
-              } else {
-                break;
-              }
+              response = await withGeminiRetry(() =>
+                chat.sendMessage({
+                  message: { role: "user", parts: toolResults },
+                }),
+              );
+            }
+
+            if (
+              toolRounds > 0 &&
+              !streamedAnyAssistantText &&
+              !agentStoppedForBilling
+            ) {
+              enqueueEvent("message", {
+                delta:
+                  "\n\nI ran the tools above. **What should I do next?** For example: confirm auto-apply, draft a follow-up email, or summarize status.",
+              });
             }
           } else {
             const chat = genAI.chats.create({
