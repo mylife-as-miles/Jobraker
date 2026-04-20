@@ -48,7 +48,7 @@ export const BentoGrid = () => {
             className="inline-flex items-center px-3 py-1 rounded-full border border-foreground/10 bg-muted/50 text-gray-300 text-xs font-mono tracking-widest uppercase mb-6 backdrop-blur-sm"
           >
              <Bot className="w-3 h-3 mr-2 text-[#ffd700]" />
-             Platform Capabilities
+             Search Automation Stack
           </motion.div>
 
           <motion.h2
@@ -58,8 +58,8 @@ export const BentoGrid = () => {
             transition={{ delay: 0.1 }}
             className="text-4xl md:text-6xl font-bold font-sans text-foreground mb-6 tracking-tight"
           >
-            Everything you need to <br/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#fbbf24] to-amber-600">dominate the job market.</span>
+            Turn scattered searching into <br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#fbbf24] to-amber-600">a pipeline that keeps moving.</span>
           </motion.h2>
 
           <motion.p
@@ -69,7 +69,7 @@ export const BentoGrid = () => {
             transition={{ delay: 0.2 }}
             className="text-gray-400 text-lg md:text-xl font-light leading-relaxed"
           >
-            Stop manually applying. JobRaker automates the entire process from search to submission, giving you an unfair advantage.
+            Manual applications drain your best hours. JobRaker helps you find the right roles, tailor the right materials, and move faster without losing control.
           </motion.p>
         </div>
 
@@ -94,8 +94,8 @@ export const BentoGrid = () => {
                 <div className="w-10 h-10 rounded-full bg-[#ffd700]/10 flex items-center justify-center mb-4 border border-[#ffd700]/20">
                   <Activity className="w-5 h-5 text-[#ffd700]" />
                 </div>
-                <h3 className="text-2xl font-semibold text-foreground mb-2">Autonomous Application System</h3>
-                <p className="text-gray-400 max-w-md">Our AI agents navigate job boards, fill out forms, and submit applications while you sleep. Watch your 'Applied' column grow automatically.</p>
+                <h3 className="text-2xl font-semibold text-foreground mb-2">Apply without the repetition</h3>
+                <p className="text-gray-400 max-w-md">Your agent finds relevant roles, prepares application details, and moves each opportunity through a reviewable pipeline.</p>
               </div>
 
               <div className="flex-1 w-full relative min-h-[250px] bg-[#15171A] rounded-xl border border-foreground/5 overflow-hidden">
@@ -116,8 +116,8 @@ export const BentoGrid = () => {
                     <FileText className="w-4 h-4 text-blue-400" />
                  </div>
                </div>
-               <h3 className="text-lg font-semibold text-foreground mb-1">Resume Intelligence</h3>
-               <p className="text-gray-400 text-sm mb-4">Dynamic tailoring for every application.</p>
+               <h3 className="text-lg font-semibold text-foreground mb-1">Role-ready resume drafts</h3>
+               <p className="text-gray-400 text-sm mb-4">Match each application with sharper, role-specific positioning.</p>
                <div className="flex-1 w-full bg-[#15171A] rounded-lg border border-foreground/5 overflow-hidden relative">
                  <ScanningVisual />
                </div>
@@ -136,8 +136,8 @@ export const BentoGrid = () => {
                     <MessageSquare className="w-4 h-4 text-[#ffd700]" />
                  </div>
                </div>
-               <h3 className="text-lg font-semibold text-foreground mb-1">AI Assistant</h3>
-               <p className="text-gray-400 text-sm mb-4">Chat with your agent. Gmail integrated.</p>
+               <h3 className="text-lg font-semibold text-foreground mb-1">Ask your agent anything</h3>
+               <p className="text-gray-400 text-sm mb-4">Review drafts, follow-ups, Gmail context, and next steps in one place.</p>
                <div className="flex-1 w-full bg-[#15171A] rounded-lg border border-foreground/5 overflow-hidden flex flex-col">
                  <ChatVisual />
                </div>
@@ -154,14 +154,14 @@ export const BentoGrid = () => {
              <div className="flex-1 relative z-10">
                <div className="inline-flex items-center px-3 py-1 rounded-full bg-[#ffd700]/10 text-[#ffd700] text-xs font-bold mb-4">
                  <Mic className="w-3 h-3 mr-2" />
-                 VOICE INTERACTIVE
+                 PRACTICE MODE
                </div>
-               <h3 className="text-2xl font-semibold text-foreground mb-3">Interview Coach AI</h3>
+               <h3 className="text-2xl font-semibold text-foreground mb-3">Interview prep from the real job description</h3>
                <p className="text-gray-400 mb-6">
-                 Practice with a voice-interactive AI that simulates real interviews based on the specific job description. Get real-time feedback on your answers.
+                 Rehearse answers against the role you actually want. Get focused feedback before the recruiter call, not after it.
                </p>
                <button className="text-foreground flex items-center text-sm font-semibold hover:text-[#ffd700] transition-colors">
-                 Try it out <ArrowRight className="w-4 h-4 ml-2" />
+                 Practice the pitch <ArrowRight className="w-4 h-4 ml-2" />
                </button>
              </div>
 

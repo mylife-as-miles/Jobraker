@@ -56,7 +56,7 @@ export const LandingPage = () => {
                 onClick={() => navigate("/signup")}
                 className='bg-[#ffd700] text-black hover:bg-[#ffd700]/90 font-bold rounded-none'
               >
-                GET STARTED
+                START FREE
               </Button>
             </div>
           </div>

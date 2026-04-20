@@ -12,7 +12,7 @@ export const SocialProof = () => {
 
       <div className="text-center mb-8">
         <p className="text-gray-500 font-mono text-sm tracking-widest uppercase">
-          Trusted by engineers at top companies
+          Built for candidates targeting top companies
         </p>
       </div>
 

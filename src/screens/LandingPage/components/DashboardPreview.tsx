@@ -14,7 +14,7 @@ export const DashboardPreview = () => {
           transition={{ duration: 0.5 }}
           className="text-3xl md:text-5xl font-bold font-sans text-foreground mb-6 tracking-tight"
         >
-          Everything in your control
+          Control the pipeline, not the busywork
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 20 }}
@@ -23,7 +23,7 @@ export const DashboardPreview = () => {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="text-gray-400 text-lg md:text-xl font-light max-w-2xl mx-auto leading-relaxed"
         >
-          All features you need to manage your job application without the friction
+          Approve, pause, refine, and track every move from one dashboard built for serious job search momentum.
         </motion.p>
       </div>
 
@@ -67,7 +67,7 @@ export const DashboardPreview = () => {
                 {/* Main Area */}
                 <div className="col-span-2 p-4 md:p-8 bg-background/40 min-h-[400px] flex flex-col items-center justify-center">
                    <div className="mb-6 text-center">
-                      <h3 className="text-[#ffd700] font-mono text-xl mb-2">ACTIVE AGENT SESSION</h3>
+                      <h3 className="text-[#ffd700] font-mono text-xl mb-2">AGENT WORKFLOW LIVE</h3>
                       <p className="text-gray-500 text-xs font-mono">ID: 8f92-a1b2-c3d4</p>
                    </div>
                    <LiveDemo />

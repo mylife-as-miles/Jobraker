@@ -3,17 +3,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Search, FileText, Send, Check } from 'lucide-react';
 
 const logs = [
-  { type: 'info', text: 'Initializing JobRaker AI Core v2.4...' },
-  { type: 'success', text: 'Connected to global job board network.' },
-  { type: 'action', text: 'Scanning for "Senior Software Engineer" roles...', icon: <Search className="w-3 h-3 text-[#ffd700]" /> },
-  { type: 'info', text: 'Found 142 new matches in last 24h.' },
-  { type: 'process', text: 'Analyzing job descriptions for keyword density...' },
-  { type: 'success', text: 'Target identified: TechCorp Inc. (Match: 98%)' },
-  { type: 'action', text: 'Tailoring resume for ATS compatibility...', icon: <FileText className="w-3 h-3 text-[#ffd700]" /> },
-  { type: 'success', text: 'Resume optimized. Keywords injected.' },
-  { type: 'action', text: 'Submitting application...', icon: <Send className="w-3 h-3 text-[#ffd700]" /> },
-  { type: 'success', text: 'Application sent successfully!' },
-  { type: 'info', text: 'Waiting for next cycle...' },
+  { type: 'info', text: 'Starting JobRaker agent workflow...' },
+  { type: 'success', text: 'Profile, resume, and preferences loaded.' },
+  { type: 'action', text: 'Scanning for high-fit software roles...', icon: <Search className="w-3 h-3 text-[#ffd700]" /> },
+  { type: 'info', text: 'New matches queued for review.' },
+  { type: 'process', text: 'Comparing job descriptions against your profile...' },
+  { type: 'success', text: 'Priority role selected for the next application.' },
+  { type: 'action', text: 'Tailoring resume language for this role...', icon: <FileText className="w-3 h-3 text-[#ffd700]" /> },
+  { type: 'success', text: 'Resume draft ready for review.' },
+  { type: 'action', text: 'Preparing governed application package...', icon: <Send className="w-3 h-3 text-[#ffd700]" /> },
+  { type: 'success', text: 'Application package moved to pipeline.' },
+  { type: 'info', text: 'Continuing search cycle...' },
 ];
 
 export const LiveDemo = () => {

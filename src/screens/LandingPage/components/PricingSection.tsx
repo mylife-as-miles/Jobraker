@@ -7,8 +7,8 @@ export const PricingSection = () => {
     <div className="bg-background text-foreground py-12">
       <Pricing
         plans={SUBSCRIPTION_MARKETING_PLANS}
-        title="Choose Your Automation Level"
-        description="Every customer-facing feature maps to a real plan. Start free, add AI with Basics, and unlock coaching plus integrations as you scale up."
+        title="Pick the pace for your search"
+        description="Start free, then scale into deeper AI evaluation, tailored materials, governed auto-apply runs, coaching, and integrations when your search needs more momentum."
       />
     </div>
   );

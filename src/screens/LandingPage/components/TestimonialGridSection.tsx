@@ -4,34 +4,34 @@ import { Star } from 'lucide-react';
 
 const testimonials = [
   {
-    text: "The AI customized my resume for every single application. I didn't even know that was possible.",
-    author: "Sarah J.",
-    role: "Product Manager"
+    text: "I am done spending evenings rewriting the same answers. I want my search moving while I prepare for the conversations that matter.",
+    author: "Pain",
+    role: "Repetitive applications"
   },
   {
-    text: "Finally, a tool that actually works. The auto-apply feature is a lifesaver.",
-    author: "Mike T.",
-    role: "DevOps Engineer"
+    text: "I need every resume to feel built for the role, without starting from a blank document every time.",
+    author: "Promise",
+    role: "Tailored materials"
   },
   {
-    text: "Got an interview with Amazon within a week. Highly recommend.",
-    author: "Jessica L.",
-    role: "Data Scientist"
+    text: "I want to know which roles are worth my energy before I apply, not after another silent rejection.",
+    author: "Priority",
+    role: "Better-fit targets"
   },
   {
-    text: "The dashboard analytics helped me understand where I was failing. Tweaked my profile and boom - offers.",
-    author: "David R.",
-    role: "Full Stack Dev"
+    text: "I need a dashboard that shows what is drafted, submitted, waiting, and ready for follow-up.",
+    author: "Control",
+    role: "Clear pipeline"
   },
   {
-    text: "Worth every penny. Saved me hours of boring form filling.",
-    author: "Emily W.",
-    role: "UX Designer"
+    text: "I want help with the form work, but I still need review controls before anything important goes out.",
+    author: "Trust",
+    role: "Governed automation"
   },
   {
-    text: "I used to apply to 5 jobs a day. Now JobRaker does 50 while I sleep.",
-    author: "Chris P.",
-    role: "Marketing Lead"
+    text: "I need interview prep that starts from the actual job description, not generic questions from a search result.",
+    author: "Momentum",
+    role: "Role-specific prep"
   }
 ];
 
@@ -40,7 +40,7 @@ export const TestimonialGridSection = () => {
     <section className="py-24 bg-background">
       <div className="container mx-auto px-4">
         <h2 className="text-3xl md:text-5xl font-bold font-mono text-center text-foreground mb-16">
-          COMMUNITY <span className="text-[#ffd700]">FEEDBACK</span>
+          WHY CANDIDATES <span className="text-[#ffd700]">SWITCH</span>
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -51,7 +51,7 @@ export const SUBSCRIPTION_MARKETING_PLANS: SubscriptionMarketingPlan[] =
     creditsPerMonth: plan.creditsPerMonth,
     autoApplyRunsPerMonth: plan.autoApplyRunsPerMonth,
     description: plan.description,
-    buttonText: plan.tier === "Free" ? "Get Started" : `Choose ${plan.name}`,
+    buttonText: plan.tier === "Free" ? "Start Free" : `Choose ${plan.name}`,
     href: "/signup",
     isPopular: plan.isPopular,
     features: plan.marketingFeatures,

@@ -20,8 +20,8 @@ export const FooterSection = () => {
               </span>
             </div>
             <p className="text-gray-500 font-mono text-sm max-w-sm">
-              Autonomous AI agents for career acceleration. We build the future
-              of work, one application at a time.
+              Autonomous job search tools for candidates who want fewer
+              repetitive forms and a clearer path to better conversations.
             </p>
           </div>
 

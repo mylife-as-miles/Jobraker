@@ -5,15 +5,15 @@ import { ChevronDown } from 'lucide-react';
 const faqs = [
   {
     question: "How does the auto-apply feature work?",
-    answer: "Our AI agent logs into job boards, fills out application forms using your profile data, uploads your tailored resume, and answers screening questions based on your experience."
+    answer: "Your agent uses your profile, preferences, and resume data to prepare role-specific application packages. You can keep the workflow in review mode when you want approval before anything is submitted."
   },
   {
     question: "Is my data secure?",
     answer: "Yes. We use enterprise-grade encryption for all user data. Your credentials are encrypted and never shared with third parties."
   },
   {
-    question: "Can I review applications before they are sent?",
-    answer: "Absolutely. You can set the agent to 'Review Mode' where it prepares applications for your approval before submission."
+    question: "Can I stay in control before applications are sent?",
+    answer: "Yes. Review Mode lets JobRaker draft and prepare applications first, so you can approve, revise, or skip each opportunity before submission."
   },
   {
     question: "What job boards do you support?",
@@ -25,7 +25,7 @@ const faqs = [
   },
   {
     question: "What are search and AI credits?",
-    answer: "Credits are used when you run job search, evaluations, resume tailoring, cover letters, AI chat, and other metered features. Your subscription includes a monthly allowance; you can also buy one-time packs from Billing. Governed auto-apply uses separate monthly run limits on paid tiers."
+    answer: "Credits power job search, evaluations, resume tailoring, cover letters, AI chat, and other metered features. Your plan includes a monthly allowance, and one-time packs are available from Billing. Governed auto-apply uses separate monthly run limits on paid tiers."
   },
   {
     question: "Do you offer quarterly or annual billing?",
@@ -37,7 +37,7 @@ const faqs = [
   },
   {
     question: "How does match or ATS scoring work?",
-    answer: "We analyze your resume against job descriptions to surface fit scores and insights so you can prioritize applications. Scores are guidance, not guarantees from employers."
+    answer: "JobRaker compares your resume with job descriptions to surface fit signals and practical insights. Scores help you prioritize, but they are guidance, not guarantees from employers."
   },
   {
     question: "Who do I contact for billing or account help?",

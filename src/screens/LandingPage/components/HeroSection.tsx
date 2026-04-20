@@ -21,19 +21,20 @@ export const HeroSection = () => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ffd700] opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ffd700]"></span>
             </span>
-            <span>AI Agent V2.0 Online</span>
+            <span>AI Career Agent Ready</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold font-mono tracking-tight text-foreground leading-[0.9] lg:leading-[0.9]">
-            Your AI Job Hunter <br />
+            Stop applying <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#fbbf24] via-[#80ff72] to-background">
-              Never Sleeps
+              one job at a time
             </span>
           </h1>
 
           <p className="max-w-xl mx-auto lg:mx-0 text-sm sm:text-base md:text-lg text-neutral-400 font-mono leading-relaxed">
-            JobRaker is the world's first autonomous AI agent that applies to jobs for you.
-            It scans 50k+ boards, optimizes your resume, and submits applications 24/7.
+            JobRaker turns your profile into an AI-powered job search system:
+            it finds stronger-fit roles, tailors your materials, and moves
+            applications forward with you in control.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
@@ -41,7 +42,7 @@ export const HeroSection = () => {
               onClick={() => navigate('/signup')}
               className="bg-[#ffd700] text-black hover:bg-[#ffd700]/90 h-12 px-6 text-base font-bold rounded-none border border-[#ffd700] transition-all hover:shadow-[0_0_20px_rgba(255,215,0,0.4)] w-full sm:w-auto"
             >
-              DEPLOY AGENT
+              START APPLYING SMARTER
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
             <Button
@@ -49,7 +50,7 @@ export const HeroSection = () => {
               className="border-[#ffd700] text-[#ffd700] bg-transparent hover:bg-[#ffd700]/10 h-12 px-6 text-base font-mono rounded-none w-full sm:w-auto"
             >
               <Terminal className="w-5 h-5 mr-2" />
-              VIEW LOGS
+              SEE AGENT FLOW
             </Button>
           </div>
 
@@ -57,12 +58,12 @@ export const HeroSection = () => {
           <div className="pt-8 flex items-center justify-center lg:justify-start space-x-8 text-neutral-500 text-sm font-mono">
              <div className="flex items-center space-x-2">
                 <span className="text-[#ffd700] font-bold">50k+</span>
-                <span>Job Boards</span>
+                <span>Sources Scanned</span>
              </div>
              <div className="w-px h-4 bg-neutral-800" />
              <div className="flex items-center space-x-2">
                 <span className="text-[#ffd700] font-bold">24/7</span>
-                <span>Active</span>
+                <span>Pipeline Momentum</span>
              </div>
           </div>
         </div>
