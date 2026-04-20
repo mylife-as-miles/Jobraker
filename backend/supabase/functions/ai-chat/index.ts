@@ -7,7 +7,7 @@ import {
   withGeminiRetry,
   isGeminiRateLimitError,
 } from "../_shared/gemini.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { fetchUserContext, formatUserContextForPrompt } from "../_shared/user-context.ts";
 import { APP_INTERFACE_GUIDE } from "../_shared/app-map.ts";
 import {
@@ -200,7 +200,10 @@ const AGENT_FUNCTION_DECLARATIONS = [
 ];
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const cors = getCorsHeaders(req.headers.get("origin"));
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: cors });
+  }
 
   try {
     const body = await req.json();
@@ -216,7 +219,7 @@ serve(async (req) => {
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "Messages are required" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -233,7 +236,7 @@ serve(async (req) => {
     } catch (e: any) {
       return new Response(JSON.stringify({ error: e?.message || "Invalid image payload" }), {
         status: 413,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -245,7 +248,7 @@ serve(async (req) => {
     ) {
       return new Response(JSON.stringify({ error: "Message text or image is required" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -266,7 +269,7 @@ serve(async (req) => {
         }),
         {
           status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...cors, "Content-Type": "application/json" },
         },
       );
     }
@@ -285,7 +288,7 @@ serve(async (req) => {
         }),
         {
           status: 503,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...cors, "Content-Type": "application/json" },
         },
       );
     }
@@ -301,7 +304,7 @@ serve(async (req) => {
         }),
         {
           status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...cors, "Content-Type": "application/json" },
         },
       );
     }
@@ -566,11 +569,11 @@ serve(async (req) => {
     });
 
     return new Response(streamBody, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" }
+      headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" }
     });
 
   } catch (error: any) {
     console.error("Outer Error:", error);
-    return subscriptionErrorResponse(error, corsHeaders);
+    return subscriptionErrorResponse(error, cors);
   }
 });

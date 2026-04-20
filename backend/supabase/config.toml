@@ -364,6 +364,12 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/referrals-agent/index.ts"
 
+[functions.ai-chat]
+enabled = true
+# Must be false so browser OPTIONS preflight reaches the handler; auth is enforced in requireSubscriptionTier.
+verify_jwt = false
+entrypoint = "./functions/ai-chat/index.ts"
+
 [functions.provider-credits]
 enabled = true
 # Browser OPTIONS preflight must reach the handler; admin auth is enforced inside the function.
