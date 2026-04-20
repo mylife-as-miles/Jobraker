@@ -1,4 +1,4 @@
-import { getCorsHeaders } from "../_shared/types.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { discoverJobsFirecrawl } from "../_shared/discovery-hybrid.ts";
 import { persistDiscoveredJobs } from "../_shared/jobs.ts";
 import { syncFirecrawlCreditUsage } from "../_shared/provider-credits.ts";
@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(origin);
 
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {

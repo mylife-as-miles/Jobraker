@@ -447,3 +447,9 @@ enabled = true
 # Browser OPTIONS preflight must reach the handler; auth is enforced in requireSubscriptionTier.
 verify_jwt = false
 entrypoint = "./functions/apply-to-jobs/index.ts"
+
+[functions.jobs-search]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; auth is enforced in requireAuthenticatedUser.
+verify_jwt = false
+entrypoint = "./functions/jobs-search/index.ts"

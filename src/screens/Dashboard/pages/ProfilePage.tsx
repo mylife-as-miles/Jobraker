@@ -55,7 +55,7 @@ const ProfilePage = (): JSX.Element => {
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (subscription && (subscription as any).subscription_plans?.name) {
         setSubscriptionTier((subscription as any).subscription_plans.name);
@@ -65,7 +65,7 @@ const ProfilePage = (): JSX.Element => {
           .from('profiles')
           .select('subscription_tier')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
         if (profileData?.subscription_tier) {
           setSubscriptionTier(profileData.subscription_tier);

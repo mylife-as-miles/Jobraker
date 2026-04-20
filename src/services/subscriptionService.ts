@@ -54,13 +54,9 @@ export class SubscriptionService {
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          // No subscription found
-          return null;
-        }
         throw error;
       }
 

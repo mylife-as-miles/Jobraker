@@ -661,7 +661,7 @@ export const SettingsPage = (): JSX.Element => {
           .from("user_credits")
           .select("balance")
           .eq("user_id", userId)
-          .single();
+          .maybeSingle();
 
         if (creditsData) {
           setCurrentCredits(creditsData.balance);
@@ -675,7 +675,7 @@ export const SettingsPage = (): JSX.Element => {
           )
           .eq("user_id", userId)
           .eq("status", "active")
-          .single();
+          .maybeSingle();
 
         if (subscription) {
           const planName = (subscription as any)?.subscription_plans?.name;
