@@ -59,11 +59,11 @@ const chartConfig = {
 
 const getCategoryColor = (label: string) => {
   const normalized = label.toLowerCase();
-  if (normalized.includes("role") || normalized.includes("focus")) return "#ffd700"; // Applied green
-  if (normalized.includes("keyword") || normalized.includes("match")) return "#56c2ff"; // Interview blue
-  if (normalized.includes("goal") || normalized.includes("profile")) return "#ffd700"; // Offer gold
-  if (normalized.includes("location") || normalized.includes("alignment")) return "#ff6b6b"; // Rejected red
-  return "#ffd700"; // Default green
+  if (normalized.includes("role") || normalized.includes("focus")) return "#ffd700";
+  if (normalized.includes("keyword") || normalized.includes("match")) return "#56c2ff";
+  if (normalized.includes("goal") || normalized.includes("profile")) return "#ffd700";
+  if (normalized.includes("location") || normalized.includes("alignment")) return "#ff6b6b";
+  return "#ffd700";
 };
 
 export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieChartProps) {

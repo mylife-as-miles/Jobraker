@@ -41,7 +41,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   const getTrendColor = (trend?: string) => {
     switch (trend) {
       case 'up':
-        return 'text-green-400';
+        return 'text-amber-400';
       case 'down':
         return 'text-red-400';
       default:

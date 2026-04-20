@@ -110,7 +110,6 @@ export const CreditDisplay = () => {
       case 'Ultimate':
         return 'from-purple-500 to-purple-600';
       default:
-        // Match the exact green gradient from match score cards
         return 'from-[#fbbf24] to-background';
     }
   };

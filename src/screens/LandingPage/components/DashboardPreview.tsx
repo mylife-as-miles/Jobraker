@@ -44,7 +44,7 @@ export const DashboardPreview = () => {
           <div className="h-10 bg-background/50 border-b border-[#ffd700]/10 flex items-center px-4 space-x-2">
             <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50" />
             <div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50" />
-            <div className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50" />
+            <div className="w-3 h-3 rounded-full bg-amber-500/20 border border-amber-500/50" />
             <div className="ml-4 flex-1 bg-background/30 h-6 rounded border border-[#ffd700]/10 flex items-center px-3 text-[10px] text-gray-600 font-mono">
               app.jobraker.io/dashboard
             </div>

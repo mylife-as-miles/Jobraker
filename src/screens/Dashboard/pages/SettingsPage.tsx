@@ -3638,7 +3638,7 @@ export const SettingsPage = (): JSX.Element => {
                           className={`w-12 h-12 rounded-xl bg-gradient-to-br ${source.color === "blue"
                             ? "from-blue-500/20 to-blue-500/10 border-blue-500/30"
                             : source.color === "green"
-                              ? "from-green-500/20 to-green-500/10 border-green-500/30"
+                              ? "from-[#ffd700]/20 to-[#ffd700]/10 border-[#ffd700]/30"
                               : source.color === "purple"
                                 ? "from-purple-500/20 to-purple-500/10 border-purple-500/30"
                                 : source.color === "orange"
@@ -3657,7 +3657,7 @@ export const SettingsPage = (): JSX.Element => {
                               fallback.className = `w-8 h-8 rounded ${source.color === "blue"
                                 ? "bg-blue-500/30"
                                 : source.color === "green"
-                                  ? "bg-green-500/30"
+                                  ? "bg-[#ffd700]/30"
                                   : source.color === "purple"
                                     ? "bg-purple-500/30"
                                     : source.color === "orange"
@@ -3687,7 +3687,7 @@ export const SettingsPage = (): JSX.Element => {
                           <h4 className='font-semibold text-foreground/95 tracking-tight flex items-center gap-2'>
                             {source.name}
                             {source.requiresCredentials && isEnabled && (
-                              <div className={`p-1 rounded-full ${sourceCredentials[source.domain] ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'} shadow-sm`}>
+                              <div className={`p-1 rounded-full ${sourceCredentials[source.domain] ? 'bg-[#ffd700]/20 text-[#fbbf24]' : 'bg-red-500/20 text-red-400'} shadow-sm`}>
                                 {sourceCredentials[source.domain] ? <Key className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
                               </div>
                             )}

@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Product gold gradient (shell / brand). Job “Applied” flows use teal in components. */
+    /* Product gold gradient (shell / brand accents). */
     --brand-from: #ffd700;
     --brand-to: #b45309;
     --brand-mid: #fbbf24;

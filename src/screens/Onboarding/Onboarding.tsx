@@ -483,7 +483,7 @@ export const Onboarding = (): JSX.Element => {
           <p className="product-helper-text max-w-2xl mx-auto text-sm md:text-base">Upload your resume for instant AI-powered profile creation, or manually enter your information step by step.</p>
         </div>
         <div className="grid gap-6 md:grid-cols-2">
-          <button onClick={() => setMode('resume')} className="group relative overflow-hidden rounded-2xl border border-[#ffd700]/30 bg-gradient-to-br from-[#101910] via-background to-black p-8 text-left shadow-[0_0_0_1px_rgba(255,215,0,0.15),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(255,215,0,0.4),0_25px_50px_-12px_rgba(255,215,0,0.15)] transition">
+          <button onClick={() => setMode('resume')} className="group relative overflow-hidden rounded-2xl border border-[#ffd700]/30 bg-gradient-to-br from-[#141414] via-background to-black p-8 text-left shadow-[0_0_0_1px_rgba(255,215,0,0.15),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(255,215,0,0.4),0_25px_50px_-12px_rgba(255,215,0,0.15)] transition">
             <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-[#ffd700]/20 border border-[#ffd700]/40 text-[#ffd700] text-[10px] font-semibold uppercase tracking-wide">Recommended</div>
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-[#fbbf24]/10 to-transparent transition" />
             <div className="flex items-center gap-3 mb-6">

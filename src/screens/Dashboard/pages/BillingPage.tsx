@@ -615,7 +615,7 @@ export const BillingPage = () => {
       case 'bonus':
         return { icon: <Sparkles className="w-4 h-4" />, color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20' };
       case 'refill':
-        return { icon: <TrendingUp className="w-4 h-4" />, color: 'text-green-400 bg-green-400/10 border-green-400/20' };
+        return { icon: <TrendingUp className="w-4 h-4" />, color: 'text-amber-400 bg-amber-400/10 border-amber-400/20' };
       case 'spend':
         return { icon: <ArrowUpRight className="w-4 h-4" />, color: 'text-red-400 bg-red-400/10 border-red-400/20' };
       default:

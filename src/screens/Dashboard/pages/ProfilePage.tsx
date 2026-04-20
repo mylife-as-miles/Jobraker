@@ -157,7 +157,7 @@ const ProfilePage = (): JSX.Element => {
   const getSkillLevelColor = (level: string) => {
     switch (level) {
       case "Expert":
-        return "bg-green-500";
+        return "bg-amber-500";
       case "Advanced":
         return "bg-blue-500";
       case "Intermediate":

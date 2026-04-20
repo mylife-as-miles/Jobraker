@@ -351,7 +351,7 @@ export const NotificationPage = (): JSX.Element => {
                           )}
                         </p>
                         {notification.priority && (
-                          <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted/50 border ${notification.priority === 'high' ? 'border-red-500 text-red-400' : notification.priority === 'medium' ? 'border-yellow-500 text-yellow-400' : 'border-green-500 text-green-400'}`}>{notification.priority}</span>
+                          <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted/50 border ${notification.priority === 'high' ? 'border-red-500 text-red-400' : notification.priority === 'medium' ? 'border-yellow-500 text-yellow-400' : 'border-slate-500 text-slate-400'}`}>{notification.priority}</span>
                         )}
                       </div>
                       {!notification.isRead && (
@@ -391,7 +391,7 @@ export const NotificationPage = (): JSX.Element => {
                         {selectedNotificationData.timestamp}
                       </p>
                       {selectedNotificationData.priority && (
-                        <p className="mt-1 text-xs product-helper-text">Priority: <span className={`font-semibold ${selectedNotificationData.priority === 'high' ? 'text-red-400' : selectedNotificationData.priority === 'medium' ? 'text-yellow-400' : 'text-green-400'}`}>{selectedNotificationData.priority}</span></p>
+                        <p className="mt-1 text-xs product-helper-text">Priority: <span className={`font-semibold ${selectedNotificationData.priority === 'high' ? 'text-red-400' : selectedNotificationData.priority === 'medium' ? 'text-yellow-400' : 'text-slate-400'}`}>{selectedNotificationData.priority}</span></p>
                       )}
                     </div>
                     <div className="flex items-center space-x-2">
