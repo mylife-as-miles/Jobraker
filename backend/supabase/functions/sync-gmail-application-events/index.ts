@@ -99,6 +99,11 @@ type ApplicationStatus =
   | "Withdrawn";
 type GmailEventType = "application_confirmation" | "interview" | "offer" | "rejection" | "assessment" | "other";
 
+type JobUrlRow = {
+  apply_url: string | null;
+  source_id: string | null;
+};
+
 type ApplicationRow = {
   id: string;
   job_id: string | null;
@@ -107,6 +112,9 @@ type ApplicationRow = {
   status: ApplicationStatus;
   canonical_stage: string | null;
   notes: string | null;
+  app_url: string | null;
+  /** PostgREST embed from `applications.job_id → jobs`; null when job_id is null. */
+  jobs: JobUrlRow | JobUrlRow[] | null;
 };
 
 type ParsedAddress = {
@@ -557,6 +565,189 @@ function normalizeForMatch(value: string | null | undefined) {
     .trim();
 }
 
+const TRACKING_QUERY_PARAMS = new Set([
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_term",
+  "utm_content",
+  "gclid",
+  "fbclid",
+  "mc_eid",
+]);
+
+/** Strip trailing punctuation often glued to URLs in email HTML/plain text. */
+function stripTrailingUrlJunk(raw: string) {
+  return raw.replace(/[),.;:!?\]}>'"\u201d\u2019]+$/u, "").trim();
+}
+
+/** Extract http(s) URLs from free text (body, subject, snippets, notes). */
+function extractHttpUrls(text: string): string[] {
+  const re = /https?:\/\/[^\s<>\[\]()'"]+/gi;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const m of text.matchAll(re)) {
+    const cleaned = stripTrailingUrlJunk(m[0]);
+    if (!seen.has(cleaned)) {
+      seen.add(cleaned);
+      out.push(cleaned);
+    }
+  }
+  return out;
+}
+
+/**
+ * Comparable key: lowercase host (no www), path, and non-tracking query string.
+ * Aligns http/https and most trailing-slash variants.
+ */
+function normalizeUrlForMatch(raw: string): string | null {
+  const cleaned = stripTrailingUrlJunk(raw);
+  try {
+    const u = new URL(cleaned);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
+    const params = new URLSearchParams(u.search);
+    for (const k of [...params.keys()]) {
+      if (TRACKING_QUERY_PARAMS.has(k.toLowerCase())) params.delete(k);
+    }
+    const search = params.toString();
+    let path = u.pathname;
+    if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
+    const qs = search ? `?${search}` : "";
+    return `${host}${path || "/"}${qs}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Extra keys for ATS links where query param identity matters across URL variants. */
+function supplementalUrlKeys(href: string): string[] {
+  const keys: string[] = [];
+  try {
+    const u = new URL(stripTrailingUrlJunk(href));
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
+    const p = u.searchParams.get("p");
+    if (
+      p && /^[A-Za-z0-9_-]+$/.test(p) &&
+      (host.includes("icims") || u.pathname.toLowerCase().includes("icims") ||
+        u.pathname.toLowerCase().includes("r.jsp"))
+    ) {
+      keys.push(`icims:p:${p}`);
+    }
+    for (const param of ["job_id", "jobId", "jid", "req", "requisition", "rid"]) {
+      const v = u.searchParams.get(param);
+      if (v && /^[A-Za-z0-9._-]+$/.test(v) && v.length <= 64) {
+        keys.push(`q:${param.toLowerCase()}=${v}`);
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return keys;
+}
+
+function urlKeysForHref(href: string): string[] {
+  const keys: string[] = [];
+  const norm = normalizeUrlForMatch(href);
+  if (norm) keys.push(norm);
+  keys.push(...supplementalUrlKeys(href));
+  return keys.filter(Boolean);
+}
+
+function collectUrlKeysFromText(text: string): Set<string> {
+  const keys = new Set<string>();
+  for (const href of extractHttpUrls(text)) {
+    for (const k of urlKeysForHref(href)) keys.add(k);
+  }
+  return keys;
+}
+
+function primaryJobEmbed(
+  jobs: ApplicationRow["jobs"],
+): JobUrlRow | null {
+  if (!jobs) return null;
+  return Array.isArray(jobs) ? (jobs[0] ?? null) : jobs;
+}
+
+/** URLs we stored on the application row, linked job, or inside notes (e.g. Source: url|url). */
+function applicationStoredUrlKeys(app: ApplicationRow): Set<string> {
+  const keys = new Set<string>();
+  const absorb = (raw: string | null | undefined) => {
+    if (!raw?.trim()) return;
+    for (const k of collectUrlKeysFromText(raw)) keys.add(k);
+  };
+  absorb(app.app_url);
+  const job = primaryJobEmbed(app.jobs);
+  absorb(job?.apply_url ?? null);
+  absorb(app.notes);
+  return keys;
+}
+
+/** If the email mentions a job UUID that matches an application.job_id, prefer that row. */
+function matchApplicationByJobIdInText(
+  applications: ApplicationRow[],
+  text: string,
+): ApplicationRow | null {
+  const uuidRegex =
+    /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
+  const found = new Set<string>();
+  for (const m of text.matchAll(uuidRegex)) {
+    found.add(m[0].toLowerCase());
+  }
+  if (found.size === 0) return null;
+  const hits = applications.filter((a) =>
+    a.job_id && found.has(a.job_id.toLowerCase())
+  );
+  return hits.length === 1 ? hits[0] : null;
+}
+
+/** Match when any URL/key in the email overlaps stored application or job URLs. */
+function matchApplicationByUrls(
+  applications: ApplicationRow[],
+  emailText: string,
+  classified: ClassifiedMessage,
+): ApplicationRow | null {
+  const emailKeys = collectUrlKeysFromText(emailText);
+  if (emailKeys.size === 0) return null;
+
+  const winners: ApplicationRow[] = [];
+  const lowerEmail = emailText.toLowerCase();
+  for (const app of applications) {
+    const stored = applicationStoredUrlKeys(app);
+    let hit = false;
+    for (const k of emailKeys) {
+      if (stored.has(k)) {
+        hit = true;
+        break;
+      }
+    }
+    if (!hit) {
+      const job = primaryJobEmbed(app.jobs);
+      const sid = job?.source_id?.trim();
+      if (
+        sid &&
+        sid.length >= 4 &&
+        sid.length <= 80 &&
+        /^[A-Za-z0-9._-]+$/.test(sid) &&
+        lowerEmail.includes(sid.toLowerCase())
+      ) {
+        hit = true;
+      }
+    }
+    if (hit) winners.push(app);
+  }
+
+  if (winners.length === 0) return null;
+  if (winners.length === 1) return winners[0];
+
+  let best: { app: ApplicationRow; score: number } | null = null;
+  for (const app of winners) {
+    const score = matchScore(app, classified);
+    if (!best || score > best.score) best = { app, score };
+  }
+  return best?.app ?? winners[0];
+}
+
 function matchScore(app: ApplicationRow, classified: ClassifiedMessage) {
   const appCompany = normalizeForMatch(app.company);
   const eventCompany = normalizeForMatch(classified.company);
@@ -580,7 +771,14 @@ function matchScore(app: ApplicationRow, classified: ClassifiedMessage) {
 function findMatchingApplication(
   applications: ApplicationRow[],
   classified: ClassifiedMessage,
+  emailText: string,
 ) {
+  const byJobId = matchApplicationByJobIdInText(applications, emailText);
+  if (byJobId) return byJobId;
+
+  const byUrl = matchApplicationByUrls(applications, emailText, classified);
+  if (byUrl) return byUrl;
+
   let best: { app: ApplicationRow; score: number } | null = null;
   for (const app of applications) {
     const score = matchScore(app, classified);
@@ -747,11 +945,17 @@ serve(async (req) => {
 
     const { data: applicationsData, error: applicationsError } = await serviceClient
       .from("applications")
-      .select("id, job_id, job_title, company, status, canonical_stage, notes")
+      .select(
+        "id, job_id, job_title, company, status, canonical_stage, notes, app_url, jobs(apply_url, source_id)",
+      )
       .eq("user_id", user.id);
     if (applicationsError) throw applicationsError;
 
-    const applications = (applicationsData || []) as ApplicationRow[];
+    const applications = (applicationsData || []).map((row: Record<string, unknown>) => ({
+      ...(row as ApplicationRow),
+      app_url: (row.app_url as string | null) ?? null,
+      jobs: (row.jobs as ApplicationRow["jobs"]) ?? null,
+    })) as ApplicationRow[];
     let classifiedCount = 0;
     let createdCount = 0;
     let updatedCount = 0;
@@ -787,7 +991,12 @@ serve(async (req) => {
       const company = classified.company || "Unknown company";
       const jobTitle = fallbackJobTitle(classified);
       let applicationId: string | null = null;
-      const matched = findMatchingApplication(applications, classified);
+      const emailMatchText = `${subject}\n${message.snippet || ""}\n${bodyText}`;
+      const matched = findMatchingApplication(
+        applications,
+        classified,
+        emailMatchText,
+      );
 
       if (matched) {
         applicationId = matched.id;
@@ -843,10 +1052,16 @@ serve(async (req) => {
             draft_status: "sent",
             ai_confidence_score: Math.round(classified.confidence * 100),
           })
-          .select("id, job_id, job_title, company, status, canonical_stage, notes")
+          .select(
+            "id, job_id, job_title, company, status, canonical_stage, notes, app_url, jobs(apply_url, source_id)",
+          )
           .single();
         if (insertError) throw insertError;
-        const insertedApp = inserted as ApplicationRow;
+        const insertedApp = {
+          ...(inserted as ApplicationRow),
+          app_url: (inserted as { app_url?: string | null }).app_url ?? null,
+          jobs: (inserted as { jobs?: ApplicationRow["jobs"] }).jobs ?? null,
+        };
         applicationId = insertedApp.id;
         applications.push(insertedApp);
         createdCount += 1;
