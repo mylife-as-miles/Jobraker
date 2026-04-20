@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import {
   DEFAULT_PAYSTACK_USD_TO_NGN_RATE,
   SHARED_SUBSCRIPTION_PLANS,
@@ -50,8 +50,10 @@ const resolveUsdToNgnRate = () => {
 };
 
 serve(async (req) => {
+  const cors = getCorsHeaders(req.headers.get("origin"));
+
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: cors });
   }
 
   try {
@@ -64,7 +66,7 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing authorization header" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -76,7 +78,7 @@ serve(async (req) => {
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Invalid user token" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -85,7 +87,7 @@ serve(async (req) => {
     if (!purchaseType) {
       return new Response(JSON.stringify({ error: "Missing purchase type" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -99,7 +101,7 @@ serve(async (req) => {
       if (!body.planId) {
         return new Response(JSON.stringify({ error: "Missing plan identifier" }), {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...cors, "Content-Type": "application/json" },
         });
       }
 
@@ -116,7 +118,7 @@ serve(async (req) => {
         console.error("Plan lookup failed:", planError);
         return new Response(JSON.stringify({ error: "Invalid subscription plan" }), {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...cors, "Content-Type": "application/json" },
         });
       }
 
@@ -191,7 +193,7 @@ serve(async (req) => {
       if (!body.packSku) {
         return new Response(JSON.stringify({ error: "Missing credit pack identifier" }), {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...cors, "Content-Type": "application/json" },
         });
       }
 
@@ -206,7 +208,7 @@ serve(async (req) => {
         console.error("Credit pack lookup failed:", packError);
         return new Response(JSON.stringify({ error: "Invalid credit pack" }), {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...cors, "Content-Type": "application/json" },
         });
       }
 
@@ -227,7 +229,7 @@ serve(async (req) => {
     } else {
       return new Response(JSON.stringify({ error: "Unsupported purchase type" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -236,7 +238,7 @@ serve(async (req) => {
         JSON.stringify({ error: "This product is not available for checkout" }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...cors, "Content-Type": "application/json" },
         },
       );
     }
@@ -316,14 +318,14 @@ serve(async (req) => {
         displayName,
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       },
     );
   } catch (error: any) {
     console.error("Error in init-payment:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 });

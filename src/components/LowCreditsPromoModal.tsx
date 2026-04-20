@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Rocket, Unlock, X, Check } from "lucide-react";
 import type { CreditBalance } from "@/types/credits";
@@ -120,6 +120,10 @@ export function LowCreditsPromoModal({
         hideCloseButton
         className="max-w-[min(100%,420px)] border border-fuchsia-500/25 bg-zinc-950 p-0 text-foreground shadow-[0_0_0_1px_rgba(217,70,239,0.15),0_25px_80px_-20px_rgba(0,0,0,0.85)] sm:rounded-2xl overflow-hidden gap-0"
       >
+        <DialogTitle className="sr-only">Low credits — limited-time upgrade offer</DialogTitle>
+        <DialogDescription className="sr-only">
+          You have used most of your credits. You can upgrade or top up using the promo on this screen.
+        </DialogDescription>
         {/* Top alert bar */}
         <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-black/40 px-4 py-2.5">
           <div className="flex items-center gap-2 min-w-0">
