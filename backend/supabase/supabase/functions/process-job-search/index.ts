@@ -2,6 +2,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
 import { generateAiDescription } from '../_shared/gemini.ts';
+import { applyMicro1ReferralToUrl } from '../_shared/micro1-referral.ts';
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -56,7 +57,7 @@ Deno.serve(async (req) => {
       'flexjobs.com', 'cryptojobslist.com', 'otta.com', 'hired.com',
       'dice.com', 'ycombinator.com', 'startup.jobs', 'nodesk.co',
       'remoterocketship.com', 'jobspresso.com', 'talent.hubstaff.com',
-      'flexa.careers'
+      'flexa.careers', 'jobs.micro1.ai',
     ];
 
     // Blocklist: exclude problematic domains from search
@@ -222,7 +223,9 @@ Deno.serve(async (req) => {
       if (lower.includes('talent.hubstaff.com') && lower.includes('/jobs/')) return true;
       // NodeDesk.co
       if (lower.includes('nodesk.co') && lower.includes('/remote-jobs/')) return true;
-      
+      // micro1 opportunities (subdomain jobs.micro1.ai)
+      if (lower.includes('jobs.micro1.ai') && /jobs\.micro1\.ai\/[^/?#]+/.test(lower)) return true;
+
       // Generic patterns
       if (lower.match(/\/(job|posting|opening|career|apply|position)s?\/[^\/]+\/?$/)) return true;
       return false;
@@ -247,13 +250,14 @@ Deno.serve(async (req) => {
       const url: string | undefined = item?.url || item?.metadata?.sourceURL;
       if (typeof url !== 'string') continue;
       const clean = url.replace(/\/$/, '');
+      const referredClean = applyMicro1ReferralToUrl(clean);
       const h = hostFromUrl(clean);
       if (!h) continue;
 
       const allowed = Array.from(domainSet).some((d) => h === d || h.endsWith(`.${d}`));
       if (h === 'techsolutions.com' || h.endsWith('.techsolutions.com')) continue;
       if (!allowed) continue;
-      if (seen.has(clean)) continue;
+      if (seen.has(referredClean)) continue;
 
       if (clean.toLowerCase().includes('/search') ||
           clean.toLowerCase().includes('/q-') ||
@@ -261,19 +265,19 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      seen.add(clean);
+      seen.add(referredClean);
 
       const scrapedJson = item?.scraped?.json || item?.json;
       const hasStructuredData = scrapedJson && typeof scrapedJson === 'object';
-      const companyName = hasStructuredData ? (scrapedJson.company || extractCompanyFromUrl(clean)) : extractCompanyFromUrl(clean);
-      const companyLogo = getCompanyLogoUrl(companyName, clean);
+      const companyName = hasStructuredData ? (scrapedJson.company || extractCompanyFromUrl(referredClean)) : extractCompanyFromUrl(referredClean);
+      const companyLogo = getCompanyLogoUrl(companyName, referredClean);
       const screenshot = item?.scraped?.screenshot || item?.screenshot;
       const fullHtml = item?.scraped?.html || item?.html;
       const fullMarkdown = item?.scraped?.markdown || item?.markdown;
       const fallbackDesc = typeof item?.description === 'string' ? item.description : undefined;
 
       filtered.push({
-        url: clean,
+        url: referredClean,
         title: hasStructuredData ? (scrapedJson.title || item?.title) : item?.title,
         description: fullHtml || fullMarkdown || scrapedJson?.description || fallbackDesc,
         category: typeof item?.category === 'string' ? item.category : undefined,
@@ -286,7 +290,9 @@ Deno.serve(async (req) => {
         salary_currency_json: hasStructuredData ? (scrapedJson.salary_currency ?? undefined) : undefined,
         location: hasStructuredData ? scrapedJson.location : undefined,
         deadline: hasStructuredData ? scrapedJson.deadline : undefined,
-        apply_link: hasStructuredData ? (scrapedJson.apply_link || clean) : clean,
+        apply_link: hasStructuredData
+          ? applyMicro1ReferralToUrl(String(scrapedJson.apply_link || referredClean))
+          : referredClean,
         employment_type: hasStructuredData ? scrapedJson.employment_type : undefined,
         experience_level: hasStructuredData ? scrapedJson.experience_level : undefined,
         tags: hasStructuredData && Array.isArray(scrapedJson.tags) ? scrapedJson.tags.filter(Boolean) : undefined,

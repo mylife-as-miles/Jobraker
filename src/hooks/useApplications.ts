@@ -10,6 +10,7 @@ import {
   type ApplicationCanonicalStage,
   type ApplicationStatus,
 } from "../lib/applicationState";
+import { applyMicro1ReferralToUrl } from "../utils/micro1Referral";
 
 export type { ApplicationStatus } from "../lib/applicationState";
 
@@ -259,7 +260,7 @@ export function useApplications() {
           next_step: null,
           interview_date: null,
           logo: job.company_logo ?? null,
-          app_url: job.apply_url ?? null,
+          app_url: job.apply_url ? applyMicro1ReferralToUrl(job.apply_url) : null,
           provider_status: job.canonical_status,
           match_reasons:
             Array.isArray(job.evaluation_summary?.matched_keywords) &&

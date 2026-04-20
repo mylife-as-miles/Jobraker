@@ -7,6 +7,7 @@ import {
 } from "../_shared/subscription.ts";
 import { decryptSymmetric } from "../_shared/crypto.ts";
 import { signResumeProxyToken } from "../_shared/resume-proxy-token.ts";
+import { applyMicro1ReferralToUrl } from "../_shared/micro1-referral.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 
@@ -224,8 +225,9 @@ Deno.serve(async (req) => {
         : user.email || "";
     const jobUrlsFromJobUrls = extractJobUrls(body?.job_urls);
     const jobUrlsFromJobs = extractJobUrls(body?.jobs);
-    const jobUrls =
-      jobUrlsFromJobUrls.length > 0 ? jobUrlsFromJobUrls : jobUrlsFromJobs;
+    const jobUrls = (
+      jobUrlsFromJobUrls.length > 0 ? jobUrlsFromJobUrls : jobUrlsFromJobs
+    ).map((u) => applyMicro1ReferralToUrl(u));
     const jobContext = extractJobContext(body);
     const userInput = typeof body?.user_input === "object" ? body.user_input : {};
     const sourceCredentials: Record<string, any> = {};

@@ -6,6 +6,7 @@ import {
   useApplications,
   type ApplicationStatus,
 } from "../../../hooks/useApplications";
+import { applyMicro1ReferralToUrl } from "../../../utils/micro1Referral";
 import { APPLICATION_STATUS_OPTIONS } from "@/lib/applicationState";
 
 /** All + pipeline statuses for filters, URL params, and prefs */
@@ -401,7 +402,7 @@ function ApplicationsListView({
                             <div className='mt-3 flex flex-wrap items-center gap-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100'>
                               {a.app_url && (
                                 <a
-                                  href={a.app_url}
+                                  href={applyMicro1ReferralToUrl(a.app_url)}
                                   target='_blank'
                                   rel='noreferrer'
                                   onClick={(e) => e.stopPropagation()}
@@ -1421,7 +1422,7 @@ function ApplicationPage() {
                                 <div className='flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity'>
                                   {a.app_url && (
                                     <a
-                                      href={a.app_url}
+                                      href={applyMicro1ReferralToUrl(a.app_url)}
                                       target='_blank'
                                       rel='noreferrer'
                                       onClick={(e) => e.stopPropagation()}
@@ -2042,14 +2043,15 @@ function ApplicationPage() {
                   <Button
                     onClick={() => {
                       const sourceUrl = detailApp.app_url || (detailApp.notes?.includes("Source:") ? detailApp.notes.split("Source:")[1].split('\n')[0].trim() : "");
+                      const openUrl = sourceUrl ? applyMicro1ReferralToUrl(sourceUrl) : "";
                       const summaryData = `Role: ${detailApp.job_title}\nCompany: ${detailApp.company}`;
 
                       if (navigator.clipboard?.writeText) {
                         navigator.clipboard.writeText(summaryData).then(() => {
-                          if (sourceUrl) window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+                          if (openUrl) window.open(openUrl, '_blank', 'noopener,noreferrer');
                         });
                       } else {
-                        if (sourceUrl) window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+                        if (openUrl) window.open(openUrl, '_blank', 'noopener,noreferrer');
                       }
                     }}
                     className='w-full bg-[#1dff00]/15 hover:bg-[#1dff00]/25 text-[#1dff00] border border-[#1dff00]/50 transition-colors py-2 h-auto whitespace-normal text-left sm:text-center block break-words'
@@ -2138,7 +2140,7 @@ function ApplicationPage() {
                 )}
                 {detailApp.app_url && (
                   <a
-                    href={detailApp.app_url}
+                    href={applyMicro1ReferralToUrl(detailApp.app_url)}
                     target='_blank'
                     rel='noreferrer'
                     className='inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/20 hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] transition-all duration-200 text-sm font-medium'

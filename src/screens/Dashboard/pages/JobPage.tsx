@@ -62,6 +62,7 @@ import {
   type JobEvaluationReport as JobEvaluationReportData,
 } from "../../../services/jobs/jobEvaluation";
 import { isTrustedSource } from "../../../utils/trustedSources";
+import { applyMicro1ReferralToUrl } from "../../../utils/micro1Referral";
 import { useGamification } from "../../../hooks/useGamification";
 import { cn, getProxiedLogoUrl } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
@@ -502,7 +503,7 @@ const getJobApplyTarget = (job: Job): string | null => {
   for (const candidate of candidates) {
     if (typeof candidate === "string") {
       const trimmed = candidate.trim();
-      if (trimmed) return trimmed;
+      if (trimmed) return applyMicro1ReferralToUrl(trimmed);
     }
   }
   return null;
@@ -2776,7 +2777,7 @@ export const JobPage = (): JSX.Element => {
                 jobs: [
                   {
                     sourceUrl: target,
-                    url: job.apply_url ?? target,
+                    url: applyMicro1ReferralToUrl(job.apply_url ?? target),
                     source_url: job.source_id ?? target,
                     job_id: job.id,
                     job_title: job.title,
@@ -4479,12 +4480,15 @@ export const JobPage = (): JSX.Element => {
                   >
                     <div className='space-y-4'>
                       {(() => {
-                        const primaryHref =
+                        const primaryHrefRaw =
                           job.apply_url ||
                           (job as any)?.raw_data?.sourceUrl ||
                           job.source_id;
-                        const siteHost = primaryHref
-                          ? getHost(primaryHref)
+                        const primaryHref = primaryHrefRaw
+                          ? applyMicro1ReferralToUrl(String(primaryHrefRaw))
+                          : "";
+                        const siteHost = primaryHrefRaw
+                          ? getHost(String(primaryHrefRaw))
                           : "";
                         const ico = siteHost
                           ? `https://www.google.com/s2/favicons?domain=${siteHost}&sz=64`
@@ -4826,12 +4830,13 @@ export const JobPage = (): JSX.Element => {
                             </div>
                             <ul className='space-y-2'>
                               {items.map((s, i) => {
-                                const href =
+                                const hrefRaw =
                                   typeof s === "string"
                                     ? s
                                     : s?.url || s?.source || "";
-                                if (!href) return null;
-                                const host = getHost(href);
+                                if (!hrefRaw) return null;
+                                const href = applyMicro1ReferralToUrl(hrefRaw);
+                                const host = getHost(hrefRaw);
                                 const ico = host
                                   ? `https://www.google.com/s2/favicons?domain=${host}&sz=64`
                                   : "";
@@ -5955,11 +5960,16 @@ export const JobPage = (): JSX.Element => {
             >
               <div className='-mx-1 space-y-3 pb-2'>
                 {(() => {
-                  const primaryHref =
+                  const primaryHrefRaw =
                     j.apply_url ||
                     (j as any)?.raw_data?.sourceUrl ||
                     j.source_id;
-                  const siteHost = primaryHref ? getHost(primaryHref) : "";
+                  const primaryHref = primaryHrefRaw
+                    ? applyMicro1ReferralToUrl(String(primaryHrefRaw))
+                    : "";
+                  const siteHost = primaryHrefRaw
+                    ? getHost(String(primaryHrefRaw))
+                    : "";
                   const ico = siteHost
                     ? `https://www.google.com/s2/favicons?domain=${siteHost}&sz=64`
                     : "";
@@ -6262,12 +6272,13 @@ export const JobPage = (): JSX.Element => {
                       </div>
                       <ul className='space-y-2'>
                         {items.map((s, i) => {
-                          const href =
+                          const hrefRaw =
                             typeof s === "string"
                               ? s
                               : s?.url || s?.source || "";
-                          if (!href) return null;
-                          const host = getHost(href);
+                          if (!hrefRaw) return null;
+                          const href = applyMicro1ReferralToUrl(hrefRaw);
+                          const host = getHost(hrefRaw);
                           const ico = host
                             ? `https://www.google.com/s2/favicons?domain=${host}&sz=64`
                             : "";

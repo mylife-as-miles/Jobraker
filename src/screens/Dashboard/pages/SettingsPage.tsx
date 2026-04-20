@@ -341,7 +341,7 @@ export const SettingsPage = (): JSX.Element => {
       "flexjobs.com", "cryptojobslist.com", "otta.com",
       "dice.com", "startup.jobs", "nodesk.co",
       "remoterocketship.com", "jobspresso.com", "talent.hubstaff.com",
-      "flexa.careers"
+      "flexa.careers", "jobs.micro1.ai",
     ]),
   );
 
@@ -820,7 +820,7 @@ export const SettingsPage = (): JSX.Element => {
                 "flexjobs.com", "cryptojobslist.com", "otta.com", "hired.com",
                 "dice.com", "ycombinator.com", "startup.jobs", "nodesk.co",
                 "remoterocketship.com", "jobspresso.com", "talent.hubstaff.com",
-                "flexa.careers"
+                "flexa.careers", "jobs.micro1.ai",
               ]),
             );
 
@@ -3598,7 +3598,8 @@ export const SettingsPage = (): JSX.Element => {
           { id: "remoterocketship.com", domain: "remoterocketship.com", name: "Remote Rocketship", description: "AI-curated remote jobs", logo: "https://www.google.com/s2/favicons?domain=remoterocketship.com&sz=128", color: "purple", requiresCredentials: false },
           { id: "jobspresso.com", domain: "jobspresso.com", name: "Jobspresso", description: "High-quality remote jobs", logo: "https://www.google.com/s2/favicons?domain=jobspresso.com&sz=128", color: "green", requiresCredentials: false },
           { id: "flexa.careers", domain: "flexa.careers", name: "Flexa Careers", description: "Verified flexible companies", logo: "https://www.google.com/s2/favicons?domain=flexa.careers&sz=128", color: "blue", requiresCredentials: false },
-          { id: "workingnomads.com", domain: "workingnomads.com", name: "Working Nomads", description: "Curated remote jobs", logo: "https://www.google.com/s2/favicons?domain=workingnomads.com&sz=128", color: "indigo", requiresCredentials: false }
+          { id: "workingnomads.com", domain: "workingnomads.com", name: "Working Nomads", description: "Curated remote jobs", logo: "https://www.google.com/s2/favicons?domain=workingnomads.com&sz=128", color: "indigo", requiresCredentials: false },
+          { id: "jobs.micro1.ai", domain: "jobs.micro1.ai", name: "micro1", description: "micro1 expert & AI training opportunities", logo: "https://www.google.com/s2/favicons?domain=micro1.ai&sz=128", color: "indigo", requiresCredentials: false }
         ];
 
 
