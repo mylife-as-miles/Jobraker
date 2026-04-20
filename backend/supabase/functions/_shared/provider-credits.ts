@@ -1,5 +1,9 @@
 // @ts-nocheck
-import { getFirecrawlCreditUsage, resolveFirecrawlApiKey } from "./firecrawl.ts";
+import {
+  getFirecrawlCreditUsage,
+  getFirecrawlHistoricalCreditUsage,
+  resolveFirecrawlApiKey,
+} from "./firecrawl.ts";
 
 type ProviderName = "firecrawl" | "skyvern";
 
@@ -28,6 +32,55 @@ function normalizePositiveInteger(value: unknown): number {
   const numeric = asNumber(value);
   if (numeric === null) return 0;
   return Math.max(0, Math.floor(numeric));
+}
+
+function getTimestamp(value: unknown): number | null {
+  if (!value) return null;
+  const timestamp = new Date(String(value)).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function getPeriodCredits(period: any): number {
+  return normalizePositiveInteger(
+    period?.totalCredits ??
+      period?.total_credits ??
+      period?.creditsUsed ??
+      period?.credits_used,
+  );
+}
+
+function getCurrentFirecrawlPeriodCredits(
+  periods: any[],
+  billingPeriodStart?: unknown,
+  billingPeriodEnd?: unknown,
+): number {
+  if (!Array.isArray(periods) || periods.length === 0) return 0;
+
+  const now = Date.now();
+  const billingStart = getTimestamp(billingPeriodStart);
+  const billingEnd = getTimestamp(billingPeriodEnd);
+
+  const matchingPeriod = periods.find((period) => {
+    const start = getTimestamp(period?.startDate ?? period?.start_date ?? period?.periodStart);
+    const end = getTimestamp(period?.endDate ?? period?.end_date ?? period?.periodEnd);
+    if (!start || !end) return false;
+
+    if (billingStart && billingEnd) {
+      return start < billingEnd && end > billingStart;
+    }
+
+    return start <= now && now <= end;
+  });
+
+  if (matchingPeriod) return getPeriodCredits(matchingPeriod);
+
+  const latestPeriod = [...periods].sort((a, b) => {
+    const aTime = getTimestamp(a?.endDate ?? a?.end_date ?? a?.periodEnd) ?? 0;
+    const bTime = getTimestamp(b?.endDate ?? b?.end_date ?? b?.periodEnd) ?? 0;
+    return bTime - aTime;
+  })[0];
+
+  return getPeriodCredits(latestPeriod);
 }
 
 function extractSkyvernStepCount(output: any): number {
@@ -210,15 +263,43 @@ async function syncFirecrawlCreditUsage(
 ) {
   const apiKey = await resolveFirecrawlApiKey();
   const usage = await getFirecrawlCreditUsage(apiKey);
+  let historicalUsage: any = null;
+  let historicalWarning: string | null = null;
+
+  try {
+    historicalUsage = await getFirecrawlHistoricalCreditUsage(apiKey);
+  } catch (error) {
+    historicalWarning =
+      error instanceof Error ? error.message : "Firecrawl historical usage unavailable";
+    console.warn("firecrawl.historical_credit_usage_failed", { error: historicalWarning });
+  }
+
+  const remainingCredits = normalizePositiveInteger(usage.remainingCredits);
+  const planCredits = normalizePositiveInteger(usage.planCredits);
+  const currentPeriodUsedCredits = getCurrentFirecrawlPeriodCredits(
+    historicalUsage?.periods || [],
+    usage.billingPeriodStart,
+    usage.billingPeriodEnd,
+  );
+  const effectiveTotalCredits = Math.max(
+    planCredits,
+    remainingCredits,
+    remainingCredits + currentPeriodUsedCredits,
+  );
 
   const { data, error } = await serviceClient.rpc("set_provider_credit_balance", {
     p_provider: "firecrawl",
-    p_total_credits: normalizePositiveInteger(usage.planCredits),
-    p_remaining_credits: normalizePositiveInteger(usage.remainingCredits),
+    p_total_credits: effectiveTotalCredits,
+    p_remaining_credits: remainingCredits,
     p_source: "firecrawl_api",
     p_description: "Firecrawl credit balance refreshed from API",
     p_metadata: {
       ...metadata,
+      planCredits,
+      reportedRemainingCredits: remainingCredits,
+      currentPeriodUsedCredits,
+      effectiveTotalCredits,
+      historicalWarning,
       billingPeriodStart: usage.billingPeriodStart,
       billingPeriodEnd: usage.billingPeriodEnd,
     },
@@ -230,7 +311,18 @@ async function syncFirecrawlCreditUsage(
   }
 
   const alert = await maybeSendProviderCreditAlert(serviceClient, "firecrawl");
-  return { usage, balance: data, alert };
+  return {
+    usage: {
+      ...usage,
+      planCredits,
+      remainingCredits,
+      currentPeriodUsedCredits,
+      effectiveTotalCredits,
+    },
+    historicalUsage,
+    balance: data,
+    alert,
+  };
 }
 
 async function recordSkyvernUsageFromOutput(

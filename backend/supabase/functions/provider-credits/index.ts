@@ -112,6 +112,7 @@ function shouldRefreshSeededFirecrawlBalance(balance: any) {
   return (
     !balance.last_checked_at ||
     balance.source === "seed" ||
+    remainingCredits > totalCredits ||
     (totalCredits === 0 && remainingCredits === 0)
   );
 }
