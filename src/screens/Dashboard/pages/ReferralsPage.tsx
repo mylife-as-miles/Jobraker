@@ -34,6 +34,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -512,42 +513,48 @@ function MyReferralsPanel({
   }, [referrals, search, statusFilter, timeframe]);
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <p className="text-sm product-helper-text">
-          Track each invite as they use JobRaker—applications, interviews, and milestones.
+    <div className='space-y-5'>
+      <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
+        <p className='text-sm product-helper-text'>
+          Track each invite as they use JobRaker—applications, interviews, and
+          milestones.
         </p>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className='flex flex-wrap items-center gap-2'>
           <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="product-outline-button border-foreground/20"
+            type='button'
+            variant='outline'
+            size='sm'
+            className='product-outline-button border-foreground/20'
             onClick={onOpenWhatsNew}
           >
-            <Sparkle className="w-3.5 h-3.5 mr-1.5 opacity-80" />
+            <Sparkle className='w-3.5 h-3.5 mr-1.5 opacity-80' />
             What&apos;s new
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="product-outline-button border-foreground/20">
-                <Share2 className="w-3.5 h-3.5 mr-1.5" />
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                className='product-outline-button border-foreground/20'
+              >
+                <Share2 className='w-3.5 h-3.5 mr-1.5' />
                 Share
-                <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-60" />
+                <ChevronDown className='w-3.5 h-3.5 ml-1 opacity-60' />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[12rem]">
+            <DropdownMenuContent align='end' className='min-w-[12rem]'>
               <DropdownMenuItem onClick={onShareLink}>
-                <Link2 className="w-4 h-4 mr-2" />
+                <Link2 className='w-4 h-4 mr-2' />
                 Copy referral link
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onEmailInvite}>
-                <Mail className="w-4 h-4 mr-2" />
+                <Mail className='w-4 h-4 mr-2' />
                 Email invite…
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="flex rounded-lg border border-foreground/15 p-0.5 bg-foreground/[0.04]">
+          <div className='flex rounded-lg border border-foreground/15 p-0.5 bg-foreground/[0.04]'>
             {(
               [
                 { id: "1d" as const, label: "1D" },
@@ -558,7 +565,7 @@ function MyReferralsPanel({
             ).map((tf) => (
               <button
                 key={tf.id}
-                type="button"
+                type='button'
                 onClick={() => setTimeframe(tf.id)}
                 className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
                   timeframe === tf.id
@@ -573,133 +580,158 @@ function MyReferralsPanel({
         </div>
       </div>
 
-      <Card className="product-section-card overflow-hidden p-0 border-foreground/15">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-x divide-y divide-border/50 lg:divide-y-0 border-b border-border/50">
+      <Card className='product-section-card overflow-hidden p-0 border-foreground/15'>
+        <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-x divide-y divide-border/50 lg:divide-y-0 border-b border-border/50'>
           {FUNNEL_STAGES.map((stage) => {
             const active = highlightStage === stage.id;
             return (
               <button
                 key={stage.id}
-                type="button"
+                type='button'
                 onClick={() => {
                   setHighlightStage(stage.id);
                   setStatusFilter(stage.id);
                 }}
                 className={`px-3 py-4 text-left transition-colors ${
-                  active ? "bg-[#1dff00]/10 border-b-2 border-[#1dff00] -mb-px" : "hover:bg-foreground/[0.03]"
+                  active
+                    ? "bg-[#1dff00]/10 border-b-2 border-[#1dff00] -mb-px"
+                    : "hover:bg-foreground/[0.03]"
                 }`}
               >
-                <p className={`text-[11px] sm:text-xs font-medium leading-tight ${active ? "text-[#1dff00]" : "product-helper-text"}`}>
+                <p
+                  className={`text-[11px] sm:text-xs font-medium leading-tight ${active ? "text-[#1dff00]" : "product-helper-text"}`}
+                >
                   {stage.label}
                 </p>
-                <p className="text-2xl font-bold text-foreground tabular-nums mt-1">{counts[stage.id]}</p>
+                <p className='text-2xl font-bold text-foreground tabular-nums mt-1'>
+                  {counts[stage.id]}
+                </p>
               </button>
             );
           })}
         </div>
       </Card>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 min-w-0">
-          <ListFilter className="w-4 h-4 text-foreground/40 shrink-0" />
-          <span className="text-xs text-foreground/50 shrink-0">Status</span>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as FunnelStageId)}>
-            <SelectTrigger className="w-[min(100%,220px)] h-9 text-sm border-foreground/15">
-              <SelectValue placeholder="Status" />
+      <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+        <div className='flex relative items-center gap-2 min-w-0'>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as FunnelStageId)}
+          >
+            <SelectTrigger className=' text-sm  border-foreground/15'>
+              <div className='flex items-center'>
+                <ListFilter className='w-4 h-4 text-foreground/40 mr-2' />
+                <SelectValue placeholder='Status' />
+              </div>
             </SelectTrigger>
             <SelectContent>
-              {FUNNEL_STAGES.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.label}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {FUNNEL_STAGES.map((s) => (
+                  <SelectItem key={s.id} value={s.label}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/35" />
+        <div className='relative flex-1 max-w-md'>
+          <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/35' />
           <input
-            type="search"
+            type='search'
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or email…"
-            className="product-input-surface w-full rounded-xl pl-9 pr-3 py-2 text-sm h-10"
+            placeholder='Search by name or email…'
+            className='product-input-surface w-full rounded-xl pl-9 pr-3 py-2 text-sm h-10'
           />
         </div>
       </div>
 
       {loading ? (
-        <Card className="product-section-card p-10 text-center border-foreground/15">
-          <Loader2 className="w-8 h-8 animate-spin text-[#1dff00] mx-auto" />
-          <p className="text-sm product-helper-text mt-3">Loading referrals…</p>
+        <Card className='product-section-card p-10 text-center border-foreground/15'>
+          <Loader2 className='w-8 h-8 animate-spin text-[#1dff00] mx-auto' />
+          <p className='text-sm product-helper-text mt-3'>Loading referrals…</p>
         </Card>
       ) : filteredReferrals.length === 0 ? (
-        <Card className="product-section-card py-16 px-6 text-center border-dashed border-foreground/15 hover:border-[#1dff00]/30 transition-colors">
-          <div className="w-14 h-14 rounded-full bg-foreground/5 border border-foreground/10 flex items-center justify-center mx-auto mb-4">
-            <UserPlus className="w-7 h-7 text-foreground/40" />
+        <Card className='product-section-card py-16 px-6 text-center border-dashed border-foreground/15 hover:border-[#1dff00]/30 transition-colors'>
+          <div className='w-14 h-14 rounded-full bg-foreground/5 border border-foreground/10 flex items-center justify-center mx-auto mb-4'>
+            <UserPlus className='w-7 h-7 text-foreground/40' />
           </div>
-          <p className="text-sm text-foreground font-medium max-w-md mx-auto">
+          <p className='text-sm text-foreground font-medium max-w-md mx-auto'>
             {referrals.length === 0
               ? "You don't have any referrals yet. All your referrals will be visible here."
               : "No referrals match these filters. Try ALL dates or another status."}
           </p>
-          <p className="text-xs product-helper-text max-w-sm mx-auto mt-2">
+          <p className='text-xs product-helper-text max-w-sm mx-auto mt-2'>
             Pre-screen candidates with{" "}
-            <button type="button" className="text-[#1dff00] hover:underline" onClick={onOpenFitCheck}>
+            <button
+              type='button'
+              className='text-[#1dff00] hover:underline'
+              onClick={onOpenFitCheck}
+            >
               Check candidate fit
             </button>{" "}
             before you share your link.
           </p>
           <Button
-            type="button"
-            className="mt-6 bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+            type='button'
+            className='mt-6 bg-[#1dff00] text-black hover:bg-[#1dff00]/90'
             onClick={onShareLink}
           >
-            <Link2 className="w-4 h-4 mr-2" />
+            <Link2 className='w-4 h-4 mr-2' />
             Share your referral link
           </Button>
         </Card>
       ) : (
-        <Card className="product-section-card overflow-hidden border-foreground/15">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+        <Card className='product-section-card overflow-hidden border-foreground/15'>
+          <div className='overflow-x-auto'>
+            <table className='w-full text-sm'>
               <thead>
-                <tr className="border-b border-foreground/10 text-left product-helper-text">
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Stage</th>
-                  <th className="px-4 py-3 font-medium">Signed up</th>
-                  <th className="px-4 py-3 font-medium">Actions</th>
+                <tr className='border-b border-foreground/10 text-left product-helper-text'>
+                  <th className='px-4 py-3 font-medium'>Name</th>
+                  <th className='px-4 py-3 font-medium'>Email</th>
+                  <th className='px-4 py-3 font-medium'>Stage</th>
+                  <th className='px-4 py-3 font-medium'>Signed up</th>
+                  <th className='px-4 py-3 font-medium'>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredReferrals.map((r) => {
                   const name =
-                    `${r.referee?.first_name || ""} ${r.referee?.last_name || ""}`.trim() || "—";
+                    `${r.referee?.first_name || ""} ${r.referee?.last_name || ""}`.trim() ||
+                    "—";
                   return (
-                    <tr key={r.id} className="border-b border-foreground/5 hover:bg-foreground/[0.02]">
-                      <td className="px-4 py-3 text-foreground">{name}</td>
-                      <td className="px-4 py-3 product-helper-text">{r.referred_email || "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex rounded-full border border-[#1dff00]/30 bg-[#1dff00]/10 px-2 py-0.5 text-xs text-[#1dff00]">
-                          {FUNNEL_STAGES.find((s) => s.id === r.funnel_stage)?.label || r.funnel_stage}
+                    <tr
+                      key={r.id}
+                      className='border-b border-foreground/5 hover:bg-foreground/[0.02]'
+                    >
+                      <td className='px-4 py-3 text-foreground'>{name}</td>
+                      <td className='px-4 py-3 product-helper-text'>
+                        {r.referred_email || "—"}
+                      </td>
+                      <td className='px-4 py-3'>
+                        <span className='inline-flex rounded-full border border-[#1dff00]/30 bg-[#1dff00]/10 px-2 py-0.5 text-xs text-[#1dff00]'>
+                          {FUNNEL_STAGES.find((s) => s.id === r.funnel_stage)
+                            ?.label || r.funnel_stage}
                         </span>
                       </td>
-                      <td className="px-4 py-3 product-helper-text">
+                      <td className='px-4 py-3 product-helper-text'>
                         {new Date(r.signed_up_at).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {r.funnel_stage !== "hired" && r.funnel_stage !== "paid" ? (
+                      <td className='px-4 py-3'>
+                        <div className='flex flex-wrap gap-1'>
+                          {r.funnel_stage !== "hired" &&
+                          r.funnel_stage !== "paid" ? (
                             <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-[10px] border-foreground/20"
+                              type='button'
+                              variant='outline'
+                              size='sm'
+                              className='h-7 text-[10px] border-foreground/20'
                               onClick={() =>
-                                void onMarkStage(r.referred_user_id, "hired").catch((e) =>
-                                  console.warn(e),
-                                )
+                                void onMarkStage(
+                                  r.referred_user_id,
+                                  "hired",
+                                ).catch((e) => console.warn(e))
                               }
                             >
                               Mark hired
@@ -707,14 +739,15 @@ function MyReferralsPanel({
                           ) : null}
                           {r.funnel_stage === "hired" ? (
                             <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-[10px] border-foreground/20"
+                              type='button'
+                              variant='outline'
+                              size='sm'
+                              className='h-7 text-[10px] border-foreground/20'
                               onClick={() =>
-                                void onMarkStage(r.referred_user_id, "paid").catch((e) =>
-                                  console.warn(e),
-                                )
+                                void onMarkStage(
+                                  r.referred_user_id,
+                                  "paid",
+                                ).catch((e) => console.warn(e))
                               }
                             >
                               Mark paid

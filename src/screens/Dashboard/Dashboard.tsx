@@ -472,7 +472,11 @@ export const Dashboard = (): JSX.Element => {
             className={`flex items-center gap-3 relative z-10 w-full ${isCollapsed ? "justify-center" : ""}`}
           >
             <div className='w-9 h-9 rounded-xl flex items-center justify-center shrink-0 overflow-clip'>
-              <img src="/logo/logo.jpeg" className="object-cover w-full h-full" alt="logo" />
+              <img
+                src='/logo/logo.jpeg'
+                className='object-cover w-full h-full'
+                alt='logo'
+              />
             </div>
 
             {!isCollapsed && (
@@ -502,7 +506,7 @@ export const Dashboard = (): JSX.Element => {
         </div>
 
         {/* Navigation - Categorized */}
-        <div className='flex-1 overflow-y-auto py-6 px-3 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent'>
+        <div className='flex-1 overflow-y-auto py-6 px-3 space-y-6 [scrollbar-width:thin]  [scrollbar-color:grey_transparent]  '>
           {/* Section 1: Main */}
           <div className='space-y-1'>
             {!isCollapsed && (
@@ -656,7 +660,7 @@ export const Dashboard = (): JSX.Element => {
 
       {/* Main Content - Responsive */}
       <div
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isDesktop ? (isCollapsed ? "lg:ml-20" : "lg:ml-72") : ""}`}
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300  ${isDesktop ? (isCollapsed ? "lg:ml-20" : "lg:ml-72") : ""}`}
       >
         {/* Header - Responsive */}
         <header className='sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/40 p-2 sm:p-3 lg:p-4'>
@@ -828,10 +832,11 @@ export const Dashboard = (): JSX.Element => {
 
         {/* Page Content - Responsive */}
         <div
-          className={`flex-1 flex flex-col min-h-0 relative ${["chat", "interview-studio"].includes(currentPage)
-            ? "overflow-hidden"
-            : "overflow-auto"
-            }`}
+          className={`flex-1 flex flex-col min-h-0 relative ${
+            ["chat", "interview-studio"].includes(currentPage)
+              ? "overflow-hidden"
+              : "overflow-auto"
+          }`}
         >
           <AnimatePresence mode='wait'>
             <motion.div
