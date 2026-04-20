@@ -12,6 +12,38 @@ const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 const AUTOMATION_RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_AUTOMATIONS_PER_WINDOW = 20;
 
+/** Default above Skyvern’s typical 50-step workflow cap (iCIMS / long ATS flows). Override via body.max_steps_override or SKYVERN_MAX_STEPS_OVERRIDE. */
+const DEFAULT_MAX_STEPS_OVERRIDE = 100;
+
+const APPLY_AUTOMATION_HINTS = `[JobRaker automation — prioritize these]
+1) Cookie/consent: Dismiss any cookie banner, “Manage preferences”, or privacy overlay first (Accept, Accept all, Reject non-essential, Save & close, or Close/X) so the form and file inputs are not covered.
+2) Resume required: Parameters include a resume file URL (resume). On iCIMS and similar ATS, use device upload (“My Computer”, “Upload”, “Choose file”) and attach that file; prefer PDF; wait until the upload succeeds and validation clears before Next/Continue.
+3) Avoid burning steps only on overlays; complete resume upload, then remaining required fields.`;
+
+function resolveMaxStepsOverride(body: Record<string, unknown>): number | null {
+  const fromBody = body?.max_steps_override ?? body?.maxStepsOverride;
+  if (typeof fromBody === "number" && Number.isFinite(fromBody) && fromBody > 0) {
+    return Math.floor(fromBody);
+  }
+  if (typeof fromBody === "string" && /^\d+$/.test(fromBody.trim())) {
+    const n = parseInt(fromBody.trim(), 10);
+    if (n > 0) return n;
+  }
+  const envRaw = Deno.env.get("SKYVERN_MAX_STEPS_OVERRIDE");
+  if (envRaw && /^\d+$/.test(envRaw.trim())) {
+    const n = parseInt(envRaw.trim(), 10);
+    if (n > 0) return n;
+  }
+  return DEFAULT_MAX_STEPS_OVERRIDE;
+}
+
+function appendAutomationHints(base: string): string {
+  const trimmed = (base || "").trim();
+  if (!trimmed) return APPLY_AUTOMATION_HINTS;
+  if (trimmed.includes("[JobRaker automation")) return trimmed;
+  return `${trimmed}\n\n${APPLY_AUTOMATION_HINTS}`;
+}
+
 // Skyvern's file parser expects a plain URL string, not a JSON-encoded one.
 function normalizeHttpUrlString(raw: string): string {
   // Strip inline whitespace (line breaks in pasted URLs break `new URL()` / path parsing).
@@ -411,6 +443,12 @@ Deno.serve(async (req) => {
       additionalInformation = parts.join("\n");
     }
 
+    const skipHints =
+      body?.skip_automation_hints === true || body?.skipAutomationHints === true;
+    if (!skipHints) {
+      additionalInformation = appendAutomationHints(additionalInformation);
+    }
+
     const isResumeUrl = resume.startsWith("http://") || resume.startsWith("https://");
     const parameters: Record<string, unknown> = {
       job_urls: stringifyArrayForSkyvern(jobUrls),
@@ -443,14 +481,20 @@ Deno.serve(async (req) => {
     if (webhookUrl) skyvernRun.webhook_url = webhookUrl;
     if (title) skyvernRun.title = title;
 
+    const maxSteps = resolveMaxStepsOverride(body as Record<string, unknown>);
+    const skyvernHeaders: Record<string, string> = {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+    };
+    if (maxSteps != null) {
+      skyvernHeaders["x-max-steps-override"] = String(maxSteps);
+    }
+
     const response = await withRetry(
       () =>
         fetch(SKYVERN_ENDPOINT, {
           method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "x-api-key": apiKey,
-          },
+          headers: skyvernHeaders,
           body: JSON.stringify(skyvernRun),
         }),
       2,
@@ -599,7 +643,11 @@ Deno.serve(async (req) => {
       JSON.stringify({
         ok: true,
         skyvern: data,
-        submitted: { workflow_id: workflowId, count: jobUrls.length },
+        submitted: {
+          workflow_id: workflowId,
+          count: jobUrls.length,
+          max_steps_override: maxSteps,
+        },
       }),
       {
         headers: { ...corsHeaders, "content-type": "application/json" },

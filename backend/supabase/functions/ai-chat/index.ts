@@ -344,7 +344,12 @@ serve(async (req) => {
       thinkingConfig: { thinkingLevel: "MEDIUM" },
     };
     if (mode === "agent") {
-      chatConfig.tools = [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }];
+      chatConfig.tools = webSearch
+        ? [
+            { functionDeclarations: AGENT_FUNCTION_DECLARATIONS },
+            { googleSearch: {} },
+          ]
+        : [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }];
     } else if (webSearch) {
       chatConfig.tools = [{ googleSearch: {} }];
     }

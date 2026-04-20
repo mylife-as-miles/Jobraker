@@ -318,7 +318,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 return { role: msg.role, content: msg.content.trim() };
               }),
             mode: chatOpts?.mode || "ask",
-            webSearch: chatOpts?.webSearch,
+            webSearch: chatOpts?.webSearch ?? false,
             system: chatOpts?.system,
             previous_response_id: previousResponseId ?? responseId,
           }),
@@ -883,7 +883,7 @@ export const ChatPage = () => {
       },
       {
         model,
-        webSearch: false,
+        webSearch: mode === "agent",
         system: currentMessages.length === 0 ? systemInstruction : undefined,
         mode,
       },
