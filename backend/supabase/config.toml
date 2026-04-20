@@ -364,6 +364,18 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/referrals-agent/index.ts"
 
+[functions.provider-credits]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; admin auth is enforced inside the function.
+verify_jwt = false
+entrypoint = "./functions/provider-credits/index.ts"
+
+[functions.list-users]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; admin auth is enforced inside the function.
+verify_jwt = false
+entrypoint = "./functions/list-users/index.ts"
+
 [functions.calculate-match-score]
 enabled = true
 verify_jwt = true

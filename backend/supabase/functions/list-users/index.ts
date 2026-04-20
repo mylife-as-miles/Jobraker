@@ -1,76 +1,73 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { corsHeaders } from "../_shared/cors.ts";
-
-console.log("Hello from list-users!");
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
-  // Handle CORS
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
+
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // strict check for authentication
-    const authHeader = req.headers.get('Authorization');
+    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      throw new Error('Missing Authorization header');
+      throw new Error("Missing Authorization header");
     }
 
-    // Create a Supabase client with the Auth context of the user that called the function.
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-    // Get the user from the token
+    const supabaseClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
     const {
       data: { user },
       error: userError,
     } = await supabaseClient.auth.getUser();
 
     if (userError || !user) {
-      throw new Error('Invalid token');
+      throw new Error("Invalid token");
     }
 
-    // Admin check: try user_roles table first, fall back to metadata flags
-    let isAdmin = false;
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
+    });
 
-    try {
-      const { data: roles } = await supabaseClient
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
-      if (roles) isAdmin = true;
-    } catch {
-      // Table may not exist — fall through to metadata check
-    }
-
-    if (!isAdmin) {
-      isAdmin = !!(
-        user.app_metadata?.claims_admin ||
-        user.user_metadata?.is_admin
-      );
-    }
-
-    if (!isAdmin) {
-      throw new Error('Unauthorized: Admin access required');
-    }
-    
-    // Create admin client to fetch all users
-    // Only the Service Role Key can access auth.admin.listUsers()
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    let isAdmin = !!(
+      user.app_metadata?.claims_admin ||
+      user.user_metadata?.is_admin ||
+      user.app_metadata?.role === "admin" ||
+      user.user_metadata?.role === "admin"
     );
 
-    // List all users
-    // Handling pagination for up to 1000 users for now
-    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+    if (!isAdmin) {
+      try {
+        const { data: roleRow } = await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (roleRow) {
+          isAdmin = true;
+        }
+      } catch {
+        // The user_roles table may not exist in older deployments.
+      }
+    }
+
+    if (!isAdmin) {
+      throw new Error("Unauthorized: Admin access required");
+    }
+
+    const {
+      data: { users },
+      error: listError,
+    } = await supabaseAdmin.auth.admin.listUsers({
       page: 1,
       perPage: 1000,
     });
@@ -79,9 +76,17 @@ serve(async (req) => {
       throw listError;
     }
 
-    // Return the list of users
-    // We sanitize sensitive info if necessary, but admins can see emails.
-    const formattedUsers = users.map(u => ({
+    const { data: roleRows } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id, role");
+
+    const rolesByUser = new Map<string, string[]>();
+    for (const roleRow of roleRows || []) {
+      const current = rolesByUser.get(roleRow.user_id) || [];
+      rolesByUser.set(roleRow.user_id, [...current, roleRow.role]);
+    }
+
+    const formattedUsers = users.map((u) => ({
       id: u.id,
       email: u.email,
       created_at: u.created_at,
@@ -89,24 +94,23 @@ serve(async (req) => {
       user_metadata: u.user_metadata,
       app_metadata: u.app_metadata,
       phone: u.phone,
-      confirmed_at: u.confirmed_at
+      confirmed_at: u.confirmed_at,
+      roles: rolesByUser.get(u.id) || [],
     }));
 
-    return new Response(
-      JSON.stringify(formattedUsers),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
-
+    return new Response(JSON.stringify(formattedUsers), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
-      }
+      },
     );
   }
 });

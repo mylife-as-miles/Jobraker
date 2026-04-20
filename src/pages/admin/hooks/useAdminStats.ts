@@ -217,16 +217,12 @@ export const useUserActivities = () => {
       const [
         { data: allCredits },
         { data: allSubscriptions },
-        { data: allRoles },
         { data: allTransactions }
       ] = await Promise.all([
         supabase.from('user_credits').select('user_id, balance, lifetime_spent'),
         supabase.from('user_subscriptions')
           .select('user_id, status, subscription_plan_id, subscription_plans(name, price)')
           .eq('status', 'active'),
-        supabase.from('user_roles').select('user_id, role').then(
-          (res) => (res.error ? { data: [] } : res)
-        ),
         supabase.from('credit_transactions')
           .select('user_id, reference_type, transaction_type, description, created_at') 
           .order('created_at', { ascending: false })
@@ -236,9 +232,15 @@ export const useUserActivities = () => {
       const subscriptionMap = new Map((allSubscriptions || []).map((s: any) => [s.user_id, s]));
       
       const roleMap = new Map<string, string[]>();
-      (allRoles || []).forEach((r: any) => {
-        const current = roleMap.get(r.user_id) || [];
-        roleMap.set(r.user_id, [...current, r.role]);
+      baseUsers.forEach((user: any) => {
+        const roles = Array.isArray(user.roles)
+          ? user.roles
+          : Array.isArray(user.app_metadata?.roles)
+            ? user.app_metadata.roles
+            : user.app_metadata?.role
+              ? [user.app_metadata.role]
+              : [];
+        roleMap.set(user.id, roles.filter((role: unknown): role is string => typeof role === 'string'));
       });
 
       const transactionMap = new Map<string, any[]>();
