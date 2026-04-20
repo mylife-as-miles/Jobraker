@@ -896,7 +896,7 @@ serve(async (req) => {
   try {
     const { user, serviceClient } = await requireSubscriptionTier(
       req,
-      "Ultimate",
+      "Pro",
       "Gmail application checks",
     );
     const body = await req.json().catch(() => ({})) as RequestBody;

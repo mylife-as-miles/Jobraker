@@ -145,7 +145,7 @@ export const SettingsPage = (): JSX.Element => {
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasGmailIntegrationAccess = hasSubscriptionAccess(
     subscriptionTier,
-    "Ultimate",
+    "Pro",
   );
   const tabs = useMemo(() => {
     const baseTabs = [
@@ -292,6 +292,10 @@ export const SettingsPage = (): JSX.Element => {
   const [totpCode, setTotpCode] = useState<string>("");
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [isGmailConnected, setIsGmailConnected] = useState(false);
+  /** Address from Gmail profile / stored connection (status action). */
+  const [gmailConnectedEmail, setGmailConnectedEmail] = useState<string | null>(
+    null,
+  );
   const [gmailDisconnecting, setGmailDisconnecting] = useState(false);
   // API Key state
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
@@ -375,7 +379,7 @@ export const SettingsPage = (): JSX.Element => {
       if (!hasGmailIntegrationAccess) {
         toastError(
           "Upgrade required",
-          "Gmail integration is available on the Ultimate plan.",
+          "Gmail integration is available on the Pro plan.",
         );
         return;
       }
@@ -418,6 +422,7 @@ export const SettingsPage = (): JSX.Element => {
     try {
       if (loadingTier || !hasGmailIntegrationAccess) {
         setIsGmailConnected(false);
+        setGmailConnectedEmail(null);
         return;
       }
 
@@ -425,6 +430,8 @@ export const SettingsPage = (): JSX.Element => {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
+        setIsGmailConnected(false);
+        setGmailConnectedEmail(null);
         return;
       }
 
@@ -438,11 +445,27 @@ export const SettingsPage = (): JSX.Element => {
         throw error;
       }
 
-      if (data?.isConnected !== undefined) {
-        setIsGmailConnected(!!data.isConnected);
+      const payload = data as {
+        isConnected?: boolean;
+        email?: string | null;
+      } | null;
+
+      if (payload?.isConnected !== undefined) {
+        const connected = !!payload.isConnected;
+        setIsGmailConnected(connected);
+        const raw = payload.email;
+        setGmailConnectedEmail(
+          connected &&
+            typeof raw === "string" &&
+            raw.trim().length > 0
+            ? raw.trim()
+            : null,
+        );
       }
     } catch (error: unknown) {
       console.error("Failed to check Gmail connection status:", error);
+      setIsGmailConnected(false);
+      setGmailConnectedEmail(null);
     }
   }, [hasGmailIntegrationAccess, loadingTier, supabase]);
 
@@ -450,7 +473,7 @@ export const SettingsPage = (): JSX.Element => {
     if (!hasGmailIntegrationAccess) {
       toastError(
         "Upgrade required",
-        "Gmail integration is available on the Ultimate plan.",
+        "Gmail integration is available on the Pro plan.",
       );
       return;
     }
@@ -546,7 +569,7 @@ export const SettingsPage = (): JSX.Element => {
         if (!hasGmailIntegrationAccess) {
           toastError(
             "Upgrade required",
-            "Gmail integration is available on the Ultimate plan.",
+            "Gmail integration is available on the Pro plan.",
           );
           return;
         }
@@ -3895,10 +3918,18 @@ export const SettingsPage = (): JSX.Element => {
                   <div className='w-12 h-12 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 border border-[#1dff00]/30 flex items-center justify-center'>
                     <Mail className='w-6 h-6 text-[#1dff00]' />
                   </div>
-                  <div>
+                  <div className='min-w-0'>
                     <h3 className='text-sm font-medium text-foreground/95'>
                       Gmail
                     </h3>
+                    {isGmailConnected && gmailConnectedEmail ? (
+                      <p
+                        className='text-xs font-medium text-[#1dff00]/90 mt-0.5 truncate'
+                        title={gmailConnectedEmail}
+                      >
+                        {gmailConnectedEmail}
+                      </p>
+                    ) : null}
                     <p className='text-xs text-muted-foreground mt-0.5'>
                       Detect application confirmations, interviews, offers, and rejections
                     </p>
@@ -3944,10 +3975,10 @@ export const SettingsPage = (): JSX.Element => {
             {!loadingTier && !hasGmailIntegrationAccess && (
               <UpgradePrompt
                 compact
-                requiredTier='Ultimate'
+                requiredTier='Pro'
                 showPricing={false}
                 title='Gmail Integration'
-                description='Unlock Gmail connect, status checks, and verification flows with the Ultimate plan.'
+                description='Connect Gmail, sync application emails, and keep your pipeline updated with the Pro plan.'
               />
             )}
             <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-[#1dff00]/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>

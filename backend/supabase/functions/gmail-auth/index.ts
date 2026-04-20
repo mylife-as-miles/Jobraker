@@ -167,7 +167,7 @@ serve(async (req) => {
   try {
     const { user, serviceClient } = await requireSubscriptionTier(
       req,
-      "Ultimate",
+      "Pro",
       "Gmail integration",
     );
 

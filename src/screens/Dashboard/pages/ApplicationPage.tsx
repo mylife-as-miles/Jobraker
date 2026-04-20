@@ -482,9 +482,12 @@ function ApplicationPage() {
   const [interviewAgentResult, setInterviewAgentResult] = useState<ScheduleInterviewResponse | null>(null);
   const [gmailSyncing, setGmailSyncing] = useState(false);
   const [isGmailConnected, setIsGmailConnected] = useState(false);
+  const [gmailConnectedEmail, setGmailConnectedEmail] = useState<string | null>(
+    null,
+  );
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasInterviewAssistantAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
-  const hasGmailIntegrationAccess = hasSubscriptionAccess(subscriptionTier, "Ultimate");
+  const hasGmailIntegrationAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
   const detailApp = useMemo(
     () => applications.find((a) => a.id === detailId) || null,
     [detailId, applications],
@@ -572,25 +575,47 @@ function ApplicationPage() {
     const checkGmailConnection = async () => {
       try {
         if (loadingTier || !hasGmailIntegrationAccess) {
-          if (!cancelled) setIsGmailConnected(false);
+          if (!cancelled) {
+            setIsGmailConnected(false);
+            setGmailConnectedEmail(null);
+          }
           return;
         }
         const {
           data: { user },
         } = await supabase.auth.getUser();
         if (!user) {
-          if (!cancelled) setIsGmailConnected(false);
+          if (!cancelled) {
+            setIsGmailConnected(false);
+            setGmailConnectedEmail(null);
+          }
           return;
         }
         const { data, error } = await supabase.functions.invoke("gmail-auth", {
           body: { action: "status" },
         });
         if (error) throw error;
-        if (!cancelled && data?.isConnected !== undefined) {
-          setIsGmailConnected(!!data.isConnected);
+        const payload = data as {
+          isConnected?: boolean;
+          email?: string | null;
+        } | null;
+        if (!cancelled && payload?.isConnected !== undefined) {
+          const connected = !!payload.isConnected;
+          setIsGmailConnected(connected);
+          const raw = payload.email;
+          setGmailConnectedEmail(
+            connected &&
+              typeof raw === "string" &&
+              raw.trim().length > 0
+              ? raw.trim()
+              : null,
+          );
         }
       } catch {
-        if (!cancelled) setIsGmailConnected(false);
+        if (!cancelled) {
+          setIsGmailConnected(false);
+          setGmailConnectedEmail(null);
+        }
       }
     };
     void checkGmailConnection();
@@ -603,7 +628,7 @@ function ApplicationPage() {
     if (!hasGmailIntegrationAccess) {
       toastError(
         "Upgrade required",
-        "Gmail application checks are available on the Ultimate plan.",
+        "Gmail application checks are available on the Pro plan.",
       );
       return;
     }
@@ -861,10 +886,12 @@ function ApplicationPage() {
             disabled={gmailSyncing || loadingTier}
             title={
               !hasGmailIntegrationAccess
-                ? "Available on Ultimate plan"
+                ? "Available on Pro plan"
                 : !isGmailConnected
                   ? "Connect Gmail in Settings (Integrations) first, then scan your inbox"
-                  : "Check Gmail for application confirmations, interviews, offers, and rejections"
+                  : gmailConnectedEmail
+                    ? `Scan ${gmailConnectedEmail} for application confirmations, interviews, offers, and rejections`
+                    : "Check Gmail for application confirmations, interviews, offers, and rejections"
             }
           >
             {gmailSyncing ? (
