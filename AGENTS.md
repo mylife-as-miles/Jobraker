@@ -15,9 +15,13 @@ When a specific domain or skill is relevant to a task, agents SHOULD use the cor
 This file serves as a persistent anchor for all agent interactions within this project. Always refer to this document when starting a new session or tackling a new complex task.
 
 ## Supabase Deployment
-When working with Supabase functions for this project, use the following commands:
+When working with Supabase functions for this project, use the following commands (project root is `backend`, i.e. the directory that contains the `supabase` folder):
 
 ```bash
-npx supabase login --token sbp_001a1e1bc7208683551cb332de052a4ee703c338
-npx supabase functions deploy --workdir backend/supabase --project-ref yquhsllwrwfvrwolqywh
+npx supabase login   # or: npx supabase login --token "$SUPABASE_ACCESS_TOKEN"
+cd backend
+npx supabase functions deploy <function-name> --project-ref yquhsllwrwfvrwolqywh --use-api
+npx supabase db push --include-all --yes
 ```
+
+Use `--use-api` when Docker is not running (bundles functions on Supabase’s side).
