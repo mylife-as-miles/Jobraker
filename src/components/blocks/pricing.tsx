@@ -1,12 +1,10 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Check, Star } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState } from "react";
 
 interface PricingPlan {
   name: string;
@@ -32,37 +30,52 @@ export function Pricing({
   description = "Choose the plan that works for you\nAll plans include access to our platform, lead generation tools, and dedicated support.",
 }: PricingProps) {
   const [isMonthly, setIsMonthly] = useState(true);
-  const switchRef = useRef<HTMLButtonElement>(null);
-
-  const handleToggle = (checked: boolean) => {
-    setIsMonthly(!checked);
-  };
 
   return (
     <div className="container py-20">
       <div className="text-center space-y-4 mb-12">
-        <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+        <h2 className="text-4xl font-bold tracking-tight sm:text-5xl text-foreground">
           {title}
         </h2>
-        <p className="text-muted-foreground text-lg whitespace-pre-line">
+        <p className="text-neutral-400 text-lg whitespace-pre-line">
           {description}
         </p>
       </div>
 
       <div className="flex justify-center mb-10">
-        <label className="relative inline-flex items-center cursor-pointer">
-          <Label>
-            <Switch
-              ref={switchRef as any}
-              checked={!isMonthly}
-              onCheckedChange={handleToggle}
-              className="relative"
-            />
-          </Label>
-        </label>
-        <span className="ml-2 font-semibold">
-          Annual billing <span className="text-primary">(Save 20%)</span>
-        </span>
+        <div
+          className="inline-flex items-center rounded-full border border-[#ffd700]/25 bg-[#090b0f] p-1 shadow-[inset_0_0_0_1px_rgba(255,215,0,0.06)]"
+          aria-label="Billing period"
+        >
+          <button
+            type="button"
+            aria-pressed={isMonthly}
+            onClick={() => setIsMonthly(true)}
+            className={cn(
+              "h-9 rounded-full px-4 text-sm font-semibold transition-all duration-200 active:scale-[0.98]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffd700] focus-visible:ring-offset-2 focus-visible:ring-offset-black",
+              isMonthly
+                ? "bg-[#ffd700] text-black shadow-[0_0_18px_rgba(255,215,0,0.26)]"
+                : "text-neutral-400 hover:text-foreground"
+            )}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            aria-pressed={!isMonthly}
+            onClick={() => setIsMonthly(false)}
+            className={cn(
+              "h-9 rounded-full px-4 text-sm font-semibold transition-all duration-200 active:scale-[0.98]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffd700] focus-visible:ring-offset-2 focus-visible:ring-offset-black",
+              !isMonthly
+                ? "bg-[#ffd700] text-black shadow-[0_0_18px_rgba(255,215,0,0.26)]"
+                : "text-neutral-400 hover:text-foreground"
+            )}
+          >
+            Annual <span className="text-inherit opacity-75">Save 20%</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -86,22 +99,24 @@ export function Pricing({
             }}
             className={cn(
               `rounded-2xl border-[1px] p-6 bg-background text-center lg:flex lg:flex-col lg:justify-center relative`,
-              plan.isPopular ? "border-primary border-2" : "border-border",
+              plan.isPopular
+                ? "border-[#ffd700] border-2 shadow-[0_0_34px_rgba(255,215,0,0.16)]"
+                : "border-[#ffd700]/20 hover:border-[#ffd700]/35",
               "flex flex-col",
               !plan.isPopular && "mt-5",
               plan.isPopular ? "z-10" : "z-0"
             )}
           >
             {plan.isPopular && (
-              <div className="absolute top-0 right-0 bg-primary py-0.5 px-2 rounded-bl-xl rounded-tr-xl flex items-center">
-                <Star className="text-primary-foreground h-4 w-4 fill-current" />
-                <span className="text-primary-foreground ml-1 font-sans font-semibold">
+              <div className="absolute top-0 right-0 bg-[#ffd700] py-0.5 px-2 rounded-bl-xl rounded-tr-xl flex items-center">
+                <Star className="text-black h-4 w-4 fill-current" />
+                <span className="text-black ml-1 font-sans font-semibold">
                   Popular
                 </span>
               </div>
             )}
             <div className="flex-1 flex flex-col">
-              <p className="text-base font-semibold text-muted-foreground">
+              <p className="text-base font-semibold text-[#ffd700]/70">
                 {plan.name}
               </p>
               <div className="mt-6 flex items-center justify-center gap-x-2">
@@ -109,13 +124,13 @@ export function Pricing({
                   ${isMonthly ? plan.price : plan.yearlyPrice}
                 </span>
                 {plan.period !== "Next 3 months" && (
-                  <span className="text-sm font-semibold leading-6 tracking-wide text-muted-foreground">
+                  <span className="text-sm font-semibold leading-6 tracking-wide text-neutral-400">
                     / {plan.period}
                   </span>
                 )}
               </div>
 
-              <p className="text-xs leading-5 text-muted-foreground">
+              <p className="text-xs leading-5 text-neutral-500">
                 {isMonthly ? "billed monthly" : "billed annually"}
               </p>
 
@@ -130,32 +145,32 @@ export function Pricing({
                   
                   return (
                     <li key={idx} className="flex items-start gap-2">
-                      <Check className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                      <Check className="h-4 w-4 text-[#ffd700] mt-1 flex-shrink-0" />
                       <span className="text-left">
                         {featureName}
-                        {featureValue && <span className="text-muted-foreground ml-1">• {featureValue}</span>}
+                        {featureValue && <span className="text-neutral-400 ml-1">• {featureValue}</span>}
                       </span>
                     </li>
                   );
                 })}
               </ul>
 
-              <hr className="w-full my-4" />
+              <hr className="w-full my-4 border-[#ffd700]/10" />
 
               <Button
                 onClick={() => window.location.href = plan.href}
                 variant="outline"
                 className={cn(
                   "group relative w-full gap-2 overflow-hidden text-lg font-semibold tracking-tighter",
-                  "transform-gpu ring-offset-current transition-all duration-300 ease-out hover:ring-2 hover:ring-primary hover:ring-offset-1 hover:bg-primary hover:text-primary-foreground",
+                  "transform-gpu ring-offset-current transition-all duration-300 ease-out hover:ring-2 hover:ring-[#ffd700] hover:ring-offset-1 hover:ring-offset-black hover:bg-[#ffd700] hover:text-black",
                   plan.isPopular
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-background text-foreground"
+                    ? "!border-[#ffd700] !bg-[#ffd700] !text-black"
+                    : "!border-[#ffd700]/40 !bg-background !text-[#ffd700]"
                 )}
               >
                 {plan.buttonText}
               </Button>
-              <p className="mt-6 text-xs leading-5 text-muted-foreground">
+              <p className="mt-6 text-xs leading-5 text-neutral-500">
                 {plan.description}
               </p>
             </div>

@@ -1,37 +1,37 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Star } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 
-const testimonials = [
+const proofPoints = [
   {
-    text: "I am done spending evenings rewriting the same answers. I want my search moving while I prepare for the conversations that matter.",
-    author: "Pain",
-    role: "Repetitive applications"
+    label: "Time sink",
+    before: "Evenings should not disappear into the same form fields.",
+    after: "JobRaker prepares application packages from your profile so your energy goes into interviews, follow-ups, and decisions."
   },
   {
-    text: "I need every resume to feel built for the role, without starting from a blank document every time.",
-    author: "Promise",
-    role: "Tailored materials"
+    label: "Blank page",
+    before: "Every resume needs to feel built for the role.",
+    after: "Resume tailoring starts from the job description, your profile, and the positioning that makes you relevant faster."
   },
   {
-    text: "I want to know which roles are worth my energy before I apply, not after another silent rejection.",
-    author: "Priority",
-    role: "Better-fit targets"
+    label: "Role quality",
+    before: "Not every opening deserves your best hour.",
+    after: "Fit signals help you prioritize stronger opportunities before you spend time on another low-signal application."
   },
   {
-    text: "I need a dashboard that shows what is drafted, submitted, waiting, and ready for follow-up.",
-    author: "Control",
-    role: "Clear pipeline"
+    label: "Pipeline clarity",
+    before: "Drafted, submitted, waiting, and follow-up should never blur together.",
+    after: "Your dashboard keeps each opportunity visible, organized, and ready for the next action."
   },
   {
-    text: "I want help with the form work, but I still need review controls before anything important goes out.",
-    author: "Trust",
-    role: "Governed automation"
+    label: "Trust controls",
+    before: "Automation only works when you can slow it down.",
+    after: "Review Mode lets you approve, revise, or skip important applications before they go out."
   },
   {
-    text: "I need interview prep that starts from the actual job description, not generic questions from a search result.",
-    author: "Momentum",
-    role: "Role-specific prep"
+    label: "Interview prep",
+    before: "Generic practice does not prepare you for a specific role.",
+    after: "Practice starts from the job description, so your answers connect to the actual conversation ahead."
   }
 ];
 
@@ -39,29 +39,51 @@ export const TestimonialGridSection = () => {
   return (
     <section className="py-24 bg-background">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl md:text-5xl font-bold font-mono text-center text-foreground mb-16">
-          WHY CANDIDATES <span className="text-[#ffd700]">SWITCH</span>
-        </h2>
+        <div className="mx-auto mb-16 max-w-3xl text-center">
+          <p className="mb-4 font-mono text-xs uppercase tracking-[0.28em] text-[#ffd700]/70">
+            Proof points
+          </p>
+          <h2 className="text-3xl md:text-5xl font-bold font-mono text-foreground">
+            Why candidates stop doing it <span className="text-[#ffd700]">manually</span>
+          </h2>
+          <p className="mx-auto mt-5 max-w-2xl text-base md:text-lg leading-relaxed text-neutral-400">
+            JobRaker is built around the moments that make a search slow down:
+            repetition, weak fit signals, scattered tracking, and generic prep.
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {testimonials.map((t, i) => (
+          {proofPoints.map((point, i) => (
             <motion.div
               key={i}
-              whileHover={{ y: -5 }}
-              className="p-8 bg-muted/50 border border-foreground/10 rounded-xl hover:border-[#ffd700]/30 transition-all"
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -4 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{
+                duration: 0.22,
+                delay: i * 0.04,
+                ease: [0.23, 1, 0.32, 1],
+              }}
+              className="group relative overflow-hidden p-7 bg-[#0b0f16] border border-[#ffd700]/15 rounded-xl hover:border-[#ffd700]/45 transition-colors duration-200"
             >
-              <div className="flex text-[#ffd700] mb-4">
-                {[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-current" />)}
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#ffd700]/70 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+              <div className="mb-7 flex items-center justify-between">
+                <span className="font-mono text-xs font-bold uppercase tracking-[0.24em] text-[#ffd700]">
+                  {point.label}
+                </span>
+                <span className="font-mono text-xs text-neutral-600">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
               </div>
-              <p className="text-gray-300 font-mono mb-6 leading-relaxed">"{t.text}"</p>
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-muted rounded-full mr-3 flex items-center justify-center font-bold text-foreground">
-                  {t.author[0]}
-                </div>
-                <div>
-                  <div className="text-foreground font-bold font-mono text-sm">{t.author}</div>
-                  <div className="text-gray-500 font-mono text-xs">{t.role}</div>
-                </div>
+              <p className="min-h-[84px] text-xl font-mono leading-relaxed text-foreground">
+                "{point.before}"
+              </p>
+              <div className="mt-7 flex gap-3 border-t border-white/10 pt-5">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#ffd700]" />
+                <p className="text-sm leading-relaxed text-neutral-400">
+                  {point.after}
+                </p>
               </div>
             </motion.div>
           ))}
