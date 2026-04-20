@@ -397,6 +397,12 @@ Never use Gmail tools for personal, medical, financial (non-compensation job off
             { googleSearch: {} },
           ]
         : [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }];
+      /** Required when mixing built-in tools (e.g. googleSearch) with functionDeclarations. */
+      if (webSearch) {
+        chatConfig.toolConfig = {
+          includeServerSideToolInvocations: true,
+        };
+      }
     } else if (webSearch) {
       chatConfig.tools = [{ googleSearch: {} }];
     }
