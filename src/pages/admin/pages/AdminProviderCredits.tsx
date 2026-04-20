@@ -313,11 +313,35 @@ export default function AdminProviderCredits() {
   };
 
   const invokeProviderCredits = async (body: Record<string, unknown>) => {
-    const { data, error: invokeError } = await supabase.functions.invoke('provider-credits', {
-      body,
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError || !session?.access_token) {
+      throw new Error('You must be signed in as an admin to manage provider credits.');
+    }
+
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
+    if (!baseUrl) {
+      throw new Error('VITE_SUPABASE_URL is not configured.');
+    }
+
+    const response = await fetch(`${baseUrl}/functions/v1/provider-credits`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
     });
-    if (invokeError) throw invokeError;
-    if (data?.error) throw new Error(data.error);
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok || data?.error) {
+      throw new Error(data?.error || `Provider credits request failed (${response.status})`);
+    }
+
     return data;
   };
 
@@ -327,6 +351,25 @@ export default function AdminProviderCredits() {
       setError(null);
       const data = await invokeProviderCredits({ action: 'list' });
       applyResponse(data);
+      const firecrawl = Array.isArray(data?.balances)
+        ? data.balances.find((balance: ProviderCreditBalance) => balance.provider === 'firecrawl')
+        : null;
+      const firecrawlLooksUnsynced =
+        !firecrawl?.last_checked_at ||
+        firecrawl?.source === 'seed' ||
+        (Number(firecrawl?.total_credits || 0) === 0 && Number(firecrawl?.remaining_credits || 0) === 0);
+
+      if (firecrawlLooksUnsynced) {
+        try {
+          const refreshed = await invokeProviderCredits({ action: 'refresh_firecrawl' });
+          applyResponse(refreshed);
+          setNotice('Firecrawl credits refreshed from the provider API.');
+        } catch (refreshError: any) {
+          setError(
+            `Firecrawl is still 0 because the API refresh failed: ${refreshError?.message || 'Unknown error'}. Check FIRECRAWL_API_KEY in Supabase Edge Function secrets.`,
+          );
+        }
+      }
     } catch (err: any) {
       setError(err?.message || 'Could not load provider credits');
     } finally {
