@@ -393,21 +393,23 @@ serve(async (req) => {
                   { p_user_id: userId, p_credits: 1 },
                 );
                 const sur = surchargeResult as Record<string, unknown> | null;
-                if (
-                  surchargeError ||
-                  !sur ||
-                  sur.success !== true
-                ) {
+                const surchargeOk =
+                  sur &&
+                  (sur.success === true || sur.success === "true" || sur.success === "t");
+                if (surchargeError || !surchargeOk) {
                   if (surchargeError) {
                     console.error("consume_ai_chat_tool_surcharge RPC error:", surchargeError);
                   }
+                  const rpcMsg =
+                    typeof sur?.message === "string" ? sur.message : null;
                   enqueueEvent("error", {
                     error: surchargeError
-                      ? "Could not charge credits for agent tools. Please try again."
-                      : (sur?.message as string) ||
+                      ? `Could not charge credits for agent tools. ${(surchargeError as { message?: string }).message || "Please try again."}`
+                      : rpcMsg ||
                         "Not enough credits to run agent tools this step. Add credits or switch to Ask mode.",
                     code: surchargeError ? "billing_error" : "agent_tool_surcharge",
                     balance: sur?.balance,
+                    reason: sur?.reason,
                   });
                   break;
                 }

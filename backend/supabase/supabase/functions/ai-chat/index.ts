@@ -838,22 +838,29 @@ When the user says "change the name on my resume" you MUST: 1) call list_resumes
                 "consume_ai_chat_tool_surcharge",
                 { p_user_id: userId, p_credits: 1 },
               );
+              const sur = surchargeResult as Record<string, unknown> | null;
+              const surchargeOk =
+                sur &&
+                (sur.success === true || sur.success === "true" || sur.success === "t");
               if (surchargeError) {
                 console.error("consume_ai_chat_tool_surcharge RPC error:", surchargeError);
               }
-              if (!surchargeError && surchargeResult && surchargeResult.success === false) {
+              if (surchargeError || !surchargeOk) {
                 send("error", {
-                  error: surchargeResult.message ||
-                    "Not enough credits to run agent tools this step. Add credits or switch to Ask mode.",
-                  code: "agent_tool_surcharge",
-                  balance: surchargeResult.balance,
+                  error: surchargeError
+                    ? `Could not charge credits for agent tools. ${(surchargeError as { message?: string }).message || "Please try again."}`
+                    : (typeof sur?.message === "string" ? sur.message : null) ||
+                      "Not enough credits to run agent tools this step. Add credits or switch to Ask mode.",
+                  code: surchargeError ? "billing_error" : "agent_tool_surcharge",
+                  balance: sur?.balance,
+                  reason: sur?.reason,
                 });
                 break;
               }
-              if (surchargeResult?.success) {
+              if (surchargeOk) {
                 send("agent_surcharge", {
-                  credits_charged: surchargeResult.credits_charged,
-                  balance: surchargeResult.balance,
+                  credits_charged: sur?.credits_charged,
+                  balance: sur?.balance,
                 });
               }
 

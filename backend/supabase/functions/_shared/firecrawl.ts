@@ -92,4 +92,33 @@ async function firecrawlFetch(
   return json;
 }
 
-export { withRetry, resolveFirecrawlApiKey, firecrawlFetch };
+async function getFirecrawlCreditUsage(apiKey: string, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort("firecrawl_credit_timeout"), timeoutMs);
+  const res = await fetch("https://api.firecrawl.dev/v2/team/credit-usage", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout));
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const err = new Error(`Firecrawl credit usage failed: ${res.status} ${text}`) as any;
+    err.status = res.status;
+    err.body = text;
+    throw err;
+  }
+
+  const json = await res.json().catch(() => null);
+  const data = json?.data && typeof json.data === "object" ? json.data : {};
+
+  return {
+    remainingCredits: Number(data.remainingCredits ?? 0),
+    planCredits: Number(data.planCredits ?? 0),
+    billingPeriodStart: data.billingPeriodStart ?? null,
+    billingPeriodEnd: data.billingPeriodEnd ?? null,
+    raw: json,
+  };
+}
+
+export { withRetry, resolveFirecrawlApiKey, firecrawlFetch, getFirecrawlCreditUsage };
