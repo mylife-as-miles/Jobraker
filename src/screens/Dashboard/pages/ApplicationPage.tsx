@@ -15,6 +15,8 @@ import { useGamification } from "../../../hooks/useGamification";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
+import { useToast } from "../../../components/ui/toast";
+import { createClient } from "../../../lib/supabaseClient";
 
 import {
   List as ListIcon,
@@ -29,6 +31,7 @@ import {
   Bot,
   ClipboardList,
   Lock,
+  Mail,
   Zap,
 } from "lucide-react";
 import {
@@ -420,6 +423,8 @@ function ApplicationsListView({
 
 function ApplicationPage() {
   const navigate = useNavigate();
+  const supabase = useMemo(() => createClient(), []);
+  const { success, error: toastError } = useToast();
   const {
     applications,
     exportCSV,
@@ -457,8 +462,10 @@ function ApplicationPage() {
   const [interviewEmailText, setInterviewEmailText] = useState("");
   const [interviewAgentLoading, setInterviewAgentLoading] = useState(false);
   const [interviewAgentResult, setInterviewAgentResult] = useState<ScheduleInterviewResponse | null>(null);
+  const [gmailSyncing, setGmailSyncing] = useState(false);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasInterviewAssistantAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
+  const hasGmailIntegrationAccess = hasSubscriptionAccess(subscriptionTier, "Ultimate");
   const detailApp = useMemo(
     () => applications.find((a) => a.id === detailId) || null,
     [detailId, applications],
@@ -561,6 +568,46 @@ function ApplicationPage() {
       localStorage.setItem("jr.apps.gantt.future", showFuture ? "1" : "0");
     } catch { }
   }, [showFuture]);
+
+  const handleSyncGmail = useCallback(async () => {
+    if (!hasGmailIntegrationAccess) {
+      toastError(
+        "Upgrade required",
+        "Gmail application checks are available on the Ultimate plan.",
+      );
+      return;
+    }
+
+    setGmailSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "sync-gmail-application-events",
+        { body: { maxResults: 40 } },
+      );
+      if (error) throw error;
+
+      const created = Number(data?.created ?? 0);
+      const updated = Number(data?.updated ?? 0);
+      const classified = Number(data?.classified ?? 0);
+      const scanned = Number(data?.scanned ?? 0);
+      await refresh();
+
+      if (classified === 0) {
+        success("Gmail checked", `Scanned ${scanned} messages; no new job updates found.`);
+      } else {
+        success(
+          "Gmail checked",
+          `${created} added, ${updated} updated, ${classified} job email${classified === 1 ? "" : "s"} found.`,
+        );
+      }
+    } catch (error: any) {
+      const message =
+        error?.details || error?.message || "Could not check Gmail right now.";
+      toastError("Gmail check failed", message);
+    } finally {
+      setGmailSyncing(false);
+    }
+  }, [hasGmailIntegrationAccess, refresh, success, supabase, toastError]);
 
   // Keyboard shortcuts for Gantt view
   useEffect(() => {
@@ -733,7 +780,23 @@ function ApplicationPage() {
             Track and manage your job applications in one place
           </p>
         </div>
-        <div className='flex items-center gap-3'>
+        <div className='flex flex-wrap items-center gap-3'>
+          <Button
+            variant='outline'
+            className='border-[#ffd700]/30 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 text-foreground hover:border-[#ffd700]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(255,215,0,0.15)]'
+            onClick={handleSyncGmail}
+            disabled={gmailSyncing || loadingTier}
+            title='Check Gmail for application confirmations, interviews, offers, and rejections'
+          >
+            {gmailSyncing ? (
+              <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
+            ) : hasGmailIntegrationAccess ? (
+              <Mail className='w-4 h-4 mr-2' />
+            ) : (
+              <Lock className='w-4 h-4 mr-2' />
+            )}
+            Check Gmail
+          </Button>
           <Button
             variant='outline'
             className='product-outline-button transition-all duration-200 hover:border-[#ffd700]/60 hover:bg-[#fff2b3]'

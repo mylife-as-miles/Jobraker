@@ -1,0 +1,921 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+import { getCorsHeaders } from "../_shared/cors.ts";
+import {
+  SubscriptionAccessError,
+  requireSubscriptionTier,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
+
+const DEFAULT_QUERY = [
+  "newer_than:180d",
+  "(",
+  '"thank you for applying"',
+  "OR",
+  '"application received"',
+  "OR",
+  '"started your job application"',
+  "OR",
+  '"your application"',
+  "OR",
+  '"schedule interview"',
+  "OR",
+  '"interview invitation"',
+  "OR",
+  '"offer letter"',
+  "OR",
+  '"employment offer"',
+  "OR",
+  '"not selected"',
+  "OR",
+  "unfortunately",
+  "OR",
+  "assessment",
+  ")",
+].join(" ");
+
+const MAX_MESSAGE_BODY_CHARS = 14_000;
+
+type RequestBody = {
+  query?: string;
+  maxResults?: number;
+  force?: boolean;
+};
+
+type GmailConnection = {
+  email: string | null;
+  access_token_ciphertext: string | null;
+  refresh_token_ciphertext: string | null;
+  token_expires_at: string | null;
+  sync_history_id: string | null;
+};
+
+type GmailListResponse = {
+  messages?: Array<{ id: string; threadId?: string }>;
+  nextPageToken?: string;
+};
+
+type GmailHeader = {
+  name?: string;
+  value?: string;
+};
+
+type GmailPayload = {
+  mimeType?: string;
+  filename?: string;
+  headers?: GmailHeader[];
+  body?: { data?: string; size?: number };
+  parts?: GmailPayload[];
+};
+
+type GmailMessage = {
+  id: string;
+  threadId?: string;
+  labelIds?: string[];
+  snippet?: string;
+  internalDate?: string;
+  historyId?: string;
+  payload?: GmailPayload;
+};
+
+type GoogleTokenResponse = {
+  access_token?: string;
+  expires_in?: number;
+  scope?: string;
+  token_type?: string;
+  error?: string;
+  error_description?: string;
+};
+
+type ApplicationStatus = "Draft" | "Pending" | "Applied" | "Failed" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
+type GmailEventType = "application_confirmation" | "interview" | "offer" | "rejection" | "assessment" | "other";
+
+type ApplicationRow = {
+  id: string;
+  job_id: string | null;
+  job_title: string;
+  company: string;
+  status: ApplicationStatus;
+  canonical_stage: string | null;
+  notes: string | null;
+};
+
+type ParsedAddress = {
+  name: string | null;
+  email: string | null;
+};
+
+type ClassifiedMessage = {
+  eventType: GmailEventType;
+  status: "Applied" | "Interview" | "Offer" | "Rejected" | null;
+  canonicalStage: "submitted" | "interview" | "offer" | "rejected" | null;
+  confidence: number;
+  company: string | null;
+  jobTitle: string | null;
+  nextStep: string | null;
+};
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+function jsonResponse(
+  body: Record<string, unknown>,
+  status: number,
+  corsHeaders: Record<string, string>,
+) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function requireEnv(name: string) {
+  const value = Deno.env.get(name)?.trim();
+  if (!value) throw new Error(`${name} is not configured`);
+  return value;
+}
+
+function toBase64(bytes: Uint8Array) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function fromBase64(value: string) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function decodeBase64Url(data?: string) {
+  if (!data) return "";
+  const normalized = data.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(
+    normalized.length + ((4 - normalized.length % 4) % 4),
+    "=",
+  );
+  try {
+    return decoder.decode(fromBase64(padded));
+  } catch {
+    return "";
+  }
+}
+
+async function getEncryptionKey() {
+  const secret = requireEnv("GMAIL_TOKEN_ENCRYPTION_KEY");
+  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(secret));
+  return crypto.subtle.importKey("raw", digest, "AES-GCM", false, [
+    "encrypt",
+    "decrypt",
+  ]);
+}
+
+async function encryptSecret(value: string) {
+  const iv = new Uint8Array(12);
+  crypto.getRandomValues(iv);
+  const key = await getEncryptionKey();
+  const ciphertext = new Uint8Array(
+    await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      encoder.encode(value),
+    ),
+  );
+  return `${toBase64(iv)}.${toBase64(ciphertext)}`;
+}
+
+async function decryptSecret(value: string | null | undefined) {
+  if (!value) return null;
+  const [ivBase64, ciphertextBase64] = value.split(".");
+  if (!ivBase64 || !ciphertextBase64) {
+    throw new Error("Stored Gmail token is invalid");
+  }
+  const key = await getEncryptionKey();
+  const plaintext = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: fromBase64(ivBase64) },
+    key,
+    fromBase64(ciphertextBase64),
+  );
+  return decoder.decode(plaintext);
+}
+
+async function refreshAccessToken(refreshToken: string) {
+  const params = new URLSearchParams({
+    client_id: requireEnv("GOOGLE_GMAIL_CLIENT_ID"),
+    client_secret: requireEnv("GOOGLE_GMAIL_CLIENT_SECRET"),
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+  });
+
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params,
+  });
+  const data = await response.json() as GoogleTokenResponse;
+  if (!response.ok || !data.access_token) {
+    throw new Error(
+      data.error_description || data.error || "Gmail token refresh failed",
+    );
+  }
+  return {
+    accessToken: data.access_token,
+    expiresAt: new Date(
+      Date.now() + Math.max(30, data.expires_in || 3600) * 1000,
+    ).toISOString(),
+  };
+}
+
+async function getValidAccessToken(
+  serviceClient: any,
+  userId: string,
+  connection: GmailConnection,
+) {
+  const expiresAt = connection.token_expires_at
+    ? Date.parse(connection.token_expires_at)
+    : 0;
+  const shouldRefresh = !expiresAt || expiresAt - Date.now() < 90_000;
+  const currentAccessToken = await decryptSecret(
+    connection.access_token_ciphertext,
+  );
+
+  if (currentAccessToken && !shouldRefresh) {
+    return currentAccessToken;
+  }
+
+  const refreshToken = await decryptSecret(connection.refresh_token_ciphertext);
+  if (!refreshToken) {
+    throw new Error("Gmail is connected without a refresh token. Reconnect Gmail.");
+  }
+
+  const refreshed = await refreshAccessToken(refreshToken);
+  const { error } = await serviceClient
+    .from("gmail_connections")
+    .update({
+      access_token_ciphertext: await encryptSecret(refreshed.accessToken),
+      token_expires_at: refreshed.expiresAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+  if (error) throw error;
+  return refreshed.accessToken;
+}
+
+async function listGmailMessages(
+  accessToken: string,
+  query: string,
+  maxResults: number,
+) {
+  const messages: Array<{ id: string; threadId?: string }> = [];
+  let pageToken: string | undefined;
+
+  while (messages.length < maxResults) {
+    const url = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages");
+    url.searchParams.set("q", query);
+    url.searchParams.set("maxResults", String(Math.min(100, maxResults - messages.length)));
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Gmail message search failed (${response.status}): ${await response.text()}`);
+    }
+
+    const data = await response.json() as GmailListResponse;
+    messages.push(...(data.messages || []));
+    pageToken = data.nextPageToken;
+    if (!pageToken || !data.messages?.length) break;
+  }
+
+  return messages;
+}
+
+async function getGmailMessage(accessToken: string, messageId: string) {
+  const url = new URL(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}`,
+  );
+  url.searchParams.set("format", "full");
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Gmail message fetch failed (${response.status}): ${await response.text()}`);
+  }
+  return await response.json() as GmailMessage;
+}
+
+function getHeader(payload: GmailPayload | undefined, name: string) {
+  const target = name.toLowerCase();
+  return payload?.headers?.find((header) =>
+    header.name?.toLowerCase() === target
+  )?.value ?? "";
+}
+
+function stripHtml(value: string) {
+  return value
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/gi, '"');
+}
+
+function payloadToText(payload: GmailPayload | undefined): string {
+  if (!payload) return "";
+  const chunks: string[] = [];
+
+  function visit(part: GmailPayload) {
+    const mimeType = (part.mimeType || "").toLowerCase();
+    const decoded = decodeBase64Url(part.body?.data);
+    if (decoded) {
+      if (mimeType.includes("text/html")) {
+        chunks.push(stripHtml(decoded));
+      } else if (!mimeType || mimeType.includes("text/plain")) {
+        chunks.push(decoded);
+      }
+    }
+    for (const child of part.parts || []) visit(child);
+  }
+
+  visit(payload);
+  return chunks
+    .join("\n")
+    .replace(/\s+\n/g, "\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim()
+    .slice(0, MAX_MESSAGE_BODY_CHARS);
+}
+
+function parseAddress(value: string): ParsedAddress {
+  const emailMatch = value.match(/<([^>]+)>/) ||
+    value.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  const email = emailMatch
+    ? (emailMatch[1] || emailMatch[0]).trim().toLowerCase()
+    : null;
+  const name = value
+    .replace(/<[^>]+>/g, "")
+    .replace(/[",]/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return { name: name || null, email };
+}
+
+function titleCase(value: string) {
+  return value
+    .split(/[\s.-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function companyFromDomain(email: string | null) {
+  if (!email) return null;
+  const domain = email.split("@")[1] || "";
+  const parts = domain.split(".").filter(Boolean);
+  if (parts.length < 2) return null;
+  const candidate = parts.length > 2 && ["mail", "email", "careers", "jobs"].includes(parts[0])
+    ? parts[1]
+    : parts[parts.length - 2];
+  if (!candidate || ["gmail", "googlemail", "outlook", "yahoo", "workdayjobs"].includes(candidate)) {
+    return null;
+  }
+  return titleCase(candidate);
+}
+
+function cleanCompany(value: string | null | undefined) {
+  if (!value) return null;
+  const cleaned = value
+    .replace(/\b(hiring team|recruiting team|talent team|careers|recruiting|notifications?|no-?reply)\b/gi, " ")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s:,-]+|[\s:,-]+$/g, "")
+    .trim();
+  if (!cleaned || cleaned.length < 2) return null;
+  if (/^(gmail|google|linkedin|indeed|workday|greenhouse|lever)$/i.test(cleaned)) {
+    return null;
+  }
+  return cleaned.slice(0, 120);
+}
+
+function firstRegexGroup(text: string, patterns: RegExp[]) {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) {
+      return match[1].replace(/\s+/g, " ").trim();
+    }
+  }
+  return null;
+}
+
+function inferCompany(text: string, subject: string, from: ParsedAddress) {
+  const fromName = cleanCompany(from.name);
+  const explicit = firstRegexGroup(`${subject}\n${text}`, [
+    /thank you for applying to\s+([^\n.!?]+)/i,
+    /thank you for your interest in\s+([^\n.!?]+)/i,
+    /application (?:with|at)\s+([A-Z][A-Za-z0-9&.,' -]{2,80})/i,
+    /(?:regards|sincerely),?\s+([A-Z][A-Za-z0-9&.,' -]{2,80})(?:\s+hiring team|\s+recruiting team)?/i,
+  ]);
+  return cleanCompany(explicit) || fromName || companyFromDomain(from.email);
+}
+
+function inferJobTitle(text: string, subject: string) {
+  const source = `${subject}\n${text}`;
+  const title = firstRegexGroup(source, [
+    /position of\s+([^\n.]+)/i,
+    /for the position of\s+([^\n.]+)/i,
+    /for the\s+([A-Za-z0-9,/'&+ -]{3,100})\s+(?:position|role)/i,
+    /your application for\s+(?:the\s+)?([A-Za-z0-9,/'&+ -]{3,100})(?:\s+position|\s+role| at |\n|\.|,)/i,
+    /application for\s+(?:the\s+)?([A-Za-z0-9,/'&+ -]{3,100})(?:\s+position|\s+role| at |\n|\.|,)/i,
+    /interview for\s+(?:the\s+)?([A-Za-z0-9,/'&+ -]{3,100})(?:\s+position|\s+role| at |\n|\.|,)/i,
+  ]);
+  return title?.replace(/\bhave available\b.*$/i, "").trim().slice(0, 140) || null;
+}
+
+function classifyMessage(
+  subject: string,
+  snippet: string,
+  bodyText: string,
+  from: ParsedAddress,
+): ClassifiedMessage {
+  const combined = `${subject}\n${snippet}\n${bodyText}`;
+  const lower = combined.toLowerCase();
+  const company = inferCompany(bodyText, subject, from);
+  const jobTitle = inferJobTitle(bodyText, subject);
+
+  if (/\b(pleased to offer|offer letter|employment offer|job offer|extend (you )?an offer|offer of employment)\b/i.test(combined)) {
+    return {
+      eventType: "offer",
+      status: "Offer",
+      canonicalStage: "offer",
+      confidence: 0.96,
+      company,
+      jobTitle,
+      nextStep: "Review the offer details and prepare your response.",
+    };
+  }
+
+  if (/\b(schedule (an? )?interview|invited? (you )?to interview|interview invitation|phone screen|technical screen|book a time|select a time|calendar invite)\b/i.test(combined)) {
+    return {
+      eventType: "interview",
+      status: "Interview",
+      canonicalStage: "interview",
+      confidence: 0.92,
+      company,
+      jobTitle,
+      nextStep: "Reply or book the interview time.",
+    };
+  }
+
+  if (/\b(unfortunately|not selected|not moving forward|move forward with other candidates|decided not to proceed|no longer under consideration)\b/i.test(combined)) {
+    return {
+      eventType: "rejection",
+      status: "Rejected",
+      canonicalStage: "rejected",
+      confidence: 0.9,
+      company,
+      jobTitle,
+      nextStep: "Archive the role and reuse any learnings for the next application.",
+    };
+  }
+
+  if (/\b(assessment|coding challenge|take-?home|complete (your )?(assessment|test)|online test)\b/i.test(combined)) {
+    return {
+      eventType: "assessment",
+      status: "Applied",
+      canonicalStage: "submitted",
+      confidence: 0.76,
+      company,
+      jobTitle,
+      nextStep: "Complete the requested assessment.",
+    };
+  }
+
+  if (
+    lower.includes("thank you for applying") ||
+    lower.includes("application received") ||
+    lower.includes("we received your application") ||
+    lower.includes("you've started your job application") ||
+    lower.includes("you have started your job application") ||
+    lower.includes("submitted your application") ||
+    lower.includes("your application for")
+  ) {
+    return {
+      eventType: "application_confirmation",
+      status: "Applied",
+      canonicalStage: "submitted",
+      confidence: 0.82,
+      company,
+      jobTitle,
+      nextStep: "Watch for recruiter follow-up or next steps.",
+    };
+  }
+
+  return {
+    eventType: "other",
+    status: null,
+    canonicalStage: null,
+    confidence: 0,
+    company,
+    jobTitle,
+    nextStep: null,
+  };
+}
+
+function normalizeForMatch(value: string | null | undefined) {
+  return (value || "")
+    .toLowerCase()
+    .replace(/\b(inc|llc|ltd|limited|corp|corporation|company|co|plc)\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function matchScore(app: ApplicationRow, classified: ClassifiedMessage) {
+  const appCompany = normalizeForMatch(app.company);
+  const eventCompany = normalizeForMatch(classified.company);
+  const appTitle = normalizeForMatch(app.job_title);
+  const eventTitle = normalizeForMatch(classified.jobTitle);
+  let score = 0;
+
+  if (appCompany && eventCompany) {
+    if (appCompany === eventCompany) score += 0.65;
+    else if (appCompany.includes(eventCompany) || eventCompany.includes(appCompany)) score += 0.55;
+  }
+
+  if (appTitle && eventTitle) {
+    if (appTitle === eventTitle) score += 0.35;
+    else if (appTitle.includes(eventTitle) || eventTitle.includes(appTitle)) score += 0.25;
+  }
+
+  return score;
+}
+
+function findMatchingApplication(
+  applications: ApplicationRow[],
+  classified: ClassifiedMessage,
+) {
+  let best: { app: ApplicationRow; score: number } | null = null;
+  for (const app of applications) {
+    const score = matchScore(app, classified);
+    if (!best || score > best.score) best = { app, score };
+  }
+  return best && best.score >= 0.5 ? best.app : null;
+}
+
+function shouldUpdateStatus(current: ApplicationStatus, next: ClassifiedMessage["status"]) {
+  if (!next || current === next) return false;
+  if (current === "Offer") return false;
+  if (next === "Offer") return true;
+  if (next === "Rejected") return current !== "Withdrawn";
+  if (next === "Interview") {
+    return ["Draft", "Pending", "Applied", "Failed"].includes(current);
+  }
+  if (next === "Applied") {
+    return ["Draft", "Pending", "Failed"].includes(current);
+  }
+  return false;
+}
+
+function fallbackJobTitle(classified: ClassifiedMessage) {
+  if (classified.jobTitle) return classified.jobTitle;
+  if (classified.eventType === "interview") return "Interview opportunity";
+  if (classified.eventType === "offer") return "Offer received";
+  return "Application update";
+}
+
+function notificationFor(classified: ClassifiedMessage, company: string, jobTitle: string) {
+  switch (classified.eventType) {
+    case "offer":
+      return {
+        type: "application",
+        title: `Offer found: ${jobTitle}`,
+        message: `${company} appears to have sent an offer update.`,
+        priority: "high",
+      };
+    case "interview":
+      return {
+        type: "interview",
+        title: `Interview found: ${jobTitle}`,
+        message: `${company} appears to have sent an interview invitation.`,
+        priority: "high",
+      };
+    case "rejection":
+      return {
+        type: "system",
+        title: `Rejection found: ${jobTitle}`,
+        message: `${company} appears to have sent a rejection update.`,
+        priority: "medium",
+      };
+    case "assessment":
+      return {
+        type: "application",
+        title: `Assessment found: ${jobTitle}`,
+        message: `${company} appears to have requested an assessment.`,
+        priority: "medium",
+      };
+    case "application_confirmation":
+      return {
+        type: "application",
+        title: `Application confirmed: ${jobTitle}`,
+        message: `${company} confirmed or started an application.`,
+        priority: "low",
+      };
+    default:
+      return null;
+  }
+}
+
+async function createNotification(
+  serviceClient: any,
+  userId: string,
+  classified: ClassifiedMessage,
+  company: string,
+  jobTitle: string,
+) {
+  const notification = notificationFor(classified, company, jobTitle);
+  if (!notification) return;
+  const { error } = await serviceClient.from("notifications").insert({
+    user_id: userId,
+    type: notification.type,
+    title: notification.title.slice(0, 200),
+    message: notification.message.slice(0, 2000),
+    company: company.slice(0, 120),
+    action_url: "/dashboard/application",
+    priority: notification.priority,
+  });
+  if (error) {
+    console.warn("Failed to create Gmail sync notification", error);
+  }
+}
+
+function receivedAtFor(message: GmailMessage, dateHeader: string) {
+  const internal = Number(message.internalDate || "");
+  if (Number.isFinite(internal) && internal > 0) {
+    return new Date(internal).toISOString();
+  }
+  const parsed = Date.parse(dateHeader);
+  if (Number.isFinite(parsed)) return new Date(parsed).toISOString();
+  return new Date().toISOString();
+}
+
+serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
+
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders);
+  }
+
+  try {
+    const { user, serviceClient } = await requireSubscriptionTier(
+      req,
+      "Ultimate",
+      "Gmail application checks",
+    );
+    const body = await req.json().catch(() => ({})) as RequestBody;
+    const maxResults = Math.max(1, Math.min(100, Number(body.maxResults || 30)));
+    const query = typeof body.query === "string" && body.query.trim()
+      ? body.query.trim()
+      : DEFAULT_QUERY;
+    const force = body.force === true;
+
+    const { data: connection, error: connectionError } = await serviceClient
+      .from("gmail_connections")
+      .select("email, access_token_ciphertext, refresh_token_ciphertext, token_expires_at, sync_history_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (connectionError) throw connectionError;
+    if (!connection) {
+      return jsonResponse(
+        { error: "Gmail is not connected. Connect Gmail in Settings first." },
+        409,
+        corsHeaders,
+      );
+    }
+
+    const accessToken = await getValidAccessToken(
+      serviceClient,
+      user.id,
+      connection as GmailConnection,
+    );
+    const list = await listGmailMessages(accessToken, query, maxResults);
+    const ids = list.map((message) => message.id);
+
+    const existingIds = new Set<string>();
+    if (ids.length > 0 && !force) {
+      const { data: existingEvents, error: existingError } = await serviceClient
+        .from("gmail_application_events")
+        .select("gmail_message_id")
+        .eq("user_id", user.id)
+        .in("gmail_message_id", ids);
+      if (existingError) throw existingError;
+      for (const event of existingEvents || []) {
+        if (typeof event.gmail_message_id === "string") {
+          existingIds.add(event.gmail_message_id);
+        }
+      }
+    }
+
+    const { data: applicationsData, error: applicationsError } = await serviceClient
+      .from("applications")
+      .select("id, job_id, job_title, company, status, canonical_stage, notes")
+      .eq("user_id", user.id);
+    if (applicationsError) throw applicationsError;
+
+    const applications = (applicationsData || []) as ApplicationRow[];
+    let classifiedCount = 0;
+    let createdCount = 0;
+    let updatedCount = 0;
+    let skippedExistingCount = 0;
+    let latestHistoryId: string | null = null;
+    const events: Array<Record<string, unknown>> = [];
+
+    for (const listed of list) {
+      if (!force && existingIds.has(listed.id)) {
+        skippedExistingCount += 1;
+        continue;
+      }
+
+      const message = await getGmailMessage(accessToken, listed.id);
+      latestHistoryId = message.historyId || latestHistoryId;
+      const subject = getHeader(message.payload, "Subject");
+      const from = parseAddress(getHeader(message.payload, "From"));
+      const dateHeader = getHeader(message.payload, "Date");
+      const receivedAt = receivedAtFor(message, dateHeader);
+      const bodyText = payloadToText(message.payload);
+      const classified = classifyMessage(
+        subject,
+        message.snippet || "",
+        bodyText,
+        from,
+      );
+
+      if (classified.eventType === "other" || classified.confidence < 0.55) {
+        continue;
+      }
+
+      classifiedCount += 1;
+      const company = classified.company || "Unknown company";
+      const jobTitle = fallbackJobTitle(classified);
+      let applicationId: string | null = null;
+      const matched = findMatchingApplication(applications, classified);
+
+      if (matched) {
+        applicationId = matched.id;
+        const shouldUpdate = shouldUpdateStatus(matched.status, classified.status);
+        const patch: Record<string, unknown> = {
+          updated_at: new Date().toISOString(),
+          provider_status: `gmail:${classified.eventType}`,
+        };
+        if (classified.nextStep) patch.next_step = classified.nextStep;
+        if (shouldUpdate && classified.status && classified.canonicalStage) {
+          patch.status = classified.status;
+          patch.canonical_stage = classified.canonicalStage;
+        }
+
+        if (Object.keys(patch).length > 2 || shouldUpdate) {
+          const { error: updateError } = await serviceClient
+            .from("applications")
+            .update(patch)
+            .eq("id", matched.id)
+            .eq("user_id", user.id);
+          if (updateError) throw updateError;
+
+          if (shouldUpdate && classified.status) {
+            matched.status = classified.status;
+            matched.canonical_stage = classified.canonicalStage || matched.canonical_stage;
+          }
+          updatedCount += shouldUpdate ? 1 : 0;
+
+          if (matched.job_id && classified.canonicalStage) {
+            await serviceClient
+              .from("jobs")
+              .update({
+                canonical_status: classified.canonicalStage,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", matched.job_id)
+              .eq("user_id", user.id);
+          }
+        }
+      } else {
+        const { data: inserted, error: insertError } = await serviceClient
+          .from("applications")
+          .insert({
+            user_id: user.id,
+            job_title: jobTitle,
+            company,
+            location: "",
+            applied_date: receivedAt,
+            status: classified.status || "Applied",
+            canonical_stage: classified.canonicalStage || "submitted",
+            notes: `Detected from Gmail: ${subject || "(no subject)"}\n\n${message.snippet || ""}`.slice(0, 1800),
+            next_step: classified.nextStep,
+            draft_status: "sent",
+            ai_confidence_score: Math.round(classified.confidence * 100),
+          })
+          .select("id, job_id, job_title, company, status, canonical_stage, notes")
+          .single();
+        if (insertError) throw insertError;
+        const insertedApp = inserted as ApplicationRow;
+        applicationId = insertedApp.id;
+        applications.push(insertedApp);
+        createdCount += 1;
+      }
+
+      const { error: eventError } = await serviceClient
+        .from("gmail_application_events")
+        .upsert(
+          {
+            user_id: user.id,
+            application_id: applicationId,
+            gmail_message_id: message.id,
+            gmail_thread_id: message.threadId || listed.threadId || null,
+            event_type: classified.eventType,
+            status: classified.status,
+            confidence: classified.confidence,
+            company,
+            job_title: jobTitle,
+            sender_name: from.name,
+            sender_email: from.email,
+            subject,
+            snippet: message.snippet || null,
+            received_at: receivedAt,
+            processed_at: new Date().toISOString(),
+            raw: {
+              labelIds: message.labelIds || [],
+              query,
+              bodyPreview: bodyText.slice(0, 2000),
+            },
+          },
+          { onConflict: "user_id,gmail_message_id" },
+        );
+      if (eventError) throw eventError;
+
+      await createNotification(
+        serviceClient,
+        user.id,
+        classified,
+        company,
+        jobTitle,
+      );
+
+      events.push({
+        messageId: message.id,
+        eventType: classified.eventType,
+        status: classified.status,
+        company,
+        jobTitle,
+        confidence: classified.confidence,
+        applicationId,
+        receivedAt,
+      });
+    }
+
+    const { error: syncUpdateError } = await serviceClient
+      .from("gmail_connections")
+      .update({
+        last_sync_at: new Date().toISOString(),
+        sync_history_id: latestHistoryId || (connection as GmailConnection).sync_history_id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", user.id);
+    if (syncUpdateError) throw syncUpdateError;
+
+    return jsonResponse(
+      {
+        ok: true,
+        query,
+        scanned: list.length,
+        classified: classifiedCount,
+        created: createdCount,
+        updated: updatedCount,
+        skippedExisting: skippedExistingCount,
+        events,
+      },
+      200,
+      corsHeaders,
+    );
+  } catch (error) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
+    console.error("sync-gmail-application-events error", error);
+    return jsonResponse(
+      { error: error instanceof Error ? error.message : "Gmail sync failed" },
+      500,
+      corsHeaders,
+    );
+  }
+});

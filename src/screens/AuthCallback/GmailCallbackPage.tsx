@@ -1,17 +1,75 @@
-import React, { useEffect } from 'react';
+import { useEffect, useState } from "react";
+
+import { createClient } from "../../lib/supabaseClient";
 
 const GmailCallbackPage = () => {
+  const [message, setMessage] = useState("Finishing Gmail connection...");
+
   useEffect(() => {
-    // Send a message to the parent window to indicate that the auth was successful
-    window.opener?.postMessage('gmail-auth-success', window.location.origin);
-    // Close the popup window
-    window.close();
+    let cancelled = false;
+
+    const finishAuth = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const oauthError = params.get("error");
+      const code = params.get("code");
+      const state = params.get("state");
+      const targetOrigin = window.location.origin;
+
+      const notifyOpener = (payload: Record<string, string>) => {
+        window.opener?.postMessage(payload, targetOrigin);
+      };
+
+      try {
+        if (oauthError) {
+          throw new Error(oauthError);
+        }
+        if (!code || !state) {
+          throw new Error("Missing Gmail authorization response.");
+        }
+
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        const supabase = createClient();
+        const { error } = await supabase.functions.invoke("gmail-auth", {
+          body: {
+            action: "callback",
+            code,
+            state,
+          },
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (!cancelled) {
+          setMessage("Gmail connected. You can close this window.");
+        }
+        notifyOpener({ type: "gmail-auth-success" });
+        window.setTimeout(() => window.close(), 500);
+      } catch (error: any) {
+        const errorMessage =
+          error?.details || error?.message || "Gmail connection failed.";
+        if (!cancelled) {
+          setMessage(errorMessage);
+        }
+        notifyOpener({ type: "gmail-auth-error", message: errorMessage });
+      }
+    };
+
+    finishAuth();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
-    <div>
-      <h1>Authenticating...</h1>
-      <p>Please wait while we connect your Gmail account.</p>
+    <div className='min-h-screen bg-background text-foreground flex items-center justify-center p-6'>
+      <div className='max-w-sm rounded-xl border border-border bg-card p-6 text-center shadow-sm'>
+        <h1 className='text-lg font-semibold'>Gmail</h1>
+        <p className='mt-2 text-sm text-muted-foreground'>{message}</p>
+      </div>
     </div>
   );
 };

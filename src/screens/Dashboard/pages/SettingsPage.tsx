@@ -400,13 +400,6 @@ export const SettingsPage = (): JSX.Element => {
         );
         return;
       }
-      const composioConfigId = import.meta.env.VITE_COMPOSIO_GMAIL_CONFIG_ID;
-      if (!composioConfigId) {
-        toastError(
-          "Gmail integration is not configured. Please contact support.",
-        );
-        return;
-      }
 
       const {
         data: { user },
@@ -417,12 +410,11 @@ export const SettingsPage = (): JSX.Element => {
       }
 
       const { data, error } = await supabase.functions.invoke(
-        "composio-gmail-auth",
+        "gmail-auth",
         {
           body: {
-            userId: user.id,
-            authConfigId: composioConfigId,
             action: "initiate",
+            redirectUri: `${window.location.origin}/auth/callback/gmail`,
           },
         },
       );
@@ -431,8 +423,7 @@ export const SettingsPage = (): JSX.Element => {
         throw error;
       }
 
-      const { connectionId, redirectUrl } = data;
-      localStorage.setItem("composio-connection-id", connectionId);
+      const { redirectUrl } = data;
       window.open(redirectUrl, "_blank", "noopener,noreferrer");
     } catch (error: any) {
       const errorMessage =
@@ -451,12 +442,6 @@ export const SettingsPage = (): JSX.Element => {
           return;
         }
 
-        const composioConfigId = import.meta.env.VITE_COMPOSIO_GMAIL_CONFIG_ID;
-        if (!composioConfigId) {
-          // Gmail integration not configured - silently skip
-          return;
-        }
-
         const {
           data: { user },
         } = await supabase.auth.getUser();
@@ -465,26 +450,15 @@ export const SettingsPage = (): JSX.Element => {
         }
 
         const { data, error } = await supabase.functions.invoke(
-          "composio-gmail-auth",
+          "gmail-auth",
           {
             body: {
-              userId: user.id,
-              authConfigId: composioConfigId,
               action: "status",
             },
           },
         );
 
         if (error) {
-          // Check if it's the "Invalid action" error (means deployed version doesn't support status yet)
-          if (
-            error.message?.includes("Invalid action") ||
-            error.message?.includes("400")
-          ) {
-            // Silently fail - the deployed function doesn't support status check yet
-            // User will just see the "Connect" button instead of connection status
-            return;
-          }
           throw error;
         }
 
@@ -492,14 +466,7 @@ export const SettingsPage = (): JSX.Element => {
           setIsGmailConnected(data.isConnected);
         }
       } catch (error: any) {
-        // Only log unexpected errors, not the expected "Invalid action" error
-        if (
-          !error.message?.includes("Invalid action") &&
-          !error.message?.includes("400")
-        ) {
-          console.error("Failed to check Gmail connection status:", error);
-        }
-        // It's okay if this fails, the user will just see the "Connect" button
+        console.error("Failed to check Gmail connection status:", error);
       }
     };
 
@@ -512,7 +479,18 @@ export const SettingsPage = (): JSX.Element => {
         return;
       }
 
-      if (event.data === "gmail-auth-success") {
+      const messageType =
+        typeof event.data === "string" ? event.data : event.data?.type;
+
+      if (messageType === "gmail-auth-error") {
+        toastError(
+          "Failed to connect Gmail",
+          event.data?.message || "Please try again.",
+        );
+        return;
+      }
+
+      if (messageType === "gmail-auth-success") {
         if (!hasGmailIntegrationAccess) {
           toastError(
             "Upgrade required",
@@ -521,46 +499,8 @@ export const SettingsPage = (): JSX.Element => {
           return;
         }
 
-        const connectionId = localStorage.getItem("composio-connection-id");
-        if (connectionId) {
-          try {
-            const composioConfigId = import.meta.env
-              .VITE_COMPOSIO_GMAIL_CONFIG_ID;
-            if (!composioConfigId) {
-              toastError(
-                "Gmail integration is not configured. Please contact support.",
-              );
-              localStorage.removeItem("composio-connection-id");
-              return;
-            }
-
-            const {
-              data: { user },
-            } = await supabase.auth.getUser();
-            if (!user) {
-              toastError("Please sign in to connect your Gmail account.");
-              return;
-            }
-
-            await supabase.functions.invoke("composio-gmail-auth", {
-              body: {
-                userId: user.id,
-                authConfigId: composioConfigId,
-                action: "verify",
-                connectionId: connectionId,
-              },
-            });
-            setIsGmailConnected(true);
-            success("Gmail connected successfully!");
-            localStorage.removeItem("composio-connection-id");
-          } catch (error: any) {
-            const errorMessage =
-              error.details ||
-              (error as Error).message ||
-              "An unknown error occurred.";
-            toastError("Failed to verify Gmail connection", errorMessage);
-          }
-        }
+        setIsGmailConnected(true);
+        success("Gmail connected successfully!");
       }
     };
 
@@ -3912,7 +3852,7 @@ export const SettingsPage = (): JSX.Element => {
                       Gmail
                     </h3>
                     <p className='text-xs text-muted-foreground mt-0.5'>
-                      Connect to receive job alerts and schedule interviews
+                      Detect application confirmations, interviews, offers, and rejections
                     </p>
                   </div>
                 </div>
