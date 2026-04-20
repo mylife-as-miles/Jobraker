@@ -370,6 +370,12 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/ai-chat/index.ts"
 
+[functions.parse-resume]
+enabled = true
+# Must be false so browser OPTIONS preflight reaches the handler; auth is enforced in requireAuthenticatedUser.
+verify_jwt = false
+entrypoint = "./functions/parse-resume/index.ts"
+
 [functions.gmail-auth]
 enabled = true
 # Must be false so browser OPTIONS preflight reaches the handler; auth is enforced in requireSubscriptionTier.

@@ -8,7 +8,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
 import { parsePdfFile } from '@/utils/parsePdf';
 import { analyzeResumeText } from '@/utils/analyzeResume';
-import { parseResumeWithAI, type ParsedProfileData } from '@/services/ai/parseResumeProfile';
+import { hashEmbedding } from '@/utils/hashEmbedding';
+import {
+  buildFallbackParsedProfileData,
+  parseResumeWithAI,
+  type ParsedProfileData,
+} from '@/services/ai/parseResumeProfile';
+import { persistParsedResume } from '@/lib/parsedResume';
+import { mapParsedDataToResume } from '@/lib/resume-mapper';
+import { initialResumeState } from '@/store/artboard';
 import { events } from '@/lib/analytics';
 
 interface OnboardingStep {
@@ -215,6 +223,11 @@ export const Onboarding = (): JSX.Element => {
     setParseError(null);
     setUploadProgress(5);
     try {
+      const MAX_MB = 8;
+      if (file.size > MAX_MB * 1024 * 1024) {
+        throw new Error(`File exceeds ${MAX_MB}MB limit`);
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
@@ -229,14 +242,15 @@ export const Onboarding = (): JSX.Element => {
       if (upErr) throw upErr;
       setUploadProgress(40);
 
+      const resumeDisplayName = file.name.replace(/\.[^.]+$/, '');
       const insertPayload = {
         user_id: user.id,
-        name: file.name.replace(/\.[^.]+$/, ''),
+        name: resumeDisplayName,
         template: null,
         status: 'Draft',
         applications: 0,
         thumbnail: null,
-        is_favorite: false,
+        is_favorite: true,
         file_path: path,
         file_ext: ext,
         size: file.size,
@@ -246,230 +260,187 @@ export const Onboarding = (): JSX.Element => {
       if (insErr) throw insErr;
       setUploadProgress(50);
 
-      // Parse PDF/text content
+      // Parse PDF/text content (same sources as resume import)
       setParsing(true);
       let rawText = '';
+      let lines: string[] = [];
       if (ext === 'pdf') {
         const parsed = await parsePdfFile(file);
         rawText = parsed.text;
+        lines = parsed.lines;
       } else {
         rawText = await file.text();
+        lines = rawText.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+      }
+      if (!rawText?.trim()) {
+        throw new Error('Could not read any text from this file. Try a PDF or plain text resume.');
       }
       setUploadProgress(60);
 
-      // Try AI parsing first (if user has OpenAI key configured)
+      const analyzed = analyzeResumeText(rawText);
+
       let aiParsedData: ParsedProfileData | null = null;
-      // Try AI parsing (Server-side Gemini)
       try {
         setUploadProgress(65);
-        aiParsedData = await parseResumeWithAI({
-          resumeText: rawText
-        });
+        aiParsedData = await parseResumeWithAI({ resumeText: rawText });
         setUploadProgress(80);
       } catch (aiErr) {
-        console.warn('AI parsing failed, falling back to heuristic:', aiErr);
+        console.warn('AI parsing failed, using same fallback as resume page:', aiErr);
       }
 
-
-      // Fallback: use heuristic analysis
-      const analyzed = analyzeResumeText(rawText || '');
+      const effective: ParsedProfileData =
+        aiParsedData ?? buildFallbackParsedProfileData(rawText, resumeDisplayName);
       setUploadProgress(85);
 
-      // Insert parsed snapshot (lightweight)
       try {
-        await (supabase as any).from('parsed_resumes').insert({
-          resume_id: resumeRow.id,
-          user_id: user.id,
-          raw_text: rawText.slice(0, 500000),
-          json: { sections: analyzed.sections, entities: analyzed.entities },
+        await persistParsedResume({
+          supabase,
+          resumeId: resumeRow.id,
+          userId: user.id,
+          rawText: rawText.slice(0, 500000),
+          json: {
+            lines,
+            entities: analyzed.entities,
+            aiParsedData: aiParsedData ?? undefined,
+          },
+          structured: analyzed.structured,
+          skills:
+            effective.skills?.length > 0 ? effective.skills : analyzed.skills,
+          embedding: hashEmbedding(rawText),
         });
-      } catch { }
+      } catch (snapErr) {
+        console.warn('parsed_resumes snapshot skipped:', snapErr);
+      }
 
-      // Prepare profile data - prioritize AI parsing if available
-      let profileData: any = {};
-
-      if (aiParsedData) {
-        console.log('✅ AI Parsed Data:', aiParsedData); // Debug log
-
-        // Use AI-parsed data
-        profileData = {
-          first_name: aiParsedData.firstName || null,
-          last_name: aiParsedData.lastName || null,
-          phone: aiParsedData.phone || null,
-          location: aiParsedData.location || null,
-          job_title: aiParsedData.jobTitle || null,
-          experience_years: aiParsedData.experienceYears,
-          about: aiParsedData.about || null,
-          onboarding_complete: true,
+      const mappedResumeData = mapParsedDataToResume(
+        effective,
+        structuredClone(initialResumeState.data),
+      );
+      const { error: resumeUpdateErr } = await (supabase as any)
+        .from('resumes')
+        .update({
+          data: mappedResumeData,
+          name:
+            mappedResumeData.basics?.name?.trim() ||
+            mappedResumeData.title ||
+            resumeDisplayName,
           updated_at: new Date().toISOString(),
-        };
+        })
+        .eq('id', resumeRow.id);
+      if (resumeUpdateErr) {
+        console.warn('Failed to update resume document data:', resumeUpdateErr);
+      }
 
-        console.log('💾 Saving profile:', profileData); // Debug log
+      const profileData = {
+        first_name: effective.firstName || null,
+        last_name: effective.lastName || null,
+        phone: effective.phone || null,
+        location: effective.location || null,
+        job_title: effective.jobTitle || null,
+        experience_years: effective.experienceYears,
+        about: effective.about || null,
+        onboarding_complete: true,
+        updated_at: new Date().toISOString(),
+      };
 
-        // Save education to profile_education table
-        if (aiParsedData.education && aiParsedData.education.length > 0) {
-          console.log(`📚 Saving ${aiParsedData.education.length} education entries`);
-
-          const eduRows = aiParsedData.education
-            .filter(e => e.school || e.degree)
-            .map(e => ({
-              user_id: user.id,
-              degree: e.degree || '',
-              school: e.school || '',
-              location: '',
-              start_date: e.start ? `${e.start}-01-01` : new Date().toISOString().split('T')[0],
-              end_date: e.end && e.end !== 'Present' ? `${e.end}-01-01` : null,
-              gpa: null,
-            }));
-
-          if (eduRows.length > 0) {
-            try {
-              const { error: eduErr } = await (supabase as any).from('profile_education').insert(eduRows);
-              if (eduErr) {
-                console.error('❌ Education insert error:', eduErr);
-              } else {
-                console.log('✅ Education saved successfully');
-              }
-            } catch (eduErr) {
-              console.warn('Failed to insert education:', eduErr);
-            }
-          }
-        }
-
-        // Save work experience to profile_experiences table
-        if (aiParsedData.experience && aiParsedData.experience.length > 0) {
-          console.log(`💼 Saving ${aiParsedData.experience.length} work experience entries`);
-
-          const expRows = aiParsedData.experience
-            .filter(e => e.company || e.title)
-            .map(e => {
-              // Parse dates - handle YYYY-MM format or just YYYY
-              const parseDate = (dateStr: string | undefined) => {
-                if (!dateStr || dateStr === 'Present') return null;
-                // If YYYY-MM format, add -01 for first day of month
-                if (/^\d{4}-\d{2}$/.test(dateStr)) return `${dateStr}-01`;
-                // If YYYY format, add -01-01 for first day of year
-                if (/^\d{4}$/.test(dateStr)) return `${dateStr}-01-01`;
-                return dateStr;
-              };
-
-              return {
-                user_id: user.id,
-                company: e.company || '',
-                title: e.title || '',
-                location: e.location || '',
-                start_date: parseDate(e.startDate) || new Date().toISOString().split('T')[0],
-                end_date: parseDate(e.endDate),
-                is_current: !e.endDate || e.endDate === 'Present',
-                description: e.description || '',
-              };
-            });
-
-          if (expRows.length > 0) {
-            try {
-              const { error: expErr } = await (supabase as any).from('profile_experiences').insert(expRows);
-              if (expErr) {
-                console.error('❌ Experience insert error:', expErr);
-              } else {
-                console.log('✅ Experience saved successfully');
-              }
-            } catch (expErr) {
-              console.warn('Failed to insert experience:', expErr);
-            }
-          }
-        }
-
-        // Save skills to profile_skills table
-        if (aiParsedData.skills && aiParsedData.skills.length > 0) {
-          console.log(`🔧 Saving ${aiParsedData.skills.length} skills`);
-
-          const skillRows = aiParsedData.skills.slice(0, 60).map(name => ({
+      if (effective.education?.length > 0) {
+        const eduRows = effective.education
+          .filter((e) => e.school || e.degree)
+          .map((e) => ({
             user_id: user.id,
-            name: name.trim(),
-            level: null,
-            category: '',
-          })).filter(r => r.name);
+            degree: e.degree || '',
+            school: e.school || '',
+            location: '',
+            start_date: e.start
+              ? /^\d{4}$/.test(e.start)
+                ? `${e.start}-01-01`
+                : /^\d{4}-\d{2}$/.test(e.start)
+                  ? `${e.start}-01`
+                  : e.start
+              : new Date().toISOString().split('T')[0],
+            end_date:
+              e.end && e.end !== 'Present'
+                ? /^\d{4}$/.test(e.end)
+                  ? `${e.end}-01-01`
+                  : /^\d{4}-\d{2}$/.test(e.end)
+                    ? `${e.end}-01`
+                    : e.end
+                : null,
+            gpa: null,
+          }));
 
-          if (skillRows.length > 0) {
-            try {
-              const { error: skillErr } = await (supabase as any).from('profile_skills').insert(skillRows);
-              if (skillErr) {
-                console.error('❌ Skills insert error:', skillErr);
-              } else {
-                console.log('✅ Skills saved successfully');
-              }
-            } catch (skillErr) {
-              console.warn('Failed to insert skills:', skillErr);
-            }
-          }
-        }
-      } else {
-        // Fallback to heuristic parsing
-        const summary = analyzed.structured?.summary || '';
-        const educationSections = Array.isArray(analyzed.structured?.education) ? analyzed.structured.education : [];
-        const eduParsed = educationSections.map((s: any) => {
-          const lines = String(s.content || '').split(/\n+/).map((l: string) => l.trim()).filter(Boolean);
-          return { school: lines[0] || '', degree: lines[1] || '', start: '', end: '' };
-        }).slice(0, 5);
-
-        profileData = {
-          first_name: null,
-          last_name: null,
-          phone: analyzed.phones?.[0] || null,
-          location: null,
-          job_title: analyzed.entities?.titles?.[0] || null,
-          experience_years: null,
-          about: typeof summary === 'string' ? summary : null,
-          onboarding_complete: true,
-          updated_at: new Date().toISOString(),
-        };
-
-        // Save education heuristically
-        if (eduParsed.length > 0) {
-          const eduRows = eduParsed
-            .filter((e: any) => e.school || e.degree)
-            .map((e: any) => ({
-              user_id: user.id,
-              degree: e.degree || '',
-              school: e.school || '',
-              location: '',
-              start_date: e.start ? `${e.start}-01` : new Date().toISOString(),
-              end_date: e.end ? `${e.end}-01` : null,
-              gpa: null,
-            }));
-
-          if (eduRows.length > 0) {
-            try {
-              await (supabase as any).from('profile_education').insert(eduRows);
-            } catch (eduErr) {
-              console.warn('Failed to insert education:', eduErr);
-            }
-          }
-        }
-
-        // Save skills heuristically
-        if (profileData.skills && profileData.skills.length > 0) {
-          const skillRows = profileData.skills.map((name: string) => ({
-            user_id: user.id,
-            name: name.trim(),
-            level: null,
-            category: '',
-          })).filter((r: any) => r.name);
-
-          if (skillRows.length > 0) {
-            try {
-              await (supabase as any).from('profile_skills').insert(skillRows);
-            } catch (skillErr) {
-              console.warn('Failed to insert skills:', skillErr);
-            }
+        if (eduRows.length > 0) {
+          try {
+            const { error: eduErr } = await (supabase as any)
+              .from('profile_education')
+              .insert(eduRows);
+            if (eduErr) console.error('Education insert error:', eduErr);
+          } catch (eduErr) {
+            console.warn('Failed to insert education:', eduErr);
           }
         }
       }
 
-      // Save profile data
+      if (effective.experience?.length > 0) {
+        const parseDate = (dateStr: string | undefined) => {
+          if (!dateStr || dateStr === 'Present') return null;
+          if (/^\d{4}-\d{2}$/.test(dateStr)) return `${dateStr}-01`;
+          if (/^\d{4}$/.test(dateStr)) return `${dateStr}-01-01`;
+          return dateStr;
+        };
+
+        const expRows = effective.experience
+          .filter((e) => e.company || e.title)
+          .map((e) => ({
+            user_id: user.id,
+            company: e.company || '',
+            title: e.title || '',
+            location: e.location || '',
+            start_date:
+              parseDate(e.startDate) || new Date().toISOString().split('T')[0],
+            end_date: parseDate(e.endDate),
+            is_current: !e.endDate || e.endDate === 'Present',
+            description: e.description || '',
+          }));
+
+        if (expRows.length > 0) {
+          try {
+            const { error: expErr } = await (supabase as any)
+              .from('profile_experiences')
+              .insert(expRows);
+            if (expErr) console.error('Experience insert error:', expErr);
+          } catch (expErr) {
+            console.warn('Failed to insert experience:', expErr);
+          }
+        }
+      }
+
+      if (effective.skills?.length > 0) {
+        const skillRows = effective.skills
+          .slice(0, 60)
+          .map((name) => ({
+            user_id: user.id,
+            name: name.trim(),
+            level: null,
+            category: '',
+          }))
+          .filter((r) => r.name);
+
+        if (skillRows.length > 0) {
+          try {
+            const { error: skillErr } = await (supabase as any)
+              .from('profile_skills')
+              .insert(skillRows);
+            if (skillErr) console.error('Skills insert error:', skillErr);
+          } catch (skillErr) {
+            console.warn('Failed to insert skills:', skillErr);
+          }
+        }
+      }
+
       const { error: profileErr } = await (supabase as any).from('profiles').upsert(
         { id: user.id, ...profileData },
-        { onConflict: 'id' }
+        { onConflict: 'id' },
       );
 
       if (profileErr) throw profileErr;
@@ -799,9 +770,9 @@ export const Onboarding = (): JSX.Element => {
     },
   };
 
-  // Mode gating logic
+  // Mode gating: keep resume flow on this screen until navigation (never fall through to manual steps).
   if (mode === null) return resumeModeScreen;
-  if (mode === 'resume' && !parsed) return resumeUploadScreen;
+  if (mode === 'resume') return resumeUploadScreen;
 
   return (
     <div className="product-page-shell min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8">
