@@ -105,20 +105,47 @@ function isSkyvernTerminalStatus(status: unknown): boolean {
   return SKYVERN_TERMINAL_STATUSES.has(String(status || "").toLowerCase());
 }
 
-function resolveAlertRecipient(row: any): string {
-  return (
-    String(row?.alert_email || "").trim() ||
-    String(Deno.env.get("PROVIDER_CREDIT_ALERT_EMAIL") || "").trim() ||
-    String(Deno.env.get("RESEND_ALERT_EMAIL") || "").trim() ||
-    String(Deno.env.get("ADMIN_ALERT_EMAIL") || "").trim()
-  );
-}
-
 function resolveAlertSender(): string {
   return (
     String(Deno.env.get("RESEND_FROM_EMAIL") || "").trim() ||
     "JobRaker Alerts <onboarding@resend.dev>"
   );
+}
+
+function getEnvValue(...names: string[]): string {
+  for (const name of names) {
+    const value = String(Deno.env.get(name) || "").trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function isEnvEnabled(name: string, defaultValue = false): boolean {
+  const value = String(Deno.env.get(name) || "").trim().toLowerCase();
+  if (!value) return defaultValue;
+  return ["1", "true", "yes", "on"].includes(value);
+}
+
+function usesResendTestingDomain(sender: string): boolean {
+  return /@resend\.dev\b/i.test(sender);
+}
+
+function resolveAlertRecipient(row: any): string {
+  const ownerEmail = getEnvValue(
+    "RESEND_OWNER_EMAIL",
+    "RESEND_ACCOUNT_EMAIL",
+    "PROVIDER_CREDIT_ALERT_EMAIL",
+    "RESEND_ALERT_EMAIL",
+    "ADMIN_ALERT_EMAIL",
+  );
+  const sender = resolveAlertSender();
+  const ownerOnly = isEnvEnabled("RESEND_OWNER_ONLY", false) || usesResendTestingDomain(sender);
+
+  if (ownerOnly) {
+    return ownerEmail;
+  }
+
+  return String(row?.alert_email || "").trim() || ownerEmail;
 }
 
 function formatProviderName(provider: ProviderName, displayName?: string): string {

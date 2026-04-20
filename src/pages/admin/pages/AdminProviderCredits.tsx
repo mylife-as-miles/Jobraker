@@ -215,10 +215,13 @@ function ProviderCard({
           <input
             type="email"
             value={draft.alert_email}
-            placeholder="admin@example.com"
+            placeholder="Resend account owner email"
             onChange={(event) => onDraftChange({ alert_email: event.target.value })}
             className="w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-[#ffd700]"
           />
+          <p className="text-xs text-gray-500">
+            Resend free/testing mode sends only to the account owner email configured in Supabase secrets.
+          </p>
         </label>
       </div>
 
