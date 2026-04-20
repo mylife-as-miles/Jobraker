@@ -370,6 +370,18 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/ai-chat/index.ts"
 
+[functions.gmail-auth]
+enabled = true
+# Must be false so browser OPTIONS preflight reaches the handler; auth is enforced in requireSubscriptionTier.
+verify_jwt = false
+entrypoint = "./functions/gmail-auth/index.ts"
+
+[functions.sync-gmail-application-events]
+enabled = true
+# Must be false so browser OPTIONS preflight reaches the handler; auth is enforced in requireSubscriptionTier.
+verify_jwt = false
+entrypoint = "./functions/sync-gmail-application-events/index.ts"
+
 [functions.provider-credits]
 enabled = true
 # Browser OPTIONS preflight must reach the handler; admin auth is enforced inside the function.
