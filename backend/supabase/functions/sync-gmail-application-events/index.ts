@@ -450,13 +450,22 @@ function inferJobTitle(text: string, subject: string) {
   return title?.replace(/\bhave available\b.*$/i, "").trim().slice(0, 140) || null;
 }
 
+/** Normalize curly/smart quotes so phrase checks match mobile Gmail & ATS templates. */
+function normalizeForPhraseMatch(text: string) {
+  return text
+    .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F]/g, '"');
+}
+
 function classifyMessage(
   subject: string,
   snippet: string,
   bodyText: string,
   from: ParsedAddress,
 ): ClassifiedMessage {
-  const combined = `${subject}\n${snippet}\n${bodyText}`;
+  const combined = normalizeForPhraseMatch(
+    `${subject}\n${snippet}\n${bodyText}`,
+  );
   const lower = combined.toLowerCase();
   const company = inferCompany(bodyText, subject, from);
   const jobTitle = inferJobTitle(bodyText, subject);
