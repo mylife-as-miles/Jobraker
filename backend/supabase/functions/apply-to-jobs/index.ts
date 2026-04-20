@@ -44,6 +44,30 @@ function appendAutomationHints(base: string): string {
   return `${trimmed}\n\n${APPLY_AUTOMATION_HINTS}`;
 }
 
+function parseRpcJsonObject(raw: unknown): Record<string, unknown> | null {
+  if (raw == null) return null;
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function isRpcSuccess(row: Record<string, unknown> | null): boolean {
+  if (!row) return false;
+  const s = row.success;
+  return s === true || s === "true" || String(s).toLowerCase() === "t";
+}
+
 // Skyvern's file parser expects a plain URL string, not a JSON-encoded one.
 function normalizeHttpUrlString(raw: string): string {
   // Strip inline whitespace (line breaks in pasted URLs break `new URL()` / path parsing).
@@ -234,6 +258,8 @@ Deno.serve(async (req) => {
     });
   }
 
+  let billingForResponse: Record<string, unknown> | null = null;
+
   try {
     const body = await req.json().catch(() => ({}));
     const { user, serviceClient } = await requireSubscriptionTier(
@@ -338,8 +364,8 @@ Deno.serve(async (req) => {
         },
       );
     }
-    const deduct = deductRaw as Record<string, unknown> | null;
-    if (!deduct || deduct.success !== true) {
+    const deduct = parseRpcJsonObject(deductRaw);
+    if (!isRpcSuccess(deduct)) {
       return new Response(
         JSON.stringify({
           error: (deduct?.message as string) || "Insufficient credits for auto apply.",
@@ -353,6 +379,14 @@ Deno.serve(async (req) => {
         },
       );
     }
+
+    billingForResponse = {
+      credits_deducted: deduct?.credits_deducted ?? automationJobCount * 5,
+      remaining_balance: deduct?.remaining_balance,
+      jobs_count: automationJobCount,
+      note:
+        "Charged when JobRaker starts auto-apply (5 credits per job). Runs started only in Skyvern are not billed here.",
+    };
 
     const envKey = Deno.env.get("SKYVERN_API_KEY");
     const headerKey = req.headers.get("x-skyvern-api-key") || req.headers.get("x-api-key");
@@ -643,6 +677,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         ok: true,
         skyvern: data,
+        billing: billingForResponse,
         submitted: {
           workflow_id: workflowId,
           count: jobUrls.length,

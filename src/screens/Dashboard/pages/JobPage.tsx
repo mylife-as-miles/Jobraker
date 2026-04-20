@@ -4594,33 +4594,33 @@ export const JobPage = (): JSX.Element => {
 
                                   {/* Content + buttons */}
                                   <div className='flex-1 min-w-0'>
-                                    <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3'>
+                                    <div className='flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4'>
                                       {/* Title & meta */}
-                                      <div className='flex-1 min-w-0 space-y-1.5'>
+                                      <div className='flex-1 min-w-0 space-y-2'>
                                     <div className='inline-flex items-center gap-2 flex-wrap text-[11px] uppercase tracking-[0.3em] text-[#ffd700]/80'>
                                       <Sparkles className='w-3 h-3' />
                                       Featured Job
                                     </div>
                                     <h1
-                                      className='text-base sm:text-lg md:text-xl font-semibold text-foreground leading-tight line-clamp-3'
+                                      className='max-w-3xl text-lg sm:text-xl md:text-2xl font-semibold text-foreground leading-tight line-clamp-3'
                                       title={job.title}
                                     >
                                       {job.title}
                                     </h1>
                                     <div className='flex flex-wrap items-center gap-2 text-sm text-foreground/70'>
-                                      <span className='font-medium text-foreground/90 whitespace-nowrap'>
+                                      <span className='font-medium text-foreground/90'>
                                         {job.company}
                                       </span>
                                       {siteHost && (
                                         <span
-                                          className='inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-foreground/10 bg-foreground/5 text-foreground/60 whitespace-nowrap flex-shrink-0'
+                                          className='inline-flex max-w-full items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-foreground/10 bg-foreground/5 text-foreground/60'
                                           title={primaryHref || undefined}
                                         >
                                           {ico && (
                                             <img
                                               src={ico}
                                               alt=''
-                                              className='w-3 h-3 rounded'
+                                              className='w-3 h-3 rounded flex-shrink-0'
                                               onError={(e) =>
                                                 ((
                                                   e.target as HTMLImageElement
@@ -4628,7 +4628,9 @@ export const JobPage = (): JSX.Element => {
                                               }
                                             />
                                           )}
-                                          {siteHost}
+                                          <span className='truncate'>
+                                            {siteHost}
+                                          </span>
                                         </span>
                                       )}
                                       {job.posted_at && (
@@ -4639,14 +4641,14 @@ export const JobPage = (): JSX.Element => {
                                     </div>
                                       </div>
 
-                                      {/* Action buttons — inline on sm+ */}
-                                      <div className='flex flex-shrink-0 items-center gap-2'>
+                                      {/* Action buttons stay below the title until the card has enough width. */}
+                                      <div className='flex w-full flex-col sm:flex-row lg:w-auto lg:flex-shrink-0 items-stretch sm:items-center gap-2'>
                                   {primaryHref && (
                                     <a
                                       href={primaryHref}
                                       target='_blank'
                                       rel='noopener noreferrer'
-                                      className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#ffd700]/50 bg-[#ffd700]/15 px-3 py-1.5 text-sm font-medium text-[#ffd700] transition hover:bg-[#ffd700]/25 hover:shadow-[0_10px_30px_rgba(255,215,0,0.2)] whitespace-nowrap'
+                                      className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[#ffd700]/50 bg-[#ffd700]/15 px-4 py-2 text-sm font-medium text-[#ffd700] transition hover:bg-[#ffd700]/25 hover:shadow-[0_10px_30px_rgba(255,215,0,0.2)] whitespace-nowrap'
                                     >
                                       View Posting
                                     </a>
@@ -4654,7 +4656,7 @@ export const JobPage = (): JSX.Element => {
                                   <Button
                                     variant='ghost'
                                     onClick={() => openAutoApplyFlow(job)}
-                                    className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#ffd700]/40 bg-gradient-to-r from-[#fbbf24]/10 via-transparent to-[#b45309]/10 px-3 py-1.5 text-sm font-medium text-foreground transition hover:from-[#fbbf24]/20 hover:to-[#b45309]/5 whitespace-nowrap'
+                                    className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[#ffd700]/40 bg-gradient-to-r from-[#fbbf24]/10 via-transparent to-[#b45309]/10 px-4 py-2 text-sm font-medium text-foreground transition hover:from-[#fbbf24]/20 hover:to-[#b45309]/5 whitespace-nowrap'
                                     title='Launch auto apply suite for this job'
                                   >
                                     <Briefcase className='w-4 h-4' />
@@ -4669,17 +4671,17 @@ export const JobPage = (): JSX.Element => {
                               </div>
 
                               {metaTiles.length > 0 && (
-                                <div className='flex flex-wrap gap-3'>
+                                <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3'>
                                   {metaTiles.map((tile) => (
                                     <div
                                       key={`${tile.label}-${tile.value}`}
-                                      className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 min-w-[120px]'
+                                      className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 min-w-0'
                                     >
                                       <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
                                         {tile.label}
                                       </div>
                                       <div
-                                        className={`text-sm font-medium ${tile.tone === "urgent" ? "text-[#ff8b8b]" : tile.tone === "soon" ? "text-[#ffd78b]" : tile.tone === "future" ? "text-[#8bffb1]" : "text-foreground/85"}`}
+                                        className={`truncate text-sm font-medium ${tile.tone === "urgent" ? "text-[#ff8b8b]" : tile.tone === "soon" ? "text-[#ffd78b]" : tile.tone === "future" ? "text-[#8bffb1]" : "text-foreground/85"}`}
                                       >
                                         {tile.value}
                                       </div>
@@ -6037,13 +6039,13 @@ export const JobPage = (): JSX.Element => {
                             <img
                               src={j.logoUrl}
                               alt={j.company}
-                              className='w-12 h-12 rounded-xl object-contain bg-foreground'
+                              className='w-12 h-12 rounded-xl object-contain bg-foreground flex-shrink-0'
                               onError={() =>
                                 setLogoError((e) => ({ ...e, [j.id]: true }))
                               }
                             />
                           ) : (
-                            <div className='w-12 h-12 bg-gradient-to-r from-[#fbbf24] to-background rounded-xl flex items-center justify-center text- font-bold text-lg'>
+                            <div className='w-12 h-12 bg-gradient-to-r from-[#fbbf24] to-background rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0'>
                               {j.logo}
                             </div>
                           )}
@@ -6052,7 +6054,7 @@ export const JobPage = (): JSX.Element => {
                               <Sparkles className='w-3 h-3' />
                               Featured Job
                             </div>
-                            <div className='text-lg font-semibold text-foreground leading-tight'>
+                            <div className='text-lg font-semibold text-foreground leading-tight line-clamp-3'>
                               {j.title}
                             </div>
                             <div className='flex flex-wrap items-center gap-2 text-[12px] text-foreground/70'>
@@ -6106,13 +6108,13 @@ export const JobPage = (): JSX.Element => {
                             ))}
                           </div>
                         )}
-                        <div className='flex items-center gap-2'>
+                        <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-2'>
                           {primaryHref && (
                             <a
                               href={primaryHref}
                               target='_blank'
                               rel='noopener noreferrer'
-                              className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#ffd700]/50 bg-[#ffd700]/15 px-3 py-2 text-[13px] font-medium text-[#ffd700] transition hover:bg-[#ffd700]/25'
+                              className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[#ffd700]/50 bg-[#ffd700]/15 px-3 py-2 text-[13px] font-medium text-[#ffd700] transition hover:bg-[#ffd700]/25'
                             >
                               View Posting
                             </a>
@@ -6120,7 +6122,7 @@ export const JobPage = (): JSX.Element => {
                           <Button
                             variant='ghost'
                             onClick={() => openAutoApplyFlow(j)}
-                            className='inline-flex items-center justify-center gap-2 rounded-lg border border-[#ffd700]/40 bg-gradient-to-r from-[#fbbf24]/10 via-transparent to-[#b45309]/10 px-3 py-2 text-[13px] font-medium text-foreground transition hover:from-[#fbbf24]/20 hover:to-[#b45309]/5'
+                            className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[#ffd700]/40 bg-gradient-to-r from-[#fbbf24]/10 via-transparent to-[#b45309]/10 px-3 py-2 text-[13px] font-medium text-foreground transition hover:from-[#fbbf24]/20 hover:to-[#b45309]/5'
                             title='Launch auto apply suite for this job'
                           >
                             <Briefcase className='w-4 h-4' />

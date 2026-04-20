@@ -41,7 +41,13 @@ export async function applyToJobs(payload: ApplyToJobsParams) {
   const data = await invokeProtectedFunction<{
     ok: boolean;
     skyvern: any;
-    submitted: { workflow_id: string; count: number };
+    billing?: {
+      credits_deducted?: number;
+      remaining_balance?: number;
+      jobs_count?: number;
+      note?: string;
+    };
+    submitted: { workflow_id: string; count: number; max_steps_override?: number };
   }>("apply-to-jobs", {
     body: payload,
   });
