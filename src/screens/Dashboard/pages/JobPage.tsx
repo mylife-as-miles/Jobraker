@@ -75,7 +75,10 @@ import { invokeProtectedFunction } from "../../../services/supabase/invokeProtec
 import { loadParsedResumeText } from "../../../lib/parsedResume";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
-import { type JobCanonicalStatus } from "@/lib/applicationState";
+import {
+  VISIBLE_JOB_QUEUE_STATES,
+  type JobCanonicalStatus,
+} from "@/lib/applicationState";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -1741,12 +1744,7 @@ export const JobPage = (): JSX.Element => {
         .select("*")
         .eq("user_id", user.id)
         .eq("hidden", false)
-        .in("canonical_status", [
-          "discovered",
-          "evaluated",
-          "draft_ready",
-          "failed",
-        ]);
+        .in("canonical_status", VISIBLE_JOB_QUEUE_STATES);
 
       const scopedSearchQuery = scope?.searchQuery?.trim();
       const scopedLocation = scope?.location?.trim();
@@ -2207,6 +2205,30 @@ export const JobPage = (): JSX.Element => {
     setCurrentSource(null);
   }, [jobs.length]);
 
+  const loadAutoApplyTargetJob = useCallback(async (jobId: string) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from("jobs")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("hidden", false)
+      .eq("id", jobId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data ? mapDbJobToUiJob(data) : null;
+  }, []);
+
   const openAutoApplyFlow = useCallback((targetJob: Job | null = jobToAutoApply ?? null) => {
     setAiEvaluation(null);
     setForceSubmit(false);
@@ -2241,7 +2263,7 @@ export const JobPage = (): JSX.Element => {
     selectedResumeId,
   ]);
 
-  /** Deep link from Applications: `/dashboard/jobs?autoApplyJobId=<uuid>` opens auto-apply for that queued job. */
+  /** Deep link from Applications: `/dashboard/jobs?autoApplyJobId=<uuid>` reopens auto-apply for a saved job. */
   const autoApplyDeepLinkConsumed = useRef<string | null>(null);
   useEffect(() => {
     const jobId = searchParams.get("autoApplyJobId");
@@ -2251,6 +2273,57 @@ export const JobPage = (): JSX.Element => {
     }
     if (autoApplyDeepLinkConsumed.current === jobId) return;
     if (queueStatus === "loading" || queueStatus === "populating") return;
+
+    if (queueStatus === "ready" || queueStatus === "empty") {
+      const targetInQueue = jobs.find((j) => j.id === jobId);
+      if (!targetInQueue) {
+        let cancelled = false;
+        autoApplyDeepLinkConsumed.current = jobId;
+
+        const clearAutoApplyDeepLink = () =>
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete("autoApplyJobId");
+              return next;
+            },
+            { replace: true },
+          );
+
+        const resolveHiddenTarget = async () => {
+          try {
+            const hiddenTarget = await loadAutoApplyTargetJob(jobId);
+            if (cancelled) return;
+
+            if (hiddenTarget) {
+              openAutoApplyFlow(hiddenTarget);
+            } else {
+              safeInfo(
+                "Job unavailable",
+                "That role has already moved out of your Jobs queue and could not be reopened from saved jobs.",
+              );
+            }
+          } catch (error) {
+            if (cancelled) return;
+            console.warn("[jobs] failed to resolve auto-apply deep link", error);
+            safeInfo(
+              "Unable to open saved job",
+              "We couldn't load that auto-apply target just now. Please try again from Applications.",
+            );
+          } finally {
+            if (!cancelled) {
+              clearAutoApplyDeepLink();
+            }
+          }
+        };
+
+        void resolveHiddenTarget();
+
+        return () => {
+          cancelled = true;
+        };
+      }
+    }
 
     const target = jobs.find((j) => j.id === jobId);
     if (!target) {
@@ -2284,6 +2357,7 @@ export const JobPage = (): JSX.Element => {
     );
   }, [
     jobs,
+    loadAutoApplyTargetJob,
     openAutoApplyFlow,
     queueStatus,
     safeInfo,

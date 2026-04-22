@@ -78,8 +78,6 @@ const CANONICAL_TO_DISPLAY: Record<ApplicationCanonicalStage, ApplicationStatus>
 export const VISIBLE_JOB_QUEUE_STATES: JobCanonicalStatus[] = [
   "discovered",
   "evaluated",
-  "draft_ready",
-  "failed",
 ];
 
 const asString = (value: unknown): string | null => {

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabaseClient";
+import { VISIBLE_JOB_QUEUE_STATES } from "@/lib/applicationState";
 
 export type JobsQueueScope = {
   searchQuery: string;
@@ -49,12 +50,7 @@ export function getJobsQueueQueryOptions<TJob>({
         .select("*")
         .eq("user_id", user.id)
         .eq("hidden", false)
-        .in("canonical_status", [
-          "discovered",
-          "evaluated",
-          "draft_ready",
-          "failed",
-        ]);
+        .in("canonical_status", VISIBLE_JOB_QUEUE_STATES);
 
       const scopedSearchQuery = scope?.searchQuery?.trim();
       const scopedLocation = scope?.location?.trim();
