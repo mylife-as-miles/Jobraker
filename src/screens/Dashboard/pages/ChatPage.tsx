@@ -26,6 +26,7 @@ SyntaxHighlighter.registerLanguage("html", xml);
 SyntaxHighlighter.registerLanguage("xml", xml);
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useNavigate } from "react-router-dom";
 import { createClient } from "../../../lib/supabaseClient";
 import { cacheChatAttachment, getChatAttachment } from "../../../lib/chatAttachmentIdb";
 import {
@@ -88,6 +89,13 @@ type ChatRequestOptions = {
   system?: string;
   mode?: ChatMode;
 };
+type ChatUiAction = {
+  type?: string;
+  route?: string;
+  replace?: boolean;
+  pageId?: string | null;
+  pageTitle?: string | null;
+};
 interface ToolCallEntry {
   name: string;
   args?: Record<string, unknown>;
@@ -117,6 +125,7 @@ interface UseChatOptions {
   onFinish?: (msg: BasicMessage) => void;
   /** Fired when agent mode charges extra credits for a tool round */
   onCreditsUpdated?: () => void;
+  onUiAction?: (action: ChatUiAction) => void;
 }
 interface UseChatReturn {
   messages: BasicMessage[];
@@ -434,6 +443,8 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                   );
                 } else if (currentEvent === "agent_surcharge") {
                   opts.onCreditsUpdated?.();
+                } else if (currentEvent === "ui_action") {
+                  opts.onUiAction?.(data as ChatUiAction);
                 }
               } catch (e) {
                 // Ignore parse errors for partial lines
@@ -561,6 +572,7 @@ function UserChatAttachment({
 
 export const ChatPage = () => {
   const { error: toastError } = useToast();
+  const navigate = useNavigate();
   // UI state
   const [text, setText] = useState("");
   const [persona, setPersona] = useState<Persona>("analyst");
@@ -616,6 +628,10 @@ export const ChatPage = () => {
       fetchChatQuota();
     },
     onCreditsUpdated: fetchChatQuota,
+    onUiAction: (action) => {
+      if (action?.type !== "navigate" || !action.route) return;
+      navigate(action.route, { replace: Boolean(action.replace) });
+    },
   });
   const {
     messages,
@@ -847,7 +863,7 @@ export const ChatPage = () => {
       concise: "You are a concise and direct assistant.",
       friendly: "You are a friendly and encouraging assistant.",
       analyst:
-        "You are JobRaker Agent, a high-performance career assistant with access to the user's JobRaker profile, resume, tracked jobs, and applications. Use your tools to search for jobs, analyze fit, generate documents, and track applications. Be proactive, professional, and data-driven.",
+        "You are JobRaker Agent, a high-performance career assistant with access to the user's JobRaker profile, resume, tracked jobs, applications, app pages, and edge functions. Use your tools to search for jobs, analyze fit, generate documents, refresh multi-stage application pipelines, open the right app pages, and launch URL-first apply flows. Be proactive, professional, and data-driven.",
       coach: "You are a career coach who gives actionable advice.",
     }[persona];
 

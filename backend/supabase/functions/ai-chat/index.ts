@@ -10,6 +10,11 @@ import {
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { fetchUserContext, formatUserContextForPrompt } from "../_shared/user-context.ts";
 import { APP_INTERFACE_GUIDE } from "../_shared/app-map.ts";
+import { APP_PAGES, resolveAppPage } from "../_shared/app-pages.ts";
+import {
+  EDGE_FUNCTIONS,
+  getEdgeFunctionDefinition,
+} from "../_shared/edge-function-registry.ts";
 import {
   normalizeSubscriptionTier,
   requireSubscriptionTier,
@@ -24,6 +29,705 @@ console.log("JobRaker AI Chat Starting...");
 
 const MAX_CHAT_IMAGES = 3;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const DEFAULT_APPLICATION_SYNC_LIMIT = 5;
+const MAX_APPLICATION_SYNC_LIMIT = 12;
+const DEFAULT_APPLICATION_LIST_LIMIT = 12;
+const MAX_APPLICATION_LIST_LIMIT = 25;
+const SKYVERN_TERMINAL_PROVIDER_STATUSES = new Set([
+  "succeeded",
+  "completed",
+  "failed",
+  "error",
+  "cancelled",
+  "canceled",
+  "timed_out",
+  "terminated",
+]);
+const ACTIVE_APPLICATION_STATUSES = new Set(["Pending", "Applied", "Interview"]);
+
+type SupabaseLikeClient = ReturnType<typeof createClient>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function asString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function asNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function clampNumber(
+  value: unknown,
+  fallback: number,
+  min: number,
+  max: number,
+) {
+  const parsed = asNumber(value);
+  if (parsed == null) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(parsed)));
+}
+
+function buildProfileSnapshot(profile: Record<string, unknown> | null): string {
+  if (!profile) return "";
+  const lines: string[] = [];
+  const fullName = [asString(profile.first_name), asString(profile.last_name)]
+    .filter(Boolean)
+    .join(" ");
+  if (fullName) lines.push(`Name: ${fullName}`);
+  const jobTitle = asString(profile.job_title);
+  if (jobTitle) lines.push(`Current title: ${jobTitle}`);
+  const location = asString(profile.location);
+  if (location) lines.push(`Location: ${location}`);
+  const years = asNumber(profile.experience_years);
+  if (years != null) lines.push(`Experience years: ${years}`);
+  const goals = Array.isArray(profile.goals)
+    ? profile.goals.filter((goal): goal is string => typeof goal === "string" && goal.trim().length > 0)
+    : [];
+  if (goals.length > 0) lines.push(`Goals: ${goals.join(", ")}`);
+  const phone = asString(profile.phone);
+  if (phone) lines.push(`Phone: ${phone}`);
+  return lines.join("\n");
+}
+
+async function resolveAutoApplyArtifacts(
+  serviceClient: SupabaseLikeClient,
+  userId: string,
+) {
+  const { data: profileRow } = await serviceClient
+    .from("profiles")
+    .select("first_name, last_name, job_title, experience_years, location, goals, phone")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const { data: resumeRows } = await serviceClient
+    .from("resumes")
+    .select("id, name, file_path, file_ext, is_favorite, updated_at")
+    .eq("user_id", userId)
+    .order("is_favorite", { ascending: false })
+    .order("updated_at", { ascending: false })
+    .limit(5);
+
+  const preferredResume =
+    Array.isArray(resumeRows) && resumeRows.length > 0 ? resumeRows[0] : null;
+
+  let resumeUrl = "";
+  if (preferredResume?.file_path) {
+    try {
+      const { data } = await serviceClient.storage
+        .from("resumes")
+        .createSignedUrl(preferredResume.file_path, 60 * 60 * 48);
+      resumeUrl = data?.signedUrl || "";
+    } catch (error) {
+      console.warn("ai-chat.resolveAutoApplyArtifacts.resumeSignedUrl", error);
+    }
+  }
+
+  let resumeText = "";
+  if (preferredResume?.id) {
+    const { data: parsedResume } = await serviceClient
+      .from("parsed_resumes")
+      .select("raw_text")
+      .eq("user_id", userId)
+      .eq("resume_id", preferredResume.id)
+      .order("extracted_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    resumeText = asString(parsedResume?.raw_text) || "";
+  }
+
+  if (!resumeText) {
+    const { data: parsedResume } = await serviceClient
+      .from("parsed_resumes")
+      .select("raw_text")
+      .eq("user_id", userId)
+      .order("extracted_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    resumeText = asString(parsedResume?.raw_text) || "";
+  }
+
+  const userInput = isRecord(profileRow) ? profileRow : {};
+
+  return {
+    profileRow: isRecord(profileRow) ? profileRow : null,
+    profileSnapshot: buildProfileSnapshot(isRecord(profileRow) ? profileRow : null),
+    userInput,
+    preferredResume,
+    resumeUrl,
+    resumeText,
+  };
+}
+
+function sanitizeForwardHeaders(raw: unknown): Record<string, string> {
+  if (!isRecord(raw)) return {};
+  const forbidden = new Set([
+    "authorization",
+    "apikey",
+    "content-length",
+    "host",
+    "origin",
+  ]);
+  const headers: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value !== "string") continue;
+    const lower = key.toLowerCase();
+    if (forbidden.has(lower)) continue;
+    headers[key] = value;
+  }
+  return headers;
+}
+
+async function invokeEdgeFunctionByName(opts: {
+  authHeader: string;
+  name: string;
+  payload?: unknown;
+  method?: string | null;
+  headers?: unknown;
+}) {
+  const baseUrl = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
+  if (!baseUrl) {
+    return {
+      success: false,
+      error: "SUPABASE_URL is not configured.",
+    };
+  }
+
+  const name = opts.name.trim();
+  if (!name) {
+    return { success: false, error: "Function name is required." };
+  }
+  if (name === "ai-chat") {
+    return {
+      success: false,
+      error: "ai-chat cannot be invoked from inside the ai-chat agent loop.",
+    };
+  }
+
+  const method = (opts.method || "POST").toUpperCase();
+  let url = `${baseUrl}/functions/v1/${name}`;
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    Authorization: opts.authHeader,
+    ...sanitizeForwardHeaders(opts.headers),
+  };
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (anonKey) {
+    headers.apikey = headers.apikey || anonKey;
+  }
+
+  let body: string | undefined;
+  if (method === "GET" && isRecord(opts.payload)) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(opts.payload)) {
+      if (value == null) continue;
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        params.set(key, String(value));
+      }
+    }
+    const query = params.toString();
+    if (query) url = `${url}?${query}`;
+  } else if (opts.payload !== undefined) {
+    headers["Content-Type"] = headers["Content-Type"] || "application/json";
+    body = JSON.stringify(opts.payload);
+  }
+
+  const response = await fetch(url, {
+    method,
+    headers,
+    ...(body !== undefined ? { body } : {}),
+  });
+
+  const rawText = await response.text();
+  let data: unknown = null;
+  if (rawText) {
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = rawText;
+    }
+  }
+
+  return {
+    success: response.ok,
+    status: response.status,
+    function: name,
+    method,
+    data,
+  };
+}
+
+async function fetchApplicationProcessSnapshot(opts: {
+  serviceClient: SupabaseLikeClient;
+  userId: string;
+  applicationId?: string | null;
+  limit?: number;
+  includeRecentEvents?: boolean;
+}) {
+  const limit = clampNumber(
+    opts.limit,
+    DEFAULT_APPLICATION_LIST_LIMIT,
+    1,
+    MAX_APPLICATION_LIST_LIMIT,
+  );
+
+  let query = opts.serviceClient
+    .from("applications")
+    .select(
+      "id, job_id, job_title, company, location, status, canonical_stage, applied_date, updated_at, next_step, interview_date, provider_status, run_id, workflow_id, failure_reason, app_url, receipt_url, success_url, draft_status, ai_confidence_score, user_review_notes",
+    )
+    .eq("user_id", opts.userId)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+
+  if (opts.applicationId) {
+    query = query.eq("id", opts.applicationId);
+  }
+
+  const { data: applications, error: applicationsError } = await query;
+  if (applicationsError) {
+    return {
+      success: false,
+      error: applicationsError.message,
+      applications: [],
+    };
+  }
+
+  const rows = Array.isArray(applications) ? applications : [];
+  const applicationIds = rows
+    .map((row) => asString((row as Record<string, unknown>).id))
+    .filter((value): value is string => Boolean(value));
+
+  let recentEventsByApplication: Record<string, Record<string, unknown>[]> = {};
+  if (opts.includeRecentEvents !== false && applicationIds.length > 0) {
+    const { data: events } = await opts.serviceClient
+      .from("gmail_application_events")
+      .select(
+        "application_id, event_type, status, confidence, company, job_title, subject, received_at, processed_at",
+      )
+      .eq("user_id", opts.userId)
+      .in("application_id", applicationIds)
+      .order("received_at", { ascending: false })
+      .limit(applicationIds.length * 5);
+
+    for (const event of Array.isArray(events) ? events : []) {
+      const applicationId = asString((event as Record<string, unknown>).application_id);
+      if (!applicationId) continue;
+      if (!recentEventsByApplication[applicationId]) {
+        recentEventsByApplication[applicationId] = [];
+      }
+      if (recentEventsByApplication[applicationId].length < 3) {
+        recentEventsByApplication[applicationId].push(event as Record<string, unknown>);
+      }
+    }
+  }
+
+  const summary = {
+    total: rows.length,
+    by_status: {} as Record<string, number>,
+    by_canonical_stage: {} as Record<string, number>,
+    active_count: 0,
+    failed_count: 0,
+    upcoming_interviews: 0,
+  };
+
+  const hydrated = rows.map((row) => {
+    const record = row as Record<string, unknown>;
+    const status = asString(record.status) || "Pending";
+    const canonicalStage = asString(record.canonical_stage) || "queued";
+    const applicationId = asString(record.id) || "";
+    const interviewDate = asString(record.interview_date);
+
+    summary.by_status[status] = (summary.by_status[status] || 0) + 1;
+    summary.by_canonical_stage[canonicalStage] =
+      (summary.by_canonical_stage[canonicalStage] || 0) + 1;
+    if (ACTIVE_APPLICATION_STATUSES.has(status)) summary.active_count += 1;
+    if (canonicalStage === "failed" || canonicalStage === "terminated") {
+      summary.failed_count += 1;
+    }
+    if (interviewDate) {
+      const interviewAt = Date.parse(interviewDate);
+      if (!Number.isNaN(interviewAt) && interviewAt >= Date.now()) {
+        summary.upcoming_interviews += 1;
+      }
+    }
+
+    return {
+      ...record,
+      recent_events: recentEventsByApplication[applicationId] || [],
+      needs_provider_refresh:
+        Boolean(asString(record.run_id)) &&
+        !SKYVERN_TERMINAL_PROVIDER_STATUSES.has(
+          (asString(record.provider_status) || "").toLowerCase(),
+        ),
+    };
+  });
+
+  return {
+    success: true,
+    summary,
+    applications: hydrated,
+  };
+}
+
+async function refreshApplicationProcesses(opts: {
+  authHeader: string;
+  serviceClient: SupabaseLikeClient;
+  userId: string;
+  applicationId?: string | null;
+  includeGmail?: boolean;
+  includeSkyvern?: boolean;
+  gmailMaxResults?: number;
+  force?: boolean;
+  limit?: number;
+}) {
+  const gmailEnabled = opts.includeGmail !== false;
+  const skyvernEnabled = opts.includeSkyvern !== false;
+  let gmailSync: Record<string, unknown> | null = null;
+
+  if (gmailEnabled) {
+    try {
+      gmailSync = await invokeEdgeFunctionByName({
+        authHeader: opts.authHeader,
+        name: "sync-gmail-application-events",
+        payload: {
+          maxResults: clampNumber(opts.gmailMaxResults, 10, 1, 25),
+          force: opts.force === true,
+        },
+      }) as Record<string, unknown>;
+    } catch (error) {
+      gmailSync = {
+        success: false,
+        error: error instanceof Error ? error.message : "Gmail sync failed",
+      };
+    }
+  }
+
+  const limit = clampNumber(
+    opts.limit,
+    DEFAULT_APPLICATION_SYNC_LIMIT,
+    1,
+    MAX_APPLICATION_SYNC_LIMIT,
+  );
+
+  let skyvernSync: Record<string, unknown> = {
+    success: true,
+    synced_runs: [],
+  };
+
+  if (skyvernEnabled) {
+    let runQuery = opts.serviceClient
+      .from("applications")
+      .select("id, run_id, provider_status")
+      .eq("user_id", opts.userId)
+      .not("run_id", "is", null)
+      .order("updated_at", { ascending: false })
+      .limit(limit);
+
+    if (opts.applicationId) {
+      runQuery = runQuery.eq("id", opts.applicationId);
+    }
+
+    const { data: runRows } = await runQuery;
+    const syncedRuns: Record<string, unknown>[] = [];
+
+    for (const row of Array.isArray(runRows) ? runRows : []) {
+      const record = row as Record<string, unknown>;
+      const runId = asString(record.run_id);
+      const providerStatus = (asString(record.provider_status) || "").toLowerCase();
+      if (!runId) continue;
+      if (SKYVERN_TERMINAL_PROVIDER_STATUSES.has(providerStatus)) continue;
+      try {
+        const syncResult = await invokeEdgeFunctionByName({
+          authHeader: opts.authHeader,
+          name: "sync-skyvern-status",
+          payload: { run_id: runId },
+        });
+        syncedRuns.push(syncResult as Record<string, unknown>);
+      } catch (error) {
+        syncedRuns.push({
+          success: false,
+          function: "sync-skyvern-status",
+          run_id: runId,
+          error: error instanceof Error ? error.message : "Skyvern sync failed",
+        });
+      }
+    }
+
+    skyvernSync = {
+      success: true,
+      synced_runs: syncedRuns,
+    };
+  }
+
+  const snapshot = await fetchApplicationProcessSnapshot({
+    serviceClient: opts.serviceClient,
+    userId: opts.userId,
+    applicationId: opts.applicationId,
+    limit,
+    includeRecentEvents: true,
+  });
+
+  return {
+    success: true,
+    gmail_sync: gmailSync,
+    skyvern_sync: skyvernSync,
+    snapshot,
+  };
+}
+
+async function runAutoApplyFromUrl(opts: {
+  authHeader: string;
+  serviceClient: SupabaseLikeClient;
+  userId: string;
+  userEmail: string;
+  url: string;
+  coverLetter?: string | null;
+  additionalInformation?: string | null;
+  workflowId?: string | null;
+  proxyLocation?: string | null;
+  title?: string | null;
+  maxStepsOverride?: number | null;
+  reapply?: boolean;
+}) {
+  const url = asString(opts.url);
+  if (!url) {
+    return { success: false, error: "A valid job URL is required." };
+  }
+
+  const artifacts = await resolveAutoApplyArtifacts(opts.serviceClient, opts.userId);
+  const intakeResult = await invokeEdgeFunctionByName({
+    authHeader: opts.authHeader,
+    name: "intake-job-url",
+    payload: {
+      url,
+      profileSnapshot: artifacts.profileSnapshot,
+      resumeText: artifacts.resumeText,
+    },
+  });
+
+  if (!(intakeResult as Record<string, unknown>).success) {
+    return {
+      success: false,
+      error: "Failed to intake the job URL before apply.",
+      intake: intakeResult,
+    };
+  }
+
+  const intakeData = isRecord((intakeResult as Record<string, unknown>).data)
+    ? ((intakeResult as Record<string, unknown>).data as Record<string, unknown>)
+    : {};
+  const intakeJob = isRecord(intakeData.job) ? intakeData.job : {};
+  const intakeEvaluation = isRecord(intakeData.evaluation)
+    ? intakeData.evaluation
+    : {};
+  const jobId = asString(intakeJob.id);
+
+  let existingApplications: Record<string, unknown>[] = [];
+  let existingQuery = opts.serviceClient
+    .from("applications")
+    .select("id, job_title, company, status, canonical_stage, updated_at, app_url, run_id")
+    .eq("user_id", opts.userId)
+    .order("updated_at", { ascending: false })
+    .limit(5);
+
+  if (jobId) {
+    existingQuery = existingQuery.eq("job_id", jobId);
+  } else {
+    existingQuery = existingQuery.eq("app_url", url);
+  }
+
+  const { data: existingRows } = await existingQuery;
+  existingApplications = (Array.isArray(existingRows) ? existingRows : []) as Record<string, unknown>[];
+
+  if (existingApplications.length > 0 && opts.reapply !== true) {
+    return {
+      success: false,
+      requires_reapply: true,
+      message:
+        "An application already exists for this job. Set reapply=true or use reapply_job to start another automation run.",
+      intake: intakeData,
+      existing_applications: existingApplications,
+    };
+  }
+
+  const applyResult = await invokeEdgeFunctionByName({
+    authHeader: opts.authHeader,
+    name: "apply-to-jobs",
+    payload: {
+      job_urls: [url],
+      additional_information: asString(opts.additionalInformation) || undefined,
+      resume: artifacts.resumeUrl || undefined,
+      resume_text: artifacts.resumeText || undefined,
+      cover_letter: asString(opts.coverLetter) || undefined,
+      workflow_id: asString(opts.workflowId) || undefined,
+      proxy_location: asString(opts.proxyLocation) || undefined,
+      title: asString(opts.title) || undefined,
+      max_steps_override:
+        typeof opts.maxStepsOverride === "number" ? opts.maxStepsOverride : undefined,
+      email: opts.userEmail || undefined,
+      job_id: jobId,
+      job_title: asString(intakeJob.title),
+      company: asString(intakeJob.company),
+      location: asString(intakeJob.location),
+      match_reasons: Array.isArray(intakeEvaluation.matched_keywords)
+        ? intakeEvaluation.matched_keywords
+        : undefined,
+      match_score: asNumber(intakeEvaluation.confidence_score),
+      ai_confidence_score: asNumber(intakeEvaluation.confidence_score),
+      evaluation_id: asString(intakeEvaluation.evaluation_id),
+      user_input: artifacts.userInput,
+    },
+  });
+
+  const applyData = isRecord((applyResult as Record<string, unknown>).data)
+    ? ((applyResult as Record<string, unknown>).data as Record<string, unknown>)
+    : {};
+  const skyvern = isRecord(applyData.skyvern) ? applyData.skyvern : {};
+  const runId = asString(skyvern.run_id) || asString(skyvern.id);
+
+  let latestApplication: Record<string, unknown> | null = null;
+  if (runId) {
+    const { data } = await opts.serviceClient
+      .from("applications")
+      .select(
+        "id, job_id, job_title, company, status, canonical_stage, updated_at, app_url, run_id, provider_status",
+      )
+      .eq("user_id", opts.userId)
+      .eq("run_id", runId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    latestApplication = (data as Record<string, unknown> | null) || null;
+  }
+
+  return {
+    success: (applyResult as Record<string, unknown>).success === true,
+    intake: intakeData,
+    apply: applyResult,
+    latest_application: latestApplication,
+    warnings: [
+      !artifacts.resumeUrl && !artifacts.resumeText
+        ? "No stored resume file or parsed resume text was found for the user."
+        : null,
+    ].filter(Boolean),
+  };
+}
+
+async function runApplyToJobTool(opts: {
+  authHeader: string;
+  serviceClient: SupabaseLikeClient;
+  userId: string;
+  userEmail: string;
+  args: Record<string, unknown>;
+}) {
+  const directUrl = asString(opts.args.url);
+  if (directUrl) {
+    return runAutoApplyFromUrl({
+      authHeader: opts.authHeader,
+      serviceClient: opts.serviceClient,
+      userId: opts.userId,
+      userEmail: opts.userEmail,
+      url: directUrl,
+      coverLetter: asString(opts.args.cover_letter),
+      additionalInformation: asString(opts.args.additional_information),
+      workflowId: asString(opts.args.workflow_id),
+      proxyLocation: asString(opts.args.proxy_location),
+      title: asString(opts.args.title),
+      maxStepsOverride: asNumber(opts.args.max_steps_override),
+      reapply: opts.args.reapply === true,
+    });
+  }
+
+  const applicationId = asString(opts.args.application_id);
+  if (applicationId) {
+    const { data: application } = await opts.serviceClient
+      .from("applications")
+      .select("id, app_url, job_id, job_title, company")
+      .eq("user_id", opts.userId)
+      .eq("id", applicationId)
+      .maybeSingle();
+    let targetUrl = asString(application?.app_url);
+    if (!targetUrl) {
+      const linkedJobId = asString(application?.job_id);
+      if (linkedJobId) {
+        const { data: linkedJob } = await opts.serviceClient
+          .from("jobs")
+          .select("apply_url")
+          .eq("user_id", opts.userId)
+          .eq("id", linkedJobId)
+          .maybeSingle();
+        targetUrl = asString(linkedJob?.apply_url);
+      }
+    }
+    if (!targetUrl) {
+      return {
+        success: false,
+        error: "That application does not have a reusable application URL.",
+      };
+    }
+    return runAutoApplyFromUrl({
+      authHeader: opts.authHeader,
+      serviceClient: opts.serviceClient,
+      userId: opts.userId,
+      userEmail: opts.userEmail,
+      url: targetUrl,
+      coverLetter: asString(opts.args.cover_letter),
+      additionalInformation: asString(opts.args.additional_information),
+      workflowId: asString(opts.args.workflow_id),
+      proxyLocation: asString(opts.args.proxy_location),
+      title: asString(opts.args.title) || asString(application?.job_title),
+      maxStepsOverride: asNumber(opts.args.max_steps_override),
+      reapply: true,
+    });
+  }
+
+  const jobId = asString(opts.args.job_id);
+  if (!jobId) {
+    return {
+      success: false,
+      error: "Provide a job_id, application_id, or direct url.",
+    };
+  }
+
+  const { data: job } = await opts.serviceClient
+    .from("jobs")
+    .select("id, title, company, apply_url")
+    .eq("user_id", opts.userId)
+    .eq("id", jobId)
+    .maybeSingle();
+  const targetUrl = asString(job?.apply_url);
+  if (!targetUrl) {
+    return {
+      success: false,
+      error: "That job does not have an apply_url.",
+    };
+  }
+
+  return runAutoApplyFromUrl({
+    authHeader: opts.authHeader,
+    serviceClient: opts.serviceClient,
+    userId: opts.userId,
+    userEmail: opts.userEmail,
+    url: targetUrl,
+    coverLetter: asString(opts.args.cover_letter),
+    additionalInformation: asString(opts.args.additional_information),
+    workflowId: asString(opts.args.workflow_id),
+    proxyLocation: asString(opts.args.proxy_location),
+    title: asString(opts.args.title) || asString(job?.title),
+    maxStepsOverride: asNumber(opts.args.max_steps_override),
+    reapply: opts.args.reapply === true,
+  });
+}
 
 function estimateBase64Bytes(b64: string): number {
   const clean = b64.replace(/\s/g, "");
@@ -142,8 +846,32 @@ const AGENT_FUNCTION_DECLARATIONS = [
   },
   {
     name: "list_applications",
-    description: "List the user's job applications and their statuses.",
-    parameters: { type: "object", properties: {} },
+    description: "List detailed application processes, including stages, next steps, provider status, and recent Gmail-linked events.",
+    parameters: {
+      type: "object",
+      properties: {
+        application_id: { type: "string" },
+        limit: { type: "number" },
+        include_recent_events: { type: "boolean" },
+      },
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "refresh_application_processes",
+    description: "Refresh multi-stage application tracking by syncing Gmail application events and recent Skyvern provider runs, then return the updated application snapshot.",
+    parameters: {
+      type: "object",
+      properties: {
+        application_id: { type: "string" },
+        limit: { type: "number" },
+        include_gmail: { type: "boolean" },
+        include_skyvern: { type: "boolean" },
+        gmail_max_results: { type: "number" },
+        force: { type: "boolean" },
+      },
+      additionalProperties: true,
+    },
   },
   {
     name: "list_resumes",
@@ -166,41 +894,135 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
-      name: "apply_to_job",
-      description: "Apply to a job using a job ID.",
-      parameters: {
-          type: "object",
-          properties: {
-              job_id: { type: "string" },
-              cover_letter: { type: "string" }
-          },
-          required: ["job_id"]
-      }
+    name: "list_app_pages",
+    description: "List every known page, settings tab, builder route, and admin route in the JobRaker app.",
+    parameters: { type: "object", properties: {} },
   },
   {
-      name: "analyze_resume",
-      description: "Analyze a resume for improvements.",
-      parameters: { type: "object", properties: { target_role: { type: "string" } } }
+    name: "open_app_page",
+    description: "Navigate the app to a known page route or a concrete deep link. Use when the user asks to open or go to a page.",
+    parameters: {
+      type: "object",
+      properties: {
+        page_id: { type: "string", description: "A page id from list_app_pages, e.g. dashboard-application." },
+        route: { type: "string", description: "An exact concrete route, e.g. /dashboard/jobs?autoApplyJobId=..." },
+        query: { type: "string", description: "Natural-language page lookup, e.g. 'settings integrations'." },
+      },
+      additionalProperties: true,
+    },
   },
   {
-      name: "generate_cover_letter",
-      description: "Generate a tailored cover letter.",
-      parameters: { type: "object", properties: { job_description: { type: "string" }, instructions: { type: "string" } }, required: ["job_description"] }
+    name: "apply_to_job",
+    description: "Start an application automation from a job_id, application_id, or direct URL.",
+    parameters: {
+      type: "object",
+      properties: {
+        job_id: { type: "string" },
+        application_id: { type: "string" },
+        url: { type: "string" },
+        cover_letter: { type: "string" },
+        additional_information: { type: "string" },
+        workflow_id: { type: "string" },
+        proxy_location: { type: "string" },
+        title: { type: "string" },
+        max_steps_override: { type: "number" },
+        reapply: { type: "boolean" },
+      },
+      additionalProperties: true,
+    },
   },
   {
-      name: "evaluate_job_fit",
-      description: "Evaluate matching between user and a job.",
-      parameters: { type: "object", properties: { job_description: { type: "string" } }, required: ["job_description"] }
+    name: "auto_apply_from_url",
+    description: "Ingest a job from a raw URL and immediately start auto-apply from that URL using the user's stored resume/profile context.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        cover_letter: { type: "string" },
+        additional_information: { type: "string" },
+        workflow_id: { type: "string" },
+        proxy_location: { type: "string" },
+        title: { type: "string" },
+        max_steps_override: { type: "number" },
+        reapply: { type: "boolean" },
+      },
+      required: ["url"],
+      additionalProperties: true,
+    },
   },
   {
-      name: "intake_job_url",
-      description: "Import a job from a URL.",
-      parameters: { type: "object", properties: { url: { type: "string" } }, required: ["url"] }
+    name: "reapply_job",
+    description: "Re-run application automation for an existing application or direct job URL.",
+    parameters: {
+      type: "object",
+      properties: {
+        application_id: { type: "string" },
+        url: { type: "string" },
+        cover_letter: { type: "string" },
+        additional_information: { type: "string" },
+        workflow_id: { type: "string" },
+        proxy_location: { type: "string" },
+        title: { type: "string" },
+        max_steps_override: { type: "number" },
+      },
+      additionalProperties: true,
+    },
   },
   {
-      name: "polish_content",
-      description: "Improve professional text.",
-      parameters: { type: "object", properties: { content: { type: "string" }, instruction: { type: "string" } }, required: ["content"] }
+    name: "analyze_resume",
+    description: "Analyze a resume for improvements.",
+    parameters: { type: "object", properties: { target_role: { type: "string" } } },
+  },
+  {
+    name: "generate_cover_letter",
+    description: "Generate a tailored cover letter.",
+    parameters: { type: "object", properties: { job_description: { type: "string" }, instructions: { type: "string" } }, required: ["job_description"] },
+  },
+  {
+    name: "evaluate_job_fit",
+    description: "Evaluate matching between user and a job.",
+    parameters: { type: "object", properties: { job_description: { type: "string" } }, required: ["job_description"] },
+  },
+  {
+    name: "intake_job_url",
+    description: "Import a job from a URL.",
+    parameters: { type: "object", properties: { url: { type: "string" } }, required: ["url"] },
+  },
+  {
+    name: "polish_content",
+    description: "Improve professional text.",
+    parameters: { type: "object", properties: { content: { type: "string" }, instruction: { type: "string" } }, required: ["content"] },
+  },
+  {
+    name: "list_edge_functions",
+    description: "List JobRaker edge functions and the parameters they accept.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "get_edge_function_details",
+    description: "Inspect one edge function by name, including payload shape and notes.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "invoke_edge_function",
+    description: "Invoke a JobRaker edge function with an arbitrary JSON payload and optional custom headers. Confirm before using side-effectful functions.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        payload: { type: "object" },
+        method: { type: "string", description: "Defaults to POST. Can also be GET for read-like endpoints." },
+        headers: { type: "object" },
+      },
+      required: ["name"],
+      additionalProperties: true,
+    },
   },
   {
     name: "search_gmail_job_emails",
@@ -379,8 +1201,19 @@ Job-related Gmail (only when tools are available):
 - search_gmail_job_emails searches using a fixed job-search filter on the server; it is not a full inbox search.
 - send_gmail_job_email sends only if the message clearly relates to the user's job search; the server may reject other content. Always show the user the exact To, Subject, and body and obtain explicit confirmation before sending.
 Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.`;
+      const agentCapabilityRules = `
+Navigation and page control:
+- Use list_app_pages to inspect the full app map.
+- Use open_app_page only when the user wants to open or move to a page.
+
+Application process tracking:
+- Use list_applications and refresh_application_processes to keep up with multi-stage application pipelines across JobRaker, Gmail, and Skyvern.
+
+Edge functions:
+- Use list_edge_functions and get_edge_function_details before invoke_edge_function when you need to inspect or manipulate edge-function parameters.
+- Confirm before invoking side-effectful functions such as apply-to-jobs, init-payment, send_gmail_job_email, or webhook-like endpoints.`;
       systemInstruction =
-        `You are JobRaker Agent. Be proactive, use tools to help the user, and answer from JobRaker data before falling back to general advice. Confirm before applying, deleting, sending email, or triggering any side-effectful workflow.\nAfter every batch of tool calls, you MUST reply in plain language: what you did, the result, and the next step or a direct answer (never end with only tools and no message).\n\n${gmailJobRules.trim()}\n\n${systemInstruction}`;
+        `You are JobRaker Agent. Be proactive, use tools to help the user, and answer from JobRaker data before falling back to general advice. Confirm before applying, deleting, sending email, navigating away for the user, or triggering any side-effectful workflow.\nAfter every batch of tool calls, you MUST reply in plain language: what you did, the result, and the next step or a direct answer (never end with only tools and no message).\n\n${gmailJobRules.trim()}\n\n${agentCapabilityRules.trim()}\n\n${systemInstruction}`;
     }
 
     const chatConfig: Record<string, unknown> = {
@@ -504,129 +1337,244 @@ Never use Gmail tools for personal, medical, financial (non-compensation job off
 
               const toolResults = [];
               for (const fc of functionCalls) {
-                  const fn = fc.functionCall;
-                  console.log(`[Agent] Executing: ${fn.name}`);
-                  let result;
-                  try {
-                    const supabaseUser = createAuthedSupabaseClient(authHeader!);
-                    
-                    if (fn.name === "get_account_snapshot") {
+                const fn = fc.functionCall;
+                console.log(`[Agent] Executing: ${fn.name}`);
+                let result;
+                try {
+                  const args = isRecord(fn.args) ? fn.args : {};
+                  const supabaseUser = createAuthedSupabaseClient(authHeader!);
+
+                  if (fn.name === "get_account_snapshot") {
+                    result = {
+                      success: true,
+                      snapshot: {
+                        name: userContext?.name || "User",
+                        email: userContext?.email || "",
+                        headline: userContext?.headline || null,
+                        credits: userContext?.credits || 0,
+                        subscriptionTier: userContext?.subscriptionTier || subscriptionTier,
+                        applicationCount: userContext?.applicationCount || 0,
+                        jobCount: userContext?.jobCount || 0,
+                        resumeCount: userContext?.resumeCount || 0,
+                        recentApplications: userContext?.recentApplications || [],
+                        recentJobs: userContext?.recentJobs || [],
+                        resumes: userContext?.resumes || [],
+                      },
+                    };
+                  } else if (fn.name === "run_job_search") {
+                    result = await invokeEdgeFunctionByName({
+                      authHeader: authHeader!,
+                      name: "jobs-search",
+                      payload: {
+                        searchQuery: asString(args.query) || "",
+                        location: asString(args.location) || undefined,
+                      },
+                    });
+                  } else if (fn.name === "get_credits_balance") {
+                    const { data } = await supabaseUser
+                      .from("user_credits")
+                      .select("balance")
+                      .eq("user_id", userId)
+                      .maybeSingle();
+                    result = { success: true, balance: data?.balance || 0 };
+                  } else if (fn.name === "get_user_profile") {
+                    result = { success: true, profile: userContext };
+                  } else if (fn.name === "list_app_pages") {
+                    result = {
+                      success: true,
+                      pages: APP_PAGES,
+                    };
+                  } else if (fn.name === "open_app_page") {
+                    const requestedRoute = asString(args.route);
+                    const page = resolveAppPage({
+                      pageId: asString(args.page_id),
+                      route: requestedRoute,
+                      query: asString(args.query),
+                    });
+                    const resolvedRoute = requestedRoute || page?.route || null;
+
+                    if (!page && !resolvedRoute) {
+                      result = {
+                        success: false,
+                        error: "Could not resolve a page from the provided page_id, route, or query.",
+                      };
+                    } else if (!resolvedRoute || resolvedRoute.includes(":")) {
+                      result = {
+                        success: false,
+                        requires_params: true,
+                        page,
+                        error:
+                          "That target route still contains path parameters. Provide a concrete route if you want me to open it.",
+                      };
+                    } else {
+                      enqueueEvent("ui_action", {
+                        type: "navigate",
+                        route: resolvedRoute,
+                        pageId: page?.id || null,
+                        pageTitle: page?.title || resolvedRoute,
+                        replace: false,
+                      });
                       result = {
                         success: true,
-                        snapshot: {
-                          name: userContext?.name || "User",
-                          email: userContext?.email || "",
-                          headline: userContext?.headline || null,
-                          credits: userContext?.credits || 0,
-                          subscriptionTier: userContext?.subscriptionTier || subscriptionTier,
-                          applicationCount: userContext?.applicationCount || 0,
-                          jobCount: userContext?.jobCount || 0,
-                          resumeCount: userContext?.resumeCount || 0,
-                          recentApplications: userContext?.recentApplications || [],
-                          recentJobs: userContext?.recentJobs || [],
-                          resumes: userContext?.resumes || [],
-                        },
+                        page,
+                        route: resolvedRoute,
+                        navigated: true,
                       };
-                    } else if (fn.name === "run_job_search") {
-                      const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/jobs-search`, {
-                        method: "POST", headers: { "Content-Type": "application/json", Authorization: authHeader! },
-                        body: JSON.stringify({ searchQuery: fn.args.query, location: fn.args.location })
-                      });
-                      result = await res.json();
-                    } else if (fn.name === "get_credits_balance") {
-                      const { data } = await supabaseUser.from("user_credits").select("balance").eq("user_id", userId).maybeSingle();
-                      result = { success: true, balance: data?.balance || 0 };
-                    } else if (fn.name === "get_user_profile") {
-                        result = { success: true, profile: userContext };
-                    } else if (fn.name === "list_applications") {
-                        const { data } = await supabaseUser
-                          .from("applications")
-                          .select("id, job_title, company, status, created_at, updated_at")
-                          .eq("user_id", userId)
-                          .order("created_at", { ascending: false });
-                        result = { success: true, applications: data || [] };
-                    } else if (fn.name === "list_resumes") {
-                        const { data, error } = await supabaseUser
-                          .from("resumes")
-                          .select("id, name, status, updated_at, is_favorite")
-                          .eq("user_id", userId)
-                          .order("updated_at", { ascending: false });
-                        if (error) {
-                          console.error("list_resumes:", error.message);
-                          result = { success: false, error: error.message, resumes: [] };
-                        } else {
-                          result = { success: true, resumes: data || [] };
-                        }
-                    } else if (fn.name === "list_recent_jobs") {
-                        const { data } = await supabaseUser
-                          .from("jobs")
-                          .select("id, title, company, location, url, created_at, status, canonical_status")
-                          .eq("user_id", userId)
-                          .order("created_at", { ascending: false })
-                          .limit(fn.args.limit || 10);
-                        result = { success: true, jobs: data || [] };
-                    } else if (fn.name === "search_gmail_job_emails") {
-                        result = await agentSearchJobRelatedEmails(
-                          serviceClient,
-                          userId,
-                          (fn.args || {}) as {
-                            max_results?: number;
-                            refine_query?: string;
-                          },
-                        );
-                    } else if (fn.name === "send_gmail_job_email") {
-                        result = await agentSendJobRelatedEmail(
-                          serviceClient,
-                          userId,
-                          (fn.args || {}) as {
-                            to?: string;
-                            subject?: string;
-                            body?: string;
-                          },
-                        );
-                    } else if (fn.name === "evaluate_job_fit") {
-                        const t = normalizeSubscriptionTier(subscriptionTier);
-                        if (t === "Free") {
-                          result = {
-                            success: false,
-                            error:
-                              "AI job fit reports require Basics or higher. Upgrade at Billing to unlock full evaluation (blockers, confidence, interview angles).",
-                            upgrade_required: true,
-                            required_tier: "Basics",
-                            billing_path: "/dashboard/billing",
-                          };
-                        } else {
-                          const a = (fn.args || {}) as Record<string, unknown>;
-                          const jd =
-                            typeof a.job_description === "string" ? a.job_description
-                            : typeof a.jobDescription === "string" ? a.jobDescription
-                            : "";
-                          const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/evaluate-job-fit`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json", Authorization: authHeader! },
-                            body: JSON.stringify({
-                              jobDescription: jd,
-                              jobId: a.job_id ?? a.jobId,
-                              jobTitle: a.job_title ?? a.jobTitle,
-                              company: a.company,
-                              profileSnapshot: a.profile_snapshot ?? a.profileSnapshot,
-                              resumeText: a.resume_text ?? a.resumeText,
-                            }),
-                          });
-                          result = await res.json();
-                        }
-                    } else {
-                      const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/${fn.name.replace(/_/g, "-")}`, {
-                        method: "POST", headers: { "Content-Type": "application/json", Authorization: authHeader! },
-                        body: JSON.stringify(fn.args)
-                      });
-                      result = await res.json();
                     }
-                  } catch (e: any) { result = { error: e.message }; }
-
-                  toolResults.push({ functionResponse: { name: fn.name, response: result } });
-                  enqueueEvent("tool_call", { name: fn.name, args: fn.args, result });
+                  } else if (fn.name === "list_applications") {
+                    result = await fetchApplicationProcessSnapshot({
+                      serviceClient,
+                      userId,
+                      applicationId: asString(args.application_id),
+                      limit: asNumber(args.limit) || undefined,
+                      includeRecentEvents: args.include_recent_events !== false,
+                    });
+                  } else if (fn.name === "refresh_application_processes") {
+                    result = await refreshApplicationProcesses({
+                      authHeader: authHeader!,
+                      serviceClient,
+                      userId,
+                      applicationId: asString(args.application_id),
+                      includeGmail: args.include_gmail !== false,
+                      includeSkyvern: args.include_skyvern !== false,
+                      gmailMaxResults: asNumber(args.gmail_max_results) || undefined,
+                      force: args.force === true,
+                      limit: asNumber(args.limit) || undefined,
+                    });
+                  } else if (fn.name === "list_resumes") {
+                    const { data, error } = await supabaseUser
+                      .from("resumes")
+                      .select("id, name, status, updated_at, is_favorite, file_path, file_ext")
+                      .eq("user_id", userId)
+                      .order("updated_at", { ascending: false });
+                    if (error) {
+                      console.error("list_resumes:", error.message);
+                      result = { success: false, error: error.message, resumes: [] };
+                    } else {
+                      result = { success: true, resumes: data || [] };
+                    }
+                  } else if (fn.name === "list_recent_jobs") {
+                    const { data } = await supabaseUser
+                      .from("jobs")
+                      .select("id, title, company, location, apply_url, created_at, status, canonical_status, verification_status")
+                      .eq("user_id", userId)
+                      .order("created_at", { ascending: false })
+                      .limit(clampNumber(args.limit, 10, 1, 25));
+                    result = { success: true, jobs: data || [] };
+                  } else if (fn.name === "apply_to_job") {
+                    result = await runApplyToJobTool({
+                      authHeader: authHeader!,
+                      serviceClient,
+                      userId,
+                      userEmail: user.email ?? "",
+                      args,
+                    });
+                  } else if (fn.name === "auto_apply_from_url") {
+                    result = await runAutoApplyFromUrl({
+                      authHeader: authHeader!,
+                      serviceClient,
+                      userId,
+                      userEmail: user.email ?? "",
+                      url: asString(args.url) || "",
+                      coverLetter: asString(args.cover_letter),
+                      additionalInformation: asString(args.additional_information),
+                      workflowId: asString(args.workflow_id),
+                      proxyLocation: asString(args.proxy_location),
+                      title: asString(args.title),
+                      maxStepsOverride: asNumber(args.max_steps_override),
+                      reapply: args.reapply === true,
+                    });
+                  } else if (fn.name === "reapply_job") {
+                    result = await runApplyToJobTool({
+                      authHeader: authHeader!,
+                      serviceClient,
+                      userId,
+                      userEmail: user.email ?? "",
+                      args: {
+                        ...args,
+                        reapply: true,
+                      },
+                    });
+                  } else if (fn.name === "list_edge_functions") {
+                    result = {
+                      success: true,
+                      functions: EDGE_FUNCTIONS,
+                    };
+                  } else if (fn.name === "get_edge_function_details") {
+                    const definition = getEdgeFunctionDefinition(asString(args.name));
+                    result = definition
+                      ? { success: true, function: definition }
+                      : { success: false, error: "Unknown edge function name." };
+                  } else if (fn.name === "invoke_edge_function") {
+                    result = await invokeEdgeFunctionByName({
+                      authHeader: authHeader!,
+                      name: asString(args.name) || "",
+                      payload: args.payload,
+                      method: asString(args.method),
+                      headers: args.headers,
+                    });
+                  } else if (fn.name === "search_gmail_job_emails") {
+                    result = await agentSearchJobRelatedEmails(
+                      serviceClient,
+                      userId,
+                      (args || {}) as {
+                        max_results?: number;
+                        refine_query?: string;
+                      },
+                    );
+                  } else if (fn.name === "send_gmail_job_email") {
+                    result = await agentSendJobRelatedEmail(
+                      serviceClient,
+                      userId,
+                      (args || {}) as {
+                        to?: string;
+                        subject?: string;
+                        body?: string;
+                      },
+                    );
+                  } else if (fn.name === "evaluate_job_fit") {
+                    const t = normalizeSubscriptionTier(subscriptionTier);
+                    if (t === "Free") {
+                      result = {
+                        success: false,
+                        error:
+                          "AI job fit reports require Basics or higher. Upgrade at Billing to unlock full evaluation (blockers, confidence, interview angles).",
+                        upgrade_required: true,
+                        required_tier: "Basics",
+                        billing_path: "/dashboard/billing",
+                      };
+                    } else {
+                      const jd =
+                        asString(args.job_description) ||
+                        asString(args.jobDescription) ||
+                        "";
+                      result = await invokeEdgeFunctionByName({
+                        authHeader: authHeader!,
+                        name: "evaluate-job-fit",
+                        payload: {
+                          jobDescription: jd,
+                          jobId: args.job_id ?? args.jobId,
+                          jobTitle: args.job_title ?? args.jobTitle,
+                          company: args.company,
+                          profileSnapshot: args.profile_snapshot ?? args.profileSnapshot,
+                          resumeText: args.resume_text ?? args.resumeText,
+                        },
+                      });
+                    }
+                  } else {
+                    result = await invokeEdgeFunctionByName({
+                      authHeader: authHeader!,
+                      name: fn.name.replace(/_/g, "-"),
+                      payload: args,
+                    });
+                  }
+                } catch (e: any) {
+                  result = { success: false, error: e?.message || "Tool execution failed" };
                 }
+
+                toolResults.push({ functionResponse: { name: fn.name, response: result } });
+                enqueueEvent("tool_call", { name: fn.name, args: fn.args, result });
+              }
               response = await withGeminiRetry(() =>
                 chat.sendMessage({
                   message: { role: "user", parts: toolResults },
