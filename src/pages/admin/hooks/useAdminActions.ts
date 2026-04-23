@@ -100,18 +100,26 @@ export function useAdminActions() {
   }, [supabase, success, showError]);
 
   /**
-   * Delete a user's profile and associated data.
-   * FK cascade handles credits, subscriptions, transactions, roles.
+   * Delete a user from Auth (and public rows that FK to auth.users with ON DELETE CASCADE).
+   * The admin user list is built from Auth via list-users; deleting only profiles left the
+   * auth user in place, so users never disappeared from the grid.
    */
   const deleteUser = useCallback(async (userId: string) => {
     try {
-      // Delete profile (FK cascades handle related tables)
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user?.id === userId) {
+        showError('You cannot delete your own account from the admin panel.');
+        return { success: false, error: 'self_delete' };
+      }
+
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { userId },
+      });
 
       if (error) throw error;
+      if (data && typeof data === 'object' && 'error' in data && (data as { error?: string }).error) {
+        throw new Error(String((data as { error: string }).error));
+      }
 
       success('User and all associated data have been removed');
       return { success: true };

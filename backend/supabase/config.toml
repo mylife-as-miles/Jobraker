@@ -400,6 +400,12 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/list-users/index.ts"
 
+[functions.admin-delete-user]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; admin auth is enforced inside the function.
+verify_jwt = false
+entrypoint = "./functions/admin-delete-user/index.ts"
+
 [functions.calculate-match-score]
 enabled = true
 # Browser OPTIONS preflight must reach the handler; auth is enforced in requireSubscriptionTier.

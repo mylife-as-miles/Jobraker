@@ -233,6 +233,18 @@ export const EDGE_FUNCTIONS: EdgeFunctionDefinition[] = [
     parameterSchema: OPEN_OBJECT_SCHEMA,
   },
   {
+    name: "admin-delete-user",
+    category: "admin",
+    description: "Deletes an auth user and cascaded public data (admin only). Body: { userId }.",
+    path: "/functions/v1/admin-delete-user",
+    parameterSchema: {
+      type: "object",
+      properties: { userId: { type: "string" } },
+      required: ["userId"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "parse-resume",
     category: "documents",
     description: "Resume parsing endpoint.",
