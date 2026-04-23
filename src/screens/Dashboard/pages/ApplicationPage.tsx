@@ -471,6 +471,7 @@ function ApplicationPage() {
     () => localStorage.getItem("jr.apps.gantt.future") !== "0",
   );
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [pendingDeepLinkApplicationId, setPendingDeepLinkApplicationId] = useState<string | null>(null);
   const [nextStepOpen, setNextStepOpen] = useState(false);
   const [nextStepText, setNextStepText] = useState("");
   const [editingNotes, setEditingNotes] = useState(false);
@@ -512,6 +513,7 @@ function ApplicationPage() {
       const qsStatus = u.searchParams.get("status");
       const qsQuery = u.searchParams.get("q");
       const qsView = u.searchParams.get("view");
+      const qsApplication = u.searchParams.get("application");
       if (qsStatus && (APPLICATION_STATUS_FILTERS as readonly string[]).includes(qsStatus))
         setSelectedStatus(qsStatus as any);
       if (typeof qsQuery === "string" && qsQuery.length)
@@ -525,6 +527,9 @@ function ApplicationPage() {
           qsView === "table")
       )
         setViewMode(qsView as any);
+      if (qsApplication && qsApplication.trim()) {
+        setPendingDeepLinkApplicationId(qsApplication.trim());
+      }
 
       const raw = localStorage.getItem("jr.apps.prefs.v1");
       if (raw) {
@@ -551,6 +556,15 @@ function ApplicationPage() {
       }
     } catch { }
   }, []);
+
+  useEffect(() => {
+    if (!pendingDeepLinkApplicationId) return;
+    if (!applications.some((application) => application.id === pendingDeepLinkApplicationId)) {
+      return;
+    }
+    setDetailId(pendingDeepLinkApplicationId);
+    setPendingDeepLinkApplicationId(null);
+  }, [applications, pendingDeepLinkApplicationId]);
 
   // Persist preferences when they change
   useEffect(() => {

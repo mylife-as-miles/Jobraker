@@ -1680,6 +1680,116 @@ export const SettingsPage = (): JSX.Element => {
               </div>
             </div>
 
+            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
+              <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6'>
+                <div>
+                  <h3 className='text-base font-medium text-foreground mb-2'>
+                    Gmail-Connected Notifications
+                  </h3>
+                  <p className='text-xs text-muted-foreground'>
+                    Bring inbox-derived application updates directly into your notification center.
+                  </p>
+                </div>
+                <div className='flex flex-wrap items-center gap-2'>
+                  <span
+                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium ${
+                      isGmailConnected
+                        ? "border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00]"
+                        : "border-border/40 bg-muted/50 text-muted-foreground"
+                    }`}
+                  >
+                    <Mail className='w-4 h-4 shrink-0' />
+                    {isGmailConnected ? "Connected" : "Not connected"}
+                  </span>
+                  {!isGmailConnected ? (
+                    <Button
+                      type='button'
+                      variant='outline'
+                      className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#1dff00]/10 hover:border-[#1dff00]/30 transition-all'
+                      onClick={handleConnectGmail}
+                      disabled={loadingTier || !hasGmailIntegrationAccess}
+                    >
+                      <Link className='w-4 h-4 mr-2' />
+                      Connect Gmail
+                    </Button>
+                  ) : (
+                    <Button
+                      type='button'
+                      variant='outline'
+                      className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#1dff00]/10 hover:border-[#1dff00]/30 transition-all'
+                      onClick={() => navigate("/dashboard/notifications")}
+                    >
+                      <Bell className='w-4 h-4 mr-2' />
+                      Open Inbox
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className='rounded-xl border border-border/40 bg-muted/30 px-4 py-3 mb-4'>
+                <p className='text-sm text-foreground/90'>
+                  {isGmailConnected
+                    ? `Connected as ${gmailConnectedEmail || "your Gmail account"}.`
+                    : hasGmailIntegrationAccess
+                      ? "Connect Gmail to surface interview invites, confirmations, offers, and rejections here."
+                      : "Upgrade to Pro to connect Gmail and add mailbox events to your notification flow."}
+                </p>
+              </div>
+
+              <div className='space-y-3'>
+                {[
+                  {
+                    key: "notify_gmail_updates",
+                    label: "Show Gmail Updates",
+                    description: "Turn inbox-derived application updates into in-app notifications",
+                    fallback: true,
+                  },
+                  {
+                    key: "gmail_auto_sync_enabled",
+                    label: "Auto-Sync Gmail In Inbox",
+                    description: "Refresh Gmail-derived notifications automatically when you open Notifications",
+                    fallback: true,
+                  },
+                ].map((setting) => (
+                  <div
+                    key={setting.key}
+                    className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-[#1dff00]/30 hover:bg-muted/50 transition-all'
+                  >
+                    <div className='flex-1 pr-4'>
+                      <h4 className='text-sm font-medium text-foreground'>
+                        {setting.label}
+                      </h4>
+                      <p className='text-xs text-muted-foreground mt-0.5'>
+                        {setting.description}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() =>
+                        handleNotificationChange(
+                          setting.key,
+                          !((notif as any)?.[setting.key] ?? setting.fallback),
+                        )
+                      }
+                      disabled={notifLoading || !hasGmailIntegrationAccess}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        ((notif as any)?.[setting.key] ?? setting.fallback)
+                          ? "bg-[#1dff00]"
+                          : "bg-muted"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${
+                          ((notif as any)?.[setting.key] ?? setting.fallback)
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Quiet Hours */}
             <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
               <h3 className='text-base font-medium text-foreground mb-4'>

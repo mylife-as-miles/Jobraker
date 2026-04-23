@@ -6,6 +6,7 @@ import {
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import { createNotificationRecord } from "../_shared/notification-center.ts";
 
 const DEFAULT_QUERY = [
   "newer_than:180d",
@@ -897,19 +898,54 @@ async function createNotification(
   classified: ClassifiedMessage,
   company: string,
   jobTitle: string,
+  opts: {
+    applicationId: string | null;
+    eventId: string | null;
+    gmailMessageId: string;
+    gmailThreadId: string | null;
+    subject: string;
+    senderName: string | null;
+    senderEmail: string | null;
+    snippet: string | null;
+    receivedAt: string;
+  },
 ) {
   const notification = notificationFor(classified, company, jobTitle);
   if (!notification) return;
-  const { error } = await serviceClient.from("notifications").insert({
-    user_id: userId,
-    type: notification.type,
-    title: notification.title.slice(0, 200),
-    message: notification.message.slice(0, 2000),
-    company: company.slice(0, 120),
-    action_url: "/dashboard/application",
-    priority: notification.priority,
-  });
-  if (error) {
+  try {
+    await createNotificationRecord(serviceClient, {
+      userId,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      company,
+      priority: notification.priority,
+      source: "gmail",
+      sourceRecordId: opts.eventId,
+      sourceRecordType: "gmail_event",
+      actionUrl: opts.applicationId
+        ? `/dashboard/application?application=${encodeURIComponent(opts.applicationId)}`
+        : "/dashboard/application",
+      actionLabel: opts.applicationId ? "Open application" : "Open applications",
+      dedupeKey: `gmail-event:${opts.gmailMessageId}`,
+      metadata: {
+        event_type: classified.eventType,
+        status: classified.status,
+        canonical_stage: classified.canonicalStage,
+        confidence: classified.confidence,
+        gmail_message_id: opts.gmailMessageId,
+        gmail_thread_id: opts.gmailThreadId,
+        subject: opts.subject,
+        sender_name: opts.senderName,
+        sender_email: opts.senderEmail,
+        snippet: opts.snippet,
+        received_at: opts.receivedAt,
+        application_id: opts.applicationId,
+        company,
+        job_title: jobTitle,
+      },
+    });
+  } catch (error) {
     console.warn("Failed to create Gmail sync notification", error);
   }
 }
@@ -1116,7 +1152,7 @@ serve(async (req) => {
         }
       }
 
-      const { error: eventError } = await serviceClient
+      const { data: eventRow, error: eventError } = await serviceClient
         .from("gmail_application_events")
         .upsert(
           {
@@ -1140,9 +1176,11 @@ serve(async (req) => {
               query,
               bodyPreview: bodyText.slice(0, 2000),
             },
-          },
-          { onConflict: "user_id,gmail_message_id" },
-        );
+            },
+            { onConflict: "user_id,gmail_message_id" },
+        )
+        .select("id")
+        .single();
       if (eventError) throw eventError;
 
       await createNotification(
@@ -1151,6 +1189,17 @@ serve(async (req) => {
         classified,
         company,
         jobTitle,
+        {
+          applicationId,
+          eventId: typeof eventRow?.id === "string" ? eventRow.id : null,
+          gmailMessageId: message.id,
+          gmailThreadId: message.threadId || listed.threadId || null,
+          subject,
+          senderName: from.name,
+          senderEmail: from.email,
+          snippet: message.snippet || null,
+          receivedAt,
+        },
       );
 
       events.push({

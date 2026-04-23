@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { recordSkyvernUsageFromOutput } from "../_shared/provider-credits.ts";
+import { createNotificationRecord } from "../_shared/notification-center.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -29,6 +30,82 @@ const mapProviderStatusToJobState = (status: string | null | undefined) => {
       return "queued";
   }
 };
+
+async function createAutomationNotification(
+  userId: string,
+  application: {
+    id: string;
+    job_title?: string | null;
+    company?: string | null;
+  },
+  payload: {
+    providerStatus: string | null | undefined;
+    failureReason: string | null;
+    runId: string;
+    event: "retried" | "finalized";
+  },
+) {
+  const providerStatus = (payload.providerStatus || "").toLowerCase();
+  const jobTitle = application.job_title?.trim() || "Application";
+  const company = application.company?.trim() || null;
+  const actionUrl = `/dashboard/application?application=${encodeURIComponent(application.id)}`;
+
+  let title = `Automation update: ${jobTitle}`;
+  let message = "Your auto-apply run changed state.";
+  let priority: "low" | "medium" | "high" = "medium";
+  let type: "application" | "system" | "interview" = "application";
+
+  if (payload.event === "retried") {
+    title = `Retrying auto-apply: ${jobTitle}`;
+    message = company
+      ? `${company} hit a temporary automation issue. JobRaker queued another attempt.`
+      : "JobRaker queued another attempt after a temporary automation issue.";
+    priority = "medium";
+  } else if (providerStatus === "completed") {
+    title = `Auto-apply completed: ${jobTitle}`;
+    message = company
+      ? `${company} was completed successfully by automation.`
+      : "Your application automation completed successfully.";
+    priority = "high";
+  } else if (providerStatus === "failed" || providerStatus === "terminated") {
+    title = `Auto-apply failed: ${jobTitle}`;
+    message = payload.failureReason?.trim()
+      ? payload.failureReason.trim()
+      : company
+        ? `${company} could not be completed automatically.`
+        : "The automation could not complete this application.";
+    priority = "high";
+    type = "system";
+  }
+
+  try {
+    await createNotificationRecord(supabase, {
+      userId,
+      type,
+      title,
+      message,
+      company,
+      priority,
+      source: "automation",
+      sourceRecordId: application.id,
+      sourceRecordType: "application",
+      actionUrl,
+      actionLabel: "Open application",
+      dedupeKey: `${payload.event === "retried" ? "automation-retry" : "automation-status"}:${payload.runId}:${providerStatus || "unknown"}`,
+      metadata: {
+        run_id: payload.runId,
+        provider_status: payload.providerStatus || null,
+        failure_reason: payload.failureReason,
+        event: payload.event,
+        application_id: application.id,
+        job_title: jobTitle,
+        company,
+      },
+    });
+  } catch (error) {
+    console.warn("Failed to create automation notification", error);
+  }
+}
 
 serve(async (req) => {
   if (req.method !== "POST") {
@@ -61,7 +138,7 @@ serve(async (req) => {
 
     const { data: applicationRow, error: fetchError } = await supabase
       .from("applications")
-      .select("id, user_id, job_id, retry_count, notes")
+      .select("id, user_id, job_id, retry_count, notes, job_title, company")
       .eq("run_id", runId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -121,6 +198,13 @@ serve(async (req) => {
           .eq("user_id", applicationRow.user_id);
       }
 
+      await createAutomationNotification(applicationRow.user_id, applicationRow, {
+        providerStatus,
+        failureReason,
+        runId,
+        event: "retried",
+      });
+
       return new Response(JSON.stringify({ success: true, retried: true }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -168,6 +252,13 @@ serve(async (req) => {
         console.error("Failed to update related job state", jobUpdateError);
       }
     }
+
+    await createAutomationNotification(applicationRow.user_id, applicationRow, {
+      providerStatus,
+      failureReason,
+      runId,
+      event: "finalized",
+    });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

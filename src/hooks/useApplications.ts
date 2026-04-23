@@ -125,6 +125,10 @@ function buildResumeRebuildPrompt(
   );
 }
 
+function applicationNotificationUrl(applicationId: string) {
+  return `/dashboard/application?application=${encodeURIComponent(applicationId)}`;
+}
+
 export function useApplications() {
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError, info, warning } = useToast();
@@ -389,7 +393,11 @@ export function useApplications() {
         title: `Application added: ${rec.job_title}`,
         message: `${rec.job_title} @ ${rec.company}`,
         company: rec.company,
-        action_url: rec.app_url ?? undefined,
+        action_url: applicationNotificationUrl(rec.id),
+        action_label: 'Open application',
+        source: 'application',
+        source_record_id: rec.id,
+        source_record_type: 'application',
       });
       return rec;
     } catch (e: any) {
@@ -442,7 +450,11 @@ export function useApplications() {
             title: `Interview stage: ${current.job_title}`,
             message: `${current.job_title} @ ${current.company} advanced to Interview`,
             company: current.company,
-            action_url: current.app_url ?? undefined,
+            action_url: applicationNotificationUrl(current.id),
+            action_label: 'Open application',
+            source: 'application',
+            source_record_id: current.id,
+            source_record_type: 'application',
           });
         } else if (newStatus === 'Offer') {
           createNotification({
@@ -451,7 +463,11 @@ export function useApplications() {
             title: `Offer received: ${current.job_title}`,
             message: `Congratulations! Offer stage reached for ${current.job_title} @ ${current.company}`,
             company: current.company,
-            action_url: current.app_url ?? undefined,
+            action_url: applicationNotificationUrl(current.id),
+            action_label: 'Open application',
+            source: 'application',
+            source_record_id: current.id,
+            source_record_type: 'application',
           });
         } else if (newStatus === 'Rejected') {
           createNotification({
@@ -482,7 +498,11 @@ export function useApplications() {
           title: `Interview scheduled: ${current.job_title}`,
           message: `${current.job_title} @ ${current.company} on ${when}`,
           company: current.company,
-          action_url: current.app_url ?? undefined,
+          action_url: applicationNotificationUrl(current.id),
+          action_label: 'Open application',
+          source: 'application',
+          source_record_id: current.id,
+          source_record_type: 'application',
         });
       }
       // Provider failure or explicit failure_reason update

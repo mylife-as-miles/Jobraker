@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
 import { generateAiDescription } from '../_shared/gemini.ts';
 import { applyMicro1ReferralToUrl } from '../_shared/micro1-referral.ts';
+import { createNotificationRecord } from '../_shared/notification-center.ts';
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -442,12 +443,24 @@ Deno.serve(async (req) => {
 
     // Insert notification for completed search
     try {
-      await supabaseAdmin.from('notifications').insert({
-        user_id: userId,
+      await createNotificationRecord(supabaseAdmin, {
+        userId,
         type: 'job_search',
+        source: 'job_search',
         title: 'Job Search Complete',
         message: `Found ${jobsToInsert.length} new jobs matching "${rawQuery}"`,
-        priority: 'medium'
+        priority: jobsToInsert.length > 0 ? 'medium' : 'low',
+        actionUrl: '/dashboard/jobs',
+        actionLabel: 'Review jobs',
+        metadata: {
+          query: rawQuery,
+          location: location || null,
+          limit: typeof limit === 'number' ? limit : null,
+          jobs_found: jobsToInsert.length,
+          source_domains: domainList,
+          tbs: tbs || null,
+        },
+        dedupeKey: `job-search:${userId}:${rawQuery.toLowerCase()}:${location || 'any'}:${new Date().toISOString().slice(0, 13)}`,
       });
     } catch (notifError) {
       console.error('[process-job-search] Failed to create notification', notifError);

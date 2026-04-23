@@ -3,11 +3,15 @@ import { createClient } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/toast';
 
 export type NotificationType = 'interview' | 'application' | 'system' | 'company' | 'job_search' | 'credit';
+export type NotificationSource = 'system' | 'gmail' | 'automation' | 'application' | 'job_search' | 'billing';
 
 export interface NotificationRow {
   id: string;
   user_id: string;
   type: NotificationType;
+  source?: NotificationSource | null;
+  source_record_id?: string | null;
+  source_record_type?: string | null;
   title: string;
   message: string | null;
   company: string | null;
@@ -15,8 +19,12 @@ export interface NotificationRow {
   // Optional fields added by later migration
   is_starred?: boolean | null;
   action_url?: string | null;
+  action_label?: string | null;
   priority?: 'low' | 'medium' | 'high';
   seen_at?: string | null;
+  metadata?: Record<string, unknown> | null;
+  dedupe_key?: string | null;
+  archived_at?: string | null;
   created_at: string;
 }
 
@@ -32,6 +40,7 @@ export function useNotifications(limit: number = 10) {
   const [supportsStar, setSupportsStar] = useState(true);
   const [supportsPriority] = useState(true); // reserved for future conditional UI, setter removed to avoid unused var
   const [supportsSeen, setSupportsSeen] = useState(true);
+  const [supportsArchive, setSupportsArchive] = useState(true);
 
   // Resolve user id
   useEffect(() => {
@@ -53,12 +62,27 @@ export function useNotifications(limit: number = 10) {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('notifications')
         .select('*')
         .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+        .order('created_at', { ascending: false });
+      if (supportsArchive) query = query.is('archived_at', null);
+      const { data, error } = await query.limit(limit);
+      if (error && supportsArchive && /archived_at/i.test(String(error.message || ''))) {
+        setSupportsArchive(false);
+        const fallback = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(limit);
+        if (fallback.error) throw fallback.error;
+        const rows = (fallback.data || []) as NotificationRow[];
+        setItems(rows);
+        setHasMore(rows.length === limit);
+        return;
+      }
       if (error) throw error;
       const rows = (data || []) as NotificationRow[];
       setItems(rows);
@@ -69,7 +93,7 @@ export function useNotifications(limit: number = 10) {
     } finally {
       setLoading(false);
     }
-  }, [supabase, userId, limit]);
+  }, [supabase, userId, limit, supportsArchive]);
 
   useEffect(() => { if (userId) fetchItems(); }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -91,6 +115,7 @@ export function useNotifications(limit: number = 10) {
           const { eventType } = payload;
           if (eventType === 'INSERT') {
             const inserted = payload.new as NotificationRow;
+            if (supportsArchive && inserted.archived_at) return;
               // Push new item local state
             setItems(prev => [inserted, ...prev].slice(0, limit));
             // Only toast if not part of the initial hydration
@@ -102,7 +127,13 @@ export function useNotifications(limit: number = 10) {
               }
             }
           } else if (eventType === 'UPDATE') {
-            setItems(prev => prev.map(n => n.id === payload.new.id ? (payload.new as NotificationRow) : n));
+            const updated = payload.new as NotificationRow;
+            setItems(prev => {
+              if (supportsArchive && updated.archived_at) {
+                return prev.filter(n => n.id !== updated.id);
+              }
+              return prev.map(n => n.id === updated.id ? updated : n);
+            });
           } else if (eventType === 'DELETE') {
             setItems(prev => prev.filter(n => n.id !== payload.old.id));
           }
@@ -129,7 +160,7 @@ export function useNotifications(limit: number = 10) {
         }
       }
     };
-  }, [supabase, userId, limit, warning, info]);
+  }, [supabase, userId, limit, supportsArchive, warning, info]);
 
   // Listen for local optimistic creation events (in case realtime not yet delivered)
   useEffect(() => {
@@ -137,6 +168,7 @@ export function useNotifications(limit: number = 10) {
       const detail: any = (ev as CustomEvent).detail;
       if (!detail || !detail.id) return;
       if (detail.user_id !== userId) return;
+      if (supportsArchive && detail.archived_at) return;
       setItems(prev => {
         if (prev.some(n => n.id === detail.id)) return prev; // already present (maybe via realtime)
         return [detail as NotificationRow, ...prev].slice(0, limit);
@@ -144,7 +176,7 @@ export function useNotifications(limit: number = 10) {
     }
     window.addEventListener('notification:insert', onLocalInsert as EventListener);
     return () => window.removeEventListener('notification:insert', onLocalInsert as EventListener);
-  }, [userId, limit]);
+  }, [userId, limit, supportsArchive]);
 
   // CRUD helpers
   const add = useCallback(async (row: Omit<NotificationRow, 'id' | 'created_at'>) => {
@@ -264,18 +296,33 @@ export function useNotifications(limit: number = 10) {
     try {
       const from = items.length;
       const to = from + limit - 1;
-      const { data, error } = await supabase
+      let query = supabase
         .from('notifications')
         .select('*')
         .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .range(from, to);
+        .order('created_at', { ascending: false });
+      if (supportsArchive) query = query.is('archived_at', null);
+      const { data, error } = await query.range(from, to);
+      if (error && supportsArchive && /archived_at/i.test(String(error.message || ''))) {
+        setSupportsArchive(false);
+        const fallback = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+        if (fallback.error) throw fallback.error;
+        const rows = (fallback.data || []) as NotificationRow[];
+        setItems(prev => [...prev, ...rows]);
+        setHasMore(rows.length === limit);
+        return;
+      }
       if (error) throw error;
       const rows = (data || []) as NotificationRow[];
       setItems(prev => [...prev, ...rows]);
       setHasMore(rows.length === limit);
     } catch (e: any) { toastError('Load more failed', e.message); }
-  }, [supabase, userId, items.length, limit, hasMore, toastError]);
+  }, [supabase, userId, items.length, limit, hasMore, supportsArchive, toastError]);
 
   const remove = useCallback(async (id: string) => {
     try {
@@ -294,6 +341,55 @@ export function useNotifications(limit: number = 10) {
     } catch (e: any) { toastError('Update failed', e.message); throw e; }
   }, [supabase, userId, toastError]);
 
+  const archive = useCallback(async (id: string) => {
+    try {
+      if (!supportsArchive) {
+        toastError('Archive unavailable', 'Run the latest database migration to enable archiving notifications.');
+        return;
+      }
+      const ts = new Date().toISOString();
+      const { error } = await supabase
+        .from('notifications')
+        .update({ archived_at: ts, read: true })
+        .eq('id', id);
+      if (error) throw error;
+      setItems(prev => prev.filter(n => n.id !== id));
+    } catch (e: any) {
+      if (/archived_at/i.test(String(e?.message || ''))) {
+        setSupportsArchive(false);
+        toastError('Archive unavailable', 'Run the latest database migration to enable archiving notifications.');
+        return;
+      }
+      toastError('Archive failed', e.message);
+      throw e;
+    }
+  }, [supabase, supportsArchive, toastError]);
+
+  const bulkArchive = useCallback(async (ids: string[]) => {
+    try {
+      if (!ids.length) return;
+      if (!supportsArchive) {
+        toastError('Archive unavailable', 'Run the latest database migration to enable archiving notifications.');
+        return;
+      }
+      const ts = new Date().toISOString();
+      const { error } = await supabase
+        .from('notifications')
+        .update({ archived_at: ts, read: true })
+        .in('id', ids);
+      if (error) throw error;
+      setItems(prev => prev.filter(n => !ids.includes(n.id)));
+    } catch (e: any) {
+      if (/archived_at/i.test(String(e?.message || ''))) {
+        setSupportsArchive(false);
+        toastError('Archive unavailable', 'Run the latest database migration to enable archiving notifications.');
+        return;
+      }
+      toastError('Archive failed', e.message);
+      throw e;
+    }
+  }, [supabase, supportsArchive, toastError]);
+
   return {
     items,
     loading,
@@ -302,6 +398,7 @@ export function useNotifications(limit: number = 10) {
     supportsStar,
     supportsPriority,
     supportsSeen,
+    supportsArchive,
     loadMore,
     refresh: fetchItems,
     add,
@@ -309,6 +406,8 @@ export function useNotifications(limit: number = 10) {
     bulkMarkRead,
     toggleStar,
     markAllRead,
+    archive,
+    bulkArchive,
     remove,
     bulkRemove,
     markSeen,
