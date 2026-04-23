@@ -156,19 +156,18 @@ DECLARE
     v_current_balance INTEGER;
     v_feature_name TEXT;
 BEGIN
-    -- Determine the feature name based on feature type
+    -- credit_costs rows use feature_type job_search (feature_name search | auto_apply)
     IF p_feature_type = 'job_search' THEN
         v_feature_name := 'search';
     ELSIF p_feature_type = 'auto_apply' THEN
-        v_feature_name := 'application';
+        v_feature_name := 'auto_apply';
     ELSE
         RETURN jsonb_build_object('available', false, 'message', 'Invalid feature type');
     END IF;
 
-    -- Get the cost for the specified feature
     SELECT cost INTO v_cost_per_item
     FROM credit_costs
-    WHERE feature_type = 'job' AND feature_name = v_feature_name;
+    WHERE feature_type = 'job_search' AND feature_name = v_feature_name;
 
     -- If cost is not defined, return an error
     IF v_cost_per_item IS NULL THEN

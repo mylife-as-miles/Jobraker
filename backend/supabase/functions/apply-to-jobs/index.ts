@@ -505,11 +505,19 @@ Deno.serve(async (req) => {
     let webhookUrl: string | undefined;
     try {
       const url = new URL(req.url);
+      const webhookSecret =
+        Deno.env.get("SKYVERN_WEBHOOK_SECRET") ||
+        Deno.env.get("SKYVERN_API_KEY") ||
+        "";
       if (url.hostname.endsWith(".functions.supabase.co")) {
-        webhookUrl = `${url.origin}/skyvern-webhook`;
+        webhookUrl = `${url.origin}/skyvern-webhook` +
+          (webhookSecret ? `?token=${encodeURIComponent(webhookSecret)}` : "");
       } else {
         const base = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
-        if (base) webhookUrl = `${base}/functions/v1/skyvern-webhook`;
+        if (base) {
+          webhookUrl = `${base}/functions/v1/skyvern-webhook` +
+            (webhookSecret ? `?token=${encodeURIComponent(webhookSecret)}` : "");
+        }
       }
     } catch {
       // Use empty webhook fallback.
@@ -547,8 +555,29 @@ Deno.serve(async (req) => {
     }
 
     if (!response.ok) {
+      const skyvernMessage =
+        data?.detail || data?.message || data?.error || data?.raw || "";
+      const reason =
+        response.status === 401 || response.status === 403
+          ? "Skyvern API key is invalid or expired. Check SKYVERN_API_KEY in project secrets."
+          : response.status === 404
+            ? "Skyvern workflow not found. Check SKYVERN_WORKFLOW_ID."
+            : response.status === 422
+              ? `Skyvern rejected the request: ${skyvernMessage}`
+              : response.status === 429
+                ? "Skyvern rate limit exceeded. Try again in a minute."
+                : `Skyvern returned ${response.status}: ${skyvernMessage}`;
+
+      console.error("apply-to-jobs skyvern error", {
+        status: response.status,
+        reason,
+        data,
+        workflowId,
+        jobUrls,
+      });
+
       return new Response(
-        JSON.stringify({ error: "Skyvern run failed", status: response.status, data }),
+        JSON.stringify({ error: reason, skyvern_status: response.status, data }),
         {
           status: 502,
           headers: { ...corsHeaders, "content-type": "application/json" },
