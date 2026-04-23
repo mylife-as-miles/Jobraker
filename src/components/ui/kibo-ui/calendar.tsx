@@ -213,7 +213,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
       terminated: "#e11d48",
       interview: "#56c2ff",
       offer: "#f8d74a",
-      rejected: "#1dff00",
+      rejected: "#ef4444",
       withdrawn: "#b3b3b3",
     };
     return pal[status.toLowerCase()] || "#7c7c7c";
@@ -450,7 +450,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
       tabIndex={rangeSelectable ? 0 : -1}
       onKeyDown={handleKey}
       className={
-        "w-full outline-none focus-visible:ring-2 ring-[#1dff00]/40 rounded " +
+        "w-full outline-none focus-visible:ring-2 ring-brand/40 rounded " +
         className
       }
       aria-label='Calendar'
@@ -463,7 +463,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               type='button'
               aria-label='Previous month'
               onClick={() => onMonthChange?.(addMonths(viewMonth, -1))}
-              className='bg-transparent text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition'
+              className='bg-transparent text-brand hover:bg-brand/10 hover:scale-110 p-2 rounded transition'
             >
               ←
             </button>
@@ -477,7 +477,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                     month: "short",
                   })}
                 </span>
-                <span className='px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00]'>
+                <span className='px-1.5 py-0.5 rounded bg-brand/10 border border-brand/30 text-brand'>
                   {viewMonth.toLocaleString(undefined, { month: "short" })}
                 </span>
                 <span className='px-1.5 py-0.5 rounded bg-foreground/5 border border-foreground/10'>
@@ -491,7 +491,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               type='button'
               aria-label='Next month'
               onClick={() => onMonthChange?.(addMonths(viewMonth, 1))}
-              className='bg-transparent text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition'
+              className='bg-transparent text-brand hover:bg-brand/10 hover:scale-110 p-2 rounded transition'
             >
               →
             </button>
@@ -500,7 +500,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
             <button
               type='button'
               onClick={() => onMonthChange?.(startOfMonth(new Date()))}
-              className='bg-transparent text-foreground/90 hover:text-[#1dff00] text-xs px-2 py-1 rounded border border-foreground/10 hover:border-[#1dff00]/40 transition'
+              className='bg-transparent text-foreground/90 hover:text-brand text-xs px-2 py-1 rounded border border-foreground/10 hover:border-brand/40 transition'
             >
               Today
             </button>
@@ -509,7 +509,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               onClick={() =>
                 onViewModeChange?.(viewMode === "month" ? "week" : "month")
               }
-              className='bg-transparent text-xs px-2 py-1 rounded border border-foreground/10 hover:border-[#1dff00]/40 text-foreground/80 hover:text-[#1dff00] transition'
+              className='bg-transparent text-xs px-2 py-1 rounded border border-foreground/10 hover:border-brand/40 text-foreground/80 hover:text-brand transition'
             >
               {viewMode === "month" ? "Week" : "Month"}
             </button>
@@ -520,7 +520,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                   densityMode === "full" ? "compact" : "full",
                 )
               }
-              className='bg-transparent text-xs px-2 py-1 rounded border border-foreground/10 hover:border-[#1dff00]/40 text-foreground/70 hover:text-[#1dff00] transition'
+              className='bg-transparent text-xs px-2 py-1 rounded border border-foreground/10 hover:border-brand/40 text-foreground/70 hover:text-brand transition'
             >
               {densityMode === "full" ? "Compact" : "Full"}
             </button>
@@ -530,8 +530,8 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               className={
                 "text-xs px-2 py-1 rounded border transition " +
                 (focusContrast
-                  ? "bg-[#1dff00]/15 border-[#1dff00]/40 text-[#1dff00]"
-                  : "bg-transparent border-foreground/10 text-foreground/60 hover:text-[#1dff00] hover:border-[#1dff00]/40")
+                  ? "bg-brand/15 border-brand/40 text-brand"
+                  : "bg-transparent border-foreground/10 text-foreground/60 hover:text-brand hover:border-brand/40")
               }
             >
               Contrast
@@ -540,7 +540,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               <button
                 type='button'
                 onClick={exportICS}
-                className='bg-transparent text-xs px-2 py-1 rounded border border-foreground/10 hover:border-[#1dff00]/40 text-foreground/60 hover:text-[#1dff00] transition'
+                className='bg-transparent text-xs px-2 py-1 rounded border border-foreground/10 hover:border-brand/40 text-foreground/60 hover:text-brand transition'
               >
                 Export
               </button>
@@ -553,12 +553,11 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
           {APPLICATION_STATUS_OPTIONS.map((s) => (
             <span
               key={s}
-              className='inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-foreground/10 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] text-foreground/60 shadow-sm hover:border-[#1dff00]/30 hover:text-foreground/80 transition'
+              className='inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-foreground/10 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] text-foreground/60 shadow-sm hover:border-brand/30 hover:text-foreground/80 transition'
             >
               <span
                 style={{
                   background: statusColor(s),
-                  boxShadow: `0 0 0 2px #000, 0 0 4px ${statusColor(s)}55`,
                   width: 8,
                   height: 8,
                 }}
@@ -568,8 +567,8 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
             </span>
           ))}
           {heatmap && (
-            <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-[#1dff00]/30 bg-[#1dff00]/5 text-[#1dff00]/80 shadow-sm'>
-              <span className='w-2 h-2 rounded-sm bg-[#1dff00] animate-pulse' />{" "}
+            <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-brand/30 bg-brand/5 text-brand/80 shadow-sm'>
+              <span className='w-2 h-2 rounded-sm bg-brand animate-pulse' />{" "}
               Density
             </span>
           )}
@@ -594,7 +593,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
           return ordered.map((d) => (
             <div
               key={d}
-              className='text-center text-[10px] sm:text-xs text-[#666] font-medium py-1 select-none'
+              className='text-center text-[10px] sm:text-xs text-muted-foreground font-medium py-1 select-none'
             >
               {d}
             </div>
@@ -617,7 +616,9 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                 onClick={() => {
                   let next: string[] = [];
                   if (!statusFilters || statusFilters.length === 0) {
-                    next = [...APPLICATION_STATUS_OPTIONS].filter((x) => x !== s);
+                    next = [...APPLICATION_STATUS_OPTIONS].filter(
+                      (x) => x !== s,
+                    );
                   } else {
                     next = active
                       ? statusFilters.filter((x) => x !== s)
@@ -628,7 +629,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                 className={
                   "px-2 py-0.5 rounded border text-xs transition " +
                   (active
-                    ? "bg-[#1dff00]/15 border-[#1dff00]/40 text-[#1dff00]"
+                    ? "bg-brand/15 border-brand/40 text-brand"
                     : "bg-transparent border-foreground/10 text-foreground/40 hover:text-foreground/70 hover:border-foreground/30")
                 }
               >
@@ -639,7 +640,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
           <button
             type='button'
             onClick={() => onStatusFiltersChange([])}
-            className='bg-transparent px-2 py-0.5 rounded border text-xs border-foreground/10 text-foreground/50 hover:text-[#1dff00] hover:border-[#1dff00]/40 transition'
+            className='bg-transparent px-2 py-0.5 rounded border text-xs border-foreground/10 text-foreground/50 hover:text-brand hover:border-brand/40 transition'
           >
             Reset
           </button>
@@ -647,11 +648,9 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
       )}
 
       {enableAnalyticsRibbon && analytics && (
-        <div className='mb-2 rounded-lg border border-[#1dff00]/20 bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 px-3 py-2 flex flex-wrap items-center gap-3 text-[10px] sm:text-[11px]'>
+        <div className='mb-2 rounded-lg border border-brand/20 bg-gradient-to-r from-brand/10 via-transparent to-brand/10 px-3 py-2 flex flex-wrap items-center gap-3 text-[10px] sm:text-[11px]'>
           <span className='text-foreground/70'>Range:</span>
-          <span className='text-[#1dff00] font-semibold'>
-            {analytics.total}
-          </span>
+          <span className='text-brand font-semibold'>{analytics.total}</span>
           <span className='text-foreground/60'>
             Applied+Pending {analytics.funnel.applied}
           </span>
@@ -659,7 +658,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
             Interview {analytics.funnel.interview}
           </span>
           <span className='text-[#f8d74a]'>Offer {analytics.funnel.offer}</span>
-          <span className='text-[#1dff00]'>
+          <span className='text-red-500'>
             Rejected {analytics.funnel.rejection}
           </span>
           <span className='text-foreground/50 ml-auto flex items-center gap-2'>
@@ -707,7 +706,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               : "rgba(" + base + "," + alpha + ")";
           }
           return (
-            <motion.button
+            <button
               key={cell.date.toISOString() + idx}
               type='button'
               onClick={() => handleDayClick(cell.date)}
@@ -719,28 +718,26 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                 if (enableQuickCreate)
                   setQuickCreate({ key: dayKey, date: cell.date, title: "" });
               }}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.94 }}
               className={[
                 "relative text-left p-2 rounded-xl transition-all duration-150 flex flex-col gap-1 min-h-[72px] sm:min-h-[84px] group shadow-inner",
-                "focus:outline-none focus-visible:ring-2 ring-[#1dff00]/60",
-                "bg-foreground/10 text-for", // Base dark background for all cells
+                "focus:outline-none focus-visible:ring-2 ring-brand/60",
+                "bg-foreground/5 text-for", // Base dark background for all cells
                 cell.inCurrent ? "cursor-pointer" : "cursor-pointer opacity-40",
                 isWeekend && !isToday ? "bg-muted" : "", // Slightly lighter for weekends
                 isToday
-                  ? "!bg-gradient-to-br from-[#1dff00] to-[#1dff00] text-foreground font-bold shadow-lg ring-1 ring-[#1dff00]/60"
+                  ? "!bg-gradient-to-br from-brand to-brand text-foreground font-bold shadow-lg ring-1 ring-brand/60"
                   : "",
                 !isToday && cell.inCurrent
-                  ? "text-foreground/70 hover:bg-foreground/80 hover:text-[#1dff00]"
+                  ? "text-foreground/70 hover:bg-foreground/10 hover:text-brand"
                   : "",
                 !cell.inCurrent && !isToday
-                  ? "text-[#565656] hover:bg-foreground/80"
+                  ? "text-muted-foreground hover:bg-foreground/20"
                   : "",
                 isSelected && !isToday
-                  ? "border border-[#1dff00]/70 shadow-lg shadow-[#1dff00]/10 !bg-foreground"
+                  ? "border border-brand/70 shadow-lg shadow-brand/10 !bg-foreground"
                   : "border border-foreground/5",
                 inSelectedRange(cell.date) && !isToday
-                  ? "!bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 backdrop-blur-sm"
+                  ? "!bg-gradient-to-br from-brand/15 to-brand/5 backdrop-blur-sm"
                   : "",
                 focusContrast && dayEvents.length === 0 && !isToday
                   ? "opacity-30 hover:opacity-60"
@@ -753,7 +750,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                   {cell.date.getDate()}
                 </div>
                 {showDayEventCount && dayEvents.length > 0 && (
-                  <span className='text-[10px] px-1.5 rounded-md bg-foreground/15 text-[#1dff00] font-semibold shadow-sm'>
+                  <span className='text-[10px] px-1.5 rounded-md bg-foreground/15 text-brand font-semibold shadow-sm'>
                     {dayEvents.length}
                   </span>
                 )}
@@ -775,7 +772,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                       <button
                         type='button'
                         onClick={() => toggleExpanded(dayKey)}
-                        className='text-[10px] px-1.5 rounded bg-foreground/5 text-foreground/60 hover:text-[#1dff00]'
+                        className='text-[10px] px-1.5 rounded bg-foreground/5 text-foreground/60 hover:text-brand'
                       >
                         +{extra}
                       </button>
@@ -819,8 +816,8 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                         style={{ background: statusColor(ev.status) }}
                       />
                       {ev.title}
-                      <div className='pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute z-30 left-0 top-full mt-1 min-w-[160px] max-w-[220px] p-2 rounded-md border border-[#1dff00]/30 bg-foreground/95 backdrop-blur-sm text-[10px] leading-snug text-foreground shadow-2xl'>
-                        <div className='font-semibold text-[#1dff00] mb-0.5 truncate'>
+                      <div className='pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute z-30 left-0 top-full mt-1 min-w-[160px] max-w-[220px] p-2 rounded-md border border-brand/30 bg-foreground/95 backdrop-blur-sm text-[10px] leading-snug text-foreground shadow-2xl'>
+                        <div className='font-semibold text-brand mb-0.5 truncate'>
                           {ev.title}
                         </div>
                         {ev.subtitle && (
@@ -846,7 +843,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                   <button
                     type='button'
                     onClick={() => toggleExpanded(dayKey)}
-                    className='mt-auto text-[9px] sm:text-[10px] text-[#1dff00] font-semibold italic opacity-80 hover:underline'
+                    className='mt-auto text-[9px] sm:text-[10px] text-brand font-semibold italic opacity-80 hover:underline'
                   >
                     +{extra} more
                   </button>
@@ -855,13 +852,13 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                   <button
                     type='button'
                     onClick={() => toggleExpanded(dayKey)}
-                    className='mt-auto text-[9px] sm:text-[10px] text-foreground/50 hover:text-[#1dff00]'
+                    className='mt-auto text-[9px] sm:text-[10px] text-foreground/50 hover:text-brand'
                   >
                     Collapse
                   </button>
                 )}
                 {quickCreate && quickCreate.key === dayKey && (
-                  <div className='mt-1 p-1.5 rounded-md border border-[#1dff00]/30 bg-background/60 flex items-center gap-1'>
+                  <div className='mt-1 p-1.5 rounded-md border border-brand/30 bg-background/60 flex items-center gap-1'>
                     <input
                       autoFocus
                       value={quickCreate.title}
@@ -884,7 +881,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                     <button
                       type='button'
                       onClick={handleQuickCreateSubmit}
-                      className='text-[10px] px-1 py-0.5 rounded bg-[#1dff00]/20 text-[#1dff00] hover:bg-[#1dff00]/30'
+                      className='text-[10px] px-1 py-0.5 rounded bg-brand/20 text-brand hover:bg-brand/30'
                     >
                       Add
                     </button>
@@ -892,8 +889,8 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                 )}
               </div>
               {/* subtle focus / hover outline overlay */}
-              <div className='pointer-events-none absolute inset-0 rounded-xl ring-0 group-hover:ring-1 group-hover:ring-[#1dff00]/40 transition' />
-            </motion.button>
+              <div className='pointer-events-none absolute inset-0 rounded-xl ring-0 group-hover:ring-1 group-hover:ring-brand/40 transition' />
+            </button>
           );
         })}
       </div>

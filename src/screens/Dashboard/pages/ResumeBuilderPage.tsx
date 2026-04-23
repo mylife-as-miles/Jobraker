@@ -21,7 +21,11 @@ import {
   ZoomOut,
   PenLine,
 } from "lucide-react";
-import { useArtboardStore, initialResumeState, type ResumeData } from "@/store/artboard";
+import {
+  useArtboardStore,
+  initialResumeState,
+  type ResumeData,
+} from "@/store/artboard";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 import { polishContent } from "@/services/ai/polishContent";
@@ -42,7 +46,11 @@ import { ResumeTemplateRenderer } from "@/templates/render-resume-template";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { resolveResumePageLayout } from "@/lib/resumeLayout";
 import { downloadResumePDF } from "@/utils/resume-download";
-import { saveResumeDraft, loadResumeDraft, removeResumeDraft } from "@/lib/resumeDraftStorage";
+import {
+  saveResumeDraft,
+  loadResumeDraft,
+  removeResumeDraft,
+} from "@/lib/resumeDraftStorage";
 import { loadParsedResumeProfileData } from "@/lib/parsedResume";
 import { mapParsedDataToResume } from "@/lib/resume-mapper";
 
@@ -62,7 +70,10 @@ const SECTION_ICONS: Record<string, any> = {
 
 const DRAFT_AUTOSAVE_DELAY_MS = 2000;
 
-function buildHydratedResumeState(remoteResume: any, data = initialResumeState.data) {
+function buildHydratedResumeState(
+  remoteResume: any,
+  data = initialResumeState.data,
+) {
   return {
     id: remoteResume.id,
     is_public: remoteResume.public_share_enabled,
@@ -210,7 +221,9 @@ function normalizeHydrationValue(value: unknown) {
 
 function isPlaceholderField(value: unknown, fallback: string) {
   const normalizedValue = normalizeHydrationValue(value);
-  return !normalizedValue || normalizedValue === normalizeHydrationValue(fallback);
+  return (
+    !normalizedValue || normalizedValue === normalizeHydrationValue(fallback)
+  );
 }
 
 function matchesTemplateFields(
@@ -263,14 +276,18 @@ function looksLikePlaceholderResumeData(data: ResumeData | null | undefined) {
     summary.content,
     defaultData.summary.content || "",
   );
-  const experienceLooksPlaceholder = experienceItems.some((item: any, index: number) => {
-    const defaultItem = defaultExperienceItems[index];
-    return matchesTemplateFields(item, defaultItem, ["company", "position"]);
-  });
-  const educationLooksPlaceholder = educationItems.some((item: any, index: number) => {
-    const defaultItem = defaultEducationItems[index];
-    return matchesTemplateFields(item, defaultItem, ["school", "degree"]);
-  });
+  const experienceLooksPlaceholder = experienceItems.some(
+    (item: any, index: number) => {
+      const defaultItem = defaultExperienceItems[index];
+      return matchesTemplateFields(item, defaultItem, ["company", "position"]);
+    },
+  );
+  const educationLooksPlaceholder = educationItems.some(
+    (item: any, index: number) => {
+      const defaultItem = defaultEducationItems[index];
+      return matchesTemplateFields(item, defaultItem, ["school", "degree"]);
+    },
+  );
   const skillsLookPlaceholder =
     skillItems.length > 0 &&
     skillItems.every((item: any, index: number) =>
@@ -278,10 +295,7 @@ function looksLikePlaceholderResumeData(data: ResumeData | null | undefined) {
     );
   const websiteLooksPlaceholder =
     isPlaceholderField(basics.website?.url, defaultData.basics.website.url) &&
-    isPlaceholderField(
-      basics.website?.label,
-      defaultData.basics.website.label,
-    );
+    isPlaceholderField(basics.website?.label, defaultData.basics.website.label);
   const structuralPlaceholderCount = [
     titleLooksPlaceholder,
     summaryLooksPlaceholder,
@@ -307,13 +321,12 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const queryClient = useQueryClient();
   const { success, error: toastError, info } = useToast();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
-  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, 'Basics');
+  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
   const {
     data: remoteResume,
     error: remoteResumeError,
     isPending: isRemoteResumePending,
   } = useResumeRecord(resumeId);
-
 
   // Store actions/state
   const resumeState = useArtboardStore();
@@ -348,7 +361,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const serverUpdatedAtRef = useRef<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  const draftStorageKey = `resume_draft_${resumeId || 'new'}`;
+  const draftStorageKey = `resume_draft_${resumeId || "new"}`;
 
   // Keep latest ref updated for autosave
   useEffect(() => {
@@ -397,10 +410,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
         if (localDraft?.resume) {
           setResume(localDraft.resume);
           setResumeId(localDraft.resume.id);
-          info(
-            "Draft restored",
-            "We restored your local unsaved changes.",
-          );
+          info("Draft restored", "We restored your local unsaved changes.");
         } else {
           toastError(
             "Resume not found",
@@ -440,11 +450,14 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
               parsedProfile,
               structuredClone(normalizedRemoteData ?? initialResumeState.data),
             )
-          : normalizedRemoteData ?? {
+          : (normalizedRemoteData ?? {
               ...structuredClone(initialResumeState.data),
               title: remoteResume.name || initialResumeState.data.title,
-            };
-        const hydratedState = buildHydratedResumeState(remoteResume, hydratedData);
+            });
+        const hydratedState = buildHydratedResumeState(
+          remoteResume,
+          hydratedData,
+        );
 
         serverUpdatedAtRef.current = remoteResume.updated_at ?? null;
         lastDraftSignatureRef.current = JSON.stringify(hydratedState);
@@ -469,7 +482,10 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
               .eq("id", remoteResume.id);
 
             if (repairError) {
-              console.warn("Failed to repair placeholder resume data", repairError);
+              console.warn(
+                "Failed to repair placeholder resume data",
+                repairError,
+              );
             } else {
               void queryClient.invalidateQueries({
                 queryKey: ["resume", remoteResume.id],
@@ -523,10 +539,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const restoredDraftNoticeRef = useRef(false);
 
   // Profile Data for Auto-population
-  const {
-    profile,
-    experiences,
-  } = useProfileSettings();
+  const { profile, experiences } = useProfileSettings();
   const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
@@ -644,16 +657,17 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
     return () => {
       window.removeEventListener("pagehide", flushDraft);
-      document.removeEventListener(
-        "visibilitychange",
-        handleVisibilityChange,
-      );
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [draftStorageKey, resumeStateData]);
 
   const defaultBasics = initialResumeState.data.basics;
-  const normalizeFieldValue = (value?: string) => value?.trim().toLowerCase() || "";
-  const isPlaceholderBasicsValue = (value: string | undefined, fallback: string) => {
+  const normalizeFieldValue = (value?: string) =>
+    value?.trim().toLowerCase() || "";
+  const isPlaceholderBasicsValue = (
+    value: string | undefined,
+    fallback: string,
+  ) => {
     const normalizedValue = normalizeFieldValue(value);
     if (!normalizedValue) return true;
     return normalizedValue === normalizeFieldValue(fallback);
@@ -662,7 +676,8 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   useEffect(() => {
     if (!hydrationReady) return;
 
-    const profileName = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim();
+    const profileName =
+      `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim();
     const profileHeadline =
       profile?.job_title?.trim() ||
       experiences.data.find((item) => item.is_current)?.title?.trim() ||
@@ -679,7 +694,10 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
     if (
       profileHeadline &&
-      isPlaceholderBasicsValue(resumeData.basics.headline, defaultBasics.headline)
+      isPlaceholderBasicsValue(
+        resumeData.basics.headline,
+        defaultBasics.headline,
+      )
     ) {
       nextBasicsPatch.headline = profileHeadline;
     }
@@ -700,7 +718,10 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
     if (
       profile?.location &&
-      isPlaceholderBasicsValue(resumeData.basics.location, defaultBasics.location)
+      isPlaceholderBasicsValue(
+        resumeData.basics.location,
+        defaultBasics.location,
+      )
     ) {
       nextBasicsPatch.location = profile.location;
     }
@@ -730,16 +751,13 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const toggleSectionVisibility = useArtboardStore(
     (state) => state.toggleSectionVisibility,
   );
-  const {
-    profileAvatarUrl,
-    syncingProfilePhoto,
-    syncProfilePicture,
-  } = useResumeProfilePhoto({
-    picture: resumeData.basics.picture,
-    profileAvatarPath: profile?.avatar_url || null,
-    supabase,
-    updateBasics,
-  });
+  const { profileAvatarUrl, syncingProfilePhoto, syncProfilePicture } =
+    useResumeProfilePhoto({
+      picture: resumeData.basics.picture,
+      profileAvatarPath: profile?.avatar_url || null,
+      supabase,
+      updateBasics,
+    });
 
   const useProfileImage = useCallback(
     async () => Boolean(await syncProfilePicture(true)),
@@ -785,31 +803,56 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
     void downloadResumePDF(resumeData);
   };
 
-  const aiPolishSummary = async (instruction = "Polish this resume summary for clarity, confidence, and measurable impact.") => {
+  const aiPolishSummary = async (
+    instruction = "Polish this resume summary for clarity, confidence, and measurable impact.",
+  ) => {
     if (!hasResumeAiAccess) {
-      toastError("Upgrade required", "Resume AI tools are available on Basics and above.");
+      toastError(
+        "Upgrade required",
+        "Resume AI tools are available on Basics and above.",
+      );
       return;
     }
     setAiLoading(true);
     try {
-      const source = (summary.content || basics.headline || basics.name || "").trim();
+      const source = (
+        summary.content ||
+        basics.headline ||
+        basics.name ||
+        ""
+      ).trim();
       if (!source) throw new Error("Add a summary or headline first.");
       const suggestions = await polishContent(source, instruction);
-      const nextSummary = suggestions.find((item) => item.isRecommended)?.content || suggestions[0]?.content || "";
+      const nextSummary =
+        suggestions.find((item) => item.isRecommended)?.content ||
+        suggestions[0]?.content ||
+        "";
       if (!nextSummary) throw new Error("No AI suggestion was returned.");
       setSummary(nextSummary);
       success(
-        instruction.includes("fresh") ? "Summary generated" : "Summary polished",
-        instruction.includes("fresh") ? "A new AI summary has been added to your resume." : "AI suggestions have been applied to your resume summary."
+        instruction.includes("fresh")
+          ? "Summary generated"
+          : "Summary polished",
+        instruction.includes("fresh")
+          ? "A new AI summary has been added to your resume."
+          : "AI suggestions have been applied to your resume summary.",
       );
     } catch (e: any) {
-      toastError(instruction.includes("fresh") ? "AI generation failed" : "AI rewrite failed", e?.message || "AI is temporarily unavailable.");
+      toastError(
+        instruction.includes("fresh")
+          ? "AI generation failed"
+          : "AI rewrite failed",
+        e?.message || "AI is temporarily unavailable.",
+      );
     } finally {
       setAiLoading(false);
     }
   };
 
-  const aiGenerateResume = async () => aiPolishSummary("Write a fresh professional resume summary in 3-4 concise sentences.");
+  const aiGenerateResume = async () =>
+    aiPolishSummary(
+      "Write a fresh professional resume summary in 3-4 concise sentences.",
+    );
   const [saveAlertOpen, setSaveAlertOpen] = useState(false);
   const effectivePreviewScale = isMobile ? previewScale : zoom;
   const previewFrameWidth = PREVIEW_BASE_WIDTH * effectivePreviewScale;
@@ -854,7 +897,10 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
       success("Resume saved", "Your latest resume changes have been saved.");
       setSaveAlertOpen(true);
     } catch (e: any) {
-      toastError("Save failed", e?.message || "Unable to save your resume right now.");
+      toastError(
+        "Save failed",
+        e?.message || "Unable to save your resume right now.",
+      );
     } finally {
       setSaving(false);
     }
@@ -866,15 +912,15 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
       <Modal
         open={saveAlertOpen}
         onClose={() => setSaveAlertOpen(false)}
-        title="Resume Saved"
-        size="sm"
+        title='Resume Saved'
+        size='sm'
         footer={
-          <div className="flex justify-end">
+          <div className='flex justify-end'>
             <Button onClick={() => setSaveAlertOpen(false)}>Close</Button>
           </div>
         }
       >
-        <div className="text-foreground/80 py-4">
+        <div className='text-foreground/80 py-4'>
           Your resume has been saved successfully.
         </div>
       </Modal>
@@ -895,12 +941,12 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
               ref={titleInputRef}
               value={resumeData.title || ""}
               onChange={(e) => setResumeTitle(e.target.value)}
-              placeholder="Untitled Resume"
-              className='product-page-title w-full min-w-0 rounded-md bg-transparent px-2 py-1 text-base font-semibold outline-none transition-all hover:bg-muted/30 focus:bg-muted/50 focus:ring-1 focus:ring-[#1dff00]/50 md:text-lg'
+              placeholder='Untitled Resume'
+              className='product-page-title w-full min-w-0 rounded-md bg-transparent px-2 py-1 text-base font-semibold outline-none transition-all hover:bg-muted/30 focus:bg-muted/50 focus:ring-1 focus:ring-brand/50 md:text-lg'
             />
             <button
               onClick={() => titleInputRef.current?.focus()}
-              className='product-helper-text p-1 hover:text-[#1dff00] transition-all opacity-60 hover:opacity-100 transition-opacity focus:opacity-100'
+              className='product-helper-text p-1 hover:text-brand transition-all opacity-60 hover:opacity-100 transition-opacity focus:opacity-100'
             >
               <Edit2 className='w-3.5 h-3.5' />
             </button>
@@ -928,7 +974,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           <button
             onClick={() => aiPolishSummary()}
             disabled={aiLoading || loadingTier}
-            className='flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#1dff00] text-black text-xs md:text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] whitespace-nowrap disabled:opacity-60'
+            className='flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 rounded-lg bg-brand hover:bg-brand text-black text-xs md:text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] whitespace-nowrap disabled:opacity-60'
           >
             <Sparkles className='w-4 h-4 shrink-0' />
             <span className='hidden sm:inline'>
@@ -940,7 +986,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           <button
             onClick={aiGenerateResume}
             disabled={aiLoading || loadingTier}
-            className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-[#1dff00]/60 hover:bg-[#1dff00]/15 dark:hover:bg-white/10 dark:hover:border-white/20'
+            className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-brand/60 hover:bg-brand/15 dark:hover:bg-white/10 dark:hover:border-white/20'
           >
             <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
             <span className='hidden sm:inline'>
@@ -996,9 +1042,9 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
               <h3 className='product-helper-text text-xs font-bold uppercase tracking-wider'>
                 Content
               </h3>
-              <div className='text-[10px] text-[#1dff00] flex items-center gap-1 font-medium'>
+              <div className='text-[10px] text-brand flex items-center gap-1 font-medium'>
                 <span
-                  className={`w-1.5 h-1.5 rounded-full ${saving ? "bg-[#1dff00]/100 animate-pulse" : "bg-[#1dff00]"}`}
+                  className={`w-1.5 h-1.5 rounded-full ${saving ? "bg-brand/100 animate-pulse" : "bg-brand"}`}
                 />
                 {editorStatusLabel}
               </div>
@@ -1006,14 +1052,14 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
             {/* Personal Info Section */}
             <div
-              className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === "personal" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+              className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === "personal" ? "ring-1 ring-brand/50" : "hover:border-brand/30"}`}
             >
               <div
                 className='p-5 flex items-center justify-between cursor-pointer'
                 onClick={() => toggleSection("personal")}
               >
                 <div className='flex items-center gap-3'>
-                  <User className='w-5 h-5 text-[#1dff00]' />
+                  <User className='w-5 h-5 text-brand' />
                   <h4 className='font-semibold product-page-title'>
                     Personal Info
                   </h4>
@@ -1038,14 +1084,14 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             {/* Summary Section */}
             {!summary.hidden && (
               <div
-                className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === "summary" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+                className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === "summary" ? "ring-1 ring-brand/50" : "hover:border-brand/30"}`}
               >
                 <div
                   className='p-5 flex items-center justify-between cursor-pointer'
                   onClick={() => toggleSection("summary")}
                 >
                   <div className='flex items-center gap-3'>
-                    <FileText className='w-5 h-5 text-[#1dff00]' />
+                    <FileText className='w-5 h-5 text-brand' />
                     <h4 className='font-semibold product-page-title'>
                       Summary
                     </h4>
@@ -1063,7 +1109,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                       value={summary.content || ""}
                       onChange={(e) => setSummary(e.target.value)}
                       rows={4}
-                      className='product-input-surface w-full rounded-lg px-3 py-2 text-sm outline-none transition-all focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00]'
+                      className='product-input-surface w-full rounded-lg px-3 py-2 text-sm outline-none transition-all focus:border-brand focus:ring-1 focus:ring-brand'
                       placeholder='Brief professional summary...'
                     />
                   </div>
@@ -1081,21 +1127,21 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
               return (
                 <div
                   key={sectionId}
-                  className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+                  className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? "ring-1 ring-brand/50" : "hover:border-brand/30"}`}
                 >
                   <div
                     className='p-5 flex items-center justify-between cursor-pointer'
                     onClick={() => toggleSection(sectionId)}
                   >
                     <div className='flex items-center gap-3'>
-                      <Icon className='w-5 h-5 text-[#1dff00]' />
+                      <Icon className='w-5 h-5 text-brand' />
                       <h4 className='font-semibold product-page-title'>
                         {section.title}
                       </h4>
                     </div>
                     <div className='flex items-center gap-2'>
                       <button
-                        className='p-1 hover:bg-muted rounded product-helper-text hover:text-[#1dff00] transition-colors'
+                        className='p-1 hover:bg-muted rounded product-helper-text hover:text-brand transition-colors'
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleSectionVisibility(sectionId);
@@ -1129,7 +1175,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             <div className='pt-4 pb-20'>
               <Button
                 variant='outline'
-                className='w-full py-6 border-dashed border-gray-300 dark:border-foreground/20 hover:border-[#1dff00] hover:text-[#1dff00] hover:bg-[#1dff00]/5'
+                className='w-full py-6 border-dashed border-gray-300 dark:border-foreground/20 hover:border-brand hover:text-brand hover:bg-brand/5'
                 onClick={() => setIsAddSectionOpen(true)}
               >
                 <Plus className='w-5 h-5 mr-2' />
@@ -1148,13 +1194,13 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             <div className='absolute right-4 top-4 z-10 flex flex-col gap-2 md:right-8 md:top-8'>
               <button
                 onClick={() => setZoom((z) => Math.min(z + 0.1, 1.5))}
-                className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#1dff00]'
+                className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-brand'
               >
                 <ZoomIn className='w-4 h-4 md:w-5 md:h-5' />
               </button>
               <button
                 onClick={() => setZoom((z) => Math.max(z - 0.1, 0.5))}
-                className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#1dff00]'
+                className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-brand'
               >
                 <ZoomOut className='w-4 h-4 md:w-5 md:h-5' />
               </button>
@@ -1192,7 +1238,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             onClick={() => setMobileView("editor")}
             className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
               mobileView === "editor"
-                ? "text-[#1dff00] bg-[#1dff00]/5"
+                ? "text-brand bg-brand/5"
                 : "text-muted-foreground"
             }`}
           >
@@ -1204,7 +1250,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             onClick={() => setMobileView("preview")}
             className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
               mobileView === "preview"
-                ? "text-[#1dff00] bg-[#1dff00]/5"
+                ? "text-brand bg-brand/5"
                 : "text-muted-foreground"
             }`}
           >

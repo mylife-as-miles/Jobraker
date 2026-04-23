@@ -1,4 +1,12 @@
-import { Fragment, createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  createElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createClient } from "../lib/supabaseClient";
 import { useToast } from "../components/ui/toast";
 import { createNotification } from "../utils/notifications";
@@ -49,7 +57,9 @@ export interface ApplicationRecord {
   provider_run_output?: Record<string, unknown> | null;
 }
 
-type CreateInput = Partial<Omit<ApplicationRecord, "id" | "user_id" | "created_at" | "updated_at">> & {
+type CreateInput = Partial<
+  Omit<ApplicationRecord, "id" | "user_id" | "created_at" | "updated_at">
+> & {
   job_title: string;
   company: string;
 };
@@ -91,14 +101,17 @@ function formatRecoveredSalary(job: RecoverableJobRow): string | null {
   const currency = job.salary_currency?.trim() || "";
 
   if (min == null && max == null) return null;
-  if (min != null && max != null) return `${currency}${min.toLocaleString()} - ${currency}${max.toLocaleString()}`;
+  if (min != null && max != null)
+    return `${currency}${min.toLocaleString()} - ${currency}${max.toLocaleString()}`;
   const value = min ?? max;
   return value == null ? null : `${currency}${value.toLocaleString()}`;
 }
 
-function buildResumeRebuildPrompt(
-  opts?: { jobTitle?: string | null; company?: string | null; count?: number },
-) {
+function buildResumeRebuildPrompt(opts?: {
+  jobTitle?: string | null;
+  company?: string | null;
+  count?: number;
+}) {
   const count = opts?.count ?? 1;
   const company = opts?.company?.trim();
   const jobTitle = opts?.jobTitle?.trim();
@@ -117,7 +130,8 @@ function buildResumeRebuildPrompt(
       "a",
       {
         href: "/dashboard/resume",
-        className: "font-medium text-[#1dff00] underline underline-offset-4 hover:text-[#1dff00]",
+        className:
+          "font-medium text-brand underline underline-offset-4 hover:text-brand",
       },
       "Open the Resume section",
     ),
@@ -218,15 +232,22 @@ export function useApplications() {
       const existingJobIds = new Set(
         applicationRows
           .map((row) => row.job_id)
-          .filter((jobId): jobId is string => typeof jobId === "string" && jobId.length > 0),
+          .filter(
+            (jobId): jobId is string =>
+              typeof jobId === "string" && jobId.length > 0,
+          ),
       );
       const existingAppUrls = new Set(
         applicationRows
           .map((row) => row.app_url)
-          .filter((url): url is string => typeof url === "string" && url.length > 0),
+          .filter(
+            (url): url is string => typeof url === "string" && url.length > 0,
+          ),
       );
 
-      const { data: recoverableJobs, error: recoverableJobsError } = await (supabase as any)
+      const { data: recoverableJobs, error: recoverableJobsError } = await (
+        supabase as any
+      )
         .from("jobs")
         .select(
           "id, title, company, location, apply_url, company_logo, created_at, updated_at, canonical_status, salary_min, salary_max, salary_currency, evaluation_summary",
@@ -235,11 +256,16 @@ export function useApplications() {
         .in("canonical_status", RECOVERABLE_JOB_STATES);
 
       if (recoverableJobsError) {
-        console.warn("Failed to load recoverable jobs for applications sync", recoverableJobsError);
+        console.warn(
+          "Failed to load recoverable jobs for applications sync",
+          recoverableJobsError,
+        );
       }
 
       let recoveredRows: ApplicationRecord[] = [];
-      const missingJobs = ((recoverableJobs ?? []) as RecoverableJobRow[]).filter(
+      const missingJobs = (
+        (recoverableJobs ?? []) as RecoverableJobRow[]
+      ).filter(
         (job) =>
           !existingJobIds.has(job.id) &&
           !(job.apply_url && existingAppUrls.has(job.apply_url)),
@@ -252,7 +278,8 @@ export function useApplications() {
           job_title: job.title,
           company: job.company,
           location: job.location ?? "",
-          applied_date: job.updated_at || job.created_at || new Date().toISOString(),
+          applied_date:
+            job.updated_at || job.created_at || new Date().toISOString(),
           status: displayStatusFromCanonicalStage(job.canonical_status),
           canonical_stage: job.canonical_status,
           salary: formatRecoveredSalary(job),
@@ -260,14 +287,17 @@ export function useApplications() {
           next_step: null,
           interview_date: null,
           logo: job.company_logo ?? null,
-          app_url: job.apply_url ? applyMicro1ReferralToUrl(job.apply_url) : null,
+          app_url: job.apply_url
+            ? applyMicro1ReferralToUrl(job.apply_url)
+            : null,
           provider_status: job.canonical_status,
           match_reasons:
             Array.isArray(job.evaluation_summary?.matched_keywords) &&
             job.evaluation_summary.matched_keywords.length > 0
               ? job.evaluation_summary.matched_keywords
               : null,
-          draft_status: job.canonical_status === "draft_ready" ? "draft" : "sent",
+          draft_status:
+            job.canonical_status === "draft_ready" ? "draft" : "sent",
           ai_confidence_score:
             typeof job.evaluation_summary?.confidence_score === "number"
               ? job.evaluation_summary.confidence_score
@@ -275,17 +305,22 @@ export function useApplications() {
           user_review_notes: null,
         }));
 
-        const { data: insertedRecoveredRows, error: recoverError } = await (supabase as any)
+        const { data: insertedRecoveredRows, error: recoverError } = await (
+          supabase as any
+        )
           .from("applications")
           .insert(recoveryPayload)
           .select("*");
 
         if (recoverError) {
-          console.warn("Failed to recover missing application rows from jobs", recoverError);
-        } else {
-          recoveredRows = ((insertedRecoveredRows ?? []) as ApplicationRecord[]).map((row) =>
-            normalizeApplicationRecord(row),
+          console.warn(
+            "Failed to recover missing application rows from jobs",
+            recoverError,
           );
+        } else {
+          recoveredRows = (
+            (insertedRecoveredRows ?? []) as ApplicationRecord[]
+          ).map((row) => normalizeApplicationRecord(row));
         }
       }
 
@@ -310,18 +345,30 @@ export function useApplications() {
     const channel = (supabase as any)
       .channel(`applications:${userId}`)
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'applications', filter: `user_id=eq.${userId}` },
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "applications",
+          filter: `user_id=eq.${userId}`,
+        },
         (payload: any) => {
           const { eventType, new: newRow, old: oldRow } = payload;
           setApplications((prev) => {
             switch (eventType) {
-              case 'INSERT':
+              case "INSERT":
                 if (prev.find((r) => r.id === newRow.id)) return prev;
-                return [normalizeApplicationRecord(newRow as ApplicationRecord), ...prev];
-              case 'UPDATE': {
-                const normalized = normalizeApplicationRecord(newRow as ApplicationRecord);
-                const updated = prev.map((r) => (r.id === newRow.id ? { ...r, ...normalized } : r));
+                return [
+                  normalizeApplicationRecord(newRow as ApplicationRecord),
+                  ...prev,
+                ];
+              case "UPDATE": {
+                const normalized = normalizeApplicationRecord(
+                  newRow as ApplicationRecord,
+                );
+                const updated = prev.map((r) =>
+                  r.id === newRow.id ? { ...r, ...normalized } : r,
+                );
                 // Move updated to top
                 const idx = updated.findIndex((r) => r.id === newRow.id);
                 if (idx > 0) {
@@ -331,309 +378,392 @@ export function useApplications() {
                 }
                 return updated;
               }
-              case 'DELETE':
+              case "DELETE":
                 return prev.filter((r) => r.id !== (oldRow?.id ?? newRow?.id));
               default:
                 return prev;
             }
           });
-        }
+        },
       )
       .subscribe();
 
     return () => {
-      try { (supabase as any).removeChannel(channel); } catch {}
+      try {
+        (supabase as any).removeChannel(channel);
+      } catch {}
     };
   }, [supabase, userId]);
 
-  const create = useCallback(async (input: CreateInput) => {
-    if (!userId) return null;
-    try {
-      const payload = {
-        user_id: userId,
-        job_id: input.job_id ?? null,
-        job_title: input.job_title,
-        company: input.company,
-        location: input.location ?? "",
-    applied_date: input.applied_date ?? new Date().toISOString(),
-    status: (input.status ?? "Pending") as ApplicationStatus,
-        canonical_stage:
-          input.canonical_stage ??
-          canonicalStageFromDisplayStatus(input.status ?? "Pending"),
-        salary: input.salary ?? null,
-        notes: input.notes ?? null,
-        match_score: input.match_score ?? null,
-        next_step: input.next_step ?? null,
-        interview_date: input.interview_date ?? null,
-        logo: input.logo ?? null,
-        match_reasons: input.match_reasons ?? null,
-        receipt_url: input.receipt_url ?? null,
-        success_url: input.success_url ?? null,
-        draft_status: input.draft_status ?? 'ready',
-        ai_confidence_score: input.ai_confidence_score ?? null,
-        user_review_notes: input.user_review_notes ?? null,
-      };
-      const { data, error } = await (supabase as any)
-        .from("applications")
-        .insert(payload)
-        .select("*")
-        .single();
-      if (error) throw error;
-      const rec = normalizeApplicationRecord(data as ApplicationRecord);
-      setApplications((prev) => [rec, ...prev]);
-      success("Application added", `${rec.job_title} @ ${rec.company}`);
-      // Notification: new application added
-      createNotification({
-        user_id: userId,
-        type: 'application',
-        title: `Application added: ${rec.job_title}`,
-        message: `${rec.job_title} @ ${rec.company}`,
-        company: rec.company,
-        action_url: rec.app_url ?? undefined,
-      });
-      return rec;
-    } catch (e: any) {
-      const msg = e.message || "Failed to add application";
-      setError(msg);
-      toastError("Add failed", msg);
-      // System notification for failure (best-effort; ignore result)
-      if (userId) {
+  const create = useCallback(
+    async (input: CreateInput) => {
+      if (!userId) return null;
+      try {
+        const payload = {
+          user_id: userId,
+          job_id: input.job_id ?? null,
+          job_title: input.job_title,
+          company: input.company,
+          location: input.location ?? "",
+          applied_date: input.applied_date ?? new Date().toISOString(),
+          status: (input.status ?? "Pending") as ApplicationStatus,
+          canonical_stage:
+            input.canonical_stage ??
+            canonicalStageFromDisplayStatus(input.status ?? "Pending"),
+          salary: input.salary ?? null,
+          notes: input.notes ?? null,
+          match_score: input.match_score ?? null,
+          next_step: input.next_step ?? null,
+          interview_date: input.interview_date ?? null,
+          logo: input.logo ?? null,
+          match_reasons: input.match_reasons ?? null,
+          receipt_url: input.receipt_url ?? null,
+          success_url: input.success_url ?? null,
+          draft_status: input.draft_status ?? "ready",
+          ai_confidence_score: input.ai_confidence_score ?? null,
+          user_review_notes: input.user_review_notes ?? null,
+        };
+        const { data, error } = await (supabase as any)
+          .from("applications")
+          .insert(payload)
+          .select("*")
+          .single();
+        if (error) throw error;
+        const rec = normalizeApplicationRecord(data as ApplicationRecord);
+        setApplications((prev) => [rec, ...prev]);
+        success("Application added", `${rec.job_title} @ ${rec.company}`);
+        // Notification: new application added
         createNotification({
           user_id: userId,
-          type: 'system',
-          title: 'Application creation failed',
-          message: msg,
+          type: "application",
+          title: `Application added: ${rec.job_title}`,
+          message: `${rec.job_title} @ ${rec.company}`,
+          company: rec.company,
+          action_url: rec.app_url ?? undefined,
         });
+        return rec;
+      } catch (e: any) {
+        const msg = e.message || "Failed to add application";
+        setError(msg);
+        toastError("Add failed", msg);
+        // System notification for failure (best-effort; ignore result)
+        if (userId) {
+          createNotification({
+            user_id: userId,
+            type: "system",
+            title: "Application creation failed",
+            message: msg,
+          });
+        }
+        return null;
       }
-      return null;
-    }
-  }, [supabase, userId, success, toastError]);
+    },
+    [supabase, userId, success, toastError],
+  );
 
-  const update = useCallback(async (id: string, patch: Partial<ApplicationRecord>) => {
-    // Inspect before state for status transitions
-    const current = applications.find(a => a.id === id);
-    const oldStatus = current?.status;
-    const newStatus = patch.status ?? oldStatus;
-    const oldInterviewDate = current?.interview_date;
-    try {
-      const normalizedPatch = {
-        ...patch,
-        ...(patch.status
-          ? { canonical_stage: canonicalStageFromDisplayStatus(patch.status) }
-          : {}),
-      };
-      setApplications((prev) =>
-        prev.map((r) =>
-          r.id === id ? normalizeApplicationRecord({ ...r, ...normalizedPatch }) : r,
+  const update = useCallback(
+    async (id: string, patch: Partial<ApplicationRecord>) => {
+      // Inspect before state for status transitions
+      const current = applications.find((a) => a.id === id);
+      const oldStatus = current?.status;
+      const newStatus = patch.status ?? oldStatus;
+      const oldInterviewDate = current?.interview_date;
+      try {
+        const normalizedPatch = {
+          ...patch,
+          ...(patch.status
+            ? { canonical_stage: canonicalStageFromDisplayStatus(patch.status) }
+            : {}),
+        };
+        setApplications((prev) =>
+          prev.map((r) =>
+            r.id === id
+              ? normalizeApplicationRecord({ ...r, ...normalizedPatch })
+              : r,
+          ),
+        );
+        const { error } = await (supabase as any)
+          .from("applications")
+          .update(normalizedPatch)
+          .eq("id", id);
+        if (error) throw error;
+        success("Saved changes");
+        // Create notifications for key lifecycle transitions
+        if (
+          userId &&
+          oldStatus &&
+          newStatus &&
+          oldStatus !== newStatus &&
+          current
+        ) {
+          if (newStatus === "Interview") {
+            createNotification({
+              user_id: userId,
+              type: "interview",
+              title: `Interview stage: ${current.job_title}`,
+              message: `${current.job_title} @ ${current.company} advanced to Interview`,
+              company: current.company,
+              action_url: current.app_url ?? undefined,
+            });
+          } else if (newStatus === "Offer") {
+            createNotification({
+              user_id: userId,
+              type: "application",
+              title: `Offer received: ${current.job_title}`,
+              message: `Congratulations! Offer stage reached for ${current.job_title} @ ${current.company}`,
+              company: current.company,
+              action_url: current.app_url ?? undefined,
+            });
+          } else if (newStatus === "Rejected") {
+            createNotification({
+              user_id: userId,
+              type: "system",
+              title: `Application rejected: ${current.job_title}`,
+              message: `${current.job_title} @ ${current.company}`,
+              company: current.company,
+            });
+            warning(
+              "Resume rebuild recommended",
+              buildResumeRebuildPrompt({
+                jobTitle: current.job_title,
+                company: current.company,
+              }),
+              9000,
+            );
+          }
+        }
+        // Interview date newly scheduled or changed
+        if (
+          userId &&
+          patch.interview_date &&
+          patch.interview_date !== oldInterviewDate &&
+          current
+        ) {
+          const when = (() => {
+            try {
+              return new Date(patch.interview_date as string).toLocaleString();
+            } catch {
+              return patch.interview_date;
+            }
+          })();
+          createNotification({
+            user_id: userId,
+            type: "interview",
+            title: `Interview scheduled: ${current.job_title}`,
+            message: `${current.job_title} @ ${current.company} on ${when}`,
+            company: current.company,
+            action_url: current.app_url ?? undefined,
+          });
+        }
+        // Provider failure or explicit failure_reason update
+        if (userId && patch.failure_reason) {
+          createNotification({
+            user_id: userId,
+            type: "system",
+            title: "Application error",
+            message: patch.failure_reason.slice(0, 500),
+          });
+        }
+      } catch (e: any) {
+        const msg = e.message || "Failed to update application";
+        setError(msg);
+        toastError("Update failed", msg);
+        await list();
+        if (userId) {
+          createNotification({
+            user_id: userId,
+            type: "system",
+            title: "Application update failed",
+            message: msg,
+          });
+        }
+      }
+    },
+    [supabase, success, toastError, warning, list, applications, userId],
+  );
+
+  /** Bulk status update (optimistic). Rolls back to previous collection on failure. */
+  const bulkUpdateStatus = useCallback(
+    async (ids: string[], status: ApplicationStatus) => {
+      if (!ids.length) return;
+      const prev = applications;
+      const affected = new Set(ids);
+      const canonicalStage = canonicalStageFromDisplayStatus(status);
+      setApplications(
+        applications.map((a) =>
+          affected.has(a.id)
+            ? normalizeApplicationRecord({
+                ...a,
+                status,
+                canonical_stage: canonicalStage,
+              })
+            : a,
         ),
       );
-      const { error } = await (supabase as any)
-        .from("applications")
-        .update(normalizedPatch)
-        .eq("id", id);
-      if (error) throw error;
-      success("Saved changes");
-      // Create notifications for key lifecycle transitions
-      if (userId && oldStatus && newStatus && oldStatus !== newStatus && current) {
-        if (newStatus === 'Interview') {
+      try {
+        const { error } = await (supabase as any)
+          .from("applications")
+          .update({ status, canonical_stage: canonicalStage })
+          .in("id", ids);
+        if (error) throw error;
+        success(
+          "Statuses updated",
+          `${ids.length} application${ids.length > 1 ? "s" : ""}`,
+        );
+        if (userId) {
+          // Aggregate notification (avoid spamming one per record)
+          const label =
+            status === "Offer"
+              ? "Offer stage"
+              : status === "Interview"
+                ? "Interview stage"
+                : `Status: ${status}`;
           createNotification({
             user_id: userId,
-            type: 'interview',
-            title: `Interview stage: ${current.job_title}`,
-            message: `${current.job_title} @ ${current.company} advanced to Interview`,
-            company: current.company,
-            action_url: current.app_url ?? undefined,
+            type:
+              status === "Rejected" || status === "Failed"
+                ? "system"
+                : "application",
+            title: `${label} (${ids.length})`,
+            message: `Updated ${ids.length} application${ids.length > 1 ? "s" : ""} to ${status}.`,
           });
-        } else if (newStatus === 'Offer') {
-          createNotification({
-            user_id: userId,
-            type: 'application',
-            title: `Offer received: ${current.job_title}`,
-            message: `Congratulations! Offer stage reached for ${current.job_title} @ ${current.company}`,
-            company: current.company,
-            action_url: current.app_url ?? undefined,
-          });
-        } else if (newStatus === 'Rejected') {
-          createNotification({
-            user_id: userId,
-            type: 'system',
-            title: `Application rejected: ${current.job_title}`,
-            message: `${current.job_title} @ ${current.company}`,
-            company: current.company,
-          });
+        }
+        if (status === "Rejected") {
           warning(
             "Resume rebuild recommended",
-            buildResumeRebuildPrompt({
-              jobTitle: current.job_title,
-              company: current.company,
-            }),
+            buildResumeRebuildPrompt({ count: ids.length }),
             9000,
           );
         }
+      } catch (e: any) {
+        setApplications(prev); // rollback
+        const msg = e.message || "Bulk status update failed";
+        setError(msg);
+        toastError("Bulk update failed", msg);
       }
-      // Interview date newly scheduled or changed
-      if (userId && patch.interview_date && patch.interview_date !== oldInterviewDate && current) {
-        const when = (() => {
-          try { return new Date(patch.interview_date as string).toLocaleString(); } catch { return patch.interview_date; }
-        })();
-        createNotification({
-          user_id: userId,
-          type: 'interview',
-          title: `Interview scheduled: ${current.job_title}`,
-          message: `${current.job_title} @ ${current.company} on ${when}`,
-          company: current.company,
-          action_url: current.app_url ?? undefined,
-        });
-      }
-      // Provider failure or explicit failure_reason update
-      if (userId && patch.failure_reason) {
-      createNotification({
-          user_id: userId,
-          type: 'system',
-          title: 'Application error',
-          message: patch.failure_reason.slice(0, 500),
-        });
-      }
-    } catch (e: any) {
-      const msg = e.message || "Failed to update application";
-      setError(msg);
-      toastError("Update failed", msg);
-      await list();
-      if (userId) {
-        createNotification({
-          user_id: userId,
-          type: 'system',
-          title: 'Application update failed',
-          message: msg,
-        });
-      }
-    }
-  }, [supabase, success, toastError, warning, list, applications, userId]);
-
-  /** Bulk status update (optimistic). Rolls back to previous collection on failure. */
-  const bulkUpdateStatus = useCallback(async (ids: string[], status: ApplicationStatus) => {
-    if (!ids.length) return;
-    const prev = applications;
-    const affected = new Set(ids);
-    const canonicalStage = canonicalStageFromDisplayStatus(status);
-    setApplications(
-      applications.map((a) =>
-        affected.has(a.id)
-          ? normalizeApplicationRecord({ ...a, status, canonical_stage: canonicalStage })
-          : a,
-      ),
-    );
-    try {
-      const { error } = await (supabase as any)
-        .from('applications')
-        .update({ status, canonical_stage: canonicalStage })
-        .in('id', ids);
-      if (error) throw error;
-      success('Statuses updated', `${ids.length} application${ids.length > 1 ? 's' : ''}`);
-      if (userId) {
-        // Aggregate notification (avoid spamming one per record)
-        const label = status === 'Offer' ? 'Offer stage' : status === 'Interview' ? 'Interview stage' : `Status: ${status}`;
-        createNotification({
-          user_id: userId,
-          type: status === 'Rejected' || status === 'Failed' ? 'system' : 'application',
-          title: `${label} (${ids.length})`,
-          message: `Updated ${ids.length} application${ids.length>1?'s':''} to ${status}.`,
-        });
-      }
-      if (status === "Rejected") {
-        warning(
-          "Resume rebuild recommended",
-          buildResumeRebuildPrompt({ count: ids.length }),
-          9000,
-        );
-      }
-    } catch (e: any) {
-      setApplications(prev); // rollback
-      const msg = e.message || 'Bulk status update failed';
-      setError(msg);
-      toastError('Bulk update failed', msg);
-    }
-  }, [applications, supabase, success, toastError, userId, warning]);
+    },
+    [applications, supabase, success, toastError, userId, warning],
+  );
 
   /** Lightweight client-side search (case-insensitive across title/company/location). */
-  const search = useCallback((q: string) => {
-    if (!q.trim()) return applications;
-    const needle = q.trim().toLowerCase();
-    return applications.filter(a =>
-      a.job_title.toLowerCase().includes(needle) ||
-      a.company.toLowerCase().includes(needle) ||
-      a.location.toLowerCase().includes(needle)
-    );
-  }, [applications]);
+  const search = useCallback(
+    (q: string) => {
+      if (!q.trim()) return applications;
+      const needle = q.trim().toLowerCase();
+      return applications.filter(
+        (a) =>
+          a.job_title.toLowerCase().includes(needle) ||
+          a.company.toLowerCase().includes(needle) ||
+          a.location.toLowerCase().includes(needle),
+      );
+    },
+    [applications],
+  );
 
   /** Filter applications by simple criteria. */
-  const filter = useCallback((opts: { status?: ApplicationStatus | ApplicationStatus[]; from?: string; to?: string; }) => {
-    const statuses = opts.status ? (Array.isArray(opts.status) ? opts.status : [opts.status]) : null;
-    const fromT = opts.from ? Date.parse(opts.from) : null;
-    const toT = opts.to ? Date.parse(opts.to) : null;
-    return applications.filter(a => {
-      if (statuses && !statuses.includes(a.status)) return false;
-      if (fromT || toT) {
-        const t = Date.parse(a.applied_date);
-        if (fromT && t < fromT) return false;
-        if (toT && t > toT) return false;
-      }
-      return true;
-    });
-  }, [applications]);
+  const filter = useCallback(
+    (opts: {
+      status?: ApplicationStatus | ApplicationStatus[];
+      from?: string;
+      to?: string;
+    }) => {
+      const statuses = opts.status
+        ? Array.isArray(opts.status)
+          ? opts.status
+          : [opts.status]
+        : null;
+      const fromT = opts.from ? Date.parse(opts.from) : null;
+      const toT = opts.to ? Date.parse(opts.to) : null;
+      return applications.filter((a) => {
+        if (statuses && !statuses.includes(a.status)) return false;
+        if (fromT || toT) {
+          const t = Date.parse(a.applied_date);
+          if (fromT && t < fromT) return false;
+          if (toT && t > toT) return false;
+        }
+        return true;
+      });
+    },
+    [applications],
+  );
 
   /** Direct fetch by id from in-memory cache */
   const getById = useCallback((id: string) => byId.get(id) ?? null, [byId]);
 
-  const remove = useCallback(async (id: string) => {
-    const current = applications.find(a => a.id === id);
-    try {
-      setApplications((prev) => prev.filter((r) => r.id !== id));
-      const { error } = await (supabase as any)
-        .from("applications")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
-      info("Deleted");
-      if (userId && current) {
-        createNotification({
-          user_id: userId,
-          type: 'system',
-          title: `Application removed: ${current.job_title}`,
-          message: `${current.job_title} @ ${current.company}`,
-          company: current.company,
-        });
+  const remove = useCallback(
+    async (id: string) => {
+      const current = applications.find((a) => a.id === id);
+      try {
+        setApplications((prev) => prev.filter((r) => r.id !== id));
+        const { error } = await (supabase as any)
+          .from("applications")
+          .delete()
+          .eq("id", id);
+        if (error) throw error;
+        info("Deleted");
+        if (userId && current) {
+          createNotification({
+            user_id: userId,
+            type: "system",
+            title: `Application removed: ${current.job_title}`,
+            message: `${current.job_title} @ ${current.company}`,
+            company: current.company,
+          });
+        }
+      } catch (e: any) {
+        const msg = e.message || "Failed to delete application";
+        setError(msg);
+        toastError("Delete failed", msg);
+        await list();
+        if (userId) {
+          createNotification({
+            user_id: userId,
+            type: "system",
+            title: "Application delete failed",
+            message: msg,
+          });
+        }
       }
-    } catch (e: any) {
-      const msg = e.message || "Failed to delete application";
-      setError(msg);
-      toastError("Delete failed", msg);
-      await list();
-      if (userId) {
-        createNotification({
-          user_id: userId,
-          type: 'system',
-          title: 'Application delete failed',
-          message: msg,
-        });
-      }
-    }
-  }, [supabase, info, toastError, list, applications, userId]);
+    },
+    [supabase, info, toastError, list, applications, userId],
+  );
 
   const exportCSV = useCallback(() => {
     const headers = [
-      "job_title","company","location","applied_date","status","salary","notes","next_step","interview_date","logo"
+      "job_title",
+      "company",
+      "location",
+      "applied_date",
+      "status",
+      "salary",
+      "notes",
+      "next_step",
+      "interview_date",
+      "logo",
     ];
     const rows = applications.map((a) => [
-      a.job_title, a.company, a.location, a.applied_date, a.status, a.salary ?? "",
-      a.notes?.replace(/\n/g, " ") ?? "", a.next_step ?? "", a.interview_date ?? "", a.logo ?? ""
+      a.job_title,
+      a.company,
+      a.location,
+      a.applied_date,
+      a.status,
+      a.salary ?? "",
+      a.notes?.replace(/\n/g, " ") ?? "",
+      a.next_step ?? "",
+      a.interview_date ?? "",
+      a.logo ?? "",
     ]);
-    const csv = [headers.join(","), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(","))].join("\n");
+    const csv = [
+      headers.join(","),
+      ...rows.map((r) =>
+        r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","),
+      ),
+    ].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `applications-${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `applications-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -650,12 +780,17 @@ export function useApplications() {
     let synced = 0;
     for (const app of pending) {
       try {
-        const { data, error: invokeErr } = await (supabase as any).functions.invoke(
-          "sync-skyvern-status",
-          { body: { run_id: app.run_id } },
-        );
+        const { data, error: invokeErr } = await (
+          supabase as any
+        ).functions.invoke("sync-skyvern-status", {
+          body: { run_id: app.run_id },
+        });
         if (invokeErr) {
-          console.warn("sync-skyvern-status invoke error", app.run_id, invokeErr);
+          console.warn(
+            "sync-skyvern-status invoke error",
+            app.run_id,
+            invokeErr,
+          );
           continue;
         }
         const result = typeof data === "string" ? JSON.parse(data) : data;
@@ -666,7 +801,8 @@ export function useApplications() {
                 ? {
                     ...a,
                     status: result.app_status as ApplicationStatus,
-                    canonical_stage: result.canonical_stage ?? a.canonical_stage,
+                    canonical_stage:
+                      result.canonical_stage ?? a.canonical_stage,
                     provider_status: result.skyvern_status ?? a.provider_status,
                     failure_reason: result.failure_reason ?? a.failure_reason,
                   }
@@ -684,7 +820,9 @@ export function useApplications() {
 
   useEffect(() => {
     if (!userId || applications.length === 0) return;
-    const hasPending = applications.some((a) => a.status === "Pending" && a.run_id);
+    const hasPending = applications.some(
+      (a) => a.status === "Pending" && a.run_id,
+    );
     if (!hasPending) return;
     const timer = setTimeout(() => {
       syncPendingSkyvernStatus();

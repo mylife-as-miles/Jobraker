@@ -1,15 +1,15 @@
 import React from "react";
 
 export function getMatchScoreClasses(score: number) {
-  if (score >= 90) return "text-[#1dff00] bg-[#1dff00]/20 border-[#1dff00]/30";
-  if (score >= 75) return "text-[#1dff00] bg-[#1dff00]/20 border-[#1dff00]/30";
-  return "text-[#1dff00] bg-[#1dff00]/20 border-[#1dff00]/30";
+  if (score >= 90) return "text-brand bg-brand/20 border-brand/30";
+  if (score >= 75) return "text-brand bg-brand/20 border-brand/30";
+  return "text-brand bg-brand/20 border-brand/30";
 }
 
 export default function MatchScoreBadge({
   score,
   size = "sm",
-  label = "match"
+  label = "match",
 }: {
   score: number;
   size?: "sm" | "md";

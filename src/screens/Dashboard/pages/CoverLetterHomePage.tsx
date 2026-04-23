@@ -59,7 +59,11 @@ export const CoverLetterHomePage = () => {
   const handleEdit = (letter: any) => {
     const payload = letter.data || letter.content;
     if (payload) {
-      setCoverLetter({ ...payload, id: letter.id, title: letter.name || payload.title });
+      setCoverLetter({
+        ...payload,
+        id: letter.id,
+        title: letter.name || payload.title,
+      });
       if (letter.name) {
         useArtboardStore.getState().setCoverLetterTitle(letter.name);
       }
@@ -90,7 +94,9 @@ export const CoverLetterHomePage = () => {
       {/* Header */}
       <div className='flex items-center justify-between mb-8'>
         <div>
-          <h1 className='product-page-title text-2xl font-bold'>Cover Letters</h1>
+          <h1 className='product-page-title text-2xl font-bold'>
+            Cover Letters
+          </h1>
           <p className='product-page-subtitle text-sm mt-1'>
             Manage and create your tailored cover letters
           </p>
@@ -101,13 +107,21 @@ export const CoverLetterHomePage = () => {
           <div className='product-control-surface'>
             <button
               onClick={() => setViewMode("grid")}
-              className={viewMode === "grid" ? "product-control-button-active" : "product-control-button"}
+              className={
+                viewMode === "grid"
+                  ? "product-control-button-active"
+                  : "product-control-button"
+              }
             >
               <Grid className='w-4 h-4' />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={viewMode === "list" ? "product-control-button-active" : "product-control-button"}
+              className={
+                viewMode === "list"
+                  ? "product-control-button-active"
+                  : "product-control-button"
+              }
             >
               <List className='w-4 h-4' />
             </button>
@@ -115,7 +129,7 @@ export const CoverLetterHomePage = () => {
 
           <Button
             onClick={handleCreateNew}
-            className='bg-[#1dff00] text-black hover:bg-[#1dff00]/90 gap-2 font-semibold'
+            className='bg-brand text-foreground hover:bg-brand/90 gap-2 font-semibold'
           >
             <Plus className='w-4 h-4' />
             Create New
@@ -136,9 +150,9 @@ export const CoverLetterHomePage = () => {
               className='aspect-[3/4] rounded-xl bg-foreground/5 border border-foreground/5 overflow-hidden flex flex-col'
             >
               {/* Preview skeleton */}
-              <div className='flex-1 bg-gradient-to-br from-foreground/5 to-foreground/5 relative overflow-hidden'>
+              <div className='flex-1 bg-foreground/5 relative overflow-hidden'>
                 <div
-                  className='absolute inset-0 bg-gradient-to-r from-transparent via-foreground/5 to-transparent'
+                  className='absolute inset-0 bg-gradient-to-r from-transparent via-foreground/40 to-transparent animate-[shimmer_1.5s_infinite] -translate-x-full'
                   style={{ animation: `shimmer 1.5s infinite ${i * 0.15}s` }}
                 />
                 {/* Fake letter lines */}
@@ -183,9 +197,9 @@ export const CoverLetterHomePage = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleCreateNew}
-                className='product-section-card-muted aspect-[3/4] border-dashed hover:border-[#1dff00]/60 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
+                className=' aspect-[3/4] border rounded-2xl border-foreground/20 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
               >
-                <div className='w-16 h-16 rounded-full bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00] group-hover:scale-110 transition-transform'>
+                <div className='w-16 h-16 rounded-full bg-brand/10 flex items-center justify-center text-brand group-hover:scale-110 transition-transform'>
                   <Plus className='w-8 h-8' />
                 </div>
                 <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
@@ -197,8 +211,8 @@ export const CoverLetterHomePage = () => {
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => { }} // Placeholder
-                className='product-section-card-muted aspect-[3/4] border-dashed hover:border-[#1dff00]/60 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
+                onClick={() => {}} // Placeholder
+                className='border rounded-2xl border-foreground/20 aspect-[3/4] cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative'
               >
                 <div className='w-16 h-16 rounded-full bg-foreground/5 flex items-center justify-center text-foreground group-hover:scale-110 transition-transform'>
                   <Upload className='w-8 h-8' />
@@ -251,7 +265,7 @@ export const CoverLetterHomePage = () => {
                       </div>
                       <button
                         onClick={(e) => handleDelete(e, letter.id)}
-                        className='product-helper-text hover:text-[#1dff00] p-1 rounded hover:bg-[#1dff00]/10 transition-colors'
+                        className='product-helper-text hover:text-brand p-1 rounded hover:bg-brand/10 transition-colors'
                       >
                         <Trash2 className='w-4 h-4' />
                       </button>
@@ -273,10 +287,10 @@ export const CoverLetterHomePage = () => {
 
               <div
                 onClick={handleCreateNew}
-                className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 border-dashed hover:border-[#1dff00]/60 cursor-pointer items-center group transition-all'
+                className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 border-dashed hover:border-brand/60 cursor-pointer items-center group transition-all'
               >
                 <div className='col-span-6 flex items-center gap-3'>
-                  <div className='w-10 h-10 rounded-lg bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00]'>
+                  <div className='w-10 h-10 rounded-lg bg-brand/10 flex items-center justify-center text-brand'>
                     <Plus className='w-5 h-5' />
                   </div>
                   <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
@@ -289,7 +303,7 @@ export const CoverLetterHomePage = () => {
                 <div
                   key={letter.id}
                   onClick={() => handleEdit(letter)}
-                  className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 hover:border-[#1dff00]/45 items-center transition-all group cursor-pointer'
+                  className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 hover:border-brand/45 items-center transition-all group cursor-pointer'
                 >
                   <div className='col-span-6 flex items-center gap-4'>
                     <div className='w-10 h-10 rounded-lg bg-foreground flex items-center justify-center'>
@@ -299,7 +313,9 @@ export const CoverLetterHomePage = () => {
                       <h3 className='font-semibold text-foreground truncate'>
                         {letter.name || "Untitled"}
                       </h3>
-                      <p className='product-helper-text text-xs'>Cover Letter</p>
+                      <p className='product-helper-text text-xs'>
+                        Cover Letter
+                      </p>
                     </div>
                   </div>
                   <div className='col-span-3 product-helper-text text-sm'>
@@ -311,7 +327,7 @@ export const CoverLetterHomePage = () => {
                         e.stopPropagation();
                         handleDelete(e, letter.id);
                       }}
-                      className='p-2 product-helper-text hover:text-[#1dff00] hover:bg-[#1dff00]/10 rounded-lg transition-colors'
+                      className='p-2 product-helper-text hover:text-brand hover:bg-brand/10 rounded-lg transition-colors'
                       title='Delete'
                     >
                       <Trash2 className='w-4 h-4' />

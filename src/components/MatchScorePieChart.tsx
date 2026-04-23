@@ -1,12 +1,7 @@
 "use client";
 
 import { LabelList, Pie, PieChart, ResponsiveContainer } from "recharts";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartConfig,
   ChartContainer,
@@ -59,80 +54,91 @@ const chartConfig = {
 
 const getCategoryColor = (label: string) => {
   const normalized = label.toLowerCase();
-  if (normalized.includes("role") || normalized.includes("focus")) return "#1dff00";
-  if (normalized.includes("keyword") || normalized.includes("match")) return "#56c2ff";
-  if (normalized.includes("goal") || normalized.includes("profile")) return "#1dff00";
-  if (normalized.includes("location") || normalized.includes("alignment")) return "#1dff00";
+  if (normalized.includes("role") || normalized.includes("focus"))
+    return "#1dff00";
+  if (normalized.includes("keyword") || normalized.includes("match"))
+    return "#56c2ff";
+  if (normalized.includes("goal") || normalized.includes("profile"))
+    return "#1dff00";
+  if (normalized.includes("location") || normalized.includes("alignment"))
+    return "#1dff00";
   return "#1dff00";
 };
 
-export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieChartProps) {
-  const chartData = breakdown?.map((item) => ({
-    label: item.label,
-    score: Math.round(item.componentScore), // Round to whole number
-    fill: getCategoryColor(item.label),
-  })) || [];
+export function MatchScorePieChart({
+  score,
+  summary,
+  breakdown,
+}: MatchScorePieChartProps) {
+  const chartData =
+    breakdown?.map((item) => ({
+      label: item.label,
+      score: Math.round(item.componentScore), // Round to whole number
+      fill: getCategoryColor(item.label),
+    })) || [];
 
   const hasBreakdown = chartData.length > 0;
 
   return (
-    <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background">
-      <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
-      
-      <CardHeader className="relative items-center pb-2">
-        <div className="flex w-full items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[#1dff00]" />
-            <CardTitle className="text-lg text-foreground/90">AI Match Analysis</CardTitle>
+    <Card className='relative overflow-hidden border border-brand/20 bg-gradient-to-br from-background via-background to-background'>
+      <span className='pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-brand/20 blur-3xl opacity-60' />
+
+      <CardHeader className='relative items-center pb-2'>
+        <div className='flex w-full items-center justify-between'>
+          <div className='flex items-center gap-2'>
+            <Sparkles className='h-4 w-4 text-brand' />
+            <CardTitle className='text-lg text-foreground/90'>
+              AI Match Analysis
+            </CardTitle>
           </div>
           <Badge
-            variant="outline"
+            variant='outline'
             className={
               score >= 70
-                ? "text-[#1dff00] bg-[#1dff00]/10 border-none"
+                ? "text-brand bg-brand/10 border-none"
                 : score >= 50
-                ? "text-[#1dff00] bg-[#1dff00]/10 border-none"
-                : "text-[#1dff00] bg-[#1dff00]/10 border-none"
+                  ? "text-brand bg-brand/10 border-none"
+                  : "text-brand bg-brand/10 border-none"
             }
           >
-            <TrendingUp className="h-4 w-4" />
+            <TrendingUp className='h-4 w-4' />
             <span>{score}%</span>
           </Badge>
         </div>
         {summary && (
-          <p className="mt-2 w-full text-left text-sm text-foreground/60">{summary}</p>
+          <p className='mt-2 w-full text-left text-sm text-foreground/60'>
+            {summary}
+          </p>
         )}
       </CardHeader>
 
-      <CardContent className="flex-1 pb-4">
+      <CardContent className='flex-1 pb-4'>
         {hasBreakdown ? (
           <>
-            <div className="w-full h-[280px]">
+            <div className='w-full h-[280px]'>
               <ChartContainer
                 config={chartConfig}
                 data={chartData}
-                className="w-full h-full"
+                className='w-full h-full'
               >
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width='100%' height='100%'>
                   <PieChart>
-                    <ChartTooltip
-                      content={<ChartTooltipContent hideLabel />}
-                    />
+                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                     <Pie
                       data={chartData}
                       innerRadius={30}
                       outerRadius={80}
-                      dataKey="score"
-                      nameKey="label"
+                      dataKey='score'
+                      nameKey='label'
                       cornerRadius={8}
                       paddingAngle={4}
                     >
                       <LabelList
-                        dataKey="score"
-                        stroke="none"
+                        dataKey='score'
+                        stroke='none'
                         fontSize={14}
                         fontWeight={600}
-                        fill="#000000"
+                        fill='#000000'
                         formatter={(value: number) => `${value}%`}
                       />
                     </Pie>
@@ -141,32 +147,42 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
               </ChartContainer>
             </div>
 
-            <div className="mt-4 space-y-2">
+            <div className='mt-4 space-y-2'>
               {breakdown?.map((item, index) => (
                 <div
                   key={index}
-                  className="rounded-lg border border-foreground/10 bg-foreground/5 p-3"
+                  className='rounded-lg border border-foreground/10 bg-foreground/5 p-3'
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
+                  <div className='flex items-center justify-between mb-1'>
+                    <div className='flex items-center gap-2'>
                       <span
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: getCategoryColor(item.label) }}
+                        className='h-3 w-3 rounded-full'
+                        style={{
+                          backgroundColor: getCategoryColor(item.label),
+                        }}
                       />
-                      <span className="text-sm font-medium text-foreground/90">{item.label}</span>
+                      <span className='text-sm font-medium text-foreground/90'>
+                        {item.label}
+                      </span>
                     </div>
-                    <span className="text-sm font-semibold text-[#1dff00]">{item.componentScore}%</span>
+                    <span className='text-sm font-semibold text-brand'>
+                      {item.componentScore}%
+                    </span>
                   </div>
-                  <p className="text-xs text-foreground/60 leading-relaxed">{item.detail}</p>
+                  <p className='text-xs text-foreground/60 leading-relaxed'>
+                    {item.detail}
+                  </p>
                 </div>
               ))}
             </div>
           </>
         ) : (
-          <div className="flex h-[250px] items-center justify-center">
-            <div className="text-center space-y-2">
-              <div className="text-6xl font-bold text-[#1dff00]">{Math.round(score)}%</div>
-              <p className="text-sm text-foreground/50">Overall Match Score</p>
+          <div className='flex h-[250px] items-center justify-center'>
+            <div className='text-center space-y-2'>
+              <div className='text-6xl font-bold text-brand'>
+                {Math.round(score)}%
+              </div>
+              <p className='text-sm text-foreground/50'>Overall Match Score</p>
             </div>
           </div>
         )}

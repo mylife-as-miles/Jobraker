@@ -39,51 +39,125 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   tone = "neutral",
   secondaryChips = [],
 }) => {
-  const ActionButton: React.FC<LegacyAction & { primary?: boolean }> = ({ label, onClick, href, variant, primary }) => {
+  const ActionButton: React.FC<LegacyAction & { primary?: boolean }> = ({
+    label,
+    onClick,
+    href,
+    variant,
+    primary,
+  }) => {
     const v = variant || (primary ? "primary" : "outline");
     if (href) {
       return (
-        <a href={href} onClick={onClick} className="inline-block">
+        <a href={href} onClick={onClick} className='inline-block'>
           <Button variant={v as any}>{label}</Button>
         </a>
       );
     }
-    return <Button onClick={onClick} variant={v as any}>{label}</Button>;
+    return (
+      <Button onClick={onClick} variant={v as any}>
+        {label}
+      </Button>
+    );
   };
 
-  const toneStyles: Record<string, { ring: string; glow: string; accent: string; icon: string; pill: string }> = {
-    neutral: { ring: 'ring-foreground/10', glow: 'from-foreground/5 to-foreground/5', accent: 'text-foreground', icon: 'text-foreground', pill: 'bg-foreground/5 text-foreground/60' },
-    info: { ring: 'ring-[#2dd4bf]/30', glow: 'from-[#2dd4bf]/10 to-[#2dd4bf]/0', accent: 'text-[#2dd4bf]', icon: 'text-[#2dd4bf]', pill: 'bg-[#2dd4bf]/15 text-[#2dd4bf]' },
-    primary: { ring: 'ring-[#1dff00]/40', glow: 'from-[#1dff00]/15 to-transparent', accent: 'text-[#1dff00]', icon: 'text-[#1dff00]', pill: 'bg-[#1dff00]/20 text-[#1dff00]' },
-    success: { ring: 'ring-[#1dff00]/30', glow: 'from-[#1dff00]/15 to-transparent', accent: 'text-[#1dff00]', icon: 'text-[#1dff00]', pill: 'bg-[#1dff00]/15 text-[#1dff00]' },
-    warning: { ring: 'ring-[#1dff00]/30', glow: 'from-[#1dff00]/15 to-transparent', accent: 'text-[#1dff00]', icon: 'text-[#1dff00]', pill: 'bg-[#1dff00]/15 text-[#1dff00]' },
-    danger: { ring: 'ring-rose-400/30', glow: 'from-rose-500/15 to-transparent', accent: 'text-rose-300', icon: 'text-rose-300', pill: 'bg-rose-500/15 text-rose-300' },
+  const toneStyles: Record<
+    string,
+    { ring: string; glow: string; accent: string; icon: string; pill: string }
+  > = {
+    neutral: {
+      ring: "ring-foreground/10",
+      glow: "from-foreground/5 to-foreground/5",
+      accent: "text-foreground",
+      icon: "text-foreground",
+      pill: "bg-foreground/5 text-foreground/60",
+    },
+    info: {
+      ring: "ring-[#2dd4bf]/30",
+      glow: "from-[#2dd4bf]/10 to-[#2dd4bf]/0",
+      accent: "text-[#2dd4bf]",
+      icon: "text-[#2dd4bf]",
+      pill: "bg-[#2dd4bf]/15 text-[#2dd4bf]",
+    },
+    primary: {
+      ring: "ring-brand/40",
+      glow: "from-brand/15 to-transparent",
+      accent: "text-brand",
+      icon: "text-brand",
+      pill: "bg-brand/20 text-brand",
+    },
+    success: {
+      ring: "ring-brand/30",
+      glow: "from-brand/15 to-transparent",
+      accent: "text-brand",
+      icon: "text-brand",
+      pill: "bg-brand/15 text-brand",
+    },
+    warning: {
+      ring: "ring-brand/30",
+      glow: "from-brand/15 to-transparent",
+      accent: "text-brand",
+      icon: "text-brand",
+      pill: "bg-brand/15 text-brand",
+    },
+    danger: {
+      ring: "ring-rose-400/30",
+      glow: "from-rose-500/15 to-transparent",
+      accent: "text-rose-300",
+      icon: "text-rose-300",
+      pill: "bg-rose-500/15 text-rose-300",
+    },
   };
   const s = toneStyles[tone] || toneStyles.neutral;
 
   return (
-    <div className={["relative overflow-hidden rounded-xl border border-foreground/10 bg-gradient-to-b", s.glow, "p-6 ring-1", s.ring, "backdrop-blur-xl group transition-all duration-500", className].join(" ")}
-      role="status"
-      aria-live="polite"
+    <div
+      className={[
+        "relative overflow-hidden rounded-xl border border-foreground/10 bg-gradient-to-b",
+        s.glow,
+        "p-6 ring-1",
+        s.ring,
+        "backdrop-blur-xl group transition-all duration-500",
+        className,
+      ].join(" ")}
+      role='status'
+      aria-live='polite'
     >
       {illustrationSrc && !Icon && (
-        <img src={illustrationSrc} alt="" className="mb-4 h-24 w-auto rounded-lg opacity-80 mx-auto" />
+        <img
+          src={illustrationSrc}
+          alt=''
+          className='mb-4 h-24 w-auto rounded-lg opacity-80 mx-auto'
+        />
       )}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 relative">
-        <div className="flex gap-4">
+      <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 relative'>
+        <div className='flex gap-4'>
           {Icon && (
-            <div className={`relative w-14 h-14 rounded-xl flex items-center justify-center bg-foreground/5 ring-1 ${s.ring} ${s.icon} shadow-inner`}> 
-              <Icon className="w-7 h-7 drop-shadow" />
-              <div className={`absolute inset-0 rounded-xl bg-gradient-to-br ${s.glow} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+            <div
+              className={`relative w-14 h-14 rounded-xl flex items-center justify-center bg-foreground/5 ring-1 ${s.ring} ${s.icon} shadow-inner`}
+            >
+              <Icon className='w-7 h-7 drop-shadow' />
+              <div
+                className={`absolute inset-0 rounded-xl bg-gradient-to-br ${s.glow} opacity-0 group-hover:opacity-100 transition-opacity`}
+              ></div>
             </div>
           )}
-          <div className="space-y-2 max-w-xl">
-            <h3 className={`text-lg font-semibold tracking-tight ${s.accent}`}>{title}</h3>
-            {description && <p className="text-sm text-foreground/60 leading-relaxed">{description}</p>}
+          <div className='space-y-2 max-w-xl'>
+            <h3 className={`text-lg font-semibold tracking-tight ${s.accent}`}>
+              {title}
+            </h3>
+            {description && (
+              <p className='text-sm text-foreground/60 leading-relaxed'>
+                {description}
+              </p>
+            )}
             {secondaryChips.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {secondaryChips.slice(0, 8).map(ch => (
-                  <span key={ch} className={`text-[10px] uppercase tracking-wide px-2 py-1 rounded-full font-medium ${s.pill} border border-foreground/5 backdrop-blur-sm`}>
+              <div className='flex flex-wrap gap-2 pt-1'>
+                {secondaryChips.slice(0, 8).map((ch) => (
+                  <span
+                    key={ch}
+                    className={`text-[10px] uppercase tracking-wide px-2 py-1 rounded-full font-medium ${s.pill} border border-foreground/5 backdrop-blur-sm`}
+                  >
                     {ch}
                   </span>
                 ))}
@@ -92,17 +166,13 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           </div>
         </div>
         {(primaryAction || secondaryAction) && (
-          <div className="flex flex-col sm:items-end gap-2 shrink-0">
-            {primaryAction && (
-              <ActionButton {...primaryAction} primary />
-            )}
-            {secondaryAction && (
-              <ActionButton {...secondaryAction} />
-            )}
+          <div className='flex flex-col sm:items-end gap-2 shrink-0'>
+            {primaryAction && <ActionButton {...primaryAction} primary />}
+            {secondaryAction && <ActionButton {...secondaryAction} />}
           </div>
         )}
       </div>
-      <div className="pointer-events-none absolute -right-10 -top-10 w-40 h-40 bg-[conic-gradient(from_90deg_at_50%_50%,#1dff00_0deg,transparent_140deg)] opacity-10 blur-2xl group-hover:opacity-20 transition-opacity" />
+      <div className='pointer-events-none absolute -right-10 -top-10 w-40 h-40 bg-[conic-gradient(from_90deg_at_50%_50%,#1dff00_0deg,transparent_140deg)] opacity-10 blur-2xl group-hover:opacity-20 transition-opacity' />
     </div>
   );
 };

@@ -43,9 +43,7 @@ export const ResumePhotoEditor = ({
   const hasStoredPhoto = Boolean(picture?.url);
   const hasAnyPhoto = Boolean(previewUrl);
 
-  const handleFilePick = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleFilePick = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -133,32 +131,32 @@ export const ResumePhotoEditor = ({
   };
 
   return (
-    <div className="col-span-2 rounded-xl border border-border/50 bg-[hsl(var(--product-surface-muted))] p-4">
-      <div className="flex items-start gap-4">
-        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-[#1dff00]/35 bg-white shadow-sm">
+    <div className='col-span-2 rounded-xl border border-border/50 bg-[hsl(var(--product-surface-muted))] p-4'>
+      <div className='flex items-start gap-4'>
+        <div className='relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-brand/35 bg-white shadow-sm'>
           {previewUrl ? (
             <img
               src={previewUrl}
-              alt="Resume profile"
-              className="h-full w-full object-cover"
+              alt='Resume profile'
+              className='h-full w-full object-cover'
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#1dff00,transparent)] text-[#1dff00]">
-              <ImagePlus className="h-6 w-6" />
+            <div className='flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#1dff00,transparent)] text-brand'>
+              <ImagePlus className='h-6 w-6' />
             </div>
           )}
           {isHidden && hasStoredPhoto && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white">
-              <EyeOff className="h-5 w-5" />
+            <div className='absolute inset-0 flex items-center justify-center bg-black/50 text-white'>
+              <EyeOff className='h-5 w-5' />
             </div>
           )}
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="product-page-title text-sm font-semibold">
+        <div className='min-w-0 flex-1'>
+          <div className='product-page-title text-sm font-semibold'>
             Profile Photo
           </div>
-          <p className="product-helper-text mt-1 text-xs leading-relaxed">
+          <p className='product-helper-text mt-1 text-xs leading-relaxed'>
             {hasStoredPhoto
               ? "This resume has its own saved photo snapshot for previews and public sharing."
               : hasProfileAvatar
@@ -168,51 +166,51 @@ export const ResumePhotoEditor = ({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className='mt-4 flex flex-wrap gap-2'>
         <Button
-          type="button"
-          variant="outline"
+          type='button'
+          variant='outline'
           onClick={handleUseProfileImage}
           disabled={!hasProfileAvatar || syncingProfilePhoto || uploading}
-          className="product-outline-button border-[#1dff00]/45 hover:border-[#1dff00] hover:text-[#7a5d00]"
+          className='product-outline-button border-brand/45 hover:border-brand hover:text-[#7a5d00]'
         >
-          <ImagePlus className="mr-2 h-4 w-4" />
+          <ImagePlus className='mr-2 h-4 w-4' />
           Use Profile Image
         </Button>
 
         <Button
-          type="button"
-          variant="outline"
+          type='button'
+          variant='outline'
           onClick={handleRefreshProfileImage}
           disabled={!hasProfileAvatar || syncingProfilePhoto || uploading}
-          className="product-outline-button"
+          className='product-outline-button'
         >
-          <RefreshCcw className="mr-2 h-4 w-4" />
+          <RefreshCcw className='mr-2 h-4 w-4' />
           Refresh From Profile
         </Button>
 
         <Button
-          type="button"
-          variant="outline"
+          type='button'
+          variant='outline'
           onClick={() => inputRef.current?.click()}
           disabled={uploading || syncingProfilePhoto}
-          className="product-outline-button"
+          className='product-outline-button'
         >
-          <Upload className="mr-2 h-4 w-4" />
+          <Upload className='mr-2 h-4 w-4' />
           {hasStoredPhoto ? "Replace Photo" : "Upload Custom Photo"}
         </Button>
 
         {hasStoredPhoto && (
           <Button
-            type="button"
-            variant="outline"
+            type='button'
+            variant='outline'
             onClick={handleToggleHidden}
-            className="product-outline-button"
+            className='product-outline-button'
           >
             {isHidden ? (
-              <Eye className="mr-2 h-4 w-4" />
+              <Eye className='mr-2 h-4 w-4' />
             ) : (
-              <EyeOff className="mr-2 h-4 w-4" />
+              <EyeOff className='mr-2 h-4 w-4' />
             )}
             {isHidden ? "Show Photo" : "Hide Photo"}
           </Button>
@@ -220,12 +218,12 @@ export const ResumePhotoEditor = ({
 
         {(hasAnyPhoto || hasProfileAvatar) && (
           <Button
-            type="button"
-            variant="outline"
+            type='button'
+            variant='outline'
             onClick={handleRemove}
-            className="product-outline-button hover:border-[#1dff00] hover:text-[#1dff00]"
+            className='product-outline-button hover:border-brand hover:text-brand'
           >
-            <Trash2 className="mr-2 h-4 w-4" />
+            <Trash2 className='mr-2 h-4 w-4' />
             Remove Photo
           </Button>
         )}
@@ -233,9 +231,9 @@ export const ResumePhotoEditor = ({
 
       <input
         ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
+        type='file'
+        accept='image/*'
+        className='hidden'
         onChange={handleFilePick}
       />
     </div>

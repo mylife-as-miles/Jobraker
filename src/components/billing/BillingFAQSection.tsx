@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, HelpCircle } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 const BILLING_FAQ_ITEMS: { question: string; answer: string }[] = [
   {
@@ -12,7 +18,8 @@ const BILLING_FAQ_ITEMS: { question: string; answer: string }[] = [
       "Credits power search, AI evaluation, resume and cover-letter drafting, chat, and other metered features. Each action deducts credits according to the live Credit Costs list on this page. Governed auto-apply uses separate monthly run allowances on paid plans, not credits, unless a flow explicitly charges credits.",
   },
   {
-    question: "What is the difference between a subscription and a credit pack?",
+    question:
+      "What is the difference between a subscription and a credit pack?",
     answer:
       "A subscription sets your tier (Basics, Pro, or Ultimate), your monthly credit allowance, governed auto-apply runs, and your billing cadence. Credit packs are one-time top-ups that add to your balance immediately and never change your tier or automation limits.",
   },
@@ -22,12 +29,13 @@ const BILLING_FAQ_ITEMS: { question: string; answer: string }[] = [
       "Monthly charges you each month. Quarterly (Pro and Ultimate only) bills every three months at a discount versus three separate monthly payments. Annual bills once per year at the lowest effective monthly rate. Basics supports monthly and annual only. Features are the same; only the payment schedule and price differ.",
   },
   {
-    question: 'Why does my plan say "credits per month" if I pay quarterly or yearly?',
+    question:
+      'Why does my plan say "credits per month" if I pay quarterly or yearly?',
     answer:
       "That number is your monthly usage allowance while the subscription is active—not how often you are charged. You still receive that many credits per calendar month (or per your plan’s refill rules), even when you pay for a quarter or year upfront.",
   },
   {
-    question: "What does the \"Next payment\" date mean?",
+    question: 'What does the "Next payment" date mean?',
     answer:
       "It is when your current subscription term renews and the next charge is due, based on your billing cadence (monthly, quarterly, or annual). It is not necessarily the same moment as every credit refill, which may follow a separate schedule.",
   },
@@ -86,49 +94,54 @@ export function BillingFAQSection() {
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45 }}
-      className="mt-16 border-t border-foreground/10 pt-14"
-      aria-labelledby="billing-faq-heading"
+      className='mt-16 border-t border-foreground/10 pt-14'
+      aria-labelledby='billing-faq-heading'
     >
-      <Card className="border-foreground/10 bg-foreground/[0.02] backdrop-blur-md overflow-hidden">
-        <CardHeader className="border-b border-foreground/10 bg-foreground/[0.02] pb-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#1dff00]/25 bg-[#1dff00]/10">
-                <HelpCircle className="h-5 w-5 text-[#1dff00]" aria-hidden />
+      <Card className='border-foreground/10 bg-foreground/[0.02] backdrop-blur-md overflow-hidden'>
+        <CardHeader className='border-b border-foreground/10 bg-foreground/[0.02] pb-6'>
+          <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+            <div className='flex gap-3'>
+              <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-brand/25 bg-brand/10'>
+                <HelpCircle className='h-5 w-5 text-brand' aria-hidden />
               </div>
               <div>
-                <CardTitle id="billing-faq-heading" className="text-xl font-bold text-foreground sm:text-2xl">
+                <CardTitle
+                  id='billing-faq-heading'
+                  className='text-xl font-bold text-foreground sm:text-2xl'
+                >
                   Billing & credits FAQ
                 </CardTitle>
-                <CardDescription className="mt-1.5 text-sm text-muted-foreground max-w-2xl leading-relaxed">
-                  Common questions about plans, credits, checkout, and subscriptions. For account-specific issues, contact support with your email and any payment reference.
+                <CardDescription className='mt-1.5 text-sm text-muted-foreground max-w-2xl leading-relaxed'>
+                  Common questions about plans, credits, checkout, and
+                  subscriptions. For account-specific issues, contact support
+                  with your email and any payment reference.
                 </CardDescription>
               </div>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-4 sm:p-6">
-          <div className="space-y-2 sm:space-y-3">
+        <CardContent className='p-4 sm:p-6'>
+          <div className='space-y-2 sm:space-y-3'>
             {BILLING_FAQ_ITEMS.map((item, i) => {
               const isOpen = openIndex === i;
               return (
                 <div
                   key={i}
-                  className="rounded-xl border border-foreground/10 bg-foreground/[0.02] overflow-hidden transition-colors hover:border-foreground/15"
+                  className='rounded-xl border border-foreground/10 bg-foreground/[0.02] overflow-hidden transition-colors hover:border-foreground/15'
                 >
                   <button
-                    type="button"
+                    type='button'
                     id={`billing-faq-q-${i}`}
                     aria-expanded={isOpen}
                     aria-controls={`billing-faq-a-${i}`}
                     onClick={() => setOpenIndex(isOpen ? null : i)}
-                    className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left sm:px-5"
+                    className='flex w-full items-center justify-between gap-4 px-4 py-4 text-left sm:px-5'
                   >
-                    <span className="text-sm font-semibold text-foreground sm:text-base leading-snug pr-2">
+                    <span className='text-sm font-semibold text-foreground sm:text-base leading-snug pr-2'>
                       {item.question}
                     </span>
                     <ChevronDown
-                      className={`h-5 w-5 shrink-0 text-[#1dff00] transition-transform duration-200 ${
+                      className={`h-5 w-5 shrink-0 text-brand transition-transform duration-200 ${
                         isOpen ? "rotate-180" : ""
                       }`}
                       aria-hidden
@@ -138,15 +151,15 @@ export function BillingFAQSection() {
                     {isOpen ? (
                       <motion.div
                         id={`billing-faq-a-${i}`}
-                        role="region"
+                        role='region'
                         aria-labelledby={`billing-faq-q-${i}`}
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-                        className="overflow-hidden border-t border-foreground/5"
+                        className='overflow-hidden border-t border-foreground/5'
                       >
-                        <p className="px-4 pb-4 pt-3 text-sm leading-relaxed text-muted-foreground sm:px-5 sm:pb-5">
+                        <p className='px-4 pb-4 pt-3 text-sm leading-relaxed text-muted-foreground sm:px-5 sm:pb-5'>
                           {item.answer}
                         </p>
                       </motion.div>

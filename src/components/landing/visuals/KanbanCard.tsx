@@ -27,10 +27,10 @@ export const KanbanCard = () => {
           const card = todo.cards.shift();
           progress.cards.push(card);
         } else {
-           // Reset for loop effect
-           todo.cards = [1, 2, 3];
-           progress.cards = [];
-           done.cards = [4, 5];
+          // Reset for loop effect
+          todo.cards = [1, 2, 3];
+          progress.cards = [];
+          done.cards = [4, 5];
         }
         return newCols;
       });
@@ -40,23 +40,23 @@ export const KanbanCard = () => {
   }, []);
 
   return (
-    <div className="w-full h-full p-4 flex gap-4 bg-neutral-900/50 rounded-xl overflow-hidden">
+    <div className='w-full h-full p-4 flex gap-4 bg-neutral-900/50 rounded-xl overflow-hidden'>
       {columns.map((col) => (
-        <div key={col.id} className="flex-1 flex flex-col gap-2 min-w-[60px]">
-          <div className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold mb-1">
+        <div key={col.id} className='flex-1 flex flex-col gap-2 min-w-[60px]'>
+          <div className='text-[10px] uppercase tracking-wider text-neutral-500 font-bold mb-1'>
             {col.title}
           </div>
-          <div className="flex-1 bg-foreground/5 rounded-lg p-2 flex flex-col gap-2">
+          <div className='flex-1 bg-foreground/5 rounded-lg p-2 flex flex-col gap-2'>
             {col.cards.map((card: any) => (
               <motion.div
                 layoutId={`card-${card}`}
                 key={card}
-                className="h-8 bg-neutral-800 rounded border border-neutral-700 w-full relative overflow-hidden"
+                className='h-8 bg-neutral-800 rounded border border-neutral-700 w-full relative overflow-hidden'
               >
-                 <div className="absolute top-1/2 left-2 w-12 h-1 bg-neutral-600 rounded-full -translate-y-1/2" />
-                 {col.id === 'done' && (
-                     <div className="absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-[#1dff00] rounded-full" />
-                 )}
+                <div className='absolute top-1/2 left-2 w-12 h-1 bg-neutral-600 rounded-full -translate-y-1/2' />
+                {col.id === "done" && (
+                  <div className='absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-brand rounded-full' />
+                )}
               </motion.div>
             ))}
           </div>

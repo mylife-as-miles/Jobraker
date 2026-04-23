@@ -28,19 +28,19 @@ const decisionTheme: Record<
 > = {
   strong_yes: {
     label: "Strong yes",
-    className: "border-[#1dff00]/40 bg-[#1dff00]/10 text-[#1dff00]",
+    className: "border-brand/40 bg-brand/10 text-brand",
   },
   draft_first: {
     label: "Draft first",
-    className: "border-[#1dff00]/35 bg-[#1dff00]/10 text-[#1dff00]",
+    className: "border-brand/35 bg-brand/10 text-brand",
   },
   risky: {
     label: "Risky",
-    className: "border-[#1dff00]/35 bg-[#1dff00]/10 text-[#1dff00]",
+    className: "border-brand/35 bg-brand/10 text-brand",
   },
   no_go: {
     label: "No go",
-    className: "border-[#1dff00]/35 bg-[#1dff00]/10 text-[#1dff00]",
+    className: "border-brand/35 bg-brand/10 text-brand",
   },
 };
 
@@ -84,7 +84,7 @@ export function JobEvaluationReport({
 }: JobEvaluationReportProps) {
   if (loading) {
     return (
-      <Card className='border border-[#1dff00]/20 bg-card/80 p-6'>
+      <Card className='border border-brand/20 bg-card/80 p-6'>
         <div className='space-y-4 animate-pulse'>
           <div className='h-5 w-48 rounded bg-foreground/10' />
           <div className='grid gap-3 md:grid-cols-3'>
@@ -115,10 +115,10 @@ export function JobEvaluationReport({
   const theme = decisionTheme[evaluation.canonical_decision];
 
   return (
-    <Card className='border border-[#1dff00]/20 bg-card/80 p-6 space-y-6'>
+    <Card className='border border-brand/20 bg-card/80 p-6 space-y-6'>
       <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
         <div className='space-y-3'>
-          <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#1dff00]/75'>
+          <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-brand/75'>
             <Sparkles className='h-3.5 w-3.5' />
             Evaluation Report
           </div>
@@ -139,7 +139,7 @@ export function JobEvaluationReport({
             <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
               Confidence
             </div>
-            <div className='mt-2 text-2xl font-semibold text-[#1dff00]'>
+            <div className='mt-2 text-2xl font-semibold text-brand'>
               {evaluation.confidence_score}%
             </div>
           </div>
@@ -165,7 +165,7 @@ export function JobEvaluationReport({
       <div className='grid gap-4 lg:grid-cols-2'>
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-            <Target className='h-4 w-4 text-[#1dff00]' />
+            <Target className='h-4 w-4 text-brand' />
             Exact-fit evidence
           </div>
           <ListBlock
@@ -182,7 +182,7 @@ export function JobEvaluationReport({
 
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-            <AlertTriangle className='h-4 w-4 text-[#1dff00]' />
+            <AlertTriangle className='h-4 w-4 text-brand' />
             Risk and blockers
           </div>
           <ListBlock
@@ -199,7 +199,7 @@ export function JobEvaluationReport({
 
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-            <DollarSign className='h-4 w-4 text-[#1dff00]' />
+            <DollarSign className='h-4 w-4 text-brand' />
             Compensation and market read
           </div>
           <div className='rounded-xl border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-foreground/80'>
@@ -219,7 +219,7 @@ export function JobEvaluationReport({
 
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-            <Compass className='h-4 w-4 text-[#1dff00]' />
+            <Compass className='h-4 w-4 text-brand' />
             Personalization plan
           </div>
           <div className='rounded-xl border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-foreground/80'>
@@ -250,7 +250,7 @@ export function JobEvaluationReport({
 
       <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
         <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-          <Briefcase className='h-4 w-4 text-[#1dff00]' />
+          <Briefcase className='h-4 w-4 text-brand' />
           Interview story bank
         </div>
         {evaluation.interview_stories.length > 0 ? (
@@ -269,14 +269,16 @@ export function JobEvaluationReport({
                       <div className='text-sm font-semibold text-foreground'>
                         {story.title}
                       </div>
-                      <p className='text-sm text-foreground/70'>{story.reason}</p>
+                      <p className='text-sm text-foreground/70'>
+                        {story.reason}
+                      </p>
                     </div>
                     {onSaveStory ? (
                       <Button
                         type='button'
                         size='sm'
                         variant='outline'
-                        className='border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10'
+                        className='border-brand/30 text-brand hover:bg-brand/10'
                         disabled={alreadySaved}
                         onClick={() => void onSaveStory(story)}
                       >
@@ -313,7 +315,7 @@ export function JobEvaluationReport({
       {evaluation.candidate_memory ? (
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-3'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-            <Sparkles className='h-4 w-4 text-[#1dff00]' />
+            <Sparkles className='h-4 w-4 text-brand' />
             Candidate memory used
           </div>
           <div className='whitespace-pre-wrap rounded-xl border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-foreground/70'>

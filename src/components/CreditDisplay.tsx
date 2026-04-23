@@ -1,11 +1,13 @@
-import { useEffect, useState, useMemo } from 'react';
-import { Coins, Zap, Crown } from 'lucide-react';
-import { createClient } from '@/lib/supabaseClient';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useMemo } from "react";
+import { Coins, Zap, Crown } from "lucide-react";
+import { createClient } from "@/lib/supabaseClient";
+import { useNavigate } from "react-router-dom";
 
 export const CreditDisplay = () => {
   const [credits, setCredits] = useState<number>(0);
-  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
+  const [subscriptionTier, setSubscriptionTier] = useState<
+    "Free" | "Basics" | "Pro" | "Ultimate"
+  >("Free");
   const [loading, setLoading] = useState(true);
   const supabase = useMemo(() => createClient(), []);
   const navigate = useNavigate();
@@ -23,54 +25,74 @@ export const CreditDisplay = () => {
 
         // Fetch credits
         const { data: creditsData, error: creditsError } = await supabase
-          .from('user_credits')
-          .select('balance')
-          .eq('user_id', userId)
+          .from("user_credits")
+          .select("balance")
+          .eq("user_id", userId)
           .maybeSingle();
 
         if (creditsError) {
-          console.error('CreditDisplay: Failed to fetch credits', creditsError);
+          console.error("CreditDisplay: Failed to fetch credits", creditsError);
         } else if (creditsData) {
           setCredits(creditsData.balance);
         }
 
         // Fetch subscription tier
         const { data: subscription, error: subError } = await supabase
-          .from('user_subscriptions')
-          .select('subscription_plans(name)')
-          .eq('user_id', userId)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
+          .from("user_subscriptions")
+          .select("subscription_plans(name)")
+          .eq("user_id", userId)
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
         if (subError) {
-          console.error('CreditDisplay: Failed to fetch subscription tier', subError);
+          console.error(
+            "CreditDisplay: Failed to fetch subscription tier",
+            subError,
+          );
         }
 
         const planName = (subscription as any)?.subscription_plans?.name;
-        if (planName && (planName === 'Free' || planName === 'Basics' || planName === 'Pro' || planName === 'Ultimate')) {
-          setSubscriptionTier(planName as 'Free' | 'Basics' | 'Pro' | 'Ultimate');
+        if (
+          planName &&
+          (planName === "Free" ||
+            planName === "Basics" ||
+            planName === "Pro" ||
+            planName === "Ultimate")
+        ) {
+          setSubscriptionTier(
+            planName as "Free" | "Basics" | "Pro" | "Ultimate",
+          );
         } else {
           // Fallback to profiles table
           const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('subscription_tier')
-            .eq('id', userId)
+            .from("profiles")
+            .select("subscription_tier")
+            .eq("id", userId)
             .maybeSingle();
 
           if (profileError) {
-            console.error('CreditDisplay: Failed to fetch fallback profile tier', profileError);
+            console.error(
+              "CreditDisplay: Failed to fetch fallback profile tier",
+              profileError,
+            );
           }
 
-          if (profileData?.subscription_tier && (profileData.subscription_tier === 'Free' || profileData.subscription_tier === 'Basics' || profileData.subscription_tier === 'Pro' || profileData.subscription_tier === 'Ultimate')) {
+          if (
+            profileData?.subscription_tier &&
+            (profileData.subscription_tier === "Free" ||
+              profileData.subscription_tier === "Basics" ||
+              profileData.subscription_tier === "Pro" ||
+              profileData.subscription_tier === "Ultimate")
+          ) {
             setSubscriptionTier(profileData.subscription_tier);
           } else {
-            setSubscriptionTier('Free');
+            setSubscriptionTier("Free");
           }
         }
       } catch (error) {
-        console.error('Error fetching credits and tier:', error);
+        console.error("Error fetching credits and tier:", error);
       } finally {
         setLoading(false);
       }
@@ -80,19 +102,19 @@ export const CreditDisplay = () => {
 
     // Set up real-time subscription for credits
     const channel = supabase
-      .channel('user-credits-changes')
+      .channel("user-credits-changes")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'user_credits',
+          event: "*",
+          schema: "public",
+          table: "user_credits",
         },
         (payload) => {
-          if (payload.new && typeof (payload.new as any).balance === 'number') {
+          if (payload.new && typeof (payload.new as any).balance === "number") {
             setCredits((payload.new as any).balance);
           }
-        }
+        },
       )
       .subscribe();
 
@@ -103,25 +125,25 @@ export const CreditDisplay = () => {
 
   const getTierColor = () => {
     switch (subscriptionTier) {
-      case 'Basics':
-        return 'from-[#1dff00] to-[#1dff00]';
-      case 'Pro':
-        return 'from-blue-500 to-blue-600';
-      case 'Ultimate':
-        return 'from-purple-500 to-purple-600';
+      case "Basics":
+        return "brand";
+      case "Pro":
+        return "blue-600";
+      case "Ultimate":
+        return "purple-600";
       default:
-        return 'from-[#1dff00] to-background';
+        return "brand";
     }
   };
 
   const getTierIcon = () => {
     switch (subscriptionTier) {
-      case 'Basics':
-        return <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-black" />;
-      case 'Pro':
-        return <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-black" />;
-      case 'Ultimate':
-        return <Crown className="w-3 h-3 sm:w-4 sm:h-4 text-black" />;
+      case "Basics":
+        return <Zap className='w-3 h-3 sm:w-4 sm:h-4 text-black' />;
+      case "Pro":
+        return <Zap className='w-3 h-3 sm:w-4 sm:h-4 text-black' />;
+      case "Ultimate":
+        return <Crown className='w-3 h-3 sm:w-4 sm:h-4 text-black' />;
       default:
         return null;
     }
@@ -129,25 +151,25 @@ export const CreditDisplay = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-foreground/5 border border-foreground/10 animate-pulse">
-        <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-foreground/10" />
-        <div className="w-12 h-3 sm:h-4 bg-foreground/10 rounded" />
+      <div className='flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-foreground/5 border border-foreground/10 animate-pulse'>
+        <div className='w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-foreground/10' />
+        <div className='w-12 h-3 sm:h-4 bg-foreground/10 rounded' />
       </div>
     );
   }
 
   return (
     <button
-      onClick={() => navigate('/dashboard/billing')}
-      className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r ${getTierColor()} hover:opacity-90 transition-all duration-300 hover:scale-105 cursor-pointer shadow-[0_0_0_1px_#1dff00,0_4px_16px_rgba(29,255,0,0.3)] hover:shadow-[0_0_0_1px_#1dff00,0_6px_24px_rgba(29,255,0,0.5)]`}
+      onClick={() => navigate("/dashboard/billing")}
+      className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-${getTierColor()} hover:opacity-90 transition-all duration-300 hover:scale-105 cursor-pointer dark:text-background text-foreground/80`}
       title={`${subscriptionTier} Plan - ${credits} credits remaining. Click to view billing.`}
     >
-      <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-black" />
-      <span className="text-black font-bold text-sm sm:text-base whitespace-nowrap">
+      <Coins className='w-4 h-4 sm:w-5 sm:h-5 ' />
+      <span className='font-bold text-sm sm:text-base whitespace-nowrap'>
         {credits.toLocaleString()}
       </span>
       {getTierIcon()}
-      <span className="hidden lg:inline text-background/80 text-xs font-semibold ml-0.5">
+      <span className='hidden lg:inline text-xs font-semibold ml-0.5'>
         {subscriptionTier}
       </span>
     </button>

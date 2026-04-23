@@ -8,11 +8,11 @@ const Card = React.forwardRef<
   }
 >(({ className, variant = "default", ...props }, ref) => {
   const variantClasses = {
-  default: "bg-card/70 border border-border backdrop-blur-sm hover:border-foreground/20 hover:shadow-md",
-  glass: "bg-card/60 border border-border backdrop-blur-md hover:bg-card/70 hover:shadow",
-  minimal: "bg-transparent border border-border hover:border-foreground/20",
-  glow: "bg-card/60 border border-brand/30 hover:border-brand hover:shadow-[0_0_28px_hsl(var(--ring)/0.25)]",
-  neo: "glass-black border border-brand/30 hover:border-brand/60 shadow-[0_0_24px_hsla(var(--brand)/0.18)]"
+  default: "bg-card/70 border border-border backdrop-blur-sm ",
+  glass: "bg-card/60 border border-border backdrop-blur-md hover:bg-card/70 ",
+  minimal: "bg-transparent border border-border",
+  glow: "bg-card/60 border border-brand/30 hover:border-brand ",
+  neo: "glass-black border border-brand/30"
   }
 
   return (

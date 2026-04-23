@@ -1,16 +1,17 @@
-import React, { forwardRef } from 'react';
-import { cn } from '../../lib/utils';
+import React, { forwardRef } from "react";
+import { cn } from "../../lib/utils";
 
 interface StyledInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
-  variant?: 'default' | 'transparent' | 'outlined';
+  variant?: "default" | "transparent" | "outlined";
 }
 
 export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
-  ({ className, label, error, variant = 'default', ...props }, ref) => {
-    const baseStyles = "w-full transition-all duration-300 focus:outline-none focus:ring-0";
-    
+  ({ className, label, error, variant = "default", ...props }, ref) => {
+    const baseStyles =
+      "w-full transition-all duration-300 focus:outline-none focus:ring-0";
+
     const variantStyles = {
       default: `
         bg-[#F5F5F5]/90 
@@ -21,7 +22,7 @@ export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
         placeholder:text-[#757575] 
         text-base
         hover:border-[#BDBDBD] 
-        focus:border-[#1dff00] 
+        focus:border-brand 
         focus:bg-[#F5F5F5]
         backdrop-blur-sm
       `,
@@ -34,7 +35,7 @@ export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
         placeholder:text-foreground/40 
         text-base
         hover:border-foreground/30 
-        focus:border-[#1dff00] 
+        focus:border-brand 
         focus:bg-foreground/10
         backdrop-blur-[8px]
       `,
@@ -47,15 +48,15 @@ export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
         placeholder:text-[#757575] 
         text-base
         hover:border-[#BDBDBD] 
-        focus:border-[#1dff00] 
+        focus:border-brand 
         focus:bg-[#F5F5F5]/50
-      `
+      `,
     };
 
     return (
-      <div className="w-full space-y-2">
+      <div className='w-full space-y-2'>
         {label && (
-          <label className="block text-sm font-medium text-[#212121] dark:text-white mb-2">
+          <label className='block text-sm font-medium text-[#212121] dark:text-white mb-2'>
             {label}
           </label>
         )}
@@ -64,17 +65,15 @@ export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
           className={cn(
             baseStyles,
             variantStyles[variant],
-            error && "border-[#1dff00] focus:border-[#1dff00]",
-            className
+            error && "border-brand focus:border-brand",
+            className,
           )}
           {...props}
         />
-        {error && (
-          <p className="text-sm text-[#1dff00] mt-1">{error}</p>
-        )}
+        {error && <p className='text-sm text-brand mt-1'>{error}</p>}
       </div>
     );
-  }
+  },
 );
 
 StyledInput.displayName = "StyledInput";

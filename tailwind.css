@@ -66,6 +66,10 @@
     --surface-foreground-fallback: 0 0% 100%;
   }
 
+  .re{
+    color: 210 40% 98%;
+  }
+
   .dark {
     --background: 0 0% 0%;
     --foreground: 210 40% 98%;
