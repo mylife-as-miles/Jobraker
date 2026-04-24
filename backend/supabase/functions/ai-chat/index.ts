@@ -168,6 +168,173 @@ async function resolveAutoApplyArtifacts(
   };
 }
 
+const RESUME_STATUSES = new Set(["Active", "Draft", "Archived"]);
+
+function normalizeResumeExperienceItem(
+  raw: Record<string, unknown>,
+  fallbackId: string,
+): Record<string, unknown> {
+  const id = asString(raw.id) || fallbackId;
+  const company = asString(raw.company) || "";
+  const position = asString(raw.position) || asString(raw.title) || "";
+  const period = asString(raw.period) || asString(raw.date) || "";
+  const description = asString(raw.description) || asString(raw.summary) || "";
+  return {
+    id,
+    hidden: raw.hidden === true,
+    company,
+    position,
+    location: asString(raw.location) || "",
+    period: period || "",
+    date: asString(raw.date) || period || "",
+    summary: asString(raw.summary) || description,
+    description,
+    website: isRecord(raw.website) ? raw.website : { url: "", label: "" },
+    columns: typeof raw.columns === "number" && Number.isFinite(raw.columns) ? raw.columns : 1,
+  };
+}
+
+/**
+ * Direct DB update for the resume builder JSON. Used by the agent (no update-resume edge function).
+ */
+async function runUpdateResumeTool(
+  sb: SupabaseLikeClient,
+  userId: string,
+  args: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const resumeId = asString(args.resume_id);
+  const updateAll = args.update_all === true;
+
+  let query = sb
+    .from("resumes")
+    .select("id, name, data, user_id, status")
+    .eq("user_id", userId);
+  if (resumeId) {
+    query = query.eq("id", resumeId);
+  } else {
+    query = query.order("updated_at", { ascending: false });
+  }
+  const { data: rows, error: listErr } = await query;
+  if (listErr) {
+    return { success: false, error: listErr.message };
+  }
+  let resumes = (rows || []) as Array<{
+    id: string;
+    name: string;
+    data: unknown;
+    status?: string;
+  }>;
+  if (!updateAll && !resumeId && resumes.length > 1) {
+    resumes = [resumes[0]];
+  }
+  if (resumes.length === 0) {
+    return { success: false, error: "No resumes found" };
+  }
+
+  const setExperience = Array.isArray(args.set_experience_items)
+    ? (args.set_experience_items as unknown[]).filter((x) => isRecord(x))
+    : null;
+  const displayName = asString(args.display_name);
+  const fullName = asString(args.full_name);
+  const headline = asString(args.headline);
+  const email = asString(args.email);
+  const phone = asString(args.phone);
+  const location = asString(args.location);
+  const summary = asString(args.summary);
+  const statusIn = asString(args.resume_status);
+  const newStatus = statusIn && RESUME_STATUSES.has(statusIn) ? statusIn : null;
+
+  const results: string[] = [];
+  for (const resume of resumes) {
+    const currentData = (resume.data && typeof resume.data === "object" ? resume.data : {}) as Record<
+      string,
+      unknown
+    >;
+    const basics = { ...((isRecord(currentData.basics) ? currentData.basics : {}) as Record<string, unknown>) };
+    const sum = { ...((isRecord(currentData.summary) ? currentData.summary : {}) as Record<string, unknown>) };
+    const changed: string[] = [];
+
+    if (fullName) {
+      basics.name = fullName;
+      changed.push("name");
+    }
+    if (headline) {
+      basics.headline = headline;
+      changed.push("headline");
+    }
+    if (email) {
+      basics.email = email;
+      changed.push("email");
+    }
+    if (phone) {
+      basics.phone = phone;
+      changed.push("phone");
+    }
+    if (location) {
+      basics.location = location;
+      changed.push("location");
+    }
+    if (summary) {
+      sum.content = summary;
+      sum.hidden = false;
+      changed.push("summary");
+    }
+
+    const sections = isRecord(currentData.sections) ? { ...currentData.sections } : {};
+    if (setExperience && setExperience.length > 0) {
+      const existingExp = isRecord(sections.experience) ? (sections.experience as Record<string, unknown>) : {};
+      const items = setExperience.map((row) =>
+        normalizeResumeExperienceItem(row as Record<string, unknown>, crypto.randomUUID()),
+      );
+      sections.experience = { ...existingExp, items, hidden: false };
+      changed.push("experience");
+    }
+
+    const newData: Record<string, unknown> = {
+      ...currentData,
+      basics,
+      summary: sum,
+    };
+    if (setExperience && setExperience.length > 0) {
+      newData.sections = sections;
+    } else {
+      newData.sections = currentData.sections;
+    }
+
+    const patch: Record<string, unknown> = {
+      data: newData,
+      updated_at: new Date().toISOString(),
+    };
+    if (displayName) {
+      patch.name = displayName;
+      changed.push("display name");
+    }
+    if (newStatus) {
+      patch.status = newStatus;
+      changed.push("status");
+    }
+
+    if (changed.length === 0) {
+      continue;
+    }
+
+    const { error: updateErr } = await sb.from("resumes").update(patch).eq("id", resume.id);
+    if (updateErr) {
+      results.push(`Failed to update "${resume.name}": ${updateErr.message}`);
+    } else {
+      results.push(`Updated "${resume.name}" (${changed.join(", ")})`);
+    }
+  }
+  if (results.length === 0) {
+    return {
+      success: false,
+      error:
+        "No changes applied. Provide at least one of: display_name, full_name, headline, email, phone, location, summary, set_experience_items, resume_status.",
+    };
+  }
+  return { success: true, results, updated_count: results.length };
+}
+
 function sanitizeForwardHeaders(raw: unknown): Record<string, string> {
   if (!isRecord(raw)) return {};
   const forbidden = new Set([
@@ -800,7 +967,7 @@ function buildGeminiUserParts(
 const ACCOUNT_ACCESS_RULES = `
 You are inside the authenticated user's JobRaker workspace.
 You DO have access to the user's JobRaker account data provided in this prompt and, in agent mode, through the available tools.
-Do not claim that you lack access to the user's JobRaker profile, resumes, tracked jobs, applications, credits, cover letters, or recent conversations when that information is present in context or retrievable through tools.
+Do not claim that you lack access to the user's JobRaker profile, resumes, tracked jobs, applications, credits, cover letters, subscription period / renewal / days-to-renewal (when the "Subscription & billing" section is present), or recent conversations when that information is present in context or retrievable through tools.
 Only describe limitations for external systems that are not connected here, such as LinkedIn dashboards, Indeed, or third-party job boards when Gmail is not connected.
 If the user has connected Gmail in JobRaker Settings, job-related inbox tools may be available in agent mode (search/send guardrails still apply).
 When the user asks for totals, counts, lists, or recent activity inside JobRaker, answer from the account context or tools first before giving generic advice.
@@ -824,7 +991,8 @@ const createServiceSupabaseClient = () =>
 const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "get_account_snapshot",
-    description: "Get a summary of the user's JobRaker account, including counts for applications, tracked jobs, resumes, credits, and recent activity.",
+    description:
+      "Get a summary of the user's JobRaker account, including applications, jobs, resumes, credits, subscription tier, and when present subscription period end / days until next renewal (same source as the Billing page DB fields).",
     parameters: { type: "object", properties: {} },
   },
   {
@@ -987,6 +1155,133 @@ const AGENT_FUNCTION_DECLARATIONS = [
     name: "intake_job_url",
     description: "Import a job from a URL.",
     parameters: { type: "object", properties: { url: { type: "string" } }, required: ["url"] },
+  },
+  {
+    name: "update_profile",
+    description:
+      "Update the signed-in user's career profile in the database: headline (job_title), name, about, location, goals, years of experience.",
+    parameters: {
+      type: "object",
+      properties: {
+        job_title: { type: "string", description: "Professional headline shown in settings / profile" },
+        location: { type: "string" },
+        about: { type: "string", description: "Professional summary / bio" },
+        goals: { type: "string" },
+        first_name: { type: "string" },
+        last_name: { type: "string" },
+        experience_years: { type: "number" },
+      },
+    },
+  },
+  {
+    name: "add_skill",
+    description: "Add or update a skill on the profile.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        level: { type: "string", description: "Beginner, Intermediate, Advanced, or Expert" },
+        category: { type: "string" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "remove_skill",
+    description: "Remove a profile skill by name (case-insensitive).",
+    parameters: {
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+    },
+  },
+  {
+    name: "add_experience",
+    description: "Add a work experience row to the profile (separate from resume builder JSON).",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        company: { type: "string" },
+        location: { type: "string" },
+        start_date: { type: "string", description: "YYYY-MM-DD" },
+        end_date: { type: "string" },
+        is_current: { type: "boolean" },
+        description: { type: "string" },
+      },
+      required: ["title", "company", "start_date"],
+    },
+  },
+  {
+    name: "save_cover_letter",
+    description: "Save a cover letter to the account.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        content: { type: "string" },
+        role: { type: "string" },
+        company: { type: "string" },
+      },
+      required: ["name", "content"],
+    },
+  },
+  {
+    name: "update_resume",
+    description:
+      "Update the resume document in the database (builder JSON in resumes.data). Can change name, headline, summary, contact, set status to Active/Draft/Archived, and replace the full Experience section via set_experience_items. All resumes are addressable: call list_resumes for ids. For experience bullets, pass set_experience_items (each item: company, position, period, description with achievements).",
+    parameters: {
+      type: "object",
+      properties: {
+        resume_id: { type: "string" },
+        update_all: { type: "boolean" },
+        display_name: { type: "string" },
+        full_name: { type: "string" },
+        headline: { type: "string" },
+        email: { type: "string" },
+        phone: { type: "string" },
+        location: { type: "string" },
+        summary: { type: "string" },
+        resume_status: { type: "string", description: "One of: Active, Draft, Archived" },
+        set_experience_items: {
+          type: "array",
+          description: "Replaces data.sections.experience.items in the builder for the selected resume(s).",
+        },
+      },
+    },
+  },
+  {
+    name: "update_application_status",
+    description: "Update a job application status in the database.",
+    parameters: {
+      type: "object",
+      properties: {
+        application_id: { type: "string" },
+        status: { type: "string" },
+      },
+      required: ["application_id", "status"],
+    },
+  },
+  {
+    name: "bookmark_job",
+    description: "Set bookmarked on a tracked job.",
+    parameters: {
+      type: "object",
+      properties: {
+        job_id: { type: "string" },
+        bookmarked: { type: "boolean" },
+      },
+      required: ["job_id", "bookmarked"],
+    },
+  },
+  {
+    name: "hide_job",
+    description: "Hide/dismiss a job from the job queue.",
+    parameters: {
+      type: "object",
+      properties: { job_id: { type: "string" } },
+      required: ["job_id"],
+    },
   },
   {
     name: "polish_content",
@@ -1202,6 +1497,10 @@ Job-related Gmail (only when tools are available):
 - send_gmail_job_email sends only if the message clearly relates to the user's job search; the server may reject other content. Always show the user the exact To, Subject, and body and obtain explicit confirmation before sending.
 Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.`;
       const agentCapabilityRules = `
+Profile, resume, and in-app data (execute directly — do not ask the user to copy-paste):
+- update_profile, add_skill, remove_skill, add_experience, save_cover_letter, update_resume, update_application_status, bookmark_job, and hide_job write to the user's own rows via the authenticated Supabase client.
+- For resume Experience bullets or sections, use update_resume with list_resumes for ids; use set_experience_items to replace builder experience items, and resume_status to set Active/Draft/Archived when asked.
+
 Navigation and page control:
 - Use list_app_pages to inspect the full app map.
 - Use open_app_page only when the user wants to open or move to a page.
@@ -1353,6 +1652,17 @@ Edge functions:
                         headline: userContext?.headline || null,
                         credits: userContext?.credits || 0,
                         subscriptionTier: userContext?.subscriptionTier || subscriptionTier,
+                        subscription: userContext
+                          ? {
+                              status: userContext.subscriptionStatus,
+                              currentPeriodStart: userContext.subscriptionCurrentPeriodStart,
+                              currentPeriodEnd: userContext.subscriptionCurrentPeriodEnd,
+                              cancelAtPeriodEnd: userContext.subscriptionCancelAtPeriodEnd,
+                              billingCycle: userContext.subscriptionBillingCycle,
+                              nextRenewalOrEnd: userContext.subscriptionNextRenewalOrEndIso,
+                              daysUntilNextOrEnd: userContext.subscriptionDaysRemaining,
+                            }
+                          : null,
                         applicationCount: userContext?.applicationCount || 0,
                         jobCount: userContext?.jobCount || 0,
                         resumeCount: userContext?.resumeCount || 0,
@@ -1532,6 +1842,172 @@ Edge functions:
                         body?: string;
                       },
                     );
+                  } else if (fn.name === "update_profile") {
+                    const patch: Record<string, unknown> = {};
+                    const allowed = [
+                      "job_title",
+                      "location",
+                      "about",
+                      "goals",
+                      "first_name",
+                      "last_name",
+                      "experience_years",
+                    ] as const;
+                    for (const key of allowed) {
+                      if (args[key] !== undefined && args[key] !== null) patch[key] = args[key];
+                    }
+                    if (Object.keys(patch).length === 0) {
+                      result = { success: false, error: "No fields to update" };
+                    } else {
+                      patch.updated_at = new Date().toISOString();
+                      const { error: upErr } = await supabaseUser
+                        .from("profiles")
+                        .update(patch)
+                        .eq("id", userId);
+                      result = upErr
+                        ? { success: false, error: upErr.message }
+                        : {
+                            success: true,
+                            updated_fields: Object.keys(patch).filter((k) => k !== "updated_at"),
+                          };
+                    }
+                  } else if (fn.name === "add_skill") {
+                    const name = asString(args.name) || "";
+                    if (!name) {
+                      result = { success: false, error: "Skill name is required" };
+                    } else {
+                      const { data: existing } = await supabaseUser
+                        .from("profile_skills")
+                        .select("id")
+                        .ilike("name", name)
+                        .maybeSingle();
+                      if (existing) {
+                        const updatePatch: Record<string, unknown> = {
+                          updated_at: new Date().toISOString(),
+                        };
+                        if (args.level) updatePatch.level = args.level;
+                        if (args.category) updatePatch.category = args.category;
+                        await supabaseUser.from("profile_skills").update(updatePatch).eq("id", existing.id);
+                        result = { success: true, action: "updated", skill: name };
+                      } else {
+                        const { error: insErr } = await supabaseUser.from("profile_skills").insert({
+                          user_id: userId,
+                          name,
+                          level: asString(args.level) || "Intermediate",
+                          category: asString(args.category) || "",
+                        });
+                        result = insErr
+                          ? { success: false, error: insErr.message }
+                          : { success: true, action: "added", skill: name };
+                      }
+                    }
+                  } else if (fn.name === "remove_skill") {
+                    const name = asString(args.name) || "";
+                    if (!name) {
+                      result = { success: false, error: "Skill name is required" };
+                    } else {
+                      const { data: skill } = await supabaseUser
+                        .from("profile_skills")
+                        .select("id")
+                        .ilike("name", name)
+                        .maybeSingle();
+                      if (!skill) {
+                        result = { success: false, error: `Skill "${name}" not found` };
+                      } else {
+                        const { error: delErr } = await supabaseUser
+                          .from("profile_skills")
+                          .delete()
+                          .eq("id", skill.id);
+                        result = delErr
+                          ? { success: false, error: delErr.message }
+                          : { success: true, removed: name };
+                      }
+                    }
+                  } else if (fn.name === "add_experience") {
+                    const title = asString(args.title) || "";
+                    const company = asString(args.company) || "";
+                    const start = asString(args.start_date) || "";
+                    if (!title || !company || !start) {
+                      result = {
+                        success: false,
+                        error: "title, company, and start_date (YYYY-MM-DD) are required",
+                      };
+                    } else {
+                      const row: Record<string, unknown> = {
+                        user_id: userId,
+                        title,
+                        company,
+                        start_date: start,
+                        location: asString(args.location) || "",
+                        description: asString(args.description) || "",
+                        is_current: args.is_current === true,
+                      };
+                      const end = asString(args.end_date);
+                      if (end) row.end_date = end;
+                      const { error: exErr } = await supabaseUser.from("profile_experiences").insert(row);
+                      result = exErr
+                        ? { success: false, error: exErr.message }
+                        : { success: true, action: "added", title, company };
+                    }
+                  } else if (fn.name === "save_cover_letter") {
+                    const cname = asString(args.name) || "";
+                    const content = asString(args.content) || "";
+                    if (!cname || !content) {
+                      result = { success: false, error: "name and content are required" };
+                    } else {
+                      const { error: clErr } = await supabaseUser.from("cover_letters").insert({
+                        user_id: userId,
+                        name: cname,
+                        content,
+                        role: asString(args.role) || null,
+                        company: asString(args.company) || null,
+                      });
+                      result = clErr
+                        ? { success: false, error: clErr.message }
+                        : { success: true, action: "saved", name: cname };
+                    }
+                  } else if (fn.name === "update_resume") {
+                    result = await runUpdateResumeTool(supabaseUser, userId, args);
+                  } else if (fn.name === "update_application_status") {
+                    const appId = asString(args.application_id) || "";
+                    const st = asString(args.status) || "";
+                    if (!appId || !st) {
+                      result = { success: false, error: "application_id and status are required" };
+                    } else {
+                      const { error: appErr } = await supabaseUser
+                        .from("applications")
+                        .update({ status: st, updated_at: new Date().toISOString() })
+                        .eq("id", appId);
+                      result = appErr
+                        ? { success: false, error: appErr.message }
+                        : { success: true, application_id: appId, new_status: st };
+                    }
+                  } else if (fn.name === "bookmark_job") {
+                    const jId = asString(args.job_id) || "";
+                    if (!jId) {
+                      result = { success: false, error: "job_id is required" };
+                    } else {
+                      const { error: bErr } = await supabaseUser
+                        .from("jobs")
+                        .update({ bookmarked: args.bookmarked === true })
+                        .eq("id", jId);
+                      result = bErr
+                        ? { success: false, error: bErr.message }
+                        : { success: true, job_id: jId, bookmarked: args.bookmarked === true };
+                    }
+                  } else if (fn.name === "hide_job") {
+                    const jId = asString(args.job_id) || "";
+                    if (!jId) {
+                      result = { success: false, error: "job_id is required" };
+                    } else {
+                      const { error: hErr } = await supabaseUser
+                        .from("jobs")
+                        .update({ hidden: true })
+                        .eq("id", jId);
+                      result = hErr
+                        ? { success: false, error: hErr.message }
+                        : { success: true, job_id: jId, hidden: true };
+                    }
                   } else if (fn.name === "evaluate_job_fit") {
                     const t = normalizeSubscriptionTier(subscriptionTier);
                     if (t === "Free") {
