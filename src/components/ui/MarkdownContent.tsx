@@ -7,10 +7,7 @@ type MarkdownContentProps = {
   className?: string;
 };
 
-export function MarkdownContent({
-  content,
-  className,
-}: MarkdownContentProps) {
+export function MarkdownContent({ content, className }: MarkdownContentProps) {
   if (!content?.trim()) {
     return (
       <div className={cn("text-sm text-foreground/45", className)}>
@@ -27,9 +24,9 @@ export function MarkdownContent({
         "prose-p:text-foreground/80 prose-p:leading-8",
         "prose-strong:text-foreground prose-em:text-foreground/75",
         "prose-a:text-[#6bff4d] prose-a:no-underline hover:prose-a:text-[#8dff78]",
-        "prose-blockquote:border-l-[#1dff00]/35 prose-blockquote:text-foreground/70",
+        "prose-blockquote:border-l-brand/35 prose-blockquote:text-foreground/70",
         "prose-ul:text-foreground/80 prose-ol:text-foreground/80",
-        "prose-li:marker:text-[#1dff00]/80",
+        "prose-li:marker:text-brand/80",
         "prose-hr:border-border/70",
         "prose-code:rounded prose-code:bg-white/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-foreground",
         "prose-pre:border prose-pre:border-border/70 prose-pre:bg-black/40",
@@ -42,14 +39,14 @@ export function MarkdownContent({
         remarkPlugins={[remarkGfm]}
         components={{
           a: ({ node: _node, ...props }) => (
-            <a {...props} target="_blank" rel="noreferrer" />
+            <a {...props} target='_blank' rel='noreferrer' />
           ),
           img: ({ node: _node, src, ...props }) => (
             <img
               {...props}
               src={getProxiedLogoUrl(src) ?? src}
               alt={props.alt ?? ""}
-              loading="lazy"
+              loading='lazy'
               className={cn(
                 "max-h-32 w-auto max-w-full object-contain",
                 props.className,
@@ -60,7 +57,10 @@ export function MarkdownContent({
             />
           ),
           code: ({ node: _node, className: codeClassName, ...props }) => (
-            <code className={cn("font-mono text-[0.9em]", codeClassName)} {...props} />
+            <code
+              className={cn("font-mono text-[0.9em]", codeClassName)}
+              {...props}
+            />
           ),
         }}
       >

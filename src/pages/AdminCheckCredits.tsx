@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { createClient } from '@/lib/supabaseClient';
-import { ShieldAlert } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { createClient } from "@/lib/supabaseClient";
+import { ShieldAlert } from "lucide-react";
 
 /**
  * Admin utility to check user credits by email
@@ -9,10 +9,10 @@ import { ShieldAlert } from 'lucide-react';
  */
 export default function AdminCheckCredits() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('siscostarters@gmail.com');
+  const [email, setEmail] = useState("siscostarters@gmail.com");
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(true);
   const supabase = createClient();
@@ -21,38 +21,38 @@ export default function AdminCheckCredits() {
   useEffect(() => {
     const checkAdminAccess = async () => {
       try {
-        const { isCurrentUserAdmin } = await import('@/lib/adminUtils');
+        const { isCurrentUserAdmin } = await import("@/lib/adminUtils");
         const admin = await isCurrentUserAdmin();
         setIsAdmin(admin);
-        
+
         if (!admin) {
           // Redirect non-admin users to dashboard
-          navigate('/dashboard', { replace: true });
+          navigate("/dashboard", { replace: true });
         }
       } catch (error) {
-        console.error('Error checking admin status:', error);
+        console.error("Error checking admin status:", error);
         setIsAdmin(false);
-        navigate('/dashboard', { replace: true });
+        navigate("/dashboard", { replace: true });
       } finally {
         setChecking(false);
       }
     };
-    
+
     checkAdminAccess();
   }, [navigate]);
 
   const checkCredits = async () => {
     setLoading(true);
-    setError('');
+    setError("");
     setResult(null);
 
     try {
       // First, get the user by email from auth.users (requires admin access)
       // Since we can't query auth.users directly, we'll query profiles table
       const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, email, full_name')
-        .eq('email', email)
+        .from("profiles")
+        .select("id, email, full_name")
+        .eq("email", email)
         .single();
 
       if (profileError || !profileData) {
@@ -65,30 +65,32 @@ export default function AdminCheckCredits() {
 
       // Get credits
       const { data: creditsData, error: creditsError } = await supabase
-        .from('user_credits')
-        .select('*')
-        .eq('user_id', userId)
+        .from("user_credits")
+        .select("*")
+        .eq("user_id", userId)
         .single();
 
       // Get subscription
       const { data: subData, error: subError } = await supabase
-        .from('user_subscriptions')
-        .select(`
+        .from("user_subscriptions")
+        .select(
+          `
           *,
           subscription_plans(name, credits_per_month)
-        `)
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
+        `,
+        )
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
       // Get recent transactions
       const { data: transactions, error: txError } = await supabase
-        .from('credit_transactions')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
+        .from("credit_transactions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
         .limit(10);
 
       setResult({
@@ -100,7 +102,7 @@ export default function AdminCheckCredits() {
           creditsError: creditsError?.message,
           subError: subError?.message,
           txError: txError?.message,
-        }
+        },
       });
     } catch (err: any) {
       setError(err.message);
@@ -112,10 +114,10 @@ export default function AdminCheckCredits() {
   // Show loading state while checking admin status
   if (checking) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400 text-sm">Verifying admin access...</p>
+      <div className='min-h-screen bg-gray-900 flex items-center justify-center'>
+        <div className='text-center'>
+          <div className='w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mx-auto mb-4' />
+          <p className='text-gray-400 text-sm'>Verifying admin access...</p>
         </div>
       </div>
     );
@@ -124,18 +126,18 @@ export default function AdminCheckCredits() {
   // Show access denied if not admin
   if (isAdmin === false) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-[#1dff00]/20 border border-[#1dff00]/50 rounded-lg p-8 text-center">
-          <div className="w-20 h-20 rounded-full bg-[#1dff00]/20 flex items-center justify-center mx-auto mb-6">
-            <ShieldAlert className="w-10 h-10 text-[#1dff00]" />
+      <div className='min-h-screen bg-gray-900 flex items-center justify-center p-6'>
+        <div className='max-w-md w-full bg-brand/20 border border-brand/50 rounded-lg p-8 text-center'>
+          <div className='w-20 h-20 rounded-full bg-brand/20 flex items-center justify-center mx-auto mb-6'>
+            <ShieldAlert className='w-10 h-10 text-brand' />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-3">Access Denied</h1>
-          <p className="text-gray-400 mb-6">
+          <h1 className='text-2xl font-bold text-white mb-3'>Access Denied</h1>
+          <p className='text-gray-400 mb-6'>
             Admin privileges required to access this tool.
           </p>
           <button
-            onClick={() => navigate('/dashboard')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-medium transition-colors"
+            onClick={() => navigate("/dashboard")}
+            className='bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-medium transition-colors'
           >
             Return to Dashboard
           </button>
@@ -145,157 +147,208 @@ export default function AdminCheckCredits() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-white mb-8">Admin: Check User Credits</h1>
-        
-        <div className="bg-gray-800 rounded-lg p-6 mb-6">
-          <label className="block text-gray-300 mb-2">User Email</label>
-          <div className="flex gap-4">
+    <div className='min-h-screen bg-gray-900 p-8'>
+      <div className='max-w-4xl mx-auto'>
+        <h1 className='text-3xl font-bold text-white mb-8'>
+          Admin: Check User Credits
+        </h1>
+
+        <div className='bg-gray-800 rounded-lg p-6 mb-6'>
+          <label className='block text-gray-300 mb-2'>User Email</label>
+          <div className='flex gap-4'>
             <input
-              type="email"
+              type='email'
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 bg-gray-700 text-white rounded px-4 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
-              placeholder="Enter user email"
+              className='flex-1 bg-gray-700 text-white rounded px-4 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none'
+              placeholder='Enter user email'
             />
             <button
               onClick={checkCredits}
               disabled={loading || !email}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-6 py-2 rounded font-medium transition-colors"
+              className='bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-6 py-2 rounded font-medium transition-colors'
             >
-              {loading ? 'Checking...' : 'Check Credits'}
+              {loading ? "Checking..." : "Check Credits"}
             </button>
           </div>
         </div>
 
         {error && (
-          <div className="bg-[#1dff00]/20 border border-[#1dff00] rounded-lg p-4 mb-6">
-            <p className="text-[#1dff00]">{error}</p>
+          <div className='bg-brand/20 border border-brand rounded-lg p-4 mb-6'>
+            <p className='text-brand'>{error}</p>
           </div>
         )}
 
         {result && (
-          <div className="space-y-6">
+          <div className='space-y-6'>
             {/* User Info */}
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-bold text-white mb-4">User Information</h2>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className='bg-gray-800 rounded-lg p-6'>
+              <h2 className='text-xl font-bold text-white mb-4'>
+                User Information
+              </h2>
+              <div className='grid grid-cols-2 gap-4 text-sm'>
                 <div>
-                  <span className="text-gray-400">Email:</span>
-                  <p className="text-white font-medium">{result.user.email}</p>
+                  <span className='text-gray-400'>Email:</span>
+                  <p className='text-white font-medium'>{result.user.email}</p>
                 </div>
                 <div>
-                  <span className="text-gray-400">Name:</span>
-                  <p className="text-white font-medium">{result.user.full_name || 'N/A'}</p>
+                  <span className='text-gray-400'>Name:</span>
+                  <p className='text-white font-medium'>
+                    {result.user.full_name || "N/A"}
+                  </p>
                 </div>
                 <div>
-                  <span className="text-gray-400">User ID:</span>
-                  <p className="text-white font-mono text-xs">{result.user.id}</p>
+                  <span className='text-gray-400'>User ID:</span>
+                  <p className='text-white font-mono text-xs'>
+                    {result.user.id}
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Credits */}
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-bold text-white mb-4">Credit Balance</h2>
+            <div className='bg-gray-800 rounded-lg p-6'>
+              <h2 className='text-xl font-bold text-white mb-4'>
+                Credit Balance
+              </h2>
               {result.credits ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-gray-700 rounded p-4">
-                    <p className="text-gray-400 text-sm">Current Balance</p>
-                    <p className="text-3xl font-bold text-green-400">{result.credits.balance}</p>
+                <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+                  <div className='bg-gray-700 rounded p-4'>
+                    <p className='text-gray-400 text-sm'>Current Balance</p>
+                    <p className='text-3xl font-bold text-green-400'>
+                      {result.credits.balance}
+                    </p>
                   </div>
-                  <div className="bg-gray-700 rounded p-4">
-                    <p className="text-gray-400 text-sm">Total Earned</p>
-                    <p className="text-2xl font-bold text-blue-400">{result.credits.lifetime_earned ?? result.credits.total_earned ?? 0}</p>
+                  <div className='bg-gray-700 rounded p-4'>
+                    <p className='text-gray-400 text-sm'>Total Earned</p>
+                    <p className='text-2xl font-bold text-blue-400'>
+                      {result.credits.lifetime_earned ??
+                        result.credits.total_earned ??
+                        0}
+                    </p>
                   </div>
-                  <div className="bg-gray-700 rounded p-4">
-                    <p className="text-gray-400 text-sm">Total Consumed</p>
-                    <p className="text-2xl font-bold text-[#1dff00]">{result.credits.lifetime_spent ?? result.credits.total_consumed ?? 0}</p>
+                  <div className='bg-gray-700 rounded p-4'>
+                    <p className='text-gray-400 text-sm'>Total Consumed</p>
+                    <p className='text-2xl font-bold text-brand'>
+                      {result.credits.lifetime_spent ??
+                        result.credits.total_consumed ??
+                        0}
+                    </p>
                   </div>
-                  <div className="bg-gray-700 rounded p-4">
-                    <p className="text-gray-400 text-sm">Last Updated</p>
-                    <p className="text-sm text-gray-300">{result.credits.updated_at ? new Date(result.credits.updated_at).toLocaleDateString() : '—'}</p>
+                  <div className='bg-gray-700 rounded p-4'>
+                    <p className='text-gray-400 text-sm'>Last Updated</p>
+                    <p className='text-sm text-gray-300'>
+                      {result.credits.updated_at
+                        ? new Date(
+                            result.credits.updated_at,
+                          ).toLocaleDateString()
+                        : "—"}
+                    </p>
                   </div>
                 </div>
               ) : (
-                <p className="text-gray-400">No credits data found</p>
+                <p className='text-gray-400'>No credits data found</p>
               )}
             </div>
 
             {/* Subscription */}
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-bold text-white mb-4">Active Subscription</h2>
+            <div className='bg-gray-800 rounded-lg p-6'>
+              <h2 className='text-xl font-bold text-white mb-4'>
+                Active Subscription
+              </h2>
               {result.subscription ? (
-                <div className="space-y-2">
-                  <p className="text-gray-300">
-                    <span className="text-gray-400">Plan:</span>{' '}
-                    <span className="font-bold text-white">{result.subscription.subscription_plans?.name || 'Unknown'}</span>
+                <div className='space-y-2'>
+                  <p className='text-gray-300'>
+                    <span className='text-gray-400'>Plan:</span>{" "}
+                    <span className='font-bold text-white'>
+                      {result.subscription.subscription_plans?.name ||
+                        "Unknown"}
+                    </span>
                   </p>
-                  <p className="text-gray-300">
-                    <span className="text-gray-400">Monthly Credits:</span>{' '}
-                    <span className="font-bold text-white">{result.subscription.subscription_plans?.credits_per_month || 0}</span>
+                  <p className='text-gray-300'>
+                    <span className='text-gray-400'>Monthly Credits:</span>{" "}
+                    <span className='font-bold text-white'>
+                      {result.subscription.subscription_plans
+                        ?.credits_per_month || 0}
+                    </span>
                   </p>
-                  <p className="text-gray-300">
-                    <span className="text-gray-400">Status:</span>{' '}
-                    <span className="font-bold text-green-400">{result.subscription.status}</span>
+                  <p className='text-gray-300'>
+                    <span className='text-gray-400'>Status:</span>{" "}
+                    <span className='font-bold text-green-400'>
+                      {result.subscription.status}
+                    </span>
                   </p>
                 </div>
               ) : (
-                <p className="text-gray-400">No active subscription</p>
+                <p className='text-gray-400'>No active subscription</p>
               )}
             </div>
 
             {/* Recent Transactions */}
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-bold text-white mb-4">Recent Transactions (Last 10)</h2>
+            <div className='bg-gray-800 rounded-lg p-6'>
+              <h2 className='text-xl font-bold text-white mb-4'>
+                Recent Transactions (Last 10)
+              </h2>
               {result.transactions.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="text-gray-400 border-b border-gray-700">
+                <div className='overflow-x-auto'>
+                  <table className='w-full text-sm'>
+                    <thead className='text-gray-400 border-b border-gray-700'>
                       <tr>
-                        <th className="text-left py-2">Date</th>
-                        <th className="text-left py-2">Type</th>
-                        <th className="text-right py-2">Amount</th>
-                        <th className="text-left py-2">Description</th>
-                        <th className="text-right py-2">Balance After</th>
+                        <th className='text-left py-2'>Date</th>
+                        <th className='text-left py-2'>Type</th>
+                        <th className='text-right py-2'>Amount</th>
+                        <th className='text-left py-2'>Description</th>
+                        <th className='text-right py-2'>Balance After</th>
                       </tr>
                     </thead>
-                    <tbody className="text-gray-300">
+                    <tbody className='text-gray-300'>
                       {result.transactions.map((tx: any) => (
-                        <tr key={tx.id} className="border-b border-gray-700">
-                          <td className="py-2">{new Date(tx.created_at).toLocaleString()}</td>
-                          <td className="py-2">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              tx.type === 'earned' || tx.type === 'bonus' ? 'bg-green-900/30 text-green-400' :
-                              tx.type === 'refund' ? 'bg-blue-900/30 text-blue-400' :
-                              'bg-[#1dff00]/30 text-[#1dff00]'
-                            }`}>
+                        <tr key={tx.id} className='border-b border-gray-700'>
+                          <td className='py-2'>
+                            {new Date(tx.created_at).toLocaleString()}
+                          </td>
+                          <td className='py-2'>
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-medium ${
+                                tx.type === "earned" || tx.type === "bonus"
+                                  ? "bg-green-900/30 text-green-400"
+                                  : tx.type === "refund"
+                                    ? "bg-blue-900/30 text-blue-400"
+                                    : "bg-brand/30 text-brand"
+                              }`}
+                            >
                               {tx.type}
                             </span>
                           </td>
-                          <td className={`py-2 text-right font-medium ${
-                            tx.type === 'consumed' ? 'text-[#1dff00]' : 'text-green-400'
-                          }`}>
-                            {tx.type === 'consumed' ? '-' : '+'}{tx.amount}
+                          <td
+                            className={`py-2 text-right font-medium ${
+                              tx.type === "consumed"
+                                ? "text-brand"
+                                : "text-green-400"
+                            }`}
+                          >
+                            {tx.type === "consumed" ? "-" : "+"}
+                            {tx.amount}
                           </td>
-                          <td className="py-2">{tx.description}</td>
-                          <td className="py-2 text-right font-bold">{tx.balance_after}</td>
+                          <td className='py-2'>{tx.description}</td>
+                          <td className='py-2 text-right font-bold'>
+                            {tx.balance_after}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <p className="text-gray-400">No transactions found</p>
+                <p className='text-gray-400'>No transactions found</p>
               )}
             </div>
 
             {/* Debug Info */}
-            {Object.values(result.errors).some(e => e) && (
-              <div className="bg-[#1dff00]/20 border border-[#1dff00] rounded-lg p-4">
-                <h3 className="text-[#1dff00] font-bold mb-2">Errors/Warnings</h3>
-                <pre className="text-[#1dff00] text-xs overflow-auto">
+            {Object.values(result.errors).some((e) => e) && (
+              <div className='bg-brand/20 border border-brand rounded-lg p-4'>
+                <h3 className='text-brand font-bold mb-2'>Errors/Warnings</h3>
+                <pre className='text-brand text-xs overflow-auto'>
                   {JSON.stringify(result.errors, null, 2)}
                 </pre>
               </div>

@@ -12,7 +12,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     ref,
   ) => {
     const baseClasses =
-      "flex w-full rounded-xl border border-input bg-background text-foreground placeholder:text-foreground/60 file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200";
+      "flex w-full rounded-xl border border-input bg-background text-foreground placeholder:text-foreground/60 file:border-0 file:bg-transparent file:text-sm outline-none file:font-medium disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200";
 
     const variantClasses = {
       default: "bg-card/60 hover:border-border focus:border-brand",
@@ -37,7 +37,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           sizeClasses[inputSize],
           "font-medium tracking-wide leading-relaxed placeholder:opacity-80",
           // Invalid state (when aria-invalid is set by form libs or manually)
-          "aria-[invalid=true]:border-[#1dff00] aria-[invalid=true]:focus-visible:ring-[#1dff00]",
+          "aria-[invalid=true]:border-brand aria-[invalid=true]:focus-visible:ring-brand",
           // Responsive text sizing
           inputSize === "lg" && "text-base sm:text-lg",
           inputSize === "xl" && "text-lg sm:text-xl",

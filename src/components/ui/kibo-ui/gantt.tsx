@@ -1,10 +1,10 @@
-import * as React from 'react';
+import * as React from "react";
 
 export interface GanttItem {
   id: string;
   label: string;
   start: Date; // inclusive
-  end: Date;   // exclusive-ish (visual end)
+  end: Date; // exclusive-ish (visual end)
   trailEnd?: Date; // optional subtle extension for active age
   status?: string;
   extra?: React.ReactNode;
@@ -30,7 +30,7 @@ interface GanttProps {
 // Modern Enterprise-Level Gantt Renderer
 export const Gantt: React.FC<GanttProps> = ({
   items,
-  className = '',
+  className = "",
   dayWidth,
   height = 52,
   renderLabel,
@@ -46,12 +46,12 @@ export const Gantt: React.FC<GanttProps> = ({
   const zoom = controlledZoom ?? uncontrolledZoom;
   const setZoom = (z: number) => {
     const clamped = Math.min(4, Math.max(0, z));
-    if (onZoomChange) onZoomChange(clamped); else setUncontrolledZoom(clamped);
+    if (onZoomChange) onZoomChange(clamped);
+    else setUncontrolledZoom(clamped);
   };
 
   const valid = items.filter((i) => {
-    const hasValidStart =
-      i.start instanceof Date && !isNaN(i.start.getTime());
+    const hasValidStart = i.start instanceof Date && !isNaN(i.start.getTime());
     const hasValidEnd = i.end instanceof Date && !isNaN(i.end.getTime());
     const hasValidTrail =
       !i.trailEnd ||
@@ -65,29 +65,41 @@ export const Gantt: React.FC<GanttProps> = ({
   let min: Date | null = null;
   let max: Date | null = null;
   if (valid.length) {
-    min = dateRange?.start ?? valid.reduce((a,i)=> i.start < a ? i.start : a, valid[0].start);
+    min =
+      dateRange?.start ??
+      valid.reduce((a, i) => (i.start < a ? i.start : a), valid[0].start);
     max =
       dateRange?.end ??
-      valid.reduce((a, i) => {
-        const candidate =
-          i.trailEnd && i.trailEnd > i.end ? i.trailEnd : i.end;
-        return candidate > a ? candidate : a;
-      }, valid[0].trailEnd && valid[0].trailEnd > valid[0].end
-        ? valid[0].trailEnd
-        : valid[0].end);
+      valid.reduce(
+        (a, i) => {
+          const candidate =
+            i.trailEnd && i.trailEnd > i.end ? i.trailEnd : i.end;
+          return candidate > a ? candidate : a;
+        },
+        valid[0].trailEnd && valid[0].trailEnd > valid[0].end
+          ? valid[0].trailEnd
+          : valid[0].end,
+      );
     if (min.getTime() === max.getTime()) {
-      max = new Date(min.getTime() + 24*3600*1000);
+      max = new Date(min.getTime() + 24 * 3600 * 1000);
     }
   }
 
-  const totalDays = min && max ? Math.max(1, Math.ceil((max.getTime() - min.getTime()) / (24*3600*1000))) : 1;
+  const totalDays =
+    min && max
+      ? Math.max(
+          1,
+          Math.ceil((max.getTime() - min.getTime()) / (24 * 3600 * 1000)),
+        )
+      : 1;
   const tierWidths = [12, 24, 36, 52, 72];
   const autoDayWidth = dayWidth ?? tierWidths[zoom] ?? 36;
   const timelineWidth = totalDays * autoDayWidth;
 
   const gridDays: Date[] = [];
   if (min) {
-    for (let d = 0; d <= totalDays; d++) gridDays.push(new Date(min.getTime() + d*24*3600*1000));
+    for (let d = 0; d <= totalDays; d++)
+      gridDays.push(new Date(min.getTime() + d * 24 * 3600 * 1000));
   }
 
   const percent = (date: Date) => {
@@ -96,24 +108,36 @@ export const Gantt: React.FC<GanttProps> = ({
   };
 
   const groups = React.useMemo(() => {
-    if (!groupBy) return [{ key: '_all', label: 'All', rows: valid }];
+    if (!groupBy) return [{ key: "_all", label: "All", rows: valid }];
     const map = new Map<string, GanttItem[]>();
     for (const it of valid) {
-      const k = groupBy(it) || 'Other';
+      const k = groupBy(it) || "Other";
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(it);
     }
-    return Array.from(map.entries()).map(([key, rows]) => ({ key, label: key, rows }));
+    return Array.from(map.entries()).map(([key, rows]) => ({
+      key,
+      label: key,
+      rows,
+    }));
   }, [valid, groupBy]);
 
   const todayPercent = showToday && min && max ? percent(new Date()) : null;
-  const showTodayMarker = showToday && todayPercent != null && todayPercent >= 0 && todayPercent <= 1;
+  const showTodayMarker =
+    showToday && todayPercent != null && todayPercent >= 0 && todayPercent <= 1;
 
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const hasScrolledRef = React.useRef(false);
 
   React.useEffect(() => {
-    if (hasScrolledRef.current || !scrollRef.current || todayPercent == null || todayPercent < 0 || todayPercent > 1) return;
+    if (
+      hasScrolledRef.current ||
+      !scrollRef.current ||
+      todayPercent == null ||
+      todayPercent < 0 ||
+      todayPercent > 1
+    )
+      return;
     const sidebarWidth = 256;
     const todayPx = todayPercent * timelineWidth + sidebarWidth;
     const containerWidth = scrollRef.current.clientWidth;
@@ -122,257 +146,355 @@ export const Gantt: React.FC<GanttProps> = ({
   }, [todayPercent, timelineWidth]);
 
   return (
-    <div ref={scrollRef} className={"relative w-full overflow-auto rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] " + className} style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div
+      ref={scrollRef}
+      className={
+        "relative w-full overflow-auto rounded-2xl border border-brand/20 bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] " +
+        className
+      }
+      style={{ WebkitOverflowScrolling: "touch" }}
+    >
       {/* Ambient glow effect */}
-      <div className="pointer-events-none absolute -top-20 right-0 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40" />
-      
+      <div className='pointer-events-none absolute -top-20 right-0 h-64 w-64 rounded-full bg-brand/10 blur-3xl opacity-40' />
+
       {/* Header timeline scale + zoom controls */}
-      <div className="sticky top-0 z-20 border-b border-[#1dff00]/20 bg-background/95 backdrop-blur-xl">
-        <div className="flex items-stretch">
-          <div className="w-64 flex items-center justify-between gap-3 px-4 py-3 border-r border-[#1dff00]/20">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-[#1dff00] shadow-[0_0_8px_rgba(29,255,0,0.6)]" />
-              <span className="text-xs font-medium bg-gradient-to-r from-[#1dff00] to-[#6dffb0] bg-clip-text text-transparent">Timeline View</span>
+      <div className='sticky top-0 z-20 border-b border-brand/20 bg-background/95 backdrop-blur-xl'>
+        <div className='flex items-stretch'>
+          <div className='w-64 flex items-center justify-between gap-3 px-4 py-3 border-r border-brand/20'>
+            <div className='flex items-center gap-2'>
+              <div className='h-2 w-2 rounded-full bg-brand shadow-[0_0_8px_rgba(29,255,0,0.6)]' />
+              <span className='text-xs font-medium bg-gradient-to-r from-brand to-[#6dffb0] bg-clip-text text-transparent'>
+                Timeline View
+              </span>
             </div>
-            <div className="flex items-center gap-1.5 rounded-lg bg-neutral-900/60 p-1 border border-neutral-700/50">
-              <button 
-                aria-label="Zoom out" 
-                className="h-6 w-6 rounded-md bg-transparent hover:bg-neutral-800 text-foreground/60 hover:text-[#1dff00] text-xs font-medium transition-all duration-200 hover:scale-105" 
-                onClick={() => setZoom(zoom-1)}
+            <div className='flex items-center gap-1.5 rounded-lg bg-neutral-900/60 p-1 border border-neutral-700/50'>
+              <button
+                aria-label='Zoom out'
+                className='h-6 w-6 rounded-md bg-transparent hover:bg-neutral-800 text-foreground/60 hover:text-brand text-xs font-medium transition-all duration-200 hover:scale-105'
+                onClick={() => setZoom(zoom - 1)}
               >
                 −
               </button>
-              <span className="px-2 text-xs tabular-nums text-foreground/70 font-medium min-w-[2ch]">{zoom}</span>
-              <button 
-                aria-label="Zoom in" 
-                className="h-6 w-6 rounded-md bg-transparent hover:bg-neutral-800 text-foreground/60 hover:text-[#1dff00] text-xs font-medium transition-all duration-200 hover:scale-105" 
-                onClick={() => setZoom(zoom+1)}
+              <span className='px-2 text-xs tabular-nums text-foreground/70 font-medium min-w-[2ch]'>
+                {zoom}
+              </span>
+              <button
+                aria-label='Zoom in'
+                className='h-6 w-6 rounded-md bg-transparent hover:bg-neutral-800 text-foreground/60 hover:text-brand text-xs font-medium transition-all duration-200 hover:scale-105'
+                onClick={() => setZoom(zoom + 1)}
               >
                 +
               </button>
             </div>
           </div>
           {min && max ? (
-            <div className="relative flex-1" style={{ width: timelineWidth }}>
-              <div className="flex text-[11px] font-medium text-foreground/60 select-none">
-                {gridDays.map((d,i) => {
+            <div className='relative flex-1' style={{ width: timelineWidth }}>
+              <div className='flex text-[11px] font-medium text-foreground/60 select-none'>
+                {gridDays.map((d, i) => {
                   const isWeekend = d.getDay() === 0 || d.getDay() === 6;
                   return (
-                    <div 
-                      key={i} 
-                      style={{ width: autoDayWidth }} 
-                      className={`py-2.5 text-center border-r border-[#1dff00]/5 last:border-r-0 transition-colors ${isWeekend ? 'bg-white/[0.02]' : ''}`}
+                    <div
+                      key={i}
+                      style={{ width: autoDayWidth }}
+                      className={`py-2.5 text-center border-r border-brand/5 last:border-r-0 transition-colors ${isWeekend ? "bg-white/[0.02]" : ""}`}
                     >
-                      <div className="text-foreground/40 text-[9px] uppercase tracking-wider">{d.toLocaleDateString(undefined,{ weekday:'short' })}</div>
-                      <div className="text-foreground/70 font-semibold">{d.toLocaleDateString(undefined,{ month:'short', day:'numeric' })}</div>
+                      <div className='text-foreground/40 text-[9px] uppercase tracking-wider'>
+                        {d.toLocaleDateString(undefined, { weekday: "short" })}
+                      </div>
+                      <div className='text-foreground/70 font-semibold'>
+                        {d.toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
           ) : (
-            <div className="flex-1 flex items-center px-4 text-xs text-foreground/40">
-              <div className="flex items-center gap-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-foreground/20 animate-pulse" />
+            <div className='flex-1 flex items-center px-4 text-xs text-foreground/40'>
+              <div className='flex items-center gap-2'>
+                <div className='h-1.5 w-1.5 rounded-full bg-foreground/20 animate-pulse' />
                 No timeline data available
               </div>
             </div>
           )}
         </div>
       </div>
-      
-      <div className="relative" style={{ width: (min && max ? timelineWidth : 0) + 64 }}>
-        <div className="absolute inset-y-0 left-64 w-[1px] bg-gradient-to-b from-[#1dff00]/20 via-[#1dff00]/10 to-transparent" />
-        
+
+      <div
+        className='relative'
+        style={{ width: (min && max ? timelineWidth : 0) + 64 }}
+      >
+        <div className='absolute inset-y-0 left-64 w-[1px] bg-gradient-to-b from-brand/20 via-brand/10 to-transparent' />
+
         {/* Vertical grid */}
         {min && max && (
-        <div className="absolute inset-y-0 left-64 right-0 pointer-events-none select-none">
-          <div className="flex h-full w-full">
-            {gridDays.map((d,i) => {
-              const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-              return (
-                <div 
-                  key={i} 
-                  style={{ width: autoDayWidth }} 
-                  className={`h-full border-r border-[#1dff00]/[0.03] last:border-r-0 ${isWeekend ? 'bg-white/[0.01]' : ''}`} 
-                />
-              );
-            })}
+          <div className='absolute inset-y-0 left-64 right-0 pointer-events-none select-none'>
+            <div className='flex h-full w-full'>
+              {gridDays.map((d, i) => {
+                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                return (
+                  <div
+                    key={i}
+                    style={{ width: autoDayWidth }}
+                    className={`h-full border-r border-brand/[0.03] last:border-r-0 ${isWeekend ? "bg-white/[0.01]" : ""}`}
+                  />
+                );
+              })}
+            </div>
+            {showTodayMarker && (
+              <div
+                className='absolute top-0 bottom-0'
+                style={{ left: `${todayPercent! * 100}%` }}
+              >
+                <div className='h-full w-[2px] bg-gradient-to-b from-brand via-brand/80 to-brand/20 shadow-[0_0_8px_rgba(29,255,0,0.5)]' />
+                <div className='absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md bg-brand text-black text-[10px] font-bold tracking-wide shadow-lg'>
+                  Today
+                </div>
+              </div>
+            )}
           </div>
-          {showTodayMarker && (
-            <div className="absolute top-0 bottom-0" style={{ left: `${todayPercent!*100}%` }}>
-              <div className="h-full w-[2px] bg-gradient-to-b from-[#1dff00] via-[#1dff00]/80 to-[#1dff00]/20 shadow-[0_0_8px_rgba(29,255,0,0.5)]" />
-              <div className="absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md bg-[#1dff00] text-black text-[10px] font-bold tracking-wide shadow-lg">
-                Today
-              </div>
-            </div>
-          )}
-        </div>
         )}
-        
-        <div className="relative">
+
+        <div className='relative'>
           {valid.length === 0 && (
-            <div className="p-8 text-center">
-              <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-foreground/5 border border-foreground/10 mb-3">
-                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#1dff00]/20 to-transparent" />
+            <div className='p-8 text-center'>
+              <div className='inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-foreground/5 border border-foreground/10 mb-3'>
+                <div className='h-8 w-8 rounded-lg bg-gradient-to-br from-brand/20 to-transparent' />
               </div>
-              <div className="text-sm text-foreground/50">No applications to display</div>
-              <div className="text-xs text-foreground/30 mt-1">Add applications to see them on the timeline</div>
+              <div className='text-sm text-foreground/50'>
+                No applications to display
+              </div>
+              <div className='text-xs text-foreground/30 mt-1'>
+                Add applications to see them on the timeline
+              </div>
             </div>
           )}
-          {valid.length > 0 && groups.map(g => (
-            <div key={g.key} className="relative">
-              {groups.length > 1 && (
-                <div className="sticky left-0 z-10 w-64 bg-gradient-to-r from-background to-background/80 backdrop-blur-sm border-r border-[#1dff00]/20 py-2 px-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#1dff00]/60" />
-                    <span className="text-xs font-semibold text-foreground/80">{g.label}</span>
-                    <span className="ml-auto text-[10px] text-foreground/40 bg-foreground/5 px-1.5 py-0.5 rounded">{g.rows.length}</span>
+          {valid.length > 0 &&
+            groups.map((g) => (
+              <div key={g.key} className='relative'>
+                {groups.length > 1 && (
+                  <div className='sticky left-0 z-10 w-64 bg-gradient-to-r from-background to-background/80 backdrop-blur-sm border-r border-brand/20 py-2 px-4'>
+                    <div className='flex items-center gap-2'>
+                      <div className='h-1.5 w-1.5 rounded-full bg-brand/60' />
+                      <span className='text-xs font-semibold text-foreground/80'>
+                        {g.label}
+                      </span>
+                      <span className='ml-auto text-[10px] text-foreground/40 bg-foreground/5 px-1.5 py-0.5 rounded'>
+                        {g.rows.length}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <div className={groups.length > 1 ? "pl-64" : ""}>
+                  <div className='relative divide-y divide-brand/5'>
+                    {g.rows.map((item) => {
+                      const startP = percent(item.start);
+                      const endP = percent(item.end);
+                      const trailEnd =
+                        item.trailEnd instanceof Date &&
+                        !isNaN(item.trailEnd.getTime()) &&
+                        item.trailEnd > item.end
+                          ? item.trailEnd
+                          : null;
+                      const trailEndP = trailEnd ? percent(trailEnd) : null;
+                      const left = startP * 100;
+                      const widthPct = Math.max(0.8, (endP - startP) * 100);
+                      const trailWidthPct =
+                        trailEndP != null
+                          ? Math.max(0, (trailEndP - endP) * 100)
+                          : 0;
+                      const color = statusColor(item.status);
+                      const accent = statusAccent(item.status);
+                      const days = Math.max(
+                        1,
+                        Math.round(
+                          (item.end.getTime() - item.start.getTime()) /
+                            86400000,
+                        ),
+                      );
+                      const activeAgeDays = trailEnd
+                        ? Math.max(
+                            days,
+                            Math.round(
+                              (trailEnd.getTime() - item.start.getTime()) /
+                                86400000,
+                            ),
+                          )
+                        : days;
+                      const showBarContent = widthPct >= 6;
+                      return (
+                        <div
+                          key={item.id}
+                          className='relative group/item hover:bg-white/[0.02] transition-colors'
+                          style={{ height }}
+                        >
+                          <div className='absolute inset-y-0 left-0 flex items-center pl-4 pr-3 w-64 overflow-hidden'>
+                            <div className='flex items-center gap-2 w-full'>
+                              <div
+                                className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${item.status === "Applied" ? "bg-brand" : item.status === "Interview" ? "bg-brand" : item.status === "Failed" ? "bg-orange-400" : item.status === "Terminated" ? "bg-rose-600" : item.status === "Offer" ? "bg-lime-400" : item.status === "Rejected" ? "bg-rose-400" : "bg-gray-400"} shadow-[0_0_4px_currentColor]`}
+                              />
+                              <div className='truncate text-xs font-medium text-foreground/80'>
+                                {renderLabel ? renderLabel(item) : item.label}
+                              </div>
+                            </div>
+                          </div>
+                          <div
+                            className='absolute inset-y-0 left-64'
+                            style={{ right: 0 }}
+                          >
+                            <div className='relative h-full'>
+                              {trailEnd && trailWidthPct > 0 && (
+                                <>
+                                  <div
+                                    className='absolute rounded-full'
+                                    style={{
+                                      left: `${endP * 100}%`,
+                                      width: `${trailWidthPct}%`,
+                                      top: height * 0.46,
+                                      height: Math.max(3, height * 0.08),
+                                      background: `linear-gradient(90deg, ${accent}55, ${accent}12)`,
+                                      boxShadow: `0 0 18px ${accent}18`,
+                                    }}
+                                  />
+                                  <div
+                                    className='absolute rounded-full border border-white/10 bg-background/90 shadow-[0_0_10px_rgba(0,0,0,0.25)]'
+                                    style={{
+                                      left: `${trailEndP! * 100}%`,
+                                      top: height * 0.5,
+                                      width: 8,
+                                      height: 8,
+                                      transform: "translate(-50%, -50%)",
+                                    }}
+                                  >
+                                    <div
+                                      className='h-full w-full rounded-full'
+                                      style={{ backgroundColor: accent }}
+                                    />
+                                  </div>
+                                </>
+                              )}
+                              <div
+                                className='absolute group rounded-lg overflow-hidden ring-1 ring-white/10 shadow-md hover:ring-brand/40 hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/60 transform hover:scale-[1.02]'
+                                style={{
+                                  left: `${left}%`,
+                                  width: widthPct + "%",
+                                  top: height * 0.25,
+                                  height: height * 0.5,
+                                  background: color.bg,
+                                }}
+                                title={`${item.label}\n${item.start.toLocaleDateString()} → ${item.end.toLocaleDateString()} (${days}d)`}
+                                aria-label={`Timeline for ${item.label}`}
+                                tabIndex={0}
+                                onClick={(e) => onBarClick?.(item, e)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    onBarClick?.(item, e as any);
+                                  }
+                                }}
+                              >
+                                <div className='absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-white/10 via-transparent to-white/10 transition-opacity' />
+                                <div
+                                  className='flex h-full w-full items-center justify-center px-3 text-[11px] font-semibold tracking-wide'
+                                  style={{ color: color.fg }}
+                                >
+                                  {showBarContent
+                                    ? renderBarContent
+                                      ? renderBarContent(item)
+                                      : item.status || ""
+                                    : null}
+                                </div>
+                                {/* Enhanced Tooltip */}
+                                <div className='absolute z-30 hidden group-hover:flex -top-3 left-1/2 -translate-y-full -translate-x-1/2 min-w-[220px] max-w-[280px] flex-col rounded-xl border border-brand/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-3 shadow-[0_0_30px_rgba(29,255,0,0.2)]'>
+                                  <div className='flex items-center gap-2 mb-2 pb-2 border-b border-foreground/10'>
+                                    <div
+                                      className={`h-2 w-2 rounded-full ${item.status === "Applied" ? "bg-brand" : item.status === "Interview" ? "bg-brand" : item.status === "Failed" ? "bg-orange-400" : item.status === "Terminated" ? "bg-rose-600" : item.status === "Offer" ? "bg-lime-400" : item.status === "Rejected" ? "bg-rose-400" : "bg-gray-400"}`}
+                                    />
+                                    <div className='font-semibold text-white text-sm truncate'>
+                                      {item.label}
+                                    </div>
+                                  </div>
+                                  <div className='grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]'>
+                                    <span className='text-foreground/40'>
+                                      Status
+                                    </span>
+                                    <span className='text-foreground/90 font-medium'>
+                                      {item.status}
+                                    </span>
+                                    <span className='text-foreground/40'>
+                                      Start Date
+                                    </span>
+                                    <span className='text-foreground/90'>
+                                      {item.start.toLocaleDateString()}
+                                    </span>
+                                    <span className='text-foreground/40'>
+                                      End Date
+                                    </span>
+                                    <span className='text-foreground/90'>
+                                      {item.end.toLocaleDateString()}
+                                    </span>
+                                    <span className='text-foreground/40'>
+                                      Duration
+                                    </span>
+                                    <span className='text-brand font-semibold'>
+                                      {days} day{days !== 1 ? "s" : ""}
+                                    </span>
+                                    {trailEnd && (
+                                      <>
+                                        <span className='text-foreground/40'>
+                                          Active Age
+                                        </span>
+                                        <span className='text-foreground/90'>
+                                          {activeAgeDays} day
+                                          {activeAgeDays !== 1 ? "s" : ""}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              )}
-              <div className={groups.length>1 ? 'pl-64' : ''}>
-                <div className="relative divide-y divide-[#1dff00]/5">
-                  {g.rows.map(item => {
-                    const startP = percent(item.start);
-                    const endP = percent(item.end);
-                    const trailEnd =
-                      item.trailEnd instanceof Date &&
-                      !isNaN(item.trailEnd.getTime()) &&
-                      item.trailEnd > item.end
-                        ? item.trailEnd
-                        : null;
-                    const trailEndP = trailEnd ? percent(trailEnd) : null;
-                    const left = startP * 100;
-                    const widthPct = Math.max(0.8, (endP - startP) * 100);
-                    const trailWidthPct =
-                      trailEndP != null ? Math.max(0, (trailEndP - endP) * 100) : 0;
-                    const color = statusColor(item.status);
-                    const accent = statusAccent(item.status);
-                    const days = Math.max(1, Math.round((item.end.getTime() - item.start.getTime())/86400000));
-                    const activeAgeDays = trailEnd
-                      ? Math.max(
-                          days,
-                          Math.round(
-                            (trailEnd.getTime() - item.start.getTime()) / 86400000,
-                          ),
-                        )
-                      : days;
-                    const showBarContent = widthPct >= 6;
-                    return (
-                      <div key={item.id} className="relative group/item hover:bg-white/[0.02] transition-colors" style={{ height }}>
-                        <div className="absolute inset-y-0 left-0 flex items-center pl-4 pr-3 w-64 overflow-hidden">
-                          <div className="flex items-center gap-2 w-full">
-                            <div className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${item.status === 'Applied' ? 'bg-[#1dff00]' : item.status === 'Interview' ? 'bg-[#1dff00]' : item.status === 'Failed' ? 'bg-orange-400' : item.status === 'Terminated' ? 'bg-rose-600' : item.status === 'Offer' ? 'bg-lime-400' : item.status === 'Rejected' ? 'bg-rose-400' : 'bg-gray-400'} shadow-[0_0_4px_currentColor]`} />
-                            <div className="truncate text-xs font-medium text-foreground/80">
-                              {renderLabel ? renderLabel(item) : item.label}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="absolute inset-y-0 left-64" style={{ right: 0 }}>
-                          <div className="relative h-full">
-                            {trailEnd && trailWidthPct > 0 && (
-                              <>
-                                <div
-                                  className="absolute rounded-full"
-                                  style={{
-                                    left: `${endP * 100}%`,
-                                    width: `${trailWidthPct}%`,
-                                    top: height * 0.46,
-                                    height: Math.max(3, height * 0.08),
-                                    background: `linear-gradient(90deg, ${accent}55, ${accent}12)`,
-                                    boxShadow: `0 0 18px ${accent}18`,
-                                  }}
-                                />
-                                <div
-                                  className="absolute rounded-full border border-white/10 bg-background/90 shadow-[0_0_10px_rgba(0,0,0,0.25)]"
-                                  style={{
-                                    left: `${trailEndP! * 100}%`,
-                                    top: height * 0.5,
-                                    width: 8,
-                                    height: 8,
-                                    transform: "translate(-50%, -50%)",
-                                  }}
-                                >
-                                  <div
-                                    className="h-full w-full rounded-full"
-                                    style={{ backgroundColor: accent }}
-                                  />
-                                </div>
-                              </>
-                            )}
-                            <div
-                              className="absolute group rounded-lg overflow-hidden ring-1 ring-white/10 shadow-md hover:ring-[#1dff00]/40 hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1dff00]/60 transform hover:scale-[1.02]"
-                              style={{ left: `${left}%`, width: widthPct + '%', top: height*0.25, height: height*0.5, background: color.bg }}
-                              title={`${item.label}\n${item.start.toLocaleDateString()} → ${item.end.toLocaleDateString()} (${days}d)`}
-                              aria-label={`Timeline for ${item.label}`}
-                              tabIndex={0}
-                              onClick={(e) => onBarClick?.(item, e)}
-                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onBarClick?.(item, e as any); } }}
-                            >
-                              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-white/10 via-transparent to-white/10 transition-opacity" />
-                              <div className="flex h-full w-full items-center justify-center px-3 text-[11px] font-semibold tracking-wide" style={{ color: color.fg }}>
-                                {showBarContent
-                                  ? renderBarContent
-                                    ? renderBarContent(item)
-                                    : (item.status || '')
-                                  : null}
-                              </div>
-                              {/* Enhanced Tooltip */}
-                              <div className="absolute z-30 hidden group-hover:flex -top-3 left-1/2 -translate-y-full -translate-x-1/2 min-w-[220px] max-w-[280px] flex-col rounded-xl border border-[#1dff00]/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-3 shadow-[0_0_30px_rgba(29,255,0,0.2)]">
-                                <div className="flex items-center gap-2 mb-2 pb-2 border-b border-foreground/10">
-                                  <div className={`h-2 w-2 rounded-full ${item.status === 'Applied' ? 'bg-[#1dff00]' : item.status === 'Interview' ? 'bg-[#1dff00]' : item.status === 'Failed' ? 'bg-orange-400' : item.status === 'Terminated' ? 'bg-rose-600' : item.status === 'Offer' ? 'bg-lime-400' : item.status === 'Rejected' ? 'bg-rose-400' : 'bg-gray-400'}`} />
-                                  <div className="font-semibold text-white text-sm truncate">{item.label}</div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
-                                  <span className="text-foreground/40">Status</span>
-                                  <span className="text-foreground/90 font-medium">{item.status}</span>
-                                  <span className="text-foreground/40">Start Date</span>
-                                  <span className="text-foreground/90">{item.start.toLocaleDateString()}</span>
-                                  <span className="text-foreground/40">End Date</span>
-                                  <span className="text-foreground/90">{item.end.toLocaleDateString()}</span>
-                                  <span className="text-foreground/40">Duration</span>
-                                  <span className="text-[#1dff00] font-semibold">{days} day{days !== 1 ? 's' : ''}</span>
-                                  {trailEnd && (
-                                    <>
-                                      <span className="text-foreground/40">Active Age</span>
-                                      <span className="text-foreground/90">{activeAgeDays} day{activeAgeDays !== 1 ? 's' : ''}</span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
-            </div>
-          ))}
+            ))}
         </div>
       </div>
-      
+
       {/* Sidebar gradient overlay */}
-      <div className="absolute top-0 left-0 w-64 h-full pointer-events-none bg-gradient-to-r from-background/60 via-background/30 to-transparent" />
+      <div className='absolute top-0 left-0 w-64 h-full pointer-events-none bg-gradient-to-r from-background/60 via-background/30 to-transparent' />
     </div>
   );
 };
 
 function statusColor(status?: string): { bg: string; fg: string } {
   switch (status) {
-    case 'Draft':
-      return { bg: 'linear-gradient(90deg,#2dd4bf,#2dd4bf)', fg: '#0c1a24' };
-    case 'Applied': return { bg: 'linear-gradient(90deg,#1dff00,#1dff00)', fg: '#041f11' };
-    case 'Failed': return { bg: 'linear-gradient(90deg,#f97316,#ea580c)', fg: '#1a0a00' };
-    case 'Terminated': return { bg: 'linear-gradient(90deg,#e11d48,#9f1239)', fg: '#fff1f2' };
-    case 'Interview': return { bg: 'linear-gradient(90deg,#1dff00,#1dff00)', fg: '#2d1e04' };
-    case 'Offer': return { bg: 'linear-gradient(90deg,#84cc16,#166534)', fg: '#0b1f0f' };
-    case 'Rejected': return { bg: 'linear-gradient(90deg,#fb7185,#1dff00)', fg: '#2f070f' };
-  case 'Withdrawn': return { bg: 'linear-gradient(90deg,#94a3b8,#334155)', fg: '#0f1822' };
-    case 'Pending':
-    default: return { bg: 'linear-gradient(90deg,#71717a,#27272a)', fg: '#111114' };
+    case "Draft":
+      return { bg: "linear-gradient(90deg,#2dd4bf,#2dd4bf)", fg: "#0c1a24" };
+    case "Applied":
+      return { bg: "linear-gradient(90deg,#1dff00,#1dff00)", fg: "#041f11" };
+    case "Failed":
+      return { bg: "linear-gradient(90deg,#f97316,#ea580c)", fg: "#1a0a00" };
+    case "Terminated":
+      return { bg: "linear-gradient(90deg,#e11d48,#9f1239)", fg: "#fff1f2" };
+    case "Interview":
+      return { bg: "linear-gradient(90deg,#1dff00,#1dff00)", fg: "#2d1e04" };
+    case "Offer":
+      return { bg: "linear-gradient(90deg,#84cc16,#166534)", fg: "#0b1f0f" };
+    case "Rejected":
+      return { bg: "linear-gradient(90deg,#fb7185,#1dff00)", fg: "#2f070f" };
+    case "Withdrawn":
+      return { bg: "linear-gradient(90deg,#94a3b8,#334155)", fg: "#0f1822" };
+    case "Pending":
+    default:
+      return { bg: "linear-gradient(90deg,#71717a,#27272a)", fg: "#111114" };
   }
 }
 
@@ -436,7 +558,7 @@ interface GanttProviderProps {
   children: React.ReactNode;
   className?: string;
   /** A coarse range hint; monthly ~90d window, quarterly ~180d window. */
-  range?: 'monthly' | 'quarterly' | 'custom';
+  range?: "monthly" | "quarterly" | "custom";
   /** Explicit custom range override */
   customRange?: { start: Date; end: Date };
   zoom?: number; // percentage scaling base (initial)
@@ -453,7 +575,7 @@ interface InternalFeatureRegistration {
 }
 
 interface AdvancedGanttContextValue {
-  range: 'monthly' | 'quarterly' | 'custom';
+  range: "monthly" | "quarterly" | "custom";
   start: Date;
   end: Date;
   dayWidth: number;
@@ -465,12 +587,13 @@ interface AdvancedGanttContextValue {
   onAddItem?: (date: Date) => void;
 }
 
-const AdvancedGanttContext = React.createContext<AdvancedGanttContextValue | null>(null);
+const AdvancedGanttContext =
+  React.createContext<AdvancedGanttContextValue | null>(null);
 
 export const GanttProvider: React.FC<GanttProviderProps> = ({
   children,
-  className = '',
-  range = 'monthly',
+  className = "",
+  range = "monthly",
   customRange,
   zoom = 100,
   onZoomChange,
@@ -478,22 +601,34 @@ export const GanttProvider: React.FC<GanttProviderProps> = ({
   dayWidth,
 }) => {
   const [zoomPct, setZoomPctState] = React.useState(zoom);
-  const setZoomPct = React.useCallback((v: number) => {
-    const clamped = Math.min(400, Math.max(25, Math.round(v)));
-    setZoomPctState(clamped);
-    onZoomChange?.(clamped);
-  }, [onZoomChange]);
+  const setZoomPct = React.useCallback(
+    (v: number) => {
+      const clamped = Math.min(400, Math.max(25, Math.round(v)));
+      setZoomPctState(clamped);
+      onZoomChange?.(clamped);
+    },
+    [onZoomChange],
+  );
 
-  const featuresRef = React.useRef<Map<string, InternalFeatureRegistration>>(new Map());
-  const [, force] = React.useReducer(x => x + 1, 0);
+  const featuresRef = React.useRef<Map<string, InternalFeatureRegistration>>(
+    new Map(),
+  );
+  const [, force] = React.useReducer((x) => x + 1, 0);
 
-  const registerFeature = React.useCallback((f: InternalFeatureRegistration) => {
-    const prev = featuresRef.current.get(f.id);
-    if (!prev || prev.startAt.getTime() !== f.startAt.getTime() || prev.endAt.getTime() !== f.endAt.getTime()) {
-      featuresRef.current.set(f.id, f);
-      force();
-    }
-  }, []);
+  const registerFeature = React.useCallback(
+    (f: InternalFeatureRegistration) => {
+      const prev = featuresRef.current.get(f.id);
+      if (
+        !prev ||
+        prev.startAt.getTime() !== f.startAt.getTime() ||
+        prev.endAt.getTime() !== f.endAt.getTime()
+      ) {
+        featuresRef.current.set(f.id, f);
+        force();
+      }
+    },
+    [],
+  );
   const unregisterFeature = React.useCallback((id: string) => {
     if (featuresRef.current.delete(id)) force();
   }, []);
@@ -516,115 +651,220 @@ export const GanttProvider: React.FC<GanttProviderProps> = ({
     // fallback windows
     const now = new Date();
     const startBase = new Date(now.getFullYear(), now.getMonth(), 1);
-    const days = range === 'quarterly' ? 180 : 90;
-    return { start: startBase, end: new Date(startBase.getTime() + days * 86400000) };
+    const days = range === "quarterly" ? 180 : 90;
+    return {
+      start: startBase,
+      end: new Date(startBase.getTime() + days * 86400000),
+    };
   }, [customRange, range, featuresRef.current.size]);
 
   // totalDays retained conceptually via container width calc; local variable removed to avoid unused warning.
-  const effectiveDayWidth = dayWidth ?? Math.max(4, Math.round((zoomPct / 100) * 24));
+  const effectiveDayWidth =
+    dayWidth ?? Math.max(4, Math.round((zoomPct / 100) * 24));
 
-  const percent = React.useCallback((d: Date) => {
-    const { start, end } = computedRange;
-    return (d.getTime() - start.getTime()) / (end.getTime() - start.getTime());
-  }, [computedRange.start, computedRange.end]);
+  const percent = React.useCallback(
+    (d: Date) => {
+      const { start, end } = computedRange;
+      return (
+        (d.getTime() - start.getTime()) / (end.getTime() - start.getTime())
+      );
+    },
+    [computedRange.start, computedRange.end],
+  );
 
-  const ctx: AdvancedGanttContextValue = React.useMemo(() => ({
-    range,
-    start: computedRange.start,
-    end: computedRange.end,
-    dayWidth: effectiveDayWidth,
-    zoomPct,
-    setZoomPct,
-    percent,
-    registerFeature,
-    unregisterFeature,
-    onAddItem,
-  }), [range, computedRange.start, computedRange.end, effectiveDayWidth, zoomPct, percent, registerFeature, unregisterFeature, onAddItem]);
+  const ctx: AdvancedGanttContextValue = React.useMemo(
+    () => ({
+      range,
+      start: computedRange.start,
+      end: computedRange.end,
+      dayWidth: effectiveDayWidth,
+      zoomPct,
+      setZoomPct,
+      percent,
+      registerFeature,
+      unregisterFeature,
+      onAddItem,
+    }),
+    [
+      range,
+      computedRange.start,
+      computedRange.end,
+      effectiveDayWidth,
+      zoomPct,
+      percent,
+      registerFeature,
+      unregisterFeature,
+      onAddItem,
+    ],
+  );
 
   return (
-    <div className={"relative w-full bg-background/40 rounded-lg border border-foreground/10 overflow-hidden " + className}>
-      <AdvancedGanttContext.Provider value={ctx}>{children}</AdvancedGanttContext.Provider>
+    <div
+      className={
+        "relative w-full bg-background/40 rounded-lg border border-foreground/10 overflow-hidden " +
+        className
+      }
+    >
+      <AdvancedGanttContext.Provider value={ctx}>
+        {children}
+      </AdvancedGanttContext.Provider>
     </div>
   );
 };
 
 function useAdvancedGantt() {
   const v = React.useContext(AdvancedGanttContext);
-  if (!v) throw new Error('Gantt advanced primitives must be used inside <GanttProvider>');
+  if (!v)
+    throw new Error(
+      "Gantt advanced primitives must be used inside <GanttProvider>",
+    );
   return v;
 }
 
 // Region: Layout primitives
-export const GanttSidebar: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => {
+export const GanttSidebar: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+}> = ({ children, className = "" }) => {
   return (
-    <div className={"absolute top-0 left-0 bottom-0 w-48 overflow-y-auto thin-scrollbar bg-background/30 backdrop-blur-sm border-r border-foreground/10 " + className}>
+    <div
+      className={
+        "absolute top-0 left-0 bottom-0 w-48 overflow-y-auto thin-scrollbar bg-background/30 backdrop-blur-sm border-r border-foreground/10 " +
+        className
+      }
+    >
       {children}
     </div>
   );
 };
 
-export const GanttSidebarGroup: React.FC<{ name: string; children: React.ReactNode }> = ({ name, children }) => (
-  <div className="border-b border-foreground/5 last:border-b-0">
-    <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-foreground/40 font-medium">{name}</div>
-    <div className="flex flex-col gap-0.5 px-1 pb-1">{children}</div>
+export const GanttSidebarGroup: React.FC<{
+  name: string;
+  children: React.ReactNode;
+}> = ({ name, children }) => (
+  <div className='border-b border-foreground/5 last:border-b-0'>
+    <div className='px-3 py-1.5 text-[10px] uppercase tracking-wide text-foreground/40 font-medium'>
+      {name}
+    </div>
+    <div className='flex flex-col gap-0.5 px-1 pb-1'>{children}</div>
   </div>
 );
 
-export const GanttSidebarItem: React.FC<{ feature: AdvancedGanttFeatureBase; onSelectItem?: (id: string) => void; className?: string }> = ({ feature, onSelectItem, className = '' }) => (
+export const GanttSidebarItem: React.FC<{
+  feature: AdvancedGanttFeatureBase;
+  onSelectItem?: (id: string) => void;
+  className?: string;
+}> = ({ feature, onSelectItem, className = "" }) => (
   <button
-    type="button"
+    type='button'
     onClick={() => onSelectItem?.(feature.id)}
-    className={"text-left px-2 py-1 rounded-md text-xs bg-foreground/5 hover:bg-foreground/10 text-foreground/70 focus:outline-none focus:ring-1 focus:ring-white/30 transition " + className}
+    className={
+      "text-left px-2 py-1 rounded-md text-xs bg-foreground/5 hover:bg-foreground/10 text-foreground/70 focus:outline-none focus:ring-1 focus:ring-white/30 transition " +
+      className
+    }
   >
-    <span className="block truncate">{feature.name}</span>
+    <span className='block truncate'>{feature.name}</span>
   </button>
 );
 
-export const GanttTimeline: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => {
+export const GanttTimeline: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+}> = ({ children, className = "" }) => {
   const { start, end, dayWidth } = useAdvancedGantt();
-  const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+  const totalDays = Math.max(
+    1,
+    Math.ceil((end.getTime() - start.getTime()) / 86400000),
+  );
   return (
-    <div className={"relative ml-48 overflow-auto " + className} style={{ width: 'calc(100% - 12rem)' }}>
-      <div className="relative" style={{ width: totalDays * dayWidth }}>
+    <div
+      className={"relative ml-48 overflow-auto " + className}
+      style={{ width: "calc(100% - 12rem)" }}
+    >
+      <div className='relative' style={{ width: totalDays * dayWidth }}>
         {children}
       </div>
     </div>
   );
 };
 
-export const GanttHeader: React.FC<{ className?: string }> = ({ className = '' }) => {
+export const GanttHeader: React.FC<{ className?: string }> = ({
+  className = "",
+}) => {
   const { start, end, dayWidth, zoomPct, setZoomPct } = useAdvancedGantt();
   const days: Date[] = [];
-  const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
-  for (let i = 0; i <= totalDays; i++) days.push(new Date(start.getTime() + i * 86400000));
+  const totalDays = Math.max(
+    1,
+    Math.ceil((end.getTime() - start.getTime()) / 86400000),
+  );
+  for (let i = 0; i <= totalDays; i++)
+    days.push(new Date(start.getTime() + i * 86400000));
   return (
-    <div className={"sticky top-0 z-20 bg-background/60 backdrop-blur border-b border-foreground/10 " + className}>
-      <div className="flex items-stretch select-none">
-        <div className="w-full">
-          <div className="flex h-7 text-[10px] font-medium text-foreground/50">
+    <div
+      className={
+        "sticky top-0 z-20 bg-background/60 backdrop-blur border-b border-foreground/10 " +
+        className
+      }
+    >
+      <div className='flex items-stretch select-none'>
+        <div className='w-full'>
+          <div className='flex h-7 text-[10px] font-medium text-foreground/50'>
             {days.map((d, i) => (
-              <div key={i} style={{ width: dayWidth }} className="flex items-center justify-center border-r border-foreground/5 last:border-r-0">
-                {d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              <div
+                key={i}
+                style={{ width: dayWidth }}
+                className='flex items-center justify-center border-r border-foreground/5 last:border-r-0'
+              >
+                {d.toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}
               </div>
             ))}
           </div>
         </div>
       </div>
-      <div className="absolute top-1 right-2 flex items-center gap-1">
-        <button aria-label="Zoom out" onClick={() => setZoomPct(zoomPct - 10)} className="h-5 w-5 text-[10px] rounded bg-foreground/10 hover:bg-foreground/20 text-foreground/70">-</button>
-        <span className="px-1 tabular-nums text-[10px] text-foreground/60">{zoomPct}%</span>
-        <button aria-label="Zoom in" onClick={() => setZoomPct(zoomPct + 10)} className="h-5 w-5 text-[10px] rounded bg-foreground/10 hover:bg-foreground/20 text-foreground/70">+</button>
+      <div className='absolute top-1 right-2 flex items-center gap-1'>
+        <button
+          aria-label='Zoom out'
+          onClick={() => setZoomPct(zoomPct - 10)}
+          className='h-5 w-5 text-[10px] rounded bg-foreground/10 hover:bg-foreground/20 text-foreground/70'
+        >
+          -
+        </button>
+        <span className='px-1 tabular-nums text-[10px] text-foreground/60'>
+          {zoomPct}%
+        </span>
+        <button
+          aria-label='Zoom in'
+          onClick={() => setZoomPct(zoomPct + 10)}
+          className='h-5 w-5 text-[10px] rounded bg-foreground/10 hover:bg-foreground/20 text-foreground/70'
+        >
+          +
+        </button>
       </div>
     </div>
   );
 };
 
-export const GanttFeatureList: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+export const GanttFeatureList: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+}> = ({ children, className = "" }) => (
   <div className={"relative " + className}>{children}</div>
 );
 
-export const GanttFeatureListGroup: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={"relative border-b border-foreground/5 last:border-b-0 " + className}>{children}</div>
+export const GanttFeatureListGroup: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+}> = ({ children, className = "" }) => (
+  <div
+    className={
+      "relative border-b border-foreground/5 last:border-b-0 " + className
+    }
+  >
+    {children}
+  </div>
 );
 
 interface GanttFeatureItemProps extends AdvancedGanttFeatureBase {
@@ -641,10 +881,11 @@ export const GanttFeatureItem: React.FC<GanttFeatureItemProps> = ({
   status,
   onMove,
   children,
-  className = '',
+  className = "",
   ...rest
 }) => {
-  const { percent, dayWidth, registerFeature, unregisterFeature } = useAdvancedGantt();
+  const { percent, dayWidth, registerFeature, unregisterFeature } =
+    useAdvancedGantt();
   const barRef = React.useRef<HTMLDivElement | null>(null);
   // Register feature for dynamic range calculation
   React.useEffect(() => {
@@ -656,8 +897,11 @@ export const GanttFeatureItem: React.FC<GanttFeatureItemProps> = ({
   const endP = percent(endAt);
   const left = startP * 100;
   const widthPct = Math.max(0.25, (endP - startP) * 100);
-  const color = statusColor(typeof status === 'string' ? status : undefined);
-  const days = Math.max(1, Math.round((endAt.getTime() - startAt.getTime()) / 86400000));
+  const color = statusColor(typeof status === "string" ? status : undefined);
+  const days = Math.max(
+    1,
+    Math.round((endAt.getTime() - startAt.getTime()) / 86400000),
+  );
 
   // Drag logic (horizontal move only)
   React.useEffect(() => {
@@ -688,16 +932,18 @@ export const GanttFeatureItem: React.FC<GanttFeatureItemProps> = ({
     const onPointerUp = (e: PointerEvent) => {
       if (dragging) {
         dragging = false;
-        try { el.releasePointerCapture(e.pointerId); } catch {}
+        try {
+          el.releasePointerCapture(e.pointerId);
+        } catch {}
       }
     };
-    el.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
+    el.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
     return () => {
-      el.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
+      el.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
     };
   }, [id, startAt, endAt, dayWidth, onMove]);
 
@@ -705,21 +951,32 @@ export const GanttFeatureItem: React.FC<GanttFeatureItemProps> = ({
     <div className={"relative h-8 " + className} {...rest}>
       <div
         ref={barRef}
-        className="group absolute top-1/2 -translate-y-1/2 rounded-md ring-1 ring-white/10 hover:ring-white/30 hover:shadow-lg shadow-sm cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-[#1dff00]/60"
-        style={{ left: `calc(${left}% + 0px)`, width: widthPct + '%', height: '60%', background: color.bg }}
+        className='group absolute top-1/2 -translate-y-1/2 rounded-md ring-1 ring-white/10 hover:ring-white/30 hover:shadow-lg shadow-sm cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-brand/60'
+        style={{
+          left: `calc(${left}% + 0px)`,
+          width: widthPct + "%",
+          height: "60%",
+          background: color.bg,
+        }}
         title={`${name}\n${startAt.toLocaleDateString()} → ${endAt.toLocaleDateString()} (${days}d)`}
         tabIndex={0}
       >
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-foreground/5 transition" />
-        <div className="flex h-full w-full items-center px-2 text-[10px] font-medium tracking-wide" style={{ color: color.fg }}>
-          {children ? children : (typeof status === 'string' ? status : '')}
+        <div className='absolute inset-0 opacity-0 group-hover:opacity-100 bg-foreground/5 transition' />
+        <div
+          className='flex h-full w-full items-center px-2 text-[10px] font-medium tracking-wide'
+          style={{ color: color.fg }}
+        >
+          {children ? children : typeof status === "string" ? status : ""}
         </div>
-        <div className="absolute z-30 hidden group-hover:flex -top-2 left-1/2 -translate-y-full -translate-x-1/2 min-w-[180px] max-w-[240px] flex-col rounded-md border border-foreground/15 bg-background/80 backdrop-blur p-2 shadow-lg text-[10px] text-foreground/70">
-          <div className="font-medium text-white truncate mb-1">{name}</div>
-          <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-            <span className="text-foreground/40">Start</span><span>{startAt.toLocaleDateString()}</span>
-            <span className="text-foreground/40">End</span><span>{endAt.toLocaleDateString()}</span>
-            <span className="text-foreground/40">Length</span><span>{days}d</span>
+        <div className='absolute z-30 hidden group-hover:flex -top-2 left-1/2 -translate-y-full -translate-x-1/2 min-w-[180px] max-w-[240px] flex-col rounded-md border border-foreground/15 bg-background/80 backdrop-blur p-2 shadow-lg text-[10px] text-foreground/70'>
+          <div className='font-medium text-white truncate mb-1'>{name}</div>
+          <div className='grid grid-cols-2 gap-x-2 gap-y-1'>
+            <span className='text-foreground/40'>Start</span>
+            <span>{startAt.toLocaleDateString()}</span>
+            <span className='text-foreground/40'>End</span>
+            <span>{endAt.toLocaleDateString()}</span>
+            <span className='text-foreground/40'>Length</span>
+            <span>{days}d</span>
           </div>
         </div>
       </div>
@@ -736,18 +993,38 @@ export interface GanttMarkerProps {
   onRemove?: (id: string) => void;
 }
 
-export const GanttMarker: React.FC<GanttMarkerProps> = ({ id, date, label, onRemove, className = '' }) => {
+export const GanttMarker: React.FC<GanttMarkerProps> = ({
+  id,
+  date,
+  label,
+  onRemove,
+  className = "",
+}) => {
   const { start, end, percent } = useAdvancedGantt();
   if (date < start || date > end) return null;
   const p = percent(date) * 100;
   return (
-    <div className="absolute inset-y-0 pointer-events-none" style={{ left: p + '%' }}>
-      <div className="relative h-full">
-        <div className="absolute top-0 bottom-0 w-px bg-[#1dff00]/70" />
-        <div className={"absolute -top-2 -translate-y-full -translate-x-1/2 flex items-center gap-1 rounded bg-[#1dff00] text-black px-1.5 py-0.5 text-[9px] font-semibold pointer-events-auto " + className}>
-          <span className="truncate max-w-[140px]">{label}</span>
+    <div
+      className='absolute inset-y-0 pointer-events-none'
+      style={{ left: p + "%" }}
+    >
+      <div className='relative h-full'>
+        <div className='absolute top-0 bottom-0 w-px bg-brand/70' />
+        <div
+          className={
+            "absolute -top-2 -translate-y-full -translate-x-1/2 flex items-center gap-1 rounded bg-brand text-black px-1.5 py-0.5 text-[9px] font-semibold pointer-events-auto " +
+            className
+          }
+        >
+          <span className='truncate max-w-[140px]'>{label}</span>
           {onRemove && (
-            <button onClick={() => onRemove(id)} className="text-background/70 hover:text-black" aria-label="Remove marker">×</button>
+            <button
+              onClick={() => onRemove(id)}
+              className='text-background/70 hover:text-black'
+              aria-label='Remove marker'
+            >
+              ×
+            </button>
           )}
         </div>
       </div>
@@ -761,30 +1038,45 @@ export const GanttToday: React.FC = () => {
   if (today < start || today > end) return null;
   const p = percent(today) * 100;
   return (
-    <div className="absolute inset-y-0 pointer-events-none" style={{ left: p + '%' }}>
-      <div className="h-full w-px bg-[#1dff00] shadow-[0_0_0_1px_rgba(29,255,0,0.4)]" />
-      <div className="absolute -top-2 -translate-y-full -translate-x-1/2 px-1 py-0.5 rounded bg-[#1dff00] text-black text-[9px] font-semibold">Today</div>
+    <div
+      className='absolute inset-y-0 pointer-events-none'
+      style={{ left: p + "%" }}
+    >
+      <div className='h-full w-px bg-brand shadow-[0_0_0_1px_rgba(29,255,0,0.4)]' />
+      <div className='absolute -top-2 -translate-y-full -translate-x-1/2 px-1 py-0.5 rounded bg-brand text-black text-[9px] font-semibold'>
+        Today
+      </div>
     </div>
   );
 };
 
-export const GanttCreateMarkerTrigger: React.FC<{ onCreateMarker?: (date: Date) => void }> = ({ onCreateMarker }) => {
+export const GanttCreateMarkerTrigger: React.FC<{
+  onCreateMarker?: (date: Date) => void;
+}> = ({ onCreateMarker }) => {
   const { start, end } = useAdvancedGantt();
   const ref = React.useRef<HTMLDivElement | null>(null);
-  const handleDbl = React.useCallback((e: React.MouseEvent) => {
-    if (!ref.current) return;
-    const bounds = ref.current.getBoundingClientRect();
-    const x = e.clientX - bounds.left; // relative
-    const totalMs = end.getTime() - start.getTime();
-    const totalW = bounds.width;
-    const ratio = x / totalW;
-    const date = new Date(start.getTime() + totalMs * ratio);
-    // snap to day start
-    date.setHours(0,0,0,0);
-    onCreateMarker?.(date);
-  }, [start, end, onCreateMarker]);
+  const handleDbl = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (!ref.current) return;
+      const bounds = ref.current.getBoundingClientRect();
+      const x = e.clientX - bounds.left; // relative
+      const totalMs = end.getTime() - start.getTime();
+      const totalW = bounds.width;
+      const ratio = x / totalW;
+      const date = new Date(start.getTime() + totalMs * ratio);
+      // snap to day start
+      date.setHours(0, 0, 0, 0);
+      onCreateMarker?.(date);
+    },
+    [start, end, onCreateMarker],
+  );
   return (
-    <div ref={ref} className="absolute inset-0" onDoubleClick={handleDbl} aria-label="Double click to create marker" />
+    <div
+      ref={ref}
+      className='absolute inset-0'
+      onDoubleClick={handleDbl}
+      aria-label='Double click to create marker'
+    />
   );
 };
 

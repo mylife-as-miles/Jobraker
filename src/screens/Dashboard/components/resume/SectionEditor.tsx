@@ -1,11 +1,6 @@
 import React, { useState } from "react";
 import { useArtboardStore } from "../../../../store/artboard";
-import {
-  Plus,
-  Trash2,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
 import { Textarea } from "../../../../components/ui/textarea"; // Assuming textarea exists
@@ -50,10 +45,10 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
       {section.items.map((item) => (
         <div
           key={item.id}
-          className='product-section-card-muted overflow-hidden rounded-lg transition-all hover:border-[#1dff00]/60'
+          className='product-section-card-muted overflow-hidden rounded-lg transition-all hover:border-brand/60'
         >
           <div
-            className='product-section-card flex cursor-pointer items-center gap-3 p-3 hover:bg-[#1dff00]/15'
+            className='product-section-card flex cursor-pointer items-center gap-3 p-3 hover:bg-brand/15'
             onClick={() =>
               setExpandedItem(expandedItem === item.id ? null : item.id)
             }
@@ -74,7 +69,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
               <Button
                 variant='ghost'
                 size='icon'
-                className='product-helper-text h-7 w-7 hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
+                className='product-helper-text h-7 w-7 hover:bg-brand/10 hover:text-brand'
                 onClick={(e) => {
                   e.stopPropagation();
                   removeSectionItem(sectionId, item.id);
@@ -217,7 +212,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
 
       <Button
         variant='outline'
-        className='product-outline-button w-full border-dashed hover:border-[#1dff00] hover:text-[#1dff00]'
+        className='product-outline-button w-full border-dashed hover:border-brand hover:text-brand'
         onClick={handleAddItem}
       >
         <Plus className='w-4 h-4 mr-2' />

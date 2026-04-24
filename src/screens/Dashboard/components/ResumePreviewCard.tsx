@@ -192,8 +192,8 @@ export const ResumePreviewCard: React.FC<ResumePreviewCardProps> = ({
 
   if (!previewData) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-gray-50">
-        <span className="text-xs text-gray-300">No preview</span>
+      <div className="flex h-full w-full items-center justify-center bg-foreground/5">
+        <span className="text-xs text-foreground/50">No preview</span>
       </div>
     );
   }
@@ -201,10 +201,10 @@ export const ResumePreviewCard: React.FC<ResumePreviewCardProps> = ({
   return (
     <div
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-2"
+      className="relative h-full w-full overflow-hidden p-2"
     >
       <div
-        className="relative h-full w-full overflow-hidden rounded-[14px] border border-black/5 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
+        className="relative h-full w-full overflow-hidden rounded-[14px]"
       >
         <div
           className="pointer-events-none absolute left-1/2 top-0 select-none"

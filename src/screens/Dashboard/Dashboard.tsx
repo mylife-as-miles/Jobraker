@@ -34,7 +34,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { useProfileSettings } from "../../hooks/useProfileSettings";
 import { useToast } from "@/components/ui/toast";
-import { peekPendingReferralCode, clearPendingReferralCode } from "@/lib/referralAttribution";
+import {
+  peekPendingReferralCode,
+  clearPendingReferralCode,
+} from "@/lib/referralAttribution";
 import { Skeleton } from "../../components/ui/skeleton";
 import { createClient } from "../../lib/supabaseClient";
 import { updateSessionActivity } from "../../utils/sessionManagement";
@@ -95,13 +98,14 @@ const SidebarItem = ({
     variant='ghost'
     onClick={onClick}
     title={isCollapsed ? item.label : undefined}
-    className={`w-full justify-start rounded-xl mb-1 transition-all duration-200 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${isActive
-      ? "text-foreground bg-[#1dff00]/10 border border-[#1dff00]/20"
-      : "text-foreground/60 hover:text-foreground/40 hover:bg-foreground/5"
-      } ${isCollapsed ? "justify-center px-2" : ""}`}
+    className={`w-full justify-start rounded-xl mb-1 transition-all duration-200 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${
+      isActive
+        ? "text-foreground bg-brand/10 border border-brand/20"
+        : "text-foreground/60 hover:text-foreground/40 hover:bg-foreground/5"
+    } ${isCollapsed ? "justify-center px-2" : ""}`}
   >
     {isActive && (
-      <div className='absolute left-0 top-0 bottom-0 w-1 bg-[#1dff00] shadow-[0_0_10px_#1dff00]' />
+      <div className='absolute left-0 top-0 bottom-0 w-1 bg-brand shadow-[0_0_10px_#1dff00]' />
     )}
     <span
       className={`relative z-10 transition-all ${isCollapsed ? "" : "mr-3"}`}
@@ -127,20 +131,32 @@ export const Dashboard = (): JSX.Element => {
     if (!code) return;
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase.rpc("claim_referral_attribution", { p_code: code });
+      const { data, error } = await supabase.rpc("claim_referral_attribution", {
+        p_code: code,
+      });
       if (cancelled || error) return;
-      const res = data as { ok?: boolean; skipped?: boolean; error?: string } | null;
+      const res = data as {
+        ok?: boolean;
+        skipped?: boolean;
+        error?: string;
+      } | null;
       if (res?.ok) {
         clearPendingReferralCode();
         if (!res.skipped) {
-          success("Referral linked", "Your account is connected to your referrer.");
+          success(
+            "Referral linked",
+            "Your account is connected to your referrer.",
+          );
         }
         try {
           window.dispatchEvent(new CustomEvent("jobraker:referrals-changed"));
         } catch {
           /* ignore */
         }
-      } else if (res?.error === "invalid_code" || res?.error === "self_referral") {
+      } else if (
+        res?.error === "invalid_code" ||
+        res?.error === "self_referral"
+      ) {
         clearPendingReferralCode();
       }
     })();
@@ -224,10 +240,7 @@ export const Dashboard = (): JSX.Element => {
       : "overview";
   }, [location.pathname]);
 
-  const {
-    balance: creditBalance,
-    loading: creditsLoading,
-  } = useCredits();
+  const { balance: creditBalance, loading: creditsLoading } = useCredits();
   const [lowCreditModalOpen, setLowCreditModalOpen] = useState(false);
 
   useEffect(() => {
@@ -373,7 +386,7 @@ export const Dashboard = (): JSX.Element => {
 
     if (isAdmin) {
       // Insert Interview Studio after Chat
-      const chatIndex = base.findIndex(p => p.id === "chat");
+      const chatIndex = base.findIndex((p) => p.id === "chat");
       base.splice(chatIndex + 1, 0, {
         id: "interview-studio",
         label: "Interview Studio",
@@ -401,7 +414,10 @@ export const Dashboard = (): JSX.Element => {
       const tab = location.pathname.split("/")[3];
       if (tab) {
         // Capitalize tab name for breadcrumb
-        const formattedTab = tab.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        const formattedTab = tab
+          .split("-")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
         return `Dashboard / Settings / ${formattedTab}`;
       }
     }
@@ -466,7 +482,7 @@ export const Dashboard = (): JSX.Element => {
       >
         {/* Logo Section */}
         <div className='h-20 flex items-center px-6 border-b border-border/40 relative shrink-0'>
-          <div className='absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[#1dff00]/50 to-transparent opacity-50' />
+          <div className='absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-brand/50 to-transparent opacity-50' />
 
           <div
             className={`flex items-center gap-3 relative z-10 w-full ${isCollapsed ? "justify-center" : ""}`}
@@ -626,16 +642,16 @@ export const Dashboard = (): JSX.Element => {
         <div className='p-4 border-t border-border/40 bg-card/40 shrink-0'>
           <div
             onClick={() => navigate("/dashboard/billing")}
-            className={`group relative overflow-hidden rounded-xl bg-gradient-to-b from-card to-background border border-border/60 cursor-pointer hover:border-[#1dff00]/30 transition-all duration-300 ${isCollapsed ? "p-2 flex justify-center" : "p-4"}`}
+            className={`group relative overflow-hidden rounded-xl bg-gradient-to-b from-card to-background border border-border/60 cursor-pointer hover:border-brand/30 transition-all duration-300 ${isCollapsed ? "p-2 flex justify-center" : "p-4"}`}
           >
-            <div className='absolute inset-0 bg-[#1dff00]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500' />
+            <div className='absolute inset-0 bg-brand/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500' />
 
             <div
               className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} relative z-10`}
             >
               {!isCollapsed && (
                 <div>
-                  <h3 className='text-sm font-bold text-foreground group-hover:text-[#1dff00] transition-colors'>
+                  <h3 className='text-sm font-bold text-foreground group-hover:text-brand transition-colors'>
                     Pro Plan
                   </h3>
                   <p className='text-[10px] text-muted-foreground mt-1'>
@@ -643,7 +659,7 @@ export const Dashboard = (): JSX.Element => {
                   </p>
                 </div>
               )}
-              <div className='w-8 h-8 rounded-lg bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00]'>
+              <div className='w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand'>
                 <TrendingUp size={16} />
               </div>
             </div>
@@ -670,7 +686,7 @@ export const Dashboard = (): JSX.Element => {
               <Button
                 variant='ghost'
                 size='sm'
-                className='hidden lg:flex text-muted-foreground hover:text-[#1dff00] hover:bg-[#1dff00]/10 transition-all duration-200 p-2 mr-2'
+                className='hidden lg:flex text-muted-foreground hover:text-brand hover:bg-brand/10 transition-all duration-200 p-2 mr-2'
                 onClick={() => setIsCollapsed(!isCollapsed)}
                 title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                 aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -681,7 +697,7 @@ export const Dashboard = (): JSX.Element => {
               <Button
                 variant='ghost'
                 size='sm'
-                className='lg:hidden text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2'
+                className='lg:hidden text-brand hover:bg-brand/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2'
                 onClick={() => setSidebarOpen(true)}
                 title='Open sidebar navigation'
                 aria-label='Open sidebar'
@@ -749,7 +765,7 @@ export const Dashboard = (): JSX.Element => {
               >
                 <Bell className='w-4 h-4 sm:w-5 sm:h-5' />
                 {unreadCount > 0 && (
-                  <span className='absolute -top-1 -right-1 min-w-3 h-3 sm:min-w-4 sm:h-4 lg:min-w-5 lg:h-5 bg-[#1dff00] rounded-full text-fore text-[10px] font-bold flex items-center justify-center animate-pulse px-[2px]'>
+                  <span className='absolute -top-1 -right-1 min-w-3 h-3 sm:min-w-4 sm:h-4 lg:min-w-5 lg:h-5 bg-brand rounded-full text-fore text-[10px] font-bold flex items-center justify-center animate-pulse px-[2px]'>
                     <span className='hidden sm:inline text-xs max-w-[2.5rem] truncate'>
                       {unreadCount}
                     </span>
@@ -776,7 +792,7 @@ export const Dashboard = (): JSX.Element => {
                   title='Profile'
                   aria-label='Open profile'
                 >
-                  <div className='w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-background rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300'>
+                  <div className='w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-brand to-background rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300'>
                     {avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -811,7 +827,7 @@ export const Dashboard = (): JSX.Element => {
                 title='Profile'
                 aria-label='Open profile'
               >
-                <div className='w-6 h-6 bg-gradient-to-r from-[#1dff00] to-background rounded-full overflow-hidden flex items-center justify-center'>
+                <div className='w-6 h-6 bg-gradient-to-r from-brand to-background rounded-full overflow-hidden flex items-center justify-center'>
                   {avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

@@ -5,7 +5,7 @@ import { Switch } from "../../../components/ui/switch";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
-import { Building2, AlertCircle, Inbox } from "lucide-react";
+import { Building2, AlertCircle, Inbox, Bell } from "lucide-react";
 import KiboCalendar, {
   CalendarEvent,
 } from "../../../components/ui/kibo-ui/calendar";
@@ -52,17 +52,17 @@ export const OverviewPage = (): JSX.Element => {
       let className = "";
       let inner: JSX.Element | string;
       if (n.type === "application") {
-        className = `${baseSize} ${shared} bg-[#1dff00]/15 ring-[#1dff00]/40 text-[#b6ffb6] group-hover:ring-[#1dff00]/60`;
+        className = `${baseSize} ${shared} bg-brand/15 ring-brand/40 text-[#b6ffb6] group-hover:ring-brand/60`;
         inner = (n.company || "A").charAt(0).toUpperCase();
       } else if (n.type === "interview") {
         className = `${baseSize} ${shared} bg-background/40 ring-[#56c2ff]/30 text-[#56c2ff] group-hover:ring-[#56c2ff]/60`;
         inner = <Building2 className='w-4 h-4 sm:w-5 sm:h-5' />;
       } else if (n.type === "company") {
-        className = `${baseSize} ${shared} bg-background ring-foreground/10 text-foreground group-hover:ring-[#1dff00]/50`;
+        className = `${baseSize} ${shared} bg-background ring-foreground/10 text-foreground group-hover:ring-brand/50`;
         inner = (n.company || "C").charAt(0).toUpperCase();
       } else {
         // system / fallback
-        className = `${baseSize} ${shared} bg-[#1dff00] ring-[#1dff00]/40 text-[#1dff00] group-hover:ring-[#1dff00]/70`;
+        className = `${baseSize} ${shared} bg-brand ring-brand/40 text-brand group-hover:ring-brand/70`;
         inner = <AlertCircle className='w-4 h-4 sm:w-5 sm:h-5' />;
       }
       return {
@@ -123,7 +123,7 @@ export const OverviewPage = (): JSX.Element => {
       ) {
         setVisibleSeries(parsed.visible);
       }
-    } catch { }
+    } catch {}
   }, []);
 
   // Persist on change
@@ -133,155 +133,154 @@ export const OverviewPage = (): JSX.Element => {
         "overview_apps_chart_ui",
         JSON.stringify({ stacked, visible: visibleSeries }),
       );
-    } catch { }
+    } catch {}
   }, [stacked, visibleSeries]);
 
   // Build real series based on selected period with status-specific keys
-  const { seriesData, seriesMeta, interviewCount, totals } =
-    useMemo(() => {
-      const period = selectedPeriod;
+  const { seriesData, seriesMeta, interviewCount, totals } = useMemo(() => {
+    const period = selectedPeriod;
 
-      // Apply status filtering (search removed per request)
-      let filtered = applications;
-      if (statusFilter && statusFilter.length) {
-        const set = new Set(statusFilter);
-        filtered = filtered.filter((a) => set.has(a.status));
+    // Apply status filtering (search removed per request)
+    let filtered = applications;
+    if (statusFilter && statusFilter.length) {
+      const set = new Set(statusFilter);
+      filtered = filtered.filter((a) => set.has(a.status));
+    }
+
+    type Bucket = { key: string; label: string; start: Date; end: Date };
+    const buckets: Bucket[] = [];
+
+    if (period === "Today") {
+      const start = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        0,
+        0,
+        0,
+      );
+      for (let h = 0; h < 24; h++) {
+        const s = new Date(start.getTime());
+        s.setHours(h);
+        const e = new Date(s.getTime());
+        e.setHours(h + 1);
+        buckets.push({
+          key: `${s.getFullYear()}-${s.getMonth()}-${s.getDate()}-${h}`,
+          label: `${h.toString().padStart(2, "0")}:00`,
+          start: s,
+          end: e,
+        });
       }
+    } else if (period === "1 Week") {
+      const start = new Date(now);
+      start.setDate(start.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+      for (let i = 0; i < 7; i++) {
+        const s = new Date(start.getTime());
+        s.setDate(start.getDate() + i);
+        const e = new Date(s.getTime());
+        e.setDate(s.getDate() + 1);
+        buckets.push({
+          key: `${s.getFullYear()}-${s.getMonth()}-${s.getDate()}`,
+          label: s.toLocaleDateString(undefined, { weekday: "short" }),
+          start: s,
+          end: e,
+        });
+      }
+    } else {
+      // 1 Month: last 6 months for trend
+      const end = new Date(now.getFullYear(), now.getMonth(), 1);
+      const start = new Date(end.getFullYear(), end.getMonth() - 5, 1);
+      for (let i = 0; i < 6; i++) {
+        const s = new Date(start.getFullYear(), start.getMonth() + i, 1);
+        const e = new Date(s.getFullYear(), s.getMonth() + 1, 1);
+        buckets.push({
+          key: `${s.getFullYear()}-${s.getMonth()}`,
+          label: s.toLocaleString(undefined, { month: "short" }),
+          start: s,
+          end: e,
+        });
+      }
+    }
 
-      type Bucket = { key: string; label: string; start: Date; end: Date };
-      const buckets: Bucket[] = [];
+    // Initialize counts per status
+    const statuses = ["Applied", "Interview", "Offer", "Rejected"] as const;
+    const data = buckets.map((b) => {
+      const point: Record<string, string | number> = { label: b.label };
+      statuses.forEach((s) => {
+        point[s] = 0;
+      });
+      return point;
+    });
 
+    let applied = 0;
+    let interviews = 0;
+    let totalInWindow = 0;
+    for (const app of filtered) {
+      const d = new Date(app.applied_date);
       if (period === "Today") {
-        const start = new Date(
+        const dayStart = new Date(
           now.getFullYear(),
           now.getMonth(),
           now.getDate(),
-          0,
-          0,
-          0,
         );
-        for (let h = 0; h < 24; h++) {
-          const s = new Date(start.getTime());
-          s.setHours(h);
-          const e = new Date(s.getTime());
-          e.setHours(h + 1);
-          buckets.push({
-            key: `${s.getFullYear()}-${s.getMonth()}-${s.getDate()}-${h}`,
-            label: `${h.toString().padStart(2, "0")}:00`,
-            start: s,
-            end: e,
-          });
-        }
+        const dayEnd = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() + 1,
+        );
+        if (d < dayStart || d >= dayEnd) continue;
       } else if (period === "1 Week") {
-        const start = new Date(now);
-        start.setDate(start.getDate() - 6);
-        start.setHours(0, 0, 0, 0);
-        for (let i = 0; i < 7; i++) {
-          const s = new Date(start.getTime());
-          s.setDate(start.getDate() + i);
-          const e = new Date(s.getTime());
-          e.setDate(s.getDate() + 1);
-          buckets.push({
-            key: `${s.getFullYear()}-${s.getMonth()}-${s.getDate()}`,
-            label: s.toLocaleDateString(undefined, { weekday: "short" }),
-            start: s,
-            end: e,
-          });
-        }
+        const weekStart = new Date(now);
+        weekStart.setDate(weekStart.getDate() - 6);
+        weekStart.setHours(0, 0, 0, 0);
+        const weekEnd = new Date(now);
+        weekEnd.setHours(23, 59, 59, 999);
+        if (d < weekStart || d > weekEnd) continue;
       } else {
-        // 1 Month: last 6 months for trend
-        const end = new Date(now.getFullYear(), now.getMonth(), 1);
-        const start = new Date(end.getFullYear(), end.getMonth() - 5, 1);
-        for (let i = 0; i < 6; i++) {
-          const s = new Date(start.getFullYear(), start.getMonth() + i, 1);
-          const e = new Date(s.getFullYear(), s.getMonth() + 1, 1);
-          buckets.push({
-            key: `${s.getFullYear()}-${s.getMonth()}`,
-            label: s.toLocaleString(undefined, { month: "short" }),
-            start: s,
-            end: e,
-          });
-        }
+        const sixMonthsStart = new Date(
+          now.getFullYear(),
+          now.getMonth() - 5,
+          1,
+        );
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        if (d < sixMonthsStart || d >= monthEnd) continue;
       }
 
-      // Initialize counts per status
-      const statuses = ["Applied", "Interview", "Offer", "Rejected"] as const;
-      const data = buckets.map((b) => {
-        const point: Record<string, string | number> = { label: b.label };
-        statuses.forEach((s) => {
-          point[s] = 0;
-        });
-        return point;
-      });
-
-      let applied = 0;
-      let interviews = 0;
-      let totalInWindow = 0;
-      for (const app of filtered) {
-        const d = new Date(app.applied_date);
-        if (period === "Today") {
-          const dayStart = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate(),
-          );
-          const dayEnd = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate() + 1,
-          );
-          if (d < dayStart || d >= dayEnd) continue;
-        } else if (period === "1 Week") {
-          const weekStart = new Date(now);
-          weekStart.setDate(weekStart.getDate() - 6);
-          weekStart.setHours(0, 0, 0, 0);
-          const weekEnd = new Date(now);
-          weekEnd.setHours(23, 59, 59, 999);
-          if (d < weekStart || d > weekEnd) continue;
-        } else {
-          const sixMonthsStart = new Date(
-            now.getFullYear(),
-            now.getMonth() - 5,
-            1,
-          );
-          const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-          if (d < sixMonthsStart || d >= monthEnd) continue;
-        }
-
-        // Aggregate bucket
-        const idx = buckets.findIndex((b) => d >= b.start && d < b.end);
-        if (idx >= 0) {
-          const s = (app.status as string) || "Applied";
-          if (s in data[idx]) data[idx][s] = (data[idx][s] as number) + 1;
-          else data[idx]["Applied"] = (data[idx]["Applied"] as number) + 1;
-        }
-
-        if (app.status === "Applied") applied++;
-        if (app.status === "Interview") interviews++;
-        totalInWindow++;
+      // Aggregate bucket
+      const idx = buckets.findIndex((b) => d >= b.start && d < b.end);
+      if (idx >= 0) {
+        const s = (app.status as string) || "Applied";
+        if (s in data[idx]) data[idx][s] = (data[idx][s] as number) + 1;
+        else data[idx]["Applied"] = (data[idx]["Applied"] as number) + 1;
       }
 
-      // Improved distinctive palette for accessibility / color meaning
-      const palette: Record<string, string> = {
-        Applied: "#1dff00",
-        Interview: "#00b2ff",
-        Offer: "#1dff00",
-        Rejected: "#1dff00",
-      };
-      const series = statuses.map((s) => ({
-        key: s,
-        label: s,
-        color: palette[s] || "#999999",
-      }));
+      if (app.status === "Applied") applied++;
+      if (app.status === "Interview") interviews++;
+      totalInWindow++;
+    }
 
-      return {
-        seriesData: data,
-        seriesMeta: series,
-        appliedCount: applied,
-        interviewCount: interviews,
-        totals: { totalInWindow },
-      };
-    }, [applications, now, selectedPeriod, statusFilter]);
+    // Improved distinctive palette for accessibility / color meaning
+    const palette: Record<string, string> = {
+      Applied: "#1dff00",
+      Interview: "#00b2ff",
+      Offer: "#1dff00",
+      Rejected: "#ef4444",
+    };
+    const series = statuses.map((s) => ({
+      key: s,
+      label: s,
+      color: palette[s] || "#999999",
+    }));
+
+    return {
+      seriesData: data,
+      seriesMeta: series,
+      appliedCount: applied,
+      interviewCount: interviews,
+      totals: { totalInWindow },
+    };
+  }, [applications, now, selectedPeriod, statusFilter]);
 
   // Calendar selection & view state
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -332,7 +331,7 @@ export const OverviewPage = (): JSX.Element => {
   useEffect(() => {
     if (!gamification.loading && !dailyLoginFired.current) {
       dailyLoginFired.current = true;
-      gamification.recordEvent('daily_login').catch(() => { });
+      gamification.recordEvent("daily_login").catch(() => {});
     }
   }, [gamification.loading]);
 
@@ -340,9 +339,12 @@ export const OverviewPage = (): JSX.Element => {
   const streakData = useMemo(() => {
     const s = gamification.streak;
     const weekCount = s.week_activity.filter(Boolean).length;
-    const completionRate = s.longest_streak > 0
-      ? (s.current_streak / s.longest_streak) * 100
-      : (s.current_streak > 0 ? 100 : 0);
+    const completionRate =
+      s.longest_streak > 0
+        ? (s.current_streak / s.longest_streak) * 100
+        : s.current_streak > 0
+          ? 100
+          : 0;
     return {
       currentStreak: s.current_streak,
       longestStreak: s.longest_streak,
@@ -391,36 +393,31 @@ export const OverviewPage = (): JSX.Element => {
           {/* Left Column - Applications and Match Score */}
           <div className='lg:col-span-2 space-y-4 sm:space-y-6 w-full'>
             {/* Applications Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              whileHover={{ scale: 1.02 }}
-              className='transition-transform duration-300 w-full'
-            >
-              <Card className='bg-card/50 backdrop-blur-xl border border-border/40 p-4 sm:p-6 lg:p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:border-brand/50 hover:shadow-brand/20 transition-all duration-500'>
+            <div className='w-full'>
+              <Card className='bg-card/50 backdrop-blur-xl border p-4 sm:p-6 lg:p-8 rounded-2xl border-foreground/10'>
                 <div className='flex flex-col xl:flex-row xl:items-center justify-between mb-6 gap-4'>
                   <div className='flex items-center gap-3'>
                     <h2 className='text-lg sm:text-xl lg:text-2xl font-bold text-foreground'>
                       Applications
                     </h2>
-                    <span className='px-2 py-0.5 rounded-full bg-[#1dff00]/10 border border-[#1dff00]/20 text-xs font-medium text-[#1dff00]'>
+                    <span className='px-2 py-0.5 rounded-full bg-brand/10 border border-brand/20 text-xs font-medium text-brand'>
                       {totals.totalInWindow} Total
                     </span>
                   </div>
 
                   {/* Period Selector + Stacked Toggle */}
                   <div className='flex flex-wrap items-center gap-2'>
-                    <div className='product-control-surface p-1'>
+                    <div className='product-control-surface p-1 bg-foreground/5 rounded-lg border border-foreground/10'>
                       {["Today", "1 Week", "1 Month"].map((period) => (
                         <button
                           key={period}
                           onClick={() => setSelectedPeriod(period)}
                           title={`Show data for ${period}`}
-                          className={`text-xs px-3 py-1.5 rounded-md transition-all duration-300 font-medium ${selectedPeriod === period
-                            ? "product-control-button-active text-black shadow-sm"
-                            : "product-control-button"
-                            }`}
+                          className={`text-xs px-3 py-1.5 rounded-md transition-all duration-300 font-medium ${
+                            selectedPeriod === period
+                              ? "product-control-button-active text-black shadow-sm"
+                              : "product-control-button"
+                          }`}
                         >
                           {period}
                         </button>
@@ -462,13 +459,13 @@ export const OverviewPage = (): JSX.Element => {
                           : statusFilter?.includes(s as ApplicationStatus);
                       const baseColors: Record<string, string> = {
                         Applied:
-                          "bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/30 hover:bg-[#1dff00]/20",
+                          "bg-brand/10 text-brand border-brand/30 hover:bg-brand/20",
                         Interview:
                           "bg-background/10 text-[#56c2ff] border-[#00b2ff]/30 hover:bg-background/20",
                         Offer:
-                          "bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/30 hover:bg-[#1dff00]/20",
+                          "bg-brand/10 text-brand border-brand/30 hover:bg-brand/20",
                         Rejected:
-                          "bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/30 hover:bg-[#1dff00]/20",
+                          "bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20",
                         All: "bg-foreground/5 text-foreground/80 border-foreground/10 hover:bg-foreground/10",
                       };
                       const activeClass = active
@@ -507,50 +504,38 @@ export const OverviewPage = (): JSX.Element => {
 
                 {/* Stats & Conversion Metrics - Enhanced Visuals */}
                 <div className='grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8'>
-                  <motion.div
-                    whileHover={{ y: -2 }}
-                    className='p-4 rounded-xl bg-muted/5 border border-border/20'
-                  >
+                  <div className='p-4 rounded-xl bg-foreground/5 border border-foreground/10'>
                     <div className='text-2xl lg:text-3xl font-bold text-foreground mb-1'>
                       {totals.totalInWindow}
                     </div>
                     <div className='text-xs text-muted-foreground font-medium uppercase tracking-wider'>
                       Applications
                     </div>
-                  </motion.div>
-                  <motion.div
-                    whileHover={{ y: -2 }}
-                    className='p-4 rounded-xl bg-gradient-to-br from-background/10 to-transparent border border-[#00b2ff]/10'
-                  >
+                  </div>
+                  <div className='p-4 rounded-xl  border bg-[#00b2ff]/10 border-[#00b2ff]/30'>
                     <div className='text-2xl lg:text-3xl font-bold text-[#56c2ff] mb-1'>
                       {interviewCount}
                     </div>
                     <div className='text-xs text-[#56c2ff]/70 font-medium uppercase tracking-wider'>
                       Interviews
                     </div>
-                  </motion.div>
-                  <motion.div
-                    whileHover={{ y: -2 }}
-                    className='p-4 rounded-xl bg-gradient-to-br from-[#1dff00]/10 to-transparent border border-[#1dff00]/10'
-                  >
-                    <div className='text-2xl lg:text-3xl font-bold text-[#1dff00] mb-1'>
+                  </div>
+                  <div className='p-4 rounded-xl bg-brand/10 border border-brand/30'>
+                    <div className='text-2xl lg:text-3xl font-bold text-brand mb-1'>
                       {Math.round(stats.offerRate * 100)}%
                     </div>
-                    <div className='text-xs text-[#1dff00]/70 font-medium uppercase tracking-wider'>
+                    <div className='text-xs text-brand font-medium uppercase tracking-wider'>
                       Offer Rate
                     </div>
-                  </motion.div>
-                  <motion.div
-                    whileHover={{ y: -2 }}
-                    className='p-4 rounded-xl bg-gradient-to-br from-[#1dff00]/10 to-transparent border border-[#1dff00]/10'
-                  >
-                    <div className='text-2xl lg:text-3xl font-bold text-[#1dff00] mb-1'>
+                  </div>
+                  <div className='p-4 rounded-xl border bg-red-500/10 border-red-500/30'>
+                    <div className='text-2xl lg:text-3xl font-bold text-red-500 mb-1'>
                       {Math.round(stats.rejectionRate * 100)}%
                     </div>
-                    <div className='text-xs text-[#1dff00]/70 font-medium uppercase tracking-wider'>
+                    <div className='text-xs text-red-500 font-medium uppercase tracking-wider'>
                       Rejection Rate
                     </div>
-                  </motion.div>
+                  </div>
                 </div>
 
                 {/* Applications Chart */}
@@ -584,20 +569,14 @@ export const OverviewPage = (): JSX.Element => {
                   )}
                 </div>
               </Card>
-            </motion.div>
+            </div>
 
             {/* Calendar (Kibo UI) - moved up, swapping with Match Scores */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              whileHover={{ scale: 1.02 }}
-              className='transition-transform duration-300'
-            >
+            <div>
               <Card
                 id='overview-calendar'
                 data-tour='overview-calendar'
-                className='bg-card/50 border border-border/40 backdrop-blur-xl p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-brand/50 hover:shadow-brand/20 transition-all duration-500'
+                className='bg-card/50 border border-foreground/10 backdrop-blur-xl p-4 sm:p-6 rounded-2xl'
               >
                 <div className='mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[10px] sm:text-xs text-muted-foreground'>
                   <div>
@@ -605,7 +584,9 @@ export const OverviewPage = (): JSX.Element => {
                     <span className='text-brand font-medium'>{timeLabel}</span>
                   </div>
                   <div className='flex items-center gap-2'>
-                    <span className='text-[#666] hidden sm:inline'>View:</span>
+                    <span className='text-muted-foreground hidden sm:inline'>
+                      View:
+                    </span>
                     <Button
                       variant='ghost'
                       size='sm'
@@ -614,7 +595,7 @@ export const OverviewPage = (): JSX.Element => {
                           m === "month" ? "week" : "month",
                         )
                       }
-                      className='text-[10px] sm:text-xs px-2 py-1 border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/10 text-[#1dff00]'
+                      className='text-[10px] sm:text-xs px-2 py-1 border border-brand/20 hover:border-brand/50 hover:bg-brand/10 text-brand'
                     >
                       {calendarViewMode === "month"
                         ? "Switch to Week"
@@ -640,10 +621,10 @@ export const OverviewPage = (): JSX.Element => {
                   />
                 </div>
                 {selectedRange && (
-                  <div className='mt-3 text-center text-[10px] sm:text-xs text-[#888] flex flex-col items-center gap-1'>
+                  <div className='mt-3 text-center text-[10px] sm:text-xs text-muted-foreground flex flex-col items-center gap-1'>
                     <div>
                       Range:{" "}
-                      <span className='text-[#1dff00] font-medium'>
+                      <span className='text-brand font-medium'>
                         {selectedRange.start.toLocaleDateString()} →{" "}
                         {selectedRange.end.toLocaleDateString()}
                       </span>
@@ -653,7 +634,7 @@ export const OverviewPage = (): JSX.Element => {
                         setSelectedRange(null);
                         localStorage.removeItem("calendar_last_range");
                       }}
-                      className='px-2 py-0.5 rounded border border-foreground/10 hover:border-[#1dff00]/40 hover:text-[#1dff00] hover:bg-[#1dff00]/10 text-[10px]'
+                      className='px-2 py-0.5 rounded border border-foreground/10 hover:border-brand/40 hover:text-brand hover:bg-brand/10 text-[10px]'
                     >
                       Clear
                     </button>
@@ -719,7 +700,7 @@ export const OverviewPage = (): JSX.Element => {
                   </ul>
                 </div>
               )}
-            </motion.div>
+            </div>
           </div>
 
           {/* Right Column - Streaks, Notifications, Match Scores */}
@@ -733,24 +714,18 @@ export const OverviewPage = (): JSX.Element => {
             />
 
             {/* Notifications Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              whileHover={{ scale: 1.02 }}
-              className='transition-transform duration-300'
-            >
+            <div>
               <Card
                 id='overview-notifications'
-                className='relative overflow-hidden bg-card/50 border border-border/40 backdrop-blur-xl p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-brand/20 hover:border-brand/50 transition-all duration-500 group'
+                className='relative overflow-hidden bg-card border backdrop-blur-xl p-4 sm:p-6 rounded-2xl group border-foreground/10'
               >
-                <div className='absolute -top-24 -right-24 w-72 h-72 rounded-full bg-[#1dff00]/5 blur-3xl group-hover:bg-[#1dff00]/10 transition' />
+                <div className='absolute -top-24 -right-24 w-72 h-72 rounded-full bg-brand/5 blur-3xl  transition' />
                 <div className='flex items-center justify-between mb-4 sm:mb-5 relative z-10'>
                   <div>
                     <h2 className='text-lg sm:text-xl lg:text-2xl font-bold text-foreground tracking-tight flex items-center gap-2'>
-                      <span className='relative inline-flex items-center justify-center w-8 h-8 rounded-xl bg-brand/10 border border-brand/30 text-brand shadow-inner'>
-                        🔔
-                      </span>
+                      <div className='w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-brand/20 to-brand/5 border border-brand/30 flex items-center justify-center shadow-inner'>
+                        <Bell className='w-4 h-4 sm:w-5 sm:h-5 text-brand' />
+                      </div>
                       Notifications
                     </h2>
                     <p className='mt-1 text-[11px] sm:text-xs text-muted-foreground'>
@@ -761,7 +736,7 @@ export const OverviewPage = (): JSX.Element => {
                     variant='ghost'
                     size='sm'
                     onClick={() => navigate("/dashboard/notifications")}
-                    className='text-foreground/70 hover:text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-105 transition-all duration-300 text-xs sm:text-sm font-medium border border-transparent hover:border-[#1dff00]/40 px-3'
+                    className='text-foreground/70 hover:text-brand hover:bg-brand/10 transition-all ease-in-out duration-200 text-xs sm:text-sm font-medium border border-transparent hover:border-brand/40 px-3'
                   >
                     View all
                   </Button>
@@ -785,10 +760,10 @@ export const OverviewPage = (): JSX.Element => {
                     </div>
                   )}
                   {mappedNotifs.length === 0 && !notifLoading && (
-                    <div className='flex items-center justify-center p-8 border border-dashed border-[#1dff00]/30 rounded-xl bg-foreground/5'>
+                    <div className='flex items-center justify-center p-8 border border-dashed border-brand/30 rounded-xl bg-foreground/5'>
                       <div className='text-center'>
                         <div className='mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3'>
-                          <Inbox className='w-6 h-6 text-[#1dff00]' />
+                          <Inbox className='w-6 h-6 text-brand' />
                         </div>
                         <p className='text-foreground/70 font-medium'>
                           You’re all caught up
@@ -813,13 +788,13 @@ export const OverviewPage = (): JSX.Element => {
                         }}
                         whileHover={{ scale: 1.015 }}
                         whileTap={{ scale: 0.985 }}
-                        className='w-full text-left flex items-start gap-3 p-2.5 sm:p-3 rounded-xl border border-foreground/10  bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 hover:border-[#1dff00]/40 transition-all duration-400 group relative overflow-hidden'
+                        className='w-full text-left flex items-start gap-3 p-2.5 sm:p-3 rounded-xl border border-foreground/10  bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 hover:border-brand/40 transition-all duration-400 group relative overflow-hidden'
                       >
                         {notification.icon}
                         <div className='flex-1 min-w-0'>
                           <p className='text-[11px] sm:text-sm text-foreground font-medium leading-relaxed tracking-tight truncate flex items-center gap-2'>
                             {notification.title}
-                            <span className='hidden md:inline-flex text-[9px] px-1.5 py-0.5 rounded bg-foreground/10 border border-[#1dff00]/30 text-[#1dff00] font-semibold tracking-wide'>
+                            <span className='hidden md:inline-flex text-[9px] px-1.5 py-0.5 rounded bg-foreground/10 border border-brand/30 text-brand font-semibold tracking-wide'>
                               NEW
                             </span>
                           </p>
@@ -827,27 +802,20 @@ export const OverviewPage = (): JSX.Element => {
                             {notification.time}
                           </p>
                         </div>
-                        <span className='absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-gradient-to-r from-transparent via-[#1dff00]/5 to-transparent' />
+                        <span className='absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-gradient-to-r from-transparent via-brand/5 to-transparent' />
                       </motion.button>
                     ))}
                 </div>
               </Card>
-            </motion.div>
+            </div>
 
             {/* Match Score Analytics (Refined layout) */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              whileHover={{ scale: 1.01 }}
-              className='transition-transform duration-300'
-            >
+            <div>
               <MatchScoreAnalytics period='30d' data={matchAnalytics} />
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 };
-

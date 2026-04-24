@@ -30,9 +30,9 @@ import {
   type DropdownMenuSubContentProps as DropdownMenuSubContentPrimitiveProps,
   type DropdownMenuSubTriggerProps as DropdownMenuSubTriggerPrimitiveProps,
   type DropdownMenuTriggerProps as DropdownMenuTriggerPrimitiveProps,
-} from '@/components/animate-ui/primitives/radix/dropdown-menu';
-import { cn } from '@/lib/utils';
-import { CheckIcon, ChevronRightIcon, CircleIcon } from 'lucide-react';
+} from "@/components/animate-ui/primitives/radix/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react";
 
 type DropdownMenuProps = DropdownMenuPrimitiveProps;
 
@@ -58,13 +58,13 @@ function DropdownMenuContent({
     <DropdownMenuContentPrimitive
       sideOffset={sideOffset}
       className={cn(
-        'relative z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[10rem] origin-(--radix-dropdown-menu-content-transform-origin)  overflow-y-auto rounded-xl border border-foreground/12 bg-background/90 px-1 py-1 backdrop-blur-xl shadow-[0_18px_42px_rgba(11,189,104,0.28)]',
-        'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2',
+        "relative z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[10rem] origin-(--radix-dropdown-menu-content-transform-origin)  overflow-y-auto rounded-xl border border-foreground/12 bg-background/90 px-1 py-1 backdrop-blur-xl shadow-[0_18px_42px_rgba(11,189,104,0.28)]",
+        "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2",
         className,
       )}
       {...props}
     >
-      <DropdownMenuHighlightPrimitive className=" absolute inset-0 z-0 rounded-xl bg-[#1dff00]/18 opacity-0 transition-opacity duration-300 data-[active=true]:opacity-100">
+      <DropdownMenuHighlightPrimitive className=' absolute inset-0 z-0 rounded-xl bg-brand/18 opacity-0 transition-opacity duration-300 data-[active=true]:opacity-100'>
         {children}
       </DropdownMenuHighlightPrimitive>
     </DropdownMenuContentPrimitive>
@@ -79,13 +79,13 @@ function DropdownMenuGroup({ ...props }: DropdownMenuGroupProps) {
 
 type DropdownMenuItemProps = DropdownMenuItemPrimitiveProps & {
   inset?: boolean;
-  variant?: 'default' | 'destructive';
+  variant?: "default" | "destructive";
 };
 
 function DropdownMenuItem({
   className,
   inset,
-  variant = 'default',
+  variant = "default",
   disabled,
   ...props
 }: DropdownMenuItemProps) {
@@ -97,8 +97,8 @@ function DropdownMenuItem({
         data-variant={variant}
         className={cn(
           "relative z-10 flex select-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-white outline-none transition-colors",
-          "data-[highlighted=true]:text-[#1dff00] data-[state=open]:text-[#1dff00]",
-          "data-[variant=destructive]:text-[#1dff00] data-[variant=destructive]:data-[highlighted=true]:bg-[#1dff00]/10",
+          "data-[highlighted=true]:text-brand data-[state=open]:text-brand",
+          "data-[variant=destructive]:text-brand data-[variant=destructive]:data-[highlighted=true]:bg-brand/10",
           "data-[disabled=true]:opacity-40 data-[disabled=true]:pointer-events-none",
           "data-[inset=true]:pl-8",
           "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-foreground/70",
@@ -125,7 +125,7 @@ function DropdownMenuCheckboxItem({
         disabled={disabled}
         className={cn(
           "relative z-10 flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-3 pl-9 text-sm text-white outline-none transition-colors",
-          "data-[highlighted=true]:text-[#1dff00]",
+          "data-[highlighted=true]:text-brand",
           "data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-40",
           "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-foreground/70",
           className,
@@ -133,12 +133,12 @@ function DropdownMenuCheckboxItem({
         checked={checked}
         {...props}
       >
-        <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
+        <span className='pointer-events-none absolute left-2 flex size-3.5 items-center justify-center'>
           <DropdownMenuItemIndicatorPrimitive
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}
           >
-            <CheckIcon className="size-4" />
+            <CheckIcon className='size-4' />
           </DropdownMenuItemIndicatorPrimitive>
         </span>
         {children}
@@ -167,16 +167,16 @@ function DropdownMenuRadioItem({
         disabled={disabled}
         className={cn(
           "relative z-10 flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-3 pl-9 text-sm text-white outline-none transition-colors",
-          "data-[highlighted=true]:text-[#1dff00]",
+          "data-[highlighted=true]:text-brand",
           "data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-40",
           "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-foreground/70",
           className,
         )}
         {...props}
       >
-        <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
-          <DropdownMenuItemIndicatorPrimitive layoutId="dropdown-menu-item-indicator-radio">
-            <CircleIcon className="size-2 fill-current" />
+        <span className='pointer-events-none absolute left-2 flex size-3.5 items-center justify-center'>
+          <DropdownMenuItemIndicatorPrimitive layoutId='dropdown-menu-item-indicator-radio'>
+            <CircleIcon className='size-2 fill-current' />
           </DropdownMenuItemIndicatorPrimitive>
         </span>
         {children}
@@ -198,7 +198,7 @@ function DropdownMenuLabel({
     <DropdownMenuLabelPrimitive
       data-inset={inset}
       className={cn(
-        'px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-foreground/50 data-[inset]:pl-8',
+        "px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-foreground/50 data-[inset]:pl-8",
         className,
       )}
       {...props}
@@ -214,7 +214,7 @@ function DropdownMenuSeparator({
 }: DropdownMenuSeparatorProps) {
   return (
     <DropdownMenuSeparatorPrimitive
-      className={cn('bg-foreground/10 -mx-1 my-1 h-px', className)}
+      className={cn("bg-foreground/10 -mx-1 my-1 h-px", className)}
       {...props}
     />
   );
@@ -229,7 +229,7 @@ function DropdownMenuShortcut({
   return (
     <DropdownMenuShortcutPrimitive
       className={cn(
-        'ml-auto text-xs uppercase tracking-[0.3em] text-foreground/40',
+        "ml-auto text-xs uppercase tracking-[0.3em] text-foreground/40",
         className,
       )}
       {...props}
@@ -258,15 +258,15 @@ function DropdownMenuSubTrigger({
       <DropdownMenuSubTriggerPrimitive
         data-inset={inset}
         className={cn(
-          'relative z-10 flex cursor-default select-none items-center rounded-lg px-3 py-2 text-sm text-white outline-none transition-colors data-[inset=true]:pl-8',
-          'data-[state=open]:text-[#1dff00] data-[highlighted=true]:text-[#1dff00]',
-          'data-[state=open]:[&_[data-slot=chevron]]:rotate-90 [&_[data-slot=chevron]]:transition-transform [&_[data-slot=chevron]]:duration-300 [&_[data-slot=chevron]]:ease-in-out',
+          "relative z-10 flex cursor-default select-none items-center rounded-lg px-3 py-2 text-sm text-white outline-none transition-colors data-[inset=true]:pl-8",
+          "data-[state=open]:text-brand data-[highlighted=true]:text-brand",
+          "data-[state=open]:[&_[data-slot=chevron]]:rotate-90 [&_[data-slot=chevron]]:transition-transform [&_[data-slot=chevron]]:duration-300 [&_[data-slot=chevron]]:ease-in-out",
           className,
         )}
         {...props}
       >
         {children}
-        <ChevronRightIcon data-slot="chevron" className="ml-auto size-4" />
+        <ChevronRightIcon data-slot='chevron' className='ml-auto size-4' />
       </DropdownMenuSubTriggerPrimitive>
     </DropdownMenuHighlightItemPrimitive>
   );
@@ -281,8 +281,8 @@ function DropdownMenuSubContent({
   return (
     <DropdownMenuSubContentPrimitive
       className={cn(
-        'relative z-50 min-w-[10rem] origin-(--radix-dropdown-menu-content-transform-origin)  rounded-xl border border-foreground/12 bg-background/92 px-1 py-1 backdrop-blur-xl shadow-[0_18px_42px_rgba(11,189,104,0.28)]',
-        'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2',
+        "relative z-50 min-w-[10rem] origin-(--radix-dropdown-menu-content-transform-origin)  rounded-xl border border-foreground/12 bg-background/92 px-1 py-1 backdrop-blur-xl shadow-[0_18px_42px_rgba(11,189,104,0.28)]",
+        "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2",
         className,
       )}
       {...props}

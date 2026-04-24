@@ -1,13 +1,13 @@
 // Credit-gated feature wrapper component
-import React, { useEffect, useState } from 'react';
-import { CreditService } from '@/services/creditService';
-import { FeatureAccess } from '@/types/credits';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Lock as LockIcon, Coins, AlertTriangle } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import React, { useEffect, useState } from "react";
+import { CreditService } from "@/services/creditService";
+import { FeatureAccess } from "@/types/credits";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Lock as LockIcon, Coins, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface CreditGatedFeatureProps {
   featureType: string;
@@ -26,7 +26,7 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
   fallback,
   onUpgrade,
   className = "",
-  showPreview = false
+  showPreview = false,
 }) => {
   const { user } = useAuth();
   const [access, setAccess] = useState<FeatureAccess | null>(null);
@@ -42,7 +42,7 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
       const accessInfo = await CreditService.checkFeatureAccess(
         user.id,
         featureType,
-        featureName
+        featureName,
       );
       setAccess(accessInfo);
       setLoading(false);
@@ -58,21 +58,21 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
     try {
       const success = await CreditService.consumeCredits(user.id, {
         featureType,
-        featureName
+        featureName,
       });
-      
+
       if (success) {
         setHasConsumed(true);
         // Refresh access info
         const updatedAccess = await CreditService.checkFeatureAccess(
           user.id,
           featureType,
-          featureName
+          featureName,
         );
         setAccess(updatedAccess);
       }
     } catch (error) {
-      console.error('Error using feature:', error);
+      console.error("Error using feature:", error);
     } finally {
       setConsuming(false);
     }
@@ -82,8 +82,8 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
     return (
       <div className={`animate-pulse ${className}`}>
         <Card>
-          <CardContent className="p-6">
-            <div className="h-20 bg-gray-200 rounded"></div>
+          <CardContent className='p-6'>
+            <div className='h-20 bg-gray-200 rounded'></div>
           </CardContent>
         </Card>
       </div>
@@ -93,7 +93,7 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
   if (!access) {
     return (
       <Alert className={className}>
-        <AlertTriangle className="w-4 h-4" />
+        <AlertTriangle className='w-4 h-4' />
         <AlertDescription>
           Unable to check feature access. Please try again.
         </AlertDescription>
@@ -110,41 +110,45 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
   if (access.hasAccess) {
     return (
       <div className={className}>
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center justify-between text-lg">
-              <div className="flex items-center gap-2">
-                <Coins className="w-5 h-5 text-blue-600" />
-                <span>{access.featureName.replace(/_/g, ' ')}</span>
+        <Card className='border-blue-200 bg-blue-50'>
+          <CardHeader className='pb-3'>
+            <CardTitle className='flex items-center justify-between text-lg'>
+              <div className='flex items-center gap-2'>
+                <Coins className='w-5 h-5 text-blue-600' />
+                <span>{access.featureName.replace(/_/g, " ")}</span>
               </div>
-              <Badge className="bg-blue-100 text-blue-800">
+              <Badge className='bg-blue-100 text-blue-800'>
                 {access.creditsRequired} credits
               </Badge>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className='space-y-4'>
             {access.description && (
-              <p className="text-sm text-gray-600">{access.description}</p>
+              <p className='text-sm text-gray-600'>{access.description}</p>
             )}
-            
-            <div className="flex items-center justify-between p-3 bg-background border border-foreground/10 rounded-lg">
+
+            <div className='flex items-center justify-between p-3 bg-background border border-foreground/10 rounded-lg'>
               <div>
-                <p className="text-sm font-medium text-foreground/80">Current Balance</p>
-                <p className="text-lg font-bold text-[#1dff00]">{access.currentBalance}</p>
+                <p className='text-sm font-medium text-foreground/80'>
+                  Current Balance
+                </p>
+                <p className='text-lg font-bold text-brand'>
+                  {access.currentBalance}
+                </p>
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground/80">Cost</p>
-                <p className="text-lg font-bold text-[#56c2ff]">{access.creditsRequired}</p>
+                <p className='text-sm font-medium text-foreground/80'>Cost</p>
+                <p className='text-lg font-bold text-[#56c2ff]'>
+                  {access.creditsRequired}
+                </p>
               </div>
             </div>
 
             {showPreview && (
-              <div className="relative">
-                <div className="opacity-50 pointer-events-none">
-                  {children}
-                </div>
-                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
-                  <LockIcon className="w-8 h-8 text-foreground/40" />
+              <div className='relative'>
+                <div className='opacity-50 pointer-events-none'>{children}</div>
+                <div className='absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center'>
+                  <LockIcon className='w-8 h-8 text-foreground/40' />
                 </div>
               </div>
             )}
@@ -152,16 +156,16 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
             <Button
               onClick={handleUseFeature}
               disabled={consuming}
-              className="w-full"
+              className='w-full'
             >
               {consuming ? (
-                <span className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span className='flex items-center gap-2'>
+                  <div className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin' />
                   Using Feature...
                 </span>
               ) : (
-                <span className="flex items-center gap-2">
-                  <Coins className="w-4 h-4" />
+                <span className='flex items-center gap-2'>
+                  <Coins className='w-4 h-4' />
                   Use Feature ({access.creditsRequired} credits)
                 </span>
               )}
@@ -174,57 +178,55 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
 
   // User doesn't have enough credits
   const defaultFallback = (
-    <Card className={`border-[#1dff00] bg-[#1dff00]/10 ${className}`}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg text-[#1dff00]">
-          <LockIcon className="w-5 h-5" />
+    <Card className={`border-brand bg-brand/10 ${className}`}>
+      <CardHeader className='pb-3'>
+        <CardTitle className='flex items-center gap-2 text-lg text-brand'>
+          <LockIcon className='w-5 h-5' />
           Insufficient Credits
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <Alert className="border-[#1dff00] bg-[#1dff00]/10">
-          <AlertTriangle className="w-4 h-4 text-[#1dff00]" />
-          <AlertDescription className="text-[#1dff00]">
-            You need {access.creditsRequired} credits to use this feature. 
-            You currently have {access.currentBalance} credits.
+      <CardContent className='space-y-4'>
+        <Alert className='border-brand bg-brand/10'>
+          <AlertTriangle className='w-4 h-4 text-brand' />
+          <AlertDescription className='text-brand'>
+            You need {access.creditsRequired} credits to use this feature. You
+            currently have {access.currentBalance} credits.
           </AlertDescription>
         </Alert>
 
         {access.description && (
-          <p className="text-sm text-gray-600">{access.description}</p>
+          <p className='text-sm text-gray-600'>{access.description}</p>
         )}
 
-        <div className="grid grid-cols-2 gap-4 text-center">
-          <div className="p-3 bg-background border border-foreground/10 rounded-lg">
-            <p className="text-sm text-foreground/60">Required</p>
-            <p className="text-lg font-bold text-[#1dff00]">{access.creditsRequired}</p>
+        <div className='grid grid-cols-2 gap-4 text-center'>
+          <div className='p-3 bg-background border border-foreground/10 rounded-lg'>
+            <p className='text-sm text-foreground/60'>Required</p>
+            <p className='text-lg font-bold text-brand'>
+              {access.creditsRequired}
+            </p>
           </div>
-          <div className="p-3 bg-background border border-foreground/10 rounded-lg">
-            <p className="text-sm text-foreground/60">Available</p>
-            <p className="text-lg font-bold text-foreground/80">{access.currentBalance}</p>
+          <div className='p-3 bg-background border border-foreground/10 rounded-lg'>
+            <p className='text-sm text-foreground/60'>Available</p>
+            <p className='text-lg font-bold text-foreground/80'>
+              {access.currentBalance}
+            </p>
           </div>
         </div>
 
         {showPreview && (
-          <div className="relative">
-            <div className="opacity-30 pointer-events-none">
-              {children}
-            </div>
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
-              <div className="text-center">
-                <LockIcon className="w-12 h-12 text-foreground/40 mx-auto mb-2" />
-                <p className="text-sm text-foreground/60">Locked Feature</p>
+          <div className='relative'>
+            <div className='opacity-30 pointer-events-none'>{children}</div>
+            <div className='absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center'>
+              <div className='text-center'>
+                <LockIcon className='w-12 h-12 text-foreground/40 mx-auto mb-2' />
+                <p className='text-sm text-foreground/60'>Locked Feature</p>
               </div>
             </div>
           </div>
         )}
 
-        <div className="flex gap-2">
-          <Button
-            onClick={onUpgrade}
-            className="flex-1"
-            variant="default"
-          >
+        <div className='flex gap-2'>
+          <Button onClick={onUpgrade} className='flex-1' variant='default'>
             Get More Credits
           </Button>
         </div>
@@ -243,7 +245,7 @@ export const withCreditGating = (
     fallback?: React.ReactNode;
     onUpgrade?: () => void;
     showPreview?: boolean;
-  } = {}
+  } = {},
 ) => {
   return function <P extends object>(Component: React.ComponentType<P>) {
     return function CreditGatedComponent(props: P) {
@@ -274,7 +276,7 @@ export const useFeatureAccess = (featureType: string, featureName: string) => {
       const accessInfo = await CreditService.checkFeatureAccess(
         user.id,
         featureType,
-        featureName
+        featureName,
       );
       setAccess(accessInfo);
       setLoading(false);
@@ -289,22 +291,22 @@ export const useFeatureAccess = (featureType: string, featureName: string) => {
     try {
       const success = await CreditService.consumeCredits(user.id, {
         featureType,
-        featureName
+        featureName,
       });
-      
+
       if (success) {
         // Refresh access info
         const updatedAccess = await CreditService.checkFeatureAccess(
           user.id,
           featureType,
-          featureName
+          featureName,
         );
         setAccess(updatedAccess);
       }
-      
+
       return success;
     } catch (error) {
-      console.error('Error consuming credits:', error);
+      console.error("Error consuming credits:", error);
       return false;
     }
   };
@@ -315,7 +317,7 @@ export const useFeatureAccess = (featureType: string, featureName: string) => {
     consumeCredits,
     hasAccess: access?.hasAccess || false,
     creditsRequired: access?.creditsRequired || 0,
-    currentBalance: access?.currentBalance || 0
+    currentBalance: access?.currentBalance || 0,
   };
 };
 

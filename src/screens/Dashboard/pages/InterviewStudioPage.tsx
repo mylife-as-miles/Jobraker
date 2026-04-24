@@ -1,4 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   Camera,
   Video,
@@ -42,12 +48,12 @@ const AudioVisualizer = ({ isActive }: { isActive: boolean }) => {
       {[...Array(12)].map((_, i) => (
         <motion.div
           key={i}
-          className={`w-1 rounded-full ${isActive ? "bg-[#1dff00]" : "bg-zinc-700"}`}
+          className={`w-1 rounded-full ${isActive ? "bg-brand" : "bg-zinc-700"}`}
           animate={
             isActive
               ? {
-                height: [4, Math.random() * 24 + 4, 4],
-              }
+                  height: [4, Math.random() * 24 + 4, 4],
+                }
               : { height: 4 }
           }
           transition={{
@@ -103,7 +109,13 @@ export const InterviewStudioPage: React.FC = () => {
   const streamRef = useRef<MediaStream | null>(null);
 
   // 1. AI Logic (Gemini Live)
-  const { isAIActive, isConnected, error: sessionError, connect, disconnect } = useInterviewSession({
+  const {
+    isAIActive,
+    isConnected,
+    error: sessionError,
+    connect,
+    disconnect,
+  } = useInterviewSession({
     apiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
   });
 
@@ -112,12 +124,13 @@ export const InterviewStudioPage: React.FC = () => {
   const speechRecognitionSupported = useMemo(
     () =>
       typeof window !== "undefined" &&
-      (("webkitSpeechRecognition" in window) || ("SpeechRecognition" in window)),
+      ("webkitSpeechRecognition" in window || "SpeechRecognition" in window),
     [],
   );
   const clarityScore = useMemo(() => {
     const fillerPenalty = Math.min(24, fillerWordCount * 4);
-    const pacePenalty = wpm === 0 ? 12 : Math.min(18, Math.abs(wpm - 135) / 2.5);
+    const pacePenalty =
+      wpm === 0 ? 12 : Math.min(18, Math.abs(wpm - 135) / 2.5);
     return Math.max(55, Math.round(100 - fillerPenalty - pacePenalty));
   }, [fillerWordCount, wpm]);
   const sentimentLabel = useMemo(() => {
@@ -292,7 +305,9 @@ export const InterviewStudioPage: React.FC = () => {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
-      setPermissionError(err instanceof Error ? err.message : "Failed to connect to AI server");
+      setPermissionError(
+        err instanceof Error ? err.message : "Failed to connect to AI server",
+      );
       setIsConnecting(false);
     }
   };
@@ -335,14 +350,14 @@ export const InterviewStudioPage: React.FC = () => {
         {/* HEADER (Mobile Only - usually redundant if sidebar exists, but good for context) */}
         <div className='xl:col-span-12 flex items-center justify-between shrink-0 xl:mb-2'>
           <div className='flex items-center gap-2'>
-            <span className='w-2 h-2 bg-[#1dff00] rounded-full shadow-[0_0_8px_#1dff00]' />
+            <span className='w-2 h-2 bg-brand rounded-full shadow-[0_0_8px_#1dff00]' />
             <h1 className='font-bold font-mono tracking-tight text-lg'>
               Interview Studio
             </h1>
           </div>
           {isRecording && (
-            <div className='flex items-center gap-2 px-2 py-0.5 rounded-full bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] text-[10px] uppercase font-mono'>
-              <div className='w-1.5 h-1.5 rounded-full bg-[#1dff00] animate-pulse' />
+            <div className='flex items-center gap-2 px-2 py-0.5 rounded-full bg-brand/10 border border-brand/30 text-brand text-[10px] uppercase font-mono'>
+              <div className='w-1.5 h-1.5 rounded-full bg-brand animate-pulse' />
               {isAIActive ? "AI Speaking" : formatTime(elapsedSeconds)}
             </div>
           )}
@@ -415,7 +430,7 @@ export const InterviewStudioPage: React.FC = () => {
                 size='icon'
                 onClick={toggleMic}
                 disabled={isRecording}
-                className={`h-9 w-9 rounded-full ${!micEnabled ? "bg-[#1dff00]/10 text-[#1dff00]" : "text-foreground hover:text-foreground hover:bg-foreground/5"}`}
+                className={`h-9 w-9 rounded-full ${!micEnabled ? "bg-brand/10 text-brand" : "text-foreground hover:text-foreground hover:bg-foreground/5"}`}
               >
                 {micEnabled ? <Mic size={18} /> : <MicOff size={18} />}
               </Button>
@@ -424,7 +439,7 @@ export const InterviewStudioPage: React.FC = () => {
                 size='icon'
                 onClick={toggleCamera}
                 disabled={isRecording}
-                className={`h-9 w-9 rounded-full ${!cameraEnabled ? "bg-[#1dff00]/10 text-[#1dff00]" : "text-foreground hover:text-foreground hover:bg-foreground/5"}`}
+                className={`h-9 w-9 rounded-full ${!cameraEnabled ? "bg-brand/10 text-brand" : "text-foreground hover:text-foreground hover:bg-foreground/5"}`}
               >
                 {cameraEnabled ? <Camera size={18} /> : <Video size={18} />}
               </Button>
@@ -493,7 +508,7 @@ export const InterviewStudioPage: React.FC = () => {
                   isRecording ? handleStopRecording : handleStartRecording
                 }
                 disabled={!streamInitialized || isConnecting}
-                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-[#1dff00]/100 hover:bg-[#1dff00] shadow-[#1dff00]/20" : "bg-[#1dff00] hover:bg-[#1dff00]/90 shadow-[#1dff00]/20"} shadow-lg hover:scale-105 active:scale-95`}
+                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-brand/100 hover:bg-brand shadow-brand/20" : "bg-brand hover:bg-brand/90 shadow-brand/20"} shadow-lg hover:scale-105 active:scale-95`}
               >
                 {isConnecting ? (
                   <div className='w-5 h-5 border-2 border-background/30 border-t-black rounded-full animate-spin' />
@@ -524,7 +539,7 @@ export const InterviewStudioPage: React.FC = () => {
                 variant='ghost'
                 size='sm'
                 onClick={() => setIsScriptEditing(!isScriptEditing)}
-                className={`h-6 text-[10px] px-2 uppercase tracking-wider ${isScriptEditing ? "text-[#1dff00] bg-[#1dff00]/10 hover:bg-[#1dff00]/20" : "text-foreground hover:text-foreground"}`}
+                className={`h-6 text-[10px] px-2 uppercase tracking-wider ${isScriptEditing ? "text-brand bg-brand/10 hover:bg-brand/20" : "text-foreground hover:text-foreground"}`}
               >
                 {isScriptEditing ? (
                   <span className='flex items-center gap-1'>
@@ -544,7 +559,7 @@ export const InterviewStudioPage: React.FC = () => {
               />
               {!isScriptEditing && isRecording && (
                 <div className='absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-foreground/5 to-transparent pointer-events-none flex items-end justify-center pb-2'>
-                  <span className='text-[10px] text-[#1dff00] animate-pulse'>
+                  <span className='text-[10px] text-brand animate-pulse'>
                     Auto-scrolling...
                   </span>
                 </div>
@@ -559,7 +574,7 @@ export const InterviewStudioPage: React.FC = () => {
                 <Activity size={12} /> AI Coach
               </h3>
               {isRecording && (
-                <span className='px-1.5 py-0.5 rounded bg-[#1dff00] text-foreground text-[9px] font-bold animate-pulse'>
+                <span className='px-1.5 py-0.5 rounded bg-brand text-foreground text-[9px] font-bold animate-pulse'>
                   LIVE
                 </span>
               )}
@@ -573,7 +588,7 @@ export const InterviewStudioPage: React.FC = () => {
                 </span>
                 <div className='flex items-baseline gap-1 mt-1'>
                   <span
-                    className={`text-2xl font-bold ${wpm > 160 ? "text-[#1dff00]" : "text-foreground"}`}
+                    className={`text-2xl font-bold ${wpm > 160 ? "text-brand" : "text-foreground"}`}
                   >
                     {wpm}
                   </span>
@@ -594,7 +609,7 @@ export const InterviewStudioPage: React.FC = () => {
                 </span>
                 <div className='flex items-baseline gap-1 mt-1'>
                   <span
-                    className={`text-2xl font-bold ${fillerWordCount > 5 ? "text-[#1dff00]" : "text-foreground"}`}
+                    className={`text-2xl font-bold ${fillerWordCount > 5 ? "text-brand" : "text-foreground"}`}
                   >
                     {fillerWordCount}
                   </span>
@@ -604,7 +619,7 @@ export const InterviewStudioPage: React.FC = () => {
                 </div>
                 <div className='h-1 w-full bg-foreground/60 rounded-full mt-2 overflow-hidden'>
                   <motion.div
-                    className='h-full bg-[#1dff00]/100'
+                    className='h-full bg-brand/100'
                     animate={{
                       width: `${Math.min(100, (fillerWordCount / 10) * 100)}%`,
                     }}
@@ -616,11 +631,14 @@ export const InterviewStudioPage: React.FC = () => {
             <div className='mt-4 rounded-lg border border-foreground/10 bg-background/40 p-3'>
               <div className='mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider text-foreground/50'>
                 <span>Transcript</span>
-                <span>{speechRecognitionSupported ? "Live" : "Unavailable"}</span>
+                <span>
+                  {speechRecognitionSupported ? "Live" : "Unavailable"}
+                </span>
               </div>
               <p className='text-xs leading-relaxed text-foreground/70 min-h-[56px]'>
                 {speechRecognitionSupported
-                  ? transcript || "Start a session to see your live transcript and coaching cues here."
+                  ? transcript ||
+                    "Start a session to see your live transcript and coaching cues here."
                   : "Speech recognition is not supported in this browser, so pace and filler-word tracking are unavailable."}
               </p>
             </div>
@@ -663,7 +681,7 @@ export const InterviewStudioPage: React.FC = () => {
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
-            className='absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 bg-[#1dff00]/90 text-foreground rounded-lg shadow-xl flex items-center gap-3 border border-[#1dff00]/50 z-50'
+            className='absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 bg-brand/90 text-foreground rounded-lg shadow-xl flex items-center gap-3 border border-brand/50 z-50'
           >
             <AlertCircle size={18} />
             <span className='text-sm'>{permissionError}</span>

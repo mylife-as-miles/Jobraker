@@ -144,11 +144,15 @@ export function CandidateMemoryEditor({
   const [targetArchetypesText, setTargetArchetypesText] = useState("");
   const [proofPoints, setProofPoints] = useState<ProofPoint[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
-  const [trackedCompanies, setTrackedCompanies] = useState<TrackedCompany[]>([]);
+  const [trackedCompanies, setTrackedCompanies] = useState<TrackedCompany[]>(
+    [],
+  );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setPreferredNarrativesText((profile?.preferred_narratives || []).join("\n"));
+    setPreferredNarrativesText(
+      (profile?.preferred_narratives || []).join("\n"),
+    );
     setRedFlagsText((profile?.red_flags || []).join("\n"));
     setTargetArchetypesText((profile?.target_archetypes || []).join("\n"));
     setProofPoints(normalizeProofPoints(profile?.proof_points));
@@ -158,9 +162,8 @@ export function CandidateMemoryEditor({
 
   const proofPointCount = useMemo(
     () =>
-      proofPoints.filter(
-        (item) => item.title.trim() && item.evidence.trim(),
-      ).length,
+      proofPoints.filter((item) => item.title.trim() && item.evidence.trim())
+        .length,
     [proofPoints],
   );
   const storyCount = useMemo(
@@ -214,10 +217,10 @@ export function CandidateMemoryEditor({
   };
 
   return (
-    <Card className='product-section-card p-6 hover:border-[#1dff00]/60 hover:shadow-lg transition-all duration-300'>
+    <Card className='product-section-card p-6 hover:border-brand/60 hover:shadow-lg transition-all duration-300'>
       <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
         <div className='space-y-2'>
-          <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-[#1dff00]/80'>
+          <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-brand/80'>
             <BrainCircuit className='h-3.5 w-3.5' />
             Candidate Memory
           </div>
@@ -268,7 +271,7 @@ export function CandidateMemoryEditor({
       <div className='mt-6 grid gap-4 xl:grid-cols-3'>
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-            <Sparkles className='h-4 w-4 text-[#1dff00]' />
+            <Sparkles className='h-4 w-4 text-brand' />
             Preferred narratives
           </div>
           <textarea
@@ -282,7 +285,7 @@ export function CandidateMemoryEditor({
 
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-            <Flag className='h-4 w-4 text-[#1dff00]' />
+            <Flag className='h-4 w-4 text-brand' />
             Red flags
           </div>
           <textarea
@@ -296,7 +299,7 @@ export function CandidateMemoryEditor({
 
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-            <Briefcase className='h-4 w-4 text-[#1dff00]' />
+            <Briefcase className='h-4 w-4 text-brand' />
             Target archetypes
           </div>
           <textarea
@@ -313,14 +316,14 @@ export function CandidateMemoryEditor({
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='flex items-center justify-between gap-3'>
             <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-              <Bookmark className='h-4 w-4 text-[#1dff00]' />
+              <Bookmark className='h-4 w-4 text-brand' />
               Proof points
             </div>
             <Button
               type='button'
               size='sm'
               variant='outline'
-              className='border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10'
+              className='border-brand/30 text-brand hover:bg-brand/10'
               onClick={() =>
                 setProofPoints((prev) => [
                   ...prev,
@@ -335,7 +338,8 @@ export function CandidateMemoryEditor({
           <div className='space-y-3'>
             {proofPoints.length === 0 ? (
               <div className='rounded-xl border border-dashed border-foreground/12 bg-foreground/[0.02] px-4 py-4 text-sm text-foreground/45'>
-                Add quantified wins, customer outcomes, or delivery highlights you want future evaluations to reuse.
+                Add quantified wins, customer outcomes, or delivery highlights
+                you want future evaluations to reuse.
               </div>
             ) : null}
             {proofPoints.map((item, index) => (
@@ -388,7 +392,7 @@ export function CandidateMemoryEditor({
                     type='button'
                     size='sm'
                     variant='ghost'
-                    className='text-[#1dff00] hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
+                    className='text-brand hover:bg-brand/10 hover:text-brand'
                     onClick={() =>
                       setProofPoints((prev) =>
                         prev.filter((_, itemIndex) => itemIndex !== index),
@@ -407,14 +411,14 @@ export function CandidateMemoryEditor({
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='flex items-center justify-between gap-3'>
             <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-              <Sparkles className='h-4 w-4 text-[#1dff00]' />
+              <Sparkles className='h-4 w-4 text-brand' />
               Interview story bank
             </div>
             <Button
               type='button'
               size='sm'
               variant='outline'
-              className='border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10'
+              className='border-brand/30 text-brand hover:bg-brand/10'
               onClick={() =>
                 setStories((prev) => [
                   ...prev,
@@ -429,7 +433,8 @@ export function CandidateMemoryEditor({
           <div className='space-y-3'>
             {stories.length === 0 ? (
               <div className='rounded-xl border border-dashed border-foreground/12 bg-foreground/[0.02] px-4 py-4 text-sm text-foreground/45'>
-                Saved stories will feed future evaluations and tailoring suggestions automatically.
+                Saved stories will feed future evaluations and tailoring
+                suggestions automatically.
               </div>
             ) : null}
             {stories.map((item, index) => (
@@ -477,7 +482,7 @@ export function CandidateMemoryEditor({
                     type='button'
                     size='sm'
                     variant='ghost'
-                    className='text-[#1dff00] hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
+                    className='text-brand hover:bg-brand/10 hover:text-brand'
                     onClick={() =>
                       setStories((prev) =>
                         prev.filter((_, itemIndex) => itemIndex !== index),
@@ -497,14 +502,14 @@ export function CandidateMemoryEditor({
       <div className='mt-6 rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
         <div className='flex items-center justify-between gap-3'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
-            <Briefcase className='h-4 w-4 text-[#1dff00]' />
+            <Briefcase className='h-4 w-4 text-brand' />
             Tracked companies
           </div>
           <Button
             type='button'
             size='sm'
             variant='outline'
-            className='border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10'
+            className='border-brand/30 text-brand hover:bg-brand/10'
             onClick={() =>
               setTrackedCompanies((prev) => [
                 ...prev,
@@ -519,7 +524,8 @@ export function CandidateMemoryEditor({
         <div className='space-y-3'>
           {trackedCompanies.length === 0 ? (
             <div className='rounded-xl border border-dashed border-foreground/12 bg-foreground/[0.02] px-4 py-4 text-sm text-foreground/45'>
-              Add companies you care about most so hybrid discovery can prioritize them first.
+              Add companies you care about most so hybrid discovery can
+              prioritize them first.
             </div>
           ) : null}
           {trackedCompanies.map((item, index) => (
@@ -570,7 +576,7 @@ export function CandidateMemoryEditor({
                   type='button'
                   size='sm'
                   variant='ghost'
-                  className='text-[#1dff00] hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
+                  className='text-brand hover:bg-brand/10 hover:text-brand'
                   onClick={() =>
                     setTrackedCompanies((prev) =>
                       prev.filter((_, itemIndex) => itemIndex !== index),
@@ -593,7 +599,7 @@ export function CandidateMemoryEditor({
         </p>
         <Button
           type='button'
-          className='bg-[#1dff00] text-black hover:bg-[#1dff00]/90'
+          className='bg-brand text-black hover:bg-brand/90'
           onClick={() => void handleSave()}
           disabled={loading || saving}
         >

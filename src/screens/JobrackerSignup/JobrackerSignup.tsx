@@ -9,7 +9,13 @@ import {
   Loader2,
 } from "lucide-react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -26,7 +32,8 @@ export const JobrackerSignup = (): JSX.Element => {
   const navigate = useNavigate();
   const location = useLocation();
   const supabase = useMemo(() => createClient(), []);
-  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY?.trim() ?? "";
+  const turnstileSiteKey =
+    import.meta.env.VITE_TURNSTILE_SITE_KEY?.trim() ?? "";
   const turnstileEnabled = turnstileSiteKey.length > 0;
   const turnstileRef = useRef<TurnstileInstance | null>(null);
   const { success, error: toastError } = useToast();
@@ -339,7 +346,11 @@ export const JobrackerSignup = (): JSX.Element => {
             >
               <div className='flex items-center gap-2 mb-4'>
                 <div className='relative flex items-center justify-center w-9 h-9 overflow-clip  rounded-md'>
-                 <img src="/logo/logo.jpeg" alt="logo" className="object-cover" />
+                  <img
+                    src='/logo/logo.jpeg'
+                    alt='logo'
+                    className='object-cover'
+                  />
                 </div>
                 <span className='text-base font-bold tracking-tight text-foreground font-mono'>
                   JOBRAKER
@@ -395,7 +406,7 @@ export const JobrackerSignup = (): JSX.Element => {
                     />
                   </div>
                 </div>
-                <p className='text-[10px] text-gray-500'>
+                <p className='text-[10px] text-foreground/50'>
                   Complete the CAPTCHA before signing in, signing up, or
                   requesting a password reset.
                 </p>
@@ -473,10 +484,10 @@ export const JobrackerSignup = (): JSX.Element => {
               {/* Email */}
               <div className='space-y-0.5'>
                 <div className='relative group'>
-                  <MailIcon className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-3.5 h-3.5' />
+                  <MailIcon className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-brand transition-colors w-3.5 h-3.5' />
                   <Input
                     inputSize='sm'
-                    className='pl-11 h-9 bg-foreground/5 border-foreground/10 focus:border-[#1dff00]/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
+                    className='pl-11 h-9 bg-foreground/5 border-foreground/10 focus:border-brand/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
                     placeholder='name@example.com'
                     type='email'
                     value={formData.email}
@@ -487,7 +498,7 @@ export const JobrackerSignup = (): JSX.Element => {
                   />
                 </div>
                 {formData.email.length > 0 && !emailValid && (
-                  <p className='text-[10px] text-[#1dff00] pl-1 mt-0.5'>
+                  <p className='text-[10px] text-brand pl-1 mt-0.5'>
                     Invalid email address
                   </p>
                 )}
@@ -497,10 +508,10 @@ export const JobrackerSignup = (): JSX.Element => {
               {!showForgotPassword && (
                 <div className='space-y-0.5'>
                   <div className='relative group'>
-                    <LockKeyholeIcon className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-3.5 h-3.5' />
+                    <LockKeyholeIcon className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-brand transition-colors w-3.5 h-3.5' />
                     <Input
                       inputSize='sm'
-                      className='pl-11 pr-9 h-9 bg-foreground/5 border-foreground/10 focus:border-[#1dff00]/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
+                      className='pl-11 pr-9 h-9 bg-foreground/5 border-foreground/10 focus:border-brand/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
                       placeholder='Password'
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
@@ -528,10 +539,10 @@ export const JobrackerSignup = (): JSX.Element => {
               {isSignUp && !showForgotPassword && (
                 <div className='space-y-0.5'>
                   <div className='relative group'>
-                    <LockKeyholeIcon className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-3.5 h-3.5' />
+                    <LockKeyholeIcon className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-brand transition-colors w-3.5 h-3.5' />
                     <Input
                       inputSize='sm'
-                      className='pl-11 h-9 bg-foreground/5 border-foreground/10 focus:border-[#1dff00]/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
+                      className='pl-11 h-9 bg-foreground/5 border-foreground/10 focus:border-brand/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
                       placeholder='Confirm Password'
                       type={showPassword ? "text" : "password"}
                       value={formData.confirmPassword}
@@ -559,13 +570,13 @@ export const JobrackerSignup = (): JSX.Element => {
                   {formData.password.length > 0 && (
                     <div className='pt-1.5 flex items-center gap-1.5 text-[10px]'>
                       <div
-                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 1 ? "bg-[#1dff00]/100" : "bg-foreground/10"}`}
+                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 1 ? "bg-brand/100" : "bg-foreground/10"}`}
                       />
                       <div
-                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 3 ? "bg-[#1dff00]/100" : "bg-foreground/10"}`}
+                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 3 ? "bg-brand/100" : "bg-foreground/10"}`}
                       />
                       <div
-                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 4 ? "bg-[#1dff00]" : "bg-foreground/10"}`}
+                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 4 ? "bg-brand" : "bg-foreground/10"}`}
                       />
                       <span className='text-gray-400 ml-1'>
                         {passwordCheck.strength}
@@ -581,7 +592,7 @@ export const JobrackerSignup = (): JSX.Element => {
                     type='button'
                     variant='link'
                     onClick={() => setShowForgotPassword(true)}
-                    className='text-gray-400 hover:text-[#1dff00] text-[10px] p-0 h-auto'
+                    className='text-gray-400 hover:text-brand text-[10px] p-0 h-auto'
                   >
                     Forgot password?
                   </Button>
@@ -597,7 +608,7 @@ export const JobrackerSignup = (): JSX.Element => {
                     (!passwordCheck.valid ||
                       formData.password !== formData.confirmPassword))
                 }
-                className='w-full h-9 bg-[#1dff00] hover:bg-[#1dff00]/90 text-background font-semibold rounded-lg text-xs transition-all shadow-[0_0_15px_rgba(29,255,0,0.2)] hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] mt-1'
+                className='w-full h-9 bg-brand hover:bg-brand/90 text-background font-semibold rounded-lg text-xs transition-all shadow-[0_0_15px_rgba(29,255,0,0.2)] hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] mt-1'
               >
                 {submitting ? (
                   <Loader2 className='animate-spin w-3.5 h-3.5' />
@@ -639,7 +650,7 @@ export const JobrackerSignup = (): JSX.Element => {
                     : "Don't have an account?"}{" "}
                   <button
                     onClick={() => setIsSignUp(!isSignUp)}
-                    className='bg-transparent text-[#1dff00] hover:underline font-medium'
+                    className='bg-transparent text-brand hover:underline font-medium'
                   >
                     {isSignUp ? "Sign In" : "Sign Up"}
                   </button>
@@ -673,8 +684,8 @@ export const JobrackerSignup = (): JSX.Element => {
             className='bg-background/40 backdrop-blur-md border border-foreground/10 p-6 rounded-2xl'
           >
             <div className='flex items-start gap-4'>
-              <div className='w-10 h-10 rounded-full bg-[#1dff00]/10 flex items-center justify-center border border-[#1dff00]/20 flex-shrink-0'>
-                <CheckCircle2 className='w-5 h-5 text-[#1dff00]' />
+              <div className='w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center border border-brand/20 flex-shrink-0'>
+                <CheckCircle2 className='w-5 h-5 text-brand' />
               </div>
               <div>
                 <h3 className='text-foreground font-bold text-lg mb-1'>
@@ -716,7 +727,7 @@ export const JobrackerSignup = (): JSX.Element => {
             </Button>
             <Button
               variant='ghost'
-              className='flex-1 border border-[#1dff00]/30 hover:bg-foreground/10 text-foreground'
+              className='flex-1 border border-brand/30 hover:bg-foreground/10 text-foreground'
               disabled={resending}
               onClick={handleResendVerification}
             >

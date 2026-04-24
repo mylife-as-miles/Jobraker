@@ -1,5 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Rocket, Unlock, X, Check } from "lucide-react";
 import type { CreditBalance } from "@/types/credits";
@@ -115,35 +120,41 @@ export function LowCreditsPromoModal({
   const ss = secondsLeft % 60;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : handleClose())}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => (o ? onOpenChange(true) : handleClose())}
+    >
       <DialogContent
         hideCloseButton
-        className="max-w-[min(100%,420px)] border border-fuchsia-500/25 bg-zinc-950 p-0 text-foreground shadow-[0_0_0_1px_rgba(217,70,239,0.15),0_25px_80px_-20px_rgba(0,0,0,0.85)] sm:rounded-2xl overflow-hidden gap-0"
+        className='max-w-[min(100%,420px)] border border-fuchsia-500/25 bg-zinc-950 p-0 text-foreground shadow-[0_0_0_1px_rgba(217,70,239,0.15),0_25px_80px_-20px_rgba(0,0,0,0.85)] sm:rounded-2xl overflow-hidden gap-0'
       >
-        <DialogTitle className="sr-only">Low credits — limited-time upgrade offer</DialogTitle>
-        <DialogDescription className="sr-only">
-          You have used most of your credits. You can upgrade or top up using the promo on this screen.
+        <DialogTitle className='sr-only'>
+          Low credits — limited-time upgrade offer
+        </DialogTitle>
+        <DialogDescription className='sr-only'>
+          You have used most of your credits. You can upgrade or top up using
+          the promo on this screen.
         </DialogDescription>
         {/* Top alert bar */}
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-black/40 px-4 py-2.5">
-          <div className="flex items-center gap-2 min-w-0">
-            <Rocket className="h-4 w-4 shrink-0 text-white" aria-hidden />
-            <span className="text-xs sm:text-sm font-medium text-white/95 truncate">
+        <div className='flex items-center justify-between gap-3 border-b border-white/10 bg-black/40 px-4 py-2.5'>
+          <div className='flex items-center gap-2 min-w-0'>
+            <Rocket className='h-4 w-4 shrink-0 text-white' aria-hidden />
+            <span className='text-xs sm:text-sm font-medium text-white/95 truncate'>
               You&apos;ve spent {stats.percentSpent}% of your credits
             </span>
           </div>
           <button
-            type="button"
+            type='button'
             onClick={handleClose}
-            className="rounded-lg p-1.5 text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            aria-label="Dismiss"
+            className='rounded-lg p-1.5 text-white/70 hover:text-white hover:bg-white/10 transition-colors'
+            aria-label='Dismiss'
           >
-            <X className="h-4 w-4" />
+            <X className='h-4 w-4' />
           </button>
         </div>
 
-        <div className="px-6 pt-8 pb-6 space-y-5">
-          <div className="flex justify-center">
+        <div className='px-6 pt-8 pb-6 space-y-5'>
+          <div className='flex justify-center'>
             <div
               className={cn(
                 "relative flex h-20 w-20 items-center justify-center rounded-2xl",
@@ -152,54 +163,60 @@ export function LowCreditsPromoModal({
                 "ring-2 ring-fuchsia-400/40",
               )}
             >
-              <Unlock className="h-10 w-10 text-white drop-shadow-md" strokeWidth={2} />
+              <Unlock
+                className='h-10 w-10 text-white drop-shadow-md'
+                strokeWidth={2}
+              />
             </div>
           </div>
 
-          <div className="text-center space-y-1">
-            <p className="text-xl sm:text-2xl font-extrabold tracking-tight text-fuchsia-400 uppercase leading-tight">
+          <div className='text-center space-y-1'>
+            <p className='text-xl sm:text-2xl font-extrabold tracking-tight text-fuchsia-400 uppercase leading-tight'>
               Your last chance
             </p>
-            <p className="text-xl sm:text-2xl font-extrabold tracking-tight text-white uppercase leading-tight">
+            <p className='text-xl sm:text-2xl font-extrabold tracking-tight text-white uppercase leading-tight'>
               to upgrade with discount
             </p>
           </div>
 
-          <p className="text-center text-sm text-zinc-400 leading-relaxed px-1">
+          <p className='text-center text-sm text-zinc-400 leading-relaxed px-1'>
             You have only{" "}
-            <span className="text-white font-semibold">{stats.percentRemaining}%</span> of your
-            credits left. Top up or move to a higher plan — limited-time promo pricing below.
+            <span className='text-white font-semibold'>
+              {stats.percentRemaining}%
+            </span>{" "}
+            of your credits left. Top up or move to a higher plan — limited-time
+            promo pricing below.
           </p>
 
           {/* Coupon strip */}
-          <div className="rounded-xl border border-white/10 bg-zinc-900/80 overflow-hidden">
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-[#1dff00]/10">
-              <Check className="h-4 w-4 text-[#1dff00] shrink-0" strokeWidth={3} />
-              <span className="text-xs font-semibold text-[#1dff00]">
+          <div className='rounded-xl border border-white/10 bg-zinc-900/80 overflow-hidden'>
+            <div className='flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-brand/10'>
+              <Check className='h-4 w-4 text-brand shrink-0' strokeWidth={3} />
+              <span className='text-xs font-semibold text-brand'>
                 {PROMO_CODE_DISPLAY} promocode is applied
               </span>
             </div>
-            <div className="grid grid-cols-[1fr_auto_1fr] gap-0 items-stretch min-h-[88px]">
-              <div className="flex flex-col justify-center px-4 py-3 border-r border-dashed border-white/20">
-                <span className="text-2xl sm:text-3xl font-black text-fuchsia-400 tabular-nums leading-none">
+            <div className='grid grid-cols-[1fr_auto_1fr] gap-0 items-stretch min-h-[88px]'>
+              <div className='flex flex-col justify-center px-4 py-3 border-r border-dashed border-white/20'>
+                <span className='text-2xl sm:text-3xl font-black text-fuchsia-400 tabular-nums leading-none'>
                   {PROMO_DISCOUNT_PCT}% OFF
                 </span>
-                <span className="text-[10px] text-zinc-500 mt-1.5 uppercase tracking-wide">
+                <span className='text-[10px] text-zinc-500 mt-1.5 uppercase tracking-wide'>
                   With limited-offer promo
                 </span>
               </div>
-              <div className="w-px bg-transparent" aria-hidden />
-              <div className="flex flex-col items-center justify-center px-3 py-3">
-                <div className="flex items-baseline gap-0.5 font-mono tabular-nums">
-                  <span className="text-3xl sm:text-4xl font-bold text-white leading-none">
+              <div className='w-px bg-transparent' aria-hidden />
+              <div className='flex flex-col items-center justify-center px-3 py-3'>
+                <div className='flex items-baseline gap-0.5 font-mono tabular-nums'>
+                  <span className='text-3xl sm:text-4xl font-bold text-white leading-none'>
                     {String(mm).padStart(2, "0")}
                   </span>
-                  <span className="text-2xl text-white/60 pb-1">:</span>
-                  <span className="text-3xl sm:text-4xl font-bold text-white leading-none">
+                  <span className='text-2xl text-white/60 pb-1'>:</span>
+                  <span className='text-3xl sm:text-4xl font-bold text-white leading-none'>
                     {String(ss).padStart(2, "0")}
                   </span>
                 </div>
-                <div className="flex gap-6 mt-1 text-[10px] text-zinc-500 uppercase tracking-wider">
+                <div className='flex gap-6 mt-1 text-[10px] text-zinc-500 uppercase tracking-wider'>
                   <span>minutes</span>
                   <span>seconds</span>
                 </div>
@@ -208,13 +225,13 @@ export function LowCreditsPromoModal({
           </div>
 
           <Button
-            type="button"
+            type='button'
             disabled={loading}
             onClick={() => {
               onUpgrade();
               handleClose();
             }}
-            className="w-full h-12 rounded-xl bg-[#1dff00] text-black font-bold text-sm sm:text-base hover:bg-[#1dff00] hover:brightness-110 shadow-[0_0_24px_rgba(29,255,0,0.35)] hover:shadow-[0_0_32px_rgba(29,255,0,0.45)] transition-all"
+            className='w-full h-12 rounded-xl bg-brand text-black font-bold text-sm sm:text-base hover:bg-brand hover:brightness-110 shadow-[0_0_24px_rgba(29,255,0,0.35)] hover:shadow-[0_0_32px_rgba(29,255,0,0.45)] transition-all'
           >
             Get your upgrade discount
           </Button>

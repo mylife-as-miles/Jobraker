@@ -123,13 +123,21 @@ export const ResumeHomePage = () => {
           <div className='product-control-surface'>
             <button
               onClick={() => setViewMode("grid")}
-              className={viewMode === "grid" ? "product-control-button-active" : "product-control-button"}
+              className={
+                viewMode === "grid"
+                  ? "product-control-button-active"
+                  : "product-control-button"
+              }
             >
               <Grid className='w-4 h-4' />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={viewMode === "list" ? "product-control-button-active" : "product-control-button"}
+              className={
+                viewMode === "list"
+                  ? "product-control-button-active"
+                  : "product-control-button"
+              }
             >
               <List className='w-4 h-4' />
             </button>
@@ -137,7 +145,7 @@ export const ResumeHomePage = () => {
 
           <Button
             onClick={handleCreateNew}
-            className='bg-[#1dff00] text-black hover:bg-[#1dff00]/90 gap-2 font-semibold'
+            className='bg-brand text-foreground hover:bg-brand/90 gap-2 font-semibold'
           >
             <Plus className='w-4 h-4' />
             Create New
@@ -151,10 +159,10 @@ export const ResumeHomePage = () => {
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className='aspect-[3/4] rounded-xl bg-foreground/40 border border-foreground/5 overflow-hidden flex flex-col'
+              className='aspect-[3/4] rounded-xl border border-foreground/10 overflow-hidden flex flex-col'
             >
               {/* Preview skeleton */}
-              <div className='flex-1 bg-gradient-to-br from-foreground/5 to-foreground/5 relative overflow-hidden'>
+              <div className='flex-1 bg-foreground/5 relative overflow-hidden'>
                 <div
                   className='absolute inset-0 bg-gradient-to-r from-transparent via-foreground/40 to-transparent animate-[shimmer_1.5s_infinite] -translate-x-full'
                   style={{ animation: `shimmer 1.5s infinite ${i * 0.15}s` }}
@@ -162,16 +170,16 @@ export const ResumeHomePage = () => {
                 {/* Fake resume lines */}
                 <div className='p-6 space-y-3 pt-8'>
                   <div className='h-3 bg-foreground/5 rounded-full w-2/3 mx-auto' />
-                  <div className='h-2 bg-foreground/40 rounded-full w-1/2 mx-auto' />
+                  <div className='h-2 bg-foreground/5 rounded-full w-1/2 mx-auto' />
                   <div className='h-px bg-foreground/5 w-full mt-4' />
                   <div className='space-y-2 mt-4'>
-                    <div className='h-2 bg-foreground/40 rounded-full w-1/3' />
+                    <div className='h-2 bg-foreground/5 rounded-full w-1/3' />
                     <div className='h-2 bg-foreground/5 rounded-full w-full' />
                     <div className='h-2 bg-foreground/5 rounded-full w-5/6' />
                     <div className='h-2 bg-foreground/5 rounded-full w-4/6' />
                   </div>
                   <div className='space-y-2 mt-4'>
-                    <div className='h-2 bg-foreground/40 rounded-full w-1/4' />
+                    <div className='h-2 bg-foreground/5 rounded-full w-1/4' />
                     <div className='h-2 bg-foreground/5 rounded-full w-full' />
                     <div className='h-2 bg-foreground/5 rounded-full w-3/4' />
                   </div>
@@ -194,15 +202,18 @@ export const ResumeHomePage = () => {
             <motion.div
               key={resume.id}
               whileHover={{ y: -5 }}
-              className='aspect-[3/4] rounded-xl bg-foreground/10 border overflow-hidden group hover:shadow-xl transition-all relative flex flex-col'
+              className='aspect-[3/4] rounded-xl bg-foreground/5 border overflow-hidden group transition-all relative flex flex-col'
             >
               {/* Preview Area (Top 2/3) */}
               <div
                 onClick={() => handleEdit(resume, displayName)}
-                className='flex-1 bg-white relative cursor-pointer overflow-hidden'
+                className='flex-1 relative cursor-pointer overflow-hidden'
               >
                 {/* Mini Resume Preview */}
-                <ResumePreviewCard data={resume.data} templateId={resume.template} />
+                <ResumePreviewCard
+                  data={resume.data}
+                  templateId={resume.template}
+                />
 
                 {/* Overlay on hover */}
                 <div className='absolute inset-0 bg-foreground/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
@@ -213,7 +224,7 @@ export const ResumeHomePage = () => {
               </div>
 
               {/* Meta Info (Bottom) */}
-              <div className='p-4 border-t border-[#ffffff10]'>
+              <div className='p-4'>
                 <div className='flex items-start justify-between'>
                   <div>
                     <h3 className='font-semibold text-foreground truncate pr-2'>
@@ -230,7 +241,7 @@ export const ResumeHomePage = () => {
                     onClick={(event) =>
                       handleDeleteRequest(resume, displayName, event)
                     }
-                    className='rounded-lg p-2 text-foreground/45 transition-colors hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
+                    className='rounded-lg p-2 text-foreground/45 transition-colors hover:bg-red-500/10 hover:text-red-500'
                     title='Delete resume'
                     aria-label={`Delete ${displayName}`}
                   >
@@ -245,9 +256,9 @@ export const ResumeHomePage = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleCreateNew}
-            className='product-section-card-muted aspect-[3/4] border-dashed hover:border-[#1dff00]/60 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
+            className=' aspect-[3/4] border rounded-2xl border-foreground/20 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
           >
-            <div className='w-16 h-16 rounded-full bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00] group-hover:scale-110 transition-transform'>
+            <div className='w-16 h-16 rounded-full bg-brand/10 flex items-center justify-center text-brand group-hover:scale-110 transition-transform'>
               <Plus className='w-8 h-8' />
             </div>
             <span className='font-medium text-foreground/60 group-hover:text-foreground transition-colors'>
@@ -260,25 +271,25 @@ export const ResumeHomePage = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleImportClick}
-            className='product-section-card-muted aspect-[3/4] border-dashed hover:border-[#1dff00]/60 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative'
+            className='border rounded-2xl border-foreground/20 aspect-[3/4] cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative'
           >
             {isImporting ? (
               <div className='flex flex-col items-center gap-3'>
-                <div className='w-8 h-8 border-2 border-[#1dff00] border-t-transparent rounded-full animate-spin' />
+                <div className='w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin' />
                 <span className='text-xs text-foreground/60 animate-pulse'>
                   Analyzing PDF...
                 </span>
               </div>
             ) : (
               <>
-                <div className='w-16 h-16 rounded-full bg-foreground/5 flex items-center justify-center text-[#1dff00]  group-hover:scale-110 transition-transform'>
+                <div className='w-16 h-16 rounded-full bg-foreground/5 flex items-center justify-center text-brand  group-hover:scale-110 transition-transform'>
                   <Upload className='w-8 h-8' />
                 </div>
                 <span className='font-medium text-foreground/60 group-hover:text-foreground transition-colors'>
-                Import Existing
-              </span>
-            </>
-          )}
+                  Import Existing
+                </span>
+              </>
+            )}
           </motion.div>
         </div>
       )}
@@ -294,14 +305,16 @@ export const ResumeHomePage = () => {
           {normalizedResumes.map(({ record: resume, displayName }) => (
             <div
               key={resume.id}
-              className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 hover:border-[#1dff00]/45 items-center transition-all group'
+              className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 hover:border-brand/45 items-center transition-all group'
             >
               <div className='col-span-6 flex items-center gap-4'>
                 <div className='product-muted-icon-chip w-10 h-10 rounded-lg flex items-center justify-center'>
                   <FileText className='w-5 h-5 text-foreground/60' />
                 </div>
                 <div>
-                  <h3 className='font-semibold text-foreground'>{displayName}</h3>
+                  <h3 className='font-semibold text-foreground'>
+                    {displayName}
+                  </h3>
                   <p className='product-helper-text text-xs'>A4 - PDF</p>
                 </div>
               </div>
@@ -311,20 +324,20 @@ export const ResumeHomePage = () => {
               <div className='col-span-3 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
                 <button
                   onClick={() => handleEdit(resume, displayName)}
-                  className='p-2 product-helper-text hover:text-foreground hover:bg-[#1dff00]/10 rounded-lg transition-colors'
+                  className='p-2 product-helper-text hover:text-foreground hover:bg-brand/10 rounded-lg transition-colors'
                   title='Edit'
                 >
                   <Edit2 className='w-4 h-4' />
                 </button>
                 <button
-                  className='p-2 product-helper-text hover:text-foreground hover:bg-[#1dff00]/10 rounded-lg transition-colors'
+                  className='p-2 product-helper-text hover:text-foreground hover:bg-brand/10 rounded-lg transition-colors'
                   title='Download'
                 >
                   <Download className='w-4 h-4' />
                 </button>
                 <button
                   type='button'
-                  className='p-2 text-foreground/60 hover:text-[#1dff00] hover:bg-[#1dff00]/10 rounded-lg'
+                  className='p-2 text-foreground/60 hover:text-brand hover:bg-brand/10 rounded-lg'
                   title='Delete'
                   onClick={() => handleDeleteRequest(resume, displayName)}
                 >
@@ -336,10 +349,10 @@ export const ResumeHomePage = () => {
 
           <div
             onClick={handleCreateNew}
-            className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 border-dashed hover:border-[#1dff00]/60 cursor-pointer items-center group transition-all'
+            className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 border-dashed hover:border-brand/60 cursor-pointer items-center group transition-all'
           >
             <div className='col-span-6 flex items-center gap-3'>
-              <div className='w-10 h-10 rounded-lg bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00]'>
+              <div className='w-10 h-10 rounded-lg bg-brand/10 flex items-center justify-center text-brand'>
                 <Plus className='w-5 h-5' />
               </div>
               <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
