@@ -25,6 +25,7 @@ import { TourProvider } from "./providers/TourProvider"; // Product tour context
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ROUTES } from "./routes";
 import { ToastEventBridge } from "./components/system/ToastEventBridge";
+import { InputSecurityGuard } from "./components/system/InputSecurityGuard";
 import { AnimatePresence } from "framer-motion";
 import { PageTransition } from "./components/transitions";
 import AdminCheckCredits from "@/pages/AdminCheckCredits";
@@ -234,6 +235,7 @@ function App() {
         {/* Global providers */}
         <ToastProvider>
           <AppearanceProvider>
+            <InputSecurityGuard />
             <ToastEventBridge />
             <AnimatedRoutes />
           </AppearanceProvider>

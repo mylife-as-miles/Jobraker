@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabaseClient";
+import { sanitizeStructuredPayload } from "@/lib/inputSecurity";
 
 type InvokeProtectedFunctionOptions = {
   body?: unknown;
@@ -95,7 +96,7 @@ function buildFunctionRequest(functionName: string, options: InvokeProtectedFunc
       if (!headers.has("content-type")) {
         headers.set("content-type", "application/json");
       }
-      body = JSON.stringify(options.body);
+      body = JSON.stringify(sanitizeStructuredPayload(options.body));
     }
   }
 
