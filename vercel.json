@@ -3,13 +3,7 @@
     {
       "source": "/",
       "has": [{ "type": "host", "value": "admin.jobraker.io" }],
-      "destination": "/admin",
-      "permanent": false
-    },
-    {
-      "source": "/dashboard/:path*",
-      "has": [{ "type": "host", "value": "admin.jobraker.io" }],
-      "destination": "/admin",
+      "destination": "/admin/overview",
       "permanent": false
     },
     {
