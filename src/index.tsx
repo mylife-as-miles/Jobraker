@@ -9,6 +9,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { LandingPage } from "./screens/LandingPage";
+import { WaitlistPage } from "./screens/Waitlist/WaitlistPage";
 import { JobrackerSignup } from "./screens/JobrackerSignup";
 import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
@@ -90,6 +91,16 @@ function AnimatedRoutes() {
                 <LandingPage />
               </PageTransition>
             </PublicOnly>
+          }
+        />
+
+        {/* Waitlist Page */}
+        <Route
+          path='/waitlist'
+          element={
+            <PageTransition>
+              <WaitlistPage />
+            </PageTransition>
           }
         />
 
