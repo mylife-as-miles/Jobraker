@@ -43,8 +43,6 @@
 
 * {
   font-variant-ligatures: none;
-
-  @apply border-current;
 }
 
 /* Avoid globally disabling scroll; scope overflow rules to specific layouts instead */
