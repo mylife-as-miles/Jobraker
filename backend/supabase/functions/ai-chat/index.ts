@@ -1245,7 +1245,22 @@ const AGENT_FUNCTION_DECLARATIONS = [
         resume_status: { type: "string", description: "One of: Active, Draft, Archived" },
         set_experience_items: {
           type: "array",
-          description: "Replaces data.sections.experience.items in the builder for the selected resume(s).",
+          description:
+            "Replaces data.sections.experience.items in the builder for the selected resume(s).",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string", description: "Optional; omit to assign a new id" },
+              company: { type: "string" },
+              position: { type: "string" },
+              title: { type: "string", description: "Alias for job title (maps to position)" },
+              period: { type: "string" },
+              date: { type: "string" },
+              location: { type: "string" },
+              description: { type: "string", description: "Role summary and achievement bullets" },
+              summary: { type: "string" },
+            },
+          },
         },
       },
     },
