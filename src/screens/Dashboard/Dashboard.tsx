@@ -98,21 +98,21 @@ const SidebarItem = ({
     variant='ghost'
     onClick={onClick}
     title={isCollapsed ? item.label : undefined}
-    className={`w-full justify-start rounded-xl mb-1 transition-all duration-200 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${
+    className={`w-full justify-start rounded-xl mb-1 transition-all duration-0 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${
       isActive
-        ? "text-foreground bg-brand/10 border border-brand/20"
+        ? "text-foreground bg-brand/10 border border-brand/20 hover:bg-brand/10"
         : "text-foreground/60 hover:text-foreground/40 hover:bg-foreground/5"
     } ${isCollapsed ? "justify-center px-2" : ""}`}
   >
     {isActive && (
-      <div className='absolute left-0 top-0 bottom-0 w-1 bg-brand shadow-[0_0_10px_#1dff00]' />
+      <div className='absolute left-0 top-0 bottom-0 w-1 bg-brand shadow-[0_0_10px] shadow-brand' />
     )}
     <span
       className={`relative z-10 transition-all ${isCollapsed ? "" : "mr-3"}`}
     >
       {item.icon}
     </span>
-    <span className={`relative ${isCollapsed ? "hidden" : ""}`}>
+    <span className={`relative w-full text-start ${isCollapsed ? "hidden" : ""}`}>
       {item.label}
     </span>
   </Button>
@@ -474,8 +474,7 @@ export const Dashboard = (): JSX.Element => {
       {/* Sidebar - Modern & Advanced */}
       <div
         className={`
-        fixed inset-y-0 left-0 z-50 bg-card/95 backdrop-blur-xl border-r border-border/40 flex flex-col
-        shadow-2xl shadow-fore/20 overflow-hidden transition-all duration-300
+        fixed inset-y-0 left-0 z-50 bg-card/95 backdrop-blur-xl border-r border-border/40 flex flex-col overflow-hidden transition-all duration-200
         ${sidebarOpen ? "translate-x-0 w-72" : "-translate-x-full lg:translate-x-0"}
         ${isCollapsed && isDesktop ? "lg:w-20" : "lg:w-72"}
       `}
@@ -765,7 +764,7 @@ export const Dashboard = (): JSX.Element => {
               >
                 <Bell className='w-4 h-4 sm:w-5 sm:h-5' />
                 {unreadCount > 0 && (
-                  <span className='absolute -top-1 -right-1 min-w-3 h-3 sm:min-w-4 sm:h-4 lg:min-w-5 lg:h-5 bg-brand rounded-full text-fore text-[10px] font-bold flex items-center justify-center animate-pulse px-[2px]'>
+                  <span className='absolute -top-1 -right-1 min-w-3 h-3 sm:min-w-4 sm:h-4 lg:min-w-5 lg:h-5 bg-brand/80 rounded-full text-foreground text-[10px] font-bold flex items-center justify-center px-[2px]'>
                     <span className='hidden sm:inline text-xs max-w-[2.5rem] truncate'>
                       {unreadCount}
                     </span>
@@ -786,13 +785,12 @@ export const Dashboard = (): JSX.Element => {
               ) : (
                 <Button
                   variant='ghost'
-                  size='sm'
-                  className='hidden sm:flex items-center space-x-2 sm:space-x-3 text-muted-foreground hover:text-foreground hover:bg-muted hover:scale-105 transition-all duration-300 p-1 sm:p-2'
+                  className='hidden sm:flex items-center space-x-2 sm:space-x-3 text-muted-foreground hover:text-foreground hover:bg-muted hover:scale-105 transition-all duration-300 sm:p-2'
                   onClick={() => navigate("/dashboard/profile")}
                   title='Profile'
                   aria-label='Open profile'
                 >
-                  <div className='w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-brand to-background rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300'>
+                  <div className='w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-brand/80 rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300'>
                     {avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img

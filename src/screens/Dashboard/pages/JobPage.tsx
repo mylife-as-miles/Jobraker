@@ -3575,7 +3575,7 @@ export const JobPage = (): JSX.Element => {
         )}
 
         <Card
-          className='relative overflow-hidden  border border-foreground/10 p-3 sm:p-4 mb-6 sm:mb-8 rounded-2xl transition-colors duration-300 '
+          className='relative overflow-hidden border-none mb-6 sm:mb-8 rounded-2xl transition-colors duration-300 '
           id='jobs-search-filters'
           data-tour='jobs-search-filters'
         >

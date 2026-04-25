@@ -43,7 +43,7 @@ export function IndustriesCard({
       transition={{ duration: 0.45, delay: 0.05 }}
       className='h-full'
     >
-      <Card className='h-full overflow-hidden border border-border bg-card/90 shadow-sm'>
+      <Card className='h-full overflow-hidden border border-foreground/10 bg-card/90 shadow-sm'>
         <div className='flex h-full flex-col p-5 sm:p-6'>
           <div className='mb-5 flex items-start justify-between gap-3'>
             <div>
@@ -58,7 +58,7 @@ export function IndustriesCard({
                 Top discovery channels in {String(period).toUpperCase()}
               </p>
             </div>
-            <div className='rounded-2xl border border-border bg-background/70 px-3 py-2 text-right'>
+            <div className='rounded-2xl border border-foreground/10 bg-background/70 px-3 py-2 text-right'>
               <div className='text-[11px] uppercase tracking-wide text-foreground/50'>
                 Distinct sources
               </div>
@@ -69,7 +69,7 @@ export function IndustriesCard({
           </div>
 
           <div className='mb-4 grid grid-cols-2 gap-3'>
-            <div className='rounded-2xl border border-border bg-background/60 p-3'>
+            <div className='rounded-2xl border border-foreground/10 bg-background/60 p-3'>
               <div className='flex items-center gap-2 text-xs uppercase tracking-wide text-foreground/50'>
                 <SearchCheck className='h-4 w-4 text-brand' />
                 Jobs found
@@ -78,7 +78,7 @@ export function IndustriesCard({
                 {metrics.jobsFound}
               </div>
             </div>
-            <div className='rounded-2xl border border-border bg-background/60 p-3'>
+            <div className='rounded-2xl border border-foreground/10 bg-background/60 p-3'>
               <div className='flex items-center gap-2 text-xs uppercase tracking-wide text-foreground/50'>
                 <Layers className='h-4 w-4 text-brand' />
                 Interviews

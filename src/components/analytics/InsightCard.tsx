@@ -95,7 +95,7 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
       transition={{ duration: 0.45 }}
       className='h-full'
     >
-      <Card className='h-full overflow-hidden border border-border bg-card/90 shadow-sm'>
+      <Card className='h-full overflow-hidden border border-foreground/10 bg-card/90 shadow-sm'>
         <div className='flex h-full flex-col p-5 sm:p-6'>
           <div className='mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
             <div className='space-y-3'>
@@ -112,7 +112,7 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
             </div>
 
             <div className='grid grid-cols-2 gap-3 sm:min-w-[320px]'>
-              <div className='rounded-2xl border border-border bg-background/70 p-4'>
+              <div className='rounded-2xl border border-foreground/10 bg-background/70 p-4'>
                 <div className='flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-foreground/55'>
                   <Briefcase className='h-4 w-4 text-[#56c2ff]' />
                   Jobs found
@@ -121,7 +121,7 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
                   {metrics.jobsFound}
                 </div>
               </div>
-              <div className='rounded-2xl border border-border bg-background/70 p-4'>
+              <div className='rounded-2xl border border-foreground/10 bg-background/70 p-4'>
                 <div className='flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-foreground/55'>
                   <Target className='h-4 w-4 text-brand' />
                   Applications
@@ -134,7 +134,7 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
           </div>
 
           <div className='mb-4 grid grid-cols-1 gap-3 md:grid-cols-3'>
-            <div className='rounded-2xl border border-border bg-background/60 p-3'>
+            <div className='rounded-2xl border border-foreground/10 bg-background/60 p-3'>
               <div className='text-xs uppercase tracking-wide text-foreground/50'>
                 Interviews
               </div>
@@ -142,7 +142,7 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
                 {metrics.interviews}
               </div>
             </div>
-            <div className='rounded-2xl border border-border bg-background/60 p-3'>
+            <div className='rounded-2xl border border-foreground/10 bg-background/60 p-3'>
               <div className='text-xs uppercase tracking-wide text-foreground/50'>
                 Avg. match
               </div>
@@ -150,7 +150,7 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
                 {metrics.avgMatchScore}%
               </div>
             </div>
-            <div className='rounded-2xl border border-border bg-background/60 p-3'>
+            <div className='rounded-2xl border border-foreground/10 bg-background/60 p-3'>
               <div className='text-xs uppercase tracking-wide text-foreground/50'>
                 Peak activity
               </div>
@@ -253,7 +253,7 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className='flex h-full min-h-[250px] items-center justify-center rounded-2xl border border-dashed border-border bg-background/45 text-sm text-foreground/55'>
+              <div className='flex h-full min-h-[250px] items-center justify-center rounded-2xl border border-dashed border-foreground/10 bg-background/45 text-sm text-foreground/55'>
                 No activity data is available for this period yet.
               </div>
             )}

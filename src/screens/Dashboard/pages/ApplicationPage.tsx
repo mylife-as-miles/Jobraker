@@ -961,7 +961,7 @@ function ApplicationPage() {
       </div>
 
       {/* Toolbar */}
-      <Card className='relative overflow-hidden p-6 border border-foreground/10'>
+      <Card className='relative overflow-hidden border-none'>
        
         <div className='relative z-10 flex flex-col gap-5'>
           <div className='flex flex-col sm:flex-row gap-4'>

@@ -1551,7 +1551,7 @@ export const ChatPage = () => {
                             handleSubmit({ text } as any);
                         }
                       }}
-                      className='w-full bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground py-3 px-4 resize-none min-h-[48px] max-h-48 text-base leading-relaxed scrollbar-hide'
+                      className='w-full bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground py-3 px-4 resize-none min-h-[48px] max-h-48 text-base outline-none leading-relaxed scrollbar-hide'
                       placeholder='Ask detailed questions about your career...'
                       rows={1}
                       style={{ height: "auto", minHeight: "52px" }}

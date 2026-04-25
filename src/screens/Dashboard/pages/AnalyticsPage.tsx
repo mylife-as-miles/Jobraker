@@ -115,12 +115,11 @@ export function AnalyticsPage() {
 
         {/* Controls Card */}
         <Card
-          className='relative overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  border border-brand/20 p-5 sm:p-6 rounded-2xl shadow-[0_0_30px_rgba(29,255,0,0.1)] backdrop-blur-xl'
+          className='relative overflow-hidden border border-foreground/10 p-5 sm:p-6 rounded-2xl '
           id='analytics-controls'
           data-tour='analytics-controls'
         >
-          {/* Subtle gradient overlay */}
-          <div className='absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none'></div>
+       
 
           <div className='relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4'>
             <div className='flex flex-wrap items-center gap-3'>
@@ -133,7 +132,7 @@ export function AnalyticsPage() {
                   onClick={() => setGranularityAndPersist(g)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 ${
                     granularity === g
-                      ? "bg-gradient-to-br from-brand/20 to-brand/10 text-brand border-brand/50 shadow-[0_0_15px_rgba(29,255,0,0.2)]"
+                      ? "bg-gradient-to-br from-brand/20 to-brand/10 text-brand border-foreground/10"
                       : "border-foreground/20 text-foreground/70 hover:bg-foreground/10 hover:border-foreground/30"
                   }`}
                 >
@@ -163,7 +162,7 @@ export function AnalyticsPage() {
             <div className='flex items-center gap-3'>
               <Button
                 variant='outline'
-                className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-brand/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
+                className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-foreground/10 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
                 onClick={() => analytics.refresh?.({ bypassCache: true })}
               >
                 <RefreshCw
@@ -173,7 +172,7 @@ export function AnalyticsPage() {
               </Button>
               <Button
                 variant='outline'
-                className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-brand/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
+                className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-foreground/10 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
                 disabled={analytics.loading}
                 onClick={() => analytics.exportCSV?.()}
               >
@@ -194,7 +193,7 @@ export function AnalyticsPage() {
               </Button>
               <Button
                 variant='outline'
-                className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-brand/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
+                className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-foreground/10 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
                 disabled={analytics.loading}
                 onClick={() => analytics.exportJSON?.()}
               >
@@ -218,7 +217,7 @@ export function AnalyticsPage() {
         </Card>
 
         {analytics.error && (
-          <Card className='bg-gradient-to-br from-brand/20 to-brand/20 border-brand/50 rounded-2xl p-4'>
+          <Card className='bg-gradient-to-br from-brand/20 to-brand/20 border-foreground/10 rounded-2xl p-4'>
             <div className='text-sm text-brand'>{analytics.error}</div>
           </Card>
         )}
