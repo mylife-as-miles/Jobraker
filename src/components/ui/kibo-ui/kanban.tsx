@@ -1,6 +1,5 @@
 "use client";
 import React, { createContext, useContext, useMemo } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 
 type Column = { id: string; name: string; color?: string };
 type Item = { id: string; column: string; [key: string]: any };
@@ -102,7 +101,7 @@ export function KanbanCards<T extends Item>({
 
   return (
     <div
-      className={`space-y-3 min-h-[120px] rounded-lg transition-all duration-300 ${isDragOver ? "bg-foreground/5 ring-2 ring-white/20 ring-inset border-2 border-dashed border-foreground/20" : ""}`}
+      className={`space-y-3 min-h-[120px] rounded-lg transition-colors duration-200 ${isDragOver ? "bg-foreground/5 ring-2 ring-white/20 ring-inset border-2 border-dashed border-foreground/20" : ""}`}
       onDragOver={(e) => {
         if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
         e.preventDefault();
@@ -125,20 +124,11 @@ export function KanbanCards<T extends Item>({
           <p className='text-[10px] text-foreground/30 mt-1'>Drag cards here</p>
         </div>
       )}
-      <AnimatePresence initial={false}>
-        {items.map((it) => (
-          <motion.div
-            key={it.id}
-            layout
-            initial={{ opacity: 0, y: 12, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          >
-            {children(it)}
-          </motion.div>
-        ))}
-      </AnimatePresence>
+      {items.map((it) => (
+        <div key={it.id}>
+          {children(it)}
+        </div>
+      ))}
     </div>
   );
 }
@@ -166,24 +156,20 @@ export function KanbanCard({
   };
 
   return (
-    <motion.div
-      layout
+    <div
       className={`group relative rounded-lg border bg-gradient-to-br from-background to-background/95 p-4 transition-all duration-200 cursor-grab active:cursor-grabbing ${
         isDragging
           ? "border-brand/50 shadow-[0_0_30px_rgba(29,255,0,0.3)] scale-105 opacity-50"
-          : "border-foreground/8 hover:border-foreground/15 bg-background shadow-sm hover:shadow-md"
+          : "border-foreground/8 hover:border-foreground/15 hover:translate-y-[-1px] bg-background shadow-sm hover:shadow-md"
       }`}
       draggable
-      onDragStart={handleDragStart as any}
-      onDragEnd={handleDragEnd as any}
-      whileHover={{ scale: isDragging ? 1.05 : 1.01, y: -1 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
     >
       {/* Subtle gradient overlay on hover */}
       <div className='absolute inset-0 rounded-lg bg-gradient-to-br from-white/[0.015] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none' />
 
       <div className='relative'>{children}</div>
-    </motion.div>
+    </div>
   );
 }

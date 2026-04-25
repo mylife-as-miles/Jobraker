@@ -1,4 +1,4 @@
-import SortDropdown from "@/components/SortDropdown";
+﻿import SortDropdown from "@/components/SortDropdown";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -461,7 +461,7 @@ function ApplicationPage() {
   >("All");
   const [sortBy, setSortBy] = useState<SortOption>("score");
   const [viewMode, setViewMode] = useState<
-    "gantt" | "list" | "kanban" | "calendar" | "table"
+    "gantt" | "kanban" | "calendar" | "table"
   >("gantt");
   const [ganttZoom, setGanttZoom] = useState(() => {
     const z = Number(localStorage.getItem("jr.apps.gantt.zoom") || "1");
@@ -521,7 +521,6 @@ function ApplicationPage() {
       if (
         qsView &&
         (qsView === "gantt" ||
-          qsView === "list" ||
           qsView === "kanban" ||
           qsView === "calendar" ||
           qsView === "table")
@@ -538,7 +537,6 @@ function ApplicationPage() {
         if (
           !qsView &&
           (p.viewMode === "gantt" ||
-            p.viewMode === "list" ||
             p.viewMode === "kanban" ||
             p.viewMode === "calendar" ||
             p.viewMode === "table")
@@ -996,16 +994,6 @@ function ApplicationPage() {
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "list" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
-                  title='List view'
-                  onClick={() => setViewMode("list")}
-                >
-                  <ListIcon className='w-5 h-5' />
-                  {viewMode === "list" && (
-                    <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#1dff00] to-transparent'></div>
-                  )}
-                </button>
-                <button
                   className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "kanban" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Kanban view'
                   onClick={() => setViewMode("kanban")}
@@ -1257,237 +1245,7 @@ function ApplicationPage() {
                 </div>
               </div>
             )}
-            {false && viewMode === "list" && (
-              <div className='border border-[#1dff00]/20 rounded-2xl bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] overflow-hidden'>
-                {/* Ambient glow */}
-                <div className='pointer-events-none absolute -top-20 left-0 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40' />
 
-                <ListProvider
-                  onDragEnd={async (e: ListDragEndEvent) => {
-                    const active = e.active?.data?.current as any;
-                    const over = e.over?.id as string | undefined;
-                    if (!active || !over || active.parent === over) return;
-                    const appId = active.id as string;
-                    try {
-                      await update(appId, {
-                        status: over as ApplicationStatus,
-                      });
-                    } catch {
-                      await refresh();
-                    }
-                  }}
-                  className='divide-y divide-[#1dff00]/5'
-                >
-                  {APPLICATION_STATUS_OPTIONS.map((status) => {
-                    const rows = filtered.filter((a) => a.status === status);
-                    const color = getApplicationStatusColor(status);
-                    if (rows.length === 0 && selectedStatus !== "All")
-                      return null;
-                    return (
-                      <ListGroup
-                        key={status}
-                        id={status}
-                        className='flex flex-col'
-                      >
-                        <ListHeader
-                          name={status}
-                          color={color}
-                          className='sticky top-0 z-10 backdrop-blur-xl bg-background/95 border-b border-[#1dff00]/10'
-                        >
-                          <div className='flex items-center gap-3 px-4 py-3'>
-                            <div
-                              className='h-2 w-2 rounded-full shadow-[0_0_8px_currentColor]'
-                              style={{ backgroundColor: color }}
-                            />
-                            <span className='text-sm font-semibold text-foreground/90'>
-                              {status}
-                            </span>
-                            <span
-                              className='ml-auto inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium bg-foreground/5'
-                              style={{ borderColor: color + "40", color }}
-                            >
-                              {rows.length}
-                            </span>
-                          </div>
-                        </ListHeader>
-                        <ListItems className='grid flex-none gap-3 p-3 sm:p-4'>
-                          {rows.length === 0 && (
-                            <div className='rounded-2xl border border-dashed border-foreground/10 bg-foreground/[0.02] px-6 py-10 text-center'>
-                              <div className='mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-foreground/10 bg-foreground/[0.04]'>
-                                <div className='h-6 w-6 rounded-xl bg-gradient-to-br from-foreground/10 to-transparent' />
-                              </div>
-                              <div className='text-xs font-medium uppercase tracking-[0.16em] text-foreground/35'>
-                                No {status.toLowerCase()} applications
-                              </div>
-                            </div>
-                          )}
-                          {rows.map((a, idx) => (
-                            <ListItem
-                              key={a.id}
-                              id={a.id}
-                              name={a.job_title}
-                              index={idx}
-                              parent={status}
-                              className='group relative overflow-hidden rounded-[1.4rem] border-0 bg-transparent p-0 shadow-none'
-                            >
-                              <div
-                                className='w-full cursor-pointer rounded-[1.4rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.018))] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)] transition-[border-color,box-shadow,transform,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-[#1dff00]/28 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.024))] hover:shadow-[0_22px_48px_rgba(0,0,0,0.32)] active:scale-[0.985]'
-                                onClick={() => setDetailId(a.id)}
-                              >
-                                <div className='flex items-start gap-4'>
-                                  <CompanyMark
-                                    logo={a.logo}
-                                    company={a.company}
-                                    jobTitle={a.job_title}
-                                  />
-
-                                  <div className='min-w-0 flex-1'>
-                                  <div className='flex items-center gap-2 mb-1'>
-                                    <h3
-                                      className='text-foreground text-base font-semibold truncate'
-                                      title={a.job_title}
-                                    >
-                                      {a.job_title}
-                                    </h3>
-                                    <MatchScoreBadge
-                                      score={a.match_score ?? 0}
-                                    />
-                                  </div>
-                                  <div className='text-foreground/60 text-sm font-medium truncate mb-2'>
-                                    {a.company}
-                                  </div>
-                                  <div className='flex flex-wrap items-center gap-2 text-xs text-foreground/40'>
-                                    <span className='inline-flex items-center gap-1'>
-                                      <svg
-                                        className='w-3.5 h-3.5'
-                                        fill='none'
-                                        viewBox='0 0 24 24'
-                                        stroke='currentColor'
-                                      >
-                                        <path
-                                          strokeLinecap='round'
-                                          strokeLinejoin='round'
-                                          strokeWidth={2}
-                                          d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'
-                                        />
-                                      </svg>
-                                      {new Date(
-                                        a.applied_date,
-                                      ).toLocaleDateString()}
-                                    </span>
-                                    {a.location && (
-                                      <>
-                                        <span>•</span>
-                                        <span className='inline-flex items-center gap-1 truncate max-w-[150px]'>
-                                          <svg
-                                            className='w-3.5 h-3.5 flex-shrink-0'
-                                            fill='none'
-                                            viewBox='0 0 24 24'
-                                            stroke='currentColor'
-                                          >
-                                            <path
-                                              strokeLinecap='round'
-                                              strokeLinejoin='round'
-                                              strokeWidth={2}
-                                              d='M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z'
-                                            />
-                                            <path
-                                              strokeLinecap='round'
-                                              strokeLinejoin='round'
-                                              strokeWidth={2}
-                                              d='M15 11a3 3 0 11-6 0 3 3 0 016 0z'
-                                            />
-                                          </svg>
-                                          {a.location}
-                                        </span>
-                                      </>
-                                    )}
-                                    {a.interview_date && (
-                                      <>
-                                        <span>•</span>
-                                        <span className='inline-flex items-center gap-1 text-[#1dff00]'>
-                                          <svg
-                                            className='w-3.5 h-3.5'
-                                            fill='none'
-                                            viewBox='0 0 24 24'
-                                            stroke='currentColor'
-                                          >
-                                            <path
-                                              strokeLinecap='round'
-                                              strokeLinejoin='round'
-                                              strokeWidth={2}
-                                              d='M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z'
-                                            />
-                                          </svg>
-                                          Interview{" "}
-                                          {new Date(
-                                            a.interview_date,
-                                          ).toLocaleDateString()}
-                                        </span>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Quick Actions */}
-                                <div className='flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity'>
-                                  {a.app_url && (
-                                    <a
-                                      href={applyMicro1ReferralToUrl(a.app_url)}
-                                      target='_blank'
-                                      rel='noreferrer'
-                                      onClick={(e) => e.stopPropagation()}
-                                      className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/20 transition-colors text-xs font-medium'
-                                    >
-                                      <ExternalLink className='w-3.5 h-3.5' />
-                                      Open
-                                    </a>
-                                  )}
-                                  {a.recording_url && (
-                                    <a
-                                      href={a.recording_url}
-                                      target='_blank'
-                                      rel='noreferrer'
-                                      onClick={(e) => e.stopPropagation()}
-                                      className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground/5 border border-foreground/10 text-foreground/60 hover:bg-foreground/10 hover:text-foreground transition-colors text-xs font-medium'
-                                    >
-                                      <Link2 className='w-3.5 h-3.5' />
-                                      Video
-                                    </a>
-                                  )}
-                                </div>
-
-                                {/* Status Badge */}
-                                <span
-                                  className='inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors'
-                                  style={{
-                                    backgroundColor: color + "15",
-                                    borderColor: color + "40",
-                                    color: color,
-                                  }}
-                                >
-                                  {a.status}
-                                </span>
-                              </div>
-                              </div>
-                            </ListItem>
-                          ))}
-                        </ListItems>
-                      </ListGroup>
-                    );
-                  })}
-                </ListProvider>
-              </div>
-            )}
-            {viewMode === "list" && (
-              <ApplicationsListView
-                filtered={filtered}
-                selectedStatus={selectedStatus}
-                update={update}
-                refresh={refresh}
-                setDetailId={setDetailId}
-              />
-            )}
             {viewMode === "calendar" && (
               <div className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background p-6 shadow-[0_0_30px_rgba(29,255,0,0.1)] overflow-hidden'>
                 {/* Ambient Glow Effect */}
