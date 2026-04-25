@@ -108,7 +108,7 @@ export function AnalyticsContent({
         <button
           type='button'
           onClick={() => gotoApplications()}
-          className='rounded-2xl border border-border bg-card/85 p-4 text-left transition hover:border-brand/35 hover:bg-card'
+          className='rounded-2xl border border-foreground/10 duration-75 ease-linear bg-card/85 p-4 text-left transition hover:border-brand/35 hover:bg-card'
         >
           <div className='mb-3 flex items-center justify-between'>
             <span className='text-xs font-medium uppercase tracking-wide text-foreground/55'>
@@ -129,7 +129,7 @@ export function AnalyticsContent({
         <button
           type='button'
           onClick={() => gotoApplications("Interview")}
-          className='rounded-2xl border border-border bg-card/85 p-4 text-left transition hover:border-[#56c2ff]/35 hover:bg-card'
+          className='rounded-2xl border border-foreground/10 duration-75 ease-linear bg-card/85 p-4 text-left transition hover:border-brand/35 hover:bg-card'
         >
           <div className='mb-3 flex items-center justify-between'>
             <span className='text-xs font-medium uppercase tracking-wide text-foreground/55'>
@@ -150,7 +150,7 @@ export function AnalyticsContent({
         <button
           type='button'
           onClick={gotoJobs}
-          className='rounded-2xl border border-border bg-card/85 p-4 text-left transition hover:border-brand/35 hover:bg-card'
+          className='rounded-2xl border border-foreground/10 duration-75 ease-linear bg-card/85 p-4 text-left transition hover:border-brand/35 hover:bg-card'
         >
           <div className='mb-3 flex items-center justify-between'>
             <span className='text-xs font-medium uppercase tracking-wide text-foreground/55'>
@@ -168,7 +168,7 @@ export function AnalyticsContent({
           </div>
         </button>
 
-        <div className='rounded-2xl border border-border bg-card/85 p-4'>
+        <div className='rounded-2xl border border-foreground/10 duration-75 ease-linear bg-card/85 p-4'>
           <div className='mb-3 flex items-center justify-between'>
             <span className='text-xs font-medium uppercase tracking-wide text-foreground/55'>
               Sources

@@ -961,10 +961,7 @@ function ApplicationPage() {
       </div>
 
       {/* Toolbar */}
-      <Card className='relative overflow-hidden p-6 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 border border-[#1dff00]/20 rounded-2xl shadow-[0_0_30px_rgba(29,255,0,0.1)] backdrop-blur-xl'>
-        {/* Subtle gradient overlay */}
-        <div className='absolute inset-0 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  pointer-events-none'></div>
-
+      <Card className='relative overflow-hidden border-none'>
         <div className='relative z-10 flex flex-col gap-5'>
           <div className='flex flex-col sm:flex-row gap-4'>
             <div className='flex-1 relative group'>

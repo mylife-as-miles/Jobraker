@@ -113,7 +113,7 @@ export function PipelineEarningsProjectionCard({
   };
 
   return (
-    <Card className='rounded-2xl border border-brand/25 bg-gradient-to-br from-card via-card to-foreground/[0.02] p-5 sm:p-6 shadow-[0_0_40px_rgba(29,255,0,0.06)]'>
+    <Card className='rounded-2xl border border-foreground/10 bg-gradient-to-br from-card via-card to-foreground/[0.02] p-5 sm:p-6'>
       <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
         <div className='min-w-0 space-y-1'>
           <div className='flex flex-wrap items-center gap-2'>

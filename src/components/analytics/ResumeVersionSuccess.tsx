@@ -53,7 +53,7 @@ export function ResumeVersionSuccess({
       transition={{ duration: 0.45, delay: 0.15 }}
       className='h-full'
     >
-      <Card className='h-full overflow-hidden border border-border bg-card/90 shadow-sm'>
+      <Card className='h-full overflow-hidden border border-foreground/10 bg-card/90 shadow-sm'>
         <div className='flex h-full flex-col p-5 sm:p-6'>
           <div className='mb-5 flex items-start justify-between gap-3'>
             <div>
@@ -68,7 +68,7 @@ export function ResumeVersionSuccess({
                 Pipeline breakdown for {String(period).toUpperCase()}
               </p>
             </div>
-            <div className='rounded-2xl border border-border bg-background/70 px-4 py-3 text-right'>
+            <div className='rounded-2xl border border-foreground/10 bg-background/70 px-4 py-3 text-right'>
               <div className='text-[11px] uppercase tracking-wide text-foreground/50'>
                 Total applications
               </div>
@@ -101,7 +101,7 @@ export function ResumeVersionSuccess({
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className='flex h-full items-center justify-center rounded-2xl border border-dashed border-border bg-background/45 text-sm text-foreground/55'>
+                <div className='flex h-full items-center justify-center rounded-2xl border border-dashed border-foreground/10 bg-background/45 text-sm text-foreground/55'>
                   No status data yet.
                 </div>
               )}
@@ -112,7 +112,7 @@ export function ResumeVersionSuccess({
                 chartData.map((item: any) => (
                   <div
                     key={item.name}
-                    className='flex items-center justify-between rounded-2xl border border-border bg-background/60 px-4 py-3'
+                    className='flex items-center justify-between rounded-2xl border border-foreground/10 bg-background/60 px-4 py-3'
                   >
                     <div className='flex items-center gap-3'>
                       <span
@@ -137,7 +137,7 @@ export function ResumeVersionSuccess({
                   </div>
                 ))
               ) : (
-                <div className='flex min-h-[160px] items-center justify-center rounded-2xl border border-dashed border-border bg-background/45 text-sm text-foreground/55'>
+                <div className='flex min-h-[160px] items-center justify-center rounded-2xl border border-dashed border-foreground/10 bg-background/45 text-sm text-foreground/55'>
                   Submit applications to populate your pipeline distribution.
                 </div>
               )}
