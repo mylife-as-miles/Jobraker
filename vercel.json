@@ -1,4 +1,16 @@
 {
+  "redirects": [
+    {
+      "source": "/dashboard/:path*",
+      "destination": "https://app.jobraker.io/dashboard/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "https://admin.jobraker.io/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/((?!assets/|.*\\..*).*)", "destination": "/index.html" }
   ]
