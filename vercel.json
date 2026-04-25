@@ -2,11 +2,13 @@
   "redirects": [
     {
       "source": "/dashboard/:path*",
+      "has": [{ "type": "host", "value": "jobraker.io" }],
       "destination": "https://app.jobraker.io/dashboard/:path*",
       "permanent": true
     },
     {
       "source": "/admin/:path*",
+      "has": [{ "type": "host", "value": "jobraker.io" }],
       "destination": "https://admin.jobraker.io/:path*",
       "permanent": true
     }
