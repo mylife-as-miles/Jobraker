@@ -28,6 +28,19 @@ export interface NotificationRow {
   created_at: string;
 }
 
+let archiveColumnAvailable = true;
+
+function isMissingArchiveColumnError(error: unknown): boolean {
+  const candidate = error as { code?: string; message?: string; details?: string; hint?: string } | null;
+  const text = [
+    candidate?.message,
+    candidate?.details,
+    candidate?.hint,
+  ].filter(Boolean).join(' ');
+
+  return candidate?.code === '42703' || /archived_at/i.test(text);
+}
+
 export function useNotifications(limit: number = 10) {
   const supabase = createClient();
   const { error: toastError, warning, info } = useToast();
@@ -40,7 +53,12 @@ export function useNotifications(limit: number = 10) {
   const [supportsStar, setSupportsStar] = useState(true);
   const [supportsPriority] = useState(true); // reserved for future conditional UI, setter removed to avoid unused var
   const [supportsSeen, setSupportsSeen] = useState(true);
-  const [supportsArchive, setSupportsArchive] = useState(true);
+  const [supportsArchive, setSupportsArchiveState] = useState(archiveColumnAvailable);
+
+  const disableArchiveSupport = useCallback(() => {
+    archiveColumnAvailable = false;
+    setSupportsArchiveState(false);
+  }, []);
 
   // Resolve user id
   useEffect(() => {
@@ -69,8 +87,8 @@ export function useNotifications(limit: number = 10) {
         .order('created_at', { ascending: false });
       if (supportsArchive) query = query.is('archived_at', null);
       const { data, error } = await query.limit(limit);
-      if (error && supportsArchive && /archived_at/i.test(String(error.message || ''))) {
-        setSupportsArchive(false);
+      if (error && supportsArchive && isMissingArchiveColumnError(error)) {
+        disableArchiveSupport();
         const fallback = await supabase
           .from('notifications')
           .select('*')
@@ -93,7 +111,7 @@ export function useNotifications(limit: number = 10) {
     } finally {
       setLoading(false);
     }
-  }, [supabase, userId, limit, supportsArchive]);
+  }, [supabase, userId, limit, supportsArchive, disableArchiveSupport]);
 
   useEffect(() => { if (userId) fetchItems(); }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -303,8 +321,8 @@ export function useNotifications(limit: number = 10) {
         .order('created_at', { ascending: false });
       if (supportsArchive) query = query.is('archived_at', null);
       const { data, error } = await query.range(from, to);
-      if (error && supportsArchive && /archived_at/i.test(String(error.message || ''))) {
-        setSupportsArchive(false);
+      if (error && supportsArchive && isMissingArchiveColumnError(error)) {
+        disableArchiveSupport();
         const fallback = await supabase
           .from('notifications')
           .select('*')
@@ -322,7 +340,7 @@ export function useNotifications(limit: number = 10) {
       setItems(prev => [...prev, ...rows]);
       setHasMore(rows.length === limit);
     } catch (e: any) { toastError('Load more failed', e.message); }
-  }, [supabase, userId, items.length, limit, hasMore, supportsArchive, toastError]);
+  }, [supabase, userId, items.length, limit, hasMore, supportsArchive, disableArchiveSupport, toastError]);
 
   const remove = useCallback(async (id: string) => {
     try {
@@ -355,15 +373,15 @@ export function useNotifications(limit: number = 10) {
       if (error) throw error;
       setItems(prev => prev.filter(n => n.id !== id));
     } catch (e: any) {
-      if (/archived_at/i.test(String(e?.message || ''))) {
-        setSupportsArchive(false);
+      if (isMissingArchiveColumnError(e)) {
+        disableArchiveSupport();
         toastError('Archive unavailable', 'Run the latest database migration to enable archiving notifications.');
         return;
       }
       toastError('Archive failed', e.message);
       throw e;
     }
-  }, [supabase, supportsArchive, toastError]);
+  }, [supabase, supportsArchive, disableArchiveSupport, toastError]);
 
   const bulkArchive = useCallback(async (ids: string[]) => {
     try {
@@ -380,15 +398,15 @@ export function useNotifications(limit: number = 10) {
       if (error) throw error;
       setItems(prev => prev.filter(n => !ids.includes(n.id)));
     } catch (e: any) {
-      if (/archived_at/i.test(String(e?.message || ''))) {
-        setSupportsArchive(false);
+      if (isMissingArchiveColumnError(e)) {
+        disableArchiveSupport();
         toastError('Archive unavailable', 'Run the latest database migration to enable archiving notifications.');
         return;
       }
       toastError('Archive failed', e.message);
       throw e;
     }
-  }, [supabase, supportsArchive, toastError]);
+  }, [supabase, supportsArchive, disableArchiveSupport, toastError]);
 
   return {
     items,

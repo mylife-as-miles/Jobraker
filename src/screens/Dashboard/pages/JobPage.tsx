@@ -1979,8 +1979,14 @@ export const JobPage = (): JSX.Element => {
           }
 
           if (!creditCheck?.available) {
+            const creditMessage =
+              typeof creditCheck?.message === "string" &&
+              creditCheck.message.trim().length > 0
+                ? creditCheck.message
+                : `Insufficient credits. Job search requires ${creditCheck?.required ?? 0} credits but you only have ${creditCheck?.current_balance ?? 0}.`;
+
             setError({
-              message: `Insufficient credits. Job search requires ${creditCheck?.required} credits but you only have ${creditCheck?.current_balance}.`,
+              message: creditMessage,
               link: "/dashboard/billing",
             });
             safeInfo(
