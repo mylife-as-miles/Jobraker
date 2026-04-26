@@ -28,6 +28,7 @@ export interface JobListing {
 export function getCorsHeaders(origin?: string): Record<string, string> {
   const allowedOrigins = [
     'https://app.jobraker.io',
+    'https://admin.jobraker.io',
     'https://jobraker.io',
     'https://www.jobraker.io',
     'https://jobraker-tau.vercel.app',

@@ -2,6 +2,7 @@
 
 const ALLOWED_ORIGINS = [
   "https://app.jobraker.io",
+  "https://admin.jobraker.io",
   "https://jobraker.io",
   "https://www.jobraker.io",
   "https://jobraker-tau.vercel.app",
