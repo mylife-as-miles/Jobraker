@@ -1197,17 +1197,7 @@ export const JobPage = (): JSX.Element => {
     isSearching: boolean;
   }) => (
     <Card className='relative overflow-hidden bg-gradient-to-br from-brand/5 via-background to-background  border border-brand/20 p-5 mb-6 rounded-2xl'>
-      <motion.div
-        className='absolute inset-0 opacity-20'
-        animate={{
-          background: [
-            "radial-gradient(400px at 0% 0%, rgba(29,255,0,0.15) 0%, transparent 100%)",
-            "radial-gradient(400px at 100% 100%, rgba(29,255,0,0.15) 0%, transparent 100%)",
-            "radial-gradient(400px at 0% 0%, rgba(29,255,0,0.15) 0%, transparent 100%)",
-          ],
-        }}
-        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-      />
+   
       <div className='relative z-10 flex flex-col sm:flex-row items-center gap-4'>
         <div className='flex-shrink-0 w-12 h-12 rounded-full bg-brand/10 flex items-center justify-center border border-brand/20'>
           {isSearching ? (
@@ -3595,7 +3585,7 @@ export const JobPage = (): JSX.Element => {
                 }}
                 className='w-full pl-4 pr-[8.25rem] sm:pr-36 border-foreground/10 text-foreground placeholder:text-foreground/40 transition-all duration-100 rounded-xl  '
               />
-              <div className='pointer-events-none absolute right-3 top-1/2 flex -translate-y-full h-10 items-center justify-center gap-2'>
+              <div className='pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 xl:-translate-y-full h-10 items-center justify-center gap-2'>
                 <span className='text-[10px] font-medium text-brand/90 bg-gradient-to-br from-brand/15 to-brand/5 px-2.5 py-1 rounded-lg border border-brand/30 whitespace-nowrap shadow-sm'>
                   {subscriptionTier === "Ultimate"
                     ? "100"
@@ -3829,18 +3819,7 @@ export const JobPage = (): JSX.Element => {
                       key={i}
                       className='relative overflow-hidden border border-brand/25 bg-gradient-to-br from-background via-background/98 to-background/95 p-5 sm:p-6'
                     >
-                      <motion.div
-                        className='absolute inset-0 bg-[linear-gradient(120deg,rgba(29,255,0,0.12)_0%,rgba(29,255,0,0.02)_38%,rgba(29,255,0,0.15)_72%,rgba(29,255,0,0.02)_100%)]'
-                        animate={{
-                          backgroundPosition: ["0% 0%", "120% 0%", "0% 0%"],
-                        }}
-                        transition={{
-                          duration: 6.5,
-                          repeat: Infinity,
-                          ease: "linear",
-                          delay: i * 0.05,
-                        }}
-                      />
+                      
                       <div className='relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
                         <div className='flex flex-1 items-start gap-4'>
                           <div className='relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border  border-foreground/10'>
