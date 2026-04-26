@@ -239,6 +239,24 @@ function AnimatedRoutes() {
   );
 }
 
+function SubdomainGuard({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const hostname = window.location.hostname;
+
+  if (
+    hostname.startsWith("admin.") &&
+    !location.pathname.startsWith("/admin") &&
+    location.pathname !== "/signin" &&
+    location.pathname !== "/login" &&
+    location.pathname !== "/signup" &&
+    !location.pathname.startsWith("/auth/")
+  ) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function App() {
   const [queryClient] = React.useState(() => new QueryClient());
 
@@ -250,7 +268,9 @@ function App() {
           <AppearanceProvider>
             <InputSecurityGuard />
             <ToastEventBridge />
-            <AnimatedRoutes />
+            <SubdomainGuard>
+              <AnimatedRoutes />
+            </SubdomainGuard>
           </AppearanceProvider>
         </ToastProvider>
       </BrowserRouter>
