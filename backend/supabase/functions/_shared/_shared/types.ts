@@ -27,6 +27,9 @@ export interface JobListing {
 // Dynamic CORS headers that support multiple allowed origins
 export function getCorsHeaders(origin?: string): Record<string, string> {
   const allowedOrigins = [
+    'https://app.jobraker.io',
+    'https://jobraker.io',
+    'https://www.jobraker.io',
     'https://jobraker-tau.vercel.app',
     'https://jobraker.vercel.app',
     'http://localhost:3000',
@@ -36,7 +39,7 @@ export function getCorsHeaders(origin?: string): Record<string, string> {
     'https://localhost:5173',
   ];
 
-  const corsOrigin = origin && allowedOrigins.includes(origin) ? origin : 'https://jobraker-tau.vercel.app';
+  const corsOrigin = origin && allowedOrigins.includes(origin) ? origin : 'https://app.jobraker.io';
 
   return {
     'Access-Control-Allow-Origin': corsOrigin,
@@ -49,7 +52,7 @@ export function getCorsHeaders(origin?: string): Record<string, string> {
 
 // Legacy export for backwards compatibility
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://jobraker-tau.vercel.app',
+  'Access-Control-Allow-Origin': 'https://app.jobraker.io',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-skyvern-api-key, x-api-key, accept, accept-language, content-language',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Credentials': 'true',

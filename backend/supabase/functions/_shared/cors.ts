@@ -1,6 +1,9 @@
 // _shared/cors.ts — shared CORS headers for Edge Functions (browser + credentials).
 
 const ALLOWED_ORIGINS = [
+  "https://app.jobraker.io",
+  "https://jobraker.io",
+  "https://www.jobraker.io",
   "https://jobraker-tau.vercel.app",
   "https://jobraker.vercel.app",
   "https://jobraker.com",
