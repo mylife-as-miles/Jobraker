@@ -22,6 +22,7 @@ import { Input } from "../../components/ui/input";
 import { motion } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
 import { ROUTES } from "../../routes";
+import { AUTH_REDIRECTS } from "../../lib/authRedirects";
 import { capturePendingReferralCodeFromSearch } from "../../lib/referralAttribution";
 import { validatePassword } from "../../utils/password";
 import { useToast } from "../../components/ui/toast-provider";
@@ -121,7 +122,7 @@ export const JobrackerSignup = (): JSX.Element => {
         const { error } = await authApi.signInWithOAuth({
           provider,
           options: {
-            redirectTo: `${window.location.origin}${ROUTES.DASHBOARD}`,
+            redirectTo: AUTH_REDIRECTS.dashboard(),
             captchaToken,
           },
         });
@@ -153,7 +154,7 @@ export const JobrackerSignup = (): JSX.Element => {
         const { error } = await supabase.auth.resetPasswordForEmail(
           formData.email,
           {
-            redirectTo: `${window.location.origin}/reset-password`,
+            redirectTo: AUTH_REDIRECTS.resetPassword(),
             captchaToken: captchaToken ?? undefined,
           },
         );
@@ -189,7 +190,7 @@ export const JobrackerSignup = (): JSX.Element => {
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}${ROUTES.SIGNIN}`,
+            emailRedirectTo: AUTH_REDIRECTS.signIn(),
             captchaToken: captchaToken ?? undefined,
           },
         });
@@ -289,7 +290,7 @@ export const JobrackerSignup = (): JSX.Element => {
         const { error } = await authAny.resend({
           type: "signup",
           email: formData.email,
-          options: { emailRedirectTo: `${window.location.origin}/signIn` },
+          options: { emailRedirectTo: AUTH_REDIRECTS.signIn() },
         });
         if (error) throw error;
       }

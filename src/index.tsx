@@ -117,6 +117,8 @@ function AnimatedRoutes() {
         />
 
         {/* Sign In Page */}
+        <Route path='/signin' element={<Navigate to={ROUTES.SIGNIN} replace />} />
+        <Route path='/login' element={<Navigate to={ROUTES.SIGNIN} replace />} />
         <Route
           path={ROUTES.SIGNIN}
           element={
