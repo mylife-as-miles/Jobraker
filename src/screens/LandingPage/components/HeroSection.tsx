@@ -44,11 +44,11 @@ export const HeroSection = () => {
               <ArrowRight className='w-5 h-5 ml-2' />
             </Button>
             <Button
+              onClick={() => navigate("/early-access")}
               variant='outline'
               className='border-brand text-brand bg-transparent hover:bg-brand/10 h-12 px-6 text-base font-mono rounded-none w-full sm:w-auto'
             >
-              <Terminal className='w-5 h-5 mr-2' />
-              SEE AGENT FLOW
+              REQUEST EARLY ACCESS
             </Button>
           </div>
 

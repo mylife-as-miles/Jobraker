@@ -10,6 +10,13 @@ export const WaitlistPage = () => {
     const script = document.createElement("script");
     script.src = "https://tally.so/widgets/embed.js";
     script.async = true;
+    script.onload = () => {
+      // @ts-ignore
+      if (window.Tally) {
+        // @ts-ignore
+        window.Tally.loadEmbeds();
+      }
+    };
     document.head.appendChild(script);
 
     return () => {
@@ -18,7 +25,7 @@ export const WaitlistPage = () => {
   }, []);
 
   return (
-    <div className='min-h-screen bg-background text-foreground relative'>
+    <div className='min-h-screen bg-background text-foreground relative overflow-hidden'>
       {/* Back button */}
       <button
         onClick={() => navigate("/")}
@@ -30,6 +37,7 @@ export const WaitlistPage = () => {
 
       {/* Tally embed */}
       <iframe
+        src="https://tally.so/r/WOpZre?transparentBackground=1&formEventsForwarding=1"
         data-tally-src="https://tally.so/r/WOpZre?transparentBackground=1&formEventsForwarding=1"
         width="100%"
         height="100%"
