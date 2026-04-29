@@ -3592,7 +3592,7 @@ export const JobPage = (): JSX.Element => {
                 className='w-full pl-4 pr-[8.25rem] sm:pr-36 border-foreground/10 text-foreground placeholder:text-foreground/40 transition-all duration-100 rounded-xl  '
               />
               <div className='pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 xl:-translate-y-full h-10 items-center justify-center gap-2'>
-                <span className='text-[10px] font-medium text-brand/90 bg-gradient-to-br from-brand/15 to-brand/5 px-2.5 py-1 rounded-lg border border-brand/30 whitespace-nowrap shadow-sm'>
+                <span className='text-[10px] font-medium text-brand/90  px-2.5 py-1 whitespace-nowrap shadow-sm'>
                   {subscriptionTier === "Ultimate"
                     ? "100"
                     : subscriptionTier === "Pro"

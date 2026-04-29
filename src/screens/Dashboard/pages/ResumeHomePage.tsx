@@ -197,6 +197,46 @@ export const ResumeHomePage = () => {
 
       {!loading && viewMode === "grid" && (
         <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6'>
+          {/* Create New Card */}
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleCreateNew}
+            className='aspect-[3/4] border rounded-2xl border-foreground/20 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
+          >
+            <div className='w-16 h-16 rounded-full bg-brand/10 flex items-center justify-center text-brand group-hover:scale-110 transition-transform'>
+              <Plus className='w-8 h-8' />
+            </div>
+            <span className='font-medium text-foreground/60 group-hover:text-foreground transition-colors'>
+              Create New Resume
+            </span>
+          </motion.div>
+
+          {/* Import Existing Card */}
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleImportClick}
+            className='border rounded-2xl border-foreground/20 aspect-[3/4] cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative'
+          >
+            {isImporting ? (
+              <div className='flex flex-col items-center gap-3'>
+                <div className='w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin' />
+                <span className='text-xs text-foreground/60 animate-pulse'>
+                  Analyzing PDF...
+                </span>
+              </div>
+            ) : (
+              <>
+                <div className='w-16 h-16 rounded-full bg-foreground/5 flex items-center justify-center text-brand  group-hover:scale-110 transition-transform'>
+                  <Upload className='w-8 h-8' />
+                </div>
+                <span className='font-medium text-foreground/60 group-hover:text-foreground transition-colors'>
+                  Import Existing
+                </span>
+              </>
+            )}
+          </motion.div>
           {/* Resume Cards */}
           {normalizedResumes.map(({ record: resume, displayName }) => (
             <motion.div
@@ -251,46 +291,6 @@ export const ResumeHomePage = () => {
               </div>
             </motion.div>
           ))}
-          {/* Create New Card */}
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleCreateNew}
-            className=' aspect-[3/4] border rounded-2xl border-foreground/20 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
-          >
-            <div className='w-16 h-16 rounded-full bg-brand/10 flex items-center justify-center text-brand group-hover:scale-110 transition-transform'>
-              <Plus className='w-8 h-8' />
-            </div>
-            <span className='font-medium text-foreground/60 group-hover:text-foreground transition-colors'>
-              Create New Resume
-            </span>
-          </motion.div>
-
-          {/* Import Existing Card */}
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleImportClick}
-            className='border rounded-2xl border-foreground/20 aspect-[3/4] cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative'
-          >
-            {isImporting ? (
-              <div className='flex flex-col items-center gap-3'>
-                <div className='w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin' />
-                <span className='text-xs text-foreground/60 animate-pulse'>
-                  Analyzing PDF...
-                </span>
-              </div>
-            ) : (
-              <>
-                <div className='w-16 h-16 rounded-full bg-foreground/5 flex items-center justify-center text-brand  group-hover:scale-110 transition-transform'>
-                  <Upload className='w-8 h-8' />
-                </div>
-                <span className='font-medium text-foreground/60 group-hover:text-foreground transition-colors'>
-                  Import Existing
-                </span>
-              </>
-            )}
-          </motion.div>
         </div>
       )}
 
