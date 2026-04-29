@@ -80,10 +80,7 @@ export function MatchScoreAnalytics({
   }, [chartData, hasRoleDetails, maxValue]);
 
   return (
-    <div
-     
-      className='h-full'
-    >
+    <div className='h-full'>
       <Card className='relative h-full overflow-hidden border bg-card/40 backdrop-blur-xl border-foreground/10'>
         {/* Decorative Gradient Background */}
         <div className='absolute -top-24 -right-24 w-64 h-64 rounded-full bg-brand/5 blur-3xl' />

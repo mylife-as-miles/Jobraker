@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useState } from "react";
+import React, { useRef, useMemo, useState, useCallback } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   Edges,
@@ -306,16 +306,49 @@ const RubiksLogic = () => {
   );
 };
 
+/** CSS-only fallback shown when WebGL context is lost */
+const CubeFallback = () => (
+  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <div className="relative w-[200px] h-[200px]">
+      <div className="absolute inset-0 border border-[#1dff00]/20 rounded-md rotate-12 animate-pulse" />
+      <div className="absolute inset-6 border border-[#1dff00]/15 rounded-md -rotate-6" />
+      <div className="absolute inset-12 border border-[#1dff00]/10 rounded-md rotate-3" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(29,255,0,0.05),transparent_60%)]" />
+    </div>
+  </div>
+);
+
 export const SelfSolvingCube = () => {
+  const [contextLost, setContextLost] = useState(false);
+
+  const handleCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
+    const canvas = gl.domElement;
+
+    const onLost = (e: Event) => {
+      e.preventDefault();
+      setContextLost(true);
+    };
+    const onRestored = () => {
+      setContextLost(false);
+    };
+
+    canvas.addEventListener('webglcontextlost', onLost);
+    canvas.addEventListener('webglcontextrestored', onRestored);
+  }, []);
+
   return (
     <div className='w-full h-full relative group'>
       {/* Decorative gradient bloom */}
       <div className='absolute inset-0 bg-brand blur-[150px] opacity-[0.03] animate-pulse pointer-events-none' />
 
+      {contextLost && <CubeFallback />}
+
       <Canvas
         camera={{ position: [5, 4, 5], fov: 35 }}
         gl={{ antialias: true, alpha: true }}
         dpr={[1, 2]}
+        onCreated={handleCreated}
+        style={{ opacity: contextLost ? 0 : 1, transition: 'opacity 0.5s ease' }}
       >
         <Environment preset='city' />
         <ambientLight intensity={0.2} />
@@ -353,3 +386,4 @@ export const SelfSolvingCube = () => {
     </div>
   );
 };
+

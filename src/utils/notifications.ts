@@ -3,6 +3,14 @@
 import { createClient } from '../lib/supabaseClient';
 import type { NotificationType } from '../hooks/useNotifications';
 
+export type NotificationSource =
+  | 'system'
+  | 'gmail'
+  | 'automation'
+  | 'application'
+  | 'job_search'
+  | 'billing';
+
 export interface CreateNotificationInput {
   user_id: string;
   type: NotificationType;
@@ -10,6 +18,13 @@ export interface CreateNotificationInput {
   message?: string | null;
   company?: string | null;
   action_url?: string | null;
+  action_label?: string | null;
+  priority?: 'low' | 'medium' | 'high';
+  source?: NotificationSource;
+  source_record_id?: string | null;
+  source_record_type?: string | null;
+  metadata?: Record<string, unknown> | null;
+  dedupe_key?: string | null;
 }
 
 // Lightweight in-memory dedupe to avoid rapid duplicate inserts (e.g. same title+company within 10s)
@@ -47,6 +62,9 @@ async function getNotificationSettings(userId: string) {
     notify_applications: true,
     notify_system: true,
     notify_company_updates: true,
+    notify_job_search: true,
+    notify_credit_updates: true,
+    notify_gmail_updates: true,
     quiet_hours_enabled: false,
   };
   
@@ -90,8 +108,27 @@ function shouldCreateNotification(settings: any, type: NotificationType): boolea
       return settings.notify_system !== false;
     case 'company':
       return settings.notify_company_updates !== false;
+    case 'job_search':
+      return settings.notify_job_search !== false;
+    case 'credit':
+      return settings.notify_credit_updates !== false;
     default:
       return true; // Default to allowing if type unknown
+  }
+}
+
+function defaultSourceForType(type: NotificationType): NotificationSource {
+  switch (type) {
+    case 'credit':
+      return 'billing';
+    case 'job_search':
+    case 'company':
+      return 'job_search';
+    case 'application':
+    case 'interview':
+      return 'application';
+    default:
+      return 'system';
   }
 }
 
@@ -99,11 +136,16 @@ export async function createNotification(input: CreateNotificationInput) {
   try {
     // Check notification settings before creating
     const settings = await getNotificationSettings(input.user_id);
+    const source = input.source || defaultSourceForType(input.type);
+    if (source === 'gmail' && settings.notify_gmail_updates === false) {
+      return null;
+    }
     if (!shouldCreateNotification(settings, input.type)) {
       return null; // User has disabled this type of notification
     }
 
-    const key = `${input.user_id}|${input.type}|${input.title}|${input.company ?? ''}`;
+    const key = input.dedupe_key ||
+      `${input.user_id}|${source}|${input.type}|${input.title}|${input.company ?? ''}`;
     const now = Date.now();
     for (const [k, ts] of [...recentKeys.entries()]) {
       if (now - ts > DEDUPE_WINDOW_MS) recentKeys.delete(k);
@@ -119,12 +161,41 @@ export async function createNotification(input: CreateNotificationInput) {
       message: input.message?.slice(0, 2000) ?? null,
       company: input.company?.slice(0, 120) ?? null,
       action_url: input.action_url ?? null,
+      action_label: input.action_label ?? null,
+      priority: input.priority ?? 'medium',
+      source,
+      source_record_id: input.source_record_id ?? null,
+      source_record_type: input.source_record_type ?? null,
+      metadata: input.metadata ?? {},
+      dedupe_key: input.dedupe_key ?? null,
     } as const;
-    const { data, error } = await (supabase as any)
+    let { data, error } = await (supabase as any)
       .from('notifications')
       .insert(payload)
       .select('*')
       .single();
+    if (
+      error &&
+      /action_label|source_record_id|source_record_type|metadata|dedupe_key|source/i.test(
+        String(error.message || ''),
+      )
+    ) {
+      const legacyPayload = {
+        user_id: input.user_id,
+        type: input.type,
+        title: input.title.slice(0, 200),
+        message: input.message?.slice(0, 2000) ?? null,
+        company: input.company?.slice(0, 120) ?? null,
+        action_url: input.action_url ?? null,
+      } as const;
+      const fallback = await (supabase as any)
+        .from('notifications')
+        .insert(legacyPayload)
+        .select('*')
+        .single();
+      data = fallback.data;
+      error = fallback.error;
+    }
     if (error) throw error;
     // Optimistic local event so UI updates even if realtime channel is delayed/misconfigured
     if (typeof window !== 'undefined' && data) {
@@ -154,8 +225,13 @@ export async function createBulkSummaryNotification(userId: string, count: numbe
   if (count <= 0) return;
   await createNotification({
     user_id: userId,
-    type: 'system',
+    type: 'job_search',
     title: `${count} new ${context}`,
     message: `We found ${count} new ${context} just now.`,
+    source: 'job_search',
+    priority: count >= 10 ? 'high' : 'medium',
+    action_url: '/dashboard/jobs',
+    action_label: 'Review jobs',
+    dedupe_key: `bulk-summary:${userId}:${context}:${new Date().toISOString().slice(0, 10)}:${count}`,
   });
 }

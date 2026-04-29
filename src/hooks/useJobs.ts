@@ -125,6 +125,16 @@ export function useJobs() {
                   message: `${payload.new.title} @ ${payload.new.company}`,
                   company: payload.new.company,
                   action_url: payload.new.apply_url ?? undefined,
+                  action_label: 'Open job',
+                  source: 'job_search',
+                  source_record_id: payload.new.id,
+                  source_record_type: 'job',
+                  metadata: {
+                    company: payload.new.company,
+                    job_title: payload.new.title,
+                    location: payload.new.location ?? null,
+                    apply_url: payload.new.apply_url ?? null,
+                  },
                 });
                 // Daily summary batch counter
                 const today = new Date().toISOString().slice(0,10);

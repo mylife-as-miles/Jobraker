@@ -49,7 +49,7 @@ export const AIPolishDialog = ({
 
   return (
     <AnimatePresence>
-      {/* Overlay - clear/none to allow clicking outside but maybe capturing clicks? 
+      {/* Overlay - clear/none to allow clicking outside but maybe capturing clicks?
                 Actually for this "popover" style, we usually want a transparent overlay to close on click outside.
             */}
       <div className='fixed inset-0 z-50' onClick={onClose}>

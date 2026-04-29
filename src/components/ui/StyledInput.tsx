@@ -14,41 +14,41 @@ export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
 
     const variantStyles = {
       default: `
-        bg-[#F5F5F5]/90 
-        border border-[#E0E0E0] 
-        rounded-lg 
-        px-4 py-3 
-        text-[#212121] 
-        placeholder:text-[#757575] 
+        bg-[#F5F5F5]/90
+        border border-[#E0E0E0]
+        rounded-lg
+        px-4 py-3
+        text-[#212121]
+        placeholder:text-[#757575]
         text-base
-        hover:border-[#BDBDBD] 
-        focus:border-brand 
+        hover:border-[#BDBDBD]
+        focus:border-brand
         focus:bg-[#F5F5F5]
         backdrop-blur-sm
       `,
       transparent: `
-        bg-transparent 
-        border border-foreground/20 
-        rounded-lg 
-        px-4 py-3 
-        text-white 
-        placeholder:text-foreground/40 
+        bg-transparent
+        border border-foreground/20
+        rounded-lg
+        px-4 py-3
+        text-white
+        placeholder:text-foreground/40
         text-base
-        hover:border-foreground/30 
-        focus:border-brand 
+        hover:border-foreground/30
+        focus:border-brand
         focus:bg-foreground/10
         backdrop-blur-[8px]
       `,
       outlined: `
-        bg-transparent 
-        border-2 border-[#E0E0E0] 
-        rounded-lg 
-        px-4 py-3 
-        text-[#212121] 
-        placeholder:text-[#757575] 
+        bg-transparent
+        border-2 border-[#E0E0E0]
+        rounded-lg
+        px-4 py-3
+        text-[#212121]
+        placeholder:text-[#757575]
         text-base
-        hover:border-[#BDBDBD] 
-        focus:border-brand 
+        hover:border-[#BDBDBD]
+        focus:border-brand
         focus:bg-[#F5F5F5]/50
       `,
     };

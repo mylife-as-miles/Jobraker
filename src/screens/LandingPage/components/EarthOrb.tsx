@@ -1,7 +1,19 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sphere, Stars } from '@react-three/drei';
 import * as THREE from 'three';
+
+/** CSS-only fallback shown when WebGL context is lost */
+const GlobeFallback = () => (
+  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <div className="relative w-[280px] h-[280px] md:w-[340px] md:h-[340px]">
+      <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_40%_35%,rgba(29,255,0,0.15),transparent_60%)] animate-pulse" />
+      <div className="absolute inset-4 rounded-full border border-[#1dff00]/20" />
+      <div className="absolute inset-8 rounded-full border border-[#1dff00]/10" />
+      <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_center,#050505_40%,transparent_70%)]" />
+    </div>
+  </div>
+);
 
 const Globe = () => {
   const pointsRef = useRef<THREE.Points>(null);
@@ -124,11 +136,37 @@ const OrbitRing = ({ radius, speed, color, opacity, rotateX = 0, rotateY = 0, ro
 };
 
 export const EarthOrb = () => {
+  const [contextLost, setContextLost] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const handleCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
+    const canvas = gl.domElement;
+    canvasRef.current = canvas;
+
+    const onLost = (e: Event) => {
+      e.preventDefault(); // allows context restoration
+      setContextLost(true);
+    };
+    const onRestored = () => {
+      setContextLost(false);
+    };
+
+    canvas.addEventListener('webglcontextlost', onLost);
+    canvas.addEventListener('webglcontextrestored', onRestored);
+  }, []);
+
   return (
     <div className="w-full h-[500px] md:h-[600px] lg:h-[700px] relative">
       <div className="absolute inset-0 z-10 bg-radial-gradient from-transparent via-transparent to-black pointer-events-none" />
 
-      <Canvas camera={{ position: [0, 0, 8.5], fov: 40 }} dpr={[1, 2]}>
+      {contextLost && <GlobeFallback />}
+
+      <Canvas
+        camera={{ position: [0, 0, 8.5], fov: 40 }}
+        dpr={[1, 2]}
+        onCreated={handleCreated}
+        style={{ opacity: contextLost ? 0 : 1, transition: 'opacity 0.5s ease' }}
+      >
         <ambientLight intensity={0.2} />
         <pointLight position={[10, 10, 10]} intensity={1.5} color="#1dff00" />
         <pointLight position={[-10, -10, -10]} intensity={0.5} color="#004000" />

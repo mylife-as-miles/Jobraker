@@ -1,5 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient, AuthError } from "@supabase/supabase-js";
+import { sanitizeStructuredPayload } from "@/lib/inputSecurity";
 
 let _cached: SupabaseClient | null = null;
 
@@ -78,6 +79,35 @@ export function createClient(): SupabaseClient {
       detectSessionInUrl: true,
     },
   });
+
+  const originalInvoke = client.functions.invoke.bind(client.functions);
+  (client.functions as any).invoke = async (
+    functionName: string,
+    options?: Record<string, unknown>,
+  ) => {
+    if (!options || !("body" in options)) {
+      return originalInvoke(functionName as any, options as any);
+    }
+
+    const body = options.body;
+    const shouldSanitizeBody =
+      body !== undefined &&
+      !(
+        (typeof FormData !== "undefined" && body instanceof FormData) ||
+        body instanceof Blob ||
+        body instanceof URLSearchParams ||
+        typeof body === "string"
+      );
+
+    const nextOptions = shouldSanitizeBody
+      ? {
+          ...options,
+          body: sanitizeStructuredPayload(body),
+        }
+      : options;
+
+    return originalInvoke(functionName as any, nextOptions as any);
+  };
 
   // Global flag to prevent multiple invalid token handlers from running
   let handledInvalidToken = false;

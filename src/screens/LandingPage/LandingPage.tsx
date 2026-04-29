@@ -1,7 +1,7 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { capturePendingReferralCodeFromSearch } from "../../lib/referralAttribution";
-import { Bot } from "lucide-react";
+
 import { Button } from "../../components/ui/button";
 
 // New Components
@@ -57,10 +57,10 @@ export const LandingPage = () => {
                 LOGIN
               </Button>
               <Button
-                onClick={() => navigate("/signup")}
+                onClick={() => navigate("/waitlist")}
                 className='bg-brand text-black hover:bg-brand/90 font-bold rounded-none'
               >
-                START FREE
+                JOIN WAITLIST
               </Button>
             </div>
           </div>

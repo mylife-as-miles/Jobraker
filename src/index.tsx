@@ -9,6 +9,8 @@ import {
   useLocation,
 } from "react-router-dom";
 import { LandingPage } from "./screens/LandingPage";
+import { WaitlistPage } from "./screens/Waitlist/WaitlistPage";
+import { EarlyAccessPage } from "./screens/EarlyAccess/EarlyAccessPage";
 import { JobrackerSignup } from "./screens/JobrackerSignup";
 import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
@@ -25,6 +27,7 @@ import { TourProvider } from "./providers/TourProvider"; // Product tour context
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ROUTES } from "./routes";
 import { ToastEventBridge } from "./components/system/ToastEventBridge";
+import { InputSecurityGuard } from "./components/system/InputSecurityGuard";
 import { AnimatePresence } from "framer-motion";
 import { PageTransition } from "./components/transitions";
 import AdminCheckCredits from "@/pages/AdminCheckCredits";
@@ -92,6 +95,16 @@ function AnimatedRoutes() {
           }
         />
 
+        {/* Waitlist Page */}
+        <Route
+          path='/waitlist'
+          element={
+            <PageTransition>
+              <WaitlistPage />
+            </PageTransition>
+          }
+        />
+
         {/* Step 1: Signup Page */}
         <Route
           path={ROUTES.SIGNUP}
@@ -105,6 +118,8 @@ function AnimatedRoutes() {
         />
 
         {/* Sign In Page */}
+        <Route path='/signin' element={<Navigate to={ROUTES.SIGNIN} replace />} />
+        <Route path='/login' element={<Navigate to={ROUTES.SIGNIN} replace />} />
         <Route
           path={ROUTES.SIGNIN}
           element={
@@ -225,6 +240,24 @@ function AnimatedRoutes() {
   );
 }
 
+function SubdomainGuard({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const hostname = window.location.hostname;
+
+  if (
+    hostname.startsWith("admin.") &&
+    !location.pathname.startsWith("/admin") &&
+    location.pathname !== "/signin" &&
+    location.pathname !== "/login" &&
+    location.pathname !== "/signup" &&
+    !location.pathname.startsWith("/auth/")
+  ) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function App() {
   const [queryClient] = React.useState(() => new QueryClient());
 
@@ -234,8 +267,11 @@ function App() {
         {/* Global providers */}
         <ToastProvider>
           <AppearanceProvider>
+            <InputSecurityGuard />
             <ToastEventBridge />
-            <AnimatedRoutes />
+            <SubdomainGuard>
+              <AnimatedRoutes />
+            </SubdomainGuard>
           </AppearanceProvider>
         </ToastProvider>
       </BrowserRouter>

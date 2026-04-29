@@ -10,7 +10,22 @@ export interface UserContext {
   resumeSummary: string | null;
   candidateMemorySummary: string | null;
   recentChatTitles: string[];
+  /** Canonical tier from get_user_tier (may be overridden in ai-chat by gate). */
   subscriptionTier: string;
+  /** Active subscription row status, e.g. active. */
+  subscriptionStatus: string | null;
+  subscriptionCurrentPeriodStart: string | null;
+  subscriptionCurrentPeriodEnd: string | null;
+  subscriptionCancelAtPeriodEnd: boolean;
+  /** Inferred from period length (monthly / quarterly / yearly). */
+  subscriptionBillingCycle: "monthly" | "quarterly" | "yearly" | null;
+  /**
+   * Next important date: if cancel_at_period_end, when access ends; otherwise projected next renewal
+   * when current_period_end was stale (matches Billing page logic).
+   */
+  subscriptionNextRenewalOrEndIso: string | null;
+  /** Whole days until subscriptionNextRenewalOrEnd (can be negative if the date is in the past). */
+  subscriptionDaysRemaining: number | null;
   credits: number;
   applicationCount: number;
   jobCount: number;
@@ -47,6 +62,57 @@ const asRecordArray = (value: unknown): Record<string, unknown>[] => {
 
 const uniqueStrings = (values: Array<string | null | undefined>) =>
   [...new Set(values.filter((value): value is string => Boolean(value && value.trim())))];
+
+/** Match Billing page: period length → billing interval. */
+function inferBillingCycleFromSubscriptionPeriod(
+  start: string | null | undefined,
+  end: string | null | undefined,
+): "monthly" | "quarterly" | "yearly" | null {
+  if (!start || !end) return null;
+  const t0 = new Date(start).getTime();
+  const t1 = new Date(end).getTime();
+  if (!Number.isFinite(t0) || !Number.isFinite(t1) || t1 <= t0) return null;
+  const days = (t1 - t0) / (1000 * 60 * 60 * 24);
+  if (days >= 200) return "yearly";
+  if (days >= 75) return "quarterly";
+  if (days >= 18) return "monthly";
+  return null;
+}
+
+function addCalendarMonths(d: Date, months: number): Date {
+  const out = new Date(d.getTime());
+  out.setMonth(out.getMonth() + months);
+  return out;
+}
+
+/** If period end is in the past, step forward by billing months until in the future (stale DB row). */
+function projectNextRenewalDate(
+  periodEnd: string | null,
+  cycle: "monthly" | "quarterly" | "yearly" | null,
+): Date | null {
+  if (!periodEnd) return null;
+  const d = new Date(periodEnd);
+  if (!Number.isFinite(d.getTime())) return null;
+  const now = new Date();
+  if (d > now) return d;
+  if (!cycle) return d;
+  const stepMonths = cycle === "yearly" ? 12 : cycle === "quarterly" ? 3 : 1;
+  let projected = new Date(d);
+  let i = 0;
+  while (projected <= now && i < 120) {
+    projected = addCalendarMonths(projected, stepMonths);
+    i++;
+  }
+  return projected;
+}
+
+function wholeDaysUntil(targetIso: string | null): number | null {
+  if (!targetIso) return null;
+  const t = new Date(targetIso);
+  if (!Number.isFinite(t.getTime())) return null;
+  const now = new Date();
+  return Math.ceil((t.getTime() - now.getTime()) / (86400 * 1000));
+}
 
 const safeQuery = async <T>(promise: Promise<T>, fallback: T): Promise<T> => {
   try {
@@ -134,6 +200,8 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     applicationCountRes,
     jobCountRes,
     resumeCountRes,
+    tierRes,
+    subscriptionRes,
     candidateMemory,
   ] = await Promise.all([
     safeQuery(
@@ -228,6 +296,21 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
         .eq("user_id", userId),
       { count: 0 } as any,
     ),
+    safeQuery(
+      supabase.rpc("get_user_tier", { p_user_id: userId }),
+      { data: null } as any,
+    ),
+    safeQuery(
+      supabase
+        .from("user_subscriptions")
+        .select(
+          "status, current_period_start, current_period_end, cancel_at_period_end, subscription_plans(name)",
+        )
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .maybeSingle(),
+      { data: null } as any,
+    ),
     candidateMemoryPromise,
   ]);
 
@@ -245,6 +328,51 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     ? `${profileRes.data.first_name || ""} ${profileRes.data.last_name || ""}`.trim() || "User"
     : "User";
 
+  const rawTier =
+    typeof (tierRes as { data?: unknown })?.data === "string"
+      ? String((tierRes as { data: string }).data)
+      : "Free";
+
+  const sub = subscriptionRes.data as
+    | {
+        status?: string;
+        current_period_start?: string;
+        current_period_end?: string;
+        cancel_at_period_end?: boolean;
+        subscription_plans?: { name?: string } | { name?: string }[] | null;
+      }
+    | null
+    | undefined;
+
+  let subscriptionStatus: string | null = null;
+  let subscriptionCurrentPeriodStart: string | null = null;
+  let subscriptionCurrentPeriodEnd: string | null = null;
+  let subscriptionCancelAtPeriodEnd = false;
+  let subscriptionBillingCycle: "monthly" | "quarterly" | "yearly" | null = null;
+  let subscriptionNextRenewalOrEndIso: string | null = null;
+  let subscriptionDaysRemaining: number | null = null;
+
+  const periodEnd = asString(sub?.current_period_end);
+  if (sub && periodEnd) {
+    subscriptionStatus = asString(sub.status) || null;
+    subscriptionCurrentPeriodStart = asString(sub.current_period_start);
+    subscriptionCurrentPeriodEnd = periodEnd;
+    subscriptionCancelAtPeriodEnd = sub.cancel_at_period_end === true;
+    subscriptionBillingCycle = inferBillingCycleFromSubscriptionPeriod(
+      subscriptionCurrentPeriodStart || undefined,
+      subscriptionCurrentPeriodEnd || undefined,
+    );
+    if (subscriptionCancelAtPeriodEnd) {
+      subscriptionNextRenewalOrEndIso = periodEnd;
+    } else {
+      const projected = projectNextRenewalDate(periodEnd, subscriptionBillingCycle);
+      subscriptionNextRenewalOrEndIso = projected
+        ? projected.toISOString()
+        : periodEnd;
+    }
+    subscriptionDaysRemaining = wholeDaysUntil(subscriptionNextRenewalOrEndIso);
+  }
+
   return {
     userId,
     name,
@@ -253,7 +381,14 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     resumeSummary,
     candidateMemorySummary: candidateMemory?.summaryText || null,
     recentChatTitles: chatsRes.data?.map(c => c.title) || [],
-    subscriptionTier: "Free", // Default if not found
+    subscriptionTier: rawTier,
+    subscriptionStatus,
+    subscriptionCurrentPeriodStart,
+    subscriptionCurrentPeriodEnd,
+    subscriptionCancelAtPeriodEnd,
+    subscriptionBillingCycle,
+    subscriptionNextRenewalOrEndIso,
+    subscriptionDaysRemaining,
     credits: creditsRes.data?.balance || 0,
     applicationCount: applicationCountRes.count || 0,
     jobCount: jobCountRes.count || 0,
@@ -273,12 +408,48 @@ export function formatUserContextForPrompt(context: UserContext): string {
     `## User Information`,
     `- Name: ${context.name}`,
     `- Headline: ${context.headline || "Not set"}`,
-    `- Subscription tier: ${context.subscriptionTier}`,
+    `- Plan / tier: ${context.subscriptionTier}`,
     `- Credits: ${context.credits}`,
     `- Total applications: ${context.applicationCount}`,
     `- Total tracked jobs: ${context.jobCount}`,
     `- Total resumes: ${context.resumeCount}`,
   ];
+
+  lines.push(`\n## Subscription & billing (from JobRaker database — use for renewal / days-left questions)`);
+  if (context.subscriptionCurrentPeriodEnd) {
+    lines.push(
+      `- Status: ${context.subscriptionStatus || "active"}${
+        context.subscriptionCancelAtPeriodEnd
+          ? " (cancels at end of current period; no next charge unless you re-subscribe)"
+          : " (renews automatically)"
+      }`,
+    );
+    if (context.subscriptionCurrentPeriodStart) {
+      lines.push(
+        `- Current period: ${context.subscriptionCurrentPeriodStart} → ${context.subscriptionCurrentPeriodEnd}`,
+      );
+    } else {
+      lines.push(`- Current period end: ${context.subscriptionCurrentPeriodEnd}`);
+    }
+    if (context.subscriptionBillingCycle) {
+      lines.push(`- Inferred billing cycle from period length: ${context.subscriptionBillingCycle}`);
+    }
+    if (context.subscriptionNextRenewalOrEndIso) {
+      const label = context.subscriptionCancelAtPeriodEnd
+        ? "Access ends (or already ended) on"
+        : "Next renewal or period boundary (approx.)";
+      lines.push(`- ${label}: ${context.subscriptionNextRenewalOrEndIso}`);
+    }
+    if (context.subscriptionDaysRemaining != null) {
+      lines.push(
+        `- Calendar days until that date: ${context.subscriptionDaysRemaining} (0 = today, negative = past)`,
+      );
+    }
+  } else {
+    lines.push(
+      `- No active subscription row with a period end in the database (tier may still be ${context.subscriptionTier} from your account record). For exact payment method or invoices, the Billing page may add detail.`,
+    );
+  }
 
   if (context.resumeSummary) {
     lines.push(`\n## Resume Summary`);

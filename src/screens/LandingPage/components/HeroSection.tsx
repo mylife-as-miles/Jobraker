@@ -1,4 +1,3 @@
-import React from "react";
 import { Button } from "../../../components/ui/button";
 import { ArrowRight, Terminal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -38,18 +37,18 @@ export const HeroSection = () => {
 
           <div className='flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4'>
             <Button
-              onClick={() => navigate("/signup")}
+              onClick={() => navigate("/waitlist")}
               className='bg-brand text-black hover:bg-brand/90 h-12 px-6 text-base font-bold rounded-none border border-brand transition-all hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] w-full sm:w-auto'
             >
-              START APPLYING SMARTER
+              JOIN WAITLIST
               <ArrowRight className='w-5 h-5 ml-2' />
             </Button>
             <Button
+              onClick={() => navigate("/early-access")}
               variant='outline'
               className='border-brand text-brand bg-transparent hover:bg-brand/10 h-12 px-6 text-base font-mono rounded-none w-full sm:w-auto'
             >
-              <Terminal className='w-5 h-5 mr-2' />
-              SEE AGENT FLOW
+              REQUEST EARLY ACCESS
             </Button>
           </div>
 

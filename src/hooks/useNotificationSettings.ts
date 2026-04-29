@@ -16,16 +16,26 @@ export interface NotificationSettings {
   notify_applications?: boolean;
   notify_system?: boolean;
   notify_company_updates?: boolean;
+  notify_job_search?: boolean;
+  notify_credit_updates?: boolean;
+  notify_gmail_updates?: boolean;
   // Type-specific email notifications
   email_interviews?: boolean;
   email_applications?: boolean;
   email_system?: boolean;
   email_company_updates?: boolean;
+  email_job_search?: boolean;
+  email_credit_updates?: boolean;
+  email_gmail_updates?: boolean;
   // Type-specific push notifications
   push_interviews?: boolean;
   push_applications?: boolean;
   push_system?: boolean;
   push_company_updates?: boolean;
+  push_job_search?: boolean;
+  push_credit_updates?: boolean;
+  push_gmail_updates?: boolean;
+  gmail_auto_sync_enabled?: boolean;
   // Quiet hours
   quiet_hours_enabled?: boolean;
   quiet_hours_start?: string;
@@ -88,14 +98,24 @@ export function useNotificationSettings() {
           notify_applications: true,
           notify_system: true,
           notify_company_updates: true,
+          notify_job_search: true,
+          notify_credit_updates: true,
+          notify_gmail_updates: true,
           email_interviews: true,
           email_applications: true,
           email_system: false,
           email_company_updates: true,
+          email_job_search: false,
+          email_credit_updates: true,
+          email_gmail_updates: true,
           push_interviews: true,
           push_applications: true,
           push_system: false,
           push_company_updates: true,
+          push_job_search: true,
+          push_credit_updates: true,
+          push_gmail_updates: true,
+          gmail_auto_sync_enabled: true,
           quiet_hours_enabled: false,
           quiet_hours_start: '22:00:00',
           quiet_hours_end: '08:00:00',
@@ -172,14 +192,24 @@ export function useNotificationSettings() {
           notify_applications: true,
           notify_system: true,
           notify_company_updates: true,
+          notify_job_search: true,
+          notify_credit_updates: true,
+          notify_gmail_updates: true,
           email_interviews: true,
           email_applications: true,
           email_system: false,
           email_company_updates: true,
+          email_job_search: false,
+          email_credit_updates: true,
+          email_gmail_updates: true,
           push_interviews: true,
           push_applications: true,
           push_system: false,
           push_company_updates: true,
+          push_job_search: true,
+          push_credit_updates: true,
+          push_gmail_updates: true,
+          gmail_auto_sync_enabled: true,
           quiet_hours_enabled: false,
           quiet_hours_start: '22:00:00',
           quiet_hours_end: '08:00:00',

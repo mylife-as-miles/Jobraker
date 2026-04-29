@@ -1,5 +1,6 @@
 import type { ResumeSectionItem } from '../../store/artboard';
 import { cn } from '../../lib/utils';
+import { getSafeExternalHref, sanitizeHtmlFragment } from '../../lib/inputSecurity';
 import { useResumeTemplateValue } from '../use-resume-template-data';
 
 const sectionHeadingClass =
@@ -63,6 +64,7 @@ const SummarySection = ({
   className?: string;
 }) => {
   if (!content) return null;
+  const safeContent = sanitizeHtmlFragment(content);
 
   return (
     <div className={cn('section-content section-summary', className)}>
@@ -82,7 +84,7 @@ const SummarySection = ({
             '[&_p+p]:mt-2',
             'group-data-[layout=sidebar]:text-white/85 group-data-[layout=sidebar]:[&_strong]:text-white',
           )}
-          dangerouslySetInnerHTML={{ __html: content }}
+          dangerouslySetInnerHTML={{ __html: safeContent }}
         />
       </div>
     </div>
@@ -189,8 +191,8 @@ function ItemsSection({
         const title = getItemTitle(item);
         const subtitle = getItemSubtitle(item);
         const date = getItemDate(item);
-        const url = getItemUrl(item);
-        const description = item.description;
+        const url = getSafeExternalHref(getItemUrl(item));
+        const description = sanitizeHtmlFragment(item.description);
         const keywords = getItemKeywords(item);
         const detailNote =
           sectionId === 'references'

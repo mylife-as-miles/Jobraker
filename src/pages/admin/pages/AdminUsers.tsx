@@ -719,7 +719,7 @@ function DeleteUserDialog({
               whileTap={canDelete ? { scale: 0.98 } : {}}
               onClick={onConfirm}
               disabled={loading || !canDelete}
-              className='flex-1 px-4 py-3 bg-gradient-to-r from-brand to-brand text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-brand/20 transition-all disabled:opacity-30 flex items-center justify-center gap-2'
+              className='flex-1 px-4 py-3 bg-red-500 text-white font-semibold rounded-xl hover:bg-red-600 hover:shadow-lg hover:shadow-red-500/20 transition-all disabled:opacity-30 disabled:hover:bg-red-500 flex items-center justify-center gap-2 border border-red-500/50'
             >
               {loading ? (
                 <Loader2 className='w-4 h-4 animate-spin' />
@@ -867,9 +867,9 @@ function getStatusBadgeClass(status: string) {
     case "active":
       return "bg-brand/20 text-brand border-brand/30";
     case "inactive":
-      return "bg-brand/20 text-brand border-brand/30";
+      return "bg-red-500/20 text-red-500 border-red-500/30";
     default:
-      return "bg-brand/20 text-brand border-brand/30";
+      return "bg-gray-500/20 text-gray-400 border-gray-500/30";
   }
 }
 
@@ -1156,7 +1156,7 @@ export default function AdminUsers() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={exportCSV}
-              className='flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-brand to-background text-black font-medium rounded-xl hover:shadow-lg hover:shadow-brand/20 transition-all'
+              className='flex items-center justify-center gap-2 px-4 py-3 bg-brand text-black font-medium rounded-xl hover:brightness-110 hover:shadow-lg hover:shadow-brand/20 transition-all'
             >
               <Download className='w-5 h-5' />
               Export CSV
