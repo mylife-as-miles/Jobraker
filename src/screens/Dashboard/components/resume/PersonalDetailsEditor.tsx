@@ -51,8 +51,8 @@ export const PersonalDetailsEditor = ({
 
   return (
     <div className='p-5 pt-0 space-y-4 animate-in slide-in-from-top-2 duration-200'>
-      <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-        <div className='sm:col-span-2'>
+      <div className='flex flex-col gap-4'>
+        <div>
           <label className='block text-xs font-medium product-helper-text mb-1.5'>
             Full Name
           </label>
@@ -62,7 +62,7 @@ export const PersonalDetailsEditor = ({
             placeholder='John Doe'
           />
         </div>
-        <div className='sm:col-span-2'>
+        <div >
           <label className='block text-xs font-medium product-helper-text mb-1.5'>
             Job Title
           </label>
@@ -92,7 +92,7 @@ export const PersonalDetailsEditor = ({
             placeholder='+1 (555) 123-4567'
           />
         </div>
-        <div className='sm:col-span-2'>
+        <div >
           <label className='block text-xs font-medium product-helper-text mb-1.5'>
             Location
           </label>
@@ -102,7 +102,7 @@ export const PersonalDetailsEditor = ({
             placeholder='San Francisco, CA'
           />
         </div>
-        <div className='sm:col-span-2'>
+        <div>
           <label className='block text-xs font-medium product-helper-text mb-1.5'>
             Personal Website
           </label>

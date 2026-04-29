@@ -26,7 +26,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       <div className="text-[#cfcfcf] text-sm mb-4">{message}</div>
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel}>{cancelText}</Button>
-        <Button variant="destructive" onClick={onConfirm}>{confirmText}</Button>
+        <Button className="bg-red-600 text-foreground" variant="destructive" onClick={onConfirm}>{confirmText}</Button>
       </div>
     </Modal>
   );
