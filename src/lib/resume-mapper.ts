@@ -3,6 +3,16 @@ import { nanoid } from 'nanoid';
 import { ResumeData } from '../store/artboard';
 import { ParsedProfileData } from '../services/ai/parseResumeProfile';
 
+function formatPeriod(start?: string, end?: string) {
+    const cleanStart = start?.trim() || '';
+    const cleanEnd = end?.trim() || '';
+
+    if (cleanStart && cleanEnd) return `${cleanStart} - ${cleanEnd}`;
+    if (cleanStart) return cleanStart;
+    if (cleanEnd) return cleanEnd;
+    return '';
+}
+
 export function mapParsedDataToResume(parsed: ParsedProfileData, baseState: ResumeData): ResumeData {
     // Deep clone base state to avoid mutations
     const resume = JSON.parse(JSON.stringify(baseState)) as ResumeData;
@@ -43,8 +53,8 @@ export function mapParsedDataToResume(parsed: ParsedProfileData, baseState: Resu
             company: exp.company,
             position: exp.title,
             location: exp.location || '',
-            period: `${exp.startDate || ''} - ${exp.endDate || 'Present'}`,
-            date: `${exp.startDate || ''} - ${exp.endDate || 'Present'}`,
+            period: formatPeriod(exp.startDate, exp.endDate),
+            date: formatPeriod(exp.startDate, exp.endDate),
             summary: exp.description || '', 
             description: exp.description || '',
             website: { url: '', label: '' },
@@ -60,8 +70,8 @@ export function mapParsedDataToResume(parsed: ParsedProfileData, baseState: Resu
             hidden: false,
             school: edu.school,
             degree: edu.degree,
-            period: `${edu.start || ''} - ${edu.end || ''}`,
-            date: `${edu.start || ''} - ${edu.end || ''}`,
+            period: formatPeriod(edu.start, edu.end),
+            date: formatPeriod(edu.start, edu.end),
             location: '',
             website: { url: '', label: '' },
             columns: 1
@@ -82,7 +92,42 @@ export function mapParsedDataToResume(parsed: ParsedProfileData, baseState: Resu
         resume.sections.skills.hidden = false;
     }
 
-    // 6. Title
+    // 6. Projects
+    if (parsed.projects && parsed.projects.length > 0) {
+        resume.sections.projects.items = parsed.projects.map(project => ({
+            id: nanoid(),
+            hidden: false,
+            name: project.name,
+            title: project.name,
+            company: project.organization || '',
+            period: project.date || '',
+            date: project.date || '',
+            description: project.description || '',
+            website: { url: '', label: '' },
+            columns: 1,
+        }));
+        resume.sections.projects.hidden = false;
+    }
+
+    // 7. Certifications
+    if (parsed.certifications && parsed.certifications.length > 0) {
+        resume.sections.certifications.items = parsed.certifications.map(cert => ({
+            id: nanoid(),
+            hidden: false,
+            name: cert.name,
+            title: cert.name,
+            issuer: cert.issuer || '',
+            company: cert.issuer || '',
+            period: cert.date || '',
+            date: cert.date || '',
+            description: cert.description || '',
+            website: { url: '', label: '' },
+            columns: 1,
+        }));
+        resume.sections.certifications.hidden = false;
+    }
+
+    // 8. Title
     if (resume.basics.name) {
         resume.title = `${resume.basics.name}'s Resume`;
     }

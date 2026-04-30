@@ -67,6 +67,12 @@ function mergeParsedProfileData(
       incoming.education.length > 0 ? incoming.education : base.education,
     experience:
       incoming.experience.length > 0 ? incoming.experience : base.experience,
+    projects:
+      incoming.projects.length > 0 ? incoming.projects : base.projects,
+    certifications:
+      incoming.certifications.length > 0
+        ? incoming.certifications
+        : base.certifications,
   };
 }
 

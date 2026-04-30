@@ -19,7 +19,7 @@ const SKILL_WORDS = [
 ];
 
 const SECTION_HEADINGS = [
-  'experience','work experience','professional experience','education','projects','skills','certifications','summary','profile','achievements'
+  'experience','work experience','professional experience','employment history','career history','education','projects','selected projects','skills','technical skills','core skills','certification','certifications','licenses','awards','achievements','summary','professional summary','profile'
 ];
 
 export function analyzeResumeText(text: string): AnalyzedResume {
@@ -48,8 +48,9 @@ export function analyzeResumeText(text: string): AnalyzedResume {
   const structured: Record<string, any> = {
     summary: sections.find(s => s.heading.toLowerCase().includes('summary'))?.content,
     education: sections.filter(s => s.heading.toLowerCase().includes('education')),
-    experience: sections.filter(s => s.heading.toLowerCase().includes('experience')),
+    experience: sections.filter(s => /experience|employment|career/.test(s.heading.toLowerCase())),
     projects: sections.filter(s => s.heading.toLowerCase().includes('project')),
+    certifications: sections.filter(s => /certification|license/.test(s.heading.toLowerCase())),
   };
 
   // Naive company extraction: lines with Inc|LLC|Ltd or capitalized multi-word tokens
