@@ -26,7 +26,12 @@ export interface UserContext {
   subscriptionNextRenewalOrEndIso: string | null;
   /** Whole days until subscriptionNextRenewalOrEnd (can be negative if the date is in the past). */
   subscriptionDaysRemaining: number | null;
+  /** Paid AI credit balance from user_credits. Does not include subscription chat quota. */
   credits: number;
+  chatFreeRemaining: number;
+  chatFreeTotal: number;
+  chatPaidCreditBalance: number;
+  chatPlanName: string | null;
   applicationCount: number;
   jobCount: number;
   resumeCount: number;
@@ -43,6 +48,16 @@ const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+};
+
+const asNumber = (value: unknown): number | null => {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
 };
 
 const asStringArray = (value: unknown): string[] => {
@@ -193,6 +208,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     resumeRes,
     chatsRes,
     creditsRes,
+    chatQuotaRes,
     appsRes,
     jobsRes,
     coversRes,
@@ -237,6 +253,10 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
         .select("balance")
         .eq("user_id", userId)
         .maybeSingle(),
+      { data: null } as any,
+    ),
+    safeQuery(
+      supabase.rpc("get_chat_quota_status", { p_user_id: userId }),
       { data: null } as any,
     ),
     safeQuery(
@@ -351,6 +371,14 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
   let subscriptionBillingCycle: "monthly" | "quarterly" | "yearly" | null = null;
   let subscriptionNextRenewalOrEndIso: string | null = null;
   let subscriptionDaysRemaining: number | null = null;
+  const chatQuota = isRecord(chatQuotaRes.data) ? chatQuotaRes.data : {};
+  const chatPaidCreditBalance =
+    asNumber(chatQuota.credit_balance) ??
+    asNumber(creditsRes.data?.balance) ??
+    0;
+  const chatFreeRemaining = asNumber(chatQuota.free_remaining) ?? 0;
+  const chatFreeTotal = asNumber(chatQuota.free_total) ?? 0;
+  const chatPlanName = asString(chatQuota.plan_name);
 
   const periodEnd = asString(sub?.current_period_end);
   if (sub && periodEnd) {
@@ -389,7 +417,11 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     subscriptionBillingCycle,
     subscriptionNextRenewalOrEndIso,
     subscriptionDaysRemaining,
-    credits: creditsRes.data?.balance || 0,
+    credits: chatPaidCreditBalance,
+    chatFreeRemaining,
+    chatFreeTotal,
+    chatPaidCreditBalance,
+    chatPlanName,
     applicationCount: applicationCountRes.count || 0,
     jobCount: jobCountRes.count || 0,
     resumeCount: resumeCountRes.count || 0,
@@ -409,7 +441,11 @@ export function formatUserContextForPrompt(context: UserContext): string {
     `- Name: ${context.name}`,
     `- Headline: ${context.headline || "Not set"}`,
     `- Plan / tier: ${context.subscriptionTier}`,
-    `- Credits: ${context.credits}`,
+    `- Paid AI credits: ${context.chatPaidCreditBalance}`,
+    `- Included AI chat messages remaining this period: ${context.chatFreeRemaining} / ${context.chatFreeTotal}`,
+    `- Total available AI chat turns before purchase: ${
+      context.chatFreeRemaining + context.chatPaidCreditBalance
+    }`,
     `- Total applications: ${context.applicationCount}`,
     `- Total tracked jobs: ${context.jobCount}`,
     `- Total resumes: ${context.resumeCount}`,

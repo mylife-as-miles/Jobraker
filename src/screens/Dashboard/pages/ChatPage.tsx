@@ -42,6 +42,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Edit2,
   Bot,
   Bolt,
   BookOpen,
@@ -651,6 +652,10 @@ export const ChatPage = () => {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(
+    null,
+  );
+  const [renamingTitle, setRenamingTitle] = useState("");
   const supabase = useMemo(() => createClient(), []);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -876,6 +881,10 @@ export const ChatPage = () => {
   const deleteSession = async (id: string) => {
     const originalSessions = sessions;
     setSessions((prev) => prev.filter((s) => s.id !== id));
+    if (renamingSessionId === id) {
+      setRenamingSessionId(null);
+      setRenamingTitle("");
+    }
     if (activeSessionId === id) {
       const remaining = originalSessions.filter((s) => s.id !== id);
       setActiveSessionId(remaining[0]?.id || null);
@@ -888,6 +897,44 @@ export const ChatPage = () => {
 
     if (error) {
       toastError("Could not delete chat", error.message);
+      setSessions(originalSessions);
+    }
+  };
+
+  const startRenamingSession = (session: ChatSessionState) => {
+    setRenamingSessionId(session.id);
+    setRenamingTitle(session.title || "New Chat");
+  };
+
+  const cancelRenamingSession = () => {
+    setRenamingSessionId(null);
+    setRenamingTitle("");
+  };
+
+  const saveRenamedSession = async (id: string) => {
+    const title = renamingTitle.trim().slice(0, 80);
+    if (!title) {
+      cancelRenamingSession();
+      return;
+    }
+
+    const originalSessions = sessions;
+    setSessions((prev) =>
+      prev.map((session) =>
+        session.id === id
+          ? { ...session, title, updated_at: new Date().toISOString() }
+          : session,
+      ),
+    );
+    cancelRenamingSession();
+
+    const { error } = await supabase
+      .from("chat_sessions")
+      .update({ title })
+      .eq("id", id);
+
+    if (error) {
+      toastError("Could not rename chat", error.message);
       setSessions(originalSessions);
     }
   };
@@ -1205,9 +1252,8 @@ export const ChatPage = () => {
                 <div className='space-y-1'>
                   {filteredSessions.length > 0 ? (
                     filteredSessions.map((s) => (
-                      <button
+                      <div
                         key={s.id}
-                        onClick={() => setActiveSessionId(s.id)}
                         className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors group text-left ${
                           s.id === activeSessionId
                             ? "bg-accent/50 border border-border"
@@ -1217,10 +1263,38 @@ export const ChatPage = () => {
                         <MessageSquare
                           className={`w-5 h-5 ${s.id === activeSessionId ? "text-brand" : "text-muted-foreground group-hover:text-brand"} transition-colors`}
                         />
-                        <div className='flex-1 overflow-hidden'>
-                          <p className='text-sm font-medium truncate text-foreground'>
-                            {s.title || "New Chat"}
-                          </p>
+                        <button
+                          type='button'
+                          onClick={() => setActiveSessionId(s.id)}
+                          className='min-w-0 flex-1 overflow-hidden text-left'
+                        >
+                          {renamingSessionId === s.id ? (
+                            <input
+                              autoFocus
+                              value={renamingTitle}
+                              onChange={(event) =>
+                                setRenamingTitle(event.target.value)
+                              }
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  void saveRenamedSession(s.id);
+                                }
+                                if (event.key === "Escape") {
+                                  event.preventDefault();
+                                  cancelRenamingSession();
+                                }
+                              }}
+                              onBlur={() => void saveRenamedSession(s.id)}
+                              className='w-full rounded-md border border-brand/40 bg-background/80 px-2 py-1 text-sm font-medium text-foreground outline-none ring-1 ring-brand/30'
+                              maxLength={80}
+                            />
+                          ) : (
+                            <p className='text-sm font-medium truncate text-foreground'>
+                              {s.title || "New Chat"}
+                            </p>
+                          )}
                           <p className='text-[11px] text-muted-foreground mt-0.5'>
                             {new Date(
                               s.updated_at || s.updatedAt || Date.now(),
@@ -1229,19 +1303,34 @@ export const ChatPage = () => {
                               day: "numeric",
                             })}
                           </p>
-                        </div>
-                        <div className='opacity-0 group-hover:opacity-100 flex items-center'>
+                        </button>
+                        <div className='opacity-0 group-hover:opacity-100 focus-within:opacity-100 flex items-center gap-1'>
                           <button
+                            type='button'
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startRenamingSession(s);
+                            }}
+                            className='p-1 hover:text-brand text-foreground/60 rounded'
+                            aria-label={`Rename ${s.title || "chat"}`}
+                            title='Rename chat'
+                          >
+                            <Edit2 size={12} />
+                          </button>
+                          <button
+                            type='button'
                             onClick={(e) => {
                               e.stopPropagation();
                               deleteSession(s.id);
                             }}
                             className='p-1 hover:text-brand text-foreground/60 rounded'
+                            aria-label={`Delete ${s.title || "chat"}`}
+                            title='Delete chat'
                           >
                             <Trash2 size={12} />
                           </button>
                         </div>
-                      </button>
+                      </div>
                     ))
                   ) : (
                     <div className='px-3 py-4 text-center text-muted-foreground text-xs'>
@@ -1275,8 +1364,12 @@ export const ChatPage = () => {
                     <Coins size={14} className='text-brand' />
                     <span className='text-xs font-medium text-foreground'>
                       {chatQuota.free_remaining > 0
-                        ? `${chatQuota.free_remaining}/${chatQuota.free_total} free`
-                        : `${chatQuota.credit_balance} credits`}
+                        ? `${chatQuota.free_remaining}/${chatQuota.free_total} free${
+                            chatQuota.credit_balance > 0
+                              ? ` + ${chatQuota.credit_balance} paid`
+                              : ""
+                          }`
+                        : `${chatQuota.credit_balance} paid credits`}
                     </span>
                   </div>
                 )}

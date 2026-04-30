@@ -971,6 +971,7 @@ Do not claim that you lack access to the user's JobRaker profile, resumes, track
 Only describe limitations for external systems that are not connected here, such as LinkedIn dashboards, Indeed, or third-party job boards when Gmail is not connected.
 If the user has connected Gmail in JobRaker Settings, job-related inbox tools may be available in agent mode (search/send guardrails still apply).
 When the user asks for totals, counts, lists, or recent activity inside JobRaker, answer from the account context or tools first before giving generic advice.
+For AI chat billing, distinguish paid AI credits from included subscription chat messages. Do not call the included-message quota "credits" or "tokens"; when asked for balance, report included chat messages remaining, paid AI credits, and the combined available chat turns when known.
 `;
 
 const createAuthedSupabaseClient = (authHeader: string) =>
@@ -1048,7 +1049,8 @@ const AGENT_FUNCTION_DECLARATIONS = [
   },
   {
     name: "get_credits_balance",
-    description: "Check remaining AI credits.",
+    description:
+      "Check the user's AI chat quota and paid AI credit balance. Returns included chat messages remaining, paid credits, and total available chat turns before purchase.",
     parameters: { type: "object", properties: {} },
   },
   {
@@ -1665,7 +1667,13 @@ Edge functions:
                         name: userContext?.name || "User",
                         email: userContext?.email || "",
                         headline: userContext?.headline || null,
-                        credits: userContext?.credits || 0,
+                        paidAiCredits: userContext?.chatPaidCreditBalance ?? userContext?.credits ?? 0,
+                        includedChatMessagesRemaining: userContext?.chatFreeRemaining ?? 0,
+                        includedChatMessagesTotal: userContext?.chatFreeTotal ?? 0,
+                        totalAvailableChatTurns:
+                          (userContext?.chatFreeRemaining ?? 0) +
+                          (userContext?.chatPaidCreditBalance ?? userContext?.credits ?? 0),
+                        chatQuotaPlanName: userContext?.chatPlanName || null,
                         subscriptionTier: userContext?.subscriptionTier || subscriptionTier,
                         subscription: userContext
                           ? {
@@ -1696,12 +1704,36 @@ Edge functions:
                       },
                     });
                   } else if (fn.name === "get_credits_balance") {
-                    const { data } = await supabaseUser
-                      .from("user_credits")
-                      .select("balance")
-                      .eq("user_id", userId)
-                      .maybeSingle();
-                    result = { success: true, balance: data?.balance || 0 };
+                    const { data, error } = await serviceClient.rpc(
+                      "get_chat_quota_status",
+                      { p_user_id: userId },
+                    );
+                    if (error) {
+                      console.error("get_chat_quota_status RPC error:", error);
+                      result = {
+                        success: false,
+                        error:
+                          "Could not fetch the current AI chat quota and paid credit balance.",
+                      };
+                    } else {
+                      const quota = isRecord(data) ? data : {};
+                      const freeRemaining = asNumber(quota.free_remaining) ?? 0;
+                      const freeTotal = asNumber(quota.free_total) ?? 0;
+                      const paidCreditBalance =
+                        asNumber(quota.credit_balance) ?? 0;
+                      result = {
+                        success: true,
+                        included_chat_messages_remaining: freeRemaining,
+                        included_chat_messages_total: freeTotal,
+                        paid_ai_credit_balance: paidCreditBalance,
+                        total_available_chat_turns:
+                          freeRemaining + paidCreditBalance,
+                        plan_name: asString(quota.plan_name),
+                        period_end: asString(quota.period_end),
+                        note:
+                          "Paid AI credits are separate from included subscription chat messages. The total available chat turns adds remaining included messages plus paid credits.",
+                      };
+                    }
                   } else if (fn.name === "get_user_profile") {
                     result = { success: true, profile: userContext };
                   } else if (fn.name === "list_app_pages") {
