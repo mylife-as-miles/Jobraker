@@ -3,6 +3,8 @@ import { ResumeData } from '../store/artboard';
 export const downloadResumePDF = async (resumeData: ResumeData) => {
     const { default: jsPDF } = await import('jspdf');
     const { basics, sections, summary } = resumeData;
+    const paragraphSpacing =
+        resumeData.metadata.typography.font.paragraphSpacing ?? 8;
     const doc = new jsPDF({
         format: 'a4',
         unit: 'pt'
@@ -68,7 +70,7 @@ export const downloadResumePDF = async (resumeData: ResumeData) => {
         const plainSummary = summary.content.replace(/<[^>]*>?/gm, '');
         const splitSummary = doc.splitTextToSize(plainSummary, contentWidth);
         doc.text(splitSummary, margin, y);
-        y += splitSummary.length * 12 + 15;
+        y += splitSummary.length * 12 + paragraphSpacing + 7;
     }
 
     // Process all sections based on layout order if possible, or just iterate common ones
@@ -131,9 +133,8 @@ export const downloadResumePDF = async (resumeData: ResumeData) => {
                         const splitDesc = doc.splitTextToSize(bullet, contentWidth - 10);
                         checkPageBreak(splitDesc.length * 12);
                         doc.text(splitDesc, margin + 10, y);
-                        y += splitDesc.length * 12;
+                        y += splitDesc.length * 12 + paragraphSpacing;
                     });
-                    y += 5; // spacing after list
                 }
                 y += 10; // spacing after item
             });

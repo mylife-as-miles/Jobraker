@@ -1,3 +1,4 @@
+import type React from "react";
 import { AzurillTemplate } from "./azurill";
 import { BronzorTemplate } from "./bronzor";
 import { ChikoritaTemplate } from "./chikorita";
