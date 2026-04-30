@@ -136,9 +136,11 @@ interface UseChatReturn {
   status: "idle" | "in_progress";
   append: (m: ChatUserPayload, opts?: ChatRequestOptions) => void;
   regenerate: () => void;
+  stop: () => void;
   setMessages: (m: BasicMessage[]) => void;
   responseId: string | null;
   setResponseId: (id: string | null) => void;
+  requestStartedAt: number | null;
 }
 
 type ChatSessionRecord = {
@@ -168,6 +170,8 @@ type ChatSessionState = {
 
 const DEFAULT_CHAT_MODEL = "gemini-3-flash-preview";
 const MAX_CHAT_ATTACHMENTS = 3;
+const CHAT_EXTENDED_WAIT_MS = 30_000;
+const CHAT_TIMEOUT_MS = 240_000;
 
 const normalizeBasicMessage = (message: any): BasicMessage => ({
   id: typeof message?.id === "string" ? message.id : nanoid(),
@@ -225,7 +229,9 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
   );
   const [status, setStatus] = useState<"idle" | "in_progress">("idle");
   const [responseId, setResponseId] = useState<string | null>(null);
+  const [requestStartedAt, setRequestStartedAt] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const requestTimedOutRef = useRef(false);
   const lastTurnRef = useRef<{
     message: ChatUserPayload;
     chatOpts?: ChatRequestOptions;
@@ -278,6 +284,8 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
       };
       setMessages(history);
       setStatus("in_progress");
+      setRequestStartedAt(Date.now());
+      requestTimedOutRef.current = false;
 
       const assistantId = nanoid();
       const assistantMessage: BasicMessage = {
@@ -296,6 +304,10 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
       const fnUrl = `${supabaseUrl}/functions/v1/ai-chat`;
 
       abortControllerRef.current = new AbortController();
+      const timeoutId = window.setTimeout(() => {
+        requestTimedOutRef.current = true;
+        abortControllerRef.current?.abort();
+      }, CHAT_TIMEOUT_MS);
 
       try {
         const {
@@ -482,9 +494,31 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           return finalMessages;
         });
         setStatus("idle");
+        setRequestStartedAt(null);
       } catch (err: any) {
         if (err.name === "AbortError") {
+          const stoppedText = requestTimedOutRef.current
+            ? "This request took too long and was stopped. Try a shorter request or send it again."
+            : "Request stopped.";
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantId
+                ? {
+                    ...msg,
+                    content: msg.content.trim() ? msg.content : stoppedText,
+                    parts: [
+                      {
+                        type: "text",
+                        text: msg.content.trim() ? msg.content : stoppedText,
+                      },
+                    ],
+                    streaming: false,
+                  }
+                : msg,
+            ),
+          );
           setStatus("idle");
+          setRequestStartedAt(null);
           return;
         }
         const errorText = `Fetch Error: ${err.message || "Could not connect to the chat function."}`;
@@ -501,7 +535,9 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           ),
         );
         setStatus("idle");
+        setRequestStartedAt(null);
       } finally {
+        window.clearTimeout(timeoutId);
         abortControllerRef.current = null;
       }
     },
@@ -528,14 +564,21 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     );
   };
 
+  const stop = () => {
+    requestTimedOutRef.current = false;
+    abortControllerRef.current?.abort();
+  };
+
   return {
     messages,
     status,
     append,
     regenerate,
+    stop,
     setMessages,
     responseId,
     setResponseId,
+    requestStartedAt,
   };
 };
 
@@ -673,10 +716,29 @@ export const ChatPage = () => {
     status,
     append,
     regenerate,
+    stop,
     setMessages,
     responseId,
     setResponseId,
+    requestStartedAt,
   } = chat;
+  const [now, setNow] = useState(() => Date.now());
+  const requestElapsedMs =
+    status === "in_progress" && requestStartedAt ? now - requestStartedAt : 0;
+  const showExtendedWait = requestElapsedMs >= CHAT_EXTENDED_WAIT_MS;
+  const requestElapsedLabel = useMemo(() => {
+    const totalSeconds = Math.max(0, Math.floor(requestElapsedMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+  }, [requestElapsedMs]);
+
+  useEffect(() => {
+    if (status !== "in_progress") return;
+    setNow(Date.now());
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [status, requestStartedAt]);
 
   // Session management with Supabase -----------------------------------------
   const sessionsRef = useRef(sessions);
@@ -1225,12 +1287,26 @@ export const ChatPage = () => {
                     className={`w-2 h-2 rounded-full ${status === "in_progress" ? "bg-brand animate-pulse" : "bg-brand"} `}
                   ></div>
                   <span className='text-xs font-medium text-foreground'>
-                    {status === "in_progress" ? "Generating..." : "Ready"}
+                    {status === "in_progress"
+                      ? showExtendedWait
+                        ? `Still working... ${requestElapsedLabel}`
+                        : "Generating..."
+                      : "Ready"}
                   </span>
                 </div>
+                {status === "in_progress" && (
+                  <button
+                    type='button'
+                    onClick={stop}
+                    className='text-sm font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 flex items-center gap-1'
+                  >
+                    Stop
+                  </button>
+                )}
                 {messages.length > 0 && (
                   <button
                     onClick={regenerate}
+                    disabled={status === "in_progress"}
                     className='text-sm font-medium text-brand hover:underline px-3 py-1.5 flex items-center gap-1'
                   >
                     Regenerate
@@ -1244,6 +1320,26 @@ export const ChatPage = () => {
               onScroll={updateScrollState}
               className='flex-1 overflow-y-auto flex flex-col relative custom-scrollbar'
             >
+              {showExtendedWait && (
+                <div className='sticky top-3 z-20 mx-auto mt-3 flex max-w-xl items-center justify-between gap-4 rounded-xl border border-brand/25 bg-card/95 px-4 py-3 text-sm shadow-lg shadow-black/10 backdrop-blur'>
+                  <div>
+                    <p className='font-medium text-foreground'>
+                      JobRaker is still working
+                    </p>
+                    <p className='text-xs text-muted-foreground'>
+                      This has been running for {requestElapsedLabel}. You can
+                      wait, or stop and try a shorter request.
+                    </p>
+                  </div>
+                  <button
+                    type='button'
+                    onClick={stop}
+                    className='shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent'
+                  >
+                    Stop
+                  </button>
+                </div>
+              )}
               {messages.length === 0 ? (
                 <div className='flex-1 flex flex-col items-center justify-center p-6 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700'>
                   <div className='max-w-2xl w-full text-center space-y-6'>
@@ -1548,9 +1644,11 @@ export const ChatPage = () => {
                                 <span className='inline-block w-1.5 h-4 ml-1 align-middle bg-brand animate-pulse' />
                               ) : (
                                 <span className='text-sm font-medium text-muted-foreground animate-pulse'>
-                                  {m.toolCalls && m.toolCalls.length > 0
-                                    ? "Working..."
-                                    : "Thinking..."}
+                                  {showExtendedWait
+                                    ? `Still working... ${requestElapsedLabel}`
+                                    : m.toolCalls && m.toolCalls.length > 0
+                                      ? "Working..."
+                                      : "Thinking..."}
                                 </span>
                               ))}
                           </div>
