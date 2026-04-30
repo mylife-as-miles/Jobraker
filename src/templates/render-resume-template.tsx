@@ -28,6 +28,12 @@ export function ResumeTemplateRenderer({
   resumeDataOverride,
 }: ResumeTemplateRendererProps) {
   let templateNode: JSX.Element;
+  const metadata =
+    metadataOverride ?? resumeDataOverride?.metadata ?? undefined;
+  const paragraphSpacing =
+    metadata?.typography?.font?.paragraphSpacing ??
+    metadata?.typography?.font?.size ??
+    8;
 
   switch (templateId) {
     case "azurill":
@@ -166,7 +172,16 @@ export function ResumeTemplateRenderer({
           : null
       }
     >
-      {templateNode}
+      <div
+        className='h-full w-full'
+        style={
+          {
+            "--resume-paragraph-spacing": `${paragraphSpacing}px`,
+          } as React.CSSProperties
+        }
+      >
+        {templateNode}
+      </div>
     </ResumeTemplateDataProvider>
   );
 }

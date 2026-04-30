@@ -205,6 +205,12 @@ function normalizeResumeDataForEditor(data: unknown, fallbackTitle?: string) {
           ...base.metadata.typography.font,
           ...((source.metadata as Record<string, any> | undefined)?.typography
             ?.font ?? {}),
+          paragraphSpacing:
+            typeof (source.metadata as Record<string, any> | undefined)
+              ?.typography?.font?.paragraphSpacing === "number"
+              ? (source.metadata as Record<string, any>).typography.font
+                  .paragraphSpacing
+              : base.metadata.typography.font.paragraphSpacing,
         },
       },
       theme: {

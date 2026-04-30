@@ -173,6 +173,26 @@ export const DesignPanel = () => {
                 }
               />
             </div>
+
+            <div className='space-y-4'>
+              <div className='flex items-center justify-between'>
+                <label className='text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400'>
+                  Paragraph Spacing
+                </label>
+                <span className='text-xs font-mono text-gray-400'>
+                  {typography.paragraphSpacing ?? 8}px
+                </span>
+              </div>
+              <Slider
+                min={0}
+                max={24}
+                step={1}
+                value={[typography.paragraphSpacing ?? 8]}
+                onValueChange={(vals) =>
+                  updateTypography({ paragraphSpacing: vals[0] })
+                }
+              />
+            </div>
           </div>
         )}
 
