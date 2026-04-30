@@ -81,7 +81,7 @@ const SummarySection = ({
             'section-summary-copy text-[0.8rem] leading-[1.85] tracking-[0.01em]',
             'text-gray-600 [&_a]:text-[color:var(--page-primary-color,#3b82f6)] [&_a]:underline',
             '[&_strong]:font-semibold [&_strong]:text-gray-800',
-            '[&_p+p]:mt-2',
+            '[&_p+p]:mt-[var(--resume-paragraph-spacing,0.5rem)]',
             'group-data-[layout=sidebar]:text-white/85 group-data-[layout=sidebar]:[&_strong]:text-white',
           )}
           dangerouslySetInnerHTML={{ __html: safeContent }}
@@ -228,8 +228,8 @@ function ItemsSection({
               <div
                 className={cn(
                   'section-item-description mt-2 text-[0.75rem] leading-[1.72] text-gray-600',
-                  '[&_p+p]:mt-2',
-                  '[&_ul]:mt-2 [&_ul]:space-y-1',
+                  '[&_p+p]:mt-[var(--resume-paragraph-spacing,0.5rem)]',
+                  '[&_ul]:mt-[var(--resume-paragraph-spacing,0.5rem)] [&_ul]:space-y-1',
                   '[&_ul]:list-none [&_ul]:pl-0',
                   '[&_li]:relative [&_li]:pl-4',
                   '[&_li]:before:absolute [&_li]:before:left-0 [&_li]:before:top-[0.6em]',
