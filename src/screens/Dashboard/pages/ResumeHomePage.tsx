@@ -264,16 +264,18 @@ export const ResumeHomePage = () => {
               </div>
 
               {/* Meta Info (Bottom) */}
-              <div className='p-4'>
-                <div className='flex items-start justify-between'>
-                  <div>
+              <div className='p-4 min-w-0'>
+                <div className='flex items-start justify-between gap-3 min-w-0'>
+                  <div className='min-w-0 flex-1'>
                     <h3 className='font-semibold text-foreground truncate pr-2'>
                       {displayName}
                     </h3>
-                    <p className='text-xs text-foreground/60 mt-1 flex items-center gap-1'>
-                      <Calendar className='w-3 h-3' />
+                    <p className='text-xs text-foreground/60 mt-1 flex min-w-0 items-center gap-1'>
+                      <Calendar className='w-3 h-3 shrink-0' />
                       Last edited{" "}
-                      {new Date(resume.updated_at).toLocaleDateString()}
+                      <span className='truncate'>
+                        {new Date(resume.updated_at).toLocaleDateString()}
+                      </span>
                     </p>
                   </div>
                   <button
@@ -281,7 +283,7 @@ export const ResumeHomePage = () => {
                     onClick={(event) =>
                       handleDeleteRequest(resume, displayName, event)
                     }
-                    className='rounded-lg p-2 text-foreground/45 transition-colors hover:bg-red-500/10 hover:text-red-500'
+                    className='shrink-0 rounded-lg p-2 text-foreground/45 transition-colors hover:bg-red-500/10 hover:text-red-500'
                     title='Delete resume'
                     aria-label={`Delete ${displayName}`}
                   >
@@ -307,12 +309,12 @@ export const ResumeHomePage = () => {
               key={resume.id}
               className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 hover:border-brand/45 items-center transition-all group'
             >
-              <div className='col-span-6 flex items-center gap-4'>
-                <div className='product-muted-icon-chip w-10 h-10 rounded-lg flex items-center justify-center'>
+              <div className='col-span-6 flex min-w-0 items-center gap-4'>
+                <div className='product-muted-icon-chip w-10 h-10 shrink-0 rounded-lg flex items-center justify-center'>
                   <FileText className='w-5 h-5 text-foreground/60' />
                 </div>
-                <div>
-                  <h3 className='font-semibold text-foreground'>
+                <div className='min-w-0'>
+                  <h3 className='truncate font-semibold text-foreground'>
                     {displayName}
                   </h3>
                   <p className='product-helper-text text-xs'>A4 - PDF</p>

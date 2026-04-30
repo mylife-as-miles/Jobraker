@@ -38,8 +38,18 @@ export const resolveResumePageLayout = (
     seen.add(section.id);
   });
 
+  const fullWidth = storedPage?.fullWidth ?? false;
+
+  if (fullWidth) {
+    return {
+      fullWidth,
+      main: uniqueOrderedSections([...main, ...sidebar]),
+      sidebar: [],
+    };
+  }
+
   return {
-    fullWidth: storedPage?.fullWidth ?? false,
+    fullWidth,
     main,
     sidebar,
   };
