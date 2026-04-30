@@ -57,7 +57,8 @@ interface SubscriptionPlan {
 
 interface CreditTransaction {
   id: string;
-  transaction_type: string;
+  transaction_type?: string;
+  type?: string;
   amount: number;
   balance_after: number;
   description: string;
@@ -99,6 +100,15 @@ const defaultPlans: SubscriptionPlan[] = BILLING_PLAN_DEFINITIONS.map(
 );
 
 type BillingInterval = "monthly" | "quarterly" | "yearly";
+
+function normalizeCreditTransaction(
+  transaction: CreditTransaction,
+): CreditTransaction {
+  return {
+    ...transaction,
+    transaction_type: transaction.transaction_type ?? transaction.type ?? "refill",
+  };
+}
 
 function planSupportsQuarterly(planName: string): boolean {
   return planName === "Pro" || planName === "Ultimate";
@@ -401,6 +411,20 @@ export const BillingPage = () => {
 
   useEffect(() => {
     fetchBillingData();
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("payment") !== "verify") return;
+
+    const refreshTimers = [1500, 4000, 8000].map((delay) =>
+      window.setTimeout(() => {
+        void fetchBillingData();
+      }, delay),
+    );
+
+    return () => {
+      refreshTimers.forEach((timerId) => window.clearTimeout(timerId));
+    };
   }, []);
 
   const fetchBillingData = async () => {
@@ -557,7 +581,11 @@ export const BillingPage = () => {
         .limit(20);
 
       if (transactionsData) {
-        setTransactions(transactionsData);
+        setTransactions(
+          (transactionsData as CreditTransaction[]).map(
+            normalizeCreditTransaction,
+          ),
+        );
       }
     } catch (error) {
       console.error("Error fetching billing data:", error);
@@ -2366,7 +2394,7 @@ export const BillingPage = () => {
                     <div className='divide-y divide-foreground/5'>
                       {transactions.map((transaction, index) => {
                         const iconData = getTransactionIcon(
-                          transaction.transaction_type,
+                          transaction.transaction_type ?? transaction.type ?? "refill",
                         );
                         return (
                           <motion.div

@@ -32,7 +32,6 @@ import Modal from "../../../components/ui/modal";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { MarkdownContent } from "../../../components/ui/MarkdownContent";
 import {
-  getJobsQueueQueryOptions,
   jobsQueueKeys,
   useJobsQueue,
   type JobsQueueScope,
@@ -61,7 +60,7 @@ import {
   fetchJobEvaluationReport,
   type JobEvaluationReport as JobEvaluationReportData,
 } from "../../../services/jobs/jobEvaluation";
-import { isTrustedSource } from "../../../utils/trustedSources";
+
 import { applyMicro1ReferralToUrl } from "../../../utils/micro1Referral";
 import { useGamification } from "../../../hooks/useGamification";
 import { cn, getProxiedLogoUrl } from "../../../lib/utils";
@@ -1332,7 +1331,7 @@ export const JobPage = (): JSX.Element => {
   const decorateJobsRef = useRef<(list: Job[]) => Promise<Job[]>>(
     async (list) => list,
   );
-  const activeSearchScopeRef = useRef<JobQueueScope>(null);
+  const activeSearchScopeRef = useRef<JobsQueueScope>(null);
 
   const decorateJobs = useCallback(
     async (list: Job[]) =>
@@ -1724,7 +1723,7 @@ export const JobPage = (): JSX.Element => {
 
   const fetchJobQueue = useCallback(
     async (
-      scope: JobQueueScope = activeSearchScopeRef.current,
+      scope: JobsQueueScope = activeSearchScopeRef.current,
     ): Promise<Job[]> => {
       const nextScope = scope ?? null;
       activeSearchScopeRef.current = nextScope;
@@ -2006,7 +2005,7 @@ export const JobPage = (): JSX.Element => {
 
         // Use backend jobs-search to discover and save jobs directly
         safeInfo("Searching the web for jobs...");
-        const currentSearchScope: JobQueueScope = {
+        const currentSearchScope: JobsQueueScope = {
           searchQuery: query.trim(),
           location: (selectedLocation || "Remote").trim() || "Remote",
           limit: maxResultsPerSearch,
