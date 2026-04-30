@@ -62,7 +62,12 @@ serve(async (req) => {
 
   try {
     const { user, serviceClient } = await requireSubscriptionTier(req, "Basics", "AI resume optimization");
-    const { jobDescription, resumeText, instructions } = await req.json();
+    const {
+      jobDescription,
+      resumeText,
+      instructions,
+      includeCandidateMemory = true,
+    } = await req.json();
 
     if (!jobDescription || !resumeText) {
       return new Response(JSON.stringify({ error: "jobDescription and resumeText are required" }), { 
@@ -71,15 +76,16 @@ serve(async (req) => {
       });
     }
 
-    let candidateMemory;
-    try {
-      candidateMemory = await fetchCandidateMemory(serviceClient, user.id);
-    } catch (candidateMemoryError) {
-      console.error(
-        "Failed to fetch candidate memory for resume tailoring",
-        candidateMemoryError,
-      );
-      candidateMemory = createEmptyCandidateMemory();
+    let candidateMemory = createEmptyCandidateMemory();
+    if (includeCandidateMemory !== false) {
+      try {
+        candidateMemory = await fetchCandidateMemory(serviceClient, user.id);
+      } catch (candidateMemoryError) {
+        console.error(
+          "Failed to fetch candidate memory for resume tailoring",
+          candidateMemoryError,
+        );
+      }
     }
     const prompt = buildPrompt(
       jobDescription,

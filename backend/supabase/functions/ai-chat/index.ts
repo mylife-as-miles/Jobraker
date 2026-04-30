@@ -169,6 +169,32 @@ async function resolveAutoApplyArtifacts(
 }
 
 const RESUME_STATUSES = new Set(["Active", "Draft", "Archived"]);
+const RESUME_PLACEHOLDER_NAMES = new Set([
+  "john doe",
+  "jane doe",
+  "alex johnson",
+  "candidate name",
+  "your name",
+  "guest user",
+  "test user",
+]);
+
+function isResumePlaceholderName(value: unknown): boolean {
+  const normalized = asString(value)?.toLowerCase().replace(/\s+/g, " ") || "";
+  return !normalized || RESUME_PLACEHOLDER_NAMES.has(normalized);
+}
+
+function buildAuthenticatedProfileBasics(profile: Record<string, unknown> | null) {
+  const firstName = asString(profile?.first_name);
+  const lastName = asString(profile?.last_name);
+  const name = [firstName, lastName].filter(Boolean).join(" ").trim();
+  return {
+    name: !isResumePlaceholderName(name) ? name : null,
+    headline: asString(profile?.job_title),
+    phone: asString(profile?.phone),
+    location: asString(profile?.location),
+  };
+}
 
 function normalizeResumeExperienceItem(
   raw: Record<string, unknown>,
@@ -204,6 +230,14 @@ async function runUpdateResumeTool(
 ): Promise<Record<string, unknown>> {
   const resumeId = asString(args.resume_id);
   const updateAll = args.update_all === true;
+  const { data: profileRow } = await sb
+    .from("profiles")
+    .select("first_name, last_name, job_title, phone, location")
+    .eq("id", userId)
+    .maybeSingle();
+  const profileBasics = buildAuthenticatedProfileBasics(
+    isRecord(profileRow) ? profileRow : null,
+  );
 
   let query = sb
     .from("resumes")
@@ -235,7 +269,10 @@ async function runUpdateResumeTool(
     ? (args.set_experience_items as unknown[]).filter((x) => isRecord(x))
     : null;
   const displayName = asString(args.display_name);
-  const fullName = asString(args.full_name);
+  const requestedFullName = asString(args.full_name);
+  const fullName = !isResumePlaceholderName(requestedFullName)
+    ? requestedFullName
+    : null;
   const headline = asString(args.headline);
   const email = asString(args.email);
   const phone = asString(args.phone);
@@ -256,6 +293,9 @@ async function runUpdateResumeTool(
 
     if (fullName) {
       basics.name = fullName;
+      changed.push("name");
+    } else if (isResumePlaceholderName(basics.name)) {
+      basics.name = profileBasics.name || "";
       changed.push("name");
     }
     if (headline) {
@@ -972,6 +1012,7 @@ Only describe limitations for external systems that are not connected here, such
 If the user has connected Gmail in JobRaker Settings, job-related inbox tools may be available in agent mode (search/send guardrails still apply).
 When the user asks for totals, counts, lists, or recent activity inside JobRaker, answer from the account context or tools first before giving generic advice.
 For AI chat billing, distinguish paid AI credits from included subscription chat messages. Do not call the included-message quota "credits" or "tokens"; when asked for balance, report included chat messages remaining, paid AI credits, and the combined available chat turns when known.
+For generated CVs/resumes, never copy a name from a template example, style guide, screenshot, or sample document. Use only the authenticated user's own profile/resume data or an explicit name supplied by the user in the current conversation; if the name is unknown, leave it blank rather than using a placeholder such as John Doe.
 `;
 
 const createAuthedSupabaseClient = (authHeader: string) =>
@@ -1231,7 +1272,7 @@ const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "update_resume",
     description:
-      "Update the resume document in the database (builder JSON in resumes.data). Can change name, headline, summary, contact, set status to Active/Draft/Archived, and replace the full Experience section via set_experience_items. All resumes are addressable: call list_resumes for ids. For experience bullets, pass set_experience_items (each item: company, position, period, description with achievements).",
+      "Update the resume document in the database (builder JSON in resumes.data). Can change name, headline, summary, contact, set status to Active/Draft/Archived, and replace the full Experience section via set_experience_items. All resumes are addressable: call list_resumes for ids. For experience bullets, pass set_experience_items (each item: company, position, period, description with achievements). Never pass template/example placeholder names like John Doe; omit full_name if the user's real name is unknown.",
     parameters: {
       type: "object",
       properties: {

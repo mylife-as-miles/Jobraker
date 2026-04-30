@@ -425,6 +425,22 @@ const parsePublishedAt = (metadata: Record<string, unknown>): string | null => {
   return null;
 };
 
+const MAX_DISCOVERY_POST_AGE_DAYS = 60;
+const MAX_DISCOVERY_POST_AGE_MS =
+  MAX_DISCOVERY_POST_AGE_DAYS * 24 * 60 * 60 * 1000;
+
+function postedAtTimestamp(postedAt: string | null | undefined): number | null {
+  if (!postedAt) return null;
+  const timestamp = new Date(postedAt).getTime();
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+function isStalePostedAt(postedAt: string | null | undefined): boolean {
+  const timestamp = postedAtTimestamp(postedAt);
+  if (timestamp === null) return false;
+  return Date.now() - timestamp > MAX_DISCOVERY_POST_AGE_MS;
+}
+
 const deriveLocationFromText = (value: string): string | null => {
   if (!value) return null;
   if (/remote|worldwide|anywhere/i.test(value)) return "Remote";
@@ -852,6 +868,9 @@ function mapFirecrawlItemToCandidate(
 
   const company = deriveCompanyName(rawTitle, metadata, url, seed.company_name);
   const location = deriveLocation(metadata, description);
+  const postedAt = parsePublishedAt(metadata);
+  if (isStalePostedAt(postedAt)) return null;
+
   const sourceKind = inferSourceKind(url, rawTitle);
   const baseConfidence =
     seed.type === "tracked_company"
@@ -868,7 +887,7 @@ function mapFirecrawlItemToCandidate(
     location,
     url,
     description,
-    posted_at: parsePublishedAt(metadata),
+    posted_at: postedAt,
     source_kind: sourceKind === "direct" ? "firecrawl" : sourceKind,
     source_confidence: sourceConfidence,
     is_tracked_company: seed.is_tracked_company,
@@ -1052,7 +1071,10 @@ async function fetchGreenhouseBoardJobs(
         },
       } as NormalizedProviderJob;
     })
-    .filter((job: NormalizedProviderJob | null): job is NormalizedProviderJob => Boolean(job));
+    .filter(
+      (job: NormalizedProviderJob | null): job is NormalizedProviderJob =>
+        Boolean(job) && !isStalePostedAt(job?.posted_at),
+    );
 }
 
 async function fetchLeverSiteJobs(
@@ -1104,7 +1126,10 @@ async function fetchLeverSiteJobs(
         },
       } as NormalizedProviderJob;
     })
-    .filter((job: NormalizedProviderJob | null): job is NormalizedProviderJob => Boolean(job));
+    .filter(
+      (job: NormalizedProviderJob | null): job is NormalizedProviderJob =>
+        Boolean(job) && !isStalePostedAt(job?.posted_at),
+    );
 }
 
 async function fetchAshbyBoardJobs(
@@ -1157,7 +1182,10 @@ async function fetchAshbyBoardJobs(
         },
       } as NormalizedProviderJob;
     })
-    .filter((job: NormalizedProviderJob | null): job is NormalizedProviderJob => Boolean(job));
+    .filter(
+      (job: NormalizedProviderJob | null): job is NormalizedProviderJob =>
+        Boolean(job) && !isStalePostedAt(job?.posted_at),
+    );
 }
 
 async function fetchWorkableAccountJobs(
@@ -1220,7 +1248,10 @@ async function fetchWorkableAccountJobs(
         },
       } as NormalizedProviderJob;
     })
-    .filter((job: NormalizedProviderJob | null): job is NormalizedProviderJob => Boolean(job));
+    .filter(
+      (job: NormalizedProviderJob | null): job is NormalizedProviderJob =>
+        Boolean(job) && !isStalePostedAt(job?.posted_at),
+    );
 }
 
 function extractMetaContent(html: string, key: string): string | null {
@@ -1805,6 +1836,12 @@ function compareRankedJobs(left: DiscoveryJob, right: DiscoveryJob): number {
   return rightPosted - leftPosted;
 }
 
+function onlyFreshOrUndatedJobs<T extends { posted_at: string | null }>(
+  jobs: T[],
+): T[] {
+  return jobs.filter((job) => !isStalePostedAt(job.posted_at));
+}
+
 function chooseBetterDiscoveredJob(
   current: DiscoveryJob,
   incoming: DiscoveryJob,
@@ -1999,6 +2036,8 @@ async function unrestrictedWebSearch(
       "Unknown";
 
     const sourceKind = inferSourceKind(url, rawTitle);
+    const postedAt = parsePublishedAt(metadata);
+    if (isStalePostedAt(postedAt)) continue;
 
     results.push({
       title: trimText(rawTitle, 300),
@@ -2006,7 +2045,7 @@ async function unrestrictedWebSearch(
       location: loc,
       url,
       description,
-      posted_at: parsePublishedAt(metadata),
+      posted_at: postedAt,
       source_id: `firecrawl:${url}`,
       source_type: "web_search" as const,
       source_kind: sourceKind === "direct" ? "firecrawl" : sourceKind,
@@ -2124,6 +2163,7 @@ export async function discoverJobsFirecrawl(
 
     const ranked = normalized
       .filter((job) => roleMatches(job, args.searchQuery))
+      .filter((job) => !isStalePostedAt(job.posted_at))
       .map((job) =>
         attachRankingSignals(
           job,
@@ -2161,7 +2201,7 @@ export async function discoverJobsFirecrawl(
 
   const allProcessedJobs = batchResults.flat();
 
-  let finalJobs = dedupeDiscoveredJobs(allProcessedJobs)
+  let finalJobs = onlyFreshOrUndatedJobs(dedupeDiscoveredJobs(allProcessedJobs))
     .sort(compareRankedJobs)
     .slice(0, args.limit);
 
@@ -2210,9 +2250,9 @@ export async function discoverJobsFirecrawl(
         );
 
         finalJobs = dedupeDiscoveredJobs(
-          broadenedNormalized.filter((job) =>
-            roleMatches(job, args.searchQuery, true),
-          ),
+          broadenedNormalized
+            .filter((job) => roleMatches(job, args.searchQuery, true))
+            .filter((job) => !isStalePostedAt(job.posted_at)),
         )
           .sort(compareRankedJobs)
           .slice(0, args.limit);
@@ -2244,8 +2284,8 @@ export async function discoverJobsFirecrawl(
     );
 
     // Apply relaxed role matching
-    const matched = unrestrictedJobs.filter((job) =>
-      roleMatches(job, args.searchQuery, true),
+    const matched = onlyFreshOrUndatedJobs(
+      unrestrictedJobs.filter((job) => roleMatches(job, args.searchQuery, true)),
     );
 
     finalJobs = dedupeDiscoveredJobs(matched)

@@ -70,12 +70,55 @@ export function MatchScorePieChart({
   summary,
   breakdown,
 }: MatchScorePieChartProps) {
-  const chartData =
-    breakdown?.map((item) => ({
+  const displayScore = Math.max(0, Math.min(100, Math.round(score)));
+  const normalizedBreakdown = (() => {
+    const items =
+      breakdown?.map((item, index) => {
+        const weight = Number.isFinite(item.weight) ? Math.max(0, item.weight) : 0;
+        const componentScore = Number.isFinite(item.componentScore)
+          ? Math.max(0, Math.min(100, item.componentScore))
+          : 0;
+        const rawContribution = Number.isFinite(item.contribution)
+          ? Math.max(0, item.contribution)
+          : componentScore * weight;
+        return { ...item, componentScore, weight, rawContribution, index };
+      }) || [];
+
+    const totalContribution = items.reduce(
+      (total, item) => total + item.rawContribution,
+      0,
+    );
+    if (items.length === 0 || totalContribution <= 0 || displayScore <= 0) {
+      return items.map((item) => ({ ...item, contributionPoints: 0 }));
+    }
+
+    const scaled = items.map((item) => {
+      const exact = (item.rawContribution / totalContribution) * displayScore;
+      const points = Math.floor(exact);
+      return { ...item, contributionPoints: points, remainder: exact - points };
+    });
+    let remaining =
+      displayScore -
+      scaled.reduce((total, item) => total + item.contributionPoints, 0);
+    return scaled
+      .sort((a, b) => b.remainder - a.remainder)
+      .map((item) => {
+        const extra = remaining > 0 ? 1 : 0;
+        remaining -= extra;
+        return {
+          ...item,
+          contributionPoints: item.contributionPoints + extra,
+        };
+      })
+      .sort((a, b) => a.index - b.index);
+  })();
+  const chartData = normalizedBreakdown
+    .filter((item) => item.contributionPoints > 0)
+    .map((item) => ({
       label: item.label,
-      score: Math.round(item.componentScore), // Round to whole number
+      score: item.contributionPoints,
       fill: getCategoryColor(item.label),
-    })) || [];
+    }));
 
   const hasBreakdown = chartData.length > 0;
 
@@ -94,15 +137,15 @@ export function MatchScorePieChart({
           <Badge
             variant='outline'
             className={
-              score >= 70
+              displayScore >= 70
                 ? "text-brand bg-brand/10 border-none"
-                : score >= 50
+                : displayScore >= 50
                   ? "text-brand bg-brand/10 border-none"
                   : "text-brand bg-brand/10 border-none"
             }
           >
             <TrendingUp className='h-4 w-4' />
-            <span>{score}%</span>
+            <span>{displayScore}%</span>
           </Badge>
         </div>
         {summary && (
@@ -139,7 +182,7 @@ export function MatchScorePieChart({
                         fontSize={14}
                         fontWeight={600}
                         fill='#000000'
-                        formatter={(value: number) => `${value}%`}
+                        formatter={(value: number) => `${value} pts`}
                       />
                     </Pie>
                   </PieChart>
@@ -148,7 +191,7 @@ export function MatchScorePieChart({
             </div>
 
             <div className='mt-4 space-y-2'>
-              {breakdown?.map((item, index) => (
+              {normalizedBreakdown.map((item, index) => (
                 <div
                   key={index}
                   className='rounded-lg border border-foreground/10 bg-foreground/5 p-3'
@@ -166,8 +209,12 @@ export function MatchScorePieChart({
                       </span>
                     </div>
                     <span className='text-sm font-semibold text-brand'>
-                      {item.componentScore}%
+                      {item.contributionPoints} pts
                     </span>
+                  </div>
+                  <div className='mb-1 text-[11px] text-foreground/45'>
+                    {Math.round(item.componentScore)}% component score,{" "}
+                    {Math.round(item.weight * 100)}% weight
                   </div>
                   <p className='text-xs text-foreground/60 leading-relaxed'>
                     {item.detail}
@@ -180,7 +227,7 @@ export function MatchScorePieChart({
           <div className='flex h-[250px] items-center justify-center'>
             <div className='text-center space-y-2'>
               <div className='text-6xl font-bold text-brand'>
-                {Math.round(score)}%
+                {displayScore}%
               </div>
               <p className='text-sm text-foreground/50'>Overall Match Score</p>
             </div>

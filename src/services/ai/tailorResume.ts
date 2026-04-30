@@ -4,6 +4,7 @@ export async function tailorResumeViaEdge(opts: {
   jobDescription: string;
   resumeText: string;
   instructions?: string;
+  includeCandidateMemory?: boolean;
 }) {
   const data = await invokeProtectedFunction<{ tailored_resume?: string }>(
     "tailor-resume",

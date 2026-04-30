@@ -121,7 +121,12 @@ serve(async (req) => {
 
   try {
     const { user, serviceClient } = await requireSubscriptionTier(req, "Basics", "AI cover letter generation");
-    const { jobDescription, resumeText, instructions } = await req.json();
+    const {
+      jobDescription,
+      resumeText,
+      instructions,
+      includeCandidateMemory = true,
+    } = await req.json();
 
     if (!jobDescription || !resumeText) {
       return new Response(JSON.stringify({ error: "jobDescription and resumeText are required" }), { 
@@ -134,15 +139,16 @@ serve(async (req) => {
     const safeResume = sanitizeInput(resumeText || "", 20000);
     const safeInstructions = sanitizeInput(instructions || "", 2000);
 
-    let candidateMemory: CandidateMemory;
-    try {
-      candidateMemory = await fetchCandidateMemory(serviceClient, user.id);
-    } catch (candidateMemoryError) {
-      console.error(
-        "Failed to fetch candidate memory for cover letter generation",
-        candidateMemoryError,
-      );
-      candidateMemory = createEmptyCandidateMemory();
+    let candidateMemory: CandidateMemory = createEmptyCandidateMemory();
+    if (includeCandidateMemory !== false) {
+      try {
+        candidateMemory = await fetchCandidateMemory(serviceClient, user.id);
+      } catch (candidateMemoryError) {
+        console.error(
+          "Failed to fetch candidate memory for cover letter generation",
+          candidateMemoryError,
+        );
+      }
     }
     const prompt = buildPrompt(
       safeJobDesc,

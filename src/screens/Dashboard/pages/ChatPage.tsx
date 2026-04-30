@@ -1342,7 +1342,7 @@ export const ChatPage = () => {
             </div>
           </aside>
 
-          <main className='flex-1 relative flex flex-col bg-background overflow-hidden'>
+          <main className='min-h-0 flex-1 relative flex flex-col bg-background overflow-hidden'>
             <header className='h-16 flex items-center justify-between px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
               <div className='flex items-center gap-3'>
                 <button
@@ -1411,7 +1411,7 @@ export const ChatPage = () => {
             <div
               ref={chatScrollRef}
               onScroll={updateScrollState}
-              className='flex-1 overflow-y-auto flex flex-col relative custom-scrollbar'
+              className='min-h-0 flex-1 overflow-y-auto flex flex-col relative custom-scrollbar'
             >
               {showExtendedWait && (
                 <div className='sticky top-3 z-20 mx-auto mt-3 flex max-w-xl items-center justify-between gap-4 rounded-xl border border-brand/25 bg-card/95 px-4 py-3 text-sm shadow-lg shadow-black/10 backdrop-blur'>
@@ -1503,7 +1503,7 @@ export const ChatPage = () => {
                   </div>
                 </div>
               ) : (
-                <div className='flex-1 w-full max-w-4xl mx-auto p-6 space-y-6 pb-32'>
+                <div className='flex-1 w-full max-w-4xl mx-auto p-6 space-y-6 pb-8'>
                   {messages.map((m) => (
                     <div
                       key={m.id}
@@ -1766,15 +1766,16 @@ export const ChatPage = () => {
               </div>
             )}
 
-            <div className='p-4 md:p-6 pt-0 w-full max-w-4xl mx-auto z-10 shrink-0'>
-              <div
-                className={`relative rounded-[24px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${
-                  text.trim() || attachments.length
-                    ? "bg-card ring-1 ring-brand/50 border-brand/50"
-                    : "bg-card/85 backdrop-blur-xl"
-                }`}
-              >
-                <div className='flex flex-col'>
+            <div className='shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur md:px-6'>
+              <div className='w-full max-w-4xl mx-auto'>
+                <div
+                  className={`relative rounded-[24px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${
+                    text.trim() || attachments.length
+                      ? "bg-card ring-1 ring-brand/50 border-brand/50"
+                      : "bg-card/85 backdrop-blur-xl"
+                  }`}
+                >
+                  <div className='flex flex-col'>
                   <div className='relative flex items-end p-2 pb-2'>
                     <textarea
                       ref={textareaRef}
@@ -1909,11 +1910,12 @@ export const ChatPage = () => {
                       </div>
                     </div>
                   )}
+                  </div>
                 </div>
+                <p className='text-center text-[10px] text-muted-foreground mt-3 uppercase tracking-widest font-medium'>
+                  JobRaker AI can make mistakes. Check important information.
+                </p>
               </div>
-              <p className='text-center text-[10px] text-muted-foreground mt-3 uppercase tracking-widest font-medium'>
-                JobRaker AI can make mistakes. Check important information.
-              </p>
             </div>
 
             <div className='fixed -bottom-48 -right-48 w-96 h-96 bg-brand/5 rounded-full blur-[120px] pointer-events-none'></div>

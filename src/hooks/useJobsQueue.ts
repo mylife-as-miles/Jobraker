@@ -7,6 +7,7 @@ export type JobsQueueScope = {
   searchQuery: string;
   location: string;
   limit?: number;
+  startedAt?: string;
 } | null;
 
 interface JobsQueueQueryConfig<TJob> {
@@ -24,6 +25,7 @@ export const jobsQueueKeys = {
       scope?.searchQuery?.trim() || null,
       scope?.location?.trim() || null,
       typeof scope?.limit === "number" ? scope.limit : null,
+      scope?.startedAt || null,
     ] as const,
 };
 
@@ -66,6 +68,10 @@ export function getJobsQueueQueryOptions<TJob>({
           .contains("raw_data", { discovery: discoveryScope })
           .order("discovered_at", { ascending: false })
           .order("created_at", { ascending: false });
+
+        if (scope?.startedAt) {
+          queryBuilder = queryBuilder.gte("discovered_at", scope.startedAt);
+        }
 
         if (typeof scope?.limit === "number" && scope.limit > 0) {
           queryBuilder = queryBuilder.limit(scope.limit);
