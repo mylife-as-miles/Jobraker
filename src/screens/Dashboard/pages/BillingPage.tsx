@@ -415,14 +415,73 @@ export const BillingPage = () => {
 
     const searchParams = new URLSearchParams(window.location.search);
     if (searchParams.get("payment") !== "verify") return;
+    const reference =
+      searchParams.get("reference") || searchParams.get("trxref");
+    let cancelled = false;
+
+    const verifyReturnedPayment = async () => {
+      if (!reference) return;
+
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "verify-payment",
+          {
+            body: { reference },
+          },
+        );
+
+        if (cancelled) return;
+
+        const result = data as
+          | { success?: boolean; status?: string; error?: string }
+          | null;
+
+        if (error || result?.error || !result?.success) {
+          console.error("Payment verification failed:", error || result?.error);
+          toastError(
+            "Payment verification pending",
+            "We could not apply the payment immediately. Please refresh in a moment or contact support with the payment reference.",
+          );
+          return;
+        }
+
+        if (result.status === "fulfilled") {
+          notify({
+            title: "Payment applied",
+            description: "Your credits have been added to your balance.",
+            variant: "success",
+          });
+        }
+
+        window.dispatchEvent(new CustomEvent("jobraker:credits-updated"));
+        await fetchBillingData();
+
+        const cleanedUrl = new URL(window.location.href);
+        cleanedUrl.searchParams.delete("payment");
+        cleanedUrl.searchParams.delete("reference");
+        cleanedUrl.searchParams.delete("trxref");
+        window.history.replaceState({}, "", cleanedUrl.toString());
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Payment return verification error:", error);
+        toastError(
+          "Payment verification pending",
+          "We could not apply the payment immediately. Please refresh in a moment or contact support with the payment reference.",
+        );
+      }
+    };
+
+    void verifyReturnedPayment();
 
     const refreshTimers = [1500, 4000, 8000].map((delay) =>
       window.setTimeout(() => {
         void fetchBillingData();
+        window.dispatchEvent(new CustomEvent("jobraker:credits-updated"));
       }, delay),
     );
 
     return () => {
+      cancelled = true;
       refreshTimers.forEach((timerId) => window.clearTimeout(timerId));
     };
   }, []);
