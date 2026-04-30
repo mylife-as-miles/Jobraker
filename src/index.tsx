@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 import { LandingPage } from "./screens/LandingPage";
 import { WaitlistPage } from "./screens/Waitlist/WaitlistPage";
+import { EarlyAccessPage } from "./screens/EarlyAccess/EarlyAccessPage";
 import { JobrackerSignup } from "./screens/JobrackerSignup";
 import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
