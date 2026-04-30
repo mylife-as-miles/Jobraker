@@ -1,18 +1,31 @@
-import * as React from 'react';
+import * as React from "react";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
-export const TooltipProvider: React.FC<{children: React.ReactNode}> = ({children}) => <>{children}</>;
-export const Tooltip: React.FC<{children: React.ReactNode}> = ({children}) => <>{children}</>;
-export const TooltipTrigger: React.FC<React.HTMLAttributes<HTMLElement>> = ({children, ...rest}) => <span {...rest}>{children}</span>;
-export const TooltipContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({children, className = '', ...rest}) => (
-	<div
-		role="tooltip"
-		className={
-			"z-50 rounded-xl border border-foreground/15 bg-background/80 px-2.5 py-1.5 text-xs text-white shadow-[0_10px_30px_-10px_rgba(29,255,0,0.25)] backdrop-blur-md " +
-			"data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 " +
-			className
-		}
-		{...rest}
-	>
-		{children}
-	</div>
-);
+import { cn } from "@/lib/utils";
+
+export const TooltipProvider = TooltipPrimitive.Provider;
+export const Tooltip = TooltipPrimitive.Root;
+export const TooltipTrigger = TooltipPrimitive.Trigger;
+
+export const TooltipContent = React.forwardRef<
+  React.ElementRef<typeof TooltipPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
+>(({ children, className = "", sideOffset = 8, ...props }, ref) => (
+  <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Content
+      ref={ref}
+      sideOffset={sideOffset}
+      className={cn(
+        "z-50 overflow-hidden rounded-lg border border-foreground/15 bg-background/95 px-2.5 py-1.5 text-xs font-medium text-foreground shadow-[0_10px_30px_-10px_rgba(29,255,0,0.25)] backdrop-blur-md",
+        "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+      <TooltipPrimitive.Arrow className='fill-background/95' />
+    </TooltipPrimitive.Content>
+  </TooltipPrimitive.Portal>
+));
+
+TooltipContent.displayName = TooltipPrimitive.Content.displayName;

@@ -29,7 +29,7 @@ import remarkGfm from "remark-gfm";
 import { useNavigate } from "react-router-dom";
 import { createClient } from "../../../lib/supabaseClient";
 import {
-  cacheChatAttachment,
+  cacheChatAttachments,
   getChatAttachment,
 } from "../../../lib/chatAttachmentIdb";
 import {
@@ -115,6 +115,7 @@ interface BasicMessage {
   toolCalls?: ToolCallEntry[];
   /** Persisted: user message included an image (bytes live in IndexedDB). */
   hasPastedImage?: boolean;
+  attachmentCount?: number;
 }
 
 type ChatUserPayload = {
@@ -166,6 +167,7 @@ type ChatSessionState = {
 };
 
 const DEFAULT_CHAT_MODEL = "gemini-3-flash-preview";
+const MAX_CHAT_ATTACHMENTS = 3;
 
 const normalizeBasicMessage = (message: any): BasicMessage => ({
   id: typeof message?.id === "string" ? message.id : nanoid(),
@@ -240,11 +242,12 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
       if (status === "in_progress") return;
 
       const textContent = m.content.trim();
-      const userMessage: BasicMessage = {
+  const userMessage: BasicMessage = {
         id: nanoid(),
         role: "user",
         content: textContent,
         hasPastedImage: Boolean(m.images?.length),
+        attachmentCount: m.images?.length || 0,
         createdAt: Date.now(),
         parts: [
           {
@@ -255,15 +258,16 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
       };
 
       if (m.images?.length) {
-        const img0 = m.images[0];
-        if (img0?.data) {
-          void cacheChatAttachment({
-            messageId: userMessage.id,
-            mimeType: img0.mimeType || "image/png",
-            name: img0.name || "attachment",
-            base64: img0.data,
-          });
-        }
+        void cacheChatAttachments(
+          userMessage.id,
+          m.images
+            .filter((img) => Boolean(img.data))
+            .map((img) => ({
+              mimeType: img.mimeType || "image/png",
+              name: img.name || "attachment",
+              base64: img.data,
+            })),
+        );
       }
 
       const history = [...baseMessages, userMessage];
@@ -557,25 +561,40 @@ function UserChatAttachment({
   messageId: string;
   hasPastedImage?: boolean;
 }) {
-  const [src, setSrc] = useState<string | null>(null);
+  const [images, setImages] = useState<
+    Array<{ src: string; name: string }>
+  >([]);
   useEffect(() => {
     if (!hasPastedImage) return;
     let cancelled = false;
     void getChatAttachment(messageId).then((row) => {
       if (cancelled || !row) return;
-      setSrc(`data:${row.mimeType};base64,${row.base64}`);
+      const cachedImages = row.images?.length
+        ? row.images
+        : [{ mimeType: row.mimeType, base64: row.base64, name: row.name }];
+      setImages(
+        cachedImages.map((img) => ({
+          src: `data:${img.mimeType};base64,${img.base64}`,
+          name: img.name,
+        })),
+      );
     });
     return () => {
       cancelled = true;
     };
   }, [messageId, hasPastedImage]);
-  if (!hasPastedImage || !src) return null;
+  if (!hasPastedImage || images.length === 0) return null;
   return (
-    <img
-      src={src}
-      alt=''
-      className='rounded-lg max-h-56 max-w-full mb-2 border border-primary-foreground/25 object-contain bg-black/10'
-    />
+    <div className='mb-2 flex flex-wrap gap-2'>
+      {images.map((image, index) => (
+        <img
+          key={`${image.name}-${index}`}
+          src={image.src}
+          alt={image.name}
+          className='rounded-lg max-h-56 max-w-full border border-primary-foreground/25 object-contain bg-black/10'
+        />
+      ))}
+    </div>
   );
 }
 
@@ -591,18 +610,25 @@ export const ChatPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const supabase = useMemo(() => createClient(), []);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
-  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const attachmentPreviewUrl = useMemo(() => {
-    if (!attachment?.type?.startsWith("image/")) return null;
-    return URL.createObjectURL(attachment);
-  }, [attachment]);
+  const attachmentPreviewUrls = useMemo(
+    () =>
+      attachments.map((attachment) =>
+        attachment.type?.startsWith("image/")
+          ? URL.createObjectURL(attachment)
+          : null,
+      ),
+    [attachments],
+  );
 
   useEffect(() => {
     return () => {
-      if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
+      attachmentPreviewUrls.forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
     };
-  }, [attachmentPreviewUrl]);
+  }, [attachmentPreviewUrls]);
 
   const hasChatAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
 
@@ -805,9 +831,26 @@ export const ChatPage = () => {
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setAttachment(e.target.files[0]);
+    const selectedFiles = Array.from(e.target.files || []);
+    if (!selectedFiles.length) return;
+
+    const imageFiles = selectedFiles.filter((file) =>
+      file.type.startsWith("image/"),
+    );
+    if (imageFiles.length !== selectedFiles.length) {
+      toastError("Unsupported file type", "AI chat attachments must be images.");
     }
+
+    setAttachments((current) => {
+      const next = [...current, ...imageFiles].slice(0, MAX_CHAT_ATTACHMENTS);
+      if (current.length + imageFiles.length > MAX_CHAT_ATTACHMENTS) {
+        toastError(
+          "Attachment limit",
+          `You can attach up to ${MAX_CHAT_ATTACHMENTS} images at once.`,
+        );
+      }
+      return next;
+    });
   };
 
   const handlePasteImage = useCallback(
@@ -840,30 +883,32 @@ export const ChatPage = () => {
           })
         : imageFile;
 
-      setAttachment(file);
+      setAttachments((current) =>
+        [...current, file].slice(0, MAX_CHAT_ATTACHMENTS),
+      );
       if (fileInputRef.current) fileInputRef.current.value = "";
     },
     [],
   );
 
   const handleSubmit = async (message: { text: string }) => {
-    if ((!message.text.trim() && !attachment) || status === "in_progress")
+    if ((!message.text.trim() && attachments.length === 0) || status === "in_progress")
       return;
 
-    const attachmentFile = attachment;
+    const attachmentFiles = attachments;
     setText("");
-    setAttachment(null);
+    setAttachments([]);
     const textarea = textareaRef.current;
     if (textarea) textarea.style.height = "auto";
 
     let images: { mimeType: string; data: string; name: string }[] | undefined;
-    if (attachmentFile) {
+    if (attachmentFiles.length) {
       try {
-        images = [await fileToChatImagePart(attachmentFile)];
+        images = await Promise.all(attachmentFiles.map(fileToChatImagePart));
       } catch (e) {
         console.error(e);
         toastError(
-          "Could not read the image. Try again or use a smaller file.",
+          "Could not read the images. Try again or use smaller files.",
         );
         return;
       }
@@ -920,7 +965,8 @@ export const ChatPage = () => {
 
     if (isFirstMessage && sessionId) {
       const optimisticTitle = (
-        message.text.trim() || (attachmentFile ? "Image" : "New Chat")
+        message.text.trim() ||
+        (attachmentFiles.length ? "Images" : "New Chat")
       ).slice(0, 40);
       setSessions((prev) =>
         prev.map((s) =>
@@ -946,7 +992,7 @@ export const ChatPage = () => {
             body: JSON.stringify({
               message:
                 message.text.trim() ||
-                (attachmentFile ? "User shared a screenshot" : ""),
+                (attachmentFiles.length ? "User shared screenshots" : ""),
             }),
           });
 
@@ -1532,7 +1578,7 @@ export const ChatPage = () => {
             <div className='p-4 md:p-6 pt-0 w-full max-w-4xl mx-auto z-10 shrink-0'>
               <div
                 className={`relative rounded-[24px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${
-                  text.trim() || attachment
+                  text.trim() || attachments.length
                     ? "bg-card ring-1 ring-brand/50 border-brand/50"
                     : "bg-card/85 backdrop-blur-xl"
                 }`}
@@ -1547,7 +1593,7 @@ export const ChatPage = () => {
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
-                          if (text.trim() || attachment)
+                          if (text.trim() || attachments.length)
                             handleSubmit({ text } as any);
                         }
                       }}
@@ -1564,15 +1610,15 @@ export const ChatPage = () => {
 
                     <button
                       onClick={() =>
-                        (text.trim() || attachment) &&
+                        (text.trim() || attachments.length > 0) &&
                         handleSubmit({ text } as any)
                       }
                       disabled={
-                        (!text.trim() && !attachment) ||
+                        (!text.trim() && attachments.length === 0) ||
                         status === "in_progress"
                       }
                       className={`mb-1.5 mr-1.5 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                        text.trim() || attachment
+                        text.trim() || attachments.length
                           ? "bg-brand hover:bg-brand/90 text-primary-foreground shadow-[0_0_15px_hsl(var(--brand)/0.3)]"
                           : "bg-muted text-muted-foreground/60 cursor-not-allowed"
                       }`}
@@ -1619,44 +1665,56 @@ export const ChatPage = () => {
                       <input
                         type='file'
                         ref={fileInputRef}
+                        multiple
+                        accept='image/*'
                         className='hidden'
                         onChange={handleFileSelect}
                       />
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className={`transition-colors ${attachment ? "text-brand" : "text-muted-foreground hover:text-foreground"}`}
+                        className={`transition-colors ${attachments.length ? "text-brand" : "text-muted-foreground hover:text-foreground"}`}
                       >
                         <Paperclip size={16} />
                       </button>
                     </div>
                   </div>
 
-                  {attachment && (
+                  {attachments.length > 0 && (
                     <div className='px-4 pb-2'>
-                      <div className='inline-flex items-center gap-2 bg-accent/40 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground border border-border'>
-                        {attachmentPreviewUrl ? (
-                          <img
-                            src={attachmentPreviewUrl}
-                            alt=''
-                            className='h-10 w-10 rounded-md object-cover border border-border shrink-0'
-                          />
-                        ) : (
-                          <Paperclip size={12} className='text-brand' />
-                        )}
-                        <span className='max-w-[150px] truncate'>
-                          {attachment.name}
-                        </span>
-                        <button
-                          type='button'
-                          onClick={() => {
-                            setAttachment(null);
-                            if (fileInputRef.current)
-                              fileInputRef.current.value = "";
-                          }}
-                          className='ml-1 hover:text-brand'
-                        >
-                          <X size={12} />
-                        </button>
+                      <div className='flex flex-wrap gap-2'>
+                        {attachments.map((attachment, index) => (
+                          <div
+                            key={`${attachment.name}-${attachment.lastModified}-${index}`}
+                            className='inline-flex min-w-0 items-center gap-2 bg-accent/40 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground border border-border'
+                          >
+                            {attachmentPreviewUrls[index] ? (
+                              <img
+                                src={attachmentPreviewUrls[index] || ""}
+                                alt=''
+                                className='h-10 w-10 rounded-md object-cover border border-border shrink-0'
+                              />
+                            ) : (
+                              <Paperclip size={12} className='text-brand' />
+                            )}
+                            <span className='max-w-[150px] truncate'>
+                              {attachment.name}
+                            </span>
+                            <button
+                              type='button'
+                              onClick={() => {
+                                setAttachments((current) =>
+                                  current.filter((_, i) => i !== index),
+                                );
+                                if (fileInputRef.current)
+                                  fileInputRef.current.value = "";
+                              }}
+                              className='ml-1 hover:text-brand'
+                              aria-label={`Remove ${attachment.name}`}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}

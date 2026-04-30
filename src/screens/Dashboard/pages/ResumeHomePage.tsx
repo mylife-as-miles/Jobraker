@@ -362,6 +362,26 @@ export const ResumeHomePage = () => {
               </span>
             </div>
           </div>
+
+          <button
+            type='button'
+            onClick={handleImportClick}
+            disabled={isImporting}
+            className='product-section-card-muted grid w-full grid-cols-12 gap-4 px-4 py-4 border-dashed text-left hover:border-brand/60 cursor-pointer items-center group transition-all disabled:cursor-wait disabled:opacity-75'
+          >
+            <div className='col-span-6 flex items-center gap-3'>
+              <div className='w-10 h-10 rounded-lg bg-foreground/5 flex items-center justify-center text-brand'>
+                {isImporting ? (
+                  <div className='h-5 w-5 rounded-full border-2 border-brand border-t-transparent animate-spin' />
+                ) : (
+                  <Upload className='w-5 h-5' />
+                )}
+              </div>
+              <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
+                {isImporting ? "Analyzing PDF..." : "Import Resume"}
+              </span>
+            </div>
+          </button>
         </div>
       )}
 

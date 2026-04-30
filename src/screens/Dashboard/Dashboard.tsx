@@ -7,6 +7,12 @@ import {
 } from "@/components/LowCreditsPromoModal";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import {
   Bell,
@@ -93,30 +99,41 @@ const SidebarItem = ({
   isActive: boolean;
   isCollapsed?: boolean;
   onClick: () => void;
-}) => (
-  <Button
-    variant='ghost'
-    onClick={onClick}
-    title={isCollapsed ? item.label : undefined}
-    className={`w-full justify-start rounded-xl mb-1 transition-all duration-0 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${
-      isActive
-        ? "text-foreground bg-brand/10 border border-brand/20 hover:bg-brand/10"
-        : "text-foreground/60 hover:text-foreground/40 hover:bg-foreground/5"
-    } ${isCollapsed ? "justify-center px-2" : ""}`}
-  >
-    {isActive && (
-      <div className='absolute left-0 top-0 bottom-0 w-1 bg-brand shadow-[0_0_10px] shadow-brand' />
-    )}
-    <span
-      className={`relative z-10 transition-all ${isCollapsed ? "" : "mr-3"}`}
+}) => {
+  const button = (
+    <Button
+      variant='ghost'
+      onClick={onClick}
+      className={`w-full justify-start rounded-xl mb-1 transition-all duration-0 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${
+        isActive
+          ? "text-foreground bg-brand/10 border border-brand/20 hover:bg-brand/10"
+          : "text-foreground/60 hover:text-foreground/40 hover:bg-foreground/5"
+      } ${isCollapsed ? "justify-center px-2" : ""}`}
     >
-      {item.icon}
-    </span>
-    <span className={`relative w-full text-start ${isCollapsed ? "hidden" : ""}`}>
-      {item.label}
-    </span>
-  </Button>
-);
+      {isActive && (
+        <div className='absolute left-0 top-0 bottom-0 w-1 bg-brand shadow-[0_0_10px] shadow-brand' />
+      )}
+      <span
+        className={`relative z-10 transition-all ${isCollapsed ? "" : "mr-3"}`}
+      >
+        {item.icon}
+      </span>
+      <span
+        className={`relative w-full text-start ${isCollapsed ? "hidden" : ""}`}
+      >
+        {item.label}
+      </span>
+      <span className='sr-only'>{item.label}</span>
+    </Button>
+  );
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent side='right'>{item.label}</TooltipContent>
+    </Tooltip>
+  );
+};
 
 export const Dashboard = (): JSX.Element => {
   const location = useLocation();
@@ -492,7 +509,8 @@ export const Dashboard = (): JSX.Element => {
   };
 
   return (
-    <div className='min-h-screen bg-background flex'>
+    <TooltipProvider delayDuration={150}>
+      <div className='min-h-screen bg-background flex'>
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -913,13 +931,16 @@ export const Dashboard = (): JSX.Element => {
         </div>
       </div>
 
-      <LowCreditsPromoModal
-        open={lowCreditModalOpen}
-        onOpenChange={setLowCreditModalOpen}
-        balance={creditBalance}
-        loading={creditsLoading}
-        onUpgrade={() => navigate("/dashboard/billing?promo=JOBRAKER_PERSONAL")}
-      />
-    </div>
+        <LowCreditsPromoModal
+          open={lowCreditModalOpen}
+          onOpenChange={setLowCreditModalOpen}
+          balance={creditBalance}
+          loading={creditsLoading}
+          onUpgrade={() =>
+            navigate("/dashboard/billing?promo=JOBRAKER_PERSONAL")
+          }
+        />
+      </div>
+    </TooltipProvider>
   );
 };
