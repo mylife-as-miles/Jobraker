@@ -13,7 +13,10 @@ import { PikachuTemplate } from "./pikachu";
 import { RhyhornTemplate } from "./rhyhorn";
 import type { TemplateProps } from "./azurill/types";
 import type { ResumeData } from "@/store/artboard";
-import { ResumeTemplateDataProvider } from "./use-resume-template-data";
+import {
+  ResumeTemplateDataProvider,
+  useResumeTemplateData,
+} from "./use-resume-template-data";
 
 interface ResumeTemplateRendererProps extends TemplateProps {
   templateId: string;
@@ -28,12 +31,6 @@ export function ResumeTemplateRenderer({
   resumeDataOverride,
 }: ResumeTemplateRendererProps) {
   let templateNode: JSX.Element;
-  const metadata =
-    metadataOverride ?? resumeDataOverride?.metadata ?? undefined;
-  const paragraphSpacing =
-    metadata?.typography?.font?.paragraphSpacing ??
-    metadata?.typography?.font?.size ??
-    8;
 
   switch (templateId) {
     case "azurill":
@@ -172,16 +169,28 @@ export function ResumeTemplateRenderer({
           : null
       }
     >
-      <div
-        className='h-full w-full'
-        style={
-          {
-            "--resume-paragraph-spacing": `${paragraphSpacing}px`,
-          } as React.CSSProperties
-        }
-      >
+      <ResumeTemplateShell>
         {templateNode}
-      </div>
+      </ResumeTemplateShell>
     </ResumeTemplateDataProvider>
+  );
+}
+
+function ResumeTemplateShell({ children }: { children: React.ReactNode }) {
+  const resumeData = useResumeTemplateData();
+  const paragraphSpacing =
+    resumeData.metadata.typography.font.paragraphSpacing ?? 8;
+
+  return (
+    <div
+      className='h-full w-full'
+      style={
+        {
+          "--resume-paragraph-spacing": `${paragraphSpacing}px`,
+        } as React.CSSProperties
+      }
+    >
+      {children}
+    </div>
   );
 }
