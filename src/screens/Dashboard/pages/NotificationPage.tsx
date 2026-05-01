@@ -779,15 +779,15 @@ export const NotificationPage = (): JSX.Element => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
           <div className="product-section-card lg:col-span-1 flex max-h-[80vh] flex-col rounded-2xl">
             <div className="border-b border-border/40 p-4 sm:p-6">
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 product-helper-text" />
+              <div className="relative mb-4 rounded-xl px-3 border border-foreground/10 flex items-center">
+                <Search className=" w-4 h-4 product-helper-text" />
                 <Input
                   id="notifications-search"
                   data-tour="notifications-search"
                   placeholder="Search messages, senders, subjects"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  className="product-input-surface rounded-lg pl-10 transition-all duration-300"
+                  className="product-input-surface border-none outline-none focus:outline-none focus:ring-0 text-sm pl-10 transition-all duration-300"
                 />
               </div>
 

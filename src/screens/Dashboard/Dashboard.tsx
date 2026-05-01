@@ -59,6 +59,8 @@ import InterviewStudioPage from "./pages/InterviewStudioPage";
 import { ResumePage } from "./pages/ResumePage";
 import { CoverLetterPage } from "./pages/CoverLetterPage";
 import { ReferralsPage } from "./pages/ReferralsPage";
+;
+import { TooltipArrow } from "@radix-ui/react-tooltip";
 
 type DashboardPage =
   | "overview"
@@ -532,7 +534,8 @@ export const Dashboard = (): JSX.Element => {
             {navigationItems
               .filter((i) => ["overview", "analytics"].includes(i.id))
               .map((item) => (
-                <SidebarItem
+             
+                  <SidebarItem
                   key={item.id}
                   item={item}
                   isActive={currentPage === item.id}
@@ -542,6 +545,7 @@ export const Dashboard = (): JSX.Element => {
                     setSidebarOpen(false);
                   }}
                 />
+               
               ))}
           </div>
 
@@ -710,8 +714,8 @@ export const Dashboard = (): JSX.Element => {
               </span>
 
               {/* Breadcrumb Navigation (sm+) */}
-              <div className='hidden sm:flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm lg:text-base min-w-0 whitespace-nowrap overflow-hidden'>
-                <Home className='w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-[#666666] flex-shrink-0' />
+              <div className='hidden sm:flex items-center space-x-1 text-xs sm:text-sm lg:text-base min-w-0 whitespace-nowrap overflow-hidden'>
+                {/* <Home className='w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-[#666666] flex-shrink-0' /> */}
                 {getCurrentBreadcrumb()
                   .split(" / ")
                   .map((crumb, index, array) => (
@@ -719,7 +723,7 @@ export const Dashboard = (): JSX.Element => {
                       {index > 0 && (
                         <BreadcrumbChevron className='w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground/70 flex-shrink-0' />
                       )}
-                      <span
+                      <span 
                         className={`${index === array.length - 1 ? "text-foreground font-medium" : "text-muted-foreground"} truncate max-w-[14rem] md:max-w-[22rem]`}
                       >
                         {crumb}

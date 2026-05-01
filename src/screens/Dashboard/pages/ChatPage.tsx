@@ -1145,7 +1145,7 @@ export const ChatPage = () => {
             </div>
           </aside>
 
-          <main className='flex-1 relative flex flex-col bg-background overflow-hidden'>
+          <main className='flex-1 relative h-[89vh] flex flex-col overflow-hidden'>
             <header className='h-16 flex items-center justify-between px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
               <div className='flex items-center gap-3'>
                 <button
@@ -1154,7 +1154,7 @@ export const ChatPage = () => {
                 >
                   <PanelLeft size={20} />
                 </button>
-                <h2 className='font-semibold text-lg text-foreground'>
+                <h2 className='font-semibold text-xs xl:text-lg text-foreground'>
                   AI Assistant
                 </h2>
                 <span className='bg-brand/10 text-brand text-[10px] font-bold px-2 py-0.5 rounded-full border border-brand/20'>
@@ -1163,7 +1163,7 @@ export const ChatPage = () => {
               </div>
               <div className='flex items-center gap-4'>
                 {chatQuota && (
-                  <div className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/70 border border-border'>
+                  <div className='flex items-center gap-2 px-2 py-1 rounded-full bg-card/70 border border-border'>
                     <Coins size={14} className='text-brand' />
                     <span className='text-xs font-medium text-foreground'>
                       {chatQuota.free_remaining > 0
@@ -1173,7 +1173,7 @@ export const ChatPage = () => {
                   </div>
                 )}
                 <div
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/70 border border-border`}
+                  className={`flex items-center gap-2 px-2 py-1 rounded-full bg-card/70 border border-border`}
                 >
                   <div
                     className={`w-2 h-2 rounded-full ${status === "in_progress" ? "bg-brand animate-pulse" : "bg-brand"} `}
@@ -1529,7 +1529,7 @@ export const ChatPage = () => {
               </div>
             )}
 
-            <div className='p-4 md:p-6 pt-0 w-full max-w-4xl mx-auto z-10 shrink-0'>
+            <div className='sticky bottom-0 p-4 md:p-6 pt-0 w-full max-w-4xl mx-auto z-10 shrink-0'>
               <div
                 className={`relative rounded-[24px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${
                   text.trim() || attachment

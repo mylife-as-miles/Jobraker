@@ -464,7 +464,7 @@ const FloatingTourMenu: React.FC<{
   return (
     <div className='fixed z-[12000] xl:bottom-4 bottom-10 right-4 flex flex-col items-end gap-2'>
       {open && (
-        <div className='w-60 rounded-2xl border border-brand/30 bg-background/95 backdrop-blur-md shadow-[0_0_0_1px_rgba(29,255,0,0.25),0_14px_32px_-8px_rgba(0,0,0,0.65)] p-3 flex flex-col gap-2'>
+        <div className='w-60 rounded-2xl border border-brand/30 bg-background/95 backdrop-blur-md p-3 flex flex-col gap-2'>
           <div className='flex items-center justify-between mb-1'>
             <span className='text-xs font-semibold tracking-wide text-brand uppercase'>
               Guided Tours

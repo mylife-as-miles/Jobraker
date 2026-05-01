@@ -73,7 +73,7 @@ export function MatchScorePieChart({
   const chartData =
     breakdown?.map((item) => ({
       label: item.label,
-      score: Math.round(item.componentScore), // Round to whole number
+      score: Math.round(item.contribution), // Round to whole number
       fill: getCategoryColor(item.label),
     })) || [];
 
@@ -166,7 +166,7 @@ export function MatchScorePieChart({
                       </span>
                     </div>
                     <span className='text-sm font-semibold text-brand'>
-                      {item.componentScore}%
+                      {Math.round(item.contribution)}%
                     </span>
                   </div>
                   <p className='text-xs text-foreground/60 leading-relaxed'>

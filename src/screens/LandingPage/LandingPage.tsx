@@ -51,7 +51,7 @@ export const LandingPage = () => {
             <div className='flex items-center space-x-4'>
               <Button
                 variant='ghost'
-                onClick={() => navigate("/signin")}
+                onClick={() => navigate("/signup")}
                 className='text-gray-400 hover:text-brand hover:bg-transparent'
               >
                 LOGIN

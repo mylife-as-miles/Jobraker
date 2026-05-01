@@ -266,8 +266,8 @@ export const ResumeHomePage = () => {
               {/* Meta Info (Bottom) */}
               <div className='p-4'>
                 <div className='flex items-start justify-between'>
-                  <div>
-                    <h3 className='font-semibold text-foreground truncate pr-2'>
+                  <div className="basis-11/12">
+                    <h3 className='font-semibold text-foreground w-full'>
                       {displayName}
                     </h3>
                     <p className='text-xs text-foreground/60 mt-1 flex items-center gap-1'>
@@ -281,7 +281,7 @@ export const ResumeHomePage = () => {
                     onClick={(event) =>
                       handleDeleteRequest(resume, displayName, event)
                     }
-                    className='rounded-lg p-2 text-foreground/45 transition-colors hover:bg-red-500/10 hover:text-red-500'
+                    className='rounded-lg basis-1/12 p-2 text-foreground/45 transition-colors hover:bg-red-500/10 hover:text-red-500'
                     title='Delete resume'
                     aria-label={`Delete ${displayName}`}
                   >
@@ -301,6 +301,32 @@ export const ResumeHomePage = () => {
             <div className='col-span-6'>Name</div>
             <div className='col-span-3'>Last Modified</div>
             <div className='col-span-3 text-right'>Actions</div>
+          </div>
+          <div
+            onClick={handleCreateNew}
+            className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 border-dashed hover:border-brand/60 cursor-pointer items-center group transition-all'
+          >
+            <div className='col-span-6 flex items-center gap-3'>
+              <div className='w-10 h-10 rounded-lg bg-brand/10 flex items-center justify-center text-brand'>
+                <Plus className='w-5 h-5' />
+              </div>
+              <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
+                Create New Resume
+              </span>
+            </div>
+          </div>
+          <div
+            onClick={handleImportClick}
+            className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 border-dashed hover:border-brand/60 cursor-pointer items-center group transition-all'
+          >
+            <div className='col-span-6 flex items-center gap-3'>
+              <div className='w-10 h-10 rounded-lg bg-brand/10 flex items-center justify-center text-brand'>
+                <Upload className='w-5 h-5' />
+              </div>
+              <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
+                Import Existing
+              </span>
+            </div>
           </div>
           {normalizedResumes.map(({ record: resume, displayName }) => (
             <div
@@ -346,20 +372,6 @@ export const ResumeHomePage = () => {
               </div>
             </div>
           ))}
-
-          <div
-            onClick={handleCreateNew}
-            className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 border-dashed hover:border-brand/60 cursor-pointer items-center group transition-all'
-          >
-            <div className='col-span-6 flex items-center gap-3'>
-              <div className='w-10 h-10 rounded-lg bg-brand/10 flex items-center justify-center text-brand'>
-                <Plus className='w-5 h-5' />
-              </div>
-              <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
-                Create New Resume
-              </span>
-            </div>
-          </div>
         </div>
       )}
 
