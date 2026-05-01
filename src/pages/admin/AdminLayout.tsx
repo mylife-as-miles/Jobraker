@@ -231,7 +231,13 @@ export default function AdminLayout() {
 
               {/* Breadcrumb */}
               <div className='flex items-center gap-2 text-sm'>
-                <span className='text-gray-400'>Admin</span>
+                <button
+                  type='button'
+                  onClick={() => navigate("/admin")}
+                  className='rounded-md px-1 py-0.5 text-gray-400 transition-colors hover:bg-brand/10 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40'
+                >
+                  Admin
+                </button>
                 <ChevronRight className='w-4 h-4 text-gray-600' />
                 <span className='text-white font-medium'>
                   {navigation.find((n) => n.path === location.pathname)?.name ||

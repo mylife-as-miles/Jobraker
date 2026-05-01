@@ -1,7 +1,16 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText } from "../_shared/gemini.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import {
+  createGeminiClient,
+  GEMINI_MODEL,
+  createGeminiConfig,
+  extractGeminiText,
+  getGeminiAccessDeniedMessage,
+  isGeminiAccessDeniedError,
+  withGeminiRetry,
+} from "../_shared/gemini.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { parseStructuredJson } from "../_shared/structured-json.ts";
 import {
   SubscriptionAccessError,
   requireSubscriptionTier,
@@ -13,26 +22,117 @@ interface PolishContentRequest {
   instruction?: string;
 }
 
-const POLISH_SCHEMA = {
-  type: "object",
-  properties: {
-    suggestions: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          id: { type: "string" },
-          type: { type: "string", enum: ["enhancement", "correction", "professional"] },
-          label: { type: "string" },
-          content: { type: "string" },
-          isRecommended: { type: "boolean" }
-        },
-        required: ["id", "type", "label", "content"]
-      }
-    }
-  },
-  required: ["suggestions"]
+type PolishSuggestion = {
+  id: string;
+  type: "enhancement" | "correction" | "professional";
+  label: string;
+  content: string;
+  isRecommended?: boolean;
 };
+
+type PolishContentResponse = {
+  suggestions: PolishSuggestion[];
+};
+
+function sanitizeInput(text: string, maxLength: number): string {
+  if (!text) return "";
+  let sanitized = text.substring(0, maxLength);
+  const injectionPatterns = [
+    /ignore all previous instructions/gi,
+    /disregard previous instructions/gi,
+    /you are now a/gi,
+    /system prompt/gi,
+    /output the following/gi,
+  ];
+  for (const pattern of injectionPatterns) {
+    sanitized = sanitized.replace(pattern, "[REDACTED]");
+  }
+  return sanitized.trim();
+}
+
+function normalizeSuggestion(
+  value: unknown,
+  index: number,
+  fallbackContent: string,
+): PolishSuggestion {
+  const record =
+    value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const type =
+    record.type === "professional" || record.type === "correction"
+      ? record.type
+      : "enhancement";
+  const content =
+    typeof record.content === "string" && record.content.trim()
+      ? record.content.trim()
+      : fallbackContent;
+
+  return {
+    id:
+      typeof record.id === "string" && record.id.trim()
+        ? record.id.trim()
+        : String(index + 1),
+    type,
+    label:
+      typeof record.label === "string" && record.label.trim()
+        ? record.label.trim()
+        : type === "professional"
+          ? "More Professional"
+          : "Stronger Verbs + Metrics",
+    content,
+    isRecommended:
+      typeof record.isRecommended === "boolean"
+        ? record.isRecommended
+        : index === 0,
+  };
+}
+
+function normalizePolishResponse(
+  parsed: unknown,
+  fallbackContent: string,
+): PolishContentResponse {
+  const suggestions = Array.isArray((parsed as any)?.suggestions)
+    ? (parsed as any).suggestions
+    : [];
+  const normalized = suggestions
+    .slice(0, 2)
+    .map((item, index) => normalizeSuggestion(item, index, fallbackContent))
+    .filter((item) => item.content.trim().length > 0);
+
+  if (normalized.length === 0) {
+    return buildFallbackPolishResponse(fallbackContent);
+  }
+
+  return { suggestions: normalized };
+}
+
+function ensureSentence(text: string): string {
+  const trimmed = text.trim().replace(/\s+/g, " ");
+  if (!trimmed) return trimmed;
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
+function buildFallbackPolishResponse(content: string): PolishContentResponse {
+  const cleaned = ensureSentence(content);
+  const fallbackContent = cleaned || content;
+
+  return {
+    suggestions: [
+      {
+        id: "1",
+        type: "enhancement",
+        label: "Cleaned Formatting",
+        content: fallbackContent,
+        isRecommended: true,
+      },
+      {
+        id: "2",
+        type: "professional",
+        label: "Original Draft",
+        content: fallbackContent,
+      },
+    ],
+  };
+}
 
 function buildPrompt(content: string, instruction?: string): string {
   return `You are an expert career coach and professional copywriter.
@@ -57,35 +157,50 @@ function buildPrompt(content: string, instruction?: string): string {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
     await requireSubscriptionTier(req, "Basics", "AI writing tools");
-    const { content, instruction } = await req.json();
+    const { content, instruction } = (await req.json()) as PolishContentRequest;
 
-    if (!content) {
+    const safeContent = sanitizeInput(content || "", 12000);
+    const safeInstruction = sanitizeInput(instruction || "", 2000);
+
+    if (!safeContent) {
       return new Response(JSON.stringify({ error: "Content is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const ai = createGeminiClient();
-    const prompt = buildPrompt(content, instruction);
+    const prompt = buildPrompt(safeContent, safeInstruction);
+    let parsed: unknown;
 
-    const result = await ai.models.generateContent({
+    try {
+      const ai = createGeminiClient();
+      const result = await withGeminiRetry(() => ai.models.generateContent({
         model: GEMINI_MODEL,
         config: createGeminiConfig({ 
             systemInstruction: "You are a resume polishing assistant. Return ONLY valid JSON matching the requested schema.",
             responseMimeType: "application/json"
         }),
         contents: [{ role: 'user', parts: [{ text: prompt }] }]
-    });
+      }));
 
-    const text = extractGeminiText(result);
-    if (!text) throw new Error("Empty response from AI");
-    
-    const parsed = JSON.parse(text);
-    return new Response(JSON.stringify(parsed), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const text = extractGeminiText(result);
+      if (!text) throw new Error("Empty response from AI");
+      parsed = parseStructuredJson(text);
+    } catch (error: any) {
+      console.error("polish-content falling back", error);
+      if (isGeminiAccessDeniedError(error)) {
+        console.warn(getGeminiAccessDeniedMessage("AI writing tools"));
+      }
+      parsed = buildFallbackPolishResponse(safeContent);
+    }
+
+    const response = normalizePolishResponse(parsed, safeContent);
+    return new Response(JSON.stringify(response), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error: any) {
     if (error instanceof SubscriptionAccessError) {

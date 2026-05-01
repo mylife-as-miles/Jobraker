@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabaseClient";
+import { invokeProtectedFunction } from "../supabase/invokeProtectedFunction";
 
 export interface Suggestion {
   id: string;
@@ -9,22 +9,15 @@ export interface Suggestion {
   original: string;
 }
 
-const supabase = createClient();
-
 export async function polishContent(content: string, instruction?: string): Promise<Suggestion[]> {
   if (!content || !content.trim()) {
     throw new Error("Content is required");
   }
 
   try {
-    const { data, error } = await supabase.functions.invoke('polish-content', {
+    const data = await invokeProtectedFunction<{ suggestions?: Suggestion[] }>('polish-content', {
       body: { content, instruction }
     });
-
-    if (error) {
-       console.error("Polish function error:", error);
-       throw new Error(error.message || "Failed to polish content");
-    }
 
     if (!data || !data.suggestions) throw new Error("No suggestions returned from AI");
 

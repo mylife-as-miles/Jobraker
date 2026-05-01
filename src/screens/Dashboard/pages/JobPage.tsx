@@ -32,7 +32,6 @@ import Modal from "../../../components/ui/modal";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { MarkdownContent } from "../../../components/ui/MarkdownContent";
 import {
-  getJobsQueueQueryOptions,
   jobsQueueKeys,
   useJobsQueue,
   type JobsQueueScope,
@@ -61,7 +60,7 @@ import {
   fetchJobEvaluationReport,
   type JobEvaluationReport as JobEvaluationReportData,
 } from "../../../services/jobs/jobEvaluation";
-import { isTrustedSource } from "../../../utils/trustedSources";
+
 import { applyMicro1ReferralToUrl } from "../../../utils/micro1Referral";
 import { useGamification } from "../../../hooks/useGamification";
 import { cn, getProxiedLogoUrl } from "../../../lib/utils";
@@ -93,6 +92,8 @@ interface Job {
   experience_level?: string | null;
   apply_url: string | null;
   posted_at: string | null;
+  discovered_at?: string | null;
+  created_at?: string | null;
   expires_at: string | null;
   salary_min: number | null;
   salary_max: number | null;
@@ -799,6 +800,8 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
     ...dbJob,
     id: dbJob.id,
     description: dbJob.description || raw?.fullJobDescription || "",
+    discovered_at: dbJob.discovered_at ?? null,
+    created_at: dbJob.created_at ?? null,
     // Prioritize: 1) company_logo from DB, 2) raw data logo, 3) generate from Clearbit
     logoUrl: getProxiedLogoUrl(
       dbJob.company_logo ||
@@ -1322,7 +1325,7 @@ export const JobPage = (): JSX.Element => {
   const decorateJobsRef = useRef<(list: Job[]) => Promise<Job[]>>(
     async (list) => list,
   );
-  const activeSearchScopeRef = useRef<JobQueueScope>(null);
+  const activeSearchScopeRef = useRef<JobsQueueScope>(null);
 
   const decorateJobs = useCallback(
     async (list: Job[]) =>
@@ -1714,7 +1717,7 @@ export const JobPage = (): JSX.Element => {
 
   const fetchJobQueue = useCallback(
     async (
-      scope: JobQueueScope = activeSearchScopeRef.current,
+      scope: JobsQueueScope = activeSearchScopeRef.current,
     ): Promise<Job[]> => {
       const nextScope = scope ?? null;
       activeSearchScopeRef.current = nextScope;
@@ -1757,6 +1760,10 @@ export const JobPage = (): JSX.Element => {
             .contains("raw_data", { discovery: discoveryScope })
             .order("discovered_at", { ascending: false })
             .order("created_at", { ascending: false });
+
+          if (scope?.startedAt) {
+            queryBuilder = queryBuilder.gte("discovered_at", scope.startedAt);
+          }
 
           if (typeof scope?.limit === "number" && scope.limit > 0) {
             queryBuilder = queryBuilder.limit(scope.limit);
@@ -1996,10 +2003,11 @@ export const JobPage = (): JSX.Element => {
 
         // Use backend jobs-search to discover and save jobs directly
         safeInfo("Searching the web for jobs...");
-        const currentSearchScope: JobQueueScope = {
+        const currentSearchScope: JobsQueueScope = {
           searchQuery: query.trim(),
           location: (selectedLocation || "Remote").trim() || "Remote",
           limit: maxResultsPerSearch,
+          startedAt: new Date(Date.now() - 30 * 1000).toISOString(),
         };
         const searchPayload = {
           searchQuery: query,
@@ -2425,15 +2433,35 @@ export const JobPage = (): JSX.Element => {
 
       setGeneratingDraft(true);
       try {
+        const identityInstructions = [
+          "Use only the selected resume text as the candidate source of truth.",
+          "Do not use account-owner profile details, saved candidate memory, previous cover letters, or other workspace data unless they appear in the selected resume text.",
+        ];
+        if (selectedResumeCandidateName) {
+          identityInstructions.push(
+            `The selected resume candidate name is "${selectedResumeCandidateName}". Preserve that identity in every generated material.`,
+          );
+        }
+        if (resumeIdentityMismatch) {
+          identityInstructions.push(
+            "The selected resume appears to belong to a different person than the account profile. Do not replace the resume candidate's name or contact details with the account profile's details.",
+          );
+        }
+        const draftInstructions = [identityInstructions.join("\n"), instructions]
+          .filter(Boolean)
+          .join("\n\n");
         const [tailoredResume, tailoredCoverLetter] = await Promise.all([
           tailorResumeViaEdge({
             jobDescription: targetJob.description || "",
             resumeText,
-            instructions,
+            instructions: draftInstructions,
+            includeCandidateMemory: false,
           }),
           generateCoverLetterViaEdge({
             jobDescription: targetJob.description || "",
             resumeText,
+            instructions: draftInstructions,
+            includeCandidateMemory: false,
           }),
         ]);
 
@@ -2463,6 +2491,7 @@ export const JobPage = (): JSX.Element => {
     },
     [
       activeResumeText,
+      resumeIdentityMismatch,
       safeInfo,
       selectedResume,
       selectedResumeCandidateName,
@@ -2481,7 +2510,7 @@ export const JobPage = (): JSX.Element => {
 
     if (resumeIdentityMismatch && profileFullName) {
       guidance.push(
-        `The candidate's correct name is "${profileFullName}". If the resume uses a different name, correct it everywhere in the draft.`,
+        `The account profile name is "${profileFullName}", but the selected resume appears to belong to "${selectedResumeCandidateName || "a different candidate"}". Do not merge account profile details into this draft; preserve the selected resume candidate's identity and contact details.`,
       );
     }
 
@@ -2516,6 +2545,7 @@ export const JobPage = (): JSX.Element => {
     profileFullName,
     resumeIdentityMismatch,
     safeInfo,
+    selectedResumeCandidateName,
   ]);
 
   const applyAllJobs = useCallback(
@@ -2531,6 +2561,107 @@ export const JobPage = (): JSX.Element => {
 
       const targetJobs = jobToAutoApply ? [jobToAutoApply] : jobs;
       if (!targetJobs.length) return;
+
+      if (saveAsDraftOnly) {
+        setApplyingAll(true);
+        try {
+          const savedAt = new Date().toISOString();
+          let savedCount = 0;
+
+          for (const job of targetJobs) {
+            const existingRawData =
+              job.raw_data && typeof job.raw_data === "object"
+                ? (job.raw_data as Record<string, unknown>)
+                : {};
+            const evaluation =
+              jobToAutoApply?.id === job.id ? aiEvaluation || undefined : undefined;
+            const matchedKeywords =
+              evaluation?.matched_keywords ||
+              job.evaluation_summary?.matched_keywords ||
+              [];
+            const nextDraftPayload =
+              draftData && targetJobs.length === 1
+                ? {
+                    ...draftData,
+                    savedAt,
+                  }
+                : existingRawData.application_draft &&
+                    typeof existingRawData.application_draft === "object"
+                  ? {
+                      ...(existingRawData.application_draft as Record<
+                        string,
+                        unknown
+                      >),
+                      savedAt,
+                    }
+                  : { savedAt };
+
+            const { error: draftUpdateError } = await supabase
+              .from("jobs")
+              .update({
+                canonical_status: "draft_ready",
+                evaluation_summary: {
+                  evaluation_id:
+                    evaluation?.evaluation_id ??
+                    job.evaluation_summary?.evaluation_id ??
+                    null,
+                  archetype:
+                    evaluation?.archetype ?? job.evaluation_summary?.archetype,
+                  canonical_decision:
+                    evaluation?.canonical_decision ??
+                    job.evaluation_summary?.canonical_decision,
+                  confidence_score:
+                    evaluation?.confidence_score ??
+                    job.evaluation_summary?.confidence_score,
+                  blockers:
+                    evaluation?.blockers ??
+                    job.evaluation_summary?.blockers ??
+                    [],
+                  exact_fit_evidence:
+                    evaluation?.exact_fit_evidence ??
+                    job.evaluation_summary?.exact_fit_evidence ??
+                    [],
+                  matched_keywords: matchedKeywords,
+                },
+                raw_data: {
+                  ...existingRawData,
+                  application_draft: nextDraftPayload,
+                },
+              })
+              .eq("id", job.id);
+
+            if (draftUpdateError) throw draftUpdateError;
+            savedCount += 1;
+          }
+
+          setJobs((prev) =>
+            prev.map((row) =>
+              targetJobs.some((job) => job.id === row.id)
+                ? { ...row, canonical_status: "draft_ready" }
+                : row,
+            ),
+          );
+          setJobToAutoApply((prev) =>
+            prev && targetJobs.some((job) => job.id === prev.id)
+              ? { ...prev, canonical_status: "draft_ready" }
+              : prev,
+          );
+          safeInfo(
+            "Draft saved",
+            `Saved ${savedCount} job${savedCount === 1 ? "" : "s"} as draft-ready for review.`,
+          );
+          await fetchJobQueue();
+        } catch (draftSaveError) {
+          const message =
+            draftSaveError instanceof Error
+              ? draftSaveError.message
+              : "Unknown error";
+          setError({ message: `Failed to save draft: ${message}` });
+        } finally {
+          setApplyingAll(false);
+        }
+        return;
+      }
 
       const jobsWithTargets = targetJobs
         .map((job) => ({ job, target: getJobApplyTarget(job) }))
@@ -2844,6 +2975,9 @@ export const JobPage = (): JSX.Element => {
                   const generated = await generateCoverLetterViaEdge({
                     jobDescription: job.description,
                     resumeText: activeResumeText || "",
+                    includeCandidateMemory: false,
+                    instructions:
+                      "Use only the selected resume text as candidate source material. Do not use account-owner profile details, saved candidate memory, previous cover letters, or other workspace data unless they appear in the selected resume text.",
                   });
                   if (generated) {
                     jobCoverLetter = generated;
@@ -3154,11 +3288,13 @@ export const JobPage = (): JSX.Element => {
       };
       return arr.sort((a, b) => toTs(a.expires_at) - toTs(b.expires_at));
     }
-    return arr.sort(
-      (a, b) =>
-        new Date(b.posted_at || 0).getTime() -
-        new Date(a.posted_at || 0).getTime(),
-    );
+    const toRecentTs = (job: Job) => {
+      const value = job.discovered_at || job.posted_at || job.created_at;
+      if (!value) return 0;
+      const timestamp = Date.parse(value);
+      return Number.isNaN(timestamp) ? 0 : timestamp;
+    };
+    return arr.sort((a, b) => toRecentTs(b) - toRecentTs(a));
   }, [visibleJobs, sortBy]);
 
   const total = sortedJobs.length;
@@ -3592,7 +3728,7 @@ export const JobPage = (): JSX.Element => {
                 className='w-full pl-4 pr-[8.25rem] sm:pr-36 border-foreground/10 text-foreground placeholder:text-foreground/40 transition-all duration-100 rounded-xl  '
               />
               <div className='pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 xl:-translate-y-full h-10 items-center justify-center gap-2'>
-                <span className='text-[10px] font-medium text-brand/90  px-2.5 py-1 whitespace-nowrap shadow-sm'>
+                <span className='text-[10px] font-medium text-brand/90 bg-gradient-to-br from-brand/15 to-brand/5 px-2.5 py-1 rounded-lg border border-brand/30 whitespace-nowrap shadow-sm'>
                   {subscriptionTier === "Ultimate"
                     ? "100"
                     : subscriptionTier === "Pro"

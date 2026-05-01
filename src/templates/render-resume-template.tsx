@@ -1,3 +1,4 @@
+import type React from "react";
 import { AzurillTemplate } from "./azurill";
 import { BronzorTemplate } from "./bronzor";
 import { ChikoritaTemplate } from "./chikorita";
@@ -13,7 +14,10 @@ import { PikachuTemplate } from "./pikachu";
 import { RhyhornTemplate } from "./rhyhorn";
 import type { TemplateProps } from "./azurill/types";
 import type { ResumeData } from "@/store/artboard";
-import { ResumeTemplateDataProvider } from "./use-resume-template-data";
+import {
+  ResumeTemplateDataProvider,
+  useResumeTemplateData,
+} from "./use-resume-template-data";
 
 interface ResumeTemplateRendererProps extends TemplateProps {
   templateId: string;
@@ -166,7 +170,28 @@ export function ResumeTemplateRenderer({
           : null
       }
     >
-      {templateNode}
+      <ResumeTemplateShell>
+        {templateNode}
+      </ResumeTemplateShell>
     </ResumeTemplateDataProvider>
+  );
+}
+
+function ResumeTemplateShell({ children }: { children: React.ReactNode }) {
+  const resumeData = useResumeTemplateData();
+  const paragraphSpacing =
+    resumeData.metadata.typography.font.paragraphSpacing ?? 8;
+
+  return (
+    <div
+      className='h-full w-full'
+      style={
+        {
+          "--resume-paragraph-spacing": `${paragraphSpacing}px`,
+        } as React.CSSProperties
+      }
+    >
+      {children}
+    </div>
   );
 }

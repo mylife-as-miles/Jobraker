@@ -1,6 +1,6 @@
 
-import { createClient } from "@/lib/supabaseClient";
 import { analyzeResumeText } from "@/utils/analyzeResume";
+import { invokeProtectedFunction } from "../supabase/invokeProtectedFunction";
 
 export interface ParsedProfileData {
   firstName: string;
@@ -24,6 +24,18 @@ export interface ParsedProfileData {
     location?: string;
     startDate?: string;
     endDate?: string;
+    description?: string;
+  }>;
+  projects: Array<{
+    name: string;
+    organization?: string;
+    date?: string;
+    description?: string;
+  }>;
+  certifications: Array<{
+    name: string;
+    issuer?: string;
+    date?: string;
     description?: string;
   }>;
 }
@@ -63,8 +75,6 @@ export interface ParseResumeRequest {
   baseURL?: string | null;
 }
 
-const supabase = createClient();
-
 export async function parseResumeWithAI({
   resumeText,
 }: ParseResumeRequest): Promise<ParsedProfileData> {
@@ -73,14 +83,9 @@ export async function parseResumeWithAI({
   }
 
   try {
-    const { data, error } = await supabase.functions.invoke('parse-resume', {
+    const data = await invokeProtectedFunction<unknown>('parse-resume', {
       body: { resumeText }
     });
-
-    if (error) {
-       console.error("Parse function error:", error);
-       throw new Error(error.message || "Failed to parse resume");
-    }
 
     if (!data) throw new Error("No data returned from AI");
 
@@ -133,7 +138,14 @@ export function buildFallbackParsedProfileData(
     typeof analyzed.structured?.summary === "string" &&
     analyzed.structured.summary.trim()
       ? analyzed.structured.summary.trim()
-      : resumeText.slice(0, 260).trim();
+      : resumeText
+          .split(/\n+/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .slice(0, 8)
+          .join("\n")
+          .slice(0, 1200)
+          .trim();
 
   const education = Array.isArray(analyzed.structured?.education)
     ? analyzed.structured.education
@@ -151,7 +163,6 @@ export function buildFallbackParsedProfileData(
           };
         })
         .filter((entry) => entry.school || entry.degree)
-        .slice(0, 4)
     : [];
 
   const experience = Array.isArray(analyzed.structured?.experience)
@@ -168,11 +179,45 @@ export function buildFallbackParsedProfileData(
             location: "",
             startDate: "",
             endDate: "",
-            description: lines.slice(1).join(" ").slice(0, 280),
+            description: lines.slice(1).join("\n"),
           };
         })
         .filter((entry) => entry.company || entry.title || entry.description)
-        .slice(0, 4)
+    : [];
+
+  const projects = Array.isArray(analyzed.structured?.projects)
+    ? analyzed.structured.projects
+        .map((entry: any) => {
+          const lines = String(entry?.content || "")
+            .split(/\n+/)
+            .map((line) => line.trim())
+            .filter(Boolean);
+
+          return {
+            name: lines[0] || "",
+            organization: "",
+            date: "",
+            description: lines.slice(1).join("\n"),
+          };
+        })
+        .filter((entry) => entry.name || entry.description)
+    : [];
+
+  const certifications = Array.isArray(analyzed.structured?.certifications)
+    ? analyzed.structured.certifications
+        .flatMap((entry: any) =>
+          String(entry?.content || "")
+            .split(/\n+/)
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .map((line) => ({
+              name: line,
+              issuer: "",
+              date: "",
+              description: "",
+            })),
+        )
+        .filter((entry) => entry.name)
     : [];
 
   return {
@@ -184,9 +229,11 @@ export function buildFallbackParsedProfileData(
     jobTitle: analyzed.entities.titles[0] || "",
     experienceYears: null,
     about: summary,
-    skills: analyzed.skills.slice(0, 20),
+    skills: analyzed.skills,
     education,
     experience,
+    projects,
+    certifications,
   };
 }
 
@@ -252,6 +299,22 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
                 description: str(item?.summary || item?.description),
               };
             }).filter((item) => item.company || item.title || item.description),
+            projects: Array.isArray(legacySections?.projects?.items)
+              ? legacySections.projects.items.map((item: any) => ({
+                  name: str(item?.name || item?.title),
+                  organization: str(item?.company || item?.organization),
+                  date: str(item?.date || item?.period),
+                  description: str(item?.description),
+                })).filter((item: any) => item.name || item.description)
+              : [],
+            certifications: Array.isArray(legacySections?.certifications?.items)
+              ? legacySections.certifications.items.map((item: any) => ({
+                  name: str(item?.name || item?.title),
+                  issuer: str(item?.issuer || item?.company || item?.organization),
+                  date: str(item?.date || item?.period),
+                  description: str(item?.description),
+                })).filter((item: any) => item.name)
+              : [],
         };
     }
 
@@ -278,6 +341,18 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
             startDate: str(e.startDate || e.start_date),
             endDate: str(e.endDate || e.end_date),
             description: str(e.description)
-        })) : []
+        })) : [],
+        projects: Array.isArray(raw.projects) ? raw.projects.map((p: any) => ({
+            name: str(p.name || p.title),
+            organization: str(p.organization || p.company),
+            date: str(p.date || p.period),
+            description: str(p.description)
+        })).filter((p: any) => p.name || p.description) : [],
+        certifications: Array.isArray(raw.certifications) ? raw.certifications.map((c: any) => ({
+            name: str(c.name || c.title),
+            issuer: str(c.issuer || c.organization || c.company),
+            date: str(c.date || c.period),
+            description: str(c.description)
+        })).filter((c: any) => c.name) : []
     };
 }

@@ -7,6 +7,11 @@ export type CachedChatImage = {
   mimeType: string;
   name: string;
   base64: string;
+  images?: Array<{
+    mimeType: string;
+    name: string;
+    base64: string;
+  }>;
   savedAt: number;
 };
 
@@ -34,6 +39,21 @@ export async function cacheChatAttachment(record: Omit<CachedChatImage, "savedAt
       ...record,
       savedAt: Date.now(),
     } satisfies CachedChatImage);
+  });
+}
+
+export async function cacheChatAttachments(
+  messageId: string,
+  images: Array<{ mimeType: string; name: string; base64: string }>,
+): Promise<void> {
+  const first = images[0];
+  if (!first) return;
+  await cacheChatAttachment({
+    messageId,
+    mimeType: first.mimeType,
+    name: first.name,
+    base64: first.base64,
+    images,
   });
 }
 

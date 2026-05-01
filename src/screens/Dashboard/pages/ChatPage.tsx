@@ -29,7 +29,7 @@ import remarkGfm from "remark-gfm";
 import { useNavigate } from "react-router-dom";
 import { createClient } from "../../../lib/supabaseClient";
 import {
-  cacheChatAttachment,
+  cacheChatAttachments,
   getChatAttachment,
 } from "../../../lib/chatAttachmentIdb";
 import {
@@ -42,6 +42,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Edit2,
   Bot,
   Bolt,
   BookOpen,
@@ -115,6 +116,7 @@ interface BasicMessage {
   toolCalls?: ToolCallEntry[];
   /** Persisted: user message included an image (bytes live in IndexedDB). */
   hasPastedImage?: boolean;
+  attachmentCount?: number;
 }
 
 type ChatUserPayload = {
@@ -135,9 +137,11 @@ interface UseChatReturn {
   status: "idle" | "in_progress";
   append: (m: ChatUserPayload, opts?: ChatRequestOptions) => void;
   regenerate: () => void;
+  stop: () => void;
   setMessages: (m: BasicMessage[]) => void;
   responseId: string | null;
   setResponseId: (id: string | null) => void;
+  requestStartedAt: number | null;
 }
 
 type ChatSessionRecord = {
@@ -166,6 +170,9 @@ type ChatSessionState = {
 };
 
 const DEFAULT_CHAT_MODEL = "gemini-3-flash-preview";
+const MAX_CHAT_ATTACHMENTS = 3;
+const CHAT_EXTENDED_WAIT_MS = 30_000;
+const CHAT_TIMEOUT_MS = 240_000;
 
 const normalizeBasicMessage = (message: any): BasicMessage => ({
   id: typeof message?.id === "string" ? message.id : nanoid(),
@@ -223,7 +230,9 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
   );
   const [status, setStatus] = useState<"idle" | "in_progress">("idle");
   const [responseId, setResponseId] = useState<string | null>(null);
+  const [requestStartedAt, setRequestStartedAt] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const requestTimedOutRef = useRef(false);
   const lastTurnRef = useRef<{
     message: ChatUserPayload;
     chatOpts?: ChatRequestOptions;
@@ -240,11 +249,12 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
       if (status === "in_progress") return;
 
       const textContent = m.content.trim();
-      const userMessage: BasicMessage = {
+  const userMessage: BasicMessage = {
         id: nanoid(),
         role: "user",
         content: textContent,
         hasPastedImage: Boolean(m.images?.length),
+        attachmentCount: m.images?.length || 0,
         createdAt: Date.now(),
         parts: [
           {
@@ -255,15 +265,16 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
       };
 
       if (m.images?.length) {
-        const img0 = m.images[0];
-        if (img0?.data) {
-          void cacheChatAttachment({
-            messageId: userMessage.id,
-            mimeType: img0.mimeType || "image/png",
-            name: img0.name || "attachment",
-            base64: img0.data,
-          });
-        }
+        void cacheChatAttachments(
+          userMessage.id,
+          m.images
+            .filter((img) => Boolean(img.data))
+            .map((img) => ({
+              mimeType: img.mimeType || "image/png",
+              name: img.name || "attachment",
+              base64: img.data,
+            })),
+        );
       }
 
       const history = [...baseMessages, userMessage];
@@ -274,6 +285,8 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
       };
       setMessages(history);
       setStatus("in_progress");
+      setRequestStartedAt(Date.now());
+      requestTimedOutRef.current = false;
 
       const assistantId = nanoid();
       const assistantMessage: BasicMessage = {
@@ -292,6 +305,10 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
       const fnUrl = `${supabaseUrl}/functions/v1/ai-chat`;
 
       abortControllerRef.current = new AbortController();
+      const timeoutId = window.setTimeout(() => {
+        requestTimedOutRef.current = true;
+        abortControllerRef.current?.abort();
+      }, CHAT_TIMEOUT_MS);
 
       try {
         const {
@@ -478,9 +495,31 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           return finalMessages;
         });
         setStatus("idle");
+        setRequestStartedAt(null);
       } catch (err: any) {
         if (err.name === "AbortError") {
+          const stoppedText = requestTimedOutRef.current
+            ? "This request took too long and was stopped. Try a shorter request or send it again."
+            : "Request stopped.";
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantId
+                ? {
+                    ...msg,
+                    content: msg.content.trim() ? msg.content : stoppedText,
+                    parts: [
+                      {
+                        type: "text",
+                        text: msg.content.trim() ? msg.content : stoppedText,
+                      },
+                    ],
+                    streaming: false,
+                  }
+                : msg,
+            ),
+          );
           setStatus("idle");
+          setRequestStartedAt(null);
           return;
         }
         const errorText = `Fetch Error: ${err.message || "Could not connect to the chat function."}`;
@@ -497,7 +536,9 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           ),
         );
         setStatus("idle");
+        setRequestStartedAt(null);
       } finally {
+        window.clearTimeout(timeoutId);
         abortControllerRef.current = null;
       }
     },
@@ -524,14 +565,21 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     );
   };
 
+  const stop = () => {
+    requestTimedOutRef.current = false;
+    abortControllerRef.current?.abort();
+  };
+
   return {
     messages,
     status,
     append,
     regenerate,
+    stop,
     setMessages,
     responseId,
     setResponseId,
+    requestStartedAt,
   };
 };
 
@@ -557,25 +605,40 @@ function UserChatAttachment({
   messageId: string;
   hasPastedImage?: boolean;
 }) {
-  const [src, setSrc] = useState<string | null>(null);
+  const [images, setImages] = useState<
+    Array<{ src: string; name: string }>
+  >([]);
   useEffect(() => {
     if (!hasPastedImage) return;
     let cancelled = false;
     void getChatAttachment(messageId).then((row) => {
       if (cancelled || !row) return;
-      setSrc(`data:${row.mimeType};base64,${row.base64}`);
+      const cachedImages = row.images?.length
+        ? row.images
+        : [{ mimeType: row.mimeType, base64: row.base64, name: row.name }];
+      setImages(
+        cachedImages.map((img) => ({
+          src: `data:${img.mimeType};base64,${img.base64}`,
+          name: img.name,
+        })),
+      );
     });
     return () => {
       cancelled = true;
     };
   }, [messageId, hasPastedImage]);
-  if (!hasPastedImage || !src) return null;
+  if (!hasPastedImage || images.length === 0) return null;
   return (
-    <img
-      src={src}
-      alt=''
-      className='rounded-lg max-h-56 max-w-full mb-2 border border-primary-foreground/25 object-contain bg-black/10'
-    />
+    <div className='mb-2 flex flex-wrap gap-2'>
+      {images.map((image, index) => (
+        <img
+          key={`${image.name}-${index}`}
+          src={image.src}
+          alt={image.name}
+          className='rounded-lg max-h-56 max-w-full border border-primary-foreground/25 object-contain bg-black/10'
+        />
+      ))}
+    </div>
   );
 }
 
@@ -589,20 +652,31 @@ export const ChatPage = () => {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(
+    null,
+  );
+  const [renamingTitle, setRenamingTitle] = useState("");
   const supabase = useMemo(() => createClient(), []);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
-  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const attachmentPreviewUrl = useMemo(() => {
-    if (!attachment?.type?.startsWith("image/")) return null;
-    return URL.createObjectURL(attachment);
-  }, [attachment]);
+  const attachmentPreviewUrls = useMemo(
+    () =>
+      attachments.map((attachment) =>
+        attachment.type?.startsWith("image/")
+          ? URL.createObjectURL(attachment)
+          : null,
+      ),
+    [attachments],
+  );
 
   useEffect(() => {
     return () => {
-      if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
+      attachmentPreviewUrls.forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
     };
-  }, [attachmentPreviewUrl]);
+  }, [attachmentPreviewUrls]);
 
   const hasChatAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
 
@@ -647,10 +721,29 @@ export const ChatPage = () => {
     status,
     append,
     regenerate,
+    stop,
     setMessages,
     responseId,
     setResponseId,
+    requestStartedAt,
   } = chat;
+  const [now, setNow] = useState(() => Date.now());
+  const requestElapsedMs =
+    status === "in_progress" && requestStartedAt ? now - requestStartedAt : 0;
+  const showExtendedWait = requestElapsedMs >= CHAT_EXTENDED_WAIT_MS;
+  const requestElapsedLabel = useMemo(() => {
+    const totalSeconds = Math.max(0, Math.floor(requestElapsedMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+  }, [requestElapsedMs]);
+
+  useEffect(() => {
+    if (status !== "in_progress") return;
+    setNow(Date.now());
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [status, requestStartedAt]);
 
   // Session management with Supabase -----------------------------------------
   const sessionsRef = useRef(sessions);
@@ -788,6 +881,10 @@ export const ChatPage = () => {
   const deleteSession = async (id: string) => {
     const originalSessions = sessions;
     setSessions((prev) => prev.filter((s) => s.id !== id));
+    if (renamingSessionId === id) {
+      setRenamingSessionId(null);
+      setRenamingTitle("");
+    }
     if (activeSessionId === id) {
       const remaining = originalSessions.filter((s) => s.id !== id);
       setActiveSessionId(remaining[0]?.id || null);
@@ -804,10 +901,65 @@ export const ChatPage = () => {
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setAttachment(e.target.files[0]);
+  const startRenamingSession = (session: ChatSessionState) => {
+    setRenamingSessionId(session.id);
+    setRenamingTitle(session.title || "New Chat");
+  };
+
+  const cancelRenamingSession = () => {
+    setRenamingSessionId(null);
+    setRenamingTitle("");
+  };
+
+  const saveRenamedSession = async (id: string) => {
+    const title = renamingTitle.trim().slice(0, 80);
+    if (!title) {
+      cancelRenamingSession();
+      return;
     }
+
+    const originalSessions = sessions;
+    setSessions((prev) =>
+      prev.map((session) =>
+        session.id === id
+          ? { ...session, title, updated_at: new Date().toISOString() }
+          : session,
+      ),
+    );
+    cancelRenamingSession();
+
+    const { error } = await supabase
+      .from("chat_sessions")
+      .update({ title })
+      .eq("id", id);
+
+    if (error) {
+      toastError("Could not rename chat", error.message);
+      setSessions(originalSessions);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    if (!selectedFiles.length) return;
+
+    const imageFiles = selectedFiles.filter((file) =>
+      file.type.startsWith("image/"),
+    );
+    if (imageFiles.length !== selectedFiles.length) {
+      toastError("Unsupported file type", "AI chat attachments must be images.");
+    }
+
+    setAttachments((current) => {
+      const next = [...current, ...imageFiles].slice(0, MAX_CHAT_ATTACHMENTS);
+      if (current.length + imageFiles.length > MAX_CHAT_ATTACHMENTS) {
+        toastError(
+          "Attachment limit",
+          `You can attach up to ${MAX_CHAT_ATTACHMENTS} images at once.`,
+        );
+      }
+      return next;
+    });
   };
 
   const handlePasteImage = useCallback(
@@ -840,30 +992,32 @@ export const ChatPage = () => {
           })
         : imageFile;
 
-      setAttachment(file);
+      setAttachments((current) =>
+        [...current, file].slice(0, MAX_CHAT_ATTACHMENTS),
+      );
       if (fileInputRef.current) fileInputRef.current.value = "";
     },
     [],
   );
 
   const handleSubmit = async (message: { text: string }) => {
-    if ((!message.text.trim() && !attachment) || status === "in_progress")
+    if ((!message.text.trim() && attachments.length === 0) || status === "in_progress")
       return;
 
-    const attachmentFile = attachment;
+    const attachmentFiles = attachments;
     setText("");
-    setAttachment(null);
+    setAttachments([]);
     const textarea = textareaRef.current;
     if (textarea) textarea.style.height = "auto";
 
     let images: { mimeType: string; data: string; name: string }[] | undefined;
-    if (attachmentFile) {
+    if (attachmentFiles.length) {
       try {
-        images = [await fileToChatImagePart(attachmentFile)];
+        images = await Promise.all(attachmentFiles.map(fileToChatImagePart));
       } catch (e) {
         console.error(e);
         toastError(
-          "Could not read the image. Try again or use a smaller file.",
+          "Could not read the images. Try again or use smaller files.",
         );
         return;
       }
@@ -920,7 +1074,8 @@ export const ChatPage = () => {
 
     if (isFirstMessage && sessionId) {
       const optimisticTitle = (
-        message.text.trim() || (attachmentFile ? "Image" : "New Chat")
+        message.text.trim() ||
+        (attachmentFiles.length ? "Images" : "New Chat")
       ).slice(0, 40);
       setSessions((prev) =>
         prev.map((s) =>
@@ -946,7 +1101,7 @@ export const ChatPage = () => {
             body: JSON.stringify({
               message:
                 message.text.trim() ||
-                (attachmentFile ? "User shared a screenshot" : ""),
+                (attachmentFiles.length ? "User shared screenshots" : ""),
             }),
           });
 
@@ -1097,9 +1252,8 @@ export const ChatPage = () => {
                 <div className='space-y-1'>
                   {filteredSessions.length > 0 ? (
                     filteredSessions.map((s) => (
-                      <button
+                      <div
                         key={s.id}
-                        onClick={() => setActiveSessionId(s.id)}
                         className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors group text-left ${
                           s.id === activeSessionId
                             ? "bg-accent/50 border border-border"
@@ -1109,10 +1263,38 @@ export const ChatPage = () => {
                         <MessageSquare
                           className={`w-5 h-5 ${s.id === activeSessionId ? "text-brand" : "text-muted-foreground group-hover:text-brand"} transition-colors`}
                         />
-                        <div className='flex-1 overflow-hidden'>
-                          <p className='text-sm font-medium truncate text-foreground'>
-                            {s.title || "New Chat"}
-                          </p>
+                        <button
+                          type='button'
+                          onClick={() => setActiveSessionId(s.id)}
+                          className='min-w-0 flex-1 overflow-hidden text-left'
+                        >
+                          {renamingSessionId === s.id ? (
+                            <input
+                              autoFocus
+                              value={renamingTitle}
+                              onChange={(event) =>
+                                setRenamingTitle(event.target.value)
+                              }
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  void saveRenamedSession(s.id);
+                                }
+                                if (event.key === "Escape") {
+                                  event.preventDefault();
+                                  cancelRenamingSession();
+                                }
+                              }}
+                              onBlur={() => void saveRenamedSession(s.id)}
+                              className='w-full rounded-md border border-brand/40 bg-background/80 px-2 py-1 text-sm font-medium text-foreground outline-none ring-1 ring-brand/30'
+                              maxLength={80}
+                            />
+                          ) : (
+                            <p className='text-sm font-medium truncate text-foreground'>
+                              {s.title || "New Chat"}
+                            </p>
+                          )}
                           <p className='text-[11px] text-muted-foreground mt-0.5'>
                             {new Date(
                               s.updated_at || s.updatedAt || Date.now(),
@@ -1121,19 +1303,34 @@ export const ChatPage = () => {
                               day: "numeric",
                             })}
                           </p>
-                        </div>
-                        <div className='opacity-0 group-hover:opacity-100 flex items-center'>
+                        </button>
+                        <div className='opacity-0 group-hover:opacity-100 focus-within:opacity-100 flex items-center gap-1'>
                           <button
+                            type='button'
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startRenamingSession(s);
+                            }}
+                            className='p-1 hover:text-brand text-foreground/60 rounded'
+                            aria-label={`Rename ${s.title || "chat"}`}
+                            title='Rename chat'
+                          >
+                            <Edit2 size={12} />
+                          </button>
+                          <button
+                            type='button'
                             onClick={(e) => {
                               e.stopPropagation();
                               deleteSession(s.id);
                             }}
                             className='p-1 hover:text-brand text-foreground/60 rounded'
+                            aria-label={`Delete ${s.title || "chat"}`}
+                            title='Delete chat'
                           >
                             <Trash2 size={12} />
                           </button>
                         </div>
-                      </button>
+                      </div>
                     ))
                   ) : (
                     <div className='px-3 py-4 text-center text-muted-foreground text-xs'>
@@ -1145,7 +1342,7 @@ export const ChatPage = () => {
             </div>
           </aside>
 
-          <main className='flex-1 relative h-[89vh] flex flex-col overflow-hidden'>
+          <main className='min-h-0 flex-1 relative flex flex-col bg-background overflow-hidden'>
             <header className='h-16 flex items-center justify-between px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
               <div className='flex items-center gap-3'>
                 <button
@@ -1167,8 +1364,12 @@ export const ChatPage = () => {
                     <Coins size={14} className='text-brand' />
                     <span className='text-xs font-medium text-foreground'>
                       {chatQuota.free_remaining > 0
-                        ? `${chatQuota.free_remaining}/${chatQuota.free_total} free`
-                        : `${chatQuota.credit_balance} credits`}
+                        ? `${chatQuota.free_remaining}/${chatQuota.free_total} free${
+                            chatQuota.credit_balance > 0
+                              ? ` + ${chatQuota.credit_balance} paid`
+                              : ""
+                          }`
+                        : `${chatQuota.credit_balance} paid credits`}
                     </span>
                   </div>
                 )}
@@ -1179,12 +1380,26 @@ export const ChatPage = () => {
                     className={`w-2 h-2 rounded-full ${status === "in_progress" ? "bg-brand animate-pulse" : "bg-brand"} `}
                   ></div>
                   <span className='text-xs font-medium text-foreground'>
-                    {status === "in_progress" ? "Generating..." : "Ready"}
+                    {status === "in_progress"
+                      ? showExtendedWait
+                        ? `Still working... ${requestElapsedLabel}`
+                        : "Generating..."
+                      : "Ready"}
                   </span>
                 </div>
+                {status === "in_progress" && (
+                  <button
+                    type='button'
+                    onClick={stop}
+                    className='text-sm font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 flex items-center gap-1'
+                  >
+                    Stop
+                  </button>
+                )}
                 {messages.length > 0 && (
                   <button
                     onClick={regenerate}
+                    disabled={status === "in_progress"}
                     className='text-sm font-medium text-brand hover:underline px-3 py-1.5 flex items-center gap-1'
                   >
                     Regenerate
@@ -1196,8 +1411,28 @@ export const ChatPage = () => {
             <div
               ref={chatScrollRef}
               onScroll={updateScrollState}
-              className='flex-1 overflow-y-auto flex flex-col relative custom-scrollbar'
+              className='min-h-0 flex-1 overflow-y-auto flex flex-col relative custom-scrollbar'
             >
+              {showExtendedWait && (
+                <div className='sticky top-3 z-20 mx-auto mt-3 flex max-w-xl items-center justify-between gap-4 rounded-xl border border-brand/25 bg-card/95 px-4 py-3 text-sm shadow-lg shadow-black/10 backdrop-blur'>
+                  <div>
+                    <p className='font-medium text-foreground'>
+                      JobRaker is still working
+                    </p>
+                    <p className='text-xs text-muted-foreground'>
+                      This has been running for {requestElapsedLabel}. You can
+                      wait, or stop and try a shorter request.
+                    </p>
+                  </div>
+                  <button
+                    type='button'
+                    onClick={stop}
+                    className='shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent'
+                  >
+                    Stop
+                  </button>
+                </div>
+              )}
               {messages.length === 0 ? (
                 <div className='flex-1 flex flex-col items-center justify-center p-6 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700'>
                   <div className='max-w-2xl w-full text-center space-y-6'>
@@ -1268,7 +1503,7 @@ export const ChatPage = () => {
                   </div>
                 </div>
               ) : (
-                <div className='flex-1 w-full max-w-4xl mx-auto p-6 space-y-6 pb-32'>
+                <div className='flex-1 w-full max-w-4xl mx-auto p-6 space-y-6 pb-8'>
                   {messages.map((m) => (
                     <div
                       key={m.id}
@@ -1502,9 +1737,11 @@ export const ChatPage = () => {
                                 <span className='inline-block w-1.5 h-4 ml-1 align-middle bg-brand animate-pulse' />
                               ) : (
                                 <span className='text-sm font-medium text-muted-foreground animate-pulse'>
-                                  {m.toolCalls && m.toolCalls.length > 0
-                                    ? "Working..."
-                                    : "Thinking..."}
+                                  {showExtendedWait
+                                    ? `Still working... ${requestElapsedLabel}`
+                                    : m.toolCalls && m.toolCalls.length > 0
+                                      ? "Working..."
+                                      : "Thinking..."}
                                 </span>
                               ))}
                           </div>
@@ -1529,15 +1766,16 @@ export const ChatPage = () => {
               </div>
             )}
 
-            <div className='sticky bottom-0 p-4 md:p-6 pt-0 w-full max-w-4xl mx-auto z-10 shrink-0'>
-              <div
-                className={`relative rounded-[24px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${
-                  text.trim() || attachment
-                    ? "bg-card ring-1 ring-brand/50 border-brand/50"
-                    : "bg-card/85 backdrop-blur-xl"
-                }`}
-              >
-                <div className='flex flex-col'>
+            <div className='shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur md:px-6'>
+              <div className='w-full max-w-4xl mx-auto'>
+                <div
+                  className={`relative rounded-[24px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${
+                    text.trim() || attachments.length
+                      ? "bg-card ring-1 ring-brand/50 border-brand/50"
+                      : "bg-card/85 backdrop-blur-xl"
+                  }`}
+                >
+                  <div className='flex flex-col'>
                   <div className='relative flex items-end p-2 pb-2'>
                     <textarea
                       ref={textareaRef}
@@ -1547,7 +1785,7 @@ export const ChatPage = () => {
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
-                          if (text.trim() || attachment)
+                          if (text.trim() || attachments.length)
                             handleSubmit({ text } as any);
                         }
                       }}
@@ -1564,15 +1802,15 @@ export const ChatPage = () => {
 
                     <button
                       onClick={() =>
-                        (text.trim() || attachment) &&
+                        (text.trim() || attachments.length > 0) &&
                         handleSubmit({ text } as any)
                       }
                       disabled={
-                        (!text.trim() && !attachment) ||
+                        (!text.trim() && attachments.length === 0) ||
                         status === "in_progress"
                       }
                       className={`mb-1.5 mr-1.5 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                        text.trim() || attachment
+                        text.trim() || attachments.length
                           ? "bg-brand hover:bg-brand/90 text-primary-foreground shadow-[0_0_15px_hsl(var(--brand)/0.3)]"
                           : "bg-muted text-muted-foreground/60 cursor-not-allowed"
                       }`}
@@ -1619,52 +1857,65 @@ export const ChatPage = () => {
                       <input
                         type='file'
                         ref={fileInputRef}
+                        multiple
+                        accept='image/*'
                         className='hidden'
                         onChange={handleFileSelect}
                       />
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className={`transition-colors ${attachment ? "text-brand" : "text-muted-foreground hover:text-foreground"}`}
+                        className={`transition-colors ${attachments.length ? "text-brand" : "text-muted-foreground hover:text-foreground"}`}
                       >
                         <Paperclip size={16} />
                       </button>
                     </div>
                   </div>
 
-                  {attachment && (
+                  {attachments.length > 0 && (
                     <div className='px-4 pb-2'>
-                      <div className='inline-flex items-center gap-2 bg-accent/40 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground border border-border'>
-                        {attachmentPreviewUrl ? (
-                          <img
-                            src={attachmentPreviewUrl}
-                            alt=''
-                            className='h-10 w-10 rounded-md object-cover border border-border shrink-0'
-                          />
-                        ) : (
-                          <Paperclip size={12} className='text-brand' />
-                        )}
-                        <span className='max-w-[150px] truncate'>
-                          {attachment.name}
-                        </span>
-                        <button
-                          type='button'
-                          onClick={() => {
-                            setAttachment(null);
-                            if (fileInputRef.current)
-                              fileInputRef.current.value = "";
-                          }}
-                          className='ml-1 hover:text-brand'
-                        >
-                          <X size={12} />
-                        </button>
+                      <div className='flex flex-wrap gap-2'>
+                        {attachments.map((attachment, index) => (
+                          <div
+                            key={`${attachment.name}-${attachment.lastModified}-${index}`}
+                            className='inline-flex min-w-0 items-center gap-2 bg-accent/40 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground border border-border'
+                          >
+                            {attachmentPreviewUrls[index] ? (
+                              <img
+                                src={attachmentPreviewUrls[index] || ""}
+                                alt=''
+                                className='h-10 w-10 rounded-md object-cover border border-border shrink-0'
+                              />
+                            ) : (
+                              <Paperclip size={12} className='text-brand' />
+                            )}
+                            <span className='max-w-[150px] truncate'>
+                              {attachment.name}
+                            </span>
+                            <button
+                              type='button'
+                              onClick={() => {
+                                setAttachments((current) =>
+                                  current.filter((_, i) => i !== index),
+                                );
+                                if (fileInputRef.current)
+                                  fileInputRef.current.value = "";
+                              }}
+                              className='ml-1 hover:text-brand'
+                              aria-label={`Remove ${attachment.name}`}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
+                  </div>
                 </div>
+                <p className='text-center text-[10px] text-muted-foreground mt-3 uppercase tracking-widest font-medium'>
+                  JobRaker AI can make mistakes. Check important information.
+                </p>
               </div>
-              <p className='text-center text-[10px] text-muted-foreground mt-3 uppercase tracking-widest font-medium'>
-                JobRaker AI can make mistakes. Check important information.
-              </p>
             </div>
 
             <div className='fixed -bottom-48 -right-48 w-96 h-96 bg-brand/5 rounded-full blur-[120px] pointer-events-none'></div>

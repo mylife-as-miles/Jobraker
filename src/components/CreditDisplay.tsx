@@ -99,6 +99,12 @@ export const CreditDisplay = () => {
     };
 
     fetchCreditsAndTier();
+    const handleCreditRefresh = () => {
+      void fetchCreditsAndTier();
+    };
+
+    window.addEventListener("jobraker:credits-updated", handleCreditRefresh);
+    window.addEventListener("focus", handleCreditRefresh);
 
     // Set up real-time subscription for credits
     const channel = supabase
@@ -119,6 +125,11 @@ export const CreditDisplay = () => {
       .subscribe();
 
     return () => {
+      window.removeEventListener(
+        "jobraker:credits-updated",
+        handleCreditRefresh,
+      );
+      window.removeEventListener("focus", handleCreditRefresh);
       supabase.removeChannel(channel);
     };
   }, [supabase]);
