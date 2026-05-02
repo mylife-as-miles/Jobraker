@@ -82,6 +82,123 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getErrorText(error: any) {
+  return [
+    error?.message,
+    error?.details,
+    error?.hint,
+    error?.code,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function looksLikeSchemaMismatch(error: any, fieldName: string) {
+  const text = getErrorText(error);
+  return (
+    text.includes(fieldName.toLowerCase()) ||
+    text.includes("schema cache") ||
+    text.includes("column")
+  );
+}
+
+function looksLikeStatusValueMismatch(error: any, statusValue: string) {
+  const text = getErrorText(error);
+  return (
+    text.includes(statusValue.toLowerCase()) ||
+    text.includes("check constraint") ||
+    text.includes("invalid input value")
+  );
+}
+
+async function cancelActiveSubscriptions(
+  supabaseAdmin: any,
+  userId: string,
+  currentPeriodStart: string,
+) {
+  const baseUpdate = {
+    current_period_end: currentPeriodStart,
+    updated_at: currentPeriodStart,
+  };
+  const statusAttempts = ["canceled", "cancelled"];
+  let lastError: any = null;
+
+  for (let index = 0; index < statusAttempts.length; index += 1) {
+    const status = statusAttempts[index];
+    const { error } = await supabaseAdmin
+      .from("user_subscriptions")
+      .update({
+        ...baseUpdate,
+        status,
+      })
+      .eq("user_id", userId)
+      .eq("status", "active");
+
+    if (!error) {
+      return;
+    }
+
+    lastError = error;
+    const isFinalAttempt = index === statusAttempts.length - 1;
+    if (isFinalAttempt || !looksLikeStatusValueMismatch(error, status)) {
+      break;
+    }
+  }
+
+  if (lastError) {
+    console.error("Failed to cancel previous subscriptions:", lastError);
+  }
+}
+
+async function createUserSubscription(
+  supabaseAdmin: any,
+  userId: string,
+  planId: string,
+  currentPeriodStart: string,
+  currentPeriodEnd: string,
+) {
+  const baseInsert = {
+    user_id: userId,
+    status: "active",
+    current_period_start: currentPeriodStart,
+    current_period_end: currentPeriodEnd,
+    updated_at: currentPeriodStart,
+  };
+  const attempts = [
+    {
+      ...baseInsert,
+      subscription_plan_id: planId,
+    },
+    {
+      ...baseInsert,
+      plan_id: planId,
+    },
+  ];
+  let lastError: any = null;
+
+  for (let index = 0; index < attempts.length; index += 1) {
+    const payload = attempts[index];
+    const attemptedPlanField =
+      "subscription_plan_id" in payload ? "subscription_plan_id" : "plan_id";
+    const { error } = await supabaseAdmin
+      .from("user_subscriptions")
+      .insert(payload);
+
+    if (!error) {
+      return null;
+    }
+
+    lastError = error;
+    const isFinalAttempt = index === attempts.length - 1;
+    if (isFinalAttempt || !looksLikeSchemaMismatch(error, attemptedPlanField)) {
+      break;
+    }
+  }
+
+  return lastError;
+}
+
 export async function verifyPaystackReference(
   reference: string,
   paystackSecret: string,
@@ -319,7 +436,12 @@ export async function fulfillVerifiedPaystackPayment({
   }
 
   if (order.plan_type === "subscription") {
-    const planId = typeof metadata.plan_id === "string" ? metadata.plan_id : null;
+    const planId =
+      typeof metadata.subscription_plan_id === "string"
+        ? metadata.subscription_plan_id
+        : typeof metadata.plan_id === "string"
+          ? metadata.plan_id
+          : null;
     if (!planId) {
       return {
         ok: false,
@@ -344,30 +466,15 @@ export async function fulfillVerifiedPaystackPayment({
     const currentPeriodStart = now.toISOString();
     const currentPeriodEnd = addBillingCycle(now, billingCycle).toISOString();
 
-    const { error: cancelError } = await supabaseAdmin
-      .from("user_subscriptions")
-      .update({
-        status: "canceled",
-        current_period_end: currentPeriodStart,
-        updated_at: currentPeriodStart,
-      })
-      .eq("user_id", userId)
-      .eq("status", "active");
+    await cancelActiveSubscriptions(supabaseAdmin, userId, currentPeriodStart);
 
-    if (cancelError) {
-      console.error("Failed to cancel previous subscriptions:", cancelError);
-    }
-
-    const { error: subError } = await supabaseAdmin
-      .from("user_subscriptions")
-      .insert({
-        user_id: userId,
-        plan_id: planId,
-        status: "active",
-        current_period_start: currentPeriodStart,
-        current_period_end: currentPeriodEnd,
-        updated_at: currentPeriodStart,
-      });
+    const subError = await createUserSubscription(
+      supabaseAdmin,
+      userId,
+      planId,
+      currentPeriodStart,
+      currentPeriodEnd,
+    );
 
     if (subError) {
       console.error("Failed to create subscription:", subError);
@@ -400,6 +507,7 @@ export async function fulfillVerifiedPaystackPayment({
             order_id: order.id,
             paystack_ref: reference,
             plan_id: planId,
+            subscription_plan_id: planId,
             plan_name: planName,
           },
         },
@@ -435,6 +543,7 @@ export async function fulfillVerifiedPaystackPayment({
             updated_at: currentPeriodStart,
             metadata: {
               plan_id: planId,
+              subscription_plan_id: planId,
               plan_name: planName,
               order_id: order.id,
             },

@@ -314,7 +314,6 @@ export class CreditService {
     }
   }
 
-  // Subscribe to credit balance changes
   static subscribeToCredits(
     userId: string,
     callback: (credits: UserCredits | null) => void
@@ -331,7 +330,22 @@ export class CreditService {
           filter: `user_id=eq.${userId}`
         },
         (payload: any) => {
-          callback(payload.new as UserCredits);
+          if (!payload.new) {
+            callback(null);
+            return;
+          }
+          
+          const rawRow = payload.new;
+          callback({
+            id: rawRow.id,
+            userId: rawRow.user_id,
+            balance: rawRow.balance,
+            totalEarned: rawRow.lifetime_earned,
+            totalConsumed: rawRow.lifetime_spent,
+            lastResetAt: rawRow.updated_at,
+            createdAt: rawRow.created_at,
+            updatedAt: rawRow.updated_at
+          } as UserCredits);
         }
       )
       .subscribe();

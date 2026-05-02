@@ -445,10 +445,14 @@ export const BillingPage = () => {
           return;
         }
 
-        if (result.status === "fulfilled") {
+        if (
+          result.status === "fulfilled" ||
+          result.status === "already_fulfilled"
+        ) {
           notify({
             title: "Payment applied",
-            description: "Your credits have been added to your balance.",
+            description:
+              "Your billing update has been applied to your account.",
             variant: "success",
           });
         }

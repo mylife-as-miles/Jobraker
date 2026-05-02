@@ -106,23 +106,31 @@ export const CreditDisplay = () => {
     window.addEventListener("jobraker:credits-updated", handleCreditRefresh);
     window.addEventListener("focus", handleCreditRefresh);
 
-    // Set up real-time subscription for credits
-    const channel = supabase
-      .channel("user-credits-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "user_credits",
-        },
-        (payload) => {
-          if (payload.new && typeof (payload.new as any).balance === "number") {
-            setCredits((payload.new as any).balance);
-          }
-        },
-      )
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    
+    // We set up the channel after getting userId to ensure we only listen to our own changes
+    supabase.auth.getUser().then(({ data }) => {
+      const currentUserId = data?.user?.id;
+      if (currentUserId) {
+        channel = supabase
+          .channel("user-credits-changes")
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "user_credits",
+              filter: `user_id=eq.${currentUserId}`
+            },
+            (payload) => {
+              if (payload.new && typeof (payload.new as any).balance === "number") {
+                setCredits((payload.new as any).balance);
+              }
+            },
+          )
+          .subscribe();
+      }
+    });
 
     return () => {
       window.removeEventListener(
@@ -130,7 +138,9 @@ export const CreditDisplay = () => {
         handleCreditRefresh,
       );
       window.removeEventListener("focus", handleCreditRefresh);
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [supabase]);
 

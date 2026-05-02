@@ -183,6 +183,7 @@ serve(async (req) => {
         purchase_type: "subscription",
         sku: `plan:${plan.id}`,
         plan_id: plan.id,
+        subscription_plan_id: plan.id,
         plan_name: plan.name,
         billing_cycle: paymentCycle,
         credits_per_month: totalCreditsPaidFor,
