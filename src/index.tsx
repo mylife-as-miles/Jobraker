@@ -47,6 +47,16 @@ import AdminSubscriptions from "./pages/admin/pages/AdminSubscriptions";
 
 const APP_ORIGIN = "https://app.jobraker.io";
 
+function isAdminPublicPath(pathname: string) {
+  return (
+    pathname === "/signin" ||
+    pathname === ROUTES.SIGNIN ||
+    pathname === "/login" ||
+    pathname === ROUTES.SIGNUP ||
+    pathname.startsWith("/auth/")
+  );
+}
+
 // Error boundary component
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -270,10 +280,7 @@ function SubdomainGuard({ children }: { children: React.ReactNode }) {
   if (
     isAdminHost &&
     !location.pathname.startsWith("/admin") &&
-    location.pathname !== "/signin" &&
-    location.pathname !== "/login" &&
-    location.pathname !== "/signup" &&
-    !location.pathname.startsWith("/auth/")
+    !isAdminPublicPath(location.pathname)
   ) {
     return <Navigate to="/admin" replace />;
   }

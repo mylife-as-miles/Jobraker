@@ -5,6 +5,12 @@ import { ROUTES } from "../routes";
 
 type Props = { children: React.ReactNode };
 
+function getAuthenticatedRedirectPath() {
+  return window.location.hostname.startsWith("admin.")
+    ? "/admin"
+    : `${ROUTES.DASHBOARD}/overview`;
+}
+
 export const PublicOnly: React.FC<Props> = ({ children }) => {
   const navigate = useNavigate();
   const supabase = createClient();
@@ -16,7 +22,7 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
       const { data } = await supabase.auth.getUser();
       if (!mounted) return;
       if (data.user) {
-        navigate(`${ROUTES.DASHBOARD}/overview`, { replace: true });
+        navigate(getAuthenticatedRedirectPath(), { replace: true });
       } else {
         setChecking(false);
       }
@@ -26,7 +32,7 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
     const { data: sub } = supabase.auth.onAuthStateChange(
       (_event: any, session: any) => {
         if (session?.user)
-          navigate(`${ROUTES.DASHBOARD}/overview`, { replace: true });
+          navigate(getAuthenticatedRedirectPath(), { replace: true });
       },
     );
 

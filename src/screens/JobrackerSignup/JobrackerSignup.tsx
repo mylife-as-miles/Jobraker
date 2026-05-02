@@ -29,6 +29,20 @@ import { useToast } from "../../components/ui/toast-provider";
 import Modal from "../../components/ui/modal";
 import { SelfSolvingCube } from "./components/SelfSolvingCube";
 
+function isAdminHost() {
+  return window.location.hostname.startsWith("admin.");
+}
+
+function getPostSignInPath() {
+  return isAdminHost() ? "/admin" : ROUTES.DASHBOARD;
+}
+
+function getOAuthRedirectUrl() {
+  return isAdminHost()
+    ? `${window.location.origin}/admin`
+    : AUTH_REDIRECTS.dashboard();
+}
+
 export const JobrackerSignup = (): JSX.Element => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -122,7 +136,7 @@ export const JobrackerSignup = (): JSX.Element => {
         const { error } = await authApi.signInWithOAuth({
           provider,
           options: {
-            redirectTo: AUTH_REDIRECTS.dashboard(),
+            redirectTo: getOAuthRedirectUrl(),
             captchaToken,
           },
         });
@@ -266,7 +280,7 @@ export const JobrackerSignup = (): JSX.Element => {
           );
         }
 
-        navigate(ROUTES.DASHBOARD);
+        navigate(getPostSignInPath());
       }
     } catch (error: any) {
       console.error("Supabase auth error:", error);
