@@ -37,6 +37,25 @@ const navigation = [
   { name: "Settings", icon: Settings, path: "/admin/settings" },
 ];
 
+const APP_DASHBOARD_URL = "https://app.jobraker.io/dashboard";
+
+function goToAppDashboard() {
+  const isAdminHost = window.location.hostname.startsWith("admin.");
+  if (isAdminHost) {
+    window.location.assign(APP_DASHBOARD_URL);
+    return;
+  }
+  window.location.assign("/dashboard");
+}
+
+function isActiveAdminRoute(currentPath: string, itemPath: string) {
+  if (itemPath === "/admin") {
+    return currentPath === "/admin" || currentPath === "/admin/overview";
+  }
+
+  return currentPath === itemPath;
+}
+
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -51,22 +70,16 @@ export default function AdminLayout() {
       try {
         const admin = await isCurrentUserAdmin();
         setIsAdmin(admin);
-
-        if (!admin) {
-          // Redirect non-admin users to dashboard
-          navigate("/dashboard", { replace: true });
-        }
       } catch (error) {
         console.error("Error checking admin status:", error);
         setIsAdmin(false);
-        navigate("/dashboard", { replace: true });
       } finally {
         setChecking(false);
       }
     };
 
     checkAdminAccess();
-  }, [navigate]);
+  }, []);
 
   // Handle window resize
   useEffect(() => {
@@ -89,7 +102,7 @@ export default function AdminLayout() {
     );
   }
 
-  // Show access denied if not admin (shouldn't reach here due to redirect, but safety check)
+  // Show access denied if not admin.
   if (isAdmin === false) {
     return (
       <div className='min-h-screen bg-gradient-to-br from-background via-background to-background flex items-center justify-center p-6'>
@@ -107,7 +120,7 @@ export default function AdminLayout() {
             privileges are required.
           </p>
           <Button
-            onClick={() => navigate("/dashboard")}
+            onClick={goToAppDashboard}
             className='bg-brand hover:bg-brand/90 text-black font-semibold'
           >
             Return to Dashboard
@@ -167,7 +180,7 @@ export default function AdminLayout() {
         {/* Navigation */}
         <nav className='p-4 space-y-1'>
           {navigation.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = isActiveAdminRoute(location.pathname, item.path);
             const Icon = item.icon;
 
             return (
@@ -240,8 +253,9 @@ export default function AdminLayout() {
                 </button>
                 <ChevronRight className='w-4 h-4 text-gray-600' />
                 <span className='text-white font-medium'>
-                  {navigation.find((n) => n.path === location.pathname)?.name ||
-                    "Dashboard"}
+                  {navigation.find((n) =>
+                    isActiveAdminRoute(location.pathname, n.path),
+                  )?.name || "Dashboard"}
                 </span>
               </div>
             </div>
@@ -249,7 +263,7 @@ export default function AdminLayout() {
             {/* Actions */}
             <div className='flex items-center gap-3'>
               <Button
-                onClick={() => navigate("/dashboard")}
+                onClick={goToAppDashboard}
                 variant='outline'
                 className='border-brand/30 hover:border-brand hover:bg-brand/10 text-gray-300 hover:text-brand transition-all'
               >

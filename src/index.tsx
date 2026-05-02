@@ -45,6 +45,8 @@ import {
 } from "./pages/admin";
 import AdminSubscriptions from "./pages/admin/pages/AdminSubscriptions";
 
+const APP_ORIGIN = "https://app.jobraker.io";
+
 // Error boundary component
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -210,6 +212,7 @@ function AnimatedRoutes() {
           }
         >
           <Route index element={<AdminOverview />} />
+          <Route path='overview' element={<AdminOverview />} />
           <Route path='users' element={<AdminUsers />} />
           <Route path='subscriptions' element={<AdminSubscriptions />} />
           <Route path='revenue' element={<AdminRevenue />} />
@@ -240,12 +243,32 @@ function AnimatedRoutes() {
   );
 }
 
+function ExternalRedirect({ to }: { to: string }) {
+  React.useEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+
+  return null;
+}
+
 function SubdomainGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const hostname = window.location.hostname;
+  const isAdminHost = hostname.startsWith("admin.");
 
   if (
-    hostname.startsWith("admin.") &&
+    isAdminHost &&
+    location.pathname.startsWith("/dashboard")
+  ) {
+    return (
+      <ExternalRedirect
+        to={`${APP_ORIGIN}${location.pathname}${location.search}${location.hash}`}
+      />
+    );
+  }
+
+  if (
+    isAdminHost &&
     !location.pathname.startsWith("/admin") &&
     location.pathname !== "/signin" &&
     location.pathname !== "/login" &&
