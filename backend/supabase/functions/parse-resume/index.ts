@@ -1,7 +1,14 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText } from "../_shared/gemini.ts";
+import {
+  createGeminiClient,
+  GEMINI_MODEL,
+  createGeminiConfig,
+  extractGeminiText,
+  withGeminiRetry,
+} from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { parseStructuredJson } from "../_shared/structured-json.ts";
 import {
   SubscriptionAccessError,
   requireAuthenticatedUser,
@@ -51,13 +58,39 @@ const PARSING_SCHEMA = {
         },
         required: ["company", "title", "description"]
       }
+    },
+    projects: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          organization: { type: "string" },
+          date: { type: "string" },
+          description: { type: "string" }
+        },
+        required: ["name", "description"]
+      }
+    },
+    certifications: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          issuer: { type: "string" },
+          date: { type: "string" },
+          description: { type: "string" }
+        },
+        required: ["name"]
+      }
     }
   },
   required: ["firstName", "lastName", "email", "jobTitle", "about", "skills", "education", "experience"]
 };
 
 function buildPrompt(resumeText: string): string {
-  return `You are an elite AI career analyst and resume parser. Your task is to perform deep analysis of the resume and extract ALL structured profile data.
+  return `You are a lossless resume/CV parser. Your task is to extract structured profile data while preserving the candidate's original detail.
 
 Extract into the following JSON structure:
 ${JSON.stringify(PARSING_SCHEMA, null, 2)}
@@ -66,10 +99,15 @@ Requirements:
 - Extract First Name, Last Name, Email, Phone, Location.
 - Determine the current/most recent Job Title.
 - Calculate total Years of Experience.
-- Generate a professional "About" summary (2-3 sentences).
-- Extract a list of the 12-20 most relevant Skills.
+- For "about": preserve the candidate's existing professional summary/profile if present. If there is no summary, write a brief 2-3 sentence overview, but do not omit concrete domains, leadership scope, metrics, certifications, or major tools found in the CV.
+- Extract all clearly stated Skills, tools, technologies, languages, certifications, and domain keywords. Do not cap the list at 20 when the CV contains more relevant skills.
 - Extract Education history (School, Degree, Start Year, End Year).
-- Extract Experience history (Company, Title, Location, Start Date YYYY-MM, End Date YYYY-MM or "Present", and a concise 1-2 sentence description).
+- Extract the full Experience history in reverse chronological order.
+- Extract Projects and Certifications when present instead of folding them into summary text.
+- For each experience.description, preserve the vital details from that role: responsibilities, achievements, metrics, customers/industries, tools, leadership scope, and named initiatives.
+- Do not compress a role to 1-2 generic sentences. Use newline-separated bullet-like lines inside the description string when the source has multiple bullets.
+- Never drop older roles, extra bullets, metrics, or technical/domain keywords merely to make the output shorter.
+- Keep dates as written when month precision is unavailable. Use End Date "Present" only when the CV indicates the role is current.
 
 RESUME CONTENT:
 ${resumeText}
@@ -99,20 +137,11 @@ function extractJsonCandidate(text: string): string {
 }
 
 function parseGeminiJson(text: string) {
-  const candidates = [stripCodeFences(text), extractJsonCandidate(text)];
-  const tried = new Set<string>();
-
-  for (const candidate of candidates) {
-    if (!candidate || tried.has(candidate)) continue;
-    tried.add(candidate);
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      // try the next cleanup strategy
-    }
+  try {
+    return parseStructuredJson(text);
+  } catch {
+    return parseStructuredJson(extractJsonCandidate(text));
   }
-
-  throw new SyntaxError("Unable to parse structured JSON response.");
 }
 
 async function repairMalformedJson(ai: ReturnType<typeof createGeminiClient>, text: string) {
@@ -139,7 +168,7 @@ ${text.slice(0, 14000)}`;
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -154,17 +183,18 @@ serve(async (req) => {
     }
 
     const ai = createGeminiClient();
-    const prompt = buildPrompt(resumeText.slice(0, 30000));
+    const prompt = buildPrompt(resumeText.slice(0, 60000));
 
-    const result = await ai.models.generateContent({
+    const result = await withGeminiRetry(() => ai.models.generateContent({
         model: GEMINI_MODEL,
         config: createGeminiConfig({
-          systemInstruction: "You are a resume parser. Return only valid JSON.",
+          systemInstruction: "You are a lossless resume parser. Extract, preserve detail, and return only valid JSON.",
+          responseMimeType: "application/json",
           includeTools: false,
           thinkingLevel: "LOW",
         }),
         contents: [{ role: 'user', parts: [{ text: prompt }] }]
-    });
+    }));
 
     const text = extractGeminiText(result);
     if (!text) throw new Error("Empty response from AI");

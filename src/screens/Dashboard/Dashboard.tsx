@@ -7,6 +7,12 @@ import {
 } from "@/components/LowCreditsPromoModal";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import {
   Bell,
@@ -95,30 +101,41 @@ const SidebarItem = ({
   isActive: boolean;
   isCollapsed?: boolean;
   onClick: () => void;
-}) => (
-  <Button
-    variant='ghost'
-    onClick={onClick}
-    title={isCollapsed ? item.label : undefined}
-    className={`w-full justify-start rounded-xl mb-1 transition-all duration-0 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${
-      isActive
-        ? "text-foreground bg-brand/10 border border-brand/20 hover:bg-brand/10"
-        : "text-foreground/60 hover:text-foreground/40 hover:bg-foreground/5"
-    } ${isCollapsed ? "justify-center px-2" : ""}`}
-  >
-    {isActive && (
-      <div className='absolute left-0 top-0 bottom-0 w-1 bg-brand shadow-[0_0_10px] shadow-brand' />
-    )}
-    <span
-      className={`relative z-10 transition-all ${isCollapsed ? "" : "mr-3"}`}
+}) => {
+  const button = (
+    <Button
+      variant='ghost'
+      onClick={onClick}
+      className={`w-full justify-start rounded-xl mb-1 transition-all duration-0 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${
+        isActive
+          ? "text-foreground bg-brand/10 border border-brand/20 hover:bg-brand/10"
+          : "text-foreground/60 hover:text-foreground/40 hover:bg-foreground/5"
+      } ${isCollapsed ? "justify-center px-2" : ""}`}
     >
-      {item.icon}
-    </span>
-    <span className={`relative w-full text-start ${isCollapsed ? "hidden" : ""}`}>
-      {item.label}
-    </span>
-  </Button>
-);
+      {isActive && (
+        <div className='absolute left-0 top-0 bottom-0 w-1 bg-brand shadow-[0_0_10px] shadow-brand' />
+      )}
+      <span
+        className={`relative z-10 transition-all ${isCollapsed ? "" : "mr-3"}`}
+      >
+        {item.icon}
+      </span>
+      <span
+        className={`relative w-full text-start ${isCollapsed ? "hidden" : ""}`}
+      >
+        {item.label}
+      </span>
+      <span className='sr-only'>{item.label}</span>
+    </Button>
+  );
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent side='right'>{item.label}</TooltipContent>
+    </Tooltip>
+  );
+};
 
 export const Dashboard = (): JSX.Element => {
   const location = useLocation();
@@ -427,6 +444,36 @@ export const Dashboard = (): JSX.Element => {
     return currentItem?.path || "Dashboard";
   };
 
+  const getBreadcrumbItems = () => {
+    const currentItem = allDashboardPages.find(
+      (item) => item.id === currentPage,
+    );
+    const items: Array<{ label: string; to?: string }> = [
+      { label: "Dashboard", to: "/dashboard/overview" },
+    ];
+
+    if (currentPage === "settings") {
+      items.push({ label: "Settings", to: "/dashboard/settings" });
+      const tab = location.pathname.split("/")[3];
+
+      if (tab) {
+        const formattedTab = tab
+          .split("-")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
+        items.push({ label: formattedTab });
+      }
+
+      return items;
+    }
+
+    if (currentItem && currentItem.label !== "Dashboard") {
+      items.push({ label: currentItem.label });
+    }
+
+    return items;
+  };
+
   const renderPageContent = () => {
     switch (currentPage) {
       case "overview":
@@ -464,7 +511,8 @@ export const Dashboard = (): JSX.Element => {
   };
 
   return (
-    <div className='min-h-screen bg-background flex'>
+    <TooltipProvider delayDuration={150}>
+      <div className='min-h-screen bg-background flex'>
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -714,20 +762,36 @@ export const Dashboard = (): JSX.Element => {
               </span>
 
               {/* Breadcrumb Navigation (sm+) */}
-              <div className='hidden sm:flex items-center space-x-1 text-xs sm:text-sm lg:text-base min-w-0 whitespace-nowrap overflow-hidden'>
-                {/* <Home className='w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-[#666666] flex-shrink-0' /> */}
-                {getCurrentBreadcrumb()
-                  .split(" / ")
-                  .map((crumb, index, array) => (
+              <div className='hidden sm:flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm lg:text-base min-w-0 whitespace-nowrap overflow-hidden'>
+                <button
+                  type='button'
+                  onClick={() => navigate("/dashboard/overview")}
+                  className='rounded-md p-1 text-[#666666] transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40'
+                  title='Go to dashboard'
+                  aria-label='Go to dashboard'
+                >
+                  <Home className='w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 flex-shrink-0' />
+                </button>
+                {getBreadcrumbItems().map((crumb, index, array) => (
                     <React.Fragment key={index}>
                       {index > 0 && (
                         <BreadcrumbChevron className='w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground/70 flex-shrink-0' />
                       )}
-                      <span 
-                        className={`${index === array.length - 1 ? "text-foreground font-medium" : "text-muted-foreground"} truncate max-w-[14rem] md:max-w-[22rem]`}
-                      >
-                        {crumb}
-                      </span>
+                      {crumb.to && index !== array.length - 1 ? (
+                        <button
+                          type='button'
+                          onClick={() => navigate(crumb.to!)}
+                          className='max-w-[14rem] truncate rounded-md px-1 py-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 md:max-w-[22rem]'
+                        >
+                          {crumb.label}
+                        </button>
+                      ) : (
+                        <span
+                          className={`${index === array.length - 1 ? "text-foreground font-medium" : "text-muted-foreground"} truncate max-w-[14rem] md:max-w-[22rem]`}
+                        >
+                          {crumb.label}
+                        </span>
+                      )}
                     </React.Fragment>
                   ))}
               </div>
@@ -871,13 +935,16 @@ export const Dashboard = (): JSX.Element => {
         </div>
       </div>
 
-      <LowCreditsPromoModal
-        open={lowCreditModalOpen}
-        onOpenChange={setLowCreditModalOpen}
-        balance={creditBalance}
-        loading={creditsLoading}
-        onUpgrade={() => navigate("/dashboard/billing?promo=JOBRAKER_PERSONAL")}
-      />
-    </div>
+        <LowCreditsPromoModal
+          open={lowCreditModalOpen}
+          onOpenChange={setLowCreditModalOpen}
+          balance={creditBalance}
+          loading={creditsLoading}
+          onUpgrade={() =>
+            navigate("/dashboard/billing?promo=JOBRAKER_PERSONAL")
+          }
+        />
+      </div>
+    </TooltipProvider>
   );
 };

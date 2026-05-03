@@ -108,6 +108,7 @@ export interface ResumeData {
         family: string;
         size: number;
         lineHeight: number;
+        paragraphSpacing: number;
       };
     };
     css?: {
@@ -420,6 +421,7 @@ export const initialResumeState: ResumeState = {
           family: "IBM Plex Serif",
           size: 14,
           lineHeight: 1.5,
+          paragraphSpacing: 8,
         },
       },
       theme: {

@@ -57,7 +57,8 @@ interface SubscriptionPlan {
 
 interface CreditTransaction {
   id: string;
-  transaction_type: string;
+  transaction_type?: string;
+  type?: string;
   amount: number;
   balance_after: number;
   description: string;
@@ -99,6 +100,15 @@ const defaultPlans: SubscriptionPlan[] = BILLING_PLAN_DEFINITIONS.map(
 );
 
 type BillingInterval = "monthly" | "quarterly" | "yearly";
+
+function normalizeCreditTransaction(
+  transaction: CreditTransaction,
+): CreditTransaction {
+  return {
+    ...transaction,
+    transaction_type: transaction.transaction_type ?? transaction.type ?? "refill",
+  };
+}
 
 function planSupportsQuarterly(planName: string): boolean {
   return planName === "Pro" || planName === "Ultimate";
@@ -401,6 +411,79 @@ export const BillingPage = () => {
 
   useEffect(() => {
     fetchBillingData();
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("payment") !== "verify") return;
+    const reference =
+      searchParams.get("reference") || searchParams.get("trxref");
+    let cancelled = false;
+
+    const verifyReturnedPayment = async () => {
+      if (!reference) return;
+
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "verify-payment",
+          {
+            body: { reference },
+          },
+        );
+
+        if (cancelled) return;
+
+        const result = data as
+          | { success?: boolean; status?: string; error?: string }
+          | null;
+
+        if (error || result?.error || !result?.success) {
+          console.error("Payment verification failed:", error || result?.error);
+          toastError(
+            "Payment verification pending",
+            "We could not apply the payment immediately. Please refresh in a moment or contact support with the payment reference.",
+          );
+          return;
+        }
+
+        if (result.status === "fulfilled") {
+          notify({
+            title: "Payment applied",
+            description: "Your credits have been added to your balance.",
+            variant: "success",
+          });
+        }
+
+        window.dispatchEvent(new CustomEvent("jobraker:credits-updated"));
+        await fetchBillingData();
+
+        const cleanedUrl = new URL(window.location.href);
+        cleanedUrl.searchParams.delete("payment");
+        cleanedUrl.searchParams.delete("reference");
+        cleanedUrl.searchParams.delete("trxref");
+        window.history.replaceState({}, "", cleanedUrl.toString());
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Payment return verification error:", error);
+        toastError(
+          "Payment verification pending",
+          "We could not apply the payment immediately. Please refresh in a moment or contact support with the payment reference.",
+        );
+      }
+    };
+
+    void verifyReturnedPayment();
+
+    const refreshTimers = [1500, 4000, 8000].map((delay) =>
+      window.setTimeout(() => {
+        void fetchBillingData();
+        window.dispatchEvent(new CustomEvent("jobraker:credits-updated"));
+      }, delay),
+    );
+
+    return () => {
+      cancelled = true;
+      refreshTimers.forEach((timerId) => window.clearTimeout(timerId));
+    };
   }, []);
 
   const fetchBillingData = async () => {
@@ -557,7 +640,11 @@ export const BillingPage = () => {
         .limit(20);
 
       if (transactionsData) {
-        setTransactions(transactionsData);
+        setTransactions(
+          (transactionsData as CreditTransaction[]).map(
+            normalizeCreditTransaction,
+          ),
+        );
       }
     } catch (error) {
       console.error("Error fetching billing data:", error);
@@ -2366,7 +2453,7 @@ export const BillingPage = () => {
                     <div className='divide-y divide-foreground/5'>
                       {transactions.map((transaction, index) => {
                         const iconData = getTransactionIcon(
-                          transaction.transaction_type,
+                          transaction.transaction_type ?? transaction.type ?? "refill",
                         );
                         return (
                           <motion.div
