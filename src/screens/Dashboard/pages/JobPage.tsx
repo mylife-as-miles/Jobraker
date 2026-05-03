@@ -3571,13 +3571,13 @@ export const JobPage = (): JSX.Element => {
         )}
 
         <Card
-          className='relative overflow-hidden border-none mb-6 sm:mb-8 rounded-2xl transition-colors duration-300 '
+          className='relative overflow-hidden border-none mb-6 sm:mb-8 rounded-none transition-colors duration-300 '
           id='jobs-search-filters'
           data-tour='jobs-search-filters'
         >
-          <div className='relative z-10 flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-stretch'>
-            <div className='relative group min-w-0 flex-1'>
-              <Input
+          <div className='relative justify-between xl:items-center bg-slate-2 z-10 flex xl:flex-row flex-col gap-3 sm:gap-4 lg:items-stretch'>
+            <div className='relative group flex'>
+              {/* <Input
                 id='jobs-search'
                 data-tour='jobs-search'
                 placeholder='Search jobs, companies, keywords...'
@@ -3590,9 +3590,9 @@ export const JobPage = (): JSX.Element => {
                   }
                 }}
                 className='w-full pl-4 pr-[8.25rem] sm:pr-36 border-foreground/10 text-foreground placeholder:text-foreground/40 transition-all duration-100 rounded-xl  '
-              />
-              <div className='pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 xl:-translate-y-full h-10 items-center justify-center gap-2'>
-                <span className='text-[10px] font-medium text-brand/90  px-2.5 py-1 whitespace-nowrap shadow-sm'>
+              /> */}
+              <div className='pointer-events-none xl:basis-1/4 justify-center items-center flex'>
+                <span className='text-base font-medium text-brand/90 px-2.5 py-1 whitespace-nowrap shadow-sm'>
                   {subscriptionTier === "Ultimate"
                     ? "100"
                     : subscriptionTier === "Pro"
@@ -3602,18 +3602,17 @@ export const JobPage = (): JSX.Element => {
                         : "10"}{" "}
                   results
                 </span>
-                <Search className='h-5 w-5 shrink-0 text-brand/70 transition-colors group-focus-within:text-brand' />
               </div>
             </div>
-            <div className='flex w-full flex-col gap-2 lg:w-72 lg:shrink-0 xl:w-80'>
-              <div className='relative'>
+            <div className='flex basis-full xl:basis-1/2 xl:justify-end xl:flex-row flex-col gap-2 lg:shrink-0 '>
+              <div className='relative w-full'>
                 <MapPin className='pointer-events-none absolute right-3 top-1/2 z-[1] w-5 -translate-y-1/2 text-brand/60' />
                 <div
                   id='jobs-location'
                   data-tour='jobs-location'
                   aria-label={`Selected location ${selectedLocation || "Remote"}`}
                   role='status'
-                  className='flex h-12 w-full items-center rounded-xl border border-foreground/10 pl-4 pr-11 text-base font-medium text-foreground'
+                  className='flex h-12 items-center rounded-xl border border-foreground/10 pl-4 pr-11 text-base font-medium text-foreground'
                 >
                   <span className='min-w-0 truncate'>
                     {selectedLocation || "Remote"}
@@ -3825,7 +3824,6 @@ export const JobPage = (): JSX.Element => {
                       key={i}
                       className='relative overflow-hidden border border-brand/25 bg-gradient-to-br from-background via-background/98 to-background/95 p-5 sm:p-6'
                     >
-                      
                       <div className='relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
                         <div className='flex flex-1 items-start gap-4'>
                           <div className='relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border  border-foreground/10'>
