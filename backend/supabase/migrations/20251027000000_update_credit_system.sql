@@ -129,7 +129,7 @@ BEGIN
     
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Add subscription_tier column to profiles table if it doesn't exist
 DO $$ 
@@ -187,7 +187,7 @@ BEGIN
     
     RETURN v_tier_rank >= v_required_rank;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Create function to get user's subscription tier
 CREATE OR REPLACE FUNCTION "public"."get_user_tier"(
@@ -210,7 +210,7 @@ BEGIN
     
     RETURN v_tier;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Update consume_credits function to check tier access for restricted features
 CREATE OR REPLACE FUNCTION "public"."consume_credits"(
@@ -307,7 +307,7 @@ BEGIN
     
     RETURN true;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Grant execute permissions on new functions
 GRANT EXECUTE ON FUNCTION "public"."check_tier_access"(uuid, text) TO authenticated;

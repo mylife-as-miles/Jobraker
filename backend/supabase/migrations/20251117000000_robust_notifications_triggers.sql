@@ -18,7 +18,7 @@ BEGIN
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Trigger for new application
 DROP TRIGGER IF EXISTS on_application_created ON public.applications;
@@ -64,7 +64,7 @@ BEGIN
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Trigger for credit transaction
 DROP TRIGGER IF EXISTS on_credit_transaction_created ON public.credit_transactions;

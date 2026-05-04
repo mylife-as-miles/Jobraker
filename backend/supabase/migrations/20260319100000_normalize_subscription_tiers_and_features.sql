@@ -139,7 +139,7 @@ BEGIN
 
     RETURN v_tier;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE OR REPLACE FUNCTION public.check_tier_access(
     p_user_id uuid,
@@ -170,7 +170,7 @@ BEGIN
 
     RETURN v_tier_rank >= v_required_rank;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE OR REPLACE FUNCTION public.consume_credits(
     p_user_id uuid,
@@ -259,7 +259,7 @@ BEGIN
 
     RETURN true;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 GRANT EXECUTE ON FUNCTION public.get_user_tier(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.check_tier_access(uuid, text) TO authenticated;

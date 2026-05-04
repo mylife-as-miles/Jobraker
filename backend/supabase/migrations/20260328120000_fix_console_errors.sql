@@ -13,7 +13,8 @@ CREATE OR REPLACE FUNCTION public.deduct_job_search_credits(
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+SET search_path = public
+AS $
 DECLARE
     v_current_balance INTEGER;
     v_credits_to_deduct INTEGER;
@@ -59,7 +60,8 @@ CREATE OR REPLACE FUNCTION public.deduct_auto_apply_credits(
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+SET search_path = public
+AS $
 DECLARE
     v_current_balance INTEGER;
     v_credits_to_deduct INTEGER;
@@ -142,7 +144,7 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
     RETURN FALSE;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- 3. FIX RLS FOR security_audit_log (Resolve 403)
 DO $$ 

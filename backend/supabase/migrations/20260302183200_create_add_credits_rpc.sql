@@ -11,7 +11,8 @@ CREATE OR REPLACE FUNCTION public.add_credits(
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+SET search_path = public
+AS $
 DECLARE
     v_current_balance INTEGER;
     v_new_balance INTEGER;

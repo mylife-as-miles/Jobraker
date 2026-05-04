@@ -10,7 +10,8 @@ CREATE OR REPLACE FUNCTION public.deduct_auto_apply_credits(
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+SET search_path = public
+AS $
 DECLARE
     v_current_balance INTEGER;
     v_credits_to_deduct INTEGER;

@@ -77,7 +77,7 @@ RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*) FROM public.chat_messages WHERE session_id = p_session_id);
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public;
 
 -- Function to get last message preview for session listing
 CREATE OR REPLACE FUNCTION public.get_session_preview(p_session_id UUID)
@@ -93,7 +93,7 @@ BEGIN
     
     RETURN COALESCE(v_preview, '');
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public;
 
 -- Grant permissions
 GRANT ALL ON TABLE public.chat_messages TO authenticated;

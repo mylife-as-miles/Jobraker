@@ -25,7 +25,7 @@ BEGIN
 
     RETURN v_tier;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE OR REPLACE FUNCTION public.check_tier_access(
     p_user_id uuid,
@@ -56,4 +56,4 @@ BEGIN
 
     RETURN v_tier_rank >= v_required_rank;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
