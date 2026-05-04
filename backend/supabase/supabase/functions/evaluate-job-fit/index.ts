@@ -1,4 +1,5 @@
 import { getCorsHeaders } from "../_shared/types.ts";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 import {
   requireSubscriptionTier,
   subscriptionErrorResponse,
@@ -23,7 +24,7 @@ Deno.serve(async (req) => {
       "Job evaluation",
     );
 
-    const raw = (await req.json()) as Record<string, unknown>;
+    const raw = (await parseAndSanitize(req)) as Record<string, unknown>;
     const jobDescription =
       (typeof raw.jobDescription === "string" && raw.jobDescription.trim()
         ? raw.jobDescription

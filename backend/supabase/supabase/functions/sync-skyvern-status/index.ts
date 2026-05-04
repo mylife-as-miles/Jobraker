@@ -5,6 +5,7 @@
 
 import { getCorsHeaders } from "../_shared/types.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 
 const TERMINAL_SUCCESS = ["succeeded", "completed"];
 const TERMINAL_FAIL = [
@@ -114,7 +115,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json().catch(() => ({}));
+    const body = await parseAndSanitize(req).catch(() => ({}));
     const runId = body?.run_id;
     if (!runId || typeof runId !== "string") {
       return new Response(JSON.stringify({ error: "run_id is required" }), {

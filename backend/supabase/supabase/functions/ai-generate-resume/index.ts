@@ -10,6 +10,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createGeminiClient, GEMINI_MODEL } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -23,7 +24,7 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json().catch(() => ({}));
+    const body = await parseAndSanitize(req).catch(() => ({}));
     const targetRole = (body?.targetRole || "").trim();
     const tone = (body?.tone || "professional").trim();
 

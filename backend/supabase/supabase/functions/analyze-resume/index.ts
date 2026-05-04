@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/types.ts";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 
 interface ResumeAnalysisRequest {
   resumeText: string;
@@ -147,7 +148,7 @@ serve(async (req) => {
       );
     }
 
-    const { resumeText, profileSummary, resumeId }: ResumeAnalysisRequest = await req.json();
+    const { resumeText, profileSummary, resumeId }: ResumeAnalysisRequest = await parseAndSanitize(req);
 
     if (!resumeText || !profileSummary) {
       return new Response(

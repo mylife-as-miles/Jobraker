@@ -14,6 +14,7 @@
 import { GoogleGenAI } from "npm:@google/genai";
 import { getCorsHeaders } from "../_shared/types.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 
 const GEMINI_MODEL = 'gemini-3-pro-preview';
 
@@ -32,7 +33,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json().catch(() => ({}));
+    const body = await parseAndSanitize(req).catch(() => ({}));
     const role = trimText(body?.role);
     const company = trimText(body?.company);
     const recipient = trimText(body?.recipient);

@@ -1,5 +1,6 @@
 import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/types.ts";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 declare const Deno: any;
 
 Deno.serve(async (req: Request) => {
@@ -10,7 +11,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { resumeText } = await req.json();
+    const { resumeText } = await parseAndSanitize(req);
 
     if (!resumeText) {
       return new Response(JSON.stringify({ error: "Resume text is required" }), {

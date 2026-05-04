@@ -4,6 +4,7 @@
 
 import { getCorsHeaders } from "../_shared/types.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 
 // Helper to extract the source_url from the 'notes' field of an application.
 // This is necessary to identify which job to delete from the user's queue.
@@ -41,7 +42,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json();
+    const body = await parseAndSanitize(req);
     const run_id = body?.id || body?.run_id || null;
     const status = (body?.status || '').toLowerCase();
 

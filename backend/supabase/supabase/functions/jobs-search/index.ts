@@ -1,6 +1,7 @@
 import { getCorsHeaders } from "../_shared/types.ts";
 import { discoverJobsFirecrawl } from "../_shared/discovery-hybrid.ts";
 import { persistDiscoveredJobs } from "../_shared/jobs.ts";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 import {
   requireAuthenticatedUser,
   resolveJobSearchExecutionLimits,
@@ -17,7 +18,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json().catch(() => ({}));
+    const body = await parseAndSanitize(req).catch(() => ({}));
     const searchQuery = String(body?.searchQuery || body?.query || "").trim();
     const location = String(body?.location || "Remote").trim() || "Remote";
     const requestedLimit = Number.isFinite(Number(body?.limit))

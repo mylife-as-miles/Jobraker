@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/types.ts";
 import { discoverJobsFirecrawl } from "../_shared/discovery-hybrid.ts";
 import { persistDiscoveredJobs } from "../_shared/jobs.ts";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 import {
   requireAuthenticatedUser,
   resolveJobSearchExecutionLimits,
@@ -132,7 +133,7 @@ async function runDiscoveryForUser(
 }
 
 async function handleManualRun(req: Request) {
-  const body = await req.json().catch(() => ({}));
+  const body = await parseAndSanitize(req).catch(() => ({}));
   const requestedUserId =
     typeof body?.user_id === "string" && body.user_id.trim()
       ? body.user_id.trim()

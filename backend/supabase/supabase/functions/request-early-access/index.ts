@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/types.ts";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 
 async function sendResendEmail(args: {
   to: string;
@@ -54,7 +55,7 @@ serve(async (req) => {
   }
 
   try {
-    const { firstName, lastName, companyEmail, interest, accomplish } = await req.json();
+    const { firstName, lastName, companyEmail, interest, accomplish } = await parseAndSanitize(req);
 
     if (!firstName || !lastName || !companyEmail) {
       return new Response(
