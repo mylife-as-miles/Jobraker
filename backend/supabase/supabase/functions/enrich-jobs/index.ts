@@ -6,6 +6,7 @@
 import { GoogleGenAI } from "npm:@google/genai";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getCorsHeaders } from "../_shared/types.ts";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 
 const GEMINI_MODEL = 'gemini-3-pro-preview';
 
@@ -18,7 +19,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { ...corsHeaders, 'content-type': 'application/json' } });
 
   try {
-    const body = await req.json().catch(() => ({}));
+    const body = await parseAndSanitize(req).catch(() => ({}));
     const jobIds: string[] | undefined = Array.isArray(body?.job_ids) ? body.job_ids.filter(Boolean) : undefined;
     const sinceMinutes = Number.isFinite(Number(body?.sinceMinutes)) ? Math.max(1, Number(body.sinceMinutes)) : 60;
     const limit = Number.isFinite(Number(body?.limit)) ? Math.max(1, Math.min(50, Number(body.limit))) : 20;

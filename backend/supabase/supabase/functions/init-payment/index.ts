@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "../_shared/cors.ts";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 import {
   DEFAULT_PAYSTACK_USD_TO_NGN_RATE,
   SHARED_SUBSCRIPTION_PLANS,
@@ -80,7 +81,7 @@ serve(async (req) => {
       });
     }
 
-    const body = (await req.json()) as PaymentInitRequest;
+    const body = (await parseAndSanitize(req)) as PaymentInitRequest;
     const purchaseType = body.purchaseType;
     if (!purchaseType) {
       return new Response(JSON.stringify({ error: "Missing purchase type" }), {

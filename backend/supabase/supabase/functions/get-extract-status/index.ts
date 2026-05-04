@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/types.ts';
 import { parseSalaryRangeToMinMax, inferSalaryMeta } from '../_shared/salary.ts';
 import { resolveFirecrawlApiKey } from '../_shared/firecrawl.ts';
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -31,7 +32,7 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
-  const { jobId, searchQuery, searchLocation } = await req.json();
+  const { jobId, searchQuery, searchLocation } = await parseAndSanitize(req);
 
     if (!jobId) {
       return new Response(JSON.stringify({ error: 'jobId is required' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { MAX_PAYLOAD_SIZE } from "../_shared/sanitize.ts";
 // Using Web Crypto API for HMAC
 // Deno (and modern Edge Runtimes) support crypto.subtle
 
@@ -28,7 +29,17 @@ serve(async (req) => {
       return new Response("No signature", { status: 400 });
     }
 
+
+    const contentLength = req.headers.get("content-length");
+    if (contentLength && parseInt(contentLength, 10) > MAX_PAYLOAD_SIZE) {
+      return new Response(JSON.stringify({ error: `Payload too large` }), { status: 413 });
+    }
+
     const bodyText = await req.text();
+    const byteLength = new TextEncoder().encode(bodyText).length;
+    if (byteLength > MAX_PAYLOAD_SIZE) {
+      return new Response(JSON.stringify({ error: `Payload too large` }), { status: 413 });
+    }
 
     // Verify Signature using Web Crypto API
     const encoder = new TextEncoder();

@@ -12,6 +12,7 @@ import {
   type UserContext,
 } from "../_shared/user-context.ts";
 import { APP_INTERFACE_GUIDE } from "../_shared/app-map.ts";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 import {
   normalizeSubscriptionTier,
   requireSubscriptionTier,
@@ -628,7 +629,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body: ChatBody = await req.json();
+    const body: ChatBody = await parseAndSanitize(req);
     const {
       messages,
       system,

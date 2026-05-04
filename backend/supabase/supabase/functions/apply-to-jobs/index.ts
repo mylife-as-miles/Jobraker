@@ -8,6 +8,7 @@ import {
 import { decryptSymmetric } from "../_shared/crypto.ts";
 import { signResumeProxyToken } from "../_shared/resume-proxy-token.ts";
 import { applyMicro1ReferralToUrl } from "../_shared/micro1-referral.ts";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 
@@ -211,7 +212,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json().catch(() => ({}));
+    const body = await parseAndSanitize(req).catch(() => ({}));
     const { user, serviceClient } = await requireSubscriptionTier(
       req,
       "Free",

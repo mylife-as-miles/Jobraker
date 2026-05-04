@@ -2,6 +2,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/types.ts';
 import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 
 // Use the admin client for elevated privileges to delete/insert into the jobs table.
 const supabaseAdmin = createClient(
@@ -33,7 +34,7 @@ Deno.serve(async (req) => {
     const userId = user.id;
 
   // Step 2: Parse request parameters & feature flags
-  const body = await req.json().catch(() => ({}));
+  const body = await parseAndSanitize(req).catch(() => ({}));
   const searchQuery = (body?.searchQuery || '').trim();
   // Always use "Remote" for location to match broader search parameters
   const location = 'Remote';

@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/types.ts";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -35,7 +36,7 @@ Deno.serve(async (req) => {
     let body: any = null;
     try {
       if (req.headers.get("content-type")?.includes("application/json")) {
-        body = await req.json();
+        body = await parseAndSanitize(req);
       }
     } catch {
       body = null;

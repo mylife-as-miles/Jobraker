@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Composio } from "npm:@composio/core@0.2.2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { parseAndSanitize } from "../_shared/sanitize.ts";
 
 const composio = new Composio();
 
@@ -11,7 +12,7 @@ serve(async (req) => {
 
   let body;
   try {
-    body = await req.json();
+    body = await parseAndSanitize(req);
   } catch (error) {
     return new Response(
       JSON.stringify({
