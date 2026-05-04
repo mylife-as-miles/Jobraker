@@ -21,7 +21,8 @@ CREATE POLICY "Select own profile experiences" ON public.profile_experiences FOR
 CREATE POLICY "Insert own profile experiences" ON public.profile_experiences FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Update own profile experiences" ON public.profile_experiences FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Delete own profile experiences" ON public.profile_experiences FOR DELETE USING (auth.uid() = user_id);
-GRANT ALL ON TABLE public.profile_experiences TO anon, authenticated, service_role;
+GRANT SELECT ON TABLE public.profile_experiences TO anon;
+GRANT ALL ON TABLE public.profile_experiences TO authenticated, service_role;
 -- Education
 CREATE TABLE IF NOT EXISTS public.profile_education (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -41,7 +42,8 @@ CREATE POLICY "Select own profile education" ON public.profile_education FOR SEL
 CREATE POLICY "Insert own profile education" ON public.profile_education FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Update own profile education" ON public.profile_education FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Delete own profile education" ON public.profile_education FOR DELETE USING (auth.uid() = user_id);
-GRANT ALL ON TABLE public.profile_education TO anon, authenticated, service_role;
+GRANT SELECT ON TABLE public.profile_education TO anon;
+GRANT ALL ON TABLE public.profile_education TO authenticated, service_role;
 -- Skills (simple flat list for now)
 CREATE TABLE IF NOT EXISTS public.profile_skills (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -58,4 +60,5 @@ CREATE POLICY "Select own profile skills" ON public.profile_skills FOR SELECT US
 CREATE POLICY "Insert own profile skills" ON public.profile_skills FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Update own profile skills" ON public.profile_skills FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Delete own profile skills" ON public.profile_skills FOR DELETE USING (auth.uid() = user_id);
-GRANT ALL ON TABLE public.profile_skills TO anon, authenticated, service_role;
+GRANT SELECT ON TABLE public.profile_skills TO anon;
+GRANT ALL ON TABLE public.profile_skills TO authenticated, service_role;

@@ -40,7 +40,7 @@ BEGIN
     
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Create trigger to automatically initialize credits for new users
 DROP TRIGGER IF EXISTS "initialize_user_credits_trigger" ON "auth"."users";

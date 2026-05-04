@@ -5,7 +5,8 @@ CREATE OR REPLACE FUNCTION public.get_user_email(user_id uuid)
 RETURNS TABLE (email text)
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+SET search_path = public
+AS $
 BEGIN
   RETURN QUERY
   SELECT au.email::text

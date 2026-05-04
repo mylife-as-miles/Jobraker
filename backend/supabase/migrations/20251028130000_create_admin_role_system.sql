@@ -56,7 +56,8 @@ CREATE OR REPLACE FUNCTION public.is_admin(user_id uuid DEFAULT auth.uid())
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+SET search_path = public
+AS $
 BEGIN
   RETURN EXISTS (
     SELECT 1 FROM public.user_roles

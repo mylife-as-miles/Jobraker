@@ -118,7 +118,7 @@ BEGIN
     
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Trigger to automatically initialize credits for new users
 CREATE OR REPLACE TRIGGER "initialize_user_credits_trigger"
@@ -188,7 +188,7 @@ BEGIN
         p_plan_id
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Function to consume credits for a feature
 CREATE OR REPLACE FUNCTION "public"."consume_credits"(
@@ -258,4 +258,4 @@ BEGIN
     
     RETURN true;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;

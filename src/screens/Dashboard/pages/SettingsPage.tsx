@@ -4206,7 +4206,7 @@ export const SettingsPage = (): JSX.Element => {
                       {/* Header Area */}
                       <div className='flex items-start gap-4'>
                         <div
-                          className={`w-16 h-16 rounded-2xl bg-gradient-to-br from-${s.color}-500/20 to-${s.color}-500/10 border border-${s.color}-500/30 flex items-center justify-center p-3 shrink-0 shadow-[0_0_20px_rgba(var(--${s.color}-500),0.1)]`}
+                          className={`w-16 h-16 rounded-2xl bg-gradient-to-br from-${s.color}-500/20 to-${s.color}-500/10 border border-${s.color}-500/30 flex items-center justify-center p-3 shrink-0 shadow-lg`}
                         >
                           <img
                             src={getProxiedLogoUrl(s.logo)}
