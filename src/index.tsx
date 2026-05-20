@@ -30,10 +30,10 @@ import { ToastEventBridge } from "./components/system/ToastEventBridge";
 import { InputSecurityGuard } from "./components/system/InputSecurityGuard";
 import { AnimatePresence } from "framer-motion";
 import { PageTransition } from "./components/transitions";
-import posthog from "posthog-js";
+import posthog, { initPostHog } from "./lib/posthog";
 import { PostHogProvider } from "posthog-js/react";
 import AdminCheckCredits from "@/pages/AdminCheckCredits";
-import { enablePostHogAnalytics } from "./lib/analytics";
+import { usePostHogAuthBridge } from "./hooks/usePostHogAuthBridge";
 import {
   AdminLayout,
   AdminOverview,
@@ -49,19 +49,7 @@ import {
 import AdminSubscriptions from "./pages/admin/pages/AdminSubscriptions";
 
 const APP_ORIGIN = "https://app.jobraker.io";
-const posthogKey = import.meta.env.VITE_POSTHOG_KEY?.trim();
-const posthogHost =
-  import.meta.env.VITE_POSTHOG_HOST?.trim() || "https://us.i.posthog.com";
-const hasPostHogConfig = Boolean(posthogKey);
-
-if (hasPostHogConfig) {
-  posthog.init(posthogKey!, {
-    api_host: posthogHost,
-    capture_pageleave: true,
-    person_profiles: "identified_only",
-  });
-  enablePostHogAnalytics();
-}
+initPostHog();
 
 function isAdminPublicPath(pathname: string) {
   return (
@@ -310,6 +298,7 @@ function SubdomainGuard({ children }: { children: React.ReactNode }) {
 
 function App() {
   const [queryClient] = React.useState(() => new QueryClient());
+  usePostHogAuthBridge();
 
   return (
     <PostHogProvider client={posthog}>

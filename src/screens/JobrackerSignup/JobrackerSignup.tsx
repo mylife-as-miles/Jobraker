@@ -21,9 +21,11 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { motion } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
+import { captureClientEvent } from "../../lib/analytics";
 import { ROUTES } from "../../routes";
 import { AUTH_REDIRECTS } from "../../lib/authRedirects";
 import { capturePendingReferralCodeFromSearch } from "../../lib/referralAttribution";
+import { persistAttributionFromSearch } from "../../lib/utmAttribution";
 import { validatePassword } from "../../utils/password";
 import { useToast } from "../../components/ui/toast-provider";
 import Modal from "../../components/ui/modal";
@@ -75,7 +77,8 @@ export const JobrackerSignup = (): JSX.Element => {
 
   useEffect(() => {
     capturePendingReferralCodeFromSearch(location.search || "");
-  }, [location.search]);
+    persistAttributionFromSearch(location.search || "", location.pathname);
+  }, [location.pathname, location.search]);
 
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -130,6 +133,9 @@ export const JobrackerSignup = (): JSX.Element => {
 
       try {
         setSubmitting(true);
+        if (isSignUp) {
+          captureClientEvent("signup_started", { auth_method: provider });
+        }
         localStorage.setItem("lastUsedProvider", provider);
         setLastUsedProvider(provider);
         const authApi = (supabase as any).auth;
@@ -209,6 +215,10 @@ export const JobrackerSignup = (): JSX.Element => {
           },
         });
         if (error) throw error;
+        captureClientEvent("user_signed_up", {
+          auth_method: "email",
+          signup_surface: "jobracker_signup",
+        });
         // Always require email verification; route to login
         // Show centered success modal with actions
         success(
@@ -231,6 +241,10 @@ export const JobrackerSignup = (): JSX.Element => {
             },
           });
         if (error) throw error;
+        captureClientEvent("user_signed_in", {
+          auth_method: "email",
+          signup_surface: "jobracker_signup",
+        });
 
         // Track session and enforce security settings
         if (signInData.session && signInData.user) {

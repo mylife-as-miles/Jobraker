@@ -1,10 +1,12 @@
-import posthog from "posthog-js";
+import posthog from "@/lib/posthog";
+import { supabase } from "@/lib/supabaseClient";
+import { getStoredAttributionProperties } from "@/lib/utmAttribution";
 
 // Lightweight analytics abstraction. Falls back to console if no provider configured.
 
 export type AnalyticsEvent = {
   name: string;
-  props?: Record<string, any>;
+  props?: Record<string, unknown>;
   ts?: number; // epoch ms
 };
 
@@ -62,11 +64,51 @@ export function enablePostHogAnalytics() {
   void flushBuffer();
 }
 
-export function track(name: string, props?: Record<string, any>) {
-  const evt: AnalyticsEvent = { name, props, ts: Date.now() };
+export function captureClientEvent(
+  event: string,
+  properties?: Record<string, unknown>,
+) {
+  posthog.capture(event, {
+    ...getStoredAttributionProperties(),
+    ...properties,
+  });
+}
+
+export async function captureServerEvent(
+  event: string,
+  properties?: Record<string, unknown>,
+) {
+  try {
+    const { error } = await supabase.functions.invoke("track-posthog", {
+      body: {
+        event,
+        properties: {
+          ...getStoredAttributionProperties(),
+          ...properties,
+        },
+      },
+    });
+
+    if (error) {
+      console.error("PostHog server event failed", { event, error });
+    }
+  } catch (error) {
+    console.error("PostHog server event threw", { event, error });
+  }
+}
+
+export function track(name: string, props?: Record<string, unknown>) {
+  const evt: AnalyticsEvent = {
+    name,
+    props: {
+      ...getStoredAttributionProperties(),
+      ...props,
+    },
+    ts: Date.now(),
+  };
   try {
     sink.track(evt);
-  } catch (e) {
+  } catch {
     buffer.push(evt);
     try { localStorage.setItem(LS_KEY, JSON.stringify(buffer)); } catch {}
   }

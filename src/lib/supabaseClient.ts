@@ -209,3 +209,5 @@ export function createClient(): SupabaseClient {
   _cached = client;
   return _cached;
 }
+
+export const supabase = createClient();

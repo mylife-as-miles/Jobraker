@@ -482,3 +482,9 @@ enabled = true
 # Browser OPTIONS preflight must reach the handler; auth is enforced in requireAuthenticatedUser.
 verify_jwt = false
 entrypoint = "./functions/jobs-search/index.ts"
+
+[functions.track-posthog]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; auth is enforced in requireAuthenticatedUser.
+verify_jwt = false
+entrypoint = "./functions/track-posthog/index.ts"

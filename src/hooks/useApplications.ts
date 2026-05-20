@@ -1,5 +1,6 @@
 import { Fragment, createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "../lib/supabaseClient";
+import { captureClientEvent, captureServerEvent } from "../lib/analytics";
 import { useToast } from "../components/ui/toast";
 import { createNotification } from "../utils/notifications";
 import {
@@ -385,6 +386,17 @@ export function useApplications() {
       if (error) throw error;
       const rec = normalizeApplicationRecord(data as ApplicationRecord);
       setApplications((prev) => [rec, ...prev]);
+      const applicationEventProperties = {
+        application_id: rec.id,
+        job_id: rec.job_id ?? undefined,
+        job_title: rec.job_title,
+        company: rec.company,
+        location: rec.location,
+        status: rec.status,
+        canonical_stage: rec.canonical_stage,
+      };
+      captureClientEvent("application_started", applicationEventProperties);
+      void captureServerEvent("application_started", applicationEventProperties);
       success("Application added", `${rec.job_title} @ ${rec.company}`);
       // Notification: new application added
       createNotification({
@@ -443,6 +455,18 @@ export function useApplications() {
       success("Saved changes");
       // Create notifications for key lifecycle transitions
       if (userId && oldStatus && newStatus && oldStatus !== newStatus && current) {
+        const transitionEventProperties = {
+          application_id: current.id,
+          job_id: current.job_id ?? undefined,
+          job_title: current.job_title,
+          company: current.company,
+          previous_status: oldStatus,
+          status: newStatus,
+        };
+        if (newStatus === "Applied") {
+          captureClientEvent("application_submitted", transitionEventProperties);
+          void captureServerEvent("application_submitted", transitionEventProperties);
+        }
         if (newStatus === 'Interview') {
           createNotification({
             user_id: userId,

@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { createClient } from "@/lib/supabaseClient";
+import { captureClientEvent, captureServerEvent } from "@/lib/analytics";
 import {
   Coins,
   Crown,
@@ -680,8 +681,14 @@ export const BillingPage = () => {
       }
 
       let payload: Record<string, unknown>;
+      let analyticsProperties: Record<string, unknown>;
       if (type === "credit_pack") {
         payload = { purchaseType: type, packSku: item.sku };
+        analyticsProperties = {
+          purchase_type: type,
+          pack_sku: item.sku,
+          pack_name: item.name,
+        };
       } else {
         const planId = await resolveSubscriptionPlanUuidForCheckout(supabase, {
           id: String(item.id ?? ""),
@@ -705,6 +712,16 @@ export const BillingPage = () => {
             ? { ultimateCreditsPerMonth: item.ultimateCreditsPerMonth }
             : {}),
         };
+        analyticsProperties = {
+          purchase_type: type,
+          plan_id: planId,
+          plan_name: item.name,
+          billing_cycle: item.billingCycle as BillingInterval,
+          ...(item.name === "Ultimate" &&
+          typeof item.ultimateCreditsPerMonth === "number"
+            ? { ultimate_credits_per_month: item.ultimateCreditsPerMonth }
+            : {}),
+        };
       }
 
       const { data, error } = await supabase.functions.invoke("init-payment", {
@@ -723,6 +740,12 @@ export const BillingPage = () => {
         throw new Error(body.error);
       }
       if (body?.url) {
+        if (type === "subscription") {
+          captureClientEvent("subscription_started", analyticsProperties);
+          void captureServerEvent("subscription_started", analyticsProperties);
+        } else {
+          captureClientEvent("credit_pack_checkout_started", analyticsProperties);
+        }
         window.location.href = body.url;
         return;
       }
