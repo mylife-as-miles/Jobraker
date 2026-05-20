@@ -1,5 +1,6 @@
+import posthog from "posthog-js";
+
 // Lightweight analytics abstraction. Falls back to console if no provider configured.
-// Extend by wiring to a real destination (PostHog, Segment, self-host) later.
 
 export type AnalyticsEvent = {
   name: string;
@@ -18,6 +19,16 @@ class ConsoleSink implements AnalyticsSink {
     console.debug("[analytics]", evt.name, evt.props || {});
   }
   // no-op flush
+}
+
+class PostHogSink implements AnalyticsSink {
+  track(evt: AnalyticsEvent) {
+    posthog.capture(evt.name, evt.props);
+  }
+
+  flush() {
+    posthog.flush();
+  }
 }
 
 let sink: AnalyticsSink = new ConsoleSink();
@@ -44,6 +55,11 @@ export async function flushAnalytics() { await flushBuffer(); }
 
 export function setAnalyticsSink(custom: AnalyticsSink) {
   sink = custom;
+}
+
+export function enablePostHogAnalytics() {
+  sink = new PostHogSink();
+  void flushBuffer();
 }
 
 export function track(name: string, props?: Record<string, any>) {

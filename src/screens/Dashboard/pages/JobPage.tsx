@@ -22,12 +22,20 @@ import {
   Target,
   TrendingUp,
   Lock,
+  Zap,
+  Crown,
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "../../../components/ui/dropdown-menu";
 import Modal from "../../../components/ui/modal";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { MarkdownContent } from "../../../components/ui/MarkdownContent";
@@ -1932,7 +1940,7 @@ export const JobPage = (): JSX.Element => {
   }, [queryClient, safeInfo, setErrorDedup, supabase]);
 
   const populateQueue = useCallback(
-    async (query: string, _location?: string) => {
+    async (query: string, _location?: string, customLimit?: number) => {
       // Prevent re-entry if a run is active
       if (incrementalMode) return;
       if (!query || !query.trim()) {
@@ -1950,16 +1958,18 @@ export const JobPage = (): JSX.Element => {
       backgroundEvaluationFailedRef.current.clear();
 
       try {
-        // Determine max results per search based on subscription tier
+        // Determine max results per search based on subscription tier or customLimit
         // No monthly limits - users can search as many times as they want
-        let maxResultsPerSearch = 10; // Free tier
+        let maxResultsPerSearch = customLimit || 10; // Free tier default
 
-        if (subscriptionTier === "Ultimate") {
-          maxResultsPerSearch = 100;
-        } else if (subscriptionTier === "Pro") {
-          maxResultsPerSearch = 50;
-        } else if (subscriptionTier === "Basics") {
-          maxResultsPerSearch = 20;
+        if (!customLimit) {
+          if (subscriptionTier === "Ultimate") {
+            maxResultsPerSearch = 100;
+          } else if (subscriptionTier === "Pro") {
+            maxResultsPerSearch = 50;
+          } else if (subscriptionTier === "Basics") {
+            maxResultsPerSearch = 20;
+          }
         }
 
         const { data: authData } = await supabase.auth.getUser();
@@ -3588,36 +3598,79 @@ export const JobPage = (): JSX.Element => {
                 )}
 
                 <div className='flex flex-row flex-wrap sm:flex-nowrap items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto'>
-                  <Button
-                    onClick={() => populateQueue(searchQuery, selectedLocation)}
-                    className={`group relative flex-1 sm:flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
-                      queueStatus === "populating" || queueStatus === "loading"
-                        ? "border-foreground/60 text-foreground bg-foreground/15"
-                        : "border-foreground/20 text-foreground bg-foreground/5 hover:text-brand hover:border-brand/60 hover:bg-brand/10"
-                    }`}
-                    title='Find a fresh batch of jobs'
-                    disabled={
-                      queueStatus === "populating" || queueStatus === "loading"
-                    }
-                  >
-                    <span className='relative inline-flex items-center justify-center gap-1.5 sm:gap-2'>
-                      {queueStatus === "populating" ? (
-                        <Loader2 className='w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin' />
-                      ) : (
-                        <Search className='w-3.5 h-3.5 sm:w-4 sm:h-4 ' />
-                      )}
-                      <span className='hidden sm:inline'>
-                        {queueStatus === "populating"
-                          ? "Building results…"
-                          : "Find Jobs Suite"}
-                      </span>
-                      <span className='sm:hidden'>
-                        {queueStatus === "populating"
-                          ? "Building…"
-                          : "Find Jobs"}
-                      </span>
-                    </span>
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        className={`group relative flex-1 sm:flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
+                          queueStatus === "populating" || queueStatus === "loading"
+                            ? "border-foreground/60 text-foreground bg-foreground/15"
+                            : "border-foreground/20 text-foreground bg-foreground/5 hover:text-brand hover:border-brand/60 hover:bg-brand/10"
+                        }`}
+                        title='Find a fresh batch of jobs'
+                        disabled={
+                          queueStatus === "populating" || queueStatus === "loading"
+                        }
+                      >
+                        <span className='relative inline-flex items-center justify-center gap-1.5 sm:gap-2'>
+                          {queueStatus === "populating" ? (
+                            <Loader2 className='w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin' />
+                          ) : (
+                            <Search className='w-3.5 h-3.5 sm:w-4 sm:h-4 ' />
+                          )}
+                          <span className='hidden sm:inline'>
+                            {queueStatus === "populating"
+                              ? "Building results…"
+                              : "Find Jobs Suite"}
+                          </span>
+                          <span className='sm:hidden'>
+                            {queueStatus === "populating"
+                              ? "Building…"
+                              : "Find Jobs"}
+                          </span>
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 bg-background/95 backdrop-blur-md border border-foreground/10 text-foreground rounded-xl p-1.5 shadow-xl">
+                      {[
+                        { limit: 10, tier: "Free" as const, label: "10 Jobs (Free)" },
+                        { limit: 20, tier: "Basics" as const, label: "20 Jobs (Basics)" },
+                        { limit: 50, tier: "Pro" as const, label: "50 Jobs (Pro)" },
+                        { limit: 100, tier: "Ultimate" as const, label: "100 Jobs (Ultimate)" },
+                      ].map((opt) => {
+                        const isLocked = !hasSubscriptionAccess(subscriptionTier, opt.tier);
+                        return (
+                          <DropdownMenuItem
+                            key={opt.limit}
+                            onClick={() => {
+                              if (isLocked) {
+                                toastError(
+                                  "Upgrade Required",
+                                  `Searching ${opt.limit} jobs requires the ${opt.tier} plan.`
+                                );
+                              } else {
+                                populateQueue(searchQuery, selectedLocation, opt.limit);
+                              }
+                            }}
+                            className="flex items-center justify-between cursor-pointer px-3 py-2 rounded-lg text-left text-xs sm:text-sm font-medium transition-colors hover:bg-foreground/5 focus:bg-foreground/5"
+                          >
+                            <span className="flex items-center gap-2">
+                              {opt.tier === "Free" ? (
+                                <Search className="h-4 w-4 text-foreground/50" />
+                              ) : opt.tier === "Basics" ? (
+                                <Sparkles className="h-4 w-4 text-brand" />
+                              ) : opt.tier === "Pro" ? (
+                                <Zap className="h-4 w-4 text-cyan-400" />
+                              ) : (
+                                <Crown className="h-4 w-4 text-yellow-400" />
+                              )}
+                              <span>{opt.label}</span>
+                            </span>
+                            {isLocked && <Lock className="h-3.5 w-3.5 text-foreground/45" />}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button
                     variant='ghost'
                     onClick={() => {
