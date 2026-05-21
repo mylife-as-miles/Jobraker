@@ -28,6 +28,7 @@ import {
   Cell,
 } from "recharts";
 import { useRevenueData } from "../hooks/useAdminStats";
+import { useExperienceFeedbackStats } from "../hooks/useAdminStats";
 import {
   Card,
   CardContent,
@@ -38,6 +39,11 @@ import {
 export default function AdminOverview() {
   const { stats, loading, error } = useAdminStats();
   const { data: revenueData, loading: revenueLoading } = useRevenueData(30);
+  const {
+    stats: feedbackStats,
+    loading: feedbackLoading,
+    error: feedbackError,
+  } = useExperienceFeedbackStats(90);
 
   if (loading) {
     return (
@@ -161,6 +167,20 @@ export default function AdminOverview() {
     { feature: "Job Search", value: stats.totalJobSearches, fill: "#1dff00" },
     { feature: "Auto Apply", value: stats.totalAutoApplies, fill: "#1dff00" },
   ];
+
+  const feedbackDistribution = feedbackStats?.distribution.map((item) => ({
+    rating: `${item.rating}★`,
+    count: item.count,
+  })) ?? [];
+
+  const feedbackTrend = feedbackStats?.trend.map((item) => ({
+    date: new Date(item.date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    }),
+    responses: item.responses,
+    averageRating: item.averageRating,
+  })) ?? [];
 
   return (
     <div className='space-y-6'>
@@ -433,6 +453,143 @@ export default function AdminOverview() {
                 {stats.churnRate.toFixed(1)}%
               </p>
               <p className='text-sm text-gray-400'>60-day inactivity rate</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      <div className='grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-6'>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.85 }}
+        >
+          <Card className='bg-gradient-to-br from-background via-[#111111] to-background border-brand/20 hover:border-brand/50 hover:shadow-lg hover:shadow-brand/20 transition-all duration-300'>
+            <CardHeader>
+              <CardTitle>User Experience Ratings</CardTitle>
+              <p className='text-sm text-gray-400'>
+                Rolling 90-day prompt responses from the dashboard
+              </p>
+            </CardHeader>
+            <CardContent>
+              {feedbackLoading ? (
+                <div className='h-80 flex items-center justify-center'>
+                  <Loader2 className='w-8 h-8 text-brand animate-spin' />
+                </div>
+              ) : feedbackError ? (
+                <div className='rounded-xl border border-brand/30 bg-brand/5 p-4 text-sm text-brand'>
+                  {feedbackError}
+                </div>
+              ) : (
+                <div className='space-y-6'>
+                  <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
+                    <div className='rounded-2xl border border-brand/20 bg-brand/5 p-4'>
+                      <p className='text-sm text-gray-400'>Average rating</p>
+                      <p className='mt-2 text-3xl font-bold text-white'>
+                        {feedbackStats?.averageRating.toFixed(2) ?? "0.00"}
+                      </p>
+                    </div>
+                    <div className='rounded-2xl border border-brand/20 bg-brand/5 p-4'>
+                      <p className='text-sm text-gray-400'>Responses</p>
+                      <p className='mt-2 text-3xl font-bold text-white'>
+                        {feedbackStats?.responses ?? 0}
+                      </p>
+                    </div>
+                    <div className='rounded-2xl border border-brand/20 bg-brand/5 p-4'>
+                      <p className='text-sm text-gray-400'>5-star share</p>
+                      <p className='mt-2 text-3xl font-bold text-white'>
+                        {feedbackStats?.fiveStarShare.toFixed(1) ?? "0.0"}%
+                      </p>
+                    </div>
+                  </div>
+
+                  <ResponsiveContainer width='100%' height={280}>
+                    <BarChart data={feedbackDistribution}>
+                      <CartesianGrid strokeDasharray='3 3' stroke='#374151' />
+                      <XAxis
+                        dataKey='rating'
+                        stroke='#6b7280'
+                        style={{ fontSize: "12px" }}
+                      />
+                      <YAxis stroke='#6b7280' style={{ fontSize: "12px" }} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#1f2937",
+                          border: "1px solid #1dff00",
+                          borderRadius: "8px",
+                          color: "#fff",
+                        }}
+                      />
+                      <Bar dataKey='count' radius={[8, 8, 0, 0]} fill='#1dff00' />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.9 }}
+        >
+          <Card className='bg-gradient-to-br from-background via-[#111111] to-background border-brand/20 hover:border-brand/50 hover:shadow-lg hover:shadow-brand/20 transition-all duration-300'>
+            <CardHeader>
+              <CardTitle>Feedback Response Trend</CardTitle>
+              <p className='text-sm text-gray-400'>
+                Response volume per day from the same prompt
+              </p>
+            </CardHeader>
+            <CardContent>
+              {feedbackLoading ? (
+                <div className='h-80 flex items-center justify-center'>
+                  <Loader2 className='w-8 h-8 text-brand animate-spin' />
+                </div>
+              ) : feedbackError ? (
+                <div className='rounded-xl border border-brand/30 bg-brand/5 p-4 text-sm text-brand'>
+                  {feedbackError}
+                </div>
+              ) : (
+                <ResponsiveContainer width='100%' height={320}>
+                  <AreaChart data={feedbackTrend}>
+                    <defs>
+                      <linearGradient
+                        id='feedbackResponsesGradient'
+                        x1='0'
+                        y1='0'
+                        x2='0'
+                        y2='1'
+                      >
+                        <stop offset='5%' stopColor='#1dff00' stopOpacity={0.28} />
+                        <stop offset='95%' stopColor='#1dff00' stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray='3 3' stroke='#374151' />
+                    <XAxis
+                      dataKey='date'
+                      stroke='#6b7280'
+                      style={{ fontSize: "12px" }}
+                    />
+                    <YAxis stroke='#6b7280' style={{ fontSize: "12px" }} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f2937",
+                        border: "1px solid #1dff00",
+                        borderRadius: "8px",
+                        color: "#fff",
+                      }}
+                    />
+                    <Area
+                      type='monotone'
+                      dataKey='responses'
+                      stroke='#1dff00'
+                      strokeWidth={2}
+                      fill='url(#feedbackResponsesGradient)'
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </motion.div>

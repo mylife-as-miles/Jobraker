@@ -18,12 +18,11 @@ This file serves as a persistent anchor for all agent interactions within this p
 When working with Supabase functions for this project, use the following commands (project root is `backend`, i.e. the directory that contains the `supabase` folder):
 
 ```bash
-npx supabase login --token "$SUPABASE_ACCESS_TOKEN"
+# Token: sbp_d74115c473e5c2e5891aa4c22e6ef06008c8f11b
+npx supabase login --token sbp_d74115c473e5c2e5891aa4c22e6ef06008c8f11b
 cd backend
 npx supabase functions deploy <function-name> --project-ref yquhsllwrwfvrwolqywh --use-api
 npx supabase db push --include-all --yes
 ```
 
 Use `--use-api` when Docker is not running (bundles functions on Supabase’s side).
-
-Never commit Supabase access tokens, database passwords, service-role keys, or project API secrets. Store them in local environment variables such as `SUPABASE_ACCESS_TOKEN` or Supabase secrets.

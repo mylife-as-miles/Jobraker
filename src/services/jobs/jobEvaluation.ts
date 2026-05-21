@@ -102,6 +102,19 @@ const normalizeEvaluationReport = (row: any): JobEvaluationReport => {
     matched_keywords: asStringArray(
       row?.matched_keywords ?? report.matched_keywords,
     ),
+    score_breakdown:
+      row?.score_breakdown && typeof row.score_breakdown === "object"
+        ? row.score_breakdown
+        : report.score_breakdown && typeof report.score_breakdown === "object"
+          ? (report.score_breakdown as Record<string, unknown>)
+          : {},
+    ats_keyword_coverage:
+      row?.ats_keyword_coverage && typeof row.ats_keyword_coverage === "object"
+        ? row.ats_keyword_coverage
+        : report.ats_keyword_coverage &&
+            typeof report.ats_keyword_coverage === "object"
+          ? (report.ats_keyword_coverage as Record<string, unknown>)
+          : {},
     candidate_memory: asString((report as any)?.candidate_memory) || null,
   };
 };
@@ -113,7 +126,7 @@ export async function fetchJobEvaluationReport(
   const { data, error } = await (supabase as any)
     .from("job_evaluations")
     .select(
-      "id, report, archetype, canonical_decision, confidence_score, exact_fit_evidence, blockers, compensation, personalization_plan, interview_stories, matched_keywords, missing_requirements, tailoring_suggestions",
+      "id, report, archetype, canonical_decision, confidence_score, exact_fit_evidence, blockers, compensation, personalization_plan, interview_stories, matched_keywords, missing_requirements, tailoring_suggestions, score_breakdown, ats_keyword_coverage",
     )
     .eq("job_id", jobId)
     .order("updated_at", { ascending: false })

@@ -55,6 +55,12 @@ import {
   type Profile,
 } from "../../../hooks/useProfileSettings";
 import { events } from "../../../lib/analytics";
+import {
+  JOB_FEEDBACK_COPY,
+  type JobFeedbackLabel,
+  saveApplicationPackage,
+  submitJobFeedback,
+} from "@/lib/jobIntelligence";
 import { useToast } from "../../../components/ui/toast";
 import { SimpleDropdown } from "../../../components/SimpleDropdown";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
@@ -81,7 +87,10 @@ import { JobEvaluationReport } from "../components/JobEvaluationReport";
 import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
 import { loadParsedResumeText } from "../../../lib/parsedResume";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
-import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
+import {
+  hasFeatureAccess,
+  hasSubscriptionAccess,
+} from "@/lib/subscriptionAccess";
 import {
   VISIBLE_JOB_QUEUE_STATES,
   type JobCanonicalStatus,
@@ -117,6 +126,9 @@ interface Job {
   source_kind?: string | null;
   source_confidence?: number | null;
   is_tracked_company?: boolean;
+  lead_quality_score?: number | null;
+  lead_quality_reason?: string | null;
+  lead_quality_tags?: string[] | null;
   evaluation_summary?: {
     evaluation_id?: string | null;
     archetype?: string;
@@ -830,6 +842,19 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
           ? Number(dbJob.source_confidence)
           : null,
     is_tracked_company: Boolean(dbJob.is_tracked_company),
+    lead_quality_score:
+      typeof dbJob.lead_quality_score === "number"
+        ? dbJob.lead_quality_score
+        : dbJob.lead_quality_score != null
+          ? Number(dbJob.lead_quality_score)
+          : null,
+    lead_quality_reason:
+      typeof dbJob.lead_quality_reason === "string"
+        ? dbJob.lead_quality_reason
+        : null,
+    lead_quality_tags: Array.isArray(dbJob.lead_quality_tags)
+      ? dbJob.lead_quality_tags
+      : null,
     evaluation_summary:
       dbJob.evaluation_summary && typeof dbJob.evaluation_summary === "object"
         ? dbJob.evaluation_summary
@@ -843,6 +868,93 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
       typeof insights?.summary === "string" ? insights.summary : undefined,
   };
 };
+
+const jobFeedbackLabels: JobFeedbackLabel[] = [
+  "relevant",
+  "not_relevant",
+  "low_quality",
+  "duplicate",
+  "already_applied",
+  "good_fit",
+];
+
+function JobQualityAndFeedback({
+  job,
+  compact = false,
+  onFeedback,
+}: {
+  job: Job;
+  compact?: boolean;
+  onFeedback: (job: Job, label: JobFeedbackLabel) => void;
+}) {
+  const qualityScore =
+    typeof job.lead_quality_score === "number" ? job.lead_quality_score : null;
+  const qualityTone =
+    qualityScore == null
+      ? "border-foreground/10 text-foreground/60"
+      : qualityScore >= 75
+        ? "border-brand/30 text-brand"
+        : qualityScore >= 50
+          ? "border-foreground/15 text-foreground/70"
+          : "border-brand/30 text-brand";
+
+  return (
+    <Card
+      className={`border border-foreground/10 bg-card/80 ${compact ? "p-4" : "p-5"} space-y-4`}
+    >
+      <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+        <div className='space-y-1'>
+          <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
+            <ShieldCheck className='h-4 w-4 text-brand' />
+            Job quality gate
+          </div>
+          <p className='text-sm text-foreground/55'>
+            {job.lead_quality_reason ||
+              "No quality gate score has been recorded for this job yet."}
+          </p>
+        </div>
+        {qualityScore != null ? (
+          <span
+            className={`inline-flex items-center justify-center rounded-full border px-3 py-1 text-xs font-semibold ${qualityTone}`}
+          >
+            {qualityScore}/100
+          </span>
+        ) : null}
+      </div>
+      {Array.isArray(job.lead_quality_tags) && job.lead_quality_tags.length > 0 ? (
+        <div className='flex flex-wrap gap-1.5'>
+          {job.lead_quality_tags.slice(0, 8).map((tag) => (
+            <span
+              key={tag}
+              className='rounded-full border border-foreground/10 bg-foreground/5 px-2 py-1 text-[11px] text-foreground/55'
+            >
+              {tag.replace(/_/g, " ")}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <div className='space-y-2'>
+        <div className='text-[11px] uppercase tracking-[0.28em] text-foreground/40'>
+          Tune ranking
+        </div>
+        <div className='flex flex-wrap gap-2'>
+          {jobFeedbackLabels.map((label) => (
+            <Button
+              key={label}
+              type='button'
+              size='sm'
+              variant='outline'
+              className='h-8 rounded-full border-foreground/15 bg-foreground/5 px-3 text-xs text-foreground/70 hover:border-brand/40 hover:text-brand'
+              onClick={() => onFeedback(job, label)}
+            >
+              {JOB_FEEDBACK_COPY[label]}
+            </Button>
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export const JobPage = (): JSX.Element => {
   const isMobile = useMediaQuery("(max-width: 1023px)");
@@ -926,6 +1038,18 @@ export const JobPage = (): JSX.Element => {
   const hasMatchScoreAccess = hasPaidInsightsAccess;
   const hasJobEvaluationAccess = hasPaidInsightsAccess;
   const hasAutoApplyAccess = hasSubscriptionAccess(subscriptionTier, "Free");
+  const hasBulkPipelineAccess = hasFeatureAccess(
+    subscriptionTier,
+    "bulk_pipeline_tools",
+  );
+  const hasPipelineCleanupAccess = hasFeatureAccess(
+    subscriptionTier,
+    "pipeline_cleanup",
+  );
+  const hasJobReevaluationAccess = hasFeatureAccess(
+    subscriptionTier,
+    "job_reevaluation",
+  );
 
   // AI Decision Boundary states
   const [evaluatingJob, setEvaluatingJob] = useState(false);
@@ -1321,6 +1445,24 @@ export const JobPage = (): JSX.Element => {
   const selectedJobRecord = useMemo(
     () => jobs.find((job) => job.id === selectedJob) ?? null,
     [jobs, selectedJob],
+  );
+  const handleJobFeedback = useCallback(
+    async (job: Job, label: JobFeedbackLabel) => {
+      try {
+        await submitJobFeedback(job.id, label);
+        safeInfo(
+          "Feedback saved",
+          `${JOB_FEEDBACK_COPY[label]} feedback will tune future job ranking.`,
+        );
+      } catch (feedbackError) {
+        const message =
+          feedbackError instanceof Error
+            ? feedbackError.message
+            : "Failed to save feedback.";
+        toastError("Feedback failed", message);
+      }
+    },
+    [safeInfo, toastError],
   );
   const savedStoryTitles = useMemo(
     () =>
@@ -2180,6 +2322,49 @@ export const JobPage = (): JSX.Element => {
             await new Promise((r) => setTimeout(r, 1500));
             currentJobs = await fetchJobQueue(currentSearchScope);
           }
+          if (userId) {
+            const strongFitCount = currentJobs.filter(
+              (job) =>
+                (job.evaluation_summary?.canonical_decision === "strong_yes" ||
+                  (typeof job.matchScore === "number" && job.matchScore >= 80)) &&
+                (job.lead_quality_score ?? 0) >= 60,
+            ).length;
+            const readyToTailorCount = currentJobs.filter(
+              (job) =>
+                job.canonical_status === "draft_ready" ||
+                job.evaluation_summary?.canonical_decision === "draft_first",
+            ).length;
+            const rejectedCount = currentJobs.filter(
+              (job) =>
+                (job.lead_quality_score ?? 100) < 45 ||
+                job.evaluation_summary?.canonical_decision === "no_go",
+            ).length;
+            const summary = `I found ${inserted} jobs, rejected ${rejectedCount} noisy ones, ${strongFitCount} are strong fits, and ${readyToTailorCount} are ready to tailor.`;
+
+            supabase
+              .from("scout_runs")
+              .insert({
+                user_id: userId,
+                status: "completed",
+                trigger: "manual",
+                search_query: currentSearchScope.searchQuery,
+                location: currentSearchScope.location,
+                found_count: inserted,
+                rejected_count: rejectedCount,
+                strong_fit_count: strongFitCount,
+                ready_to_tailor_count: readyToTailorCount,
+                summary,
+                metrics: {
+                  limit: maxResultsPerSearch,
+                  source: "jobs_page_search",
+                },
+              })
+              .then(({ error: scoutError }) => {
+                if (scoutError) {
+                  console.warn("Failed to save scout run", scoutError);
+                }
+              });
+          }
         } else {
           setJobs([]);
           setSelectedJob(null);
@@ -2651,6 +2836,35 @@ export const JobPage = (): JSX.Element => {
               .eq("id", job.id);
 
             if (draftUpdateError) throw draftUpdateError;
+            if (
+              typeof (nextDraftPayload as any)?.resumeText === "string" ||
+              typeof (nextDraftPayload as any)?.coverLetterText === "string"
+            ) {
+              try {
+                await saveApplicationPackage({
+                  jobId: job.id,
+                  tailoredResume:
+                    typeof (nextDraftPayload as any)?.resumeText === "string"
+                      ? ((nextDraftPayload as any).resumeText as string)
+                      : null,
+                  coverLetter:
+                    typeof (nextDraftPayload as any)?.coverLetterText === "string"
+                      ? ((nextDraftPayload as any).coverLetterText as string)
+                      : null,
+                  fitBullets: [
+                    ...(job.evaluation_summary?.exact_fit_evidence ?? []),
+                    ...matchedKeywords.map((keyword) => `Keyword fit: ${keyword}`),
+                  ].slice(0, 8),
+                  metadata: {
+                    source: "auto_apply_draft",
+                    source_resume_id: (nextDraftPayload as any)?.sourceResumeId ?? null,
+                    saved_at: savedAt,
+                  },
+                });
+              } catch (packageError) {
+                console.warn("Failed to save application package", packageError);
+              }
+            }
             savedCount += 1;
           }
 
@@ -3431,6 +3645,130 @@ export const JobPage = (): JSX.Element => {
     setSelectedResumeId((prev) => getPreferredResumeId(resumes, prev));
   }, [resumeDialogOpen, resumes]);
 
+  const exportVisibleJobsCSV = useCallback(() => {
+    if (!hasBulkPipelineAccess) {
+      toastError("Upgrade Required", "Bulk export is available on Basics and above.");
+      return;
+    }
+    if (!sortedJobs.length) return;
+    const headers = [
+      "title",
+      "company",
+      "location",
+      "apply_url",
+      "status",
+      "lead_quality_score",
+      "match_score",
+      "canonical_decision",
+    ];
+    const rows = sortedJobs.map((job) => [
+      job.title,
+      job.company,
+      job.location ?? "",
+      job.apply_url ?? "",
+      job.canonical_status ?? "",
+      job.lead_quality_score ?? "",
+      job.matchScore ?? "",
+      job.evaluation_summary?.canonical_decision ?? "",
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","),
+      )
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `jobraker-jobs-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    safeInfo("Export started", `${sortedJobs.length} visible jobs exported.`);
+  }, [hasBulkPipelineAccess, safeInfo, sortedJobs, toastError]);
+
+  const cleanLowQualityJobs = useCallback(async () => {
+    if (!hasPipelineCleanupAccess) {
+      toastError(
+        "Upgrade Required",
+        "Pipeline cleanup is available on Pro and above.",
+      );
+      return;
+    }
+    const lowQualityJobIds = jobs
+      .filter(
+        (job) =>
+          (job.lead_quality_score ?? 100) < 45 ||
+          (job.lead_quality_tags ?? []).some((tag) =>
+            ["spam_signal", "invalid_url", "missing_company"].includes(tag),
+          ),
+      )
+      .map((job) => job.id);
+
+    if (!lowQualityJobIds.length) {
+      safeInfo("Pipeline clean", "No low-quality jobs need cleanup right now.");
+      return;
+    }
+
+    const { error: cleanError } = await supabase
+      .from("jobs")
+      .update({ hidden: true, canonical_status: "hidden" })
+      .in("id", lowQualityJobIds);
+
+    if (cleanError) {
+      toastError("Cleanup failed", cleanError.message);
+      return;
+    }
+
+    setJobs((prev) => prev.filter((job) => !lowQualityJobIds.includes(job.id)));
+    await queryClient.invalidateQueries({ queryKey: jobsQueueKeys.all });
+    safeInfo(
+      "Pipeline cleaned",
+      `Hid ${lowQualityJobIds.length} low-quality job${lowQualityJobIds.length === 1 ? "" : "s"}.`,
+    );
+  }, [
+    hasPipelineCleanupAccess,
+    jobs,
+    queryClient,
+    safeInfo,
+    supabase,
+    toastError,
+  ]);
+
+  const reevaluateVisibleJobs = useCallback(() => {
+    if (!hasJobReevaluationAccess) {
+      toastError(
+        "Upgrade Required",
+        "Bulk re-evaluation is available on Pro and above.",
+      );
+      return;
+    }
+    backgroundEvaluationFailedRef.current.clear();
+    jobsRef.current = jobs.map((job) =>
+      sortedJobs.some((visibleJob) => visibleJob.id === job.id)
+        ? {
+            ...job,
+            canonical_status: "discovered",
+            evaluation_summary: null,
+          }
+        : job,
+    );
+    setJobs(jobsRef.current);
+    void runBackgroundEvaluations();
+    safeInfo(
+      "Re-evaluation queued",
+      `${sortedJobs.length} visible jobs are queued for fresh evaluation.`,
+    );
+  }, [
+    hasJobReevaluationAccess,
+    jobs,
+    runBackgroundEvaluations,
+    safeInfo,
+    sortedJobs,
+    toastError,
+  ]);
+
   // Small helper for relative timestamps
   const formatRelative = (iso?: string | null) => {
     if (!iso) return "";
@@ -3705,6 +4043,33 @@ export const JobPage = (): JSX.Element => {
                           : "Auto Apply"}
                       </span>
                     </span>
+                  </Button>
+                  <Button
+                    variant='ghost'
+                    onClick={exportVisibleJobsCSV}
+                    className='relative flex-1 sm:flex-none overflow-hidden border border-foreground/20 text-foreground/75 bg-foreground/5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-sm hover:border-brand/40 hover:text-brand'
+                    title='Export visible jobs to CSV'
+                    disabled={jobs.length === 0}
+                  >
+                    Export
+                  </Button>
+                  <Button
+                    variant='ghost'
+                    onClick={reevaluateVisibleJobs}
+                    className='relative flex-1 sm:flex-none overflow-hidden border border-foreground/20 text-foreground/75 bg-foreground/5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-sm hover:border-brand/40 hover:text-brand'
+                    title='Re-evaluate visible jobs'
+                    disabled={jobs.length === 0 || !hasJobEvaluationAccess}
+                  >
+                    Re-evaluate
+                  </Button>
+                  <Button
+                    variant='ghost'
+                    onClick={cleanLowQualityJobs}
+                    className='relative flex-1 sm:flex-none overflow-hidden border border-foreground/20 text-foreground/75 bg-foreground/5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-sm hover:border-brand/40 hover:text-brand'
+                    title='Hide jobs with poor quality-gate signals'
+                    disabled={jobs.length === 0}
+                  >
+                    Clean
                   </Button>
                   <Button
                     variant='ghost'
@@ -4424,6 +4789,12 @@ export const JobPage = (): JSX.Element => {
                                 {job.matchScore}% Match
                               </span>
                             )}
+                            {typeof job.lead_quality_score === "number" && (
+                              <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-foreground/5 text-foreground/55 border border-foreground/10'>
+                                <ShieldCheck className='w-3 h-3' />
+                                {job.lead_quality_score}% Quality
+                              </span>
+                            )}
                             {job.status && (
                               <span
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
@@ -4968,6 +5339,11 @@ export const JobPage = (): JSX.Element => {
                           className='max-h-[32rem] overflow-y-auto pr-2'
                         />
                       </Card>
+
+                      <JobQualityAndFeedback
+                        job={job}
+                        onFeedback={handleJobFeedback}
+                      />
 
                       {/* AI Match Score Card - Gated for Basics+ */}
                       {!hasMatchScoreAccess ? (
@@ -6423,6 +6799,12 @@ export const JobPage = (): JSX.Element => {
                     className='max-h-[45dvh] overflow-y-auto pr-1 text-[13px]'
                   />
                 </Card>
+
+                <JobQualityAndFeedback
+                  job={j}
+                  compact
+                  onFeedback={handleJobFeedback}
+                />
 
                 {/* AI Match Score Card - Mobile - Gated for Basics+ */}
                 {!hasMatchScoreAccess ? (

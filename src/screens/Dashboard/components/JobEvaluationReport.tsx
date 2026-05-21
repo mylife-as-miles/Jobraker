@@ -76,6 +76,29 @@ const ListBlock = ({
   </div>
 );
 
+const getCoverageNumber = (evaluation: JobEvaluationReportData): number => {
+  const value = evaluation.ats_keyword_coverage?.coverage_percent;
+  return typeof value === "number" ? Math.max(0, Math.min(100, Math.round(value))) : 0;
+};
+
+const getCoverageList = (
+  evaluation: JobEvaluationReportData,
+  key: "covered_terms" | "missing_terms" | "incorporated_terms",
+): string[] => {
+  const value = evaluation.ats_keyword_coverage?.[key];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+};
+
+const scoreBreakdownEntries = (evaluation: JobEvaluationReportData) =>
+  Object.entries(evaluation.score_breakdown ?? {})
+    .filter(([, value]) => typeof value === "number")
+    .map(([key, value]) => ({
+      label: key.replace(/_/g, " "),
+      value: Math.max(0, Math.min(100, Math.round(value as number))),
+    }));
+
 export function JobEvaluationReport({
   evaluation,
   loading = false,
@@ -113,6 +136,11 @@ export function JobEvaluationReport({
   }
 
   const theme = decisionTheme[evaluation.canonical_decision];
+  const breakdown = scoreBreakdownEntries(evaluation);
+  const coveragePercent = getCoverageNumber(evaluation);
+  const coveredTerms = getCoverageList(evaluation, "covered_terms");
+  const missingTerms = getCoverageList(evaluation, "missing_terms");
+  const incorporatedTerms = getCoverageList(evaluation, "incorporated_terms");
 
   return (
     <Card className='border border-brand/20 bg-card/80 p-6 space-y-6'>
@@ -163,6 +191,72 @@ export function JobEvaluationReport({
       </div>
 
       <div className='grid gap-4 lg:grid-cols-2'>
+        {breakdown.length > 0 ? (
+          <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
+            <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
+              <Target className='h-4 w-4 text-brand' />
+              Explainable score breakdown
+            </div>
+            <div className='grid gap-3 sm:grid-cols-2'>
+              {breakdown.map((item) => (
+                <div
+                  key={item.label}
+                  className='rounded-xl border border-foreground/10 bg-foreground/5 p-3'
+                >
+                  <div className='flex items-center justify-between gap-3 text-xs text-foreground/55'>
+                    <span className='capitalize'>{item.label}</span>
+                    <span className='font-semibold text-foreground'>{item.value}%</span>
+                  </div>
+                  <div className='mt-2 h-1.5 overflow-hidden rounded-full bg-foreground/10'>
+                    <div
+                      className='h-full rounded-full bg-brand'
+                      style={{ width: `${item.value}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {coveragePercent > 0 || coveredTerms.length > 0 || missingTerms.length > 0 ? (
+          <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
+            <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
+              <CheckCircle2 className='h-4 w-4 text-brand' />
+              ATS keyword coverage
+            </div>
+            <div className='rounded-xl border border-foreground/10 bg-foreground/5 p-4'>
+              <div className='flex items-center justify-between text-xs text-foreground/55'>
+                <span>Coverage</span>
+                <span className='text-lg font-semibold text-brand'>{coveragePercent}%</span>
+              </div>
+              <div className='mt-2 h-2 overflow-hidden rounded-full bg-foreground/10'>
+                <div
+                  className='h-full rounded-full bg-brand'
+                  style={{ width: `${coveragePercent}%` }}
+                />
+              </div>
+            </div>
+            <ListBlock
+              title='Covered terms'
+              items={coveredTerms.slice(0, 10)}
+              empty='No covered ATS terms were detected yet.'
+            />
+            <ListBlock
+              title='Missing terms'
+              items={missingTerms.slice(0, 10)}
+              empty='No missing ATS terms were detected.'
+            />
+            {incorporatedTerms.length > 0 ? (
+              <ListBlock
+                title='Incorporated into drafts'
+                items={incorporatedTerms.slice(0, 10)}
+                empty='No incorporated terms were recorded.'
+              />
+            ) : null}
+          </div>
+        ) : null}
+
         <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
             <Target className='h-4 w-4 text-brand' />

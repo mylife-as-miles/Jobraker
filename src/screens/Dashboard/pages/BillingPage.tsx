@@ -247,11 +247,13 @@ function getPlanPricingDisplay(
   planName: string,
   interval: BillingInterval,
   fallbackMonthlyFromDb: number,
+  promoApplied = false,
 ): PlanPricingDisplay {
   const def = BILLING_PLAN_DEFINITIONS.find((p) => p.name === planName);
-  const monthly = def?.monthlyPriceUsd ?? fallbackMonthlyFromDb;
+  const originalMonthly = def?.monthlyPriceUsd ?? fallbackMonthlyFromDb;
+  const monthly = promoApplied ? originalMonthly * 0.45 : originalMonthly;
 
-  if (!def || monthly <= 0) {
+  if (!def || originalMonthly <= 0) {
     return {
       headline: "0",
       suffix: "",
@@ -262,36 +264,49 @@ function getPlanPricingDisplay(
     };
   }
 
-  const quarterlyUsd = def.quarterlyPriceUsd ?? 0;
-  if (interval === "quarterly" && quarterlyUsd > 0) {
+  const originalQuarterly = def.quarterlyPriceUsd ?? 0;
+  const quarterlyUsd = promoApplied ? originalQuarterly * 0.45 : originalQuarterly;
+  const originalYearly = def.yearlyPriceUsd ?? 0;
+  const yearly = promoApplied ? originalYearly * 0.45 : originalYearly;
+
+  if (interval === "quarterly" && originalQuarterly > 0) {
     const stacked = monthly * 3;
     const saved = stacked - quarterlyUsd;
     const pct = stacked > 0 ? Math.round((saved / stacked) * 100) : 40;
     const eqMo = quarterlyUsd / 3;
+    const origStacked = originalMonthly * 3;
     return {
       headline: quarterlyUsd.toLocaleString("en-US", {
         maximumFractionDigits: 0,
       }),
       suffix: "/qtr",
-      compareAt: `3 × $${monthly}/mo → $${stacked.toLocaleString("en-US")}`,
+      compareAt: promoApplied
+        ? `Original: $${origStacked.toLocaleString("en-US")} ($${originalQuarterly.toLocaleString("en-US")}/qtr)`
+        : `3 × $${monthly}/mo → $${stacked.toLocaleString("en-US")}`,
       subline: `≈ $${Math.round(eqMo)}/mo equivalent · billed every 3 months`,
-      savingsBadge: `Save $${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
+      savingsBadge: promoApplied
+        ? `Promo: 55% OFF applied!`
+        : `Save $${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
   }
 
-  if (interval === "yearly" && def.yearlyPriceUsd > 0) {
-    const yearly = def.yearlyPriceUsd;
+  if (interval === "yearly" && originalYearly > 0) {
     const stacked = monthly * 12;
     const saved = stacked - yearly;
     const pct = Math.round((saved / stacked) * 100);
     const eqMo = yearly / 12;
+    const origStacked = originalMonthly * 12;
     return {
       headline: yearly.toLocaleString("en-US", { maximumFractionDigits: 0 }),
       suffix: "/yr",
-      compareAt: `12 × $${monthly}/mo → $${stacked.toLocaleString("en-US")}`,
+      compareAt: promoApplied
+        ? `Original: $${origStacked.toLocaleString("en-US")} ($${originalYearly.toLocaleString("en-US")}/yr)`
+        : `12 × $${monthly}/mo → $${stacked.toLocaleString("en-US")}`,
       subline: `≈ $${Math.round(eqMo)}/mo when paid annually`,
-      savingsBadge: `Save $${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
+      savingsBadge: promoApplied
+        ? `Promo: 55% OFF applied!`
+        : `Save $${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
   }
@@ -299,9 +314,9 @@ function getPlanPricingDisplay(
   return {
     headline: monthly.toLocaleString("en-US", { maximumFractionDigits: 0 }),
     suffix: "/mo",
-    compareAt: null,
-    subline: "Billed monthly · cancel anytime",
-    savingsBadge: null,
+    compareAt: promoApplied ? `Original: $${originalMonthly}/mo` : null,
+    subline: promoApplied ? `Promo: 55% OFF Applied` : "Billed monthly · cancel anytime",
+    savingsBadge: promoApplied ? `Promo: 55% OFF applied!` : null,
     effectiveMonthly: monthly,
   };
 }
@@ -312,43 +327,62 @@ function getUltimatePricingDisplay(
   interval: BillingInterval,
   selectedCredits: number,
   fallbackMonthlyFromDb: number,
+  promoApplied = false,
 ): PlanPricingDisplay {
   const def = BILLING_PLAN_DEFINITIONS.find((p) => p.name === "Ultimate");
   if (!def) {
-    return getPlanPricingDisplay("Ultimate", interval, fallbackMonthlyFromDb);
+    return getPlanPricingDisplay("Ultimate", interval, fallbackMonthlyFromDb, promoApplied);
   }
   const ratio = selectedCredits / def.creditsPerMonth;
-  const monthlyUsd = (def.monthlyPriceUsd ?? fallbackMonthlyFromDb) * ratio;
-  const quarterlyBase = def.quarterlyPriceUsd ?? 0;
+  const originalMonthly = (def.monthlyPriceUsd ?? fallbackMonthlyFromDb) * ratio;
+  const monthlyUsd = promoApplied ? originalMonthly * 0.45 : originalMonthly;
+  const originalQuarterlyBase = def.quarterlyPriceUsd ?? 0;
+  const quarterlyBase = promoApplied ? originalQuarterlyBase * 0.45 : originalQuarterlyBase;
+  const originalYearlyBase = def.yearlyPriceUsd ?? 0;
+  const yearlyBase = promoApplied ? originalYearlyBase * 0.45 : originalYearlyBase;
 
-  if (interval === "quarterly" && quarterlyBase > 0) {
+  if (interval === "quarterly" && originalQuarterlyBase > 0) {
     const quarterly = Math.round(quarterlyBase * ratio * 100) / 100;
     const stacked = monthlyUsd * 3;
     const saved = stacked - quarterly;
     const pct = stacked > 0 ? Math.round((saved / stacked) * 100) : 40;
     const eqMo = quarterly / 3;
+
+    const origQuarterly = Math.round(originalQuarterlyBase * ratio * 100) / 100;
+    const origStacked = originalMonthly * 3;
     return {
       headline: quarterly.toLocaleString("en-US", { maximumFractionDigits: 0 }),
       suffix: "/qtr",
-      compareAt: `3 × $${Math.round(monthlyUsd)}/mo → $${Math.round(stacked).toLocaleString("en-US")}`,
+      compareAt: promoApplied
+        ? `Original: $${Math.round(origStacked).toLocaleString("en-US")} ($${Math.round(origQuarterly).toLocaleString("en-US")}/qtr)`
+        : `3 × $${Math.round(monthlyUsd)}/mo → $${Math.round(stacked).toLocaleString("en-US")}`,
       subline: `≈ $${Math.round(eqMo)}/mo equivalent · billed every 3 months`,
-      savingsBadge: `Save $${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
+      savingsBadge: promoApplied
+        ? `Promo: 55% OFF applied!`
+        : `Save $${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
   }
 
-  if (interval === "yearly" && def.yearlyPriceUsd > 0) {
-    const yearly = Math.round(def.yearlyPriceUsd * ratio);
+  if (interval === "yearly" && originalYearlyBase > 0) {
+    const yearly = Math.round(yearlyBase * ratio);
     const stacked = monthlyUsd * 12;
     const saved = stacked - yearly;
     const pct = stacked > 0 ? Math.round((saved / stacked) * 100) : 0;
     const eqMo = yearly / 12;
+
+    const origYearly = Math.round(originalYearlyBase * ratio);
+    const origStacked = originalMonthly * 12;
     return {
       headline: yearly.toLocaleString("en-US", { maximumFractionDigits: 0 }),
       suffix: "/yr",
-      compareAt: `12 × $${Math.round(monthlyUsd)}/mo → $${Math.round(stacked).toLocaleString("en-US")}`,
+      compareAt: promoApplied
+        ? `Original: $${Math.round(origStacked).toLocaleString("en-US")} ($${Math.round(origYearly).toLocaleString("en-US")}/yr)`
+        : `12 × $${Math.round(monthlyUsd)}/mo → $${Math.round(stacked).toLocaleString("en-US")}`,
       subline: `≈ $${Math.round(eqMo)}/mo when paid annually`,
-      savingsBadge: `Save $${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
+      savingsBadge: promoApplied
+        ? `Promo: 55% OFF applied!`
+        : `Save $${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
   }
@@ -358,9 +392,9 @@ function getUltimatePricingDisplay(
       maximumFractionDigits: 0,
     }),
     suffix: "/mo",
-    compareAt: null,
-    subline: "Billed monthly · cancel anytime",
-    savingsBadge: null,
+    compareAt: promoApplied ? `Original: $${Math.round(originalMonthly)}/mo` : null,
+    subline: promoApplied ? `Promo: 55% OFF Applied` : "Billed monthly · cancel anytime",
+    savingsBadge: promoApplied ? `Promo: 55% OFF applied!` : null,
     effectiveMonthly: monthlyUsd,
   };
 }
@@ -401,6 +435,29 @@ export const BillingPage = () => {
     useState<"monthly" | "quarterly" | "yearly" | null>(null);
   const supabase = useMemo(() => createClient(), []);
   const { notify, error: toastError } = useToast();
+  const [promoApplied, setPromoApplied] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const searchParams = new URLSearchParams(window.location.search);
+    const promo = searchParams.get("promo");
+    if (promo === "JOBRAKER_PERSONAL") {
+      try {
+        let rawExpiry = localStorage.getItem("jobraker_promo_expiry");
+        if (!rawExpiry) {
+          const newExpiry = Date.now() + 60 * 60 * 1000;
+          localStorage.setItem("jobraker_promo_expiry", String(newExpiry));
+          rawExpiry = String(newExpiry);
+        }
+        const expiryTime = parseInt(rawExpiry, 10);
+        if (!isNaN(expiryTime) && Date.now() < expiryTime) {
+          setPromoApplied(true);
+        }
+      } catch (e) {
+        console.error("Failed to read/write jobraker_promo_expiry", e);
+      }
+    }
+  }, []);
 
   /** Single headline discount % (Basics tier) so the toggle badge stays honest if catalog prices change. */
   const annualSavingsPctApprox = useMemo(() => {
@@ -711,6 +768,7 @@ export const BillingPage = () => {
           typeof item.ultimateCreditsPerMonth === "number"
             ? { ultimateCreditsPerMonth: item.ultimateCreditsPerMonth }
             : {}),
+          ...(promoApplied ? { promoCode: "JOBRAKER_PERSONAL" } : {}),
         };
         analyticsProperties = {
           purchase_type: type,
@@ -721,6 +779,7 @@ export const BillingPage = () => {
           typeof item.ultimateCreditsPerMonth === "number"
             ? { ultimate_credits_per_month: item.ultimateCreditsPerMonth }
             : {}),
+          ...(promoApplied ? { promo_code: "JOBRAKER_PERSONAL" } : {}),
         };
       }
 
@@ -1020,6 +1079,30 @@ export const BillingPage = () => {
 
       {/* Main Content Area */}
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
+        {promoApplied && (
+          <div className='mb-8'>
+            <div className='relative overflow-hidden rounded-2xl border border-brand/20 bg-brand/5 px-6 py-4 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_0_30px_rgba(29,255,0,0.05)]'>
+              <div className='flex items-center gap-3 min-w-0'>
+                <div className='p-2 rounded-xl bg-brand/10 border border-brand/20 text-brand shrink-0 animate-pulse'>
+                  <Percent className='w-5 h-5' />
+                </div>
+                <div className='text-left'>
+                  <h3 className='font-bold text-foreground text-sm sm:text-base'>
+                    JOBRAKER_PERSONAL (55% off) applied!
+                  </h3>
+                  <p className='text-xs text-muted-foreground mt-0.5'>
+                    Your limited-time 55% discount is applied to all Basics, Pro, and Ultimate subscription plans.
+                  </p>
+                </div>
+              </div>
+              <div className='flex items-center gap-2 font-mono text-xs text-brand font-semibold border border-brand/30 bg-brand/10 px-3 py-1 rounded-lg shrink-0'>
+                <Check className='w-4 h-4 shrink-0' strokeWidth={3} />
+                COUPON ACTIVE
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Custom Tab Navigation */}
         <div className='flex justify-center mb-12'>
           <div className='flex items-center p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md'>
@@ -1162,11 +1245,13 @@ export const BillingPage = () => {
                         pricingInterval,
                         ultimateCreditsMonthly,
                         plan.price,
+                        promoApplied,
                       )
                     : getPlanPricingDisplay(
                         plan.name,
                         pricingInterval,
                         plan.price,
+                        promoApplied,
                       );
 
                   return (
@@ -1332,7 +1417,8 @@ export const BillingPage = () => {
                                   ) : null}
                                   {pricing.savingsBadge &&
                                   (billingInterval === "yearly" ||
-                                    billingInterval === "quarterly") ? (
+                                    billingInterval === "quarterly" ||
+                                    promoApplied) ? (
                                     <div className='inline-flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand/10 border border-brand/25 rounded-full px-2.5 py-1 mt-1'>
                                       <Percent className='w-3.5 h-3.5 shrink-0' />
                                       {pricing.savingsBadge}
@@ -2304,6 +2390,7 @@ export const BillingPage = () => {
                                   tier,
                                   tablePricingInterval,
                                   def?.monthlyPriceUsd ?? 0,
+                                  promoApplied,
                                 );
                                 const isCurrent = subscriptionTier === tier;
                                 const colors = tierColors[tier];

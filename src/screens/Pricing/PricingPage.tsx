@@ -12,7 +12,7 @@ export const PricingPage = (): JSX.Element => {
           contentClassName="mx-auto max-w-2xl text-center"
           titleClassName="text-3xl sm:text-4xl lg:text-5xl"
           title="Choose Your Plan"
-          subtitle="Free covers the fundamentals, Basics unlocks AI execution, Pro adds coaching and analytics, and Ultimate opens integrations."
+          subtitle="Free tracks your search, Basics organizes the pipeline, Pro adds intelligence and generated packages, and Ultimate runs background scouting."
         />
         <Pricing plans={SUBSCRIPTION_MARKETING_PLANS} />
       </div>

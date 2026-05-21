@@ -16,6 +16,7 @@ type PaymentInitRequest = {
   billingCycle?: "monthly" | "quarterly" | "yearly";
   /** Ultimate only: 3500–10500, step 500 — scales price and credits vs catalog base. */
   ultimateCreditsPerMonth?: number;
+  promoCode?: string;
 };
 
 type SubscriptionPlanRow = {
@@ -179,6 +180,10 @@ serve(async (req) => {
       totalCreditsPaidFor = resolvedCredits;
       displayName = `${plan.name} Subscription`;
 
+      if (body.promoCode === "JOBRAKER_PERSONAL") {
+        priceUsd = Math.round(priceUsd * 0.45 * 100) / 100;
+      }
+
       authoritativeMetadata = {
         purchase_type: "subscription",
         sku: `plan:${plan.id}`,
@@ -189,6 +194,9 @@ serve(async (req) => {
         credits_per_month: totalCreditsPaidFor,
         auto_apply_monthly_limit: resolvedAutoApply,
         currency: plan.currency || "USD",
+        ...(body.promoCode === "JOBRAKER_PERSONAL"
+          ? { promo_code: "JOBRAKER_PERSONAL", discount_pct: 55 }
+          : {}),
       };
     } else if (purchaseType === "credit_pack") {
       if (!body.packSku) {

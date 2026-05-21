@@ -39,7 +39,8 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     isPopular: false,
     marketingFeatures: [
       "10 search and AI credits each month",
-      "Governed auto-apply for light testing",
+      "Basic match score and job saving",
+      "Manual job feedback labels",
       "Resume builder, storage, import, and parsing",
       "Application tracking for your active pipeline",
     ],
@@ -57,7 +58,8 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     marketingFeatures: [
       "250 search and AI credits each month",
       "15 governed auto-apply runs each month",
-      "AI job-fit evaluation and compatibility reports",
+      "Bulk pipeline tools and CSV export",
+      "Basic job quality filtering",
       "Resume tailoring plus cover letter generation",
       "Draft-first autopilot with candidate memory",
     ],
@@ -77,9 +79,10 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     marketingFeatures: [
       "1,200 search and AI credits each month",
       "50 governed auto-apply runs each month",
-      "Advanced evaluation reports and interview stories",
-      "AI chat assistant plus search analytics",
-      "Priority automation queue for faster throughput",
+      "Explainable score breakdowns and interview stories",
+      "ATS keyword coverage for generated drafts",
+      "Generated application packages with outreach drafts",
+      "Feedback-learning job recommendations",
     ],
   },
   {
@@ -97,6 +100,8 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     marketingFeatures: [
       "3,500 search and AI credits each month",
       "150 governed auto-apply runs each month",
+      "Scout Mode background discovery summaries",
+      "Auto re-evaluation and ready-to-tailor queues",
       "Tracked company intelligence and integrations",
       "Priority support for complex searches",
       "Highest throughput limits for scaled pipelines",

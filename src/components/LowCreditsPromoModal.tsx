@@ -98,16 +98,54 @@ export function LowCreditsPromoModal({
   loading,
   onUpgrade,
 }: LowCreditsPromoModalProps) {
-  const [secondsLeft, setSecondsLeft] = useState(60 * 60);
+  const [secondsLeft, setSecondsLeft] = useState(() => {
+    try {
+      const raw = localStorage.getItem("jobraker_promo_expiry");
+      if (raw) {
+        const expiry = parseInt(raw, 10);
+        if (!isNaN(expiry)) {
+          return Math.max(0, Math.ceil((expiry - Date.now()) / 1000));
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return 60 * 60;
+  });
 
   const stats = getCreditPressureStats(balance);
 
   useEffect(() => {
     if (!open) return;
-    setSecondsLeft(60 * 60);
-    const id = window.setInterval(() => {
-      setSecondsLeft((s) => (s <= 0 ? 0 : s - 1));
-    }, 1000);
+
+    const getExpiryTime = () => {
+      try {
+        const raw = localStorage.getItem("jobraker_promo_expiry");
+        if (raw) {
+          const parsed = parseInt(raw, 10);
+          if (!isNaN(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      const newExpiry = Date.now() + 60 * 60 * 1000;
+      try {
+        localStorage.setItem("jobraker_promo_expiry", String(newExpiry));
+      } catch (e) {
+        console.error(e);
+      }
+      return newExpiry;
+    };
+
+    const expiryTime = getExpiryTime();
+
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.ceil((expiryTime - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+    };
+
+    updateTimer();
+    const id = window.setInterval(updateTimer, 1000);
     return () => window.clearInterval(id);
   }, [open]);
 

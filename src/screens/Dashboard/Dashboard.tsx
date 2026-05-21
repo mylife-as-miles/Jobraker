@@ -65,6 +65,7 @@ import InterviewStudioPage from "./pages/InterviewStudioPage";
 import { ResumePage } from "./pages/ResumePage";
 import { CoverLetterPage } from "./pages/CoverLetterPage";
 import { ReferralsPage } from "./pages/ReferralsPage";
+import { ExperienceFeedbackPrompt } from "./components/ExperienceFeedbackPrompt";
 
 type DashboardPage =
   | "overview"
@@ -940,6 +941,7 @@ export const Dashboard = (): JSX.Element => {
             navigate("/dashboard/billing?promo=JOBRAKER_PERSONAL")
           }
         />
+        <ExperienceFeedbackPrompt />
       </div>
     </TooltipProvider>
   );

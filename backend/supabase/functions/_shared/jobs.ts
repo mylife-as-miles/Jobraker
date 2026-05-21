@@ -1,4 +1,10 @@
 import type { DiscoveryJob } from "./discovery-hybrid.ts";
+import {
+  applyFeedbackLearningToQuality,
+  fetchFeedbackLearningProfile,
+  scoreFeedbackLearningAdjustment,
+} from "./job-feedback-learning.ts";
+import { scoreDiscoveredJobQuality } from "./job-quality.ts";
 
 type JobRowInput = Record<string, unknown> & {
   id?: string;
@@ -91,9 +97,24 @@ export async function persistDiscoveredJobs(
   }
 
   const nowIso = new Date().toISOString();
+  const feedbackLearningProfile = await fetchFeedbackLearningProfile(
+    serviceClient,
+    options.userId,
+  );
   const rows = jobs.map((job) => {
     const rawData = toRecord(job.raw_data);
     const discovery = toRecord(rawData.discovery);
+    const baseLeadQuality = scoreDiscoveredJobQuality(job, {
+      searchQuery: options.searchQuery,
+    });
+    const feedbackLearningAdjustment = scoreFeedbackLearningAdjustment(
+      job,
+      feedbackLearningProfile,
+    );
+    const leadQuality = applyFeedbackLearningToQuality(
+      baseLeadQuality,
+      feedbackLearningAdjustment,
+    );
 
     return {
       user_id: options.userId,
@@ -108,6 +129,9 @@ export async function persistDiscoveredJobs(
       verification_status: job.verification_status,
       source_kind: job.source_kind,
       source_confidence: job.source_confidence,
+      lead_quality_score: leadQuality.score,
+      lead_quality_reason: leadQuality.reason,
+      lead_quality_tags: leadQuality.tags,
       is_tracked_company: job.is_tracked_company,
       discovered_at: nowIso,
       last_verified_at: nowIso,
@@ -124,6 +148,11 @@ export async function persistDiscoveredJobs(
           source_kind: job.source_kind,
           source_confidence: job.source_confidence,
           verification_status: job.verification_status,
+          lead_quality_score: leadQuality.score,
+          lead_quality_reason: leadQuality.reason,
+          lead_quality_tags: leadQuality.tags,
+          feedback_learning_adjustment:
+            leadQuality.feedback_learning_adjustment,
           requested_limit: options.requestedLimit ?? null,
           effective_limit: options.effectiveLimit ?? null,
           subscription_tier: options.subscriptionTier ?? null,
