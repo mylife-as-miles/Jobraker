@@ -4460,21 +4460,18 @@ export const JobPage = (): JSX.Element => {
           data-tour='jobs-search-filters'
         >
           <div className='relative z-10 flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-stretch'>
-            <div className='relative group min-w-0 flex-1'>
-              <Input
+            <div className='relative min-w-0 flex-1'>
+              <div
                 id='jobs-search'
                 data-tour='jobs-search'
-                placeholder='Search jobs, companies, keywords...'
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    populateQueue(searchQuery, selectedLocation);
-                  }
-                }}
-                className='w-full pl-4 pr-[8.25rem] sm:pr-36 border-foreground/10 text-foreground placeholder:text-foreground/40 transition-all duration-100 rounded-xl  '
-              />
+                aria-label={`Search query ${searchQuery || "No query"}`}
+                role='status'
+                className='flex h-12 w-full items-center rounded-xl border border-foreground/10 pl-4 pr-[8.25rem] sm:pr-36 text-base font-medium text-foreground'
+              >
+                <span className={`min-w-0 truncate ${!searchQuery ? "text-foreground/40" : ""}`}>
+                  {searchQuery || "Search jobs, companies, keywords..."}
+                </span>
+              </div>
               <div className='pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 xl:-translate-y-full h-10 items-center justify-center gap-2'>
                 <span className='text-[10px] font-medium text-brand/90 bg-gradient-to-br from-brand/15 to-brand/5 px-2.5 py-1 rounded-lg border border-brand/30 whitespace-nowrap shadow-sm'>
                   {subscriptionTier === "Ultimate"
@@ -4486,7 +4483,7 @@ export const JobPage = (): JSX.Element => {
                         : "10"}{" "}
                   results
                 </span>
-                <Search className='h-5 w-5 shrink-0 text-brand/70 transition-colors group-focus-within:text-brand' />
+                <Search className='h-5 w-5 shrink-0 text-brand/70' />
               </div>
             </div>
             <div className='flex w-full flex-col gap-2 lg:w-72 lg:shrink-0 xl:w-80'>
@@ -5544,7 +5541,7 @@ export const JobPage = (): JSX.Element => {
 
                                 {/* Content + buttons */}
                                 <div className='flex-1 min-w-0'>
-                                  <div className='flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4'>
+                                  <div className='flex flex-col gap-4'>
                                     {/* Title & meta */}
                                     <div className='flex-1 min-w-0 space-y-2'>
                                       <div className='inline-flex items-center gap-2 flex-wrap text-[11px] uppercase tracking-[0.3em] text-brand/80'>
@@ -5593,7 +5590,7 @@ export const JobPage = (): JSX.Element => {
                                     </div>
 
                                     {/* Action buttons stay below the title until the card has enough width. */}
-                                    <div className='flex w-full flex-col sm:flex-row lg:w-auto lg:flex-shrink-0 items-stretch sm:items-center gap-2'>
+                                    <div className='flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2'>
                                       {primaryHref && (
                                         <a
                                           href={primaryHref}

@@ -44,6 +44,18 @@ const getStatusIcon = (status: JobTaskStatus) => {
   return <AlertTriangle className='h-3.5 w-3.5 text-brand' />;
 };
 
+const getUpdatedCopy = (task: JobIntelligenceTask) => {
+  const parsed = Date.parse(task.updated_at || task.created_at);
+  if (Number.isNaN(parsed)) return null;
+
+  const minutes = Math.max(0, Math.floor((Date.now() - parsed) / 60000));
+  if (minutes < 1) return "Updated just now";
+  if (minutes < 60) return `Updated ${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  return `Updated ${hours}h ago`;
+};
+
 export function JobTaskMonitor({
   tasks,
   onStop,
@@ -73,6 +85,7 @@ export function JobTaskMonitor({
           const progress = getProgress(task);
           const isActive = task.status === "queued" || task.status === "running";
           const canRetry = task.status === "failed" || task.status === "canceled";
+          const updatedCopy = getUpdatedCopy(task);
 
           return (
             <div
@@ -92,6 +105,11 @@ export function JobTaskMonitor({
                   </div>
                   {task.message ? (
                     <p className='text-xs text-foreground/55'>{task.message}</p>
+                  ) : null}
+                  {updatedCopy ? (
+                    <p className='text-[10px] uppercase tracking-wide text-foreground/35'>
+                      {updatedCopy}
+                    </p>
                   ) : null}
                 </div>
 

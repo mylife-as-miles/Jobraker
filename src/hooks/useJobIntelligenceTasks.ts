@@ -63,6 +63,22 @@ const terminalStatuses = new Set<JobTaskStatus>([
   "canceled",
 ]);
 
+const activeStatuses = new Set<JobTaskStatus>(["queued", "running"]);
+const staleTaskTimeoutMs = 10 * 60 * 1000;
+const staleTaskMessage =
+  "Task timed out after no progress. Retry to run it again.";
+
+const getTaskHeartbeatTime = (task: JobIntelligenceTask) => {
+  const parsed = Date.parse(
+    task.updated_at || task.started_at || task.created_at,
+  );
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const isStaleTask = (task: JobIntelligenceTask, now = Date.now()) =>
+  activeStatuses.has(task.status) &&
+  now - getTaskHeartbeatTime(task) > staleTaskTimeoutMs;
+
 export function useJobIntelligenceTasks(limit = 8) {
   const supabase = useMemo(() => createClient(), []);
   const [userId, setUserId] = useState<string | null>(null);
@@ -95,7 +111,46 @@ export function useJobIntelligenceTasks(limit = 8) {
       return;
     }
 
-    setTasks((data ?? []) as JobIntelligenceTask[]);
+    const now = Date.now();
+    const rows = (data ?? []) as JobIntelligenceTask[];
+    const staleTasks = rows.filter((task) => isStaleTask(task, now));
+    const completedAt = new Date(now).toISOString();
+
+    if (staleTasks.length > 0) {
+      void Promise.all(
+        staleTasks.map((task) =>
+          supabase
+            .from("job_intelligence_tasks")
+            .update({
+              status: "failed",
+              message: staleTaskMessage,
+              completed_at: completedAt,
+              updated_at: completedAt,
+            })
+            .eq("id", task.id)
+            .in("status", Array.from(activeStatuses)),
+        ),
+      ).catch((expireError) => {
+        console.warn(
+          "Failed to expire stale job intelligence tasks",
+          expireError,
+        );
+      });
+    }
+
+    setTasks(
+      rows.map((task) =>
+        staleTasks.some((staleTask) => staleTask.id === task.id)
+          ? {
+              ...task,
+              status: "failed",
+              message: staleTaskMessage,
+              completed_at: completedAt,
+              updated_at: completedAt,
+            }
+          : task,
+      ),
+    );
     setLoading(false);
   }, [limit, supabase]);
 

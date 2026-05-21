@@ -590,9 +590,9 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
           const ordered = base
             .slice(weekStartsOn)
             .concat(base.slice(0, weekStartsOn));
-          return ordered.map((d) => (
+          return ordered.map((d, index) => (
             <div
-              key={d}
+              key={`${d}-${index}`}
               className='text-center text-[10px] sm:text-xs text-muted-foreground font-medium py-1 select-none'
             >
               {d}

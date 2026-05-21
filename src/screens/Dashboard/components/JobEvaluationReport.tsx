@@ -9,8 +9,10 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
+import { useState } from "react";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
+import Modal from "../../../components/ui/modal";
 import type { JobEvaluationReport as JobEvaluationReportData } from "../../../services/jobs/jobEvaluation";
 
 interface JobEvaluationReportProps {
@@ -105,6 +107,8 @@ export function JobEvaluationReport({
   savedStoryTitles = [],
   onSaveStory,
 }: JobEvaluationReportProps) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   if (loading) {
     return (
       <Card className='border border-brand/20 bg-card/80 p-6'>
@@ -143,26 +147,114 @@ export function JobEvaluationReport({
   const incorporatedTerms = getCoverageList(evaluation, "incorporated_terms");
 
   return (
-    <Card className='border border-brand/20 bg-card/80 p-6 space-y-6'>
-      <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
-        <div className='space-y-3'>
-          <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-brand/75'>
-            <Sparkles className='h-3.5 w-3.5' />
-            Evaluation Report
+    <>
+      <Card className='border border-brand/20 bg-card/80 p-5 space-y-5'>
+        <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
+          <div className='space-y-3'>
+            <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-brand/75'>
+              <Sparkles className='h-3.5 w-3.5' />
+              Evaluation Report
+            </div>
+            <div className='flex flex-wrap items-center gap-3'>
+              <span
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${theme.className}`}
+              >
+                <ShieldCheck className='h-3.5 w-3.5' />
+                {theme.label}
+              </span>
+              <span className='rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1 text-xs font-medium text-foreground/70'>
+                Archetype: {evaluation.archetype}
+              </span>
+            </div>
+            <p className='max-w-2xl text-sm text-foreground/55'>
+              Full fit evidence, blockers, ATS keywords, compensation notes,
+              tailoring guidance, and interview stories are available in the
+              detailed report.
+            </p>
           </div>
-          <div className='flex flex-wrap items-center gap-3'>
-            <span
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${theme.className}`}
-            >
-              <ShieldCheck className='h-3.5 w-3.5' />
-              {theme.label}
-            </span>
-            <span className='rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1 text-xs font-medium text-foreground/70'>
-              Archetype: {evaluation.archetype}
-            </span>
+          <div className='grid w-full gap-3 sm:grid-cols-3 lg:max-w-xl'>
+            <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4'>
+              <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
+                Confidence
+              </div>
+              <div className='mt-2 text-2xl font-semibold text-brand'>
+                {evaluation.confidence_score}%
+              </div>
+            </div>
+            <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4'>
+              <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
+                Blockers
+              </div>
+              <div className='mt-2 text-2xl font-semibold text-foreground'>
+                {evaluation.blockers.length}
+              </div>
+            </div>
+            <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4'>
+              <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
+                Stories
+              </div>
+              <div className='mt-2 text-2xl font-semibold text-foreground'>
+                {evaluation.interview_stories.length}
+              </div>
+            </div>
           </div>
         </div>
-        <div className='grid w-full max-w-xl gap-3 sm:grid-cols-3'>
+
+        <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+          <div className='flex flex-wrap gap-2 text-xs text-foreground/55'>
+            {coveragePercent > 0 ? (
+              <span className='rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1'>
+                ATS coverage {coveragePercent}%
+              </span>
+            ) : null}
+            {breakdown.length > 0 ? (
+              <span className='rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1'>
+                {breakdown.length} score factors
+              </span>
+            ) : null}
+            {evaluation.missing_requirements.length > 0 ? (
+              <span className='rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1'>
+                {evaluation.missing_requirements.length} missing requirement
+                {evaluation.missing_requirements.length === 1 ? "" : "s"}
+              </span>
+            ) : null}
+          </div>
+          <Button
+            type='button'
+            className='border border-brand/40 bg-brand/10 text-brand hover:bg-brand/15'
+            onClick={() => setDetailsOpen(true)}
+          >
+            View full report
+          </Button>
+        </div>
+      </Card>
+
+      <Modal
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        title='Evaluation report'
+        size='xl'
+      >
+        <div className='space-y-6'>
+          <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
+            <div className='space-y-3'>
+              <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-brand/75'>
+                <Sparkles className='h-3.5 w-3.5' />
+                Evaluation Report
+              </div>
+              <div className='flex flex-wrap items-center gap-3'>
+                <span
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${theme.className}`}
+                >
+                  <ShieldCheck className='h-3.5 w-3.5' />
+                  {theme.label}
+                </span>
+                <span className='rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1 text-xs font-medium text-foreground/70'>
+                  Archetype: {evaluation.archetype}
+                </span>
+              </div>
+            </div>
+            <div className='grid w-full max-w-xl gap-3 sm:grid-cols-3'>
           <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4'>
             <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
               Confidence
@@ -417,6 +509,8 @@ export function JobEvaluationReport({
           </div>
         </div>
       ) : null}
-    </Card>
+        </div>
+      </Modal>
+    </>
   );
 }

@@ -153,9 +153,9 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             )}
             {secondaryChips.length > 0 && (
               <div className='flex flex-wrap gap-2 pt-1'>
-                {secondaryChips.slice(0, 8).map((ch) => (
+                {secondaryChips.slice(0, 8).map((ch, index) => (
                   <span
-                    key={ch}
+                    key={`${ch}-${index}`}
                     className={`text-[10px] uppercase tracking-wide px-2 py-1 rounded-full font-medium ${s.pill} border border-foreground/5 backdrop-blur-sm`}
                   >
                     {ch}
