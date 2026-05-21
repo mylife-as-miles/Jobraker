@@ -65,7 +65,10 @@ export async function attachExistingJobIdsBySourceId(
     const sourceId =
       typeof row.source_id === "string" ? row.source_id.trim() : "";
     const existing = sourceId ? existingBySourceId.get(sourceId) : undefined;
-    return existing ? { ...row, id: existing.id } : row;
+    return {
+      ...row,
+      id: existing ? existing.id : crypto.randomUUID(),
+    };
   });
 }
 

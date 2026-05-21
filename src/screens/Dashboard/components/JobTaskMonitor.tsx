@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -61,7 +62,40 @@ export function JobTaskMonitor({
   onStop,
   onRetry,
 }: JobTaskMonitorProps) {
-  const visibleTasks = tasks.slice(0, 4);
+  const [, setRenderTrigger] = useState(0);
+
+  useEffect(() => {
+    const timeouts: NodeJS.Timeout[] = [];
+    const now = Date.now();
+
+    tasks.forEach((task) => {
+      if (task.status === "completed") {
+        const completedTime = task.completed_at ? Date.parse(task.completed_at) : null;
+        if (completedTime) {
+          const age = now - completedTime;
+          if (age < 5000) {
+            const timeout = setTimeout(() => {
+              setRenderTrigger((prev) => prev + 1);
+            }, 5000 - age);
+            timeouts.push(timeout);
+          }
+        }
+      }
+    });
+
+    return () => {
+      timeouts.forEach((t) => clearTimeout(t));
+    };
+  }, [tasks]);
+
+  const visibleTasks = tasks
+    .filter((task) => {
+      if (task.status !== "completed") return true;
+      const completedTime = task.completed_at ? Date.parse(task.completed_at) : null;
+      if (!completedTime) return true;
+      return Date.now() - completedTime < 5000;
+    })
+    .slice(0, 4);
 
   if (!visibleTasks.length) {
     return null;
