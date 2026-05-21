@@ -84,9 +84,14 @@ import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { JobEvaluationTeaser } from "../../../components/JobEvaluationTeaser";
 import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
 import { JobEvaluationReport } from "../components/JobEvaluationReport";
+import { JobTaskMonitor } from "../components/JobTaskMonitor";
 import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
 import { loadParsedResumeText } from "../../../lib/parsedResume";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
+import {
+  useJobIntelligenceTasks,
+  type JobIntelligenceTask,
+} from "@/hooks/useJobIntelligenceTasks";
 import {
   hasFeatureAccess,
   hasSubscriptionAccess,
@@ -1031,6 +1036,12 @@ export const JobPage = (): JSX.Element => {
   const [activeSearchScope, setActiveSearchScope] =
     useState<JobsQueueScope>(null);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const {
+    tasks: jobTasks,
+    createTask,
+    updateTask,
+    cancelTask,
+  } = useJobIntelligenceTasks();
   const hasPaidInsightsAccess = hasSubscriptionAccess(
     subscriptionTier,
     "Basics",
@@ -1063,6 +1074,8 @@ export const JobPage = (): JSX.Element => {
   const backgroundEvaluationRunnerRef = useRef(false);
   const backgroundEvaluationInFlightRef = useRef<Set<string>>(new Set());
   const backgroundEvaluationFailedRef = useRef<Set<string>>(new Set());
+  const activeTaskIdRef = useRef<string | null>(null);
+  const canceledTaskIdsRef = useRef<Set<string>>(new Set());
   const jobsRef = useRef<Job[]>([]);
 
   const {
@@ -1966,13 +1979,33 @@ export const JobPage = (): JSX.Element => {
     [incrementalMode, isMobile],
   );
 
-  const runBackgroundEvaluations = useCallback(async () => {
+  const runBackgroundEvaluations = useCallback(async (options?: {
+    jobIds?: string[];
+    shouldStop?: () => boolean;
+    onProgress?: (processed: number, total: number, jobTitle?: string) => void;
+  }) => {
     if (backgroundEvaluationRunnerRef.current || !hasJobEvaluationAccess)
       return;
 
     backgroundEvaluationRunnerRef.current = true;
+    const targetJobIds = options?.jobIds?.length
+      ? new Set(options.jobIds)
+      : null;
+    const total =
+      targetJobIds?.size ??
+      jobsRef.current.filter(
+        (job) =>
+          job.canonical_status === "discovered" &&
+          !job.evaluation_summary?.evaluation_id &&
+          typeof job.description === "string" &&
+          job.description.trim().length > 0,
+      ).length;
+    let processed = 0;
     try {
       while (true) {
+        if (options?.shouldStop?.()) {
+          break;
+        }
         const nextJob = jobsRef.current.find((job) => {
           const needsEvaluation =
             job.canonical_status === "discovered" &&
@@ -1982,6 +2015,7 @@ export const JobPage = (): JSX.Element => {
             job.description.trim().length > 0;
 
           return (
+            (!targetJobIds || targetJobIds.has(job.id)) &&
             needsEvaluation &&
             hasDescription &&
             !backgroundEvaluationInFlightRef.current.has(job.id) &&
@@ -2022,6 +2056,8 @@ export const JobPage = (): JSX.Element => {
             delete next[nextJob.id];
             return next;
           });
+          processed += 1;
+          options?.onProgress?.(processed, total, nextJob.title);
         }
       }
     } finally {
@@ -2098,6 +2134,19 @@ export const JobPage = (): JSX.Element => {
       setIncrementalMode(true);
       setInsertedThisRun(0);
       backgroundEvaluationFailedRef.current.clear();
+      let taskId: string | null = null;
+      const markTask = async (
+        patch: Parameters<typeof updateTask>[1],
+      ) => {
+        if (!taskId) return;
+        try {
+          await updateTask(taskId, patch);
+        } catch (taskError) {
+          console.warn("Failed to update scout task", taskError);
+        }
+      };
+      const isTaskCanceled = () =>
+        Boolean(taskId && canceledTaskIdsRef.current.has(taskId));
 
       try {
         // Determine max results per search based on subscription tier or customLimit
@@ -2118,6 +2167,25 @@ export const JobPage = (): JSX.Element => {
         const userId = authData?.user?.id;
 
         if (userId) {
+          try {
+            const task = await createTask({
+              type: "scout_search",
+              title: `Scout search: ${query.trim()}`,
+              message: "Checking credits and preparing sources.",
+              progressTotal: 3,
+              params: {
+                search_query: query.trim(),
+                location: (selectedLocation || "Remote").trim() || "Remote",
+                location_scope: locationScope,
+                limit: maxResultsPerSearch,
+              },
+            });
+            taskId = task.id;
+            activeTaskIdRef.current = task.id;
+          } catch (taskError) {
+            console.warn("Failed to create scout task", taskError);
+          }
+
           const { data: creditCheck, error: checkError } = await supabase.rpc(
             "check_credits_available",
             {
@@ -2128,6 +2196,11 @@ export const JobPage = (): JSX.Element => {
           );
 
           if (checkError) {
+            await markTask({
+              status: "failed",
+              message: "Credit check failed.",
+              progress_current: 0,
+            });
             setError({
               message: "Failed to verify credits. Please try again.",
               link: "/dashboard/billing",
@@ -2144,6 +2217,11 @@ export const JobPage = (): JSX.Element => {
                 ? creditCheck.message
                 : `Insufficient credits. Job search requires ${creditCheck?.required ?? 0} credits but you only have ${creditCheck?.current_balance ?? 0}.`;
 
+            await markTask({
+              status: "failed",
+              message: creditMessage,
+              progress_current: 0,
+            });
             setError({
               message: creditMessage,
               link: "/dashboard/billing",
@@ -2165,6 +2243,11 @@ export const JobPage = (): JSX.Element => {
 
         // Use backend jobs-search to discover and save jobs directly
         safeInfo("Searching the web for jobs...");
+        await markTask({
+          status: "running",
+          message: "Searching sources and scoring leads.",
+          progress_current: 1,
+        });
         const currentSearchScope: JobsQueueScope = {
           searchQuery: query.trim(),
           location: (selectedLocation || "Remote").trim() || "Remote",
@@ -2217,6 +2300,11 @@ export const JobPage = (): JSX.Element => {
             const currentJobs = await fetchJobQueue(currentSearchScope);
             if (currentJobs.length > 0) {
               setInsertedThisRun(currentJobs.length);
+              void markTask({
+                status: "running",
+                message: `Streaming ${currentJobs.length} discovered jobs.`,
+                progress_current: 1,
+              });
             }
           } catch (err) {
             console.warn("[poll] incremental fetch failed", err);
@@ -2229,6 +2317,17 @@ export const JobPage = (): JSX.Element => {
         } finally {
           isSearchActive = false;
           window.clearInterval(pollInterval);
+        }
+        if (isTaskCanceled()) {
+          await markTask({
+            status: "canceled",
+            cancel_requested: true,
+            message: "Canceled before finalizing results.",
+          });
+          setIncrementalMode(false);
+          setQueueStatus(jobsRef.current.length > 0 ? "ready" : "empty");
+          setCurrentSource(null);
+          return;
         }
         if (searchData?.error === "rate_limited") {
           const retrySec = Math.max(
@@ -2243,6 +2342,14 @@ export const JobPage = (): JSX.Element => {
         }
 
         if (searchData?.error) {
+          await markTask({
+            status: "failed",
+            message:
+              typeof searchData.detail === "string"
+                ? searchData.detail
+                : "Search failed.",
+            progress_current: 1,
+          });
           activeSearchScopeRef.current = null;
           setActiveSearchScope(null);
           if (searchData.error === "missing_api_key") {
@@ -2310,6 +2417,11 @@ export const JobPage = (): JSX.Element => {
 
         setStepIndex(1); // Stage 1: Saving Results
         setInsertedThisRun(inserted);
+        await markTask({
+          status: "running",
+          message: `Saved ${inserted} jobs. Finalizing Scout summary.`,
+          progress_current: 2,
+        });
         activeSearchScopeRef.current = currentSearchScope;
         setActiveSearchScope(currentSearchScope);
 
@@ -2373,6 +2485,19 @@ export const JobPage = (): JSX.Element => {
         }
 
         setStepIndex(2); // Stage 2: Finalizing List
+        await markTask({
+          status: "completed",
+          message:
+            inserted > 0
+              ? `Scout completed with ${inserted} saved jobs.`
+              : "Scout completed with no matching jobs.",
+          progress_current: 3,
+          result: {
+            inserted,
+            search_query: currentSearchScope.searchQuery,
+            location: currentSearchScope.location,
+          },
+        });
         // Brief pause for visual closure
         await new Promise((r) => setTimeout(r, 800));
 
@@ -2392,6 +2517,10 @@ export const JobPage = (): JSX.Element => {
 
         setCurrentSource(null);
       } catch (e: any) {
+        await markTask({
+          status: "failed",
+          message: e.message || "Scout search failed.",
+        });
         activeSearchScopeRef.current = null;
         setActiveSearchScope(null);
         const fallbackJobs = await fetchJobQueue(null);
@@ -2401,9 +2530,14 @@ export const JobPage = (): JSX.Element => {
         }
         setCurrentSource(null);
         setIncrementalMode(false);
+      } finally {
+        if (taskId && activeTaskIdRef.current === taskId) {
+          activeTaskIdRef.current = null;
+        }
       }
     },
     [
+      createTask,
       supabase,
       debugMode,
       incrementalMode,
@@ -2413,6 +2547,7 @@ export const JobPage = (): JSX.Element => {
       selectedLocation,
       subscriptionTier,
       info,
+      updateTask,
     ],
   );
 
@@ -2423,6 +2558,17 @@ export const JobPage = (): JSX.Element => {
     setQueueStatus(jobs.length > 0 ? "ready" : "empty");
     setCurrentSource(null);
   }, [jobs.length]);
+
+  const handleCancelPopulation = useCallback(() => {
+    const activeTaskId = activeTaskIdRef.current;
+    if (activeTaskId) {
+      canceledTaskIdsRef.current.add(activeTaskId);
+      void cancelTask(activeTaskId).catch((error) => {
+        console.warn("Failed to cancel active scout task", error);
+      });
+    }
+    cancelPopulation();
+  }, [cancelPopulation, cancelTask]);
 
   const loadAutoApplyTargetJob = useCallback(async (jobId: string) => {
     const {
@@ -3696,6 +3842,7 @@ export const JobPage = (): JSX.Element => {
       );
       return;
     }
+    let taskId: string | null = null;
     const lowQualityJobIds = jobs
       .filter(
         (job) =>
@@ -3711,32 +3858,74 @@ export const JobPage = (): JSX.Element => {
       return;
     }
 
-    const { error: cleanError } = await supabase
-      .from("jobs")
-      .update({ hidden: true, canonical_status: "hidden" })
-      .in("id", lowQualityJobIds);
+    try {
+      const task = await createTask({
+        type: "pipeline_cleanup",
+        title: "Clean low-quality jobs",
+        message: `Preparing to hide ${lowQualityJobIds.length} low-quality jobs.`,
+        progressTotal: lowQualityJobIds.length,
+        params: { job_ids: lowQualityJobIds },
+      });
+      taskId = task.id;
+      activeTaskIdRef.current = task.id;
+      await updateTask(task.id, {
+        status: "running",
+        message: "Hiding low-quality jobs.",
+        progress_current: 0,
+      });
 
-    if (cleanError) {
-      toastError("Cleanup failed", cleanError.message);
-      return;
+      const { error: cleanError } = await supabase
+        .from("jobs")
+        .update({ hidden: true, canonical_status: "hidden" })
+        .in("id", lowQualityJobIds);
+
+      if (cleanError) {
+        throw new Error(cleanError.message);
+      }
+
+      setJobs((prev) =>
+        prev.filter((job) => !lowQualityJobIds.includes(job.id)),
+      );
+      await queryClient.invalidateQueries({ queryKey: jobsQueueKeys.all });
+      await updateTask(task.id, {
+        status: "completed",
+        message: `Hid ${lowQualityJobIds.length} low-quality jobs.`,
+        progress_current: lowQualityJobIds.length,
+        result: { hidden_job_ids: lowQualityJobIds },
+      });
+      safeInfo(
+        "Pipeline cleaned",
+        `Hid ${lowQualityJobIds.length} low-quality job${lowQualityJobIds.length === 1 ? "" : "s"}.`,
+      );
+    } catch (cleanupError) {
+      const message =
+        cleanupError instanceof Error ? cleanupError.message : "Cleanup failed.";
+      if (taskId) {
+        await updateTask(taskId, {
+          status: "failed",
+          message,
+        }).catch((taskError) =>
+          console.warn("Failed to mark cleanup task failed", taskError),
+        );
+      }
+      toastError("Cleanup failed", message);
+    } finally {
+      if (taskId && activeTaskIdRef.current === taskId) {
+        activeTaskIdRef.current = null;
+      }
     }
-
-    setJobs((prev) => prev.filter((job) => !lowQualityJobIds.includes(job.id)));
-    await queryClient.invalidateQueries({ queryKey: jobsQueueKeys.all });
-    safeInfo(
-      "Pipeline cleaned",
-      `Hid ${lowQualityJobIds.length} low-quality job${lowQualityJobIds.length === 1 ? "" : "s"}.`,
-    );
   }, [
+    createTask,
     hasPipelineCleanupAccess,
     jobs,
     queryClient,
     safeInfo,
     supabase,
     toastError,
+    updateTask,
   ]);
 
-  const reevaluateVisibleJobs = useCallback(() => {
+  const reevaluateVisibleJobs = useCallback(async () => {
     if (!hasJobReevaluationAccess) {
       toastError(
         "Upgrade Required",
@@ -3744,9 +3933,15 @@ export const JobPage = (): JSX.Element => {
       );
       return;
     }
+    const visibleJobIds = sortedJobs.map((job) => job.id);
+    if (!visibleJobIds.length) {
+      safeInfo("No jobs to re-evaluate", "Search or load jobs first.");
+      return;
+    }
+    let taskId: string | null = null;
     backgroundEvaluationFailedRef.current.clear();
     jobsRef.current = jobs.map((job) =>
-      sortedJobs.some((visibleJob) => visibleJob.id === job.id)
+      visibleJobIds.includes(job.id)
         ? {
             ...job,
             canonical_status: "discovered",
@@ -3755,19 +3950,138 @@ export const JobPage = (): JSX.Element => {
         : job,
     );
     setJobs(jobsRef.current);
-    void runBackgroundEvaluations();
-    safeInfo(
-      "Re-evaluation queued",
-      `${sortedJobs.length} visible jobs are queued for fresh evaluation.`,
-    );
+    try {
+      const task = await createTask({
+        type: "job_reevaluation",
+        title: "Re-evaluate visible jobs",
+        message: `${visibleJobIds.length} jobs queued for fresh evaluation.`,
+        progressTotal: visibleJobIds.length,
+        params: { job_ids: visibleJobIds },
+      });
+      taskId = task.id;
+      activeTaskIdRef.current = task.id;
+      canceledTaskIdsRef.current.delete(task.id);
+
+      await updateTask(task.id, {
+        status: "running",
+        message: "Running AI fit evaluations.",
+        progress_current: 0,
+      });
+
+      await runBackgroundEvaluations({
+        jobIds: visibleJobIds,
+        shouldStop: () =>
+          Boolean(taskId && canceledTaskIdsRef.current.has(taskId)),
+        onProgress: (processed, total, jobTitle) => {
+          if (!taskId) return;
+          void updateTask(taskId, {
+            status: "running",
+            message: jobTitle
+              ? `Evaluated ${jobTitle}.`
+              : "Evaluating visible jobs.",
+            progress_current: processed,
+            progress_total: total,
+          }).catch((taskError) =>
+            console.warn("Failed to update re-evaluation task", taskError),
+          );
+        },
+      });
+
+      if (taskId && canceledTaskIdsRef.current.has(taskId)) {
+        await updateTask(taskId, {
+          status: "canceled",
+          cancel_requested: true,
+          message: "Re-evaluation canceled by user.",
+        });
+      } else {
+        await updateTask(task.id, {
+          status: "completed",
+          message: `Re-evaluated ${visibleJobIds.length} visible jobs.`,
+          progress_current: visibleJobIds.length,
+          result: { job_ids: visibleJobIds },
+        });
+      }
+
+      safeInfo(
+        "Re-evaluation queued",
+        `${visibleJobIds.length} visible jobs are queued for fresh evaluation.`,
+      );
+    } catch (evaluationTaskError) {
+      const message =
+        evaluationTaskError instanceof Error
+          ? evaluationTaskError.message
+          : "Re-evaluation failed.";
+      if (taskId) {
+        await updateTask(taskId, {
+          status: "failed",
+          message,
+        }).catch((taskError) =>
+          console.warn("Failed to mark re-evaluation task failed", taskError),
+        );
+      }
+      toastError("Re-evaluation failed", message);
+    } finally {
+      if (taskId && activeTaskIdRef.current === taskId) {
+        activeTaskIdRef.current = null;
+      }
+    }
   }, [
+    createTask,
     hasJobReevaluationAccess,
     jobs,
     runBackgroundEvaluations,
     safeInfo,
     sortedJobs,
     toastError,
+    updateTask,
   ]);
+
+  const handleStopJobTask = useCallback(
+    (task: JobIntelligenceTask) => {
+      canceledTaskIdsRef.current.add(task.id);
+      if (activeTaskIdRef.current === task.id) {
+        cancelPopulation();
+      }
+      void cancelTask(task.id).catch((error) => {
+        console.warn("Failed to cancel job task", error);
+        toastError("Cancel failed", error.message || "Could not stop task.");
+      });
+    },
+    [cancelPopulation, cancelTask, toastError],
+  );
+
+  const handleRetryJobTask = useCallback(
+    (task: JobIntelligenceTask) => {
+      canceledTaskIdsRef.current.delete(task.id);
+      const params = task.params ?? {};
+      if (task.type === "scout_search") {
+        const query =
+          typeof params.search_query === "string"
+            ? params.search_query
+            : searchQuery;
+        const location =
+          typeof params.location === "string" ? params.location : selectedLocation;
+        const limit =
+          typeof params.limit === "number" ? params.limit : undefined;
+        void populateQueue(query, location, limit);
+        return;
+      }
+      if (task.type === "pipeline_cleanup") {
+        void cleanLowQualityJobs();
+        return;
+      }
+      if (task.type === "job_reevaluation") {
+        void reevaluateVisibleJobs();
+      }
+    },
+    [
+      cleanLowQualityJobs,
+      populateQueue,
+      reevaluateVisibleJobs,
+      searchQuery,
+      selectedLocation,
+    ],
+  );
 
   // Small helper for relative timestamps
   const formatRelative = (iso?: string | null) => {
@@ -4120,10 +4434,16 @@ export const JobPage = (): JSX.Element => {
             subtitle={`Streaming results… ${currentSource ? `Source: ${currentSource}` : ""}`}
             steps={steps}
             activeStep={stepIndex}
-            onCancel={cancelPopulation}
+            onCancel={handleCancelPopulation}
             foundCount={insertedThisRun}
           />
         )}
+
+        <JobTaskMonitor
+          tasks={jobTasks}
+          onStop={handleStopJobTask}
+          onRetry={handleRetryJobTask}
+        />
 
         {/* Patience Indicator: Show if results are very few (< 10) but we might be finding more, or if we are still in incremental mode */}
         {((total < 10 && queueStatus === "ready") ||

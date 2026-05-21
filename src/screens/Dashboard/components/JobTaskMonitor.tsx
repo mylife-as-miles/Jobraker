@@ -1,0 +1,143 @@
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Loader2,
+  RotateCcw,
+  Square,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import type {
+  JobIntelligenceTask,
+  JobTaskStatus,
+} from "@/hooks/useJobIntelligenceTasks";
+
+interface JobTaskMonitorProps {
+  tasks: JobIntelligenceTask[];
+  onStop: (task: JobIntelligenceTask) => void;
+  onRetry: (task: JobIntelligenceTask) => void;
+}
+
+const statusCopy: Record<JobTaskStatus, string> = {
+  queued: "Queued",
+  running: "Running",
+  completed: "Completed",
+  failed: "Failed",
+  canceled: "Canceled",
+};
+
+const getProgress = (task: JobIntelligenceTask) => {
+  if (task.progress_total <= 0) return task.status === "completed" ? 100 : 0;
+  return Math.max(
+    0,
+    Math.min(100, Math.round((task.progress_current / task.progress_total) * 100)),
+  );
+};
+
+const getStatusIcon = (status: JobTaskStatus) => {
+  if (status === "running" || status === "queued") {
+    return <Loader2 className='h-3.5 w-3.5 animate-spin text-brand' />;
+  }
+  if (status === "completed") {
+    return <CheckCircle2 className='h-3.5 w-3.5 text-brand' />;
+  }
+  return <AlertTriangle className='h-3.5 w-3.5 text-brand' />;
+};
+
+export function JobTaskMonitor({
+  tasks,
+  onStop,
+  onRetry,
+}: JobTaskMonitorProps) {
+  const visibleTasks = tasks.slice(0, 4);
+
+  if (!visibleTasks.length) {
+    return null;
+  }
+
+  return (
+    <Card className='mb-4 overflow-hidden border border-foreground/10 bg-card/80 p-4'>
+      <div className='mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between'>
+        <div>
+          <div className='text-sm font-semibold text-foreground'>
+            Jobraker task registry
+          </div>
+          <p className='text-xs text-foreground/50'>
+            Live progress for Scout, cleanup, and re-evaluation tasks.
+          </p>
+        </div>
+      </div>
+
+      <div className='space-y-3'>
+        {visibleTasks.map((task) => {
+          const progress = getProgress(task);
+          const isActive = task.status === "queued" || task.status === "running";
+          const canRetry = task.status === "failed" || task.status === "canceled";
+
+          return (
+            <div
+              key={task.id}
+              className='rounded-xl border border-foreground/10 bg-foreground/[0.03] p-3'
+            >
+              <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+                <div className='min-w-0 flex-1 space-y-1'>
+                  <div className='flex flex-wrap items-center gap-2'>
+                    {getStatusIcon(task.status)}
+                    <span className='truncate text-sm font-medium text-foreground'>
+                      {task.title}
+                    </span>
+                    <span className='rounded-full border border-foreground/10 bg-foreground/5 px-2 py-0.5 text-[10px] uppercase tracking-wide text-foreground/45'>
+                      {statusCopy[task.status]}
+                    </span>
+                  </div>
+                  {task.message ? (
+                    <p className='text-xs text-foreground/55'>{task.message}</p>
+                  ) : null}
+                </div>
+
+                <div className='flex items-center gap-2'>
+                  {isActive ? (
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      className='h-8 border-foreground/15 bg-foreground/5 px-2 text-xs text-foreground/70 hover:border-brand/40 hover:text-brand'
+                      onClick={() => onStop(task)}
+                    >
+                      <Square className='mr-1.5 h-3.5 w-3.5' />
+                      Stop
+                    </Button>
+                  ) : null}
+                  {canRetry ? (
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      className='h-8 border-foreground/15 bg-foreground/5 px-2 text-xs text-foreground/70 hover:border-brand/40 hover:text-brand'
+                      onClick={() => onRetry(task)}
+                    >
+                      <RotateCcw className='mr-1.5 h-3.5 w-3.5' />
+                      Retry
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className='mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/10'>
+                <div
+                  className='h-full rounded-full bg-brand transition-all duration-500'
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className='mt-1.5 text-right text-[10px] text-foreground/40'>
+                {task.progress_total > 0
+                  ? `${task.progress_current}/${task.progress_total}`
+                  : `${progress}%`}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
