@@ -5,6 +5,7 @@ import {
   Loader2,
   RotateCcw,
   Square,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -62,6 +63,7 @@ export function JobTaskMonitor({
   onStop,
   onRetry,
 }: JobTaskMonitorProps) {
+  const [dismissedTaskIds, setDismissedTaskIds] = useState<Set<string>>(new Set());
   const [, setRenderTrigger] = useState(0);
 
   useEffect(() => {
@@ -69,14 +71,20 @@ export function JobTaskMonitor({
     const now = Date.now();
 
     tasks.forEach((task) => {
-      if (task.status === "completed") {
+      const isTerminal =
+        task.status === "completed" ||
+        task.status === "failed" ||
+        task.status === "canceled";
+
+      if (isTerminal) {
         const completedTime = task.completed_at ? Date.parse(task.completed_at) : null;
         if (completedTime) {
           const age = now - completedTime;
-          if (age < 5000) {
+          const maxAge = task.status === "completed" ? 5000 : 15000; // 5s for completed, 15s for failed/canceled
+          if (age < maxAge) {
             const timeout = setTimeout(() => {
               setRenderTrigger((prev) => prev + 1);
-            }, 5000 - age);
+            }, maxAge - age);
             timeouts.push(timeout);
           }
         }
@@ -88,12 +96,33 @@ export function JobTaskMonitor({
     };
   }, [tasks]);
 
+  // Find all task IDs that have been retried (so we can hide the original/old failed task)
+  const retriedTaskIds = new Set<string>();
+  tasks.forEach((task) => {
+    if (task.retry_of) {
+      retriedTaskIds.add(task.retry_of);
+    }
+  });
+
   const visibleTasks = tasks
     .filter((task) => {
-      if (task.status !== "completed") return true;
-      const completedTime = task.completed_at ? Date.parse(task.completed_at) : null;
-      if (!completedTime) return true;
-      return Date.now() - completedTime < 5000;
+      if (dismissedTaskIds.has(task.id)) return false;
+      if (retriedTaskIds.has(task.id)) return false;
+
+      const isTerminal =
+        task.status === "completed" ||
+        task.status === "failed" ||
+        task.status === "canceled";
+
+      if (isTerminal) {
+        const completedTime = task.completed_at ? Date.parse(task.completed_at) : null;
+        if (completedTime) {
+          const maxAge = task.status === "completed" ? 5000 : 15000;
+          return Date.now() - completedTime < maxAge;
+        }
+      }
+
+      return true;
     })
     .slice(0, 4);
 
@@ -170,6 +199,22 @@ export function JobTaskMonitor({
                     >
                       <RotateCcw className='mr-1.5 h-3.5 w-3.5' />
                       Retry
+                    </Button>
+                  ) : null}
+                  {!isActive ? (
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='sm'
+                      className='h-8 w-8 p-0 text-foreground/40 hover:bg-foreground/5 hover:text-foreground/75'
+                      onClick={() => setDismissedTaskIds((prev) => {
+                        const next = new Set(prev);
+                        next.add(task.id);
+                        return next;
+                      })}
+                      title="Dismiss task"
+                    >
+                      <X className='h-3.5 w-3.5' />
                     </Button>
                   ) : null}
                 </div>
