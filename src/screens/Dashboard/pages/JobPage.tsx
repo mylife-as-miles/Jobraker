@@ -24,6 +24,7 @@ import {
   Lock,
   Zap,
   Crown,
+  X,
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1938,9 +1939,7 @@ export const JobPage = (): JSX.Element => {
             queryBuilder = queryBuilder.gte("discovered_at", scope.startedAt);
           }
 
-          if (typeof scope?.limit === "number" && scope.limit > 0) {
-            queryBuilder = queryBuilder.limit(scope.limit);
-          }
+
         } else {
           queryBuilder = queryBuilder.order("created_at", { ascending: false });
         }
@@ -4547,6 +4546,21 @@ export const JobPage = (): JSX.Element => {
                           AI Matched
                         </span>
                       )}
+                      {activeSearchScope && (
+                        <Button
+                          onClick={async () => {
+                            setActiveSearchScope(null);
+                            activeSearchScopeRef.current = null;
+                            await queryClient.invalidateQueries({ queryKey: jobsQueueKeys.all });
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          className="ml-2 h-7 px-2.5 rounded-lg text-xs font-semibold bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 flex items-center gap-1 transition-all duration-200"
+                        >
+                          <X className="h-3 w-3" />
+                          <span>Clear Search</span>
+                        </Button>
+                      )}
                     </>
                   )}
               </h2>
@@ -5514,105 +5528,106 @@ export const JobPage = (): JSX.Element => {
                           <Card
                             id='jobs-ai-match'
                             data-tour='jobs-ai-match'
-                            className='relative overflow-hidden border border-brand/20 bg-gradient-to-br from-background via-background to-background p-6'
+                            className='relative overflow-hidden border border-brand/20 bg-gradient-to-br from-background via-background to-background p-0 flex flex-row items-stretch'
                           >
                             <span className='pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-brand/20 blur-3xl opacity-60' />
-                            <div className='relative flex flex-col gap-5'>
-                              {/* Header row: logo + info + action buttons */}
-                              <div className='flex items-start gap-3 sm:gap-4'>
-                                {/* Logo */}
-                                {job.logoUrl && !logoError[job.id] ? (
-                                  <img
-                                    src={job.logoUrl}
-                                    alt={job.company}
-                                    className='w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-xl object-contain bg-foreground flex-shrink-0'
-                                    onError={() =>
-                                      setLogoError((e) => ({
-                                        ...e,
-                                        [job.id]: true,
-                                      }))
-                                    }
-                                  />
-                                ) : (
-                                  <div className='w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-gradient-to-r from-brand to-background rounded-xl flex items-center justify-center font-bold text-lg sm:text-xl md:text-2xl flex-shrink-0'>
-                                    {job.logo}
-                                  </div>
-                                )}
+                            
+                            {/* Logo: full height on the left, width proportional */}
+                            <div className='relative w-24 sm:w-auto sm:h-full sm:aspect-square flex-shrink-0 bg-foreground/5 flex items-center justify-center overflow-hidden border-r border-brand/10'>
+                              {job.logoUrl && !logoError[job.id] ? (
+                                <img
+                                  src={job.logoUrl}
+                                  alt={job.company}
+                                  className='w-full h-full object-cover'
+                                  onError={() =>
+                                    setLogoError((e) => ({
+                                      ...e,
+                                      [job.id]: true,
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                <div className='w-full h-full bg-gradient-to-r from-brand to-background flex items-center justify-center font-bold text-xl sm:text-2xl md:text-3xl'>
+                                  {job.logo}
+                                </div>
+                              )}
+                            </div>
 
-                                {/* Content + buttons */}
-                                <div className='flex-1 min-w-0'>
-                                  <div className='flex flex-col gap-4'>
-                                    {/* Title & meta */}
-                                    <div className='flex-1 min-w-0 space-y-2'>
-                                      <div className='inline-flex items-center gap-2 flex-wrap text-[11px] uppercase tracking-[0.3em] text-brand/80'>
-                                        <Sparkles className='w-3 h-3' />
-                                        Featured Job
-                                      </div>
-                                      <h1
-                                        className='max-w-3xl text-lg sm:text-xl md:text-2xl font-semibold text-foreground leading-tight line-clamp-3'
-                                        title={job.title}
-                                      >
-                                        {job.title}
-                                      </h1>
-                                      <div className='flex flex-wrap items-center gap-2 text-sm text-foreground/70'>
-                                        <span className='font-medium text-foreground/90'>
-                                          {job.company}
-                                        </span>
-                                        {siteHost && (
-                                          <span
-                                            className='inline-flex max-w-full items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-foreground/10 bg-foreground/5 text-foreground/60'
-                                            title={primaryHref || undefined}
-                                          >
-                                            {ico && (
-                                              <img
-                                                src={ico}
-                                                alt=''
-                                                className='w-3 h-3 rounded flex-shrink-0'
-                                                onError={(e) =>
-                                                  ((
-                                                    e.target as HTMLImageElement
-                                                  ).style.display = "none")
-                                                }
-                                              />
-                                            )}
-                                            <span className='truncate'>
-                                              {siteHost}
-                                            </span>
-                                          </span>
-                                        )}
-                                        {job.posted_at && (
-                                          <span className='text-[11px] px-2 py-1 rounded-full border border-foreground/10 text-foreground/50 bg-foreground/5 whitespace-nowrap flex-shrink-0'>
-                                            Posted{" "}
-                                            {formatRelative(job.posted_at)}
-                                          </span>
-                                        )}
-                                      </div>
+                            {/* Content & tiles */}
+                            <div className='relative flex-1 min-w-0 p-5 sm:p-6 flex flex-col justify-between gap-5'>
+                              {/* Header row: title & details */}
+                              <div className='flex-1 min-w-0'>
+                                <div className='flex flex-col gap-4'>
+                                  {/* Title & meta */}
+                                  <div className='flex-1 min-w-0 space-y-2'>
+                                    <div className='inline-flex items-center gap-2 flex-wrap text-[11px] uppercase tracking-[0.3em] text-brand/80'>
+                                      <Sparkles className='w-3 h-3' />
+                                      Featured Job
                                     </div>
-
-                                    {/* Action buttons stay below the title until the card has enough width. */}
-                                    <div className='flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2'>
-                                      {primaryHref && (
-                                        <a
-                                          href={primaryHref}
-                                          target='_blank'
-                                          rel='noopener noreferrer'
-                                          className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-foreground/10  px-4 py-2 text-sm font-medium text-foreground transition '
+                                    <h1
+                                      className='max-w-3xl text-lg sm:text-xl md:text-2xl font-semibold text-foreground leading-tight line-clamp-3'
+                                      title={job.title}
+                                    >
+                                      {job.title}
+                                    </h1>
+                                    <div className='flex flex-wrap items-center gap-2 text-sm text-foreground/70'>
+                                      <span className='font-medium text-foreground/90'>
+                                        {job.company}
+                                      </span>
+                                      {siteHost && (
+                                        <span
+                                          className='inline-flex max-w-full items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-foreground/10 bg-foreground/5 text-foreground/60'
+                                          title={primaryHref || undefined}
                                         >
-                                          View Posting
-                                        </a>
+                                          {ico && (
+                                            <img
+                                              src={ico}
+                                              alt=''
+                                              className='w-3 h-3 rounded flex-shrink-0'
+                                              onError={(e) =>
+                                                ((
+                                                  e.target as HTMLImageElement
+                                                ).style.display = "none")
+                                              }
+                                            />
+                                          )}
+                                          <span className='truncate'>
+                                            {siteHost}
+                                          </span>
+                                        </span>
                                       )}
-                                      <Button
-                                        onClick={() => openAutoApplyFlow(job)}
-                                        className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand/40 bg-brand/5 px-4 py-2 text-sm font-medium text-brand '
-                                        title='Launch auto apply suite for this job'
-                                      >
-                                        <Briefcase className='w-4 h-4' />
-                                        Auto Apply Suite
-                                        {!hasAutoApplyAccess && (
-                                          <Lock className='w-3 h-3 opacity-60' />
-                                        )}
-                                      </Button>
+                                      {job.posted_at && (
+                                        <span className='text-[11px] px-2 py-1 rounded-full border border-foreground/10 text-foreground/50 bg-foreground/5 whitespace-nowrap flex-shrink-0'>
+                                          Posted{" "}
+                                          {formatRelative(job.posted_at)}
+                                        </span>
+                                      )}
                                     </div>
+                                  </div>
+
+                                  {/* Action buttons stay below the title until the card has enough width. */}
+                                  <div className='flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2'>
+                                    {primaryHref && (
+                                      <a
+                                        href={primaryHref}
+                                        target='_blank'
+                                        rel='noopener noreferrer'
+                                        className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-foreground/10  px-4 py-2 text-sm font-medium text-foreground transition '
+                                      >
+                                        View Posting
+                                      </a>
+                                    )}
+                                    <Button
+                                      onClick={() => openAutoApplyFlow(job)}
+                                      className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand/40 bg-brand/5 px-4 py-2 text-sm font-medium text-brand '
+                                      title='Launch auto apply suite for this job'
+                                    >
+                                      <Briefcase className='w-4 h-4' />
+                                      Auto Apply Suite
+                                      {!hasAutoApplyAccess && (
+                                        <Lock className='w-3 h-3 opacity-60' />
+                                      )}
+                                    </Button>
                                   </div>
                                 </div>
                               </div>
@@ -6995,24 +7010,30 @@ export const JobPage = (): JSX.Element => {
                   }[];
 
                   return (
-                    <Card className='relative overflow-hidden border border-brand/25 bg-gradient-to-br from-background via-background to-background p-5'>
+                    <Card className='relative overflow-hidden border border-brand/25 bg-gradient-to-br from-background via-background to-background p-0 flex flex-row items-stretch'>
                       <span className='pointer-events-none absolute -top-20 -right-10 h-40 w-40 rounded-full bg-brand/20 blur-3xl opacity-50' />
-                      <div className='relative space-y-4'>
-                        <div className='flex items-start gap-3'>
-                          {j.logoUrl && !logoError[j.id] ? (
-                            <img
-                              src={j.logoUrl}
-                              alt={j.company}
-                              className='w-12 h-12 rounded-xl object-contain bg-foreground flex-shrink-0'
-                              onError={() =>
-                                setLogoError((e) => ({ ...e, [j.id]: true }))
-                              }
-                            />
-                          ) : (
-                            <div className='w-12 h-12 bg-gradient-to-r from-brand to-background rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0'>
-                              {j.logo}
-                            </div>
-                          )}
+                      
+                      {/* Logo Column */}
+                      <div className='relative w-20 sm:w-auto sm:h-full sm:aspect-square flex-shrink-0 bg-foreground/5 flex items-center justify-center overflow-hidden border-r border-brand/10'>
+                        {j.logoUrl && !logoError[j.id] ? (
+                          <img
+                            src={j.logoUrl}
+                            alt={j.company}
+                            className='w-full h-full object-cover'
+                            onError={() =>
+                              setLogoError((e) => ({ ...e, [j.id]: true }))
+                            }
+                          />
+                        ) : (
+                          <div className='w-full h-full bg-gradient-to-r from-brand to-background flex items-center justify-center font-bold text-lg sm:text-xl md:text-2xl'>
+                            {j.logo}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Content Column */}
+                      <div className='relative flex-1 min-w-0 p-4 sm:p-5 flex flex-col justify-between gap-4'>
+                        <div className='space-y-3'>
                           <div className='flex-1 min-w-0 space-y-1'>
                             <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-brand/70'>
                               <Sparkles className='w-3 h-3' />
@@ -7053,6 +7074,7 @@ export const JobPage = (): JSX.Element => {
                             </div>
                           </div>
                         </div>
+
                         {metaTiles.length > 0 && (
                           <div className='grid grid-cols-2 gap-2'>
                             {metaTiles.map((tile) => (
@@ -7072,6 +7094,7 @@ export const JobPage = (): JSX.Element => {
                             ))}
                           </div>
                         )}
+
                         <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-2'>
                           {primaryHref && (
                             <a
