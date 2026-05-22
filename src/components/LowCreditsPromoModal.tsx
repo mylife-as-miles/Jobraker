@@ -9,12 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Rocket, Unlock, X, Check } from "lucide-react";
 import type { CreditBalance } from "@/types/credits";
 import { cn } from "@/lib/utils";
+import {
+  LOW_CREDIT_RESCUE_CODE,
+  LOW_CREDIT_RESCUE_DISCOUNT_PCT,
+  LOW_CREDIT_RESCUE_DURATION_MS,
+  ensureLowCreditRescueExpiry,
+  readLowCreditRescueExpiry,
+} from "@/lib/lowCreditRescuePromo";
 
 const STORAGE_KEY = "jobraker_low_credits_promo_snooze_until";
 const DISMISS_MS = 1000 * 60 * 60 * 18;
-/** Shown in UI; billing still uses your real catalog — this is promotional framing. */
-export const PROMO_CODE_DISPLAY = "JOBRAKER_PERSONAL";
-export const PROMO_DISCOUNT_PCT = 55;
+export const PROMO_CODE_DISPLAY = LOW_CREDIT_RESCUE_CODE;
+export const PROMO_DISCOUNT_PCT = LOW_CREDIT_RESCUE_DISCOUNT_PCT;
 
 function readSnoozeUntil(): number {
   try {
@@ -35,9 +41,6 @@ function snoozePromo() {
   }
 }
 
-/**
- * When to surface the urgency modal: nearly exhausted wallet or low vs lifetime earned.
- */
 export function getCreditPressureStats(b: CreditBalance | null): {
   shouldAlert: boolean;
   percentSpent: number;
@@ -100,12 +103,9 @@ export function LowCreditsPromoModal({
 }: LowCreditsPromoModalProps) {
   const [secondsLeft, setSecondsLeft] = useState(() => {
     try {
-      const raw = localStorage.getItem("jobraker_promo_expiry");
-      if (raw) {
-        const expiry = parseInt(raw, 10);
-        if (!isNaN(expiry)) {
-          return Math.max(0, Math.ceil((expiry - Date.now()) / 1000));
-        }
+      const expiry = readLowCreditRescueExpiry();
+      if (expiry > 0) {
+        return Math.max(0, Math.ceil((expiry - Date.now()) / 1000));
       }
     } catch {
       // ignore
@@ -120,27 +120,28 @@ export function LowCreditsPromoModal({
 
     const getExpiryTime = () => {
       try {
-        const raw = localStorage.getItem("jobraker_promo_expiry");
-        if (raw) {
-          const parsed = parseInt(raw, 10);
-          if (!isNaN(parsed)) return parsed;
-        }
-      } catch (e) {
-        console.error(e);
+        const existing = readLowCreditRescueExpiry();
+        if (existing > Date.now()) return existing;
+      } catch (error) {
+        console.error(error);
       }
-      const newExpiry = Date.now() + 60 * 60 * 1000;
+
       try {
-        localStorage.setItem("jobraker_promo_expiry", String(newExpiry));
-      } catch (e) {
-        console.error(e);
+        return ensureLowCreditRescueExpiry();
+      } catch (error) {
+        console.error(error);
       }
-      return newExpiry;
+
+      return Date.now() + LOW_CREDIT_RESCUE_DURATION_MS;
     };
 
     const expiryTime = getExpiryTime();
 
     const updateTimer = () => {
-      const remaining = Math.max(0, Math.ceil((expiryTime - Date.now()) / 1000));
+      const remaining = Math.max(
+        0,
+        Math.ceil((expiryTime - Date.now()) / 1000),
+      );
       setSecondsLeft(remaining);
     };
 
@@ -160,38 +161,38 @@ export function LowCreditsPromoModal({
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => (o ? onOpenChange(true) : handleClose())}
+      onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : handleClose())}
     >
       <DialogContent
         hideCloseButton
-        className='max-w-[min(100%,420px)] border border-fuchsia-500/25 bg-zinc-950 p-0 text-foreground shadow-[0_0_0_1px_rgba(217,70,239,0.15),0_25px_80px_-20px_rgba(0,0,0,0.85)] sm:rounded-2xl overflow-hidden gap-0'
+        className='max-w-[min(100%,420px)] overflow-hidden gap-0 border border-fuchsia-500/25 bg-zinc-950 p-0 text-foreground shadow-[0_0_0_1px_rgba(217,70,239,0.15),0_25px_80px_-20px_rgba(0,0,0,0.85)] sm:rounded-2xl'
       >
         <DialogTitle className='sr-only'>
-          Low credits — limited-time upgrade offer
+          Low credits - one-time rescue offer
         </DialogTitle>
         <DialogDescription className='sr-only'>
-          You have used most of your credits. You can upgrade or top up using
-          the promo on this screen.
+          You have used most of your credits. This screen unlocks a one-time
+          rescue offer on your next upgrade.
         </DialogDescription>
-        {/* Top alert bar */}
+
         <div className='flex items-center justify-between gap-3 border-b border-white/10 bg-black/40 px-4 py-2.5'>
-          <div className='flex items-center gap-2 min-w-0'>
+          <div className='flex min-w-0 items-center gap-2'>
             <Rocket className='h-4 w-4 shrink-0 text-white' aria-hidden />
-            <span className='text-xs sm:text-sm font-medium text-white/95 truncate'>
+            <span className='truncate text-xs font-medium text-white/95 sm:text-sm'>
               You&apos;ve spent {stats.percentSpent}% of your credits
             </span>
           </div>
           <button
             type='button'
             onClick={handleClose}
-            className='rounded-lg p-1.5 text-white/70 hover:text-white hover:bg-white/10 transition-colors'
+            className='rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white'
             aria-label='Dismiss'
           >
             <X className='h-4 w-4' />
           </button>
         </div>
 
-        <div className='px-6 pt-8 pb-6 space-y-5'>
+        <div className='space-y-5 px-6 pb-6 pt-8'>
           <div className='flex justify-center'>
             <div
               className={cn(
@@ -208,53 +209,52 @@ export function LowCreditsPromoModal({
             </div>
           </div>
 
-          <div className='text-center space-y-1'>
-            <p className='text-xl sm:text-2xl font-extrabold tracking-tight text-fuchsia-400 uppercase leading-tight'>
-              Your last chance
+          <div className='space-y-1 text-center'>
+            <p className='text-xl font-extrabold uppercase leading-tight tracking-tight text-fuchsia-400 sm:text-2xl'>
+              Rescue pricing unlocked
             </p>
-            <p className='text-xl sm:text-2xl font-extrabold tracking-tight text-white uppercase leading-tight'>
-              to upgrade with discount
+            <p className='text-xl font-extrabold uppercase leading-tight tracking-tight text-white sm:text-2xl'>
+              before your credits run dry
             </p>
           </div>
 
-          <p className='text-center text-sm text-zinc-400 leading-relaxed px-1'>
+          <p className='px-1 text-center text-sm leading-relaxed text-zinc-400'>
             You have only{" "}
-            <span className='text-white font-semibold'>
+            <span className='font-semibold text-white'>
               {stats.percentRemaining}%
             </span>{" "}
-            of your credits left. Top up or move to a higher plan — limited-time
-            promo pricing below.
+            of your credits left. You unlocked a one-time rescue offer on your
+            next upgrade before this hour closes.
           </p>
 
-          {/* Coupon strip */}
-          <div className='rounded-xl border border-white/10 bg-zinc-900/80 overflow-hidden'>
-            <div className='flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-brand/10'>
-              <Check className='h-4 w-4 text-brand shrink-0' strokeWidth={3} />
+          <div className='overflow-hidden rounded-xl border border-white/10 bg-zinc-900/80'>
+            <div className='flex items-center gap-2 border-b border-white/10 bg-brand/10 px-3 py-2'>
+              <Check className='h-4 w-4 shrink-0 text-brand' strokeWidth={3} />
               <span className='text-xs font-semibold text-brand'>
-                {PROMO_CODE_DISPLAY} promocode is applied
+                {PROMO_CODE_DISPLAY} is reserved for this account
               </span>
             </div>
-            <div className='grid grid-cols-[1fr_auto_1fr] gap-0 items-stretch min-h-[88px]'>
-              <div className='flex flex-col justify-center px-4 py-3 border-r border-dashed border-white/20'>
-                <span className='text-2xl sm:text-3xl font-black text-fuchsia-400 tabular-nums leading-none'>
+            <div className='grid min-h-[88px] grid-cols-[1fr_auto_1fr] items-stretch gap-0'>
+              <div className='flex flex-col justify-center border-r border-dashed border-white/20 px-4 py-3'>
+                <span className='text-2xl font-black leading-none tabular-nums text-fuchsia-400 sm:text-3xl'>
                   {PROMO_DISCOUNT_PCT}% OFF
                 </span>
-                <span className='text-[10px] text-zinc-500 mt-1.5 uppercase tracking-wide'>
-                  With limited-offer promo
+                <span className='mt-1.5 text-[10px] uppercase tracking-wide text-zinc-500'>
+                  One-time rescue offer
                 </span>
               </div>
               <div className='w-px bg-transparent' aria-hidden />
               <div className='flex flex-col items-center justify-center px-3 py-3'>
                 <div className='flex items-baseline gap-0.5 font-mono tabular-nums'>
-                  <span className='text-3xl sm:text-4xl font-bold text-white leading-none'>
+                  <span className='text-3xl font-bold leading-none text-white sm:text-4xl'>
                     {String(mm).padStart(2, "0")}
                   </span>
-                  <span className='text-2xl text-white/60 pb-1'>:</span>
-                  <span className='text-3xl sm:text-4xl font-bold text-white leading-none'>
+                  <span className='pb-1 text-2xl text-white/60'>:</span>
+                  <span className='text-3xl font-bold leading-none text-white sm:text-4xl'>
                     {String(ss).padStart(2, "0")}
                   </span>
                 </div>
-                <div className='flex gap-6 mt-1 text-[10px] text-zinc-500 uppercase tracking-wider'>
+                <div className='mt-1 flex gap-6 text-[10px] uppercase tracking-wider text-zinc-500'>
                   <span>minutes</span>
                   <span>seconds</span>
                 </div>
@@ -269,9 +269,9 @@ export function LowCreditsPromoModal({
               onUpgrade();
               handleClose();
             }}
-            className='w-full h-12 rounded-xl bg-brand text-black font-bold text-sm sm:text-base hover:bg-brand hover:brightness-110 shadow-[0_0_24px_rgba(29,255,0,0.35)] hover:shadow-[0_0_32px_rgba(29,255,0,0.45)] transition-all'
+            className='h-12 w-full rounded-xl bg-brand text-sm font-bold text-black shadow-[0_0_24px_rgba(29,255,0,0.35)] transition-all hover:bg-brand hover:brightness-110 hover:shadow-[0_0_32px_rgba(29,255,0,0.45)] sm:text-base'
           >
-            Get your upgrade discount
+            Use my rescue offer
           </Button>
         </div>
       </DialogContent>

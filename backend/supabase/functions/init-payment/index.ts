@@ -181,7 +181,7 @@ serve(async (req) => {
       displayName = `${plan.name} Subscription`;
 
       if (body.promoCode === "JOBRAKER_PERSONAL") {
-        priceUsd = Math.round(priceUsd * 0.45 * 100) / 100;
+        priceUsd = Math.round(priceUsd * 0.85 * 100) / 100;
       }
 
       authoritativeMetadata = {
@@ -195,7 +195,7 @@ serve(async (req) => {
         auto_apply_monthly_limit: resolvedAutoApply,
         currency: plan.currency || "USD",
         ...(body.promoCode === "JOBRAKER_PERSONAL"
-          ? { promo_code: "JOBRAKER_PERSONAL", discount_pct: 55 }
+          ? { promo_code: "JOBRAKER_PERSONAL", discount_pct: 15 }
           : {}),
       };
     } else if (purchaseType === "credit_pack") {

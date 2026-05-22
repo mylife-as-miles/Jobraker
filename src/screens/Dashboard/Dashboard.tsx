@@ -938,7 +938,7 @@ export const Dashboard = (): JSX.Element => {
           balance={creditBalance}
           loading={creditsLoading}
           onUpgrade={() =>
-            navigate("/dashboard/billing?promo=JOBRAKER_PERSONAL")
+            navigate("/dashboard/billing?promo=LOWCREDIT_RESCUE")
           }
         />
         <ExperienceFeedbackPrompt />

@@ -38,6 +38,13 @@ import {
   BILLING_PLAN_DEFINITIONS,
 } from "@/lib/billingCatalog";
 import { BillingFAQSection } from "@/components/billing/BillingFAQSection";
+import {
+  LOW_CREDIT_RESCUE_CODE,
+  LOW_CREDIT_RESCUE_DISCOUNT_PCT,
+  LOW_CREDIT_RESCUE_MULTIPLIER,
+  ensureLowCreditRescueExpiry,
+  isLowCreditRescueCode,
+} from "@/lib/lowCreditRescuePromo";
 
 interface SubscriptionPlan {
   id: string;
@@ -251,7 +258,9 @@ function getPlanPricingDisplay(
 ): PlanPricingDisplay {
   const def = BILLING_PLAN_DEFINITIONS.find((p) => p.name === planName);
   const originalMonthly = def?.monthlyPriceUsd ?? fallbackMonthlyFromDb;
-  const monthly = promoApplied ? originalMonthly * 0.45 : originalMonthly;
+  const monthly = promoApplied
+    ? originalMonthly * LOW_CREDIT_RESCUE_MULTIPLIER
+    : originalMonthly;
 
   if (!def || originalMonthly <= 0) {
     return {
@@ -265,9 +274,13 @@ function getPlanPricingDisplay(
   }
 
   const originalQuarterly = def.quarterlyPriceUsd ?? 0;
-  const quarterlyUsd = promoApplied ? originalQuarterly * 0.45 : originalQuarterly;
+  const quarterlyUsd = promoApplied
+    ? originalQuarterly * LOW_CREDIT_RESCUE_MULTIPLIER
+    : originalQuarterly;
   const originalYearly = def.yearlyPriceUsd ?? 0;
-  const yearly = promoApplied ? originalYearly * 0.45 : originalYearly;
+  const yearly = promoApplied
+    ? originalYearly * LOW_CREDIT_RESCUE_MULTIPLIER
+    : originalYearly;
 
   if (interval === "quarterly" && originalQuarterly > 0) {
     const stacked = monthly * 3;
@@ -285,7 +298,7 @@ function getPlanPricingDisplay(
         : `3 × $${monthly}/mo → $${stacked.toLocaleString("en-US")}`,
       subline: `≈ $${Math.round(eqMo)}/mo equivalent · billed every 3 months`,
       savingsBadge: promoApplied
-        ? `Promo: 55% OFF applied!`
+        ? `Rescue offer: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
         : `Save $${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
@@ -305,7 +318,7 @@ function getPlanPricingDisplay(
         : `12 × $${monthly}/mo → $${stacked.toLocaleString("en-US")}`,
       subline: `≈ $${Math.round(eqMo)}/mo when paid annually`,
       savingsBadge: promoApplied
-        ? `Promo: 55% OFF applied!`
+        ? `Rescue offer: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
         : `Save $${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
@@ -315,8 +328,8 @@ function getPlanPricingDisplay(
     headline: monthly.toLocaleString("en-US", { maximumFractionDigits: 0 }),
     suffix: "/mo",
     compareAt: promoApplied ? `Original: $${originalMonthly}/mo` : null,
-    subline: promoApplied ? `Promo: 55% OFF Applied` : "Billed monthly · cancel anytime",
-    savingsBadge: promoApplied ? `Promo: 55% OFF applied!` : null,
+    subline: promoApplied ? `Promo: 15% OFF Applied` : "Billed monthly · cancel anytime",
+    savingsBadge: promoApplied ? `Promo: 15% OFF applied!` : null,
     effectiveMonthly: monthly,
   };
 }
@@ -335,11 +348,17 @@ function getUltimatePricingDisplay(
   }
   const ratio = selectedCredits / def.creditsPerMonth;
   const originalMonthly = (def.monthlyPriceUsd ?? fallbackMonthlyFromDb) * ratio;
-  const monthlyUsd = promoApplied ? originalMonthly * 0.45 : originalMonthly;
+  const monthlyUsd = promoApplied
+    ? originalMonthly * LOW_CREDIT_RESCUE_MULTIPLIER
+    : originalMonthly;
   const originalQuarterlyBase = def.quarterlyPriceUsd ?? 0;
-  const quarterlyBase = promoApplied ? originalQuarterlyBase * 0.45 : originalQuarterlyBase;
+  const quarterlyBase = promoApplied
+    ? originalQuarterlyBase * LOW_CREDIT_RESCUE_MULTIPLIER
+    : originalQuarterlyBase;
   const originalYearlyBase = def.yearlyPriceUsd ?? 0;
-  const yearlyBase = promoApplied ? originalYearlyBase * 0.45 : originalYearlyBase;
+  const yearlyBase = promoApplied
+    ? originalYearlyBase * LOW_CREDIT_RESCUE_MULTIPLIER
+    : originalYearlyBase;
 
   if (interval === "quarterly" && originalQuarterlyBase > 0) {
     const quarterly = Math.round(quarterlyBase * ratio * 100) / 100;
@@ -358,7 +377,7 @@ function getUltimatePricingDisplay(
         : `3 × $${Math.round(monthlyUsd)}/mo → $${Math.round(stacked).toLocaleString("en-US")}`,
       subline: `≈ $${Math.round(eqMo)}/mo equivalent · billed every 3 months`,
       savingsBadge: promoApplied
-        ? `Promo: 55% OFF applied!`
+        ? `Rescue offer: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
         : `Save $${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
@@ -381,7 +400,7 @@ function getUltimatePricingDisplay(
         : `12 × $${Math.round(monthlyUsd)}/mo → $${Math.round(stacked).toLocaleString("en-US")}`,
       subline: `≈ $${Math.round(eqMo)}/mo when paid annually`,
       savingsBadge: promoApplied
-        ? `Promo: 55% OFF applied!`
+        ? `Rescue offer: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
         : `Save $${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
@@ -393,8 +412,8 @@ function getUltimatePricingDisplay(
     }),
     suffix: "/mo",
     compareAt: promoApplied ? `Original: $${Math.round(originalMonthly)}/mo` : null,
-    subline: promoApplied ? `Promo: 55% OFF Applied` : "Billed monthly · cancel anytime",
-    savingsBadge: promoApplied ? `Promo: 55% OFF applied!` : null,
+    subline: promoApplied ? `Promo: 15% OFF Applied` : "Billed monthly · cancel anytime",
+    savingsBadge: promoApplied ? `Promo: 15% OFF applied!` : null,
     effectiveMonthly: monthlyUsd,
   };
 }
@@ -441,21 +460,15 @@ export const BillingPage = () => {
     if (typeof window === "undefined") return;
     const searchParams = new URLSearchParams(window.location.search);
     const promo = searchParams.get("promo");
-    if (promo === "JOBRAKER_PERSONAL") {
-      try {
-        let rawExpiry = localStorage.getItem("jobraker_promo_expiry");
-        if (!rawExpiry) {
-          const newExpiry = Date.now() + 60 * 60 * 1000;
-          localStorage.setItem("jobraker_promo_expiry", String(newExpiry));
-          rawExpiry = String(newExpiry);
-        }
-        const expiryTime = parseInt(rawExpiry, 10);
-        if (!isNaN(expiryTime) && Date.now() < expiryTime) {
-          setPromoApplied(true);
-        }
-      } catch (e) {
-        console.error("Failed to read/write jobraker_promo_expiry", e);
+    if (!isLowCreditRescueCode(promo)) return;
+
+    try {
+      const expiryTime = ensureLowCreditRescueExpiry();
+      if (Date.now() < expiryTime) {
+        setPromoApplied(true);
       }
+    } catch (error) {
+      console.error("Failed to initialize low-credit rescue promo", error);
     }
   }, []);
 
@@ -614,27 +627,49 @@ export const BillingPage = () => {
         setCancelAtPeriodEnd(false);
       }
 
+      const { data: recentSubscriptionOrders } = await supabase
+        .from("orders")
+        .select("payment_cycle, metadata")
+        .eq("user_id", userId)
+        .eq("plan_type", "subscription")
+        .eq("is_success", true)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
       if (!resolvedCycle) {
-        const { data: lastSubOrder } = await supabase
-          .from("orders")
-          .select("payment_cycle, metadata")
-          .eq("user_id", userId)
-          .eq("plan_type", "subscription")
-          .eq("is_success", true)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const pc = (lastSubOrder as { payment_cycle?: string } | null)
-          ?.payment_cycle;
-        const meta = (
-          lastSubOrder as { metadata?: { billing_cycle?: string } } | null
-        )?.metadata;
+        const lastSubOrder = (
+          recentSubscriptionOrders as
+            | Array<{
+                payment_cycle?: string;
+                metadata?: { billing_cycle?: string };
+              }>
+            | null
+        )?.[0];
+        const pc = lastSubOrder?.payment_cycle;
+        const meta = lastSubOrder?.metadata;
         if (pc === "yearly" || meta?.billing_cycle === "yearly")
           resolvedCycle = "yearly";
         else if (pc === "quarterly" || meta?.billing_cycle === "quarterly") {
           resolvedCycle = "quarterly";
         } else if (pc === "monthly" || meta?.billing_cycle === "monthly") {
           resolvedCycle = "monthly";
+        }
+      }
+
+      if (typeof window !== "undefined") {
+        const requestedPromo = new URLSearchParams(window.location.search).get(
+          "promo",
+        );
+        const redeemedLowCreditRescue = (
+          recentSubscriptionOrders as Array<{
+            metadata?: { promo_code?: string };
+          }> | null
+        )?.some((order) =>
+          isLowCreditRescueCode(order?.metadata?.promo_code ?? null),
+        );
+
+        if (isLowCreditRescueCode(requestedPromo) && redeemedLowCreditRescue) {
+          setPromoApplied(false);
         }
       }
 
@@ -768,7 +803,7 @@ export const BillingPage = () => {
           typeof item.ultimateCreditsPerMonth === "number"
             ? { ultimateCreditsPerMonth: item.ultimateCreditsPerMonth }
             : {}),
-          ...(promoApplied ? { promoCode: "JOBRAKER_PERSONAL" } : {}),
+          ...(promoApplied ? { promoCode: LOW_CREDIT_RESCUE_CODE } : {}),
         };
         analyticsProperties = {
           purchase_type: type,
@@ -779,7 +814,7 @@ export const BillingPage = () => {
           typeof item.ultimateCreditsPerMonth === "number"
             ? { ultimate_credits_per_month: item.ultimateCreditsPerMonth }
             : {}),
-          ...(promoApplied ? { promo_code: "JOBRAKER_PERSONAL" } : {}),
+          ...(promoApplied ? { promo_code: LOW_CREDIT_RESCUE_CODE } : {}),
         };
       }
 
@@ -1088,16 +1123,16 @@ export const BillingPage = () => {
                 </div>
                 <div className='text-left'>
                   <h3 className='font-bold text-foreground text-sm sm:text-base'>
-                    JOBRAKER_PERSONAL (55% off) applied!
+                    Low-credit rescue offer active
                   </h3>
                   <p className='text-xs text-muted-foreground mt-0.5'>
-                    Your limited-time 55% discount is applied to all Basics, Pro, and Ultimate subscription plans.
+                    Your one-time 15% rescue offer is active for the next hour on Basics, Pro, and Ultimate.
                   </p>
                 </div>
               </div>
               <div className='flex items-center gap-2 font-mono text-xs text-brand font-semibold border border-brand/30 bg-brand/10 px-3 py-1 rounded-lg shrink-0'>
                 <Check className='w-4 h-4 shrink-0' strokeWidth={3} />
-                COUPON ACTIVE
+                OFFER ACTIVE
               </div>
             </div>
           </div>
