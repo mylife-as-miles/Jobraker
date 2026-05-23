@@ -33,6 +33,11 @@ import {
   getChatAttachment,
 } from "../../../lib/chatAttachmentIdb";
 import {
+  generateChatStarters,
+  type ChatStarterIcon,
+  type ChatStarterSuggestion,
+} from "../../../services/ai/generateChatStarters";
+import {
   MessageSquare,
   Wand2,
   Target,
@@ -173,6 +178,42 @@ const DEFAULT_CHAT_MODEL = "gemini-3-flash-preview";
 const MAX_CHAT_ATTACHMENTS = 3;
 const CHAT_EXTENDED_WAIT_MS = 30_000;
 const CHAT_TIMEOUT_MS = 240_000;
+
+const FALLBACK_CHAT_STARTERS: ChatStarterSuggestion[] = [
+  {
+    id: "resume",
+    title: "Optimize Resume",
+    description: "Tailor your resume for your next best-fit role.",
+    prompt: "Optimize my resume for a strong-fit senior role and show me the biggest gaps first.",
+    icon: "resume",
+  },
+  {
+    id: "jobs",
+    title: "Find Remote Roles",
+    description: "Search for remote jobs aligned with my background.",
+    prompt: "Find remote software roles that match my profile and explain the strongest matches.",
+    icon: "jobs",
+  },
+  {
+    id: "interview",
+    title: "Interview Prep",
+    description: "Practice with realistic questions and sharper feedback.",
+    prompt: "Interview me for a target role and coach my answers like a hiring manager.",
+    icon: "interview",
+  },
+];
+
+const CHAT_STARTER_ICONS: Record<
+  ChatStarterIcon,
+  React.ComponentType<{ className?: string }>
+> = {
+  resume: FileText,
+  jobs: Search,
+  interview: MessageSquare,
+  "cover-letter": BookOpen,
+  applications: Target,
+  strategy: Bolt,
+};
 
 const normalizeBasicMessage = (message: any): BasicMessage => ({
   id: typeof message?.id === "string" ? message.id : nanoid(),
@@ -656,6 +697,11 @@ export const ChatPage = () => {
     null,
   );
   const [renamingTitle, setRenamingTitle] = useState("");
+  const [starterSuggestions, setStarterSuggestions] = useState<
+    ChatStarterSuggestion[]
+  >(FALLBACK_CHAT_STARTERS);
+  const [loadingStarterSuggestions, setLoadingStarterSuggestions] =
+    useState(false);
   const supabase = useMemo(() => createClient(), []);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -703,6 +749,32 @@ export const ChatPage = () => {
   useEffect(() => {
     if (hasChatAccess) fetchChatQuota();
   }, [hasChatAccess, fetchChatQuota]);
+
+  useEffect(() => {
+    if (!hasChatAccess) return;
+
+    let cancelled = false;
+
+    const loadStarterSuggestions = async () => {
+      setLoadingStarterSuggestions(true);
+      try {
+        const suggestions = await generateChatStarters();
+        if (!cancelled && suggestions.length > 0) {
+          setStarterSuggestions(suggestions);
+        }
+      } catch (error) {
+        console.error("Failed to load AI chat starters", error);
+      } finally {
+        if (!cancelled) setLoadingStarterSuggestions(false);
+      }
+    };
+
+    void loadStarterSuggestions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasChatAccess]);
 
   // Chat logic
   const chat = useChat({
@@ -1454,52 +1526,32 @@ export const ChatPage = () => {
                     </p>
 
                     <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mt-12'>
-                      <button
-                        onClick={() =>
-                          setText(
-                            "Optimize my resume for a Senior Frontend role",
-                          )
-                        }
-                        className='suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group'
-                      >
-                        <FileText className='text-brand mb-3 w-6 h-6' />
-                        <h4 className='font-semibold text-sm mb-1 text-card-foreground'>
-                          Optimize Resume
-                        </h4>
-                        <p className='text-xs text-muted-foreground'>
-                          Tailor your CV for specific job descriptions.
-                        </p>
-                      </button>
+                      {starterSuggestions.map((suggestion) => {
+                        const Icon =
+                          CHAT_STARTER_ICONS[suggestion.icon] || FileText;
 
-                      <button
-                        onClick={() =>
-                          setText("Find remote software engineer jobs in US")
-                        }
-                        className='suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group'
-                      >
-                        <Search className='text-brand mb-3 w-6 h-6' />
-                        <h4 className='font-semibold text-sm mb-1 text-card-foreground'>
-                          Find Remote Roles
-                        </h4>
-                        <p className='text-xs text-muted-foreground'>
-                          Discover top-tier remote software engineering jobs.
-                        </p>
-                      </button>
-                      <button
-                        onClick={() =>
-                          setText("Interview me for a Product Manager position")
-                        }
-                        className='suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group'
-                      >
-                        <MessageSquare className='text-brand mb-3 w-6 h-6' />
-                        <h4 className='font-semibold text-sm mb-1 text-card-foreground'>
-                          Interview Prep
-                        </h4>
-                        <p className='text-xs text-muted-foreground'>
-                          Mock interviews and feedback on your answers.
-                        </p>
-                      </button>
+                        return (
+                          <button
+                            key={suggestion.id}
+                            onClick={() => setText(suggestion.prompt)}
+                            className='suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group'
+                          >
+                            <Icon className='text-brand mb-3 w-6 h-6' />
+                            <h4 className='font-semibold text-sm mb-1 text-card-foreground'>
+                              {suggestion.title}
+                            </h4>
+                            <p className='text-xs text-muted-foreground'>
+                              {suggestion.description}
+                            </p>
+                          </button>
+                        );
+                      })}
                     </div>
+                    {loadingStarterSuggestions ? (
+                      <p className='text-xs text-muted-foreground'>
+                        Personalizing your AI starter prompts...
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               ) : (
