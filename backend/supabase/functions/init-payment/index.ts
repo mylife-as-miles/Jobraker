@@ -39,6 +39,52 @@ type CreditPackRow = {
   bonus_credits: number;
 };
 
+const LOW_CREDIT_RESCUE_CODE = "LOWCREDIT_RESCUE";
+const LOW_CREDIT_RESCUE_LEGACY_CODES = ["JOBRAKER_PERSONAL"];
+const LOW_CREDIT_RESCUE_MULTIPLIER = 0.85;
+const LOW_CREDIT_RESCUE_DISCOUNT_PCT = 15;
+
+const normalizeLowCreditRescueCode = (value?: string | null) => {
+  if (!value) return null;
+  const normalized = value.toUpperCase();
+  if (
+    normalized === LOW_CREDIT_RESCUE_CODE ||
+    LOW_CREDIT_RESCUE_LEGACY_CODES.includes(normalized)
+  ) {
+    return LOW_CREDIT_RESCUE_CODE;
+  }
+  return null;
+};
+
+const hasRedeemedLowCreditRescue = async (
+  supabaseClient: ReturnType<typeof createClient>,
+  userId: string,
+) => {
+  const { data, error } = await supabaseClient
+    .from("orders")
+    .select("metadata")
+    .eq("user_id", userId)
+    .eq("plan_type", "subscription")
+    .eq("is_success", true)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.error("Failed to check low-credit rescue eligibility:", error);
+    throw new Error("Could not verify rescue offer eligibility");
+  }
+
+  return Boolean(
+    data?.some((order) => {
+      const promoCode =
+        typeof order?.metadata?.promo_code === "string"
+          ? order.metadata.promo_code
+          : null;
+      return normalizeLowCreditRescueCode(promoCode) === LOW_CREDIT_RESCUE_CODE;
+    }),
+  );
+};
+
 const resolveUsdToNgnRate = () => {
   const configuredRate =
     Deno.env.get("PAYSTACK_USD_TO_NGN_RATE") ??
@@ -97,6 +143,7 @@ serve(async (req) => {
     let paymentCycle: string | null = null;
     let totalCreditsPaidFor = 0;
     let authoritativeMetadata: Record<string, unknown> = {};
+    const promoCode = normalizeLowCreditRescueCode(body.promoCode);
 
     if (purchaseType === "subscription") {
       if (!body.planId) {
@@ -180,8 +227,25 @@ serve(async (req) => {
       totalCreditsPaidFor = resolvedCredits;
       displayName = `${plan.name} Subscription`;
 
-      if (body.promoCode === "JOBRAKER_PERSONAL") {
-        priceUsd = Math.round(priceUsd * 0.85 * 100) / 100;
+      if (promoCode === LOW_CREDIT_RESCUE_CODE) {
+        const alreadyRedeemed = await hasRedeemedLowCreditRescue(
+          supabaseClient,
+          user.id,
+        );
+        if (alreadyRedeemed) {
+          return new Response(
+            JSON.stringify({
+              error:
+                "This low-credit rescue offer has already been used on your account.",
+            }),
+            {
+              status: 409,
+              headers: { ...cors, "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        priceUsd = Math.round(priceUsd * LOW_CREDIT_RESCUE_MULTIPLIER * 100) / 100;
       }
 
       authoritativeMetadata = {
@@ -194,8 +258,11 @@ serve(async (req) => {
         credits_per_month: totalCreditsPaidFor,
         auto_apply_monthly_limit: resolvedAutoApply,
         currency: plan.currency || "USD",
-        ...(body.promoCode === "JOBRAKER_PERSONAL"
-          ? { promo_code: "JOBRAKER_PERSONAL", discount_pct: 15 }
+        ...(promoCode === LOW_CREDIT_RESCUE_CODE
+          ? {
+              promo_code: LOW_CREDIT_RESCUE_CODE,
+              discount_pct: LOW_CREDIT_RESCUE_DISCOUNT_PCT,
+            }
           : {}),
       };
     } else if (purchaseType === "credit_pack") {

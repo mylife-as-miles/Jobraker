@@ -114,7 +114,8 @@ function normalizeCreditTransaction(
 ): CreditTransaction {
   return {
     ...transaction,
-    transaction_type: transaction.transaction_type ?? transaction.type ?? "refill",
+    transaction_type:
+      transaction.transaction_type ?? transaction.type ?? "refill",
   };
 }
 
@@ -294,12 +295,12 @@ function getPlanPricingDisplay(
       }),
       suffix: "/qtr",
       compareAt: promoApplied
-        ? `Original: $${origStacked.toLocaleString("en-US")} ($${originalQuarterly.toLocaleString("en-US")}/qtr)`
-        : `3 × $${monthly}/mo → $${stacked.toLocaleString("en-US")}`,
-      subline: `≈ $${Math.round(eqMo)}/mo equivalent · billed every 3 months`,
+        ? `Original: ${origStacked.toLocaleString("en-US")} (${originalQuarterly.toLocaleString("en-US")}/qtr)`
+        : `3 x ${monthly}/mo -> ${stacked.toLocaleString("en-US")}`,
+      subline: `Approx. ${Math.round(eqMo)}/mo equivalent, billed every 3 months`,
       savingsBadge: promoApplied
         ? `Rescue offer: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
-        : `Save $${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
+        : `Save ${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
   }
@@ -314,12 +315,12 @@ function getPlanPricingDisplay(
       headline: yearly.toLocaleString("en-US", { maximumFractionDigits: 0 }),
       suffix: "/yr",
       compareAt: promoApplied
-        ? `Original: $${origStacked.toLocaleString("en-US")} ($${originalYearly.toLocaleString("en-US")}/yr)`
-        : `12 × $${monthly}/mo → $${stacked.toLocaleString("en-US")}`,
-      subline: `≈ $${Math.round(eqMo)}/mo when paid annually`,
+        ? `Original: ${origStacked.toLocaleString("en-US")} (${originalYearly.toLocaleString("en-US")}/yr)`
+        : `12 x ${monthly}/mo -> ${stacked.toLocaleString("en-US")}`,
+      subline: `Approx. ${Math.round(eqMo)}/mo when paid annually`,
       savingsBadge: promoApplied
         ? `Rescue offer: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
-        : `Save $${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
+        : `Save ${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
   }
@@ -327,13 +328,14 @@ function getPlanPricingDisplay(
   return {
     headline: monthly.toLocaleString("en-US", { maximumFractionDigits: 0 }),
     suffix: "/mo",
-    compareAt: promoApplied ? `Original: $${originalMonthly}/mo` : null,
-    subline: promoApplied ? `Promo: 15% OFF Applied` : "Billed monthly · cancel anytime",
-    savingsBadge: promoApplied ? `Promo: 15% OFF applied!` : null,
+    compareAt: promoApplied ? `Original: ${originalMonthly}/mo` : null,
+    subline: promoApplied
+      ? `Low-credit rescue: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
+      : "Billed monthly, cancel anytime",
+    savingsBadge: promoApplied ? "One-time rescue offer active" : null,
     effectiveMonthly: monthly,
   };
 }
-
 const ULTIMATE_CREDITS_SLIDER = { min: 3500, max: 10500, step: 500 } as const;
 
 function getUltimatePricingDisplay(
@@ -344,7 +346,12 @@ function getUltimatePricingDisplay(
 ): PlanPricingDisplay {
   const def = BILLING_PLAN_DEFINITIONS.find((p) => p.name === "Ultimate");
   if (!def) {
-    return getPlanPricingDisplay("Ultimate", interval, fallbackMonthlyFromDb, promoApplied);
+    return getPlanPricingDisplay(
+      "Ultimate",
+      interval,
+      fallbackMonthlyFromDb,
+      promoApplied,
+    );
   }
   const ratio = selectedCredits / def.creditsPerMonth;
   const originalMonthly = (def.monthlyPriceUsd ?? fallbackMonthlyFromDb) * ratio;
@@ -373,12 +380,12 @@ function getUltimatePricingDisplay(
       headline: quarterly.toLocaleString("en-US", { maximumFractionDigits: 0 }),
       suffix: "/qtr",
       compareAt: promoApplied
-        ? `Original: $${Math.round(origStacked).toLocaleString("en-US")} ($${Math.round(origQuarterly).toLocaleString("en-US")}/qtr)`
-        : `3 × $${Math.round(monthlyUsd)}/mo → $${Math.round(stacked).toLocaleString("en-US")}`,
-      subline: `≈ $${Math.round(eqMo)}/mo equivalent · billed every 3 months`,
+        ? `Original: ${Math.round(origStacked).toLocaleString("en-US")} (${Math.round(origQuarterly).toLocaleString("en-US")}/qtr)`
+        : `3 x ${Math.round(monthlyUsd)}/mo -> ${Math.round(stacked).toLocaleString("en-US")}`,
+      subline: `Approx. ${Math.round(eqMo)}/mo equivalent, billed every 3 months`,
       savingsBadge: promoApplied
         ? `Rescue offer: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
-        : `Save $${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
+        : `Save ${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
   }
@@ -396,12 +403,12 @@ function getUltimatePricingDisplay(
       headline: yearly.toLocaleString("en-US", { maximumFractionDigits: 0 }),
       suffix: "/yr",
       compareAt: promoApplied
-        ? `Original: $${Math.round(origStacked).toLocaleString("en-US")} ($${Math.round(origYearly).toLocaleString("en-US")}/yr)`
-        : `12 × $${Math.round(monthlyUsd)}/mo → $${Math.round(stacked).toLocaleString("en-US")}`,
-      subline: `≈ $${Math.round(eqMo)}/mo when paid annually`,
+        ? `Original: ${Math.round(origStacked).toLocaleString("en-US")} (${Math.round(origYearly).toLocaleString("en-US")}/yr)`
+        : `12 x ${Math.round(monthlyUsd)}/mo -> ${Math.round(stacked).toLocaleString("en-US")}`,
+      subline: `Approx. ${Math.round(eqMo)}/mo when paid annually`,
       savingsBadge: promoApplied
         ? `Rescue offer: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
-        : `Save $${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
+        : `Save ${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
   }
@@ -411,13 +418,14 @@ function getUltimatePricingDisplay(
       maximumFractionDigits: 0,
     }),
     suffix: "/mo",
-    compareAt: promoApplied ? `Original: $${Math.round(originalMonthly)}/mo` : null,
-    subline: promoApplied ? `Promo: 15% OFF Applied` : "Billed monthly · cancel anytime",
-    savingsBadge: promoApplied ? `Promo: 15% OFF applied!` : null,
+    compareAt: promoApplied ? `Original: ${Math.round(originalMonthly)}/mo` : null,
+    subline: promoApplied
+      ? `Low-credit rescue: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
+      : "Billed monthly, cancel anytime",
+    savingsBadge: promoApplied ? "One-time rescue offer active" : null,
     effectiveMonthly: monthlyUsd,
   };
 }
-
 export const BillingPage = () => {
   const [currentCredits, setCurrentCredits] = useState(0);
   const [subscriptionTier, setSubscriptionTier] = useState<
@@ -2602,7 +2610,9 @@ export const BillingPage = () => {
                     <div className='divide-y divide-foreground/5'>
                       {transactions.map((transaction, index) => {
                         const iconData = getTransactionIcon(
-                          transaction.transaction_type ?? transaction.type ?? "refill",
+                          transaction.transaction_type ??
+                            transaction.type ??
+                            "refill",
                         );
                         return (
                           <motion.div
@@ -2658,3 +2668,5 @@ export const BillingPage = () => {
     </div>
   );
 };
+
+
