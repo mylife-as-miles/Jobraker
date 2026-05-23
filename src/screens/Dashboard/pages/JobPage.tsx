@@ -85,6 +85,7 @@ import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { JobEvaluationTeaser } from "../../../components/JobEvaluationTeaser";
 import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
 import { JobEvaluationReport } from "../components/JobEvaluationReport";
+import { OpportunityScoreSummary } from "../../../components/jobs/OpportunityScoreSummary";
 import { JobTaskMonitor } from "../components/JobTaskMonitor";
 import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
 import { loadParsedResumeText } from "../../../lib/parsedResume";
@@ -101,6 +102,13 @@ import {
   VISIBLE_JOB_QUEUE_STATES,
   type JobCanonicalStatus,
 } from "@/lib/applicationState";
+import {
+  buildExplainableJobOpportunities,
+} from "@/services/intelligence/opportunityScoreEngine";
+import type {
+  CandidateProfileInput,
+  ExplainableJobOpportunity,
+} from "@/services/intelligence/types";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -147,6 +155,7 @@ interface Job {
   matchScore?: number;
   matchBreakdown?: MatchScoreBreakdown[];
   matchSummary?: string;
+  explainableOpportunity?: ExplainableJobOpportunity;
 }
 
 type MatchScoreBreakdown = {
@@ -1012,8 +1021,10 @@ export const JobPage = (): JSX.Element => {
     }>
   >([]);
   const [automationFinished, setAutomationFinished] = useState(false);
-  const [sortBy, setSortBy] = useState<"recent" | "company" | "deadline">(
-    "recent",
+  const [sortBy, setSortBy] = useState<
+    "opportunity" | "recent" | "company" | "deadline"
+  >(
+    "opportunity",
   );
   const [clearingJobs, setClearingJobs] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -1083,6 +1094,8 @@ export const JobPage = (): JSX.Element => {
     profile,
     updateProfile,
     loading: profileLoading,
+    experiences: profileExperiences,
+    skills: profileSkills,
   } = useProfileSettings();
   // Load user resumes for selection (used by the Auto Apply -> "Choose a resume" dialog)
   const { resumes, loading: resumesLoading } = useResumes();
@@ -1495,6 +1508,44 @@ export const JobPage = (): JSX.Element => {
     }),
     [searchQuery, selectedLocation, profile],
   );
+  const explainableCandidateProfile = useMemo<CandidateProfileInput>(
+    () => ({
+      targetTitle: profile?.job_title ?? searchQuery,
+      searchQuery,
+      location: profile?.location ?? selectedLocation,
+      locationScope: profile?.location_scope ?? "city",
+      experienceYears: profile?.experience_years ?? null,
+      goals: Array.isArray(profile?.goals) ? profile.goals : [],
+      proofPoints: profile?.proof_points ?? [],
+      skills: (profileSkills.data ?? []).map((skill) => ({
+        name: skill.name,
+        level: skill.level,
+        category: skill.category,
+      })),
+      experiences: (profileExperiences.data ?? []).map((experience) => ({
+        title: experience.title,
+        company: experience.company,
+        description: experience.description,
+        start_date: experience.start_date,
+        end_date: experience.end_date,
+        is_current: experience.is_current,
+      })),
+      resumeText: activeResumeText,
+    }),
+    [
+      activeResumeText,
+      profile?.experience_years,
+      profile?.goals,
+      profile?.job_title,
+      profile?.location,
+      profile?.location_scope,
+      profile?.proof_points,
+      profileExperiences.data,
+      profileSkills.data,
+      searchQuery,
+      selectedLocation,
+    ],
+  );
 
   const decorateJobsRef = useRef<(list: Job[]) => Promise<Job[]>>(
     async (list) => list,
@@ -1502,8 +1553,8 @@ export const JobPage = (): JSX.Element => {
   const activeSearchScopeRef = useRef<JobsQueueScope>(null);
 
   const decorateJobs = useCallback(
-    async (list: Job[]) =>
-      await fetchJobMatchInsights(
+    async (list: Job[]) => {
+      const withMatchInsights = await fetchJobMatchInsights(
         list,
         matchContext,
         hasMatchScoreAccess && !applyingAll,
@@ -1513,8 +1564,32 @@ export const JobPage = (): JSX.Element => {
             "Could not fetch AI match scores. Showing basic results.",
           );
         },
-      ),
-    [applyingAll, hasMatchScoreAccess, matchContext, toastError],
+      );
+
+      if (import.meta.env.VITE_ENABLE_EXPLAINABLE_RANKING === "false") {
+        return withMatchInsights;
+      }
+
+      const opportunities = buildExplainableJobOpportunities(
+        withMatchInsights,
+        explainableCandidateProfile,
+      );
+      const opportunityByJobId = new Map(
+        opportunities.map((opportunity) => [opportunity.jobId, opportunity]),
+      );
+
+      return withMatchInsights.map((job) => ({
+        ...job,
+        explainableOpportunity: opportunityByJobId.get(job.id),
+      }));
+    },
+    [
+      applyingAll,
+      explainableCandidateProfile,
+      hasMatchScoreAccess,
+      matchContext,
+      toastError,
+    ],
   );
 
   useEffect(() => {
@@ -3654,6 +3729,20 @@ export const JobPage = (): JSX.Element => {
 
   const sortedJobs = useMemo(() => {
     const arr = [...visibleJobs];
+    const toRecentTs = (job: Job) => {
+      const value = job.discovered_at || job.posted_at || job.created_at;
+      if (!value) return 0;
+      const timestamp = Date.parse(value);
+      return Number.isNaN(timestamp) ? 0 : timestamp;
+    };
+    if (sortBy === "opportunity") {
+      return arr.sort(
+        (a, b) =>
+          (b.explainableOpportunity?.opportunityScore ?? -1) -
+            (a.explainableOpportunity?.opportunityScore ?? -1) ||
+          toRecentTs(b) - toRecentTs(a),
+      );
+    }
     if (sortBy === "company") {
       return arr.sort((a, b) =>
         (a.company || "").localeCompare(b.company || ""),
@@ -3667,12 +3756,6 @@ export const JobPage = (): JSX.Element => {
       };
       return arr.sort((a, b) => toTs(a.expires_at) - toTs(b.expires_at));
     }
-    const toRecentTs = (job: Job) => {
-      const value = job.discovered_at || job.posted_at || job.created_at;
-      if (!value) return 0;
-      const timestamp = Date.parse(value);
-      return Number.isNaN(timestamp) ? 0 : timestamp;
-    };
     return arr.sort((a, b) => toRecentTs(b) - toRecentTs(a));
   }, [visibleJobs, sortBy]);
 
@@ -4574,6 +4657,7 @@ export const JobPage = (): JSX.Element => {
                       value={sortBy}
                       onValueChange={(v) => setSortBy(v as any)}
                       options={[
+                        { value: "opportunity", label: "Best opportunity" },
                         { value: "recent", label: "Most recent" },
                         { value: "company", label: "Company" },
                         { value: "deadline", label: "Deadline" },
@@ -5099,6 +5183,13 @@ export const JobPage = (): JSX.Element => {
 
                           {/* Badges */}
                           <div className='flex flex-wrap items-center gap-2 flex-shrink-0'>
+                            {job.explainableOpportunity && (
+                              <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-brand/10 text-brand border border-brand/20'>
+                                <Zap className='w-3 h-3' />
+                                {job.explainableOpportunity.opportunityScore}%
+                                Opportunity
+                              </span>
+                            )}
                             {(() => {
                               if (!job.posted_at) return null;
                               const postedTs = Date.parse(job.posted_at);
@@ -5281,6 +5372,10 @@ export const JobPage = (): JSX.Element => {
                             ));
                           })()}
                         </div>
+                        <OpportunityScoreSummary
+                          opportunity={job.explainableOpportunity}
+                          compact
+                        />
                       </div>
                     </div>
                   </div>
@@ -5671,6 +5766,10 @@ export const JobPage = (): JSX.Element => {
                           className='max-h-[32rem] overflow-y-auto pr-2'
                         />
                       </Card>
+
+                      <OpportunityScoreSummary
+                        opportunity={job.explainableOpportunity}
+                      />
 
                       <JobQualityAndFeedback
                         job={job}
@@ -7139,6 +7238,11 @@ export const JobPage = (): JSX.Element => {
                     className='max-h-[45dvh] overflow-y-auto pr-1 text-[13px]'
                   />
                 </Card>
+
+                <OpportunityScoreSummary
+                  opportunity={j.explainableOpportunity}
+                  compact
+                />
 
                 <JobQualityAndFeedback
                   job={j}
