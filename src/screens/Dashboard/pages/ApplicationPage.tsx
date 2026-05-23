@@ -16,6 +16,10 @@ import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 import { scheduleInterviewViaEdge, type ScheduleInterviewResponse } from "../../../services/ai/scheduleInterview";
 import { useGamification } from "../../../hooks/useGamification";
+import {
+  fetchJobEvaluationReport,
+  type JobEvaluationReport as JobEvaluationReportData,
+} from "../../../services/jobs/jobEvaluation";
 
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
@@ -38,6 +42,7 @@ import {
   Lock,
   Mail,
   Zap,
+  Trash2,
 } from "lucide-react";
 import {
   KanbanProvider,
@@ -98,6 +103,49 @@ function resolveCompanyLogo(logo?: string | null) {
   const value = logo?.trim();
   if (!value) return null;
   return getProxiedLogoUrl(value) || null;
+}
+
+function compactText(value?: string | null) {
+  return value?.trim().replace(/\s+/g, " ") || "";
+}
+
+function formatAiEvaluationNotes(
+  evaluation: JobEvaluationReportData | null,
+): string {
+  if (!evaluation) return "";
+
+  const fitLine = [
+    `Match score: ${evaluation.confidence_score}%`,
+    evaluation.exact_fit_evidence.length
+      ? `Strengths: ${evaluation.exact_fit_evidence.slice(0, 2).join("; ")}`
+      : "",
+    evaluation.blockers.length
+      ? `Needs attention: ${evaluation.blockers.slice(0, 2).join("; ")}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(". ");
+
+  const tailoringLine = evaluation.tailoring_suggestions.length
+    ? `Tailoring: ${evaluation.tailoring_suggestions.slice(0, 2).join("; ")}`
+    : "";
+
+  return [fitLine, tailoringLine].filter(Boolean).join("\n\n").trim();
+}
+
+function getAiCompensationSummary(
+  evaluation: JobEvaluationReportData | null,
+): string {
+  if (!evaluation) return "";
+
+  const summary = compactText(evaluation.compensation.summary);
+  const notes = evaluation.compensation.notes.slice(0, 2).join("; ");
+  const signals = evaluation.compensation.signals.slice(0, 2).join("; ");
+
+  return [summary, notes, signals]
+    .map((item) => compactText(item))
+    .filter((item) => item && item !== "Compensation not evaluated")
+    .join(" ");
 }
 
 function CompanyMark({
@@ -448,6 +496,7 @@ function ApplicationPage() {
     applications,
     exportCSV,
     update,
+    remove,
     refresh,
     loading: appsLoading,
   } = useApplications();
@@ -478,6 +527,11 @@ function ApplicationPage() {
   const [notesText, setNotesText] = useState("");
   const [editingSalary, setEditingSalary] = useState(false);
   const [salaryText, setSalaryText] = useState("");
+  const [detailEvaluation, setDetailEvaluation] =
+    useState<JobEvaluationReportData | null>(null);
+  const [detailEvaluationLoading, setDetailEvaluationLoading] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingApplication, setDeletingApplication] = useState(false);
   const [interviewAgentOpen, setInterviewAgentOpen] = useState(false);
   const [interviewEmailText, setInterviewEmailText] = useState("");
   const [interviewAgentLoading, setInterviewAgentLoading] = useState(false);
@@ -494,6 +548,18 @@ function ApplicationPage() {
     () => applications.find((a) => a.id === detailId) || null,
     [detailId, applications],
   );
+  const aiNotesText = useMemo(
+    () => formatAiEvaluationNotes(detailEvaluation),
+    [detailEvaluation],
+  );
+  const displayedNotesText = useMemo(
+    () => compactText(detailApp?.notes) || aiNotesText,
+    [detailApp?.notes, aiNotesText],
+  );
+  const aiCompensationSummary = useMemo(
+    () => getAiCompensationSummary(detailEvaluation),
+    [detailEvaluation],
+  );
 
   // Update notes text when detailApp changes
   useEffect(() => {
@@ -504,6 +570,46 @@ function ApplicationPage() {
       setEditingSalary(false);
     }
   }, [detailApp]);
+
+  useEffect(() => {
+    if (!detailApp || editingNotes) return;
+    if (compactText(detailApp.notes)) return;
+    if (!aiNotesText) return;
+    setNotesText(aiNotesText);
+  }, [detailApp, editingNotes, aiNotesText]);
+
+  useEffect(() => {
+    if (!detailApp?.job_id) {
+      setDetailEvaluation(null);
+      setDetailEvaluationLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setDetailEvaluationLoading(true);
+
+    void fetchJobEvaluationReport(detailApp.job_id)
+      .then((report) => {
+        if (!cancelled) {
+          setDetailEvaluation(report);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load application evaluation", error);
+        if (!cancelled) {
+          setDetailEvaluation(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setDetailEvaluationLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [detailApp?.job_id]);
 
   // Restore preferences on mount
   useEffect(() => {
@@ -1709,9 +1815,19 @@ function ApplicationPage() {
                     {detailApp.salary ? (
                       <span className='text-lg font-bold text-[#1dff00] leading-snug'>{detailApp.salary}</span>
                     ) : (
-                      <span className='text-sm text-foreground/45 italic'>
-                        Click to add listing or offer comp (used in Analytics pipeline estimates)
-                      </span>
+                      <div className='space-y-2'>
+                        <span className='block text-sm text-foreground/45 italic'>
+                          Click to add listing or offer comp (used in Analytics pipeline estimates)
+                        </span>
+                        {aiCompensationSummary ? (
+                          <p className='text-sm text-foreground/70 leading-relaxed'>
+                            <span className='font-medium text-[#1dff00]'>
+                              AI read:
+                            </span>{" "}
+                            {aiCompensationSummary}
+                          </p>
+                        ) : null}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1755,13 +1871,18 @@ function ApplicationPage() {
                     className='w-full min-h-[140px] rounded-xl bg-foreground/5 border border-[#1dff00]/30 text-foreground placeholder:text-foreground/40 p-4 outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all resize-y'
                     autoFocus
                   />
+                  {!compactText(detailApp?.notes) && aiNotesText ? (
+                    <p className='text-xs text-foreground/50'>
+                      AI drafted these notes from the evaluation report. Edit before saving if needed.
+                    </p>
+                  ) : null}
                   <div className='flex justify-end gap-2'>
                     <Button
                       size='sm'
                       variant='outline'
                       className='border-foreground/20 hover:border-foreground/30 hover:bg-foreground/5 text-foreground/70 hover:text-foreground'
                       onClick={() => {
-                        setNotesText(detailApp?.notes || "");
+                        setNotesText(detailApp?.notes || aiNotesText || "");
                         setEditingNotes(false);
                       }}
                     >
@@ -1788,20 +1909,29 @@ function ApplicationPage() {
                   </div>
                 </div>
               ) : (
-                <div
-                  className='p-4 rounded-xl bg-foreground/[0.02] border border-foreground/10 max-h-60 overflow-auto scrollbar-thin scrollbar-thumb-[#1dff00]/30 scrollbar-track-transparent cursor-text hover:border-foreground/20 transition-colors'
-                  onClick={() => setEditingNotes(true)}
-                >
-                  {detailApp.notes ? (
-                    <p className='text-sm text-foreground/70 leading-relaxed foregroundspace-pre-wrap'>
-                      {detailApp.notes}
+                <>
+                  <div
+                    className='p-4 rounded-xl bg-foreground/[0.02] border border-foreground/10 max-h-60 overflow-auto scrollbar-thin scrollbar-thumb-[#1dff00]/30 scrollbar-track-transparent cursor-text hover:border-foreground/20 transition-colors'
+                    onClick={() => setEditingNotes(true)}
+                  >
+                    {displayedNotesText ? (
+                      <p className='text-sm text-foreground/70 leading-relaxed foregroundspace-pre-wrap'>
+                        {displayedNotesText}
+                      </p>
+                    ) : (
+                      <p className='text-sm text-foreground/40 italic'>
+                        {detailEvaluationLoading
+                          ? "Generating AI notes..."
+                          : "Click to add notes..."}
+                      </p>
+                    )}
+                  </div>
+                  {!compactText(detailApp.notes) && displayedNotesText ? (
+                    <p className='text-xs text-foreground/45'>
+                      Showing AI-generated notes until you save your own version.
                     </p>
-                  ) : (
-                    <p className='text-sm text-foreground/40 italic'>
-                      Click to add notes...
-                    </p>
-                  )}
-                </div>
+                  ) : null}
+                </>
               )}
             </div>
 
@@ -2051,6 +2181,15 @@ function ApplicationPage() {
               <Button
                 size='sm'
                 variant='outline'
+                className='border-rose-400/25 text-rose-300 hover:bg-rose-400/10 hover:border-rose-400/40'
+                onClick={() => setDeleteConfirmOpen(true)}
+              >
+                <Trash2 className='mr-2 h-4 w-4' />
+                Delete
+              </Button>
+              <Button
+                size='sm'
+                variant='outline'
                 className='flex-1 border-foreground/20 hover:border-foreground/30 hover:bg-foreground/5 text-foreground/70 hover:text-foreground transition-all'
                 onClick={() => setDetailId(null)}
               >
@@ -2060,8 +2199,8 @@ function ApplicationPage() {
                 size='sm'
                 className='flex-1 bg-gradient-to-r from-[#1dff00] to-background hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] text-foreground font-semibold transition-all'
                 onClick={() => {
-                  // Edit functionality can be added here
-                  console.log("Edit application:", detailApp.id);
+                  setEditingNotes(true);
+                  setEditingSalary(true);
                 }}
               >
                 Edit Details
@@ -2069,6 +2208,53 @@ function ApplicationPage() {
             </div>
           </div>
         ) : null}
+      </Modal>
+
+      <Modal
+        open={deleteConfirmOpen}
+        onClose={() => {
+          if (!deletingApplication) setDeleteConfirmOpen(false);
+        }}
+        title='Delete application'
+        size='md'
+        side='center'
+      >
+        <div className='space-y-4'>
+          <p className='text-sm text-foreground/75'>
+            Delete{" "}
+            <span className='font-medium text-foreground'>
+              {detailApp?.job_title}
+            </span>
+            {detailApp?.company ? ` at ${detailApp.company}` : ""}? This removes it from your tracker.
+          </p>
+          <div className='flex justify-end gap-2'>
+            <Button
+              variant='outline'
+              className='border-foreground/20 hover:border-foreground/30 hover:bg-foreground/5 text-foreground/70 hover:text-foreground'
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={deletingApplication}
+            >
+              Cancel
+            </Button>
+            <Button
+              className='bg-rose-500 hover:bg-rose-500/90 text-white'
+              disabled={deletingApplication || !detailApp}
+              onClick={async () => {
+                if (!detailApp) return;
+                setDeletingApplication(true);
+                try {
+                  await remove(detailApp.id);
+                  setDeleteConfirmOpen(false);
+                  setDetailId(null);
+                } finally {
+                  setDeletingApplication(false);
+                }
+              }}
+            >
+              {deletingApplication ? "Deleting..." : "Delete application"}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Next Step Note Modal */}
