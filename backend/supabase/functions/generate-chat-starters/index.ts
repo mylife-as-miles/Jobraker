@@ -153,7 +153,7 @@ function normalizeSuggestion(
     id: clampText(record.id, 40, fallback.id),
     title: clampText(record.title, 36, fallback.title),
     description: clampText(record.description, 90, fallback.description),
-    prompt: clampText(record.prompt, 180, fallback.prompt),
+    prompt: clampText(record.prompt, 1000, fallback.prompt),
     icon,
   };
 }
