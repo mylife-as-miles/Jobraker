@@ -1,5 +1,8 @@
 export const ROUTES = {
   ROOT: '/',
+  PRICING: '/pricing',
+  WAITLIST: '/waitlist',
+  EARLY_ACCESS: '/early-access',
   SIGNUP: '/signup',
   SIGNIN: '/signIn',
   ONBOARDING: '/onboarding',
@@ -9,6 +12,8 @@ export const ROUTES = {
   ARTBOARD: '/artboard',
   BUILDER: '/builder',
   PRIVACY: '/privacy',
+  TERMS: '/terms',
+  SECURITY: '/security',
   PUBLIC_RESUME: '/r/:id',
 } as const;
 

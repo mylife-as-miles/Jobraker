@@ -1,6 +1,9 @@
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { capturePendingReferralCodeFromSearch } from "../../lib/referralAttribution";
+import { captureClientEvent } from "@/lib/analytics";
+import Seo from "@/components/seo/Seo";
+import { ROUTES } from "@/routes";
 
 import { Button } from "../../components/ui/button";
 
@@ -26,8 +29,25 @@ export const LandingPage = () => {
     capturePendingReferralCodeFromSearch(location.search || "");
   }, [location.search]);
 
+  const trackLandingCta = (
+    ctaId: string,
+    destination: string,
+    locationLabel: string,
+  ) => {
+    captureClientEvent("landing_cta_clicked", {
+      cta_id: ctaId,
+      destination,
+      location: locationLabel,
+    });
+  };
+
   return (
     <div className='min-h-screen bg-background text-foreground font-mono selection:bg-brand selection:text-black overflow-x-hidden'>
+      <Seo
+        title='JobRaker | AI Job Search Workflow for Serious Candidates'
+        description='JobRaker helps you organize your search, tailor resumes and cover letters, review governed auto-apply flows, and keep every application visible in one pipeline.'
+        path='/'
+      />
       {/* Navigation */}
       <nav className='fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-brand/20'>
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -51,13 +71,19 @@ export const LandingPage = () => {
             <div className='flex items-center space-x-4'>
               <Button
                 variant='ghost'
-                onClick={() => navigate("/signin")}
+                onClick={() => {
+                  trackLandingCta("nav_login", ROUTES.SIGNIN, "nav");
+                  navigate(ROUTES.SIGNIN);
+                }}
                 className='text-gray-400 hover:text-brand hover:bg-transparent'
               >
                 LOGIN
               </Button>
               <Button
-                onClick={() => navigate("/waitlist")}
+                onClick={() => {
+                  trackLandingCta("nav_join_waitlist", ROUTES.WAITLIST, "nav");
+                  navigate(ROUTES.WAITLIST);
+                }}
                 className='bg-brand text-black hover:bg-brand/90 font-bold rounded-none'
               >
                 JOIN WAITLIST

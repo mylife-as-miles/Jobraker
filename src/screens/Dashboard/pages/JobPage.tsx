@@ -7014,7 +7014,7 @@ export const JobPage = (): JSX.Element => {
                       <span className='pointer-events-none absolute -top-20 -right-10 h-40 w-40 rounded-full bg-brand/20 blur-3xl opacity-50' />
                       
                       {/* Logo Column */}
-                      <div className='relative w-20 sm:w-auto sm:h-full sm:aspect-square flex-shrink-0 bg-foreground/5 flex items-center justify-center overflow-hidden border-r border-brand/10'>
+                      <div className='relative self-stretch w-24 sm:w-32 md:w-36 flex-shrink-0 bg-foreground/5 flex items-stretch justify-center overflow-hidden border-r border-brand/10'>
                         {j.logoUrl && !logoError[j.id] ? (
                           <img
                             src={j.logoUrl}

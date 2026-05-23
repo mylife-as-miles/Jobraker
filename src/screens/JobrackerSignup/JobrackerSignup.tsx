@@ -22,6 +22,7 @@ import { Input } from "../../components/ui/input";
 import { motion } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
 import { captureClientEvent } from "../../lib/analytics";
+import { Seo } from "@/components/seo/Seo";
 import { ROUTES } from "../../routes";
 import { AUTH_REDIRECTS } from "../../lib/authRedirects";
 import { capturePendingReferralCodeFromSearch } from "../../lib/referralAttribution";
@@ -61,6 +62,13 @@ export const JobrackerSignup = (): JSX.Element => {
   const [_lastUsedProvider, setLastUsedProvider] = useState<string | null>(
     null,
   );
+  const searchParams = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search],
+  );
+  const selectedPlan = searchParams.get("plan")?.trim().toLowerCase() || null;
+  const selectedBilling =
+    searchParams.get("billing")?.trim().toLowerCase() || null;
 
   useEffect(() => {
     const savedProvider = localStorage.getItem("lastUsedProvider");
@@ -79,6 +87,15 @@ export const JobrackerSignup = (): JSX.Element => {
     capturePendingReferralCodeFromSearch(location.search || "");
     persistAttributionFromSearch(location.search || "", location.pathname);
   }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    captureClientEvent("signup_viewed", {
+      auth_mode: isSignUp ? "signup" : "signin",
+      signup_surface: "jobracker_signup",
+      selected_plan: selectedPlan,
+      billing_interval: selectedBilling,
+    });
+  }, [isSignUp, selectedBilling, selectedPlan]);
 
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -206,6 +223,12 @@ export const JobrackerSignup = (): JSX.Element => {
         }
 
         setSubmitting(true);
+        captureClientEvent("signup_started", {
+          auth_method: "email",
+          signup_surface: "jobracker_signup",
+          selected_plan: selectedPlan,
+          billing_interval: selectedBilling,
+        });
         const { error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -218,6 +241,8 @@ export const JobrackerSignup = (): JSX.Element => {
         captureClientEvent("user_signed_up", {
           auth_method: "email",
           signup_surface: "jobracker_signup",
+          selected_plan: selectedPlan,
+          billing_interval: selectedBilling,
         });
         // Always require email verification; route to login
         // Show centered success modal with actions
@@ -362,6 +387,16 @@ export const JobrackerSignup = (): JSX.Element => {
 
   return (
     <div className='h-screen w-full flex bg-background overflow-hidden relative'>
+      <Seo
+        title={isSignUp ? "Create Your JobRaker Account" : "Sign In to JobRaker"}
+        description={
+          isSignUp
+            ? "Create your JobRaker account to organize your search, draft tailored applications, and unlock guided scouting."
+            : "Sign in to JobRaker to manage your search workflow, applications, and AI-assisted job materials."
+        }
+        path={isSignUp ? "/signup" : "/signIn"}
+        noindex
+      />
       {/* LEFT SIDE: Login Form */}
       <div className='w-full lg:w-1/2 flex flex-col relative z-20 bg-background/80 backdrop-blur-sm lg:backdrop-blur-none border-r border-foreground/5 h-full'>
         <div className='flex-1 flex flex-col justify-center overflow-y-auto py-6 px-4 sm:px-8 no-scrollbar'>

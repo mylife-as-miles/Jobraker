@@ -11,7 +11,7 @@ const faqs = [
   {
     question: "Is my data secure?",
     answer:
-      "Yes. We use enterprise-grade encryption for all user data. Your credentials are encrypted and never shared with third parties.",
+      "Yes. We protect account data in transit and at rest, and we do not sell your personal information. If you need a security review, contact support before rollout.",
   },
   {
     question: "Can I stay in control before applications are sent?",
@@ -26,7 +26,7 @@ const faqs = [
   {
     question: "Can I cancel my subscription anytime?",
     answer:
-      "Yes, you can cancel directly from your dashboard. You'll retain access until the end of your billing period.",
+      "Yes, you can cancel directly from your dashboard. You will retain access until the end of your billing period.",
   },
   {
     question: "What are search and AI credits?",
@@ -36,12 +36,12 @@ const faqs = [
   {
     question: "Do you offer quarterly or annual billing?",
     answer:
-      "Pro and Ultimate can be billed monthly, quarterly (10% off for Pro and 15% off for Ultimate vs three monthly payments), or annually. Basics supports monthly and annual. See the Billing page in your dashboard for live prices and checkout.",
+      "Pro and Ultimate can be billed monthly, quarterly (10% off for Pro and 15% off for Ultimate versus three monthly payments), or annually. Basics supports monthly and annual. See the Billing page in your dashboard for live prices and checkout.",
   },
   {
     question: "Can I use JobRaker on mobile?",
     answer:
-      "The product is built as a responsive web app—use it in your phone or tablet browser. For the best drafting and review experience, many users still prefer desktop.",
+      "The product is built as a responsive web app. Use it in your phone or tablet browser. For the best drafting and review experience, many users still prefer desktop.",
   },
   {
     question: "How does match or ATS scoring work?",
@@ -51,7 +51,7 @@ const faqs = [
   {
     question: "Who do I contact for billing or account help?",
     answer:
-      "Use in-app support or your account email to reach us. Include any payment reference or screenshot if the issue is about a charge—our Billing FAQ in the dashboard covers plans, credits, and checkout in more detail.",
+      "Use in-app support or your account email to reach us. Include any payment reference or screenshot if the issue is about a charge. Our Billing FAQ in the dashboard covers plans, credits, and checkout in more detail.",
   },
 ];
 
@@ -67,7 +67,7 @@ export const FAQSection = () => {
       <div className='space-y-4'>
         {faqs.map((faq, i) => (
           <div
-            key={i}
+            key={faq.question}
             className='border border-white/10 rounded-lg overflow-hidden'
           >
             <button

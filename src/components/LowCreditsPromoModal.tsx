@@ -172,7 +172,7 @@ export function LowCreditsPromoModal({
         </DialogTitle>
         <DialogDescription className='sr-only'>
           You have used most of your credits. This screen unlocks a one-time
-          rescue offer on your next upgrade.
+          rescue offer at your next checkout.
         </DialogDescription>
 
         <div className='flex items-center justify-between gap-3 border-b border-white/10 bg-black/40 px-4 py-2.5'>
@@ -223,8 +223,8 @@ export function LowCreditsPromoModal({
             <span className='font-semibold text-white'>
               {stats.percentRemaining}%
             </span>{" "}
-            of your credits left. You unlocked a one-time rescue offer on your
-            next upgrade before this hour closes.
+            of your credits left. You unlocked a one-time rescue offer for your
+            next paid checkout before this hour closes.
           </p>
 
           <div className='overflow-hidden rounded-xl border border-white/10 bg-zinc-900/80'>

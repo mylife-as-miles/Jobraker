@@ -32,8 +32,12 @@ import { AnimatePresence } from "framer-motion";
 import { PageTransition } from "./components/transitions";
 import posthog, { initPostHog } from "./lib/posthog";
 import { PostHogProvider } from "posthog-js/react";
+import { HelmetProvider } from "react-helmet-async";
 import AdminCheckCredits from "@/pages/AdminCheckCredits";
 import { usePostHogAuthBridge } from "./hooks/usePostHogAuthBridge";
+import { PricingPage } from "./screens/Pricing";
+import TermsOfService from "./screens/TermsOfService";
+import SecurityPage from "./screens/SecurityPage";
 import {
   AdminLayout,
   AdminOverview,
@@ -113,11 +117,31 @@ function AnimatedRoutes() {
 
         {/* Waitlist Page */}
         <Route
-          path='/waitlist'
+          path={ROUTES.WAITLIST}
           element={
             <PageTransition>
               <WaitlistPage />
             </PageTransition>
+          }
+        />
+
+        <Route
+          path={ROUTES.EARLY_ACCESS}
+          element={
+            <PageTransition>
+              <EarlyAccessPage />
+            </PageTransition>
+          }
+        />
+
+        <Route
+          path={ROUTES.PRICING}
+          element={
+            <PublicOnly>
+              <PageTransition>
+                <PricingPage />
+              </PageTransition>
+            </PublicOnly>
           }
         />
 
@@ -195,6 +219,28 @@ function AnimatedRoutes() {
             <PublicOnly>
               <PageTransition>
                 <PrivacyPolicy />
+              </PageTransition>
+            </PublicOnly>
+          }
+        />
+
+        <Route
+          path={ROUTES.TERMS}
+          element={
+            <PublicOnly>
+              <PageTransition>
+                <TermsOfService />
+              </PageTransition>
+            </PublicOnly>
+          }
+        />
+
+        <Route
+          path={ROUTES.SECURITY}
+          element={
+            <PublicOnly>
+              <PageTransition>
+                <SecurityPage />
               </PageTransition>
             </PublicOnly>
           }
@@ -301,22 +347,24 @@ function App() {
   usePostHogAuthBridge();
 
   return (
-    <PostHogProvider client={posthog}>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          {/* Global providers */}
-          <ToastProvider>
-            <AppearanceProvider>
-              <InputSecurityGuard />
-              <ToastEventBridge />
-              <SubdomainGuard>
-                <AnimatedRoutes />
-              </SubdomainGuard>
-            </AppearanceProvider>
-          </ToastProvider>
-        </BrowserRouter>
-      </QueryClientProvider>
-    </PostHogProvider>
+    <HelmetProvider>
+      <PostHogProvider client={posthog}>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            {/* Global providers */}
+            <ToastProvider>
+              <AppearanceProvider>
+                <InputSecurityGuard />
+                <ToastEventBridge />
+                <SubdomainGuard>
+                  <AnimatedRoutes />
+                </SubdomainGuard>
+              </AppearanceProvider>
+            </ToastProvider>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </PostHogProvider>
+    </HelmetProvider>
   );
 }
 

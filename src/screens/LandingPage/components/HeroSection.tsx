@@ -1,7 +1,9 @@
 import { Button } from "../../../components/ui/button";
-import { ArrowRight, Terminal } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EarthOrb } from "./EarthOrb";
+import { captureClientEvent } from "@/lib/analytics";
+import { ROUTES } from "@/routes";
 
 export const HeroSection = () => {
   const navigate = useNavigate();
@@ -37,14 +39,28 @@ export const HeroSection = () => {
 
           <div className='flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4'>
             <Button
-              onClick={() => navigate("/waitlist")}
+              onClick={() => {
+                captureClientEvent("landing_cta_clicked", {
+                  cta_id: "hero_join_waitlist",
+                  destination: ROUTES.WAITLIST,
+                  location: "hero",
+                });
+                navigate(ROUTES.WAITLIST);
+              }}
               className='bg-brand text-black hover:bg-brand/90 h-12 px-6 text-base font-bold rounded-none border border-brand transition-all hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] w-full sm:w-auto'
             >
               JOIN WAITLIST
               <ArrowRight className='w-5 h-5 ml-2' />
             </Button>
             <Button
-              onClick={() => navigate("/early-access")}
+              onClick={() => {
+                captureClientEvent("landing_cta_clicked", {
+                  cta_id: "hero_request_early_access",
+                  destination: ROUTES.EARLY_ACCESS,
+                  location: "hero",
+                });
+                navigate(ROUTES.EARLY_ACCESS);
+              }}
               variant='outline'
               className='border-brand text-brand bg-transparent hover:bg-brand/10 h-12 px-6 text-base font-mono rounded-none w-full sm:w-auto'
             >
@@ -55,13 +71,13 @@ export const HeroSection = () => {
           {/* Trust/Stats Mini-section */}
           <div className='pt-8 flex items-center justify-center lg:justify-start space-x-8 text-neutral-500 text-sm font-mono'>
             <div className='flex items-center space-x-2'>
-              <span className='text-brand font-bold'>50k+</span>
-              <span>Sources Scanned</span>
+              <span className='text-brand font-bold'>Review-first</span>
+              <span>you stay in control</span>
             </div>
             <div className='w-px h-4 bg-neutral-800' />
             <div className='flex items-center space-x-2'>
-              <span className='text-brand font-bold'>24/7</span>
-              <span>Pipeline Momentum</span>
+              <span className='text-brand font-bold'>Tailored</span>
+              <span>resume and cover letter workflows</span>
             </div>
           </div>
         </div>
