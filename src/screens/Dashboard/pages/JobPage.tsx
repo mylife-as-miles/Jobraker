@@ -897,11 +897,37 @@ function JobQualityAndFeedback({
   job,
   compact = false,
   onFeedback,
+  fullAccess = true,
 }: {
   job: Job;
   compact?: boolean;
   onFeedback: (job: Job, label: JobFeedbackLabel) => void;
+  fullAccess?: boolean;
 }) {
+  if (!fullAccess) {
+    return (
+      <UpgradePrompt
+        title='Job quality gate'
+        description='See whether a role looks trustworthy before you spend time on it.'
+        features={[
+          {
+            icon: <ShieldCheck className='h-5 w-5' />,
+            title: "Lead trust checks",
+            description: "Spot thin, vague, stale, or suspicious postings faster.",
+          },
+          {
+            icon: <Target className='h-5 w-5' />,
+            title: "Quality filtering",
+            description: "Prioritize cleaner leads before you tailor or apply.",
+          },
+        ]}
+        requiredTier='Basics'
+        icon={<ShieldCheck className='h-12 w-12 text-brand' />}
+        compact
+      />
+    );
+  }
+
   const qualityScore =
     typeof job.lead_quality_score === "number" ? job.lead_quality_score : null;
   const qualityTone =
@@ -1059,7 +1085,15 @@ export const JobPage = (): JSX.Element => {
     "Basics",
   );
   const hasMatchScoreAccess = hasPaidInsightsAccess;
-  const hasJobEvaluationAccess = hasPaidInsightsAccess;
+  const hasJobQualityAccess = hasFeatureAccess(
+    subscriptionTier,
+    "basic_job_quality_filter",
+  );
+  const hasOpportunityBreakdownAccess = hasFeatureAccess(
+    subscriptionTier,
+    "explainable_score_breakdown",
+  );
+  const hasJobEvaluationAccess = hasOpportunityBreakdownAccess;
   const hasAutoApplyAccess = hasSubscriptionAccess(subscriptionTier, "Free");
   const hasBulkPipelineAccess = hasFeatureAccess(
     subscriptionTier,
@@ -5201,13 +5235,7 @@ export const JobPage = (): JSX.Element => {
 
                           {/* Badges */}
                           <div className='flex flex-wrap items-center gap-2 flex-shrink-0'>
-                            {job.explainableOpportunity && (
-                              <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-brand/10 text-brand border border-brand/20'>
-                                <Zap className='w-3 h-3' />
-                                {job.explainableOpportunity.opportunityScore}%
-                                Opportunity
-                              </span>
-                            )}
+
                             {(() => {
                               if (!job.posted_at) return null;
                               const postedTs = Date.parse(job.posted_at);
@@ -5783,11 +5811,14 @@ export const JobPage = (): JSX.Element => {
 
                       <OpportunityScoreSummary
                         opportunity={job.explainableOpportunity}
+                        fullAccess={hasOpportunityBreakdownAccess}
+                        requiredTier='Pro'
                       />
 
                       <JobQualityAndFeedback
                         job={job}
                         onFeedback={handleJobFeedback}
+                        fullAccess={hasJobQualityAccess}
                       />
 
                       {/* AI Match Score Card - Gated for Basics+ */}
@@ -5840,9 +5871,12 @@ export const JobPage = (): JSX.Element => {
                         />
                       ) : (
                         <JobEvaluationTeaser
+                          requiredTier='Pro'
                           jobTitle={job.title || "Role"}
                           company={job.company}
                           descriptionPreview={job.description || undefined}
+                          title='Evaluation report'
+                          ctaLabel='Upgrade for full evaluation report'
                         />
                       )}
 
@@ -7256,12 +7290,15 @@ export const JobPage = (): JSX.Element => {
                 <OpportunityScoreSummary
                   opportunity={j.explainableOpportunity}
                   compact
+                  fullAccess={hasOpportunityBreakdownAccess}
+                  requiredTier='Pro'
                 />
 
                 <JobQualityAndFeedback
                   job={j}
                   compact
                   onFeedback={handleJobFeedback}
+                  fullAccess={hasJobQualityAccess}
                 />
 
                 {/* AI Match Score Card - Mobile - Gated for Basics+ */}
@@ -7310,9 +7347,12 @@ export const JobPage = (): JSX.Element => {
                 ) : (
                   <JobEvaluationTeaser
                     compact
+                    requiredTier='Pro'
                     jobTitle={j.title || "Role"}
                     company={j.company}
                     descriptionPreview={j.description || undefined}
+                    title='Evaluation report'
+                    ctaLabel='Upgrade for full evaluation report'
                   />
                 )}
 

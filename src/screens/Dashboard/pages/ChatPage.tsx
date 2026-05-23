@@ -1319,7 +1319,7 @@ export const ChatPage = () => {
                         <button
                           type='button'
                           onClick={() => setActiveSessionId(s.id)}
-                          className='min-w-0 flex-1 overflow-hidden text-left'
+                          className='min-w-0 flex-1 overflow-hidden text-left bg-transparent'
                         >
                           {renamingSessionId === s.id ? (
                             <input

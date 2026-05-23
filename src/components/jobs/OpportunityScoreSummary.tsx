@@ -1,18 +1,27 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
+  Lock,
   ShieldCheck,
   Target,
   Zap,
 } from "lucide-react";
 import type { ExplainableJobOpportunity, RankingReason } from "@/services/intelligence/types";
 import { getRecommendedActionLabel } from "@/services/intelligence/opportunityScoreEngine";
+import { Button } from "@/components/ui/button";
+import {
+  getPromptBadgeLabel,
+  type UpgradePromptTier,
+} from "@/lib/subscriptionAccess";
 
 type OpportunityScoreSummaryProps = {
   opportunity?: ExplainableJobOpportunity | null;
   compact?: boolean;
+  fullAccess?: boolean;
+  requiredTier?: UpgradePromptTier;
 };
 
 const scoreTone = (score: number): string => {
@@ -32,6 +41,8 @@ const reasonIcon = (item: RankingReason) => {
 export function OpportunityScoreSummary({
   opportunity,
   compact = false,
+  fullAccess = true,
+  requiredTier = "Pro",
 }: OpportunityScoreSummaryProps) {
   const [isOpen, setIsOpen] = useState(!compact);
 
@@ -39,7 +50,7 @@ export function OpportunityScoreSummary({
 
   const topReasons = opportunity.visibleReasons
     .filter((item) => item.id !== "recommended-action")
-    .slice(0, compact ? 3 : 5);
+    .slice(0, fullAccess ? (compact ? 3 : 5) : 2);
   const primaryCap = opportunity.capsApplied[0] ?? null;
   const primaryBlocker = opportunity.blockers[0] ?? null;
 
@@ -70,6 +81,11 @@ export function OpportunityScoreSummary({
           <span className='rounded-full border border-foreground/10 bg-foreground/5 px-2.5 py-1 text-xs text-foreground/65'>
             #{opportunity.rank || "-"} {opportunity.rankLabel.replace(/_/g, " ")}
           </span>
+          {!fullAccess ? (
+            <span className='rounded-full border border-brand/25 bg-brand/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-brand'>
+              {getPromptBadgeLabel(requiredTier)}
+            </span>
+          ) : null}
           <ChevronDown
             className={`h-4 w-4 text-foreground/45 transition-transform ${
               isOpen ? "rotate-180" : ""
@@ -117,7 +133,34 @@ export function OpportunityScoreSummary({
             </div>
           ) : null}
 
-          {primaryCap || primaryBlocker ? (
+          {!fullAccess ? (
+            <div className='rounded-lg border border-brand/20 bg-brand/[0.04] p-3 text-xs text-foreground/75 space-y-3'>
+              <div className='flex flex-wrap items-center gap-2'>
+                <span className='rounded-full border border-brand/35 bg-brand/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand'>
+                  {getPromptBadgeLabel(requiredTier)}
+                </span>
+                <span className='inline-flex items-center gap-1 text-[11px] text-foreground/45'>
+                  <Lock className='h-3 w-3' />
+                  Preview only
+                </span>
+              </div>
+              <p className='leading-relaxed'>
+                You can see the score preview here. Upgrade to unlock the full
+                breakdown, engine synthesis, score caps, proof paths, and next-step
+                guidance.
+              </p>
+              <Link to='/dashboard/billing' className='inline-flex'>
+                <Button
+                  size='sm'
+                  className='h-8 rounded-full bg-brand px-3 text-xs font-semibold text-black hover:bg-brand/90'
+                >
+                  Unlock full opportunity intelligence
+                </Button>
+              </Link>
+            </div>
+          ) : null}
+
+          {fullAccess && (primaryCap || primaryBlocker) ? (
             <div className='rounded-lg border border-[#fb923c]/20 bg-[#fb923c]/10 px-3 py-2 text-xs text-foreground/75'>
               <span className='font-medium text-[#fb923c]'>
                 {primaryCap ? "Cap applied" : "Watch out"}:
@@ -126,8 +169,7 @@ export function OpportunityScoreSummary({
             </div>
           ) : null}
 
-          {/* Dynamic Synthesis Banner */}
-          {!compact && (
+          {!compact && fullAccess ? (
             <div className='rounded-lg border border-brand/20 bg-brand/[0.02] p-3 text-xs text-foreground/80 space-y-1'>
               <span className='font-semibold text-foreground/90 flex items-center gap-1.5'>
                 <Zap className='h-3.5 w-3.5 text-brand' />
@@ -139,10 +181,10 @@ export function OpportunityScoreSummary({
                   {opportunity.opportunityScore >= 85
                     ? "exceptionally high"
                     : opportunity.opportunityScore >= 72
-                    ? "strong"
-                    : opportunity.opportunityScore >= 52
-                    ? "moderately"
-                    : "low"}
+                      ? "strong"
+                      : opportunity.opportunityScore >= 52
+                        ? "moderately"
+                        : "low"}
                 </span>{" "}
                 because your{" "}
                 <span className='font-semibold text-brand'>
@@ -172,10 +214,9 @@ export function OpportunityScoreSummary({
                 ) : null}
               </p>
             </div>
-          )}
+          ) : null}
 
-          {/* Graph Proof Paths */}
-          {!compact && opportunity.proofPaths && opportunity.proofPaths.length > 0 ? (
+          {!compact && fullAccess && opportunity.proofPaths && opportunity.proofPaths.length > 0 ? (
             <div className='space-y-1.5 pt-1'>
               <div className='text-[10px] uppercase tracking-wide text-foreground/45 flex items-center gap-1 font-semibold'>
                 <span>Verified graph proof paths</span>
@@ -197,11 +238,11 @@ export function OpportunityScoreSummary({
                       {path.nodes.map((node, nodeIdx) => (
                         <span key={nodeIdx} className='flex items-center gap-1 whitespace-nowrap'>
                           <span className='text-foreground font-medium'>{node}</span>
-                          {nodeIdx < path.nodes.length - 1 && (
+                          {nodeIdx < path.nodes.length - 1 ? (
                             <span className='text-foreground/35 font-normal'>
-                              -[{path.edges[nodeIdx]}]➔
+                              -[{path.edges[nodeIdx]}]-&gt;
                             </span>
-                          )}
+                          ) : null}
                         </span>
                       ))}
                     </div>
@@ -211,8 +252,7 @@ export function OpportunityScoreSummary({
             </div>
           ) : null}
 
-          {/* Evidence Matches */}
-          {!compact && opportunity.supportingEvidence.length > 0 ? (
+          {!compact && fullAccess && opportunity.supportingEvidence.length > 0 ? (
             <div className='space-y-1.5 pt-1'>
               <div className='text-[10px] uppercase tracking-wide text-foreground/45 flex items-center gap-1 font-semibold'>
                 <span>Verified skill matches</span>
@@ -241,7 +281,7 @@ export function OpportunityScoreSummary({
             </div>
           ) : null}
 
-          {!compact && opportunity.missingSignals.length > 0 ? (
+          {!compact && fullAccess && opportunity.missingSignals.length > 0 ? (
             <div className='space-y-1.5 pt-1'>
               <div className='text-[10px] uppercase tracking-wide text-foreground/45 flex items-center gap-1 font-semibold'>
                 <span>Missing signals / weak evidence</span>
@@ -263,9 +303,11 @@ export function OpportunityScoreSummary({
             </div>
           ) : null}
 
-          <div className='rounded-lg border border-brand/20 bg-brand/10 px-3 py-2 text-xs text-brand'>
-            Recommended action: {getRecommendedActionLabel(opportunity.recommendedAction)}
-          </div>
+          {fullAccess ? (
+            <div className='rounded-lg border border-brand/20 bg-brand/10 px-3 py-2 text-xs text-brand'>
+              Recommended action: {getRecommendedActionLabel(opportunity.recommendedAction)}
+            </div>
+          ) : null}
         </>
       ) : null}
     </div>

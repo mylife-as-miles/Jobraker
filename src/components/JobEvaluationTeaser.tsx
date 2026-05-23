@@ -2,7 +2,10 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Lock, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "./ui/button";
-import { getPromptBadgeLabel } from "@/lib/subscriptionAccess";
+import {
+  getPromptBadgeLabel,
+  type UpgradePromptTier,
+} from "@/lib/subscriptionAccess";
 
 export interface JobEvaluationTeaserProps {
   jobTitle: string;
@@ -10,6 +13,9 @@ export interface JobEvaluationTeaserProps {
   descriptionPreview?: string | null;
   className?: string;
   compact?: boolean;
+  requiredTier?: UpgradePromptTier;
+  title?: string;
+  ctaLabel?: string;
 }
 
 function clipText(text: string, maxLen: number) {
@@ -24,6 +30,9 @@ export function JobEvaluationTeaser({
   descriptionPreview,
   className = "",
   compact = false,
+  requiredTier = "Basics",
+  title = "AI job fit verdict",
+  ctaLabel = "Upgrade for full AI fit report",
 }: JobEvaluationTeaserProps) {
   const snippet =
     descriptionPreview && descriptionPreview.trim().length > 0
@@ -47,7 +56,7 @@ export function JobEvaluationTeaser({
       <div className='relative z-10'>
         <div className='mb-3 flex flex-wrap items-center gap-2'>
           <span className='rounded-full border border-brand/35 bg-brand/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand'>
-            {getPromptBadgeLabel("Basics")}
+            {getPromptBadgeLabel(requiredTier)}
           </span>
           <span className='inline-flex items-center gap-1 text-[11px] text-foreground/45'>
             <Lock className='h-3 w-3' />
@@ -61,7 +70,7 @@ export function JobEvaluationTeaser({
           </div>
           <div>
             <h3 className='text-base font-semibold text-foreground'>
-              AI job fit verdict
+              {title}
             </h3>
             <p className='mt-1 text-sm text-foreground/60'>
               Full analysis uses your resume and this posting — blockers, match
@@ -88,7 +97,7 @@ export function JobEvaluationTeaser({
             aria-hidden
           />
           <p className='relative mt-3 text-center text-[11px] font-medium uppercase tracking-wider text-foreground/40'>
-            Unlock on Basics to read the full evaluation
+            Unlock on {requiredTier} to read the full evaluation
           </p>
         </div>
 
@@ -98,7 +107,7 @@ export function JobEvaluationTeaser({
           </p>
           <Link to='/dashboard/billing' className='shrink-0'>
             <Button className='w-full bg-gradient-to-r from-brand to-brand/85 font-semibold text-black hover:from-brand/90 sm:w-auto'>
-              Upgrade for full AI fit report
+              {ctaLabel}
               <ArrowRight className='ml-2 h-4 w-4' />
             </Button>
           </Link>

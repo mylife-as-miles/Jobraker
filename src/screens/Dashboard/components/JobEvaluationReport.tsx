@@ -150,7 +150,7 @@ export function JobEvaluationReport({
     <>
       <Card className='border border-brand/20 bg-card/80 p-5 space-y-5'>
         <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
-          <div className='space-y-3'>
+          <div className='space-y-3 flex-1 min-w-0'>
             <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-brand/75'>
               <Sparkles className='h-3.5 w-3.5' />
               Evaluation Report
@@ -172,8 +172,8 @@ export function JobEvaluationReport({
               detailed report.
             </p>
           </div>
-          <div className='grid w-full gap-3 sm:grid-cols-3 lg:max-w-xl'>
-            <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4'>
+          <div className='grid w-full gap-3 sm:grid-cols-3 shrink-0 lg:w-[380px]'>
+            <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4 text-center'>
               <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
                 Confidence
               </div>
@@ -181,7 +181,7 @@ export function JobEvaluationReport({
                 {evaluation.confidence_score}%
               </div>
             </div>
-            <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4'>
+            <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4 text-center'>
               <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
                 Blockers
               </div>
@@ -189,7 +189,7 @@ export function JobEvaluationReport({
                 {evaluation.blockers.length}
               </div>
             </div>
-            <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4'>
+            <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4 text-center'>
               <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
                 Stories
               </div>
@@ -237,7 +237,7 @@ export function JobEvaluationReport({
       >
         <div className='space-y-6'>
           <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
-            <div className='space-y-3'>
+            <div className='space-y-3 flex-1 min-w-0'>
               <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-brand/75'>
                 <Sparkles className='h-3.5 w-3.5' />
                 Evaluation Report
@@ -254,33 +254,33 @@ export function JobEvaluationReport({
                 </span>
               </div>
             </div>
-            <div className='grid w-full max-w-xl gap-3 sm:grid-cols-3'>
-          <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4'>
-            <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
-              Confidence
-            </div>
-            <div className='mt-2 text-2xl font-semibold text-brand'>
-              {evaluation.confidence_score}%
+            <div className='grid w-full gap-3 sm:grid-cols-3 shrink-0 lg:w-[380px]'>
+              <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4 text-center'>
+                <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
+                  Confidence
+                </div>
+                <div className='mt-2 text-2xl font-semibold text-brand'>
+                  {evaluation.confidence_score}%
+                </div>
+              </div>
+              <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4 text-center'>
+                <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
+                  Blockers
+                </div>
+                <div className='mt-2 text-2xl font-semibold text-foreground'>
+                  {evaluation.blockers.length}
+                </div>
+              </div>
+              <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4 text-center'>
+                <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
+                  Stories
+                </div>
+                <div className='mt-2 text-2xl font-semibold text-foreground'>
+                  {evaluation.interview_stories.length}
+                </div>
+              </div>
             </div>
           </div>
-          <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4'>
-            <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
-              Blockers
-            </div>
-            <div className='mt-2 text-2xl font-semibold text-foreground'>
-              {evaluation.blockers.length}
-            </div>
-          </div>
-          <div className='rounded-2xl border border-foreground/10 bg-foreground/5 px-4 py-4'>
-            <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
-              Stories
-            </div>
-            <div className='mt-2 text-2xl font-semibold text-foreground'>
-              {evaluation.interview_stories.length}
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div className='grid gap-4 lg:grid-cols-2'>
         {breakdown.length > 0 ? (

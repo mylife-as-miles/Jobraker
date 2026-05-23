@@ -130,8 +130,7 @@
   /* Normalize form controls to theme colors on mobile */
   input,
   select,
-  textarea,
-  button {
+  textarea {
     color: hsl(var(--foreground, var(--surface-foreground-fallback)) / 1);
     background-color: hsl(
       var(--background, var(--surface-background-fallback)) / 1

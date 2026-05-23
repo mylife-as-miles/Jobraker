@@ -116,6 +116,25 @@ const isProfileUrl = (url: string): boolean => {
   return false;
 };
 
+const isSearchUrl = (url: string): boolean => {
+  const lower = url.toLowerCase();
+  if (
+    lower.includes("indeed.com") &&
+    !lower.includes("/viewjob") &&
+    !lower.includes("/rc/clk") &&
+    lower.includes("/jobs")
+  ) {
+    return true;
+  }
+  if (
+    lower.includes("linkedin.com") &&
+    (lower.includes("/jobs/search") || lower.includes("/search"))
+  ) {
+    return true;
+  }
+  return false;
+};
+
 const hostFromUrl = (value: string | null | undefined): string | null => {
   if (!value) return null;
   const parsed = safeUrl(value);
@@ -390,6 +409,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (isSearchUrl(normalizedUrl)) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "That URL looks like a search results list, not an individual job posting. Please click on a specific job to open it, then copy and paste its unique link.",
+        }),
+        {
+          status: 422,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        },
+      );
+    }
+
     const firecrawlApiKey = await resolveFirecrawlApiKey();
     const verificationStatus = await verifyJobUrl(normalizedUrl);
 
@@ -442,11 +474,11 @@ Deno.serve(async (req) => {
       markdown,
     );
 
-    if (!extracted.description || extracted.description.length < 120) {
+    if (!extracted.description || extracted.description.length < 250) {
       return new Response(
         JSON.stringify({
           error:
-            "Jobraker could not extract enough detail from that posting to evaluate it yet.",
+            "Jobraker could not extract enough detail from that posting to evaluate it. This often happens if the link points to a search page, requires a login, or is blocked by bot protection.",
         }),
         {
           status: 422,
