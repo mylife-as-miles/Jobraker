@@ -811,16 +811,56 @@ const extractAutomationMetadata = (
   } as const;
 };
 
+const isGenericJobPortal = (domain: string): boolean => {
+  const lower = domain.toLowerCase();
+  const genericPortals = [
+    "lever.co",
+    "greenhouse.io",
+    "ashbyhq.com",
+    "workable.com",
+    "indeed.com",
+    "linkedin.com",
+    "careers-page.com",
+    "ziprecruiter.com",
+    "glassdoor.com",
+    "monster.com",
+    "careerbuilder.com",
+    "simplyhired.com",
+    "weworkremotely.com",
+    "remote.co",
+    "remotive.com",
+    "remoteok.com",
+    "jobicy.com",
+    "wellfound.com",
+    "builtin.com",
+    "otta.com",
+  ];
+  return genericPortals.some(
+    (portal) => lower === portal || lower.endsWith(`.${portal}`),
+  );
+};
+
 const getCompanyLogoUrl = (
-  companyName?: string,
+  companyName: string,
   sourceUrl?: string,
 ): string | undefined => {
-  if (!companyName) return undefined;
   try {
-    const domain = new URL(
-      sourceUrl ||
-        `https://www.${companyName.toLowerCase().replace(/\s/g, "")}.com`,
-    ).hostname;
+    let domain: string | undefined;
+    if (sourceUrl) {
+      const parsedUrl = new URL(sourceUrl);
+      const host = parsedUrl.hostname.toLowerCase().replace(/^www\./, "");
+      if (!isGenericJobPortal(host)) {
+        domain = parsedUrl.hostname;
+      }
+    }
+
+    if (!domain) {
+      const cleanCompany = companyName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, ""); // strip non-alphanumeric
+      domain = `www.${cleanCompany}.com`;
+    }
+
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
   } catch {
     return undefined;
