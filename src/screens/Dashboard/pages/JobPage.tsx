@@ -1566,10 +1566,6 @@ export const JobPage = (): JSX.Element => {
         },
       );
 
-      if (import.meta.env.VITE_ENABLE_EXPLAINABLE_RANKING === "false") {
-        return withMatchInsights;
-      }
-
       const opportunities = buildExplainableJobOpportunities(
         withMatchInsights,
         explainableCandidateProfile,

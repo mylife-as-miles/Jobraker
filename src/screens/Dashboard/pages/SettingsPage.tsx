@@ -55,6 +55,7 @@ import { useSecuritySettings } from "../../../hooks/useSecuritySettings";
 import { createClient } from "../../../lib/supabaseClient";
 import { useAppearance } from "../../../providers/AppearanceProvider";
 import { useToast } from "../../../components/ui/toast";
+import { AnswerBankPanel } from "../components/AnswerBankPanel";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
 import {
@@ -157,6 +158,11 @@ export const SettingsPage = (): JSX.Element => {
   const tabs = useMemo(() => {
     const baseTabs = [
       { id: "profile", label: "Profile", icon: <User className='w-4 h-4' /> },
+      {
+        id: "answer-bank",
+        label: "Answer Bank",
+        icon: <Database className='w-4 h-4' />,
+      },
       {
         id: "notifications",
         label: "Notifications",
@@ -4780,6 +4786,9 @@ export const SettingsPage = (): JSX.Element => {
             </div>
           </div>
         );
+
+      case "answer-bank":
+        return <AnswerBankPanel />;
 
       default:
         return null;
