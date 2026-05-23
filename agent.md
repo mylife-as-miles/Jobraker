@@ -77,3 +77,52 @@ This repo's local install created:
 .claude/CLAUDE.md
 .codegraph/
 ```
+
+## Marketing Skills
+The `coreyhaines31/marketingskills` skills pack is installed for this project.
+
+### Install
+Run this from the project root:
+
+```bash
+npx skills add coreyhaines31/marketingskills
+```
+
+This installs the project-scoped skills into `.agents/skills/` and links or copies them into supported agents.
+
+### Useful commands
+Use these from the project root:
+
+```bash
+npx skills list
+npx skills find marketing
+npx skills update
+npx skills remove
+```
+
+To install the same pack globally instead of project-level:
+
+```bash
+npx skills add coreyhaines31/marketingskills -g
+```
+
+To list global skills:
+
+```bash
+npx skills list -g
+```
+
+Current project install includes marketing skills such as:
+
+```text
+analytics
+pricing
+product-marketing
+seo-audit
+copywriting
+social
+signup
+paywalls
+popups
+launch
+```
