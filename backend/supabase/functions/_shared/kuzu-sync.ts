@@ -1,7 +1,15 @@
-// Idempotent Kuzu graph sync utility
-// Syncs relational profile entities and edges from Postgres to Kuzu Cypher nodes and relationships.
+// Optional Kuzu graph sync utility.
+// The Postgres evidence graph remains the source of truth unless a Kuzu adapter is configured.
 
-export async function syncPostgresToKuzu(userId: string): Promise<{
+type SupabaseLikeClient = {
+  from: (table: string) => {
+    select: (columns: string, options?: Record<string, unknown>) => {
+      eq: (column: string, value: string) => Promise<{ data: unknown[] | null; error: { message: string } | null }>;
+    };
+  };
+};
+
+export async function syncPostgresToKuzu(userId: string, supabase?: SupabaseLikeClient): Promise<{
   success: boolean;
   syncedNodes: number;
   syncedEdges: number;
@@ -25,22 +33,57 @@ export async function syncPostgresToKuzu(userId: string): Promise<{
   }
 
   try {
-    console.info(`[Kuzu Sync] Syncing graph data for user ${userId}...`);
-    
-    // In production:
-    // 1. Fetch entities and edges from Postgres:
-    //    const { data: entities } = await supabase.from('profile_entities').select('*').eq('user_id', userId);
-    //    const { data: edges } = await supabase.from('profile_edges').select('*').eq('user_id', userId);
-    // 2. Initialize connection to Kuzu DB.
-    // 3. Clear old user nodes and relationships.
-    // 4. Create Cypher nodes for Candidate, Experiences, Skills, etc.
-    // 5. Create Cypher edges for HAS_SKILL, USED_IN, EVIDENCES, CONTAINS, etc.
-    
+    if (!supabase) {
+      return {
+        success: true,
+        syncedNodes: 0,
+        syncedEdges: 0,
+        message: "Kuzu sync skipped because no Postgres client was provided.",
+      };
+    }
+
+    const [entitiesRes, edgesRes] = await Promise.all([
+      supabase.from("profile_entities").select("id", { count: "exact", head: false }).eq("user_id", userId),
+      supabase.from("profile_edges").select("id", { count: "exact", head: false }).eq("user_id", userId),
+    ]);
+
+    if (entitiesRes.error) {
+      throw new Error(`Could not read profile entities: ${entitiesRes.error.message}`);
+    }
+    if (edgesRes.error) {
+      throw new Error(`Could not read profile edges: ${edgesRes.error.message}`);
+    }
+
+    const kuzuEndpoint = Deno.env.get("KUZU_SYNC_ENDPOINT");
+    if (!kuzuEndpoint) {
+      return {
+        success: true,
+        syncedNodes: 0,
+        syncedEdges: 0,
+        message:
+          "Kuzu graph is enabled, but KUZU_SYNC_ENDPOINT is not configured. Postgres graph reasoning remains active.",
+      };
+    }
+
+    const response = await fetch(kuzuEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        source: "postgres_profile_graph",
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Kuzu adapter returned ${response.status}`);
+    }
+
+    const payload = await response.json().catch(() => ({}));
     return {
       success: true,
-      syncedNodes: 5,
-      syncedEdges: 8,
-      message: "Successfully synchronized Postgres profile graph to Kuzu graph database.",
+      syncedNodes: Number(payload.syncedNodes ?? entitiesRes.data?.length ?? 0),
+      syncedEdges: Number(payload.syncedEdges ?? edgesRes.data?.length ?? 0),
+      message: "Successfully requested Kuzu graph synchronization.",
     };
   } catch (error: any) {
     console.error("[Kuzu Sync] Synchronization failed:", error);

@@ -11,7 +11,7 @@ export type SemanticMatchResult = {
 
 /**
  * Computes semantic matching using pgvector distance searches.
- * Falls back to heuristic matching if feature flag is disabled or database chunks are missing.
+ * Falls back to heuristic matching if vector chunks are missing or the RPC is unavailable.
  */
 export async function computeSemanticMatch(
   jobId: string,
@@ -20,25 +20,13 @@ export async function computeSemanticMatch(
     jobTitle?: string;
     jobDescription?: string;
     candidateSkills?: string[];
+    useVectorSearch?: boolean;
   }
 ): Promise<SemanticMatchResult> {
-  const isEnabled = import.meta.env.VITE_ENABLE_SEMANTIC_MATCHING === "true";
+  const shouldUseVectorSearch = options?.useVectorSearch !== false && Boolean(jobId && userId);
 
-  if (!isEnabled) {
-    return {
-      semanticFitScore: 50,
-      matchedEvidence: [],
-      missingEvidence: [],
-      reasons: [
-        reason(
-          "semantic-disabled",
-          "semantic",
-          "neutral",
-          "Semantic match bypassed",
-          "Vector similarity matching is disabled. Enable in preferences to activate semantic search."
-        ),
-      ],
-    };
+  if (!shouldUseVectorSearch) {
+    return runFallbackMatch(options);
   }
 
   try {

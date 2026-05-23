@@ -3,11 +3,13 @@ import { scoreCandidateFit } from "../candidateFitEngine";
 import { detectJobDuplicates } from "../jobDedupeEngine";
 import { scoreLeadQuality } from "../leadQualityEngine";
 import { scoreExplainableOpportunity } from "../opportunityScoreEngine";
-import { rebuildProfileEvidenceForUser } from "../profileEvidenceEngine";
+import { getProfileEvidenceScore, rebuildProfileEvidenceForUser } from "../profileEvidenceEngine";
 import { computeSemanticMatch } from "../semanticMatchEngine";
 import { computeGraphReasoning } from "../graphReasoningEngine";
 import { scoreFeedbackLearning } from "../feedbackLearningEngine";
 import type { CandidateProfileInput, JobIntelligenceJobInput } from "../types";
+
+const testUserId = "11111111-1111-4111-8111-111111111111";
 
 // Mock Supabase client
 const mockChain: any = {
@@ -15,9 +17,9 @@ const mockChain: any = {
   insert: () => mockChain,
   update: () => mockChain,
   delete: () => mockChain,
-  eq: () => mockChain,
+  eq: vi.fn(() => mockChain),
   order: () => mockChain,
-  maybeSingle: () => Promise.resolve({ data: { id: "user-1", first_name: "Miles", last_name: "Morales", job_title: "Developer" }, error: null }),
+  maybeSingle: () => Promise.resolve({ data: { id: testUserId, first_name: "Miles", last_name: "Morales", job_title: "Developer" }, error: null }),
   single: () => Promise.resolve({ data: { id: "node-id" }, error: null }),
   then: (onFulfilled: any) => {
     return Promise.resolve({ data: [], error: null }).then(onFulfilled);
@@ -229,28 +231,32 @@ describe("opportunity score engine", () => {
 
 describe("profile evidence engine", () => {
   it("rebuilds user profile evidence graph and returns counts", async () => {
-    const result = await rebuildProfileEvidenceForUser("user-1");
+    const result = await rebuildProfileEvidenceForUser(testUserId);
 
     expect(result.success).toBe(true);
     expect(result.entitiesCreated).toBeGreaterThan(0);
   });
+
+  it("scopes aggregate evidence score to the requested user", async () => {
+    await getProfileEvidenceScore(testUserId);
+
+    expect(mockChain.eq).toHaveBeenCalledWith("user_id", testUserId);
+  });
 });
 
 describe("semantic match engine", () => {
-  it("uses fallback scoring when disabled", async () => {
-    const result = await computeSemanticMatch("job-1", "user-1", {
+  it("uses fallback scoring when vector search is bypassed", async () => {
+    const result = await computeSemanticMatch("job-1", testUserId, {
       candidateSkills: ["React", "TypeScript"],
       jobDescription: "We need React developers.",
+      useVectorSearch: false,
     });
 
     expect(result.semanticFitScore).toBe(50);
-    expect(result.reasons[0].id).toBe("semantic-disabled");
+    expect(result.reasons[0].id).toBe("semantic-fallback-active");
   });
 
-  it("queries the match_job_to_profile RPC when enabled", async () => {
-    // Enable flag for testing
-    import.meta.env.VITE_ENABLE_SEMANTIC_MATCHING = "true";
-
+  it("queries the match_job_to_profile RPC when vector chunks are available", async () => {
     mockRpc.mockResolvedValue({
       data: [
         {
@@ -262,17 +268,24 @@ describe("semantic match engine", () => {
       error: null,
     });
 
-    const result = await computeSemanticMatch("job-1", "user-1");
+    const result = await computeSemanticMatch("job-1", testUserId);
 
     expect(result.semanticFitScore).toBeGreaterThan(50);
     expect(result.matchedEvidence[0].confidence).toBe(85);
-
-    // Reset flag
-    import.meta.env.VITE_ENABLE_SEMANTIC_MATCHING = "false";
   });
 });
 
 describe("graph reasoning engine", () => {
+  it("skips graph RPC calls when the user id is not a valid UUID", async () => {
+    mockRpc.mockClear();
+
+    const result = await computeGraphReasoning("", ["React"]);
+
+    expect(result.graphScore).toBe(50);
+    expect(result.reasons[0].id).toBe("graph-skipped");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
   it("queries get_profile_proof_paths RPC and extracts evidence paths", async () => {
     mockRpc.mockResolvedValue({
       data: [
@@ -285,7 +298,7 @@ describe("graph reasoning engine", () => {
       error: null,
     });
 
-    const result = await computeGraphReasoning("user-1", ["React"]);
+    const result = await computeGraphReasoning(testUserId, ["React"]);
 
     expect(result.graphScore).toBe(100);
     expect(result.proofPaths[0].confidence).toBe(90);

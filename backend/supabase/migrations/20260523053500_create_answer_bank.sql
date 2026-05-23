@@ -1,14 +1,20 @@
 -- Migration: Create answer_bank table and enable realtime
 -- Created at: 2026-05-23
 
-CREATE TYPE public.answer_theme AS ENUM (
-  'identity',
-  'beliefs',
-  'stories',
-  'career',
-  'skills',
-  'voice'
-);
+-- Idempotent type creation for answer_theme
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'answer_theme' and typnamespace = 'public'::regnamespace) then
+    create type public.answer_theme as enum (
+      'identity',
+      'beliefs',
+      'stories',
+      'career',
+      'skills',
+      'voice'
+    );
+  end if;
+end $$;
 
 CREATE TABLE IF NOT EXISTS public.answer_bank (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -27,9 +33,16 @@ CREATE INDEX IF NOT EXISTS answer_bank_user_idx ON public.answer_bank(user_id, t
 
 ALTER TABLE public.answer_bank ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Select own answer bank entries" ON public.answer_bank;
 CREATE POLICY "Select own answer bank entries" ON public.answer_bank FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Insert own answer bank entries" ON public.answer_bank;
 CREATE POLICY "Insert own answer bank entries" ON public.answer_bank FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Update own answer bank entries" ON public.answer_bank;
 CREATE POLICY "Update own answer bank entries" ON public.answer_bank FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Delete own answer bank entries" ON public.answer_bank;
 CREATE POLICY "Delete own answer bank entries" ON public.answer_bank FOR DELETE USING (auth.uid() = user_id);
 
 GRANT ALL ON TABLE public.answer_bank TO anon, authenticated, service_role;
@@ -46,4 +59,5 @@ begin
 end $$;
 
 -- Add updated_at trigger
+DROP TRIGGER IF EXISTS update_answer_bank_updated_at ON public.answer_bank;
 CREATE TRIGGER update_answer_bank_updated_at BEFORE UPDATE ON public.answer_bank FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();

@@ -49,6 +49,19 @@ function clampText(value: unknown, maxLength: number, fallback: string) {
   return trimmed.slice(0, maxLength);
 }
 
+const RANDOM_TRENDS_AND_USE_CASES = [
+  "Leverage personalized cold outreach to hiring managers on LinkedIn",
+  "ATS (Applicant Tracking System) formatting and keyword optimization",
+  "Nailing salary, equity, and remote-work benefits negotiation",
+  "Targeting companies that recently closed funding rounds or are actively expanding",
+  "Positioning transferable skills for a career transition or industry pivot",
+  "Creating a high-impact portfolio project that proves practical skills",
+  "Handling tough behavioral questions (e.g. conflict, failure, career gaps)",
+  "Navigating multi-stage technical or system design interviews",
+  "Conducting informational interviews with industry professionals to access the hidden job market",
+  "Freelance, contract, or fractional leadership positioning in a tight market"
+];
+
 function summarizeContext(context: Awaited<ReturnType<typeof fetchUserContext>>) {
   const profileSummary = [
     context.headline,
@@ -69,10 +82,23 @@ function summarizeContext(context: Awaited<ReturnType<typeof fetchUserContext>>)
     .map((item) => `${item.title} at ${item.company}`)
     .join("; ");
 
+  const rejectedApplications = context.recentApplications
+    .filter((app) => app.status?.toLowerCase() === "rejected" || app.status?.toLowerCase() === "failed");
+
+  const rejectedSummary = rejectedApplications.length > 0
+    ? rejectedApplications.slice(0, 3).map((item) => `${item.job_title} at ${item.company} (${item.status})`).join("; ")
+    : null;
+
+  const chatSummary = context.recentChatTitles?.length > 0
+    ? context.recentChatTitles.slice(0, 5).join(", ")
+    : null;
+
   return {
     profileSummary,
     recentApplicationSummary,
     recentJobSummary,
+    rejectedSummary,
+    chatSummary,
   };
 }
 
@@ -148,8 +174,10 @@ function normalizeResponse(
 }
 
 function buildPrompt(context: Awaited<ReturnType<typeof fetchUserContext>>) {
-  const { profileSummary, recentApplicationSummary, recentJobSummary } =
+  const { profileSummary, recentApplicationSummary, recentJobSummary, rejectedSummary, chatSummary } =
     summarizeContext(context);
+
+  const randomTrend = RANDOM_TRENDS_AND_USE_CASES[Math.floor(Math.random() * RANDOM_TRENDS_AND_USE_CASES.length)];
 
   return `
 You generate smart starter cards for JobRaker's AI chat homepage.
@@ -169,20 +197,24 @@ Return valid JSON only in this shape:
 
 Rules:
 - Return exactly 3 suggestions.
-- Make them feel personalized to this user.
-- Titles must be concise and non-generic.
+- Make them feel highly personalized based on the user's profile, recent applications, tracked jobs, and recent chat history.
+- Titles must be extremely concise (2 to 4 words) and non-generic.
 - Descriptions must be under 90 characters.
-- Prompts should be specific and actionable.
-- Favor job search, resume, interview, applications, and strategy tasks.
-- Avoid repeating the same idea three times.
+- Prompts should be specific, first-person ("I", "my"), and highly actionable.
+- Ensure at least one suggestion targets application errors or rejections if the user has any. If not, target common candidate errors (such as weak ATS formatting, sending generic applications, or not following up after interviews).
+- Incorporate inspiration or context from the user's recent chat conversations if they exist.
+- Incorporate this random job market trend or use case: "${randomTrend}".
+- Avoid repeating the same theme/idea across the 3 suggestions (e.g. do not suggest three resume tailoring options).
 - Do not mention credits, pricing, subscriptions, or internal system details.
 
 User context:
 - Name: ${context.name || "Unknown"}
 - Headline: ${context.headline || "Unknown"}
-- Resume summary: ${profileSummary || "Unavailable"}
+- Resume summary/skills: ${profileSummary || "Unavailable"}
 - Recent applications: ${recentApplicationSummary || "None"}
+- Recent rejections/failures: ${rejectedSummary || "None"}
 - Recent tracked jobs: ${recentJobSummary || "None"}
+- Recent conversation titles: ${chatSummary || "None"}
 - Resume count: ${context.resumeCount}
 - Application count: ${context.applicationCount}
 - Job count: ${context.jobCount}

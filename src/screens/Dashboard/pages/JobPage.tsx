@@ -104,12 +104,7 @@ import {
 } from "@/lib/applicationState";
 import {
   buildExplainableJobOpportunities,
-  scoreExplainableOpportunity,
 } from "@/services/intelligence/opportunityScoreEngine";
-import { computeSemanticMatch } from "@/services/intelligence/semanticMatchEngine";
-import { computeGraphReasoning } from "@/services/intelligence/graphReasoningEngine";
-import { scoreCandidateFit } from "@/services/intelligence/candidateFitEngine";
-import { unique } from "@/services/intelligence/textUtils";
 import type {
   CandidateProfileInput,
   ExplainableJobOpportunity,
@@ -1552,6 +1547,8 @@ export const JobPage = (): JSX.Element => {
     ],
   );
 
+  const opportunityCacheRef = useRef<Map<string, ExplainableJobOpportunity[]>>(new Map());
+
   const decorateJobsRef = useRef<(list: Job[]) => Promise<Job[]>>(
     async (list) => list,
   );
@@ -1571,103 +1568,27 @@ export const JobPage = (): JSX.Element => {
         },
       );
 
-      // Fetch user skill signals and feedback events
-      const [signalsRes, feedbackRes] = await Promise.all([
-        supabase.from("candidate_skill_signals").select("*").eq("user_id", profile?.id),
-        supabase.from("candidate_feedback_events").select("*").eq("user_id", profile?.id),
-      ]);
-      const feedbackEvents = feedbackRes.data || [];
+      const feedbackEvents = profile?.id
+        ? (
+            await supabase
+              .from("candidate_feedback_events")
+              .select("*")
+              .eq("user_id", profile.id)
+          ).data || []
+        : [];
 
-      // Resolve semantic matches and graph reasoning in parallel
-      const semanticAndGraphResults = await Promise.all(
-        withMatchInsights.map(async (job) => {
-          const fitResult = scoreCandidateFit(job, explainableCandidateProfile);
-          const requiredSkills = unique([
-            ...fitResult.supportingEvidence.map((s) => s.requirement),
-            ...fitResult.missingSignals
-              .filter((s) => s.importance === "critical" || s.importance === "high")
-              .map((s) => s.title.replace("Missing evidence for ", "")),
-          ]);
+      const cacheKey = `${profile?.id || "anonymous"}_${profile?.updated_at || ""}_${withMatchInsights.map((job) => job.id).join("|")}_${feedbackEvents.length}`;
+      let finalOpportunities = opportunityCacheRef.current.get(cacheKey);
 
-          const [semanticResult, graphResult] = await Promise.all([
-            computeSemanticMatch(job.id, profile?.id || "", {
-              jobTitle: job.title,
-              jobDescription: job.description,
-              candidateSkills: explainableCandidateProfile.skills?.map((s) => s.name) || [],
-            }),
-            computeGraphReasoning(profile?.id || "", requiredSkills),
-          ]);
-
-          return {
-            jobId: job.id,
-            semanticResult,
-            graphResult,
-          };
-        })
-      );
-
-      const sgMap = new Map(semanticAndGraphResults.map((r) => [r.jobId, r]));
-
-      const opportunities = withMatchInsights.map((job) => {
-        const sg = sgMap.get(job.id);
-        const result = scoreExplainableOpportunity(job, explainableCandidateProfile, {
-          feedbackEvents,
-          semanticResult: sg?.semanticResult,
-          graphResult: sg?.graphResult,
-        });
-
-        let rankLabel: "excellent" | "strong" | "possible" | "weak" | "bad_lead" = "possible";
-        if (result.leadQualityScore < 35 || result.opportunityScore < 25) {
-          rankLabel = "bad_lead";
-        } else if (result.opportunityScore >= 85) {
-          rankLabel = "excellent";
-        } else if (result.opportunityScore >= 72) {
-          rankLabel = "strong";
-        } else if (result.opportunityScore >= 52) {
-          rankLabel = "possible";
-        } else {
-          rankLabel = "weak";
-        }
-
-        return {
-          jobId: job.id,
-          ...result,
-          rank: 0,
-          rankLabel,
-          debug: {
-            deterministicRules: {
-              weights: result.opportunityScore,
-              source: compactText(job.source_kind || job.source_type),
-              detectedSkills: extractKnownSkills(job.description),
-            },
-          },
-        } satisfies ExplainableJobOpportunity;
-      });
-
-      const getJobTimestamp = (jobRecord?: Job): number => {
-        if (!jobRecord) return 0;
-        const val = jobRecord.discovered_at || jobRecord.posted_at || jobRecord.created_at;
-        if (!val) return 0;
-        const parsed = Date.parse(val);
-        return Number.isNaN(parsed) ? 0 : parsed;
-      };
-
-      const rankedIds = [...opportunities]
-        .sort((left, right) => {
-          const leftJob = withMatchInsights.find((j) => j.id === left.jobId);
-          const rightJob = withMatchInsights.find((j) => j.id === right.jobId);
-          const leftTime = getJobTimestamp(leftJob);
-          const rightTime = getJobTimestamp(rightJob);
-          return right.opportunityScore - left.opportunityScore || rightTime - leftTime;
-        })
-        .map((item) => item.jobId);
-
-      const rankById = new Map(rankedIds.map((id, index) => [id, index + 1]));
-
-      const finalOpportunities = opportunities.map((item) => ({
-        ...item,
-        rank: rankById.get(item.jobId) ?? 0,
-      }));
+      if (!finalOpportunities) {
+        finalOpportunities = buildExplainableJobOpportunities(
+          withMatchInsights,
+          explainableCandidateProfile,
+          { feedbackEvents },
+        );
+        opportunityCacheRef.current.clear();
+        opportunityCacheRef.current.set(cacheKey, finalOpportunities);
+      }
 
       const opportunityByJobId = new Map(
         finalOpportunities.map((opportunity) => [opportunity.jobId, opportunity]),
@@ -1683,6 +1604,8 @@ export const JobPage = (): JSX.Element => {
       explainableCandidateProfile,
       hasMatchScoreAccess,
       matchContext,
+      profile?.id,
+      profile?.updated_at,
       toastError,
     ],
   );

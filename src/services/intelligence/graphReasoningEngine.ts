@@ -1,12 +1,24 @@
 import { supabase } from "../../lib/supabaseClient";
 import { clampScore, reason } from "./textUtils";
-import type { MatchBlocker, RankingReason } from "./types";
+import type { MatchBlocker, RankingReason, GraphProofPath } from "./types";
 
-export type GraphProofPath = {
-  nodes: string[];
-  edges: string[];
-  confidence: number;
-};
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const fallbackGraphResult = (title = "Graph traversal skipped"): GraphReasoningResult => ({
+  graphScore: 50,
+  proofPaths: [],
+  reasons: [
+    reason(
+      "graph-skipped",
+      "graph",
+      "neutral",
+      title,
+      "Profile graph evidence is not available yet. Using deterministic fit signals.",
+    ),
+  ],
+  blockers: [],
+});
 
 export type GraphReasoningResult = {
   graphScore: number;
@@ -27,6 +39,10 @@ export async function computeGraphReasoning(
   const reasons: RankingReason[] = [];
   const blockers: MatchBlocker[] = [];
   const proofPaths: GraphProofPath[] = [];
+
+  if (!UUID_PATTERN.test(userId || "")) {
+    return fallbackGraphResult();
+  }
 
   if (isKuzuEnabled) {
     console.info("[Kuzu Graph] Graph reasoning active, running Kuzu sync checks.");
@@ -108,19 +124,6 @@ export async function computeGraphReasoning(
     };
   } catch (err: any) {
     console.error("Error in computeGraphReasoning:", err);
-    return {
-      graphScore: 50,
-      proofPaths: [],
-      reasons: [
-        reason(
-          "graph-error",
-          "graph",
-          "neutral",
-          "Graph traversal suspended",
-          "Could not traverse profile evidence graph. Using basic matchers."
-        ),
-      ],
-      blockers: [],
-    };
+    return fallbackGraphResult("Graph traversal suspended");
   }
 }

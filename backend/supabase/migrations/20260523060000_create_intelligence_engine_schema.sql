@@ -18,6 +18,7 @@ CREATE INDEX IF NOT EXISTS profile_entities_user_type_idx ON public.profile_enti
 
 ALTER TABLE public.profile_entities ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own profile entities" ON public.profile_entities;
 CREATE POLICY "Users can manage own profile entities"
   ON public.profile_entities FOR ALL
   USING (auth.uid() = user_id)
@@ -42,6 +43,7 @@ CREATE INDEX IF NOT EXISTS profile_edges_user_target_idx ON public.profile_edges
 
 ALTER TABLE public.profile_edges ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own profile edges" ON public.profile_edges;
 CREATE POLICY "Users can manage own profile edges"
   ON public.profile_edges FOR ALL
   USING (auth.uid() = user_id)
@@ -71,6 +73,7 @@ CREATE INDEX IF NOT EXISTS profile_evidence_items_user_entity_idx ON public.prof
 
 ALTER TABLE public.profile_evidence_items ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own profile evidence items" ON public.profile_evidence_items;
 CREATE POLICY "Users can manage own profile evidence items"
   ON public.profile_evidence_items FOR ALL
   USING (auth.uid() = user_id)
@@ -96,6 +99,7 @@ CREATE INDEX IF NOT EXISTS candidate_skill_signals_user_strength_idx ON public.c
 
 ALTER TABLE public.candidate_skill_signals ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own skill signals" ON public.candidate_skill_signals;
 CREATE POLICY "Users can manage own skill signals"
   ON public.candidate_skill_signals FOR ALL
   USING (auth.uid() = user_id)
@@ -118,6 +122,7 @@ CREATE TABLE IF NOT EXISTS public.candidate_role_preferences (
 
 ALTER TABLE public.candidate_role_preferences ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own role preferences" ON public.candidate_role_preferences;
 CREATE POLICY "Users can manage own role preferences"
   ON public.candidate_role_preferences FOR ALL
   USING (auth.uid() = user_id)
@@ -140,6 +145,7 @@ CREATE INDEX IF NOT EXISTS candidate_feedback_events_user_idx ON public.candidat
 
 ALTER TABLE public.candidate_feedback_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own feedback events" ON public.candidate_feedback_events;
 CREATE POLICY "Users can manage own feedback events"
   ON public.candidate_feedback_events FOR ALL
   USING (auth.uid() = user_id)
@@ -154,10 +160,19 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_profile_entities_updated_at ON public.profile_entities;
 CREATE TRIGGER update_profile_entities_updated_at BEFORE UPDATE ON public.profile_entities FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_profile_edges_updated_at ON public.profile_edges;
 CREATE TRIGGER update_profile_edges_updated_at BEFORE UPDATE ON public.profile_edges FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_profile_evidence_items_updated_at ON public.profile_evidence_items;
 CREATE TRIGGER update_profile_evidence_items_updated_at BEFORE UPDATE ON public.profile_evidence_items FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_candidate_skill_signals_updated_at ON public.candidate_skill_signals;
 CREATE TRIGGER update_candidate_skill_signals_updated_at BEFORE UPDATE ON public.candidate_skill_signals FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_candidate_role_preferences_updated_at ON public.candidate_role_preferences;
 CREATE TRIGGER update_candidate_role_preferences_updated_at BEFORE UPDATE ON public.candidate_role_preferences FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Grants

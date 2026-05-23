@@ -19,10 +19,12 @@ CREATE INDEX IF NOT EXISTS job_chunks_job_idx ON public.job_chunks (job_id);
 
 ALTER TABLE public.job_chunks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view job chunks" ON public.job_chunks;
 CREATE POLICY "Anyone can view job chunks"
   ON public.job_chunks FOR SELECT
   USING (true);
 
+DROP POLICY IF EXISTS "Admins can manage job chunks" ON public.job_chunks;
 CREATE POLICY "Admins can manage job chunks"
   ON public.job_chunks FOR ALL
   USING (public.is_admin())
@@ -44,6 +46,7 @@ CREATE INDEX IF NOT EXISTS profile_evidence_chunks_user_idx ON public.profile_ev
 
 ALTER TABLE public.profile_evidence_chunks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own profile evidence chunks" ON public.profile_evidence_chunks;
 CREATE POLICY "Users can manage own profile evidence chunks"
   ON public.profile_evidence_chunks FOR ALL
   USING (auth.uid() = user_id)
@@ -63,6 +66,7 @@ CREATE INDEX IF NOT EXISTS candidate_memory_chunks_user_idx ON public.candidate_
 
 ALTER TABLE public.candidate_memory_chunks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own candidate memory chunks" ON public.candidate_memory_chunks;
 CREATE POLICY "Users can manage own candidate memory chunks"
   ON public.candidate_memory_chunks FOR ALL
   USING (auth.uid() = user_id)
@@ -83,6 +87,7 @@ CREATE INDEX IF NOT EXISTS application_note_chunks_user_idx ON public.applicatio
 
 ALTER TABLE public.application_note_chunks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own application note chunks" ON public.application_note_chunks;
 CREATE POLICY "Users can manage own application note chunks"
   ON public.application_note_chunks FOR ALL
   USING (auth.uid() = user_id)
@@ -102,6 +107,7 @@ CREATE INDEX IF NOT EXISTS chat_memory_chunks_user_idx ON public.chat_memory_chu
 
 ALTER TABLE public.chat_memory_chunks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own chat memory chunks" ON public.chat_memory_chunks;
 CREATE POLICY "Users can manage own chat memory chunks"
   ON public.chat_memory_chunks FOR ALL
   USING (auth.uid() = user_id)
@@ -131,6 +137,11 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 AS $$
 BEGIN
+  -- Enforce security: users can only query their own data
+  IF auth.uid() IS NOT NULL AND auth.uid() <> owner_id THEN
+    RAISE EXCEPTION 'Unauthorized: Cannot query another user''s data';
+  END IF;
+
   RETURN QUERY
   SELECT
     pec.id,
@@ -161,6 +172,11 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 AS $$
 BEGIN
+  -- Enforce security: users can only query their own data
+  IF auth.uid() IS NOT NULL AND auth.uid() <> owner_id THEN
+    RAISE EXCEPTION 'Unauthorized: Cannot query another user''s data';
+  END IF;
+
   RETURN QUERY
   SELECT
     cmc.id,
@@ -191,6 +207,11 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 AS $$
 BEGIN
+  -- Enforce security: users can only query their own data
+  IF auth.uid() IS NOT NULL AND auth.uid() <> p_user_id THEN
+    RAISE EXCEPTION 'Unauthorized: Cannot query another user''s data';
+  END IF;
+
   RETURN QUERY
   WITH matched AS (
     SELECT

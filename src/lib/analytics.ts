@@ -98,12 +98,15 @@ export async function captureServerEvent(
 }
 
 export function track(name: string, props?: Record<string, unknown>) {
-  const evt: AnalyticsEvent = {
-    name,
-    props: {
+  const cleanedProps = Object.fromEntries(
+    Object.entries({
       ...getStoredAttributionProperties(),
       ...props,
-    },
+    }).filter(([, value]) => value !== undefined),
+  );
+  const evt: AnalyticsEvent = {
+    name,
+    props: cleanedProps,
     ts: Date.now(),
   };
   try {

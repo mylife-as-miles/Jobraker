@@ -72,6 +72,12 @@ export type ProfileEvidenceMatch = {
   confidence: number;
 };
 
+export type GraphProofPath = {
+  nodes: string[];
+  edges: string[];
+  confidence: number;
+};
+
 export type ExplainableJobOpportunity = {
   jobId: string;
   opportunityScore: number;
@@ -87,6 +93,7 @@ export type ExplainableJobOpportunity = {
   blockers: MatchBlocker[];
   missingSignals: MissingSignal[];
   supportingEvidence: ProfileEvidenceMatch[];
+  proofPaths?: GraphProofPath[];
   recommendedAction: RecommendedJobAction;
   debug?: {
     deterministicRules: unknown;

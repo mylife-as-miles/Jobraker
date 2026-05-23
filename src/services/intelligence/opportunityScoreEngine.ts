@@ -11,6 +11,7 @@ import {
   type RecommendedJobAction,
   type ScoreCap,
   type ScoreWeights,
+  type GraphProofPath,
 } from "./types";
 import type { JobDuplicateResult } from "./jobDedupeEngine";
 import { detectJobDuplicates } from "./jobDedupeEngine";
@@ -33,6 +34,7 @@ export type OpportunityScoreResult = {
   blockers: MatchBlocker[];
   missingSignals: MissingSignal[];
   supportingEvidence: ProfileEvidenceMatch[];
+  proofPaths?: GraphProofPath[];
   recommendedAction: RecommendedJobAction;
 };
 
@@ -344,6 +346,7 @@ export function scoreExplainableOpportunity(
     blockers,
     missingSignals: candidateFit.missingSignals,
     supportingEvidence: [...candidateFit.supportingEvidence, ...extraEvidence],
+    proofPaths: options.graphResult?.proofPaths,
     recommendedAction,
   };
 }

@@ -179,29 +179,7 @@ const MAX_CHAT_ATTACHMENTS = 3;
 const CHAT_EXTENDED_WAIT_MS = 30_000;
 const CHAT_TIMEOUT_MS = 240_000;
 
-const FALLBACK_CHAT_STARTERS: ChatStarterSuggestion[] = [
-  {
-    id: "resume",
-    title: "Optimize Resume",
-    description: "Tailor your resume for your next best-fit role.",
-    prompt: "Optimize my resume for a strong-fit senior role and show me the biggest gaps first.",
-    icon: "resume",
-  },
-  {
-    id: "jobs",
-    title: "Find Remote Roles",
-    description: "Search for remote jobs aligned with my background.",
-    prompt: "Find remote software roles that match my profile and explain the strongest matches.",
-    icon: "jobs",
-  },
-  {
-    id: "interview",
-    title: "Interview Prep",
-    description: "Practice with realistic questions and sharper feedback.",
-    prompt: "Interview me for a target role and coach my answers like a hiring manager.",
-    icon: "interview",
-  },
-];
+// Fallback starters removed in favor of dynamic AI suggestions and skeleton loaders.
 
 const CHAT_STARTER_ICONS: Record<
   ChatStarterIcon,
@@ -699,9 +677,9 @@ export const ChatPage = () => {
   const [renamingTitle, setRenamingTitle] = useState("");
   const [starterSuggestions, setStarterSuggestions] = useState<
     ChatStarterSuggestion[]
-  >(FALLBACK_CHAT_STARTERS);
+  >([]);
   const [loadingStarterSuggestions, setLoadingStarterSuggestions] =
-    useState(false);
+    useState(true);
   const supabase = useMemo(() => createClient(), []);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -751,7 +729,10 @@ export const ChatPage = () => {
   }, [hasChatAccess, fetchChatQuota]);
 
   useEffect(() => {
-    if (!hasChatAccess) return;
+    if (!hasChatAccess) {
+      setLoadingStarterSuggestions(false);
+      return;
+    }
 
     let cancelled = false;
 
@@ -1525,30 +1506,50 @@ export const ChatPage = () => {
                       resume, find roles, or practice interviews.
                     </p>
 
-                    <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mt-12'>
-                      {starterSuggestions.map((suggestion) => {
-                        const Icon =
-                          CHAT_STARTER_ICONS[suggestion.icon] || FileText;
-
-                        return (
-                          <button
-                            key={suggestion.id}
-                            onClick={() => setText(suggestion.prompt)}
-                            className='suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group'
-                          >
-                            <Icon className='text-brand mb-3 w-6 h-6' />
-                            <h4 className='font-semibold text-sm mb-1 text-card-foreground'>
-                              {suggestion.title}
-                            </h4>
-                            <p className='text-xs text-muted-foreground'>
-                              {suggestion.description}
-                            </p>
-                          </button>
-                        );
-                      })}
-                    </div>
                     {loadingStarterSuggestions ? (
-                      <p className='text-xs text-muted-foreground'>
+                      <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mt-12'>
+                        {Array.from({ length: 3 }).map((_, idx) => (
+                          <div
+                            key={`starter-skeleton-${idx}`}
+                            className='suggestion-card glass-panel p-5 rounded-2xl text-left flex flex-col justify-between min-h-[142px] animate-pulse pointer-events-none'
+                          >
+                            <div>
+                              <div className='w-6 h-6 rounded-lg bg-foreground/10 mb-3 border border-border/5' />
+                              <div className='h-4 bg-foreground/15 rounded w-2/3 mb-2' />
+                              <div className='space-y-1.5'>
+                                <div className='h-3 bg-foreground/5 rounded w-full' />
+                                <div className='h-3 bg-foreground/5 rounded w-5/6' />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : starterSuggestions.length > 0 ? (
+                      <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mt-12'>
+                        {starterSuggestions.map((suggestion) => {
+                          const Icon =
+                            CHAT_STARTER_ICONS[suggestion.icon] || FileText;
+
+                          return (
+                            <button
+                              key={suggestion.id}
+                              onClick={() => setText(suggestion.prompt)}
+                              className='suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group'
+                            >
+                              <Icon className='text-brand mb-3 w-6 h-6' />
+                              <h4 className='font-semibold text-sm mb-1 text-card-foreground'>
+                                {suggestion.title}
+                              </h4>
+                              <p className='text-xs text-muted-foreground'>
+                                {suggestion.description}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                    {loadingStarterSuggestions ? (
+                      <p className='text-xs text-muted-foreground animate-pulse'>
                         Personalizing your AI starter prompts...
                       </p>
                     ) : null}

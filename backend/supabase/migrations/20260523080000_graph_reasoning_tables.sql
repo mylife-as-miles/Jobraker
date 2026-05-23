@@ -11,6 +11,11 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 AS $$
 BEGIN
+  -- Enforce security: users can only query their own data
+  IF auth.uid() IS NOT NULL AND auth.uid() <> p_user_id THEN
+    RAISE EXCEPTION 'Unauthorized: Cannot query another user''s data';
+  END IF;
+
   RETURN QUERY
   -- Path 1: Candidate -> CONTAINS -> Experience -> EVIDENCES -> Skill
   SELECT

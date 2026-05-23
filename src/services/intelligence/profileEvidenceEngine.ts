@@ -2,6 +2,9 @@ import { supabase } from "../../lib/supabaseClient";
 import { sentenceFragments, unique } from "./textUtils";
 import type { CandidateProfileInput, ProfileEvidenceMatch } from "./types";
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export type ProfileEvidenceBuildResult = {
   success: boolean;
   entitiesCreated: number;
@@ -17,6 +20,17 @@ export type ProfileEvidenceBuildResult = {
  * and compiles them into profile_entities, profile_edges, profile_evidence_items, and candidate_skill_signals.
  */
 export async function rebuildProfileEvidenceForUser(userId: string): Promise<ProfileEvidenceBuildResult> {
+  if (!UUID_PATTERN.test(userId || "")) {
+    return {
+      success: false,
+      entitiesCreated: 0,
+      edgesCreated: 0,
+      evidenceItemsCreated: 0,
+      skillsCalculated: 0,
+      error: "A valid user id is required to rebuild profile evidence.",
+    };
+  }
+
   try {
     // 1. Fetch raw candidate data
     const [profileRes, skillsRes, experiencesRes, resumesRes] = await Promise.all([
@@ -342,9 +356,12 @@ export async function rebuildProfileEvidenceForUser(userId: string): Promise<Pro
  * Used during scoring when Postgres graph signals are active.
  */
 export async function getProfileEvidenceScore(userId: string): Promise<number> {
+  if (!UUID_PATTERN.test(userId || "")) return 40;
+
   const { data: signals, error } = await supabase
     .from("candidate_skill_signals")
-    .select("evidence_strength");
+    .select("evidence_strength")
+    .eq("user_id", userId);
 
   if (error || !signals || signals.length === 0) return 40; // Default fallback score
   const total = signals.reduce((sum, item) => sum + item.evidence_strength, 0);
