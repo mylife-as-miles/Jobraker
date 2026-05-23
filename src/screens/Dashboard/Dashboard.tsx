@@ -90,6 +90,8 @@ interface PageLink {
   path: string;
 }
 
+type SubscriptionTier = "Free" | "Basics" | "Pro" | "Ultimate";
+
 const SidebarItem = ({
   item,
   isActive,
@@ -260,6 +262,8 @@ export const Dashboard = (): JSX.Element => {
 
   const { balance: creditBalance, loading: creditsLoading } = useCredits();
   const [lowCreditModalOpen, setLowCreditModalOpen] = useState(false);
+  const [sidebarSubscriptionTier, setSidebarSubscriptionTier] =
+    useState<SubscriptionTier>("Free");
 
   useEffect(() => {
     if (creditsLoading) return;
@@ -299,6 +303,104 @@ export const Dashboard = (): JSX.Element => {
       setEmail(em);
     })();
   }, [supabase]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadSidebarSubscriptionTier = async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        if (!userId || !active) return;
+
+        const { data: subscription } = await supabase
+          .from("user_subscriptions")
+          .select("subscription_plans(name)")
+          .eq("user_id", userId)
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const planName = (subscription as any)?.subscription_plans?.name;
+        if (
+          planName === "Free" ||
+          planName === "Basics" ||
+          planName === "Pro" ||
+          planName === "Ultimate"
+        ) {
+          if (active) setSidebarSubscriptionTier(planName);
+          return;
+        }
+
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("subscription_tier")
+          .eq("id", userId)
+          .maybeSingle();
+
+        const profileTier = profileData?.subscription_tier;
+        if (
+          profileTier === "Free" ||
+          profileTier === "Basics" ||
+          profileTier === "Pro" ||
+          profileTier === "Ultimate"
+        ) {
+          if (active) setSidebarSubscriptionTier(profileTier);
+          return;
+        }
+
+        if (active) setSidebarSubscriptionTier("Free");
+      } catch {
+        if (active) setSidebarSubscriptionTier("Free");
+      }
+    };
+
+    void loadSidebarSubscriptionTier();
+    window.addEventListener("focus", loadSidebarSubscriptionTier);
+    window.addEventListener(
+      "jobraker:credits-updated",
+      loadSidebarSubscriptionTier,
+    );
+
+    return () => {
+      active = false;
+      window.removeEventListener("focus", loadSidebarSubscriptionTier);
+      window.removeEventListener(
+        "jobraker:credits-updated",
+        loadSidebarSubscriptionTier,
+      );
+    };
+  }, [supabase]);
+
+  const sidebarPlanCard = useMemo(() => {
+    switch (sidebarSubscriptionTier) {
+      case "Ultimate":
+        return {
+          title: "Ultimate Plan",
+          subtitle: "Your highest tier is active",
+          cta: "Manage billing",
+        };
+      case "Pro":
+        return {
+          title: "Pro Plan",
+          subtitle: "Advanced AI unlocked",
+          cta: "View billing",
+        };
+      case "Basics":
+        return {
+          title: "Basics Plan",
+          subtitle: "Pipeline tools are active",
+          cta: "Upgrade plan",
+        };
+      default:
+        return {
+          title: "Upgrade your plan",
+          subtitle: "Unlock advanced AI and automation",
+          cta: "See plans",
+        };
+    }
+  }, [sidebarSubscriptionTier]);
 
   useEffect(() => {
     let active = true;
@@ -570,7 +672,7 @@ export const Dashboard = (): JSX.Element => {
         </div>
 
         {/* Navigation - Categorized */}
-        <div className='flex-1 overflow-y-auto py-6 px-3 space-y-6 [scrollbar-width:thin]  [scrollbar-color:grey_transparent]  '>
+        <div className='custom-scrollbar flex-1 overflow-y-auto px-3 py-6 space-y-6'>
           {/* Section 1: Main */}
           <div className='space-y-1'>
             {!isCollapsed && (
@@ -700,10 +802,10 @@ export const Dashboard = (): JSX.Element => {
               {!isCollapsed && (
                 <div>
                   <h3 className='text-sm font-bold text-foreground group-hover:text-brand transition-colors'>
-                    Pro Plan
+                    {sidebarPlanCard.title}
                   </h3>
                   <p className='text-[10px] text-muted-foreground mt-1'>
-                    Unlock advanced AI
+                    {sidebarPlanCard.subtitle}
                   </p>
                 </div>
               )}
@@ -714,7 +816,7 @@ export const Dashboard = (): JSX.Element => {
 
             {!isCollapsed && (
               <div className='mt-3 flex items-center gap-2 text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors'>
-                <span>Upgrade now</span>
+                <span>{sidebarPlanCard.cta}</span>
                 <BreadcrumbChevron size={12} />
               </div>
             )}

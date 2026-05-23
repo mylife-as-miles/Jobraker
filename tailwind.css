@@ -380,3 +380,121 @@
     color: hsl(var(--product-gold));
   }
 }
+
+@layer utilities {
+  :root {
+    --scrollbar-size: 12px;
+    --scrollbar-size-thin: 8px;
+    --scrollbar-track: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0.015) 100%
+    );
+    --scrollbar-track-hover: rgba(255, 255, 255, 0.045);
+    --scrollbar-thumb: linear-gradient(
+      180deg,
+      rgba(29, 255, 0, 0.34) 0%,
+      rgba(29, 255, 0, 0.18) 100%
+    );
+    --scrollbar-thumb-hover: linear-gradient(
+      180deg,
+      rgba(29, 255, 0, 0.5) 0%,
+      rgba(29, 255, 0, 0.24) 100%
+    );
+    --scrollbar-thumb-border: rgba(255, 255, 255, 0.1);
+  }
+
+  html,
+  body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(29, 255, 0, 0.32) transparent;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  .custom-scrollbar::-webkit-scrollbar,
+  .scrollbar-premium::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
+
+  .thin-scrollbar::-webkit-scrollbar,
+  .scrollbar-thin::-webkit-scrollbar {
+    width: var(--scrollbar-size-thin);
+    height: var(--scrollbar-size-thin);
+  }
+
+  html::-webkit-scrollbar-track,
+  body::-webkit-scrollbar-track,
+  .custom-scrollbar::-webkit-scrollbar-track,
+  .scrollbar-premium::-webkit-scrollbar-track,
+  .thin-scrollbar::-webkit-scrollbar-track,
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+    border-radius: 999px;
+  }
+
+  html::-webkit-scrollbar-thumb,
+  body::-webkit-scrollbar-thumb,
+  .custom-scrollbar::-webkit-scrollbar-thumb,
+  .scrollbar-premium::-webkit-scrollbar-thumb,
+  .thin-scrollbar::-webkit-scrollbar-thumb,
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border: 1px solid var(--scrollbar-thumb-border);
+    border-radius: 999px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 0 20px rgba(29, 255, 0, 0.08);
+  }
+
+  html::-webkit-scrollbar-thumb:hover,
+  body::-webkit-scrollbar-thumb:hover,
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+  .scrollbar-premium::-webkit-scrollbar-thumb:hover,
+  .thin-scrollbar::-webkit-scrollbar-thumb:hover,
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  html::-webkit-scrollbar-corner,
+  body::-webkit-scrollbar-corner,
+  .custom-scrollbar::-webkit-scrollbar-corner,
+  .scrollbar-premium::-webkit-scrollbar-corner,
+  .thin-scrollbar::-webkit-scrollbar-corner,
+  .scrollbar-thin::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .custom-scrollbar,
+  .scrollbar-premium {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(29, 255, 0, 0.32) transparent;
+    scrollbar-gutter: stable;
+  }
+
+  .thin-scrollbar,
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(29, 255, 0, 0.26) transparent;
+    scrollbar-gutter: stable;
+  }
+
+  .custom-scrollbar:hover::-webkit-scrollbar-track,
+  .scrollbar-premium:hover::-webkit-scrollbar-track,
+  .thin-scrollbar:hover::-webkit-scrollbar-track,
+  .scrollbar-thin:hover::-webkit-scrollbar-track {
+    background: var(--scrollbar-track-hover);
+  }
+
+  .no-scrollbar,
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar,
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

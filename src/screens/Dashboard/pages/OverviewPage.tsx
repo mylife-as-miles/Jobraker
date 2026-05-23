@@ -576,14 +576,15 @@ export const OverviewPage = (): JSX.Element => {
               <Card
                 id='overview-calendar'
                 data-tour='overview-calendar'
-                className='bg-card/50 border border-foreground/10 backdrop-blur-xl p-4 sm:p-6 rounded-2xl'
+                className='rounded-3xl border border-white/8 bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:p-6'
               >
-                <div className='mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[10px] sm:text-xs text-muted-foreground'>
-                  <div>
+                <div className='mb-4 flex flex-col gap-3 text-[10px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:text-xs'>
+                  <div className='inline-flex w-fit items-center gap-2 rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
+                    <span className='h-2 w-2 rounded-full bg-brand shadow-[0_0_12px_rgba(29,255,0,0.45)]' />
                     Current time:{" "}
-                    <span className='text-brand font-medium'>{timeLabel}</span>
+                    <span className='font-semibold text-brand'>{timeLabel}</span>
                   </div>
-                  <div className='flex items-center gap-2'>
+                  <div className='flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.02] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
                     <span className='text-muted-foreground hidden sm:inline'>
                       View:
                     </span>
@@ -595,7 +596,7 @@ export const OverviewPage = (): JSX.Element => {
                           m === "month" ? "week" : "month",
                         )
                       }
-                      className='text-[10px] sm:text-xs px-2 py-1 border border-brand/20 hover:border-brand/50 hover:bg-brand/10 text-brand'
+                      className='rounded-full border border-brand/20 bg-brand/10 px-3 py-1.5 text-[10px] text-brand transition hover:border-brand/35 hover:bg-brand/15 sm:text-xs'
                     >
                       {calendarViewMode === "month"
                         ? "Switch to Week"

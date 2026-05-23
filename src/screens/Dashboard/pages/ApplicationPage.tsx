@@ -315,7 +315,7 @@ function ApplicationsListView({
                                 >
                                   {a.job_title}
                                 </h3>
-                                <MatchScoreBadge score={a.match_score ?? 0} />
+                                <MatchScoreBadge score={a.match_score} />
                               </div>
                               <div className='mt-1 truncate text-sm font-medium text-foreground/60'>
                                 {a.company}
@@ -765,11 +765,9 @@ function ApplicationPage() {
         selectedStatus === "All" || a.status === selectedStatus;
       return matchesQ && matchesStatus;
     });
-    const extractScore = (rec: any) => {
+    const extractScore = (rec: any): number | null => {
       if (typeof rec.match_score === "number") return rec.match_score;
-      if (rec.notes && /match[:=]\s*(\d{1,3})/i.test(rec.notes))
-        return Number(RegExp.$1);
-      return 0;
+      return null;
     };
     switch (sortBy) {
       case "recent":
@@ -788,7 +786,18 @@ function ApplicationPage() {
         break;
       case "score":
       default:
-        list = list.sort((a, b) => extractScore(b) - extractScore(a));
+        list = list.sort((a, b) => {
+          const scoreA = extractScore(a);
+          const scoreB = extractScore(b);
+          if (scoreA == null && scoreB == null) {
+            return (
+              new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+            );
+          }
+          if (scoreA == null) return 1;
+          if (scoreB == null) return -1;
+          return scoreB - scoreA;
+        });
     }
     return list;
   }, [applications, searchQuery, selectedStatus, sortBy]);
@@ -1370,7 +1379,7 @@ function ApplicationPage() {
                                   </div>
                                 </div>
                                 <div className='mt-0.5 shrink-0'>
-                                  <MatchScoreBadge score={a.match_score ?? 0} />
+                                  <MatchScoreBadge score={a.match_score} />
                                 </div>
                               </div>
                               <div className='mt-3 flex flex-wrap items-center gap-2 border-t border-foreground/5 pt-3 text-[11px] text-foreground/50'>
@@ -2696,10 +2705,16 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
             <TableColumnHeader column={column} title='Score' />
           </div>
         ),
-        accessorFn: (row) => row.match_score ?? 0,
-        cell: (info) => <MatchScoreBadge score={info.getValue<number>()} />,
-        sortingFn: (a, b, columnId) =>
-          a.getValue<number>(columnId) - b.getValue<number>(columnId),
+        accessorFn: (row) => row.match_score ?? null,
+        cell: (info) => <MatchScoreBadge score={info.getValue<number | null>()} />,
+        sortingFn: (a, b, columnId) => {
+          const scoreA = a.getValue<number | null>(columnId);
+          const scoreB = b.getValue<number | null>(columnId);
+          if (scoreA == null && scoreB == null) return 0;
+          if (scoreA == null) return -1;
+          if (scoreB == null) return 1;
+          return scoreA - scoreB;
+        },
       },
     ],
     [busyId, editingStatusId],
