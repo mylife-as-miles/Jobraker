@@ -3,7 +3,37 @@ import { scoreCandidateFit } from "../candidateFitEngine";
 import { detectJobDuplicates } from "../jobDedupeEngine";
 import { scoreLeadQuality } from "../leadQualityEngine";
 import { scoreExplainableOpportunity } from "../opportunityScoreEngine";
+import { rebuildProfileEvidenceForUser } from "../profileEvidenceEngine";
+import { computeSemanticMatch } from "../semanticMatchEngine";
+import { computeGraphReasoning } from "../graphReasoningEngine";
+import { scoreFeedbackLearning } from "../feedbackLearningEngine";
 import type { CandidateProfileInput, JobIntelligenceJobInput } from "../types";
+
+// Mock Supabase client
+const mockChain: any = {
+  select: () => mockChain,
+  insert: () => mockChain,
+  update: () => mockChain,
+  delete: () => mockChain,
+  eq: () => mockChain,
+  order: () => mockChain,
+  maybeSingle: () => Promise.resolve({ data: { id: "user-1", first_name: "Miles", last_name: "Morales", job_title: "Developer" }, error: null }),
+  single: () => Promise.resolve({ data: { id: "node-id" }, error: null }),
+  then: (onFulfilled: any) => {
+    return Promise.resolve({ data: [], error: null }).then(onFulfilled);
+  }
+};
+
+const mockFrom = vi.fn().mockReturnValue(mockChain);
+
+const mockRpc = vi.fn().mockResolvedValue({ data: [], error: null });
+
+vi.mock("../../../lib/supabaseClient", () => ({
+  supabase: {
+    from: (...args: any[]) => mockFrom(...args),
+    rpc: (...args: any[]) => mockRpc(...args),
+  },
+}));
 
 const baseJob: JobIntelligenceJobInput = {
   id: "job-1",
@@ -58,6 +88,7 @@ const baseProfile: CandidateProfileInput = {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-05-23T12:00:00Z"));
+  vi.clearAllMocks();
 });
 
 afterEach(() => {
@@ -193,5 +224,104 @@ describe("opportunity score engine", () => {
 
     expect(result.opportunityScore).toBeLessThanOrEqual(20);
     expect(result.capsApplied.some((cap) => cap.maxScore === 20)).toBe(true);
+  });
+});
+
+describe("profile evidence engine", () => {
+  it("rebuilds user profile evidence graph and returns counts", async () => {
+    const result = await rebuildProfileEvidenceForUser("user-1");
+
+    expect(result.success).toBe(true);
+    expect(result.entitiesCreated).toBeGreaterThan(0);
+  });
+});
+
+describe("semantic match engine", () => {
+  it("uses fallback scoring when disabled", async () => {
+    const result = await computeSemanticMatch("job-1", "user-1", {
+      candidateSkills: ["React", "TypeScript"],
+      jobDescription: "We need React developers.",
+    });
+
+    expect(result.semanticFitScore).toBe(50);
+    expect(result.reasons[0].id).toBe("semantic-disabled");
+  });
+
+  it("queries the match_job_to_profile RPC when enabled", async () => {
+    // Enable flag for testing
+    import.meta.env.VITE_ENABLE_SEMANTIC_MATCHING = "true";
+
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          job_chunk_text: "React expertise",
+          evidence_chunk_text: "Built React UI for Jobraker",
+          similarity: 0.85,
+        },
+      ],
+      error: null,
+    });
+
+    const result = await computeSemanticMatch("job-1", "user-1");
+
+    expect(result.semanticFitScore).toBeGreaterThan(50);
+    expect(result.matchedEvidence[0].confidence).toBe(85);
+
+    // Reset flag
+    import.meta.env.VITE_ENABLE_SEMANTIC_MATCHING = "false";
+  });
+});
+
+describe("graph reasoning engine", () => {
+  it("queries get_profile_proof_paths RPC and extracts evidence paths", async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          path_node_names: ["Candidate", "Jobraker at Thoughtful", "React"],
+          path_edge_types: ["CONTAINS", "EVIDENCES"],
+          confidence: 0.9,
+        },
+      ],
+      error: null,
+    });
+
+    const result = await computeGraphReasoning("user-1", ["React"]);
+
+    expect(result.graphScore).toBe(100);
+    expect(result.proofPaths[0].confidence).toBe(90);
+    expect(result.reasons[0].id).toContain("graph-proof");
+  });
+});
+
+describe("feedback learning engine", () => {
+  it("applies positive boost for previously saved or interviewed roles", () => {
+    const events = [
+      {
+        event_type: "job_interviewed",
+        notes: "Frontend Engineer",
+        metadata: { job_title: "Frontend Engineer", company: "Acme AI" },
+      },
+    ];
+
+    const result = scoreFeedbackLearning(baseJob, events);
+
+    expect(result.score).toBeGreaterThan(50);
+    expect(result.reasons.some((r) => r.id === "feedback-title-match")).toBe(true);
+    expect(result.reasons.some((r) => r.id === "feedback-company-match")).toBe(true);
+  });
+
+  it("applies negative penalty for previously ignored roles", () => {
+    const events = [
+      {
+        event_type: "job_ignored",
+        notes: "Frontend Engineer",
+        metadata: { job_title: "Frontend Engineer" },
+      },
+    ];
+
+    const result = scoreFeedbackLearning(baseJob, events);
+
+    expect(result.score).toBeLessThan(50);
+    expect(result.reasons.some((r) => r.id === "feedback-title-penalty")).toBe(true);
   });
 });

@@ -2,21 +2,19 @@
 
 Jobraker's fit engine is designed as layered intelligence, not a single black-box AI ranker.
 
-## Phase 1 Status
+---
 
-Implemented deterministic ranking for the Jobs page:
+## Completed Phases (Phases 1–5)
 
-- Lead quality score
-- Candidate fit score
-- Profile evidence strength
-- Strategic value score
-- Feedback learning placeholder score
-- Hard caps with visible explanations
-- Duplicate/repost suspicion
-- Recommended next action
-- Compact visible reasons on job cards and detail panels
+All core components for Phases 1 through 5 have been fully implemented, integrated, and verified.
 
-This phase works without embeddings, Kuzu, or LLM calls.
+- **Phase 1: Deterministic Scoring MVP** (Lead quality, fit rubric, seniority caps, deduplication)
+- **Phase 2: Relational Profile Evidence Graph** (PostgreSQL-backed graph modeling)
+- **Phase 3: pgvector Semantic Matching** (Cosine similarity search with Gemini embeddings)
+- **Phase 4: Kuzu Graph Reasoning** (Node/edge sync with Postgres fallback recursive queries)
+- **Phase 5: CRM Memory & Feedback Learning** (Interaction logs tracking and opportunity tuning)
+
+---
 
 ## Scoring Formula
 
@@ -32,68 +30,76 @@ Default opportunity score:
 
 Weights live in `src/services/intelligence/types.ts` and are normalized before scoring.
 
-## Engines
+---
 
-- `leadQualityEngine.ts`: scores source trust, freshness, description quality, company credibility, salary transparency, location clarity, duplicate suspicion, application URL quality, and spam/scam signals.
-- `candidateFitEngine.ts`: scores title alignment, skill coverage, required skills, seniority, location, and compensation visibility.
-- `jobDedupeEngine.ts`: detects deterministic duplicates by external URL, source ID, company/title, company/title/location, and normalized description overlap.
-- `opportunityScoreEngine.ts`: combines component scores, applies hard caps, ranks opportunities, and recommends next action.
+## Architecture & Engines
 
-## Caps
+### 1. Lead Quality Engine (`leadQualityEngine.ts`)
+Scores source trust, freshness, description quality, company credibility, salary transparency, location clarity, duplicate suspicion, application URL quality, and spam/scam signals.
 
-Caps are applied after weighted scoring. Current deterministic caps include:
+### 2. Candidate Fit Engine (`candidateFitEngine.ts`)
+Scores title alignment, skill coverage, required skills, seniority, location, and compensation visibility.
 
-- Expired job: max 20
-- Suspicious source/spam signal: max 30
-- Stale job older than 45 days: max 60
-- Severe seniority mismatch: max 65
-- Impossible location: max 50
-- Missing explicit required skill evidence: max 75
-- Duplicate/repost suspicion: max 82
+### 3. Profile Evidence Engine (`profileEvidenceEngine.ts`)
+Parses profile collection tables (skills, experiences, education, parsed resumes) and compiles them into PostgreSQL graph tables:
+* `profile_entities` (Representing nodes of type: `candidate`, `skill`, `experience`, `education`, `resume`)
+* `profile_edges` (Representing links: `HAS_SKILL`, `USED_IN`, `EVIDENCES`, `CONTAINS`)
+* `profile_evidence_items` (Relational evidence records mapped back to source tables with confidence ratings)
+* `candidate_skill_signals` (Calculates experience years, recency, frequency, and outcome confidence per skill)
 
-Caps always include a visible reason.
+Call `rebuildProfileEvidenceForUser(userId)` to rebuild a user's entire profile evidence graph.
 
-## Runtime Behavior
+### 4. pgvector Semantic Match Engine (`semanticMatchEngine.ts`)
+Performs cosine similarity lookups of job chunks against user profile chunks:
+* `job_chunks`, `profile_evidence_chunks`, `candidate_memory_chunks` (All using 768-dimension vectors for Google Gemini embeddings)
+* Backend Edge Function `generate-embeddings` uses `text-embedding-004` to compute embeddings.
+* Database RPC `match_job_to_profile` runs cross-similarity queries on the database side.
+* If `VITE_ENABLE_SEMANTIC_MATCHING=false` or embeddings are unprimed, the engine falls back to heuristic token-overlap matches.
 
-Deterministic explainable ranking is core product behavior and is always on.
-Phase 1 does not require environment flags, embeddings, Kuzu, or LLM calls.
+### 5. Graph Reasoning Engine (`graphReasoningEngine.ts`)
+Traverses node-edge links to build proof paths (e.g. *Candidate -> Experience -> EVIDENCES -> React*) or flag missing links.
+* Database RPC `get_profile_proof_paths` runs recursive joins on Postgres.
+* Kuzu sync layer `kuzu-sync.ts` enables syncing nodes to a graph workspace if `VITE_ENABLE_KUZU_GRAPH=true`.
 
-Future expensive systems such as semantic matching, Kuzu graph reasoning, and
-LLM-assisted explanations should introduce server-side controls when those
-systems are implemented, while preserving deterministic ranking as the baseline.
+### 6. Feedback Learning Engine (`feedbackLearningEngine.ts`)
+Logs interaction outcomes in `candidate_feedback_events` (saves, ignores, applications, interview flags) and applies boosts/penalties:
+* Previously interviewed/saved roles: positive boost.
+* Previously ignored/hidden roles: negative penalty.
+* Successful stack conversions (e.g., React/Supabase): conversion boost.
 
-## UI
+---
 
-The Jobs page now defaults to `Best opportunity` sorting and displays:
+## Database Schema (Postgres / pgvector)
 
-- Opportunity score
-- Lead score
-- Fit score
-- Evidence score
-- Top visible reasons
-- Main cap or blocker
-- Recommended action
+* Migrations:
+  * `20260523060000_create_intelligence_engine_schema.sql` (Creates graph nodes, edges, signals, and triggers)
+  * `20260523070000_create_semantic_matching_schema.sql` (Enables vector extension, chunk tables, HNSW indexes, and RPC similarity functions)
+  * `20260523080000_graph_reasoning_tables.sql` (Adds `get_profile_proof_paths` query function)
 
-## Tests
+---
+
+## Runtime Configuration (Feature Flags)
+
+Add these to your local environment file (`.env` or `.env.local`):
+
+```env
+VITE_ENABLE_EXPLAINABLE_RANKING=true
+VITE_ENABLE_SEMANTIC_MATCHING=false  # Set to true once pgvector/Gemini APIs are provisioned
+VITE_ENABLE_KUZU_GRAPH=false         # Set to true once Kuzu graph server is provisioned
+```
+
+If expensive systems are disabled, the engine will run entirely on deterministic SQL and token overlap, ensuring zero downtime and fast load times.
+
+---
+
+## Running Tests
 
 Focused tests live in:
-
 ```txt
 src/services/intelligence/__tests__/explainableFitEngine.test.ts
 ```
 
-Run:
-
-```bash
-npm test -- src/services/intelligence/__tests__/explainableFitEngine.test.ts
-```
-
-On Windows PowerShell with script execution restrictions:
-
+Run tests on Windows:
 ```powershell
-npm.cmd test -- src/services/intelligence/__tests__/explainableFitEngine.test.ts
+npx.cmd vitest run src/services/intelligence/__tests__/explainableFitEngine.test.ts
 ```
-
-## Later Phases
-
-Semantic matching, Postgres profile evidence graph tables, pgvector chunk tables, Kuzu sync, CRM feedback learning, and LLM-assisted reasoning are intentionally deferred until deterministic ranking and visible reasons are stable.

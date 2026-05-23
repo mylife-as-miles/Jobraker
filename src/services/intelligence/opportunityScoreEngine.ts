@@ -17,6 +17,9 @@ import { detectJobDuplicates } from "./jobDedupeEngine";
 import { scoreCandidateFit, extractKnownSkills } from "./candidateFitEngine";
 import { scoreLeadQuality } from "./leadQualityEngine";
 import { clampScore, compactText, normalizeText, reason } from "./textUtils";
+import type { SemanticMatchResult } from "./semanticMatchEngine";
+import type { GraphReasoningResult } from "./graphReasoningEngine";
+import { scoreFeedbackLearning } from "./feedbackLearningEngine";
 
 export type OpportunityScoreResult = {
   opportunityScore: number;
@@ -37,6 +40,9 @@ export type OpportunityScoringOptions = {
   weights?: Partial<ScoreWeights>;
   duplicate?: JobDuplicateResult;
   feedbackLearningScore?: number;
+  feedbackEvents?: any[];
+  semanticResult?: SemanticMatchResult;
+  graphResult?: GraphReasoningResult;
 };
 
 const actionCopy: Record<RecommendedJobAction, string> = {
@@ -224,12 +230,55 @@ export function scoreExplainableOpportunity(
   const duplicate = options.duplicate;
   const leadQuality = scoreLeadQuality(job, { duplicate });
   const candidateFit = scoreCandidateFit(job, profile);
-  const evidenceScore = profileEvidenceScore(candidateFit.supportingEvidence, profile);
-  const strategic = strategicValueScore(job, profile);
-  const feedbackLearningScore = feedbackScoreFromJob(job, options.feedbackLearningScore);
-  const weights = normalizeWeights(options.weights);
+  
+  // 1. Semantic Match Integration
+  let candidateFitScore = candidateFit.score;
+  const semanticReasons: RankingReason[] = [];
+  let extraEvidence: ProfileEvidenceMatch[] = [];
+  if (options.semanticResult) {
+    if (options.semanticResult.semanticFitScore > 50) {
+      const boost = Math.round((options.semanticResult.semanticFitScore - 50) * 0.2);
+      candidateFitScore = clampScore(candidateFitScore + boost);
+    }
+    semanticReasons.push(...options.semanticResult.reasons);
+    extraEvidence = options.semanticResult.matchedEvidence;
+  }
 
+  // 2. Graph Reasoning Integration
+  let evidenceScore = profileEvidenceScore(candidateFit.supportingEvidence, profile);
+  const graphReasons: RankingReason[] = [];
+  const graphBlockers: MatchBlocker[] = [];
+  if (options.graphResult) {
+    evidenceScore = clampScore(evidenceScore * 0.4 + options.graphResult.graphScore * 0.6);
+    graphReasons.push(...options.graphResult.reasons);
+    graphBlockers.push(...options.graphResult.blockers);
+  }
+
+  const strategic = strategicValueScore(job, profile);
+
+  // 3. Feedback Learning Integration
+  let feedbackLearningScore = feedbackScoreFromJob(job, options.feedbackLearningScore);
+  const feedbackReasons: RankingReason[] = [];
+  if (options.feedbackEvents && options.feedbackEvents.length > 0) {
+    const feedbackResult = scoreFeedbackLearning(job, options.feedbackEvents);
+    feedbackLearningScore = feedbackResult.score;
+    feedbackReasons.push(...feedbackResult.reasons);
+  } else if (feedbackLearningScore !== 50) {
+    feedbackReasons.push(
+      reason(
+        "feedback-learning",
+        "feedback",
+        feedbackLearningScore > 50 ? "positive" : "negative",
+        feedbackLearningScore > 50 ? "Feedback learning boost" : "Feedback learning penalty",
+        "Prior user feedback adjusted this opportunity.",
+        { scoreDelta: feedbackLearningScore - 50 },
+      ),
+    );
+  }
+
+  const weights = normalizeWeights(options.weights);
   const allCaps = [...leadQuality.caps, ...candidateFit.caps];
+
   const profileEvidenceReasons: RankingReason[] = [
     reason(
       "profile-evidence-strength",
@@ -251,32 +300,19 @@ export function scoreExplainableOpportunity(
     ),
   ];
 
-  const feedbackReasons: RankingReason[] =
-    feedbackLearningScore === 50
-      ? []
-      : [
-          reason(
-            "feedback-learning",
-            "feedback",
-            feedbackLearningScore > 50 ? "positive" : "negative",
-            feedbackLearningScore > 50 ? "Feedback learning boost" : "Feedback learning penalty",
-            "Prior user feedback adjusted this opportunity.",
-            { scoreDelta: feedbackLearningScore - 50 },
-          ),
-        ];
-
   const uncapped =
     leadQuality.score * weights.leadQuality +
-    candidateFit.score * weights.candidateFit +
+    candidateFitScore * weights.candidateFit +
     evidenceScore * weights.profileEvidence +
     strategic.score * weights.strategicValue +
     feedbackLearningScore * weights.feedbackLearning;
+  
   const opportunityScore = clampScore(applyCaps(uncapped, allCaps));
-  const blockers = [...leadQuality.warnings, ...candidateFit.blockers];
+  const blockers = [...leadQuality.warnings, ...candidateFit.blockers, ...graphBlockers];
   const recommendedAction = chooseRecommendedAction(
     opportunityScore,
     leadQuality.score,
-    candidateFit.score,
+    candidateFitScore,
     blockers,
     allCaps,
   );
@@ -284,7 +320,7 @@ export function scoreExplainableOpportunity(
   return {
     opportunityScore,
     leadQualityScore: leadQuality.score,
-    candidateFitScore: candidateFit.score,
+    candidateFitScore,
     profileEvidenceScore: evidenceScore,
     strategicValueScore: strategic.score,
     feedbackLearningScore,
@@ -292,6 +328,8 @@ export function scoreExplainableOpportunity(
       ...leadQuality.reasons,
       ...candidateFit.reasons,
       ...profileEvidenceReasons,
+      ...semanticReasons,
+      ...graphReasons,
       ...strategic.reasons,
       ...feedbackReasons,
       reason(
@@ -305,7 +343,7 @@ export function scoreExplainableOpportunity(
     capsApplied: allCaps.filter((cap) => cap.applied),
     blockers,
     missingSignals: candidateFit.missingSignals,
-    supportingEvidence: candidateFit.supportingEvidence,
+    supportingEvidence: [...candidateFit.supportingEvidence, ...extraEvidence],
     recommendedAction,
   };
 }
