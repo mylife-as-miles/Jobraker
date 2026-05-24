@@ -15,6 +15,8 @@ import {
   X,
 } from "lucide-react";
 
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabaseClient";
@@ -187,201 +189,235 @@ export function SupportFloatingWidget({
     }
   };
 
-  return (
-    <div className="fixed bottom-4 right-4 z-[90] flex flex-col items-end gap-3 sm:bottom-5 sm:right-5">
-      {open ? (
-        <div className="flex w-[min(calc(100vw-2rem),420px)] max-h-[min(760px,calc(100dvh-7rem))] flex-col overflow-hidden rounded-3xl border border-foreground/10 bg-background/95 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl">
-          <div className="shrink-0 border-b border-foreground/10 bg-gradient-to-r from-brand/12 via-background to-background px-4 py-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-brand/12 text-brand">
-                    <LifeBuoy className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      Customer care
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Help for {currentPageLabel.toLowerCase()} and the rest of Jobraker
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 rounded-full p-0 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-                onClick={() => setOpen(false)}
-                aria-label="Close support"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+  const hasUserMessages = messages.some((m) => m.role === "user");
 
-          <div className="shrink-0 border-b border-foreground/10 px-4 py-3">
-            <div className="grid grid-cols-2 gap-2">
-              {QUICK_ACTIONS.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <button
-                    key={action.label}
-                    type="button"
-                    onClick={() => void sendMessage(action.prompt)}
-                    className="rounded-2xl border border-foreground/10 bg-foreground/[0.03] px-3 py-2 text-left transition-colors hover:border-brand/30 hover:bg-brand/10"
-                  >
-                    <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-foreground/5 text-brand">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <p className="text-xs font-medium text-foreground">{action.label}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div
-            ref={scrollRef}
-            className="custom-scrollbar flex min-h-[180px] flex-1 flex-col gap-3 overflow-y-auto px-4 py-4"
-          >
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[88%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                    message.role === "user"
-                      ? "bg-brand text-black"
-                      : "border border-foreground/10 bg-foreground/[0.03] text-foreground"
-                  }`}
-                >
-                  {message.role === "assistant" ? (
-                    <div className="mb-1 flex items-center gap-2 text-[11px] font-medium text-brand">
-                      <Bot className="h-3.5 w-3.5" />
-                      <span>Support AI</span>
-                    </div>
-                  ) : null}
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                </div>
-              </div>
-            ))}
-
-            {isSending ? (
-              <div className="flex justify-start">
-                <div className="inline-flex items-center gap-2 rounded-2xl border border-foreground/10 bg-foreground/[0.03] px-3 py-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Thinking through the best next step...</span>
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          {suggestedActions.length > 0 ? (
-            <div className="shrink-0 border-t border-foreground/10 px-4 py-3">
-              <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                Next actions
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {suggestedActions.slice(0, 3).map((action, index) => {
-                  if (action.kind === "human") {
-                    return (
-                      <a
-                        key={`${action.label}-${index}`}
-                        href="mailto:support@jobraker.com"
-                        className="inline-flex items-center gap-1 rounded-full border border-foreground/10 px-3 py-1.5 text-xs text-foreground transition-colors hover:border-brand/30 hover:text-brand"
-                      >
-                        {action.label}
-                        <ArrowUpRight className="h-3 w-3" />
-                      </a>
-                    );
-                  }
-
-                  if (action.route) {
-                    return (
-                      <Link
-                        key={`${action.label}-${index}`}
-                        to={action.route}
-                        className="inline-flex items-center gap-1 rounded-full border border-foreground/10 px-3 py-1.5 text-xs text-foreground transition-colors hover:border-brand/30 hover:text-brand"
-                      >
-                        {action.label}
-                        <ArrowUpRight className="h-3 w-3" />
-                      </Link>
-                    );
-                  }
-
-                  return (
-                    <button
-                      key={`${action.label}-${index}`}
-                      type="button"
-                      onClick={() => action.prompt && void sendMessage(action.prompt)}
-                      className="inline-flex items-center gap-1 rounded-full border border-foreground/10 px-3 py-1.5 text-xs text-foreground transition-colors hover:border-brand/30 hover:text-brand"
-                    >
-                      {action.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="shrink-0 border-t border-foreground/10 px-4 py-3">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                Ask support
-              </p>
-              <a
-                href="mailto:support@jobraker.com"
-                className="text-xs text-brand transition-colors hover:text-brand/80"
-              >
-                Talk to a person
-              </a>
-            </div>
-
-            <div className="space-y-2">
-              <Textarea
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    void sendMessage(draft);
-                  }
-                }}
-                rows={3}
-                placeholder="Ask about billing, job search, resumes, or a problem you hit."
-                className="min-h-[84px] resize-none rounded-2xl border-foreground/10 bg-foreground/[0.03] text-sm"
-              />
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <Sparkles className="h-3.5 w-3.5 text-brand" />
-                  Page-aware support for this workspace
-                </div>
-                <Button
-                  type="button"
-                  className="rounded-full bg-brand text-black hover:bg-brand/90"
-                  disabled={isSending || !draft.trim()}
-                  onClick={() => void sendMessage(draft)}
-                >
-                  <Send className="mr-2 h-4 w-4" />
-                  Send
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
+  if (!open) {
+    return (
       <Button
         type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="h-12 rounded-full border border-brand/30 bg-background/95 px-4 text-brand shadow-[0_12px_28px_-12px_rgba(0,0,0,0.7)] backdrop-blur-xl hover:bg-brand hover:text-black"
+        onClick={() => setOpen(true)}
+        className="fixed bottom-4 right-4 z-[90] h-12 rounded-full border border-brand/30 bg-background/95 px-4 text-brand shadow-[0_12px_28px_-12px_rgba(0,0,0,0.7)] backdrop-blur-xl hover:bg-brand hover:text-black sm:bottom-5 sm:right-5"
       >
         <MessageSquare className="mr-2 h-4 w-4" />
         Support
       </Button>
+    );
+  }
+
+  return (
+    <div className="fixed top-4 bottom-4 right-4 z-[90] flex w-[min(calc(100vw-2rem),420px)] flex-col overflow-hidden rounded-3xl border border-foreground/10 bg-background/95 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl sm:top-5 sm:bottom-5 sm:right-5">
+      <div className="shrink-0 border-b border-foreground/10 bg-gradient-to-r from-brand/12 via-background to-background px-4 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-brand/12 text-brand">
+                <LifeBuoy className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Customer care
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Help for {currentPageLabel.toLowerCase()} and the rest of Jobraker
+                </p>
+              </div>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 rounded-full p-0 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+            onClick={() => setOpen(false)}
+            aria-label="Close support"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {!hasUserMessages && (
+        <div className="shrink-0 border-b border-foreground/10 px-4 py-3">
+          <div className="grid grid-cols-2 gap-2">
+            {QUICK_ACTIONS.map((action) => {
+              const Icon = action.icon;
+              return (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={() => void sendMessage(action.prompt)}
+                  className="rounded-2xl border border-foreground/10 bg-foreground/[0.03] px-3 py-2 text-left transition-colors hover:border-brand/30 hover:bg-brand/10"
+                >
+                  <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-foreground/5 text-brand">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <p className="text-xs font-medium text-foreground">{action.label}</p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div
+        ref={scrollRef}
+        className="custom-scrollbar flex min-h-[180px] flex-1 flex-col gap-3 overflow-y-auto px-4 py-4"
+      >
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[88%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                message.role === "user"
+                  ? "bg-brand text-black"
+                  : "border border-foreground/10 bg-foreground/[0.03] text-foreground"
+              }`}
+            >
+              {message.role === "assistant" ? (
+                <div className="space-y-1">
+                  <div className="mb-1 flex items-center gap-2 text-[11px] font-medium text-brand">
+                    <Bot className="h-3.5 w-3.5" />
+                    <span>Support AI</span>
+                  </div>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    className="prose prose-invert prose-sm max-w-none text-foreground/90 break-words leading-relaxed prose-p:leading-relaxed prose-pre:my-2"
+                    components={{
+                      a: ({ node: _node, ...props }) => (
+                        <a {...props} target="_blank" rel="noreferrer" className="text-brand hover:underline font-medium" />
+                      ),
+                      pre: ({ node: _node, ...props }) => (
+                        <pre {...props} className="bg-black/30 border border-foreground/10 rounded-xl p-3 my-2 overflow-x-auto" />
+                      ),
+                      code: ({ node: _node, inline, className, children, ...props }: any) => {
+                        const match = /language-(\w+)/.exec(className || '');
+                        return !inline && match ? (
+                          <code className={`${className} block text-xs font-mono`} {...props}>
+                            {children}
+                          </code>
+                        ) : (
+                          <code className="bg-white/5 rounded px-1.5 py-0.5 text-xs font-mono" {...props}>
+                            {children}
+                          </code>
+                        );
+                      }
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <p className="whitespace-pre-wrap">{message.content}</p>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {isSending ? (
+          <div className="flex justify-start">
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-foreground/10 bg-foreground/[0.03] px-3 py-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Thinking through the best next step...</span>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {suggestedActions.length > 0 ? (
+        <div className="shrink-0 border-t border-foreground/10 px-4 py-3">
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Next actions
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {suggestedActions.slice(0, 3).map((action, index) => {
+              if (action.kind === "human") {
+                return (
+                  <a
+                    key={`${action.label}-${index}`}
+                    href="mailto:support@jobraker.com"
+                    className="inline-flex items-center gap-1 rounded-full border border-foreground/10 px-3 py-1.5 text-xs text-foreground transition-colors hover:border-brand/30 hover:text-brand"
+                  >
+                    {action.label}
+                    <ArrowUpRight className="h-3 w-3" />
+                  </a>
+                );
+              }
+
+              if (action.route) {
+                return (
+                  <Link
+                    key={`${action.label}-${index}`}
+                    to={action.route}
+                    className="inline-flex items-center gap-1 rounded-full border border-foreground/10 px-3 py-1.5 text-xs text-foreground transition-colors hover:border-brand/30 hover:text-brand"
+                  >
+                    {action.label}
+                    <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                );
+              }
+
+              return (
+                <button
+                  key={`${action.label}-${index}`}
+                  type="button"
+                  onClick={() => action.prompt && void sendMessage(action.prompt)}
+                  className="inline-flex items-center gap-1 rounded-full border border-foreground/10 px-3 py-1.5 text-xs text-foreground transition-colors hover:border-brand/30 hover:text-brand"
+                >
+                  {action.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="shrink-0 border-t border-foreground/10 px-4 py-3">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Ask support
+          </p>
+          <a
+            href="mailto:support@jobraker.com"
+            className="text-xs text-brand transition-colors hover:text-brand/80"
+          >
+            Talk to a person
+          </a>
+        </div>
+
+        <div className="space-y-2">
+          <Textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                void sendMessage(draft);
+              }
+            }}
+            rows={3}
+            placeholder="Ask about billing, job search, resumes, or a problem you hit."
+            className="min-h-[84px] resize-none rounded-2xl border-foreground/10 bg-foreground/[0.03] text-sm"
+          />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <Sparkles className="h-3.5 w-3.5 text-brand" />
+              Page-aware support for this workspace
+            </div>
+            <Button
+              type="button"
+              className="rounded-full bg-brand text-black hover:bg-brand/90"
+              disabled={isSending || !draft.trim()}
+              onClick={() => void sendMessage(draft)}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              Send
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
+}
 }
