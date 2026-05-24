@@ -526,11 +526,12 @@ export const Dashboard = (): JSX.Element => {
     );
   }, [allDashboardPages]);
 
-  const getCurrentBreadcrumb = () => {
-    const currentItem = allDashboardPages.find(
-      (item) => item.id === currentPage,
-    );
+  const currentItem = useMemo(
+    () => allDashboardPages.find((item) => item.id === currentPage),
+    [allDashboardPages, currentPage],
+  );
 
+  const getCurrentBreadcrumb = () => {
     if (currentPage === "settings") {
       const tab = location.pathname.split("/")[3];
       if (tab) {
@@ -547,9 +548,6 @@ export const Dashboard = (): JSX.Element => {
   };
 
   const getBreadcrumbItems = () => {
-    const currentItem = allDashboardPages.find(
-      (item) => item.id === currentPage,
-    );
     const items: Array<{ label: string; to?: string }> = [
       { label: "Dashboard", to: "/dashboard/overview" },
     ];
