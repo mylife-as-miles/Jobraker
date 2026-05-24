@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useRegisterCoachMarks } from "../../../providers/TourProvider";
+import {
+  TOUR_PAGE_LABELS,
+  useProductTour,
+  useRegisterCoachMarks,
+} from "../../../providers/TourProvider";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
@@ -150,11 +154,14 @@ export const SettingsPage = (): JSX.Element => {
   const navigate = useNavigate();
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError } = useToast();
+  const { availablePages, isRunning, page: runningTourPage, start: startTour } =
+    useProductTour();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasGmailIntegrationAccess = hasSubscriptionAccess(
     subscriptionTier,
     "Pro",
   );
+  const [isAdmin, setIsAdmin] = useState(false);
   const tabs = useMemo(() => {
     const baseTabs = [
       { id: "profile", label: "Profile", icon: <User className='w-4 h-4' /> },
@@ -198,8 +205,17 @@ export const SettingsPage = (): JSX.Element => {
       icon: <Link className='w-4 h-4' />,
     });
 
+    if (isAdmin) {
+      const guidedToursIndex = baseTabs.findIndex((t) => t.id === "billing");
+      baseTabs.splice(guidedToursIndex, 0, {
+        id: "guided-tours",
+        label: "Guided Tours",
+        icon: <Sparkles className='w-4 h-4' />,
+      });
+    }
+
     return baseTabs;
-  }, []);
+  }, [isAdmin]);
 
   const activeTab = useMemo(() => {
     const segment = location.pathname.split("/")[3];
@@ -409,6 +425,18 @@ export const SettingsPage = (): JSX.Element => {
       }
     })();
   }, [supabase]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { isCurrentUserAdmin } = await import("@/lib/adminUtils");
+        setIsAdmin(await isCurrentUserAdmin());
+      } catch (error) {
+        console.error("Error checking admin status:", error);
+        setIsAdmin(false);
+      }
+    })();
+  }, []);
 
   const handleConnectGmail = async () => {
     try {
@@ -951,6 +979,14 @@ export const SettingsPage = (): JSX.Element => {
         title: "Integrations",
         body: "Connect your accounts from other services like Gmail, LinkedIn, and GitHub to enhance your job search workflow.",
         condition: { type: "click", autoNext: true },
+        next: isAdmin ? "settings-tab-guided-tours" : "settings-tab-billing",
+      },
+      {
+        id: "settings-tab-guided-tours",
+        selector: "#settings-tab-btn-guided-tours",
+        title: "Guided Tours",
+        body: "Restart any product tour from Settings whenever you want a quick walkthrough of a page.",
+        condition: { type: "click", autoNext: true },
         next: "settings-tab-billing",
       },
       {
@@ -976,6 +1012,11 @@ export const SettingsPage = (): JSX.Element => {
     (activeTab === "privacy" && privacyLoading) ||
     (activeTab === "appearance" && appearanceLoading) ||
     (activeTab === "security" && securityLoading);
+
+  const guidedTourPages = useMemo(
+    () => availablePages.filter((tourPageId) => tourPageId !== "*"),
+    [availablePages],
+  );
 
   const TabSkeleton = () => (
     <div className='space-y-6'>
@@ -4784,6 +4825,100 @@ export const SettingsPage = (): JSX.Element => {
                 </Button>
               </div>
             </div>
+          </div>
+        );
+
+      case "guided-tours":
+        return (
+          <div className='space-y-6'>
+            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
+              <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+                <div>
+                  <h3 className='text-base font-medium text-foreground/95'>
+                    Guided Tours
+                  </h3>
+                  <p className='text-sm text-muted-foreground mt-0.5 max-w-2xl'>
+                    Restart any product walkthrough from Settings instead of
+                    using the floating launcher. Tours resume from saved progress
+                    when available.
+                  </p>
+                </div>
+                <div className='inline-flex items-center gap-2 rounded-lg border border-brand/20 bg-brand/10 px-3 py-2 text-sm font-medium text-brand'>
+                  <Sparkles className='w-4 h-4' />
+                  Admin tools
+                </div>
+              </div>
+            </div>
+
+            <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+              {guidedTourPages.map((tourPageId) => {
+                const isCompleted =
+                  (profile as any)?.[`walkthrough_${tourPageId}`] === true;
+                const isActiveTour =
+                  isRunning && runningTourPage === tourPageId;
+                return (
+                  <div
+                    key={tourPageId}
+                    className={`rounded-xl border p-5 shadow-sm ring-1 transition-all ${
+                      isActiveTour
+                        ? "border-brand/40 bg-brand/5 ring-brand/20"
+                        : "border-border/40 bg-card ring-foreground/5"
+                    }`}
+                  >
+                    <div className='flex items-start justify-between gap-3'>
+                      <div>
+                        <h4 className='text-base font-semibold text-foreground'>
+                          {TOUR_PAGE_LABELS[tourPageId] || tourPageId}
+                        </h4>
+                        <p className='mt-1 text-sm text-muted-foreground'>
+                          {isCompleted
+                            ? "Completed before. You can restart it anytime."
+                            : "Not completed yet."}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                          isActiveTour
+                            ? "bg-brand text-background"
+                            : isCompleted
+                              ? "bg-blue-500/15 text-blue-400"
+                              : "bg-foreground/5 text-muted-foreground"
+                        }`}
+                      >
+                        {isActiveTour
+                          ? "Running"
+                          : isCompleted
+                            ? "Done"
+                            : "Ready"}
+                      </span>
+                    </div>
+
+                    <div className='mt-5 flex items-center justify-between gap-3'>
+                      <span className='text-xs uppercase tracking-[0.18em] text-muted-foreground'>
+                        {tourPageId}
+                      </span>
+                      <Button
+                        variant={isActiveTour ? "outline" : "default"}
+                        className={
+                          isActiveTour
+                            ? "border-brand/30 text-brand hover:bg-brand/10"
+                            : "bg-brand text-background hover:bg-brand/90"
+                        }
+                        onClick={() => startTour(tourPageId)}
+                      >
+                        {isActiveTour ? "Restart Tour" : "Start Tour"}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {guidedTourPages.length === 0 ? (
+              <div className='rounded-xl border border-border/40 bg-card p-6 text-sm text-muted-foreground shadow-sm ring-1 ring-foreground/5'>
+                No tours are registered yet on this build.
+              </div>
+            ) : null}
           </div>
         );
 
