@@ -37,7 +37,7 @@ interface CoverLetterPreviewCardProps {
 }
 
 export const CoverLetterPreviewCard: React.FC<CoverLetterPreviewCardProps> = ({ data }) => {
-    if (!data) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
         return (
             <div className="w-full h-full flex items-center justify-center bg-gray-50">
                 <span className="text-gray-300 text-xs">No preview</span>

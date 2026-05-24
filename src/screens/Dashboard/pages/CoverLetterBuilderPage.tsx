@@ -178,7 +178,7 @@ export const CoverLetterBuilderPage = () => {
     setJobDescription(job.description);
     toastSuccess(
       "Job description loaded",
-      `${job.title}${job.company ? ` · ${job.company}` : ""}`,
+      [job.title, job.company].filter(Boolean).join(" - "),
     );
   };
   const [isSaving, setIsSaving] = useState(false);
