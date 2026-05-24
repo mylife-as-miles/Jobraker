@@ -690,8 +690,8 @@ export const PublicProfilePage = () => {
         </div>
       ) : null}
 
-      <section className="relative z-10 mx-auto flex min-h-screen max-w-7xl items-end px-5 pb-16 pt-20 sm:px-8 lg:pb-24">
-        <div className="grid w-full gap-10 xl:grid-cols-[minmax(0,1.02fr)_minmax(420px,0.78fr)] xl:items-end">
+      <section className="relative z-10 mx-auto flex min-h-screen max-w-[96rem] items-end px-4 pb-16 pt-20 sm:px-6 lg:pb-24">
+        <div className="grid w-full gap-8 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.78fr)] xl:items-end">
           <div className="min-w-0">
             <div className="mb-8 flex flex-wrap items-center gap-3 text-sm text-white/60">
               {profile.location ? (
@@ -704,7 +704,7 @@ export const PublicProfilePage = () => {
                 <span>{profile.experienceYears}+ years of focused experience</span>
               ) : null}
             </div>
-            <h1 className="max-w-5xl break-normal text-[clamp(2.5rem,7vw,6.5rem)] font-black uppercase leading-[0.84] tracking-normal">
+            <h1 className="max-w-5xl break-words text-[clamp(3.5rem,10.5vw,10rem)] font-black uppercase leading-[0.84] tracking-normal">
               {profile.name}
             </h1>
             <p className="mt-8 max-w-2xl text-xl leading-relaxed text-white/72 sm:text-2xl">
