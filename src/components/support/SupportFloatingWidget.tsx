@@ -420,4 +420,3 @@ export function SupportFloatingWidget({
     </div>
   );
 }
-}
