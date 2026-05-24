@@ -704,7 +704,7 @@ export const PublicProfilePage = () => {
                 <span>{profile.experienceYears}+ years of focused experience</span>
               ) : null}
             </div>
-            <h1 className="max-w-[54rem] break-words text-[clamp(4.5rem,12vw,12rem)] font-black uppercase leading-[0.84] tracking-normal">
+            <h1 className="max-w-[44rem] break-words text-[clamp(4.5rem,12vw,12rem)] font-black uppercase leading-[0.84] tracking-normal">
               {profile.name}
             </h1>
             <p className="mt-8 max-w-2xl text-xl leading-relaxed text-white/72 sm:text-2xl">
