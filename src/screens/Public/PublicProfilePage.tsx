@@ -699,8 +699,12 @@ export const PublicProfilePage = () => {
                 <span>{profile.experienceYears}+ years of focused experience</span>
               ) : null}
             </div>
-            <h1 className="max-w-[44rem] break-words text-[clamp(4.5rem,12vw,12rem)] font-black uppercase leading-[0.84] tracking-normal">
-              {profile.name}
+            <h1 className="max-w-[58rem] text-[clamp(4rem,10vw,10.5rem)] font-black uppercase leading-[0.84] tracking-normal">
+              {profile.name.split(/\s+/).filter(Boolean).map((part) => (
+                <span key={part} className="block whitespace-nowrap">
+                  {part}
+                </span>
+              ))}
             </h1>
             <p className="mt-8 max-w-2xl text-xl leading-relaxed text-white/72 sm:text-2xl">
               {site.headline || profile.jobTitle}
