@@ -44,8 +44,8 @@ export const LandingPage = () => {
   return (
     <div className='min-h-screen bg-background text-foreground font-mono selection:bg-brand selection:text-black overflow-x-hidden'>
       <Seo
-        title='JobRaker | AI Job Search Workflow for Serious Candidates'
-        description='JobRaker helps you organize your search, tailor resumes and cover letters, review governed auto-apply flows, and keep every application visible in one pipeline.'
+        title='Beat the ATS & Land 3x More Interviews | JobRaker'
+        description="Stop sending generic resumes. JobRaker's career AI custom-tailors your resume, drafts high-converting cover letters, and auto-applies to jobs on autopilot. Get hired 3x faster today."
         path='/'
       />
       {/* Navigation */}
