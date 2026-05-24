@@ -6,7 +6,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 const SITE_FIELDS =
   "id, user_id, slug, is_public, theme, headline, intro, cta_label, contact_email, links, design, section_order, views, updated_at";
 const PROFILE_FIELDS =
-  "id, first_name, last_name, job_title, experience_years, location, goals, about, avatar_url, phone, socials, availability_start, preferred_weekly_hours, work_timezone, weekly_availability";
+  "id, first_name, last_name, job_title, experience_years, location, goals, about, avatar_url, phone, socials, availability_start, preferred_weekly_hours, work_timezone, weekly_availability, linkedin_url, github_url";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -315,6 +315,8 @@ serve(async (req) => {
             weekly: normalizeWeeklyAvailability(profile.weekly_availability),
           },
           avatarUrl,
+          linkedinUrl: asString(profile.linkedin_url),
+          githubUrl: asString(profile.github_url),
         },
         experiences: Array.isArray(experiencesRes.data) ? experiencesRes.data : [],
         education: Array.isArray(educationRes.data) ? educationRes.data : [],

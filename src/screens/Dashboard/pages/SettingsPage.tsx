@@ -305,6 +305,8 @@ export const SettingsPage = (): JSX.Element => {
     newPassword: string;
     confirmPassword: string;
     avatar_url: string;
+    linkedin_url: string;
+    github_url: string;
   };
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
@@ -316,6 +318,8 @@ export const SettingsPage = (): JSX.Element => {
     newPassword: "",
     confirmPassword: "",
     avatar_url: "",
+    linkedin_url: "",
+    github_url: "",
   });
 
   // 2FA modal state
@@ -787,6 +791,8 @@ export const SettingsPage = (): JSX.Element => {
         phone: (profile as any)?.phone || "",
         location: profile?.location || "",
         avatar_url: (profile as any)?.avatar_url || "",
+        linkedin_url: (profile as any)?.linkedin_url || "",
+        github_url: (profile as any)?.github_url || "",
       }));
     })();
   }, [profile, supabase]);
@@ -1145,6 +1151,8 @@ export const SettingsPage = (): JSX.Element => {
           location: formData.location,
           phone: formData.phone as any,
           avatar_url: formData.avatar_url as any,
+          linkedin_url: formData.linkedin_url.trim() || null,
+          github_url: formData.github_url.trim() || null,
         } as any);
       } else {
         await updateProfile({
@@ -1153,6 +1161,8 @@ export const SettingsPage = (): JSX.Element => {
           location: formData.location,
           phone: formData.phone as any,
           avatar_url: formData.avatar_url as any,
+          linkedin_url: formData.linkedin_url.trim() || null,
+          github_url: formData.github_url.trim() || null,
         } as any);
       }
 
@@ -1636,6 +1646,32 @@ export const SettingsPage = (): JSX.Element => {
                     autoComplete='address-level2'
                     className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
                     placeholder='City, Country'
+                  />
+                </div>
+                <div>
+                  <label className='block text-xs font-bold text-muted-foreground/80 mb-2 uppercase tracking-wider'>
+                    LinkedIn URL
+                  </label>
+                  <Input
+                    value={formData.linkedin_url}
+                    onChange={(e) =>
+                      handleInputChange("linkedin_url", e.target.value)
+                    }
+                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
+                    placeholder='https://linkedin.com/in/username'
+                  />
+                </div>
+                <div>
+                  <label className='block text-xs font-bold text-muted-foreground/80 mb-2 uppercase tracking-wider'>
+                    GitHub URL
+                  </label>
+                  <Input
+                    value={formData.github_url}
+                    onChange={(e) =>
+                      handleInputChange("github_url", e.target.value)
+                    }
+                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
+                    placeholder='https://github.com/username'
                   />
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
@@ -412,22 +413,64 @@ const ProfilePage = (): JSX.Element => {
                   </div>
 
                   <div className='flex justify-center space-x-2 mt-4'>
-                    <Button
-                      size='sm'
-                      variant='outline'
-                      className='product-outline-button hover:scale-105 transition-all duration-300'
-                    >
-                      <ExternalLink className='w-4 h-4 mr-1' />
-                      LinkedIn
-                    </Button>
-                    <Button
-                      size='sm'
-                      variant='outline'
-                      className='product-outline-button hover:scale-105 transition-all duration-300'
-                    >
-                      <ExternalLink className='w-4 h-4 mr-1' />
-                      GitHub
-                    </Button>
+                    {profile?.linkedin_url ? (
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        className='product-outline-button hover:scale-105 transition-all duration-300'
+                        asChild
+                      >
+                        <a
+                          href={profile.linkedin_url.startsWith('http') ? profile.linkedin_url : `https://${profile.linkedin_url}`}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                        >
+                          <ExternalLink className='w-4 h-4 mr-1' />
+                          LinkedIn
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        className='product-outline-button border-dashed border-foreground/20 text-muted-foreground/60 hover:text-foreground hover:scale-105 transition-all duration-300'
+                        asChild
+                      >
+                        <Link to='/dashboard/settings/profile'>
+                          <Plus className='w-4 h-4 mr-1' />
+                          Add LinkedIn
+                        </Link>
+                      </Button>
+                    )}
+                    {profile?.github_url ? (
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        className='product-outline-button hover:scale-105 transition-all duration-300'
+                        asChild
+                      >
+                        <a
+                          href={profile.github_url.startsWith('http') ? profile.github_url : `https://${profile.github_url}`}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                        >
+                          <ExternalLink className='w-4 h-4 mr-1' />
+                          GitHub
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        className='product-outline-button border-dashed border-foreground/20 text-muted-foreground/60 hover:text-foreground hover:scale-105 transition-all duration-300'
+                        asChild
+                      >
+                        <Link to='/dashboard/settings/profile'>
+                          <Plus className='w-4 h-4 mr-1' />
+                          Add GitHub
+                        </Link>
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>
