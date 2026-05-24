@@ -1,5 +1,13 @@
 // Clean AI-elements only Chat Page implementation
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { nanoid } from "nanoid";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/light";
 import atomOneDarkStyle from "react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark";
@@ -26,6 +34,23 @@ SyntaxHighlighter.registerLanguage("html", xml);
 SyntaxHighlighter.registerLanguage("xml", xml);
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area
+} from "recharts";
 import { useNavigate } from "react-router-dom";
 import { createClient } from "../../../lib/supabaseClient";
 import {
@@ -37,6 +62,20 @@ import {
   type ChatStarterIcon,
   type ChatStarterSuggestion,
 } from "../../../services/ai/generateChatStarters";
+import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
+import { SkillInvocationMessage } from "@/components/chat/SkillInvocationMessage";
+import {
+  executeChatSkill,
+  getPrimarySkillAlias,
+  getSkillById,
+  getSkillSuggestions,
+} from "@/lib/chatSkills/registry";
+import {
+  detectSkillPaletteTrigger,
+  parseSkillCall,
+  replaceSkillPaletteTrigger,
+} from "@/lib/chatSkills/parser";
+import type { ChatSkillCall, ParsedSkillCall } from "@/lib/chatSkills/types";
 import {
   MessageSquare,
   Wand2,
@@ -112,13 +151,14 @@ interface ToolCallEntry {
 }
 interface BasicMessage {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "skill";
   content: string;
   parts?: { type: "text"; text: string }[];
   streaming?: boolean;
   createdAt: number;
   meta?: { persona?: Persona; parent?: string };
   toolCalls?: ToolCallEntry[];
+  skillCall?: ChatSkillCall;
   /** Persisted: user message included an image (bytes live in IndexedDB). */
   hasPastedImage?: boolean;
   attachmentCount?: number;
@@ -143,7 +183,7 @@ interface UseChatReturn {
   append: (m: ChatUserPayload, opts?: ChatRequestOptions) => void;
   regenerate: () => void;
   stop: () => void;
-  setMessages: (m: BasicMessage[]) => void;
+  setMessages: Dispatch<SetStateAction<BasicMessage[]>>;
   responseId: string | null;
   setResponseId: (id: string | null) => void;
   requestStartedAt: number | null;
@@ -195,7 +235,10 @@ const CHAT_STARTER_ICONS: Record<
 
 const normalizeBasicMessage = (message: any): BasicMessage => ({
   id: typeof message?.id === "string" ? message.id : nanoid(),
-  role: message?.role === "assistant" ? "assistant" : "user",
+  role:
+    message?.role === "assistant" || message?.role === "skill"
+      ? message.role
+      : "user",
   content: typeof message?.content === "string" ? message.content : "",
   parts:
     Array.isArray(message?.parts) && message.parts.length > 0
@@ -212,6 +255,10 @@ const normalizeBasicMessage = (message: any): BasicMessage => ({
   meta:
     message?.meta && typeof message.meta === "object"
       ? message.meta
+      : undefined,
+  skillCall:
+    message?.skillCall && typeof message.skillCall === "object"
+      ? (message.skillCall as ChatSkillCall)
       : undefined,
   hasPastedImage: Boolean(message?.hasPastedImage),
 });
@@ -344,6 +391,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             model: chatOpts?.model || DEFAULT_CHAT_MODEL,
             messages: history
               .filter((msg, idx, arr) => {
+                if (msg.role === "skill") return false;
                 const isLast = idx === arr.length - 1;
                 if (isLast && msg.role === "user") {
                   return msg.content.trim() !== "" || Boolean(m.images?.length);
@@ -363,7 +411,10 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                     })),
                   };
                 }
-                return { role: msg.role, content: msg.content.trim() };
+                return {
+                  role: msg.role as "user" | "assistant",
+                  content: msg.content.trim(),
+                };
               }),
             mode: chatOpts?.mode || "ask",
             webSearch: chatOpts?.webSearch ?? false,
@@ -666,6 +717,13 @@ export const ChatPage = () => {
   const navigate = useNavigate();
   // UI state
   const [text, setText] = useState("");
+  const [skillStatus, setSkillStatus] = useState<"idle" | "in_progress">(
+    "idle",
+  );
+  const [skillPaletteActiveIndex, setSkillPaletteActiveIndex] = useState(0);
+  const [dismissedSkillPaletteToken, setDismissedSkillPaletteToken] = useState<
+    string | null
+  >(null);
   const [persona, setPersona] = useState<Persona>("analyst");
   const [sessions, setSessions] = useState<ChatSessionState[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -790,6 +848,7 @@ export const ChatPage = () => {
     const seconds = totalSeconds % 60;
     return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
   }, [requestElapsedMs]);
+  const isChatBusy = status === "in_progress" || skillStatus === "in_progress";
 
   useEffect(() => {
     if (status !== "in_progress") return;
@@ -1053,8 +1112,208 @@ export const ChatPage = () => {
     [],
   );
 
+  const touchSessionMessages = useCallback(
+    (
+      sessionId: string,
+      nextMessages: BasicMessage[],
+      nextResponseId = responseId,
+    ) => {
+      const updatedAt = new Date();
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === sessionId
+            ? {
+                ...session,
+                messages: nextMessages,
+                responseId: nextResponseId,
+                persona:
+                  session.persona || (persona === "analyst" ? "agent" : "ask"),
+                model: session.model || DEFAULT_CHAT_MODEL,
+                updatedAt: updatedAt.getTime(),
+                updated_at: updatedAt.toISOString(),
+              }
+            : session,
+        ),
+      );
+      void supabase
+        .from("chat_sessions")
+        .update({
+          messages: nextMessages as any,
+          response_id: nextResponseId,
+        })
+        .eq("id", sessionId)
+        .then(({ error }) => {
+          if (error) console.error("Failed to persist skill chat turn", error);
+        });
+    },
+    [persona, responseId, supabase],
+  );
+
+  const runSkillCall = useCallback(
+    async (parsed: ParsedSkillCall, rawContent: string) => {
+      const skill = getSkillById(parsed.skillId);
+      if (!skill) {
+        toastError(
+          "Skill not found",
+          "That Area50 skill is not registered in JobRaker yet.",
+        );
+        return;
+      }
+
+      const sessionId = activeSessionId || (await createSession(true));
+      if (!sessionId) {
+        toastError("Could not start chat", "Please try again.");
+        return;
+      }
+
+      const currentMessages =
+        sessionId === activeSessionId
+          ? messages
+          : sessions.find((session) => session.id === sessionId)?.messages || [];
+      const nowMs = Date.now();
+      const userMessage: BasicMessage = {
+        id: nanoid(),
+        role: "user",
+        content: rawContent.trim(),
+        createdAt: nowMs,
+        parts: [{ type: "text", text: rawContent.trim() }],
+      };
+      const skillCall: ChatSkillCall = {
+        id: nanoid(),
+        skillId: skill.id,
+        skillName: skill.name,
+        status: "running",
+        input: {
+          trigger: parsed.trigger,
+          rawCommand: parsed.rawCommand,
+          userInstruction: parsed.userInstruction,
+          args: parsed.args,
+        },
+        progress: ["Queued Area50 skill"],
+      };
+      const skillMessage: BasicMessage = {
+        id: nanoid(),
+        role: "skill",
+        content: `${skill.name} is reading the request.`,
+        createdAt: nowMs + 1,
+        parts: [
+          {
+            type: "text",
+            text: `${skill.name} is reading the request.`,
+          },
+        ],
+        skillCall,
+      };
+      const nextMessages = [...currentMessages, userMessage, skillMessage];
+
+      setMessages(nextMessages);
+      touchSessionMessages(sessionId, nextMessages, null);
+      setSkillStatus("in_progress");
+
+      const isFirstMessage =
+        currentMessages.filter((message) => message.role === "user").length ===
+        0;
+      if (isFirstMessage) {
+        const optimisticTitle = rawContent.trim().slice(0, 40) || skill.name;
+        setSessions((prev) =>
+          prev.map((session) =>
+            session.id === sessionId
+              ? { ...session, title: optimisticTitle }
+              : session,
+          ),
+        );
+        void supabase
+          .from("chat_sessions")
+          .update({ title: optimisticTitle })
+          .eq("id", sessionId);
+      }
+
+      const updateSkillMessage = (
+        updater: (call: ChatSkillCall) => ChatSkillCall,
+      ) => {
+        setMessages((prev) => {
+          const updated = prev.map((message) => {
+            if (message.id !== skillMessage.id || !message.skillCall) {
+              return message;
+            }
+            const updatedSkillCall = updater(message.skillCall);
+            return {
+              ...message,
+              content:
+                updatedSkillCall.error ||
+                `${skill.name} ${updatedSkillCall.status.replace(/_/g, " ")}.`,
+              parts: [
+                {
+                  type: "text" as const,
+                  text:
+                    updatedSkillCall.error ||
+                    `${skill.name} ${updatedSkillCall.status.replace(
+                      /_/g,
+                      " ",
+                    )}.`,
+                },
+              ],
+              skillCall: updatedSkillCall,
+            };
+          });
+          touchSessionMessages(sessionId, updated, null);
+          return updated;
+        });
+      };
+
+      try {
+        const result = await executeChatSkill({
+          invocationId: skillCall.id,
+          skillId: skill.id,
+          trigger: parsed.trigger,
+          rawCommand: parsed.rawCommand,
+          userInstruction: parsed.userInstruction,
+          args: parsed.args,
+          progress: (label) => {
+            updateSkillMessage((call) => ({
+              ...call,
+              status: "running",
+              progress: Array.from(new Set([...(call.progress || []), label])),
+            }));
+          },
+        });
+
+        updateSkillMessage((call) => ({
+          ...call,
+          status: result.status,
+          output: result.output,
+          progress: Array.from(
+            new Set([...(call.progress || []), "Ready for review"]),
+          ),
+        }));
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "The skill failed before returning a result.";
+        updateSkillMessage((call) => ({
+          ...call,
+          status: "failed",
+          error: message,
+        }));
+      } finally {
+        setSkillStatus("idle");
+      }
+    },
+    [
+      activeSessionId,
+      createSession,
+      messages,
+      sessions,
+      setMessages,
+      supabase,
+      toastError,
+      touchSessionMessages,
+    ],
+  );
+
   const handleSubmit = async (message: { text: string }) => {
-    if ((!message.text.trim() && attachments.length === 0) || status === "in_progress")
+    if ((!message.text.trim() && attachments.length === 0) || isChatBusy)
       return;
 
     const attachmentFiles = attachments;
@@ -1062,6 +1321,13 @@ export const ChatPage = () => {
     setAttachments([]);
     const textarea = textareaRef.current;
     if (textarea) textarea.style.height = "auto";
+
+    const content = message.text || "";
+    const parsedSkillCall = parseSkillCall(content);
+    if (parsedSkillCall.detected && attachmentFiles.length === 0) {
+      await runSkillCall(parsedSkillCall, content);
+      return;
+    }
 
     let images: { mimeType: string; data: string; name: string }[] | undefined;
     if (attachmentFiles.length) {
@@ -1075,8 +1341,6 @@ export const ChatPage = () => {
         return;
       }
     }
-
-    const content = message.text || "";
 
     const systemInstruction = {
       concise: "You are a concise and direct assistant.",
@@ -1183,6 +1447,52 @@ export const ChatPage = () => {
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const skillPaletteTrigger = useMemo(
+    () =>
+      detectSkillPaletteTrigger(
+        text,
+        textareaRef.current?.selectionStart ?? text.length,
+      ),
+    [text],
+  );
+  const skillPaletteSkills = useMemo(
+    () =>
+      skillPaletteTrigger
+        ? getSkillSuggestions(skillPaletteTrigger.query, skillPaletteTrigger.mode)
+        : [],
+    [skillPaletteTrigger],
+  );
+  const skillPaletteOpen = Boolean(
+    skillPaletteTrigger &&
+      dismissedSkillPaletteToken !== skillPaletteTrigger.token &&
+      skillPaletteSkills.length > 0,
+  );
+
+  useEffect(() => {
+    setSkillPaletteActiveIndex(0);
+  }, [skillPaletteTrigger?.query, skillPaletteTrigger?.mode]);
+
+  const selectSkillFromPalette = useCallback(
+    (skill: (typeof skillPaletteSkills)[number]) => {
+      if (!skillPaletteTrigger) return;
+      const alias = getPrimarySkillAlias(skill, skillPaletteTrigger.mode);
+      const nextText = replaceSkillPaletteTrigger(
+        text,
+        skillPaletteTrigger,
+        alias,
+      );
+      setText(nextText);
+      setDismissedSkillPaletteToken(null);
+      window.requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+        const cursor = skillPaletteTrigger.start + alias.length + 1;
+        textarea.focus();
+        textarea.setSelectionRange(cursor, cursor);
+      });
+    },
+    [skillPaletteTrigger, text],
+  );
 
   const updateScrollState = useCallback(() => {
     const container = chatScrollRef.current;
@@ -1430,13 +1740,15 @@ export const ChatPage = () => {
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/70 border border-border`}
                 >
                   <div
-                    className={`w-2 h-2 rounded-full ${status === "in_progress" ? "bg-brand animate-pulse" : "bg-brand"} `}
+                    className={`w-2 h-2 rounded-full ${isChatBusy ? "bg-brand animate-pulse" : "bg-brand"} `}
                   ></div>
                   <span className='text-xs font-medium text-foreground'>
                     {status === "in_progress"
                       ? showExtendedWait
                         ? `Still working... ${requestElapsedLabel}`
                         : "Generating..."
+                      : skillStatus === "in_progress"
+                        ? "Running skill..."
                       : "Ready"}
                   </span>
                 </div>
@@ -1452,7 +1764,7 @@ export const ChatPage = () => {
                 {messages.length > 0 && (
                   <button
                     onClick={regenerate}
-                    disabled={status === "in_progress"}
+                    disabled={isChatBusy}
                     className='text-sm font-medium text-brand hover:underline px-3 py-1.5 flex items-center gap-1'
                   >
                     Regenerate
@@ -1562,16 +1874,18 @@ export const ChatPage = () => {
                       key={m.id}
                       className={`flex gap-4 ${m.role === "user" ? "justify-end" : "justify-start"}`}
                     >
-                      {m.role === "assistant" && (
+                      {m.role !== "user" && (
                         <div className='w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center shrink-0 border border-brand/20 mt-1'>
                           <Bot size={16} className='text-brand' />
                         </div>
                       )}
                       <div
-                        className={`max-w-[85%] rounded-2xl p-4 shadow-sm ${
+                        className={`rounded-2xl shadow-sm ${
                           m.role === "user"
-                            ? "bg-brand text-primary-foreground font-medium rounded-tr-sm"
-                            : "glass-panel text-card-foreground rounded-tl-sm"
+                            ? "max-w-[85%] bg-brand text-primary-foreground font-medium rounded-tr-sm p-4"
+                            : m.role === "skill"
+                              ? "max-w-[95%] bg-transparent p-0 shadow-none"
+                              : "max-w-[85%] glass-panel text-card-foreground rounded-tl-sm p-4"
                         }`}
                       >
                         {m.role === "user" ? (
@@ -1582,6 +1896,8 @@ export const ChatPage = () => {
                             />
                             {m.content.trim() ? m.content : null}
                           </div>
+                        ) : m.role === "skill" && m.skillCall ? (
+                          <SkillInvocationMessage skillCall={m.skillCall} />
                         ) : (
                           <div className='text-sm prose prose-invert max-w-none overflow-hidden'>
                             {m.toolCalls && m.toolCalls.length > 0 && (
@@ -1689,6 +2005,112 @@ export const ChatPage = () => {
                                   const match = /language-(\w+)/.exec(
                                     className || "",
                                   );
+                                  const lang = match ? match[1] : "";
+                                  
+                                  if (!inline && lang && lang.startsWith("chart")) {
+                                    try {
+                                      const parsed = JSON.parse(String(children));
+                                      const chartType = lang.replace("chart-", "").replace("chart", "bar");
+                                      const title = parsed.title || "";
+                                      const data = parsed.data || [];
+                                      const keys = parsed.keys || [];
+                                      const colors = parsed.colors || ["hsl(var(--brand))", "hsl(var(--accent))", "#10b981", "#f59e0b", "#6366f1"];
+                                      
+                                      return (
+                                        <div className="my-6 p-4 rounded-xl border border-border bg-card/40 glass-panel overflow-hidden">
+                                          {title && <h5 className="text-sm font-semibold text-foreground mb-3">{title}</h5>}
+                                          <div className="w-full h-[240px] text-xs">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                              {chartType === "line" ? (
+                                                <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+                                                  <XAxis dataKey="name" stroke="hsl(var(--foreground) / 0.5)" />
+                                                  <YAxis stroke="hsl(var(--foreground) / 0.5)" />
+                                                  <Tooltip 
+                                                    contentStyle={{ 
+                                                      background: "hsl(var(--card))", 
+                                                      border: "1px solid hsl(var(--border))",
+                                                      borderRadius: "8px",
+                                                      color: "hsl(var(--foreground))" 
+                                                    }} 
+                                                  />
+                                                  <Legend />
+                                                  {keys.map((key: string, idx: number) => (
+                                                    <Line key={key} type="monotone" dataKey={key} stroke={colors[idx % colors.length]} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                                  ))}
+                                                </LineChart>
+                                              ) : chartType === "pie" ? (
+                                                <PieChart>
+                                                  <Pie
+                                                    data={data}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    labelLine={false}
+                                                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                                                    outerRadius={80}
+                                                    fill="#8884d8"
+                                                    dataKey={keys[0] || "value"}
+                                                  >
+                                                    {data.map((entry: any, index: number) => (
+                                                      <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                                                    ))}
+                                                  </Pie>
+                                                  <Tooltip 
+                                                    contentStyle={{ 
+                                                      background: "hsl(var(--card))", 
+                                                      border: "1px solid hsl(var(--border))",
+                                                      borderRadius: "8px",
+                                                      color: "hsl(var(--foreground))" 
+                                                    }} 
+                                                  />
+                                                  <Legend />
+                                                </PieChart>
+                                              ) : chartType === "area" ? (
+                                                <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+                                                  <XAxis dataKey="name" stroke="hsl(var(--foreground) / 0.5)" />
+                                                  <YAxis stroke="hsl(var(--foreground) / 0.5)" />
+                                                  <Tooltip 
+                                                    contentStyle={{ 
+                                                      background: "hsl(var(--card))", 
+                                                      border: "1px solid hsl(var(--border))",
+                                                      borderRadius: "8px",
+                                                      color: "hsl(var(--foreground))" 
+                                                    }} 
+                                                  />
+                                                  <Legend />
+                                                  {keys.map((key: string, idx: number) => (
+                                                    <Area key={key} type="monotone" dataKey={key} stroke={colors[idx % colors.length]} fill={colors[idx % colors.length]} fillOpacity={0.2} />
+                                                  ))}
+                                                </AreaChart>
+                                              ) : (
+                                                <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+                                                  <XAxis dataKey="name" stroke="hsl(var(--foreground) / 0.5)" />
+                                                  <YAxis stroke="hsl(var(--foreground) / 0.5)" />
+                                                  <Tooltip 
+                                                    contentStyle={{ 
+                                                      background: "hsl(var(--card))", 
+                                                      border: "1px solid hsl(var(--border))",
+                                                      borderRadius: "8px",
+                                                      color: "hsl(var(--foreground))" 
+                                                    }} 
+                                                  />
+                                                  <Legend />
+                                                  {keys.map((key: string, idx: number) => (
+                                                    <Bar key={key} dataKey={key} fill={colors[idx % colors.length]} radius={[4, 4, 0, 0]} />
+                                                  ))}
+                                                </BarChart>
+                                              )}
+                                            </ResponsiveContainer>
+                                          </div>
+                                        </div>
+                                      );
+                                    } catch (err) {
+                                      console.error("Failed to parse chart code block:", err);
+                                    }
+                                  }
+
                                   return !inline && match ? (
                                     <div className='my-4 rounded-xl border border-border bg-muted/40 overflow-hidden'>
                                       <div className='flex items-center justify-between px-3 py-1.5 bg-accent/40 border-b border-border'>
@@ -1828,14 +2250,58 @@ export const ChatPage = () => {
                       : "bg-card/85 backdrop-blur-xl"
                   }`}
                 >
+                  <ChatSkillCommandPalette
+                    open={skillPaletteOpen}
+                    mode={skillPaletteTrigger?.mode || "mention"}
+                    skills={skillPaletteSkills}
+                    activeIndex={skillPaletteActiveIndex}
+                    onSelect={selectSkillFromPalette}
+                  />
                   <div className='flex flex-col'>
                   <div className='relative flex items-end p-2 pb-2'>
                     <textarea
                       ref={textareaRef}
                       value={text}
-                      onChange={(e) => setText(e.target.value)}
+                      onChange={(e) => {
+                        setText(e.target.value);
+                        setDismissedSkillPaletteToken(null);
+                      }}
                       onPaste={handlePasteImage}
                       onKeyDown={(e) => {
+                        if (skillPaletteOpen && skillPaletteSkills.length) {
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            setSkillPaletteActiveIndex((current) =>
+                              Math.min(
+                                current + 1,
+                                skillPaletteSkills.length - 1,
+                              ),
+                            );
+                            return;
+                          }
+                          if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            setSkillPaletteActiveIndex((current) =>
+                              Math.max(current - 1, 0),
+                            );
+                            return;
+                          }
+                          if (e.key === "Enter" || e.key === "Tab") {
+                            e.preventDefault();
+                            selectSkillFromPalette(
+                              skillPaletteSkills[skillPaletteActiveIndex] ||
+                                skillPaletteSkills[0],
+                            );
+                            return;
+                          }
+                          if (e.key === "Escape") {
+                            e.preventDefault();
+                            setDismissedSkillPaletteToken(
+                              skillPaletteTrigger?.token || null,
+                            );
+                            return;
+                          }
+                        }
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
                           if (text.trim() || attachments.length)
@@ -1860,7 +2326,7 @@ export const ChatPage = () => {
                       }
                       disabled={
                         (!text.trim() && attachments.length === 0) ||
-                        status === "in_progress"
+                        isChatBusy
                       }
                       className={`mb-1.5 mr-1.5 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                         text.trim() || attachments.length

@@ -33,6 +33,8 @@ import {
   updateAnswerBankEntry,
   upsertGeneratedAnswerBankEntries,
 } from "../_shared/answer-bank.ts";
+import { syncUserVectorChunks } from "../_shared/vector-sync.ts";
+import { embedText } from "../_shared/embeddings.ts";
 
 console.log("JobRaker AI Chat Starting...");
 
@@ -1235,6 +1237,36 @@ For AI chat billing, distinguish paid AI credits from included subscription chat
 For generated CVs/resumes, never copy a name from a template example, style guide, screenshot, or sample document. Use only the authenticated user's own profile/resume data or an explicit name supplied by the user in the current conversation; if the name is unknown, leave it blank rather than using a placeholder such as John Doe.
 `;
 
+const CHARTS_AND_TABLES_RULES = `
+Visualizations (Charts & Tables):
+You can render beautiful interactive charts and tables directly inside the chat. Use these visual elements whenever presenting statistics, metrics, comparisons, fit scores, application status breakdowns, salary ranges, or structured datasets.
+
+1. Interactive Recharts Charts:
+   Render a chart by using a markdown code block with language: "chart-bar", "chart-line", or "chart-pie".
+   The body of the code block MUST be a single valid JSON object with the following structure:
+   {
+     "title": "Optional Title of the Chart",
+     "data": [
+       { "name": "Label 1", "key1": value1, "key2": value2 },
+       { "name": "Label 2", "key1": value3, "key2": value4 }
+     ],
+     "keys": ["key1", "key2"],
+     "colors": ["hsl(var(--brand))", "hsl(var(--accent))", "#10b981"]
+   }
+   
+   - In "data", the "name" field is used for the X-axis (bar/line) or pie slice label.
+   - The keys in "keys" must correspond to numeric fields in your data objects.
+   - Only output valid, parsable JSON inside the chart code block. No comments.
+
+2. GFM Tables:
+   Use standard Markdown tables when presenting tabular data like a list of jobs with their titles, companies, match scores, and application dates.
+   Example:
+   | Job Title | Company | Match Score | Status |
+   | :--- | :--- | :--- | :--- |
+   | Software Engineer | Google | 92% | Applied |
+   | Frontend Dev | Vercel | 87% | Interview |
+`;
+
 const createAuthedSupabaseClient = (authHeader: string) =>
   createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     auth: { persistSession: false },
@@ -1864,6 +1896,38 @@ const AGENT_FUNCTION_DECLARATIONS = [
       required: ["to", "subject", "body"],
     },
   },
+  {
+    name: "semantic_search",
+    description: "Search user's job listings, quality gates, AI fit evaluations, candidate memories, application logs, and answer bank entries semantically using pgvector RAG.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Natural language query to search for."
+        },
+        limit: {
+          type: "integer",
+          description: "Max results to return (default: 5)."
+        }
+      },
+      required: ["query"]
+    }
+  },
+  {
+    name: "get_profile_graph_proof_paths",
+    description: "Traverse the candidate's career knowledge graph to find proof/evidence paths that link their experiences and credentials to a target skill.",
+    parameters: {
+      type: "object",
+      properties: {
+        skill: {
+          type: "string",
+          description: "Target skill name to trace proof paths for."
+        }
+      },
+      required: ["skill"]
+    }
+  }
 ];
 
 serve(async (req) => {
@@ -1989,7 +2053,11 @@ serve(async (req) => {
       console.error("Failed to fetch AI chat user context:", contextError);
     }
 
-    let systemInstruction = [ACCOUNT_ACCESS_RULES.trim(), APP_INTERFACE_GUIDE.trim()]
+    let systemInstruction = [
+      ACCOUNT_ACCESS_RULES.trim(),
+      APP_INTERFACE_GUIDE.trim(),
+      CHARTS_AND_TABLES_RULES.trim()
+    ]
       .filter(Boolean)
       .join("\n\n");
 
@@ -2576,6 +2644,42 @@ Edge functions:
                         body?: string;
                       },
                     );
+                  } else if (fn.name === "semantic_search") {
+                    const queryStr = asString(args.query);
+                    const limitVal = clampNumber(args.limit, 5, 1, 20);
+                    if (!queryStr) {
+                      result = { success: false, error: "query parameter is required" };
+                    } else {
+                      // Perform incremental sync first to guarantee fresh data
+                      await syncUserVectorChunks(serviceClient, userId);
+                      
+                      // Embed the search query
+                      const queryEmbedding = await embedText(queryStr);
+                      
+                      // Execute multi-table semantic match RPC
+                      const { data: dbMatches, error: searchError } = await serviceClient.rpc("match_all_chunks", {
+                        query_embedding: queryEmbedding,
+                        match_threshold: 0.60,
+                        match_count: limitVal,
+                        owner_id: userId,
+                      });
+
+                      if (searchError) throw searchError;
+                      result = { success: true, results: dbMatches || [] };
+                    }
+                  } else if (fn.name === "get_profile_graph_proof_paths") {
+                    const skillStr = asString(args.skill);
+                    if (!skillStr) {
+                      result = { success: false, error: "skill parameter is required" };
+                    } else {
+                      const { data: paths, error: pathError } = await serviceClient.rpc("get_profile_proof_paths", {
+                        p_user_id: userId,
+                        p_target_skill: skillStr,
+                      });
+
+                      if (pathError) throw pathError;
+                      result = { success: true, paths: paths || [] };
+                    }
                   } else if (fn.name === "update_profile") {
                     const patch: Record<string, unknown> = {};
                     const allowed = [

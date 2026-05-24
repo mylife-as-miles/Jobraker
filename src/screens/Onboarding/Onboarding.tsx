@@ -28,6 +28,19 @@ import { mapParsedDataToResume } from "@/lib/resume-mapper";
 import { initialResumeState } from "@/store/artboard";
 import { events } from "@/lib/analytics";
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.split(",")[1] || result;
+      resolve(base64);
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
+
 interface OnboardingStep {
   id: number;
   title: string;
@@ -327,7 +340,15 @@ export const Onboarding = (): JSX.Element => {
         let aiParsedData: ParsedProfileData | null = null;
         try {
           setUploadProgress(65);
-          aiParsedData = await parseResumeWithAI({ resumeText: rawText });
+          let pdfBase64: string | undefined = undefined;
+          if (ext === "pdf") {
+            try {
+              pdfBase64 = await fileToBase64(file);
+            } catch (b64Err) {
+              console.warn("Could not encode PDF to base64", b64Err);
+            }
+          }
+          aiParsedData = await parseResumeWithAI({ resumeText: rawText, pdfBase64 });
           setUploadProgress(80);
         } catch (aiErr) {
           console.warn(

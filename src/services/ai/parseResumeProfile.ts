@@ -69,7 +69,8 @@ function parseLegacyRange(range: string) {
 }
 
 export interface ParseResumeRequest {
-  resumeText: string;
+  resumeText?: string;
+  pdfBase64?: string;
   apiKey?: string; // Deprecated/Unused but kept for signature compatibility if needed
   model?: string | null;
   baseURL?: string | null;
@@ -77,14 +78,15 @@ export interface ParseResumeRequest {
 
 export async function parseResumeWithAI({
   resumeText,
+  pdfBase64,
 }: ParseResumeRequest): Promise<ParsedProfileData> {
-  if (!resumeText || !resumeText.trim()) {
-    throw new Error("Resume text is required");
+  if ((!resumeText || !resumeText.trim()) && (!pdfBase64 || !pdfBase64.trim())) {
+    throw new Error("Either resume text or PDF base64 is required");
   }
 
   try {
     const data = await invokeProtectedFunction<unknown>('parse-resume', {
-      body: { resumeText }
+      body: { resumeText, pdfBase64 }
     });
 
     if (!data) throw new Error("No data returned from AI");
