@@ -12,6 +12,8 @@ import {
   MapPin,
   Phone,
   Sparkles,
+  Linkedin,
+  Github,
 } from "lucide-react";
 
 type PublicProfilePayload = {
@@ -45,6 +47,8 @@ type PublicProfilePayload = {
       weekly: Record<string, Array<{ start: string; end: string }>> | null;
     };
     avatarUrl: string | null;
+    linkedinUrl: string | null;
+    githubUrl: string | null;
   };
   experiences: Array<{
     title: string;
@@ -91,6 +95,7 @@ type SpringNode = {
   target: number;
   value: number;
   velocity: number;
+  revealed: boolean;
 };
 
 function readDesignColor(design: Record<string, unknown> | undefined, key: string) {
@@ -176,6 +181,7 @@ function usePhysicsReveals(active: boolean, reducedMotion: boolean) {
       target: 0,
       value: 0,
       velocity: 0,
+      revealed: false,
     }));
 
     if (reducedMotion) {
@@ -238,8 +244,10 @@ function usePhysicsReveals(active: boolean, reducedMotion: boolean) {
         for (const entry of entries) {
           const node = nodes.find((item) => item.el === entry.target);
           if (!node) continue;
-          const viewportChoreography = clamp(entry.intersectionRatio * 1.35 - node.index * 0.035, 0, 1);
-          node.target = entry.isIntersecting ? Math.max(viewportChoreography, 0.72) : 0;
+          if (entry.isIntersecting) {
+            node.revealed = true;
+          }
+          node.target = node.revealed ? 1 : 0;
         }
         ensureTick();
       },
@@ -652,7 +660,21 @@ export const PublicProfilePage = () => {
           icon: Phone,
         }
       : null,
-  ].filter(Boolean) as Array<{ label: string; href: string; icon: typeof Mail }>;
+    profile.linkedinUrl
+      ? {
+          label: "LinkedIn",
+          href: profile.linkedinUrl.startsWith('http') ? profile.linkedinUrl : `https://${profile.linkedinUrl}`,
+          icon: Linkedin,
+        }
+      : null,
+    profile.githubUrl
+      ? {
+          label: "GitHub",
+          href: profile.githubUrl.startsWith('http') ? profile.githubUrl : `https://${profile.githubUrl}`,
+          icon: Github,
+        }
+      : null,
+  ].filter(Boolean) as Array<{ label: string; href: string; icon: any }>;
 
   return (
     <main
@@ -682,7 +704,7 @@ export const PublicProfilePage = () => {
                 <span>{profile.experienceYears}+ years of focused experience</span>
               ) : null}
             </div>
-            <h1 className="max-w-5xl break-words text-[clamp(3.5rem,10.5vw,10rem)] font-black uppercase leading-[0.84] tracking-normal">
+            <h1 className="max-w-5xl break-normal text-[clamp(2.5rem,7vw,6.5rem)] font-black uppercase leading-[0.84] tracking-normal">
               {profile.name}
             </h1>
             <p className="mt-8 max-w-2xl text-xl leading-relaxed text-white/72 sm:text-2xl">
@@ -719,10 +741,13 @@ export const PublicProfilePage = () => {
               <div className="mt-8 grid gap-2">
                 {contactItems.map((item) => {
                   const Icon = item.icon;
+                  const isHttp = item.href.startsWith("http");
                   return (
                     <a
                       key={item.href}
                       href={item.href}
+                      target={isHttp ? "_blank" : undefined}
+                      rel={isHttp ? "noopener noreferrer" : undefined}
                       className="inline-flex min-h-11 items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-white/72 hover:border-white/25 hover:text-white"
                     >
                       <Icon className="h-4 w-4" style={{ color: theme.accent }} />

@@ -53,6 +53,25 @@ export interface UserContext {
   recentJobs: { title: string; company: string; created_at?: string | null }[];
   recentCoverLetters: { name: string; role: string | null; company: string | null; content: string | null }[];
   resumes: { name: string; status: string }[];
+  profileExperiences: Array<{
+    id: string;
+    title: string;
+    company: string;
+    location: string | null;
+    start_date: string;
+    end_date: string | null;
+    is_current: boolean;
+    description: string | null;
+  }>;
+  profileEducation: Array<{
+    id: string;
+    degree: string;
+    school: string;
+    location: string | null;
+    start_date: string;
+    end_date: string | null;
+    gpa: string | null;
+  }>;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -241,6 +260,8 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     tierRes,
     subscriptionRes,
     publicProfileSiteRes,
+    profileExperiencesRes,
+    profileEducationRes,
     candidateMemory,
     answerBankEntries,
   ] = await Promise.all([
@@ -364,6 +385,22 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
         .maybeSingle(),
       { data: null } as any,
     ),
+    safeQuery(
+      supabase
+        .from("profile_experiences")
+        .select("id, title, company, location, start_date, end_date, is_current, description")
+        .eq("user_id", userId)
+        .order("start_date", { ascending: false }),
+      { data: [] } as any,
+    ),
+    safeQuery(
+      supabase
+        .from("profile_education")
+        .select("id, degree, school, location, start_date, end_date, gpa")
+        .eq("user_id", userId)
+        .order("start_date", { ascending: false }),
+      { data: [] } as any,
+    ),
     candidateMemoryPromise,
     answerBankPromise,
   ]);
@@ -477,6 +514,8 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     recentJobs: jobsRes.data || [],
     recentCoverLetters: coversRes.data || [],
     resumes: resumesRes.data || [],
+    profileExperiences: profileExperiencesRes.data || [],
+    profileEducation: profileEducationRes.data || [],
   };
 }
 
@@ -599,6 +638,21 @@ export function formatUserContextForPrompt(context: UserContext): string {
     lines.push(`\n## Available Resumes`);
     context.resumes.forEach(r => {
       lines.push(`- ${r.name} (${r.status})`);
+    });
+  }
+
+  if (context.profileExperiences && context.profileExperiences.length > 0) {
+    lines.push(`\n## Profile Experiences`);
+    context.profileExperiences.forEach(exp => {
+      lines.push(`- ID: ${exp.id} | ${exp.title} at ${exp.company} (${exp.start_date} to ${exp.is_current ? 'Present' : exp.end_date})`);
+      if (exp.description) lines.push(`  Description: ${exp.description}`);
+    });
+  }
+
+  if (context.profileEducation && context.profileEducation.length > 0) {
+    lines.push(`\n## Profile Education`);
+    context.profileEducation.forEach(edu => {
+      lines.push(`- ID: ${edu.id} | ${edu.degree} at ${edu.school} (${edu.start_date} to ${edu.end_date || 'Present'})`);
     });
   }
 

@@ -1563,6 +1563,44 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "delete_experience",
+    description: "Delete a work experience entry from the profile by its database record ID.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The UUID of the experience record to delete." }
+      },
+      required: ["id"]
+    }
+  },
+  {
+    name: "add_education",
+    description: "Add an education record to the profile.",
+    parameters: {
+      type: "object",
+      properties: {
+        degree: { type: "string", description: "e.g. Bachelor of Science" },
+        school: { type: "string", description: "e.g. Stanford University" },
+        start_date: { type: "string", description: "YYYY-MM-DD" },
+        end_date: { type: "string", description: "YYYY-MM-DD (optional)" },
+        location: { type: "string", description: "e.g. Stanford, CA (optional)" },
+        gpa: { type: "string", description: "e.g. 3.8 (optional)" }
+      },
+      required: ["degree", "school", "start_date"]
+    }
+  },
+  {
+    name: "delete_education",
+    description: "Delete an education entry from the profile by its database record ID.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The UUID of the education record to delete." }
+      },
+      required: ["id"]
+    }
+  },
+  {
     name: "save_cover_letter",
     description: "Save a cover letter to the account.",
     parameters: {
@@ -1863,7 +1901,7 @@ Job-related Gmail (only when tools are available):
 Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.`;
       const agentCapabilityRules = `
 Profile, resume, and in-app data (execute directly — do not ask the user to copy-paste):
-- update_profile, add_skill, remove_skill, add_experience, save_cover_letter, update_resume, update_application_status, bookmark_job, hide_job, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
+- update_profile, add_skill, remove_skill, add_experience, delete_experience, add_education, delete_education, save_cover_letter, update_resume, update_application_status, bookmark_job, hide_job, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
 - For resume Experience bullets or sections, use update_resume with list_resumes for ids; use set_experience_items to replace builder experience items, and resume_status to set Active/Draft/Archived when asked.
 - Use list_answer_bank_entries before drafting reusable application narratives when the user wants their saved voice, stories, beliefs, or profile snippets reflected.
 - Use get_public_profile_site and update_public_profile_site when the user wants their recruiter-facing public portfolio link, aesthetic, copy, theme, public links, or publish status changed. Confirm before delete_public_profile_site.
@@ -2497,6 +2535,51 @@ Edge functions:
                       result = exErr
                         ? { success: false, error: exErr.message }
                         : { success: true, action: "added", title, company };
+                    }
+                  } else if (fn.name === "delete_experience") {
+                    const id = asString(args.id) || "";
+                    if (!id) {
+                      result = { success: false, error: "id is required" };
+                    } else {
+                      const { error: exErr } = await supabaseUser.from("profile_experiences").delete().eq("id", id);
+                      result = exErr
+                        ? { success: false, error: exErr.message }
+                        : { success: true, action: "deleted", id };
+                    }
+                  } else if (fn.name === "add_education") {
+                    const degree = asString(args.degree) || "";
+                    const school = asString(args.school) || "";
+                    const start = asString(args.start_date) || "";
+                    if (!degree || !school || !start) {
+                      result = {
+                        success: false,
+                        error: "degree, school, and start_date (YYYY-MM-DD) are required",
+                      };
+                    } else {
+                      const row: Record<string, unknown> = {
+                        user_id: userId,
+                        degree,
+                        school,
+                        start_date: start,
+                        location: asString(args.location) || "",
+                        gpa: asString(args.gpa) || null,
+                      };
+                      const end = asString(args.end_date);
+                      if (end) row.end_date = end;
+                      const { error: edErr } = await supabaseUser.from("profile_education").insert(row);
+                      result = edErr
+                        ? { success: false, error: edErr.message }
+                        : { success: true, action: "added", degree, school };
+                    }
+                  } else if (fn.name === "delete_education") {
+                    const id = asString(args.id) || "";
+                    if (!id) {
+                      result = { success: false, error: "id is required" };
+                    } else {
+                      const { error: edErr } = await supabaseUser.from("profile_education").delete().eq("id", id);
+                      result = edErr
+                        ? { success: false, error: edErr.message }
+                        : { success: true, action: "deleted", id };
                     }
                   } else if (fn.name === "save_cover_letter") {
                     const cname = asString(args.name) || "";
