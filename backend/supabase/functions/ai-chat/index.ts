@@ -108,6 +108,172 @@ function buildProfileSnapshot(profile: Record<string, unknown> | null): string {
   return lines.join("\n");
 }
 
+const PUBLIC_PROFILE_SITE_FIELDS =
+  "id, user_id, slug, is_public, theme, headline, intro, cta_label, contact_email, links, design, section_order, views, created_at, updated_at";
+const PUBLIC_PROFILE_THEMES = new Set(["obsidian", "atelier", "prism", "mono"]);
+const PUBLIC_PROFILE_SECTIONS = new Set(["hero", "signal", "experience", "skills", "education", "contact"]);
+const PUBLIC_PROFILE_BASE_URL =
+  Deno.env.get("PUBLIC_APP_URL") ||
+  Deno.env.get("APP_BASE_URL") ||
+  "https://app.jobraker.io";
+
+function slugifyPublicProfile(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 54);
+}
+
+function normalizePublicProfileSlug(value: unknown, fallback: string) {
+  const raw = asString(value);
+  const slug = slugifyPublicProfile(raw || fallback);
+  const withFallback = slug || slugifyPublicProfile(fallback) || "jobraker-profile";
+  return withFallback.match(/^[a-z0-9][a-z0-9-]{2,62}$/)
+    ? withFallback
+    : `jobraker-profile-${crypto.randomUUID().slice(0, 6)}`;
+}
+
+function normalizePublicProfileTheme(value: unknown) {
+  const theme = asString(value)?.toLowerCase();
+  return theme && PUBLIC_PROFILE_THEMES.has(theme) ? theme : undefined;
+}
+
+function normalizePublicProfileLinks(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+  return value
+    .filter(isRecord)
+    .map((item) => ({
+      label: (asString(item.label) || asString(item.title) || "Link").slice(0, 40),
+      url: asString(item.url) || "",
+    }))
+    .filter((item) =>
+      item.url.startsWith("https://") ||
+      item.url.startsWith("mailto:"),
+    )
+    .slice(0, 6);
+}
+
+function normalizePublicProfileDesign(value: unknown) {
+  if (!isRecord(value)) return undefined;
+  const design: Record<string, unknown> = {};
+  for (const key of ["accent", "alt", "background", "text"]) {
+    const color = asString(value[key]);
+    if (color && /^#[0-9a-f]{3,8}$/i.test(color)) design[key] = color;
+  }
+  for (const key of ["density", "motion", "texture", "tone"]) {
+    const text = asString(value[key]);
+    if (text) design[key] = text.slice(0, 80);
+  }
+  return Object.keys(design).length > 0 ? design : undefined;
+}
+
+function normalizePublicProfileSectionOrder(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+  const seen = new Set<string>();
+  const sections = value
+    .map((item) => asString(item)?.toLowerCase())
+    .filter((item): item is string => Boolean(item && PUBLIC_PROFILE_SECTIONS.has(item)))
+    .filter((item) => {
+      if (seen.has(item)) return false;
+      seen.add(item);
+      return true;
+    });
+  return sections.length > 0 ? sections : undefined;
+}
+
+function buildDefaultPublicProfileSite(userId: string, context: Record<string, unknown> | null) {
+  const name = asString(context?.name);
+  const headline = asString(context?.headline) || "Career profile";
+  const slug = normalizePublicProfileSlug(
+    name || headline,
+    `${name || headline || "jobraker-profile"}-${userId.slice(0, 6)}`,
+  );
+
+  return {
+    user_id: userId,
+    slug,
+    is_public: false,
+    theme: "obsidian",
+    headline,
+    intro: null,
+    cta_label: "Start a conversation",
+    links: [],
+    design: {
+      accent: "#1dff00",
+      density: "cinematic",
+      motion: "scroll-scrub",
+      texture: "shader-glass",
+    },
+    section_order: ["hero", "signal", "experience", "skills", "education", "contact"],
+  };
+}
+
+async function fetchPublicProfileSite(serviceClient: SupabaseLikeClient, userId: string) {
+  const { data, error } = await serviceClient
+    .from("public_profile_sites")
+    .select(PUBLIC_PROFILE_SITE_FIELDS)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function ensurePublicProfileSite(
+  serviceClient: SupabaseLikeClient,
+  userId: string,
+  context: Record<string, unknown> | null,
+) {
+  const existing = await fetchPublicProfileSite(serviceClient, userId);
+  if (existing) return existing;
+
+  const payload = buildDefaultPublicProfileSite(userId, context);
+  const { data, error } = await serviceClient
+    .from("public_profile_sites")
+    .insert(payload)
+    .select(PUBLIC_PROFILE_SITE_FIELDS)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+function buildPublicProfilePatch(args: Record<string, unknown>) {
+  const patch: Record<string, unknown> = {};
+  const slug = asString(args.slug);
+  if (slug) patch.slug = normalizePublicProfileSlug(slug, slug);
+  const theme = normalizePublicProfileTheme(args.theme);
+  if (theme) patch.theme = theme;
+  if (typeof args.is_public === "boolean") patch.is_public = args.is_public;
+  for (const [argKey, column] of [
+    ["headline", "headline"],
+    ["intro", "intro"],
+    ["cta_label", "cta_label"],
+    ["contact_email", "contact_email"],
+  ] as const) {
+    if (Object.prototype.hasOwnProperty.call(args, argKey)) {
+      patch[column] = asString(args[argKey]);
+    }
+  }
+  const links = normalizePublicProfileLinks(args.links);
+  if (links) patch.links = links;
+  const design = normalizePublicProfileDesign(args.design);
+  if (design) patch.design = design;
+  const sectionOrder = normalizePublicProfileSectionOrder(args.section_order);
+  if (sectionOrder) patch.section_order = sectionOrder;
+  return patch;
+}
+
+function formatPublicProfileSiteResult(site: Record<string, unknown> | null) {
+  if (!site) return null;
+  const slug = asString(site.slug) || "";
+  return {
+    ...site,
+    public_url: slug ? `${PUBLIC_PROFILE_BASE_URL.replace(/\/$/, "")}/u/${slug}` : null,
+    preview_route: slug ? `/u/${slug}` : null,
+  };
+}
+
 async function resolveAutoApplyArtifacts(
   serviceClient: SupabaseLikeClient,
   userId: string,
@@ -1016,7 +1182,7 @@ function buildGeminiUserParts(
 const ACCOUNT_ACCESS_RULES = `
 You are inside the authenticated user's JobRaker workspace.
 You DO have access to the user's JobRaker account data provided in this prompt and, in agent mode, through the available tools.
-Do not claim that you lack access to the user's JobRaker profile, resumes, tracked jobs, applications, credits, cover letters, Answer Bank, subscription period / renewal / days-to-renewal (when the "Subscription & billing" section is present), or recent conversations when that information is present in context or retrievable through tools.
+Do not claim that you lack access to the user's JobRaker profile, public profile portfolio, resumes, tracked jobs, applications, credits, cover letters, Answer Bank, subscription period / renewal / days-to-renewal (when the "Subscription & billing" section is present), or recent conversations when that information is present in context or retrievable through tools.
 Only describe limitations for external systems that are not connected here, such as LinkedIn dashboards, Indeed, or third-party job boards when Gmail is not connected.
 If the user has connected Gmail in JobRaker Settings, job-related inbox tools may be available in agent mode (search/send guardrails still apply).
 When the user asks for totals, counts, lists, or recent activity inside JobRaker, answer from the account context or tools first before giving generic advice.
@@ -1061,6 +1227,58 @@ const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "get_user_profile",
     description: "Get the user's career profile (skills, experience, headline).",
+    parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "get_public_profile_site",
+    description:
+      "Get the user's public JobRaker portfolio site settings, share URL, publish status, theme, copy, links, and design controls.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "update_public_profile_site",
+    description:
+      "Create or update the user's shareable public portfolio profile. Use this when the user asks to publish, unpublish, change the slug, change the aesthetic/theme, rewrite the portfolio headline or intro, update contact details, or add public links.",
+    parameters: {
+      type: "object",
+      properties: {
+        slug: { type: "string" },
+        is_public: { type: "boolean" },
+        theme: {
+          type: "string",
+          description: "One of obsidian, atelier, prism, or mono.",
+        },
+        headline: { type: "string" },
+        intro: { type: "string" },
+        cta_label: { type: "string" },
+        contact_email: { type: "string" },
+        links: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string" },
+              url: { type: "string" },
+            },
+          },
+        },
+        design: {
+          type: "object",
+          description:
+            "Optional visual controls such as accent, alt, background, text, density, motion, texture, or tone.",
+        },
+        section_order: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "delete_public_profile_site",
+    description:
+      "Delete the user's public portfolio site configuration. Confirm with the user before calling this because it removes the share link.",
     parameters: { type: "object", properties: {} },
   },
   {
@@ -1640,9 +1858,10 @@ Job-related Gmail (only when tools are available):
 Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.`;
       const agentCapabilityRules = `
 Profile, resume, and in-app data (execute directly — do not ask the user to copy-paste):
-- update_profile, add_skill, remove_skill, add_experience, save_cover_letter, update_resume, update_application_status, bookmark_job, hide_job, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
+- update_profile, add_skill, remove_skill, add_experience, save_cover_letter, update_resume, update_application_status, bookmark_job, hide_job, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
 - For resume Experience bullets or sections, use update_resume with list_resumes for ids; use set_experience_items to replace builder experience items, and resume_status to set Active/Draft/Archived when asked.
 - Use list_answer_bank_entries before drafting reusable application narratives when the user wants their saved voice, stories, beliefs, or profile snippets reflected.
+- Use get_public_profile_site and update_public_profile_site when the user wants their recruiter-facing public portfolio link, aesthetic, copy, theme, public links, or publish status changed. Confirm before delete_public_profile_site.
 
 Navigation and page control:
 - Use list_app_pages to inspect the full app map.
@@ -1862,6 +2081,52 @@ Edge functions:
                     }
                   } else if (fn.name === "get_user_profile") {
                     result = { success: true, profile: userContext };
+                  } else if (fn.name === "get_public_profile_site") {
+                    const site = await fetchPublicProfileSite(serviceClient, userId);
+                    result = {
+                      success: true,
+                      site: formatPublicProfileSiteResult(site as Record<string, unknown> | null),
+                    };
+                  } else if (fn.name === "update_public_profile_site") {
+                    const current = await ensurePublicProfileSite(
+                      serviceClient,
+                      userId,
+                      userContext as Record<string, unknown> | null,
+                    );
+                    const patch = buildPublicProfilePatch(args);
+                    if (Object.keys(patch).length === 0) {
+                      result = {
+                        success: true,
+                        site: formatPublicProfileSiteResult(current as Record<string, unknown>),
+                        note: "No changes were provided, so the current public profile site was returned.",
+                      };
+                    } else {
+                      const { data, error } = await serviceClient
+                        .from("public_profile_sites")
+                        .update({
+                          ...patch,
+                          updated_at: new Date().toISOString(),
+                        })
+                        .eq("user_id", userId)
+                        .select(PUBLIC_PROFILE_SITE_FIELDS)
+                        .single();
+                      if (error) throw error;
+                      result = {
+                        success: true,
+                        site: formatPublicProfileSiteResult(data as Record<string, unknown>),
+                      };
+                    }
+                  } else if (fn.name === "delete_public_profile_site") {
+                    const { error } = await serviceClient
+                      .from("public_profile_sites")
+                      .delete()
+                      .eq("user_id", userId);
+                    if (error) throw error;
+                    result = {
+                      success: true,
+                      deleted: true,
+                      note: "The public portfolio site configuration and share link were deleted.",
+                    };
                   } else if (fn.name === "list_answer_bank_entries") {
                     const rows = await fetchAnswerBankEntries(serviceClient, userId, {
                       theme:

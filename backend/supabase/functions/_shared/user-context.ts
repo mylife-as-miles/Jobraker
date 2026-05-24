@@ -14,6 +14,15 @@ export interface UserContext {
   resumeSummary: string | null;
   candidateMemorySummary: string | null;
   answerBankSummary: string | null;
+  publicProfileSite: {
+    slug: string;
+    is_public: boolean;
+    theme: string;
+    headline: string | null;
+    intro: string | null;
+    public_url: string | null;
+    views: number;
+  } | null;
   recentChatTitles: string[];
   /** Canonical tier from get_user_tier (may be overridden in ai-chat by gate). */
   subscriptionTier: string;
@@ -82,6 +91,11 @@ const asRecordArray = (value: unknown): Record<string, unknown>[] => {
 
 const uniqueStrings = (values: Array<string | null | undefined>) =>
   [...new Set(values.filter((value): value is string => Boolean(value && value.trim())))];
+
+const PUBLIC_PROFILE_BASE_URL =
+  Deno.env.get("PUBLIC_APP_URL") ||
+  Deno.env.get("APP_BASE_URL") ||
+  "https://app.jobraker.io";
 
 /** Match Billing page: period length → billing interval. */
 function inferBillingCycleFromSubscriptionPeriod(
@@ -226,6 +240,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     resumeCountRes,
     tierRes,
     subscriptionRes,
+    publicProfileSiteRes,
     candidateMemory,
     answerBankEntries,
   ] = await Promise.all([
@@ -341,6 +356,14 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
         .maybeSingle(),
       { data: null } as any,
     ),
+    safeQuery(
+      supabase
+        .from("public_profile_sites")
+        .select("slug, is_public, theme, headline, intro, views")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      { data: null } as any,
+    ),
     candidateMemoryPromise,
     answerBankPromise,
   ]);
@@ -390,6 +413,21 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
   const chatFreeRemaining = asNumber(chatQuota.free_remaining) ?? 0;
   const chatFreeTotal = asNumber(chatQuota.free_total) ?? 0;
   const chatPlanName = asString(chatQuota.plan_name);
+  const publicProfileSiteRow = isRecord(publicProfileSiteRes.data)
+    ? publicProfileSiteRes.data
+    : null;
+  const publicProfileSlug = asString(publicProfileSiteRow?.slug);
+  const publicProfileSite = publicProfileSlug
+    ? {
+        slug: publicProfileSlug,
+        is_public: publicProfileSiteRow?.is_public === true,
+        theme: asString(publicProfileSiteRow?.theme) || "obsidian",
+        headline: asString(publicProfileSiteRow?.headline),
+        intro: asString(publicProfileSiteRow?.intro),
+        public_url: `${PUBLIC_PROFILE_BASE_URL.replace(/\/$/, "")}/u/${publicProfileSlug}`,
+        views: asNumber(publicProfileSiteRow?.views) ?? 0,
+      }
+    : null;
 
   const periodEnd = asString(sub?.current_period_end);
   if (sub && periodEnd) {
@@ -417,6 +455,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     resumeSummary,
     candidateMemorySummary: candidateMemory?.summaryText || null,
     answerBankSummary: formatAnswerBankForPrompt(answerBankEntries, 12),
+    publicProfileSite,
     recentChatTitles: chatsRes.data?.map(c => c.title) || [],
     subscriptionTier: rawTier,
     subscriptionStatus,
@@ -509,6 +548,22 @@ export function formatUserContextForPrompt(context: UserContext): string {
   if (context.answerBankSummary) {
     lines.push(`\n## Answer Bank`);
     lines.push(context.answerBankSummary);
+  }
+
+  if (context.publicProfileSite) {
+    lines.push(`\n## Public Profile Portfolio`);
+    lines.push(
+      `- Status: ${context.publicProfileSite.is_public ? "published" : "draft"}`,
+    );
+    lines.push(`- Theme: ${context.publicProfileSite.theme}`);
+    lines.push(`- Share URL: ${context.publicProfileSite.public_url}`);
+    if (context.publicProfileSite.headline) {
+      lines.push(`- Headline: ${context.publicProfileSite.headline}`);
+    }
+    if (context.publicProfileSite.intro) {
+      lines.push(`- Intro: ${context.publicProfileSite.intro}`);
+    }
+    lines.push(`- Views: ${context.publicProfileSite.views}`);
   }
 
   if (context.recentApplications.length > 0) {

@@ -69,8 +69,8 @@ export interface Tables {
       skills: string[];
       embedding: string | null;
       extracted_at?: string;
-    }
-  }
+    };
+  };
   answer_bank: {
     Row: {
       id: string;
@@ -84,10 +84,29 @@ export interface Tables {
       updated_at: string;
     };
   };
+  public_profile_sites: {
+    Row: {
+      id: string;
+      user_id: string;
+      slug: string;
+      is_public: boolean;
+      theme: string;
+      headline: string | null;
+      intro: string | null;
+      cta_label: string;
+      contact_email: string | null;
+      links: Array<{ label: string; url: string }>;
+      design: Record<string, unknown>;
+      section_order: string[];
+      views: number;
+      created_at: string;
+      updated_at: string;
+    };
+  };
 }
 
 export type ProfileRow = Tables['profiles']['Row'];
 export type ResumeRow = Tables['resumes']['Row'];
 export type ParsedResumeRow = Tables['parsed_resumes']['Row'];
 export type AnswerBankRow = Tables['answer_bank']['Row'];
-
+export type PublicProfileSiteRow = Tables['public_profile_sites']['Row'];

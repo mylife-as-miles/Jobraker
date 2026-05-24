@@ -15,6 +15,7 @@ export const ROUTES = {
   TERMS: '/terms',
   SECURITY: '/security',
   PUBLIC_RESUME: '/r/:id',
+  PUBLIC_PROFILE: '/u/:slug',
 } as const;
 
 export type RouteKey = keyof typeof ROUTES;

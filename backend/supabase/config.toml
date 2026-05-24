@@ -381,6 +381,12 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/proxy-image/index.ts"
 
+[functions.public-profile-site]
+enabled = true
+# Public recruiter-facing profile payload. The function itself filters to enabled sites.
+verify_jwt = false
+entrypoint = "./functions/public-profile-site/index.ts"
+
 [functions.referrals-agent]
 enabled = true
 # Must be false so browser OPTIONS preflight reaches the handler; auth is enforced in requireSubscriptionTier.

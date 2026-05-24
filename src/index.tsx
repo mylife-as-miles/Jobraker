@@ -17,6 +17,7 @@ import { Analytics } from "./screens/Analytics";
 import { Dashboard } from "./screens/Dashboard";
 import { PrivacyPolicy } from "./screens/PrivacyPolicy";
 import { PublicResumePage } from "./screens/Public/PublicResumePage";
+import { PublicProfilePage } from "./screens/Public/PublicProfilePage";
 import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
 import GmailCallbackPage from "./screens/AuthCallback/GmailCallbackPage";
@@ -252,6 +253,16 @@ function AnimatedRoutes() {
           element={
             <PageTransition>
               <PublicResumePage />
+            </PageTransition>
+          }
+        />
+
+        {/* Public Profile Portfolio View */}
+        <Route
+          path={ROUTES.PUBLIC_PROFILE}
+          element={
+            <PageTransition>
+              <PublicProfilePage />
             </PageTransition>
           }
         />

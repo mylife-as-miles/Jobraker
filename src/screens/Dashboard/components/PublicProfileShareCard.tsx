@@ -1,0 +1,150 @@
+import { Copy, ExternalLink, Eye, Globe2, Palette, Sparkles } from "lucide-react";
+import { Button } from "../../../components/ui/button";
+import { Card } from "../../../components/ui/card";
+import { useToast } from "../../../components/ui/toast";
+import type { Profile } from "../../../hooks/useProfileSettings";
+import { usePublicProfileSite, type PublicProfileTheme } from "../../../hooks/usePublicProfileSite";
+
+const THEME_OPTIONS: Array<{
+  value: PublicProfileTheme;
+  label: string;
+  note: string;
+}> = [
+  { value: "obsidian", label: "Obsidian", note: "dark, cinematic, neon" },
+  { value: "atelier", label: "Atelier", note: "editorial, warm, refined" },
+  { value: "prism", label: "Prism", note: "glass, color, motion" },
+  { value: "mono", label: "Mono", note: "sharp, minimal, senior" },
+];
+
+export function PublicProfileShareCard({ profile }: { profile: Profile | null }) {
+  const { success, error: toastError } = useToast();
+  const { site, saving, publicUrl, ensureSite, updateSite } = usePublicProfileSite(profile);
+  const isPublished = site?.is_public === true;
+
+  const handleCopy = async () => {
+    const current = site || (await ensureSite());
+    if (!current) return;
+    const url = `${window.location.origin}/u/${current.slug}`;
+    await navigator.clipboard.writeText(url);
+    success("Profile link copied");
+  };
+
+  const handlePublishToggle = async () => {
+    try {
+      const current = site || (await ensureSite());
+      await updateSite({ is_public: !(current?.is_public === true) });
+      success(current?.is_public ? "Portfolio unpublished" : "Portfolio published");
+    } catch (err: any) {
+      toastError("Update failed", err.message);
+    }
+  };
+
+  const handleTheme = async (theme: PublicProfileTheme) => {
+    try {
+      await updateSite({ theme });
+      success("Portfolio aesthetic updated");
+    } catch (err: any) {
+      toastError("Theme update failed", err.message);
+    }
+  };
+
+  return (
+    <Card className="product-section-card overflow-hidden p-0">
+      <div className="relative p-5">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(29,255,0,0.16),transparent_32%),linear-gradient(145deg,rgba(255,255,255,0.05),transparent)]" />
+        <div className="relative">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-brand">
+                <Globe2 className="h-3.5 w-3.5" />
+                Public portfolio
+              </div>
+              <h3 className="text-base font-semibold text-foreground">
+                Recruiter-ready profile
+              </h3>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Publish a polished profile link for recruiters, hiring managers, and portfolio requests.
+              </p>
+            </div>
+            <div className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${
+              isPublished
+                ? "border-brand/40 bg-brand/10 text-brand"
+                : "border-foreground/10 bg-foreground/5 text-muted-foreground"
+            }`}>
+              {isPublished ? "Live" : "Draft"}
+            </div>
+          </div>
+
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            {THEME_OPTIONS.map((option) => {
+              const active = (site?.theme || "obsidian") === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  disabled={saving}
+                  onClick={() => void handleTheme(option.value)}
+                  className={`rounded-xl border p-3 text-left transition-all active:scale-[0.98] ${
+                    active
+                      ? "border-brand/40 bg-brand/10 text-foreground"
+                      : "border-foreground/10 bg-background/50 text-muted-foreground hover:border-brand/25 hover:text-foreground"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-xs font-semibold">
+                    <Palette className="h-3.5 w-3.5 text-brand" />
+                    {option.label}
+                  </div>
+                  <p className="mt-1 text-[10px] leading-relaxed opacity-75">
+                    {option.note}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mb-4 rounded-xl border border-foreground/10 bg-black/20 p-3">
+            <p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              Share URL
+            </p>
+            <p className="truncate font-mono text-xs text-foreground/75">
+              {site?.slug ? publicUrl : "Create your public profile link"}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={saving}
+              onClick={handlePublishToggle}
+              className="bg-brand text-black hover:bg-brand/90"
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              {isPublished ? "Unpublish" : "Publish"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={saving}
+              onClick={handleCopy}
+              className="border-foreground/10"
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copy
+            </Button>
+            {site?.slug ? (
+              <a href={`/u/${site.slug}`} target="_blank" rel="noreferrer">
+                <Button type="button" size="sm" variant="outline" className="border-foreground/10">
+                  <Eye className="mr-2 h-4 w-4" />
+                  Preview
+                  <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                </Button>
+              </a>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}

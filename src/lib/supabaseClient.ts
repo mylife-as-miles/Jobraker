@@ -4,6 +4,25 @@ import { sanitizeStructuredPayload } from "@/lib/inputSecurity";
 
 let _cached: SupabaseClient | null = null;
 
+function isPublicBrowserRoute(pathname: string) {
+  const publicRoutes = [
+    "/",
+    "/signin",
+    "/signIn",
+    "/signup",
+    "/login",
+    "/privacy",
+    "/terms",
+    "/security",
+  ];
+
+  return (
+    publicRoutes.includes(pathname) ||
+    pathname.startsWith("/r/") ||
+    pathname.startsWith("/u/")
+  );
+}
+
 export function createClient(): SupabaseClient {
   if (_cached) return _cached;
   // Get environment variables from Vite
@@ -118,15 +137,7 @@ export function createClient(): SupabaseClient {
     if (event === "TOKEN_REFRESHED" || event === "SIGNED_OUT") return;
 
     // Public routes that should not trigger redirects
-    const publicRoutes = [
-      "/",
-      "/signin",
-      "/signIn",
-      "/signup",
-      "/login",
-      "/privacy",
-    ];
-    const isPublicRoute = publicRoutes.includes(window.location.pathname);
+    const isPublicRoute = isPublicBrowserRoute(window.location.pathname);
 
     // If session is null unexpectedly, it might be due to an invalid refresh token
     // Only redirect if we're NOT on a public route (i.e., we're on a protected route)
@@ -180,15 +191,7 @@ export function createClient(): SupabaseClient {
           // Clear any stale tokens from localStorage
           localStorage.removeItem("supabase.auth.token");
           // Redirect to login only if we're on a protected route
-          const publicRoutes = [
-            "/",
-            "/signin",
-            "/signIn",
-            "/signup",
-            "/login",
-            "/privacy",
-          ];
-          const isPublicRoute = publicRoutes.includes(window.location.pathname);
+          const isPublicRoute = isPublicBrowserRoute(window.location.pathname);
           if (
             !isPublicRoute &&
             window.location.pathname !== "/signin" &&

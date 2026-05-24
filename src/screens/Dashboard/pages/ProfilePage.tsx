@@ -34,6 +34,7 @@ import { createClient } from "../../../lib/supabaseClient";
 import { useGamification } from "../../../hooks/useGamification";
 import { CandidateMemoryEditor } from "../components/CandidateMemoryEditor";
 import { ProfileAvailabilitySection } from "../components/ProfileAvailabilitySection";
+import { PublicProfileShareCard } from "../components/PublicProfileShareCard";
 
 // Data now comes from Supabase via useProfileCollections
 
@@ -430,6 +431,15 @@ const ProfilePage = (): JSX.Element => {
                   </div>
                 </div>
               </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.08 }}
+              className='transition-transform duration-300'
+            >
+              <PublicProfileShareCard profile={profile} />
             </motion.div>
 
             {/* Quick Stats */}
