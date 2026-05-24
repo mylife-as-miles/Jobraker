@@ -168,6 +168,17 @@ async function signAvatar(serviceClient: any, path: unknown) {
   }
 }
 
+async function readUserTier(serviceClient: any, userId: string) {
+  try {
+    const { data, error } = await serviceClient.rpc("get_user_tier", { p_user_id: userId });
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.warn("public-profile-site tier lookup failed", error);
+    return "Free";
+  }
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
 
@@ -247,12 +258,12 @@ serve(async (req) => {
     const avatarUrl = await signAvatar(serviceClient, profile.avatar_url);
     const [authUserRes, tierRes] = await Promise.all([
       serviceClient.auth.admin.getUserById(userId).catch(() => ({ data: null })),
-      serviceClient.rpc("get_user_tier", { p_user_id: userId }).catch(() => ({ data: "Free" })),
+      readUserTier(serviceClient, userId),
     ]);
     const { data: authUser } = authUserRes;
     const design = isRecord(site.design) ? site.design : {};
     const wantsWatermarkHidden = design.showWatermark === false || design.watermark === false;
-    const showWatermark = !(wantsWatermarkHidden && canHideWatermarkFromTier(tierRes.data));
+    const showWatermark = !(wantsWatermarkHidden && canHideWatermarkFromTier(tierRes));
     const contactEmail = asString(site.contact_email) || asString(authUser?.user?.email);
     const links = uniqueLinks([
       ...normalizeLinks(site.links),
