@@ -400,6 +400,30 @@ function normalizeResumeExperienceItem(
   };
 }
 
+function normalizeResumeEducationItem(
+  raw: Record<string, unknown>,
+  fallbackId: string,
+): Record<string, unknown> {
+  const id = asString(raw.id) || fallbackId;
+  const period =
+    asString(raw.period) ||
+    asString(raw.date) ||
+    [asString(raw.start_date) || asString(raw.start), asString(raw.end_date) || asString(raw.end)]
+      .filter(Boolean)
+      .join(" - ");
+  return {
+    id,
+    hidden: raw.hidden === true,
+    school: asString(raw.school) || asString(raw.institution) || "",
+    degree: asString(raw.degree) || asString(raw.field) || "",
+    location: asString(raw.location) || "",
+    period,
+    date: asString(raw.date) || period,
+    website: isRecord(raw.website) ? raw.website : { url: "", label: "" },
+    columns: typeof raw.columns === "number" && Number.isFinite(raw.columns) ? raw.columns : 1,
+  };
+}
+
 /**
  * Direct DB update for the resume builder JSON. Used by the agent (no update-resume edge function).
  */
@@ -447,6 +471,9 @@ async function runUpdateResumeTool(
 
   const setExperience = Array.isArray(args.set_experience_items)
     ? (args.set_experience_items as unknown[]).filter((x) => isRecord(x))
+    : null;
+  const setEducation = Array.isArray(args.set_education_items)
+    ? (args.set_education_items as unknown[]).filter((x) => isRecord(x))
     : null;
   const displayName = asString(args.display_name);
   const requestedFullName = asString(args.full_name);
@@ -509,13 +536,26 @@ async function runUpdateResumeTool(
       sections.experience = { ...existingExp, items, hidden: false };
       changed.push("experience");
     }
+    if (setEducation && setEducation.length > 0) {
+      const existingEducation = isRecord(sections.education)
+        ? (sections.education as Record<string, unknown>)
+        : {};
+      const items = setEducation.map((row) =>
+        normalizeResumeEducationItem(row as Record<string, unknown>, crypto.randomUUID()),
+      );
+      sections.education = { ...existingEducation, items, hidden: false };
+      changed.push("education");
+    }
 
     const newData: Record<string, unknown> = {
       ...currentData,
       basics,
       summary: sum,
     };
-    if (setExperience && setExperience.length > 0) {
+    if (
+      (setExperience && setExperience.length > 0) ||
+      (setEducation && setEducation.length > 0)
+    ) {
       newData.sections = sections;
     } else {
       newData.sections = currentData.sections;
@@ -549,7 +589,7 @@ async function runUpdateResumeTool(
     return {
       success: false,
       error:
-        "No changes applied. Provide at least one of: display_name, full_name, headline, email, phone, location, summary, set_experience_items, resume_status.",
+        "No changes applied. Provide at least one of: display_name, full_name, headline, email, phone, location, summary, set_experience_items, set_education_items, resume_status.",
     };
   }
   return { success: true, results, updated_count: results.length };
@@ -1235,6 +1275,21 @@ const AGENT_FUNCTION_DECLARATIONS = [
     parameters: { type: "object", properties: {} },
   },
   {
+    name: "list_profile_records",
+    description:
+      "List the user's structured profile records with database IDs: experiences, education, and skills. Use before updating or deleting a specific profile card.",
+    parameters: {
+      type: "object",
+      properties: {
+        collection: {
+          type: "string",
+          description: "Optional: experiences, education, skills, or all.",
+        },
+      },
+      additionalProperties: true,
+    },
+  },
+  {
     name: "get_public_profile_site",
     description:
       "Get the user's public JobRaker portfolio site settings, share URL, publish status, theme, copy, links, and design controls.",
@@ -1563,6 +1618,25 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "update_experience",
+    description: "Update an existing work experience profile card by database record ID.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The UUID of the experience record to update." },
+        title: { type: "string" },
+        company: { type: "string" },
+        location: { type: "string" },
+        start_date: { type: "string", description: "YYYY-MM-DD" },
+        end_date: { type: "string", description: "YYYY-MM-DD" },
+        is_current: { type: "boolean" },
+        description: { type: "string" },
+      },
+      required: ["id"],
+      additionalProperties: true,
+    },
+  },
+  {
     name: "delete_experience",
     description: "Delete a work experience entry from the profile by its database record ID.",
     parameters: {
@@ -1587,6 +1661,24 @@ const AGENT_FUNCTION_DECLARATIONS = [
         gpa: { type: "string", description: "e.g. 3.8 (optional)" }
       },
       required: ["degree", "school", "start_date"]
+    }
+  },
+  {
+    name: "update_education",
+    description: "Update an existing education profile card by database record ID.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The UUID of the education record to update." },
+        degree: { type: "string", description: "e.g. Bachelor of Science" },
+        school: { type: "string", description: "e.g. Stanford University" },
+        start_date: { type: "string", description: "YYYY-MM-DD" },
+        end_date: { type: "string", description: "YYYY-MM-DD" },
+        location: { type: "string", description: "e.g. Stanford, CA (optional)" },
+        gpa: { type: "string", description: "e.g. 3.8 (optional)" }
+      },
+      required: ["id"],
+      additionalProperties: true
     }
   },
   {
@@ -1617,7 +1709,7 @@ const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "update_resume",
     description:
-      "Update the resume document in the database (builder JSON in resumes.data). Can change name, headline, summary, contact, set status to Active/Draft/Archived, and replace the full Experience section via set_experience_items. All resumes are addressable: call list_resumes for ids. For experience bullets, pass set_experience_items (each item: company, position, period, description with achievements). Never pass template/example placeholder names like John Doe; omit full_name if the user's real name is unknown.",
+      "Update the resume document in the database (builder JSON in resumes.data). Can change name, headline, summary, contact, set status to Active/Draft/Archived, replace the full Experience section via set_experience_items, and replace the full Education section via set_education_items. All resumes are addressable: call list_resumes for ids. For experience bullets, pass set_experience_items (each item: company, position, period, description with achievements). For education, pass set_education_items (each item: school, degree, period, location). Never pass template/example placeholder names like John Doe; omit full_name if the user's real name is unknown.",
     parameters: {
       type: "object",
       properties: {
@@ -1650,7 +1742,24 @@ const AGENT_FUNCTION_DECLARATIONS = [
             },
           },
         },
+        set_education_items: {
+          type: "array",
+          description:
+            "Replaces data.sections.education.items in the builder for the selected resume(s).",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string", description: "Optional; omit to assign a new id" },
+              school: { type: "string" },
+              degree: { type: "string" },
+              period: { type: "string" },
+              date: { type: "string" },
+              location: { type: "string" },
+            },
+          },
+        },
       },
+      additionalProperties: true,
     },
   },
   {
@@ -1901,8 +2010,9 @@ Job-related Gmail (only when tools are available):
 Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.`;
       const agentCapabilityRules = `
 Profile, resume, and in-app data (execute directly — do not ask the user to copy-paste):
-- update_profile, add_skill, remove_skill, add_experience, delete_experience, add_education, delete_education, save_cover_letter, update_resume, update_application_status, bookmark_job, hide_job, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
-- For resume Experience bullets or sections, use update_resume with list_resumes for ids; use set_experience_items to replace builder experience items, and resume_status to set Active/Draft/Archived when asked.
+- update_profile, list_profile_records, add_skill, remove_skill, add_experience, update_experience, delete_experience, add_education, update_education, delete_education, save_cover_letter, update_resume, update_application_status, bookmark_job, hide_job, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
+- For Profile Settings cards, use list_profile_records to get IDs, then add/update/delete the structured experience, education, and skill rows directly. Never tell the user to click Profile Settings + Add unless the tool call fails or they explicitly ask for manual steps.
+- For resume Experience or Education sections, use update_resume with list_resumes for ids; use set_experience_items or set_education_items to replace builder section items, and resume_status to set Active/Draft/Archived when asked.
 - Use list_answer_bank_entries before drafting reusable application narratives when the user wants their saved voice, stories, beliefs, or profile snippets reflected.
 - Use get_public_profile_site and update_public_profile_site when the user wants their recruiter-facing public portfolio link, aesthetic, copy, theme, public links, or publish status changed. Confirm before delete_public_profile_site.
 
@@ -2124,6 +2234,43 @@ Edge functions:
                     }
                   } else if (fn.name === "get_user_profile") {
                     result = { success: true, profile: userContext };
+                  } else if (fn.name === "list_profile_records") {
+                    const collection = asString(args.collection)?.toLowerCase() || "all";
+                    const includeExperiences = collection === "all" || collection === "experience" || collection === "experiences";
+                    const includeEducation = collection === "all" || collection === "education";
+                    const includeSkills = collection === "all" || collection === "skill" || collection === "skills";
+                    const [experiencesRes, educationRes, skillsRes] = await Promise.all([
+                      includeExperiences
+                        ? supabaseUser
+                            .from("profile_experiences")
+                            .select("id, title, company, location, start_date, end_date, is_current, description")
+                            .eq("user_id", userId)
+                            .order("start_date", { ascending: false })
+                        : Promise.resolve({ data: [], error: null }),
+                      includeEducation
+                        ? supabaseUser
+                            .from("profile_education")
+                            .select("id, degree, school, location, start_date, end_date, gpa")
+                            .eq("user_id", userId)
+                            .order("start_date", { ascending: false })
+                        : Promise.resolve({ data: [], error: null }),
+                      includeSkills
+                        ? supabaseUser
+                            .from("profile_skills")
+                            .select("id, name, level, category")
+                            .eq("user_id", userId)
+                            .order("name")
+                        : Promise.resolve({ data: [], error: null }),
+                    ]);
+                    const firstError = experiencesRes.error || educationRes.error || skillsRes.error;
+                    result = firstError
+                      ? { success: false, error: firstError.message }
+                      : {
+                          success: true,
+                          experiences: experiencesRes.data || [],
+                          education: educationRes.data || [],
+                          skills: skillsRes.data || [],
+                        };
                   } else if (fn.name === "get_public_profile_site") {
                     const site = await fetchPublicProfileSite(serviceClient, userId);
                     result = {
@@ -2536,6 +2683,35 @@ Edge functions:
                         ? { success: false, error: exErr.message }
                         : { success: true, action: "added", title, company };
                     }
+                  } else if (fn.name === "update_experience") {
+                    const id = asString(args.id) || "";
+                    if (!id) {
+                      result = { success: false, error: "id is required" };
+                    } else {
+                      const patch: Record<string, unknown> = {};
+                      for (const key of ["title", "company", "location", "start_date", "end_date", "description"]) {
+                        const value = asString(args[key]);
+                        if (value !== null) patch[key] = value;
+                      }
+                      if (typeof args.is_current === "boolean") {
+                        patch.is_current = args.is_current;
+                      }
+                      if (Object.keys(patch).length === 0) {
+                        result = { success: false, error: "No experience fields to update" };
+                      } else {
+                        patch.updated_at = new Date().toISOString();
+                        const { data, error: exErr } = await supabaseUser
+                          .from("profile_experiences")
+                          .update(patch)
+                          .eq("id", id)
+                          .eq("user_id", userId)
+                          .select("id, title, company, location, start_date, end_date, is_current, description")
+                          .maybeSingle();
+                        result = exErr
+                          ? { success: false, error: exErr.message }
+                          : { success: true, action: "updated", experience: data };
+                      }
+                    }
                   } else if (fn.name === "delete_experience") {
                     const id = asString(args.id) || "";
                     if (!id) {
@@ -2570,6 +2746,32 @@ Edge functions:
                       result = edErr
                         ? { success: false, error: edErr.message }
                         : { success: true, action: "added", degree, school };
+                    }
+                  } else if (fn.name === "update_education") {
+                    const id = asString(args.id) || "";
+                    if (!id) {
+                      result = { success: false, error: "id is required" };
+                    } else {
+                      const patch: Record<string, unknown> = {};
+                      for (const key of ["degree", "school", "location", "start_date", "end_date", "gpa"]) {
+                        const value = asString(args[key]);
+                        if (value !== null) patch[key] = value;
+                      }
+                      if (Object.keys(patch).length === 0) {
+                        result = { success: false, error: "No education fields to update" };
+                      } else {
+                        patch.updated_at = new Date().toISOString();
+                        const { data, error: edErr } = await supabaseUser
+                          .from("profile_education")
+                          .update(patch)
+                          .eq("id", id)
+                          .eq("user_id", userId)
+                          .select("id, degree, school, location, start_date, end_date, gpa")
+                          .maybeSingle();
+                        result = edErr
+                          ? { success: false, error: edErr.message }
+                          : { success: true, action: "updated", education: data };
+                      }
                     }
                   } else if (fn.name === "delete_education") {
                     const id = asString(args.id) || "";

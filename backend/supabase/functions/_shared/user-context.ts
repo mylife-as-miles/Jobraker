@@ -72,6 +72,20 @@ export interface UserContext {
     end_date: string | null;
     gpa: string | null;
   }>;
+  activeResumeExperiences?: Array<{
+    company: string;
+    title: string;
+    location: string | null;
+    startDate: string | null;
+    endDate: string | null;
+    description: string | null;
+  }>;
+  activeResumeEducation?: Array<{
+    school: string;
+    degree: string;
+    startDate: string | null;
+    endDate: string | null;
+  }>;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -484,6 +498,79 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     subscriptionDaysRemaining = wholeDaysUntil(subscriptionNextRenewalOrEndIso);
   }
 
+  // Extract detailed experience and education lists from the active resume
+  const jsonRecord = isRecord(resumeRes.data?.json) ? resumeRes.data.json : null;
+  const aiParsedData = isRecord(jsonRecord?.aiParsedData)
+    ? jsonRecord.aiParsedData
+    : null;
+  const structuredRecord = isRecord(resumeRes.data?.structured)
+    ? resumeRes.data.structured
+    : null;
+
+  const activeResumeExperiences: Array<{
+    company: string;
+    title: string;
+    location: string | null;
+    startDate: string | null;
+    endDate: string | null;
+    description: string | null;
+  }> = [];
+
+  const rawExperiences = [
+    ...asRecordArray(aiParsedData?.experience),
+    ...asRecordArray(jsonRecord?.experience),
+    ...asRecordArray(jsonRecord?.sections?.experience?.items),
+    ...asRecordArray(structuredRecord?.experience),
+  ];
+
+  const seenExp = new Set<string>();
+  for (const item of rawExperiences) {
+    const company = asString(item.company || item.organization) || "";
+    const title = asString(item.position || item.title || item.name) || "";
+    const location = asString(item.location) || null;
+    const startDate = asString(item.startDate || item.start_date || item.start || item.date || item.period) || null;
+    const endDate = asString(item.endDate || item.end_date || item.end) || null;
+    const description = asString(item.description || item.summary || item.content) || null;
+
+    if (company || title) {
+      const key = `${company.toLowerCase()}|${title.toLowerCase()}`;
+      if (!seenExp.has(key)) {
+        seenExp.add(key);
+        activeResumeExperiences.push({ company, title, location, startDate, endDate, description });
+      }
+    }
+  }
+
+  const activeResumeEducation: Array<{
+    school: string;
+    degree: string;
+    startDate: string | null;
+    endDate: string | null;
+  }> = [];
+
+  const rawEducation = [
+    ...asRecordArray(aiParsedData?.education),
+    ...asRecordArray(jsonRecord?.education),
+    ...asRecordArray(jsonRecord?.sections?.education?.items),
+    ...asRecordArray(structuredRecord?.education),
+  ];
+
+  const seenEdu = new Set<string>();
+  for (const item of rawEducation) {
+    const school = asString(item.school || item.company || item.institution || item.university) || "";
+    const degree = asString(item.degree || item.title || item.name || item.course) || "";
+    const startDate = asString(item.startDate || item.start_date || item.start || item.date || item.period) || null;
+    const endDate = asString(item.endDate || item.end_date || item.end) || null;
+
+    if (school || degree) {
+      const key = `${school.toLowerCase()}|${degree.toLowerCase()}`;
+      if (!seenEdu.has(key)) {
+        seenEdu.add(key);
+        activeResumeEducation.push({ school, degree, startDate, endDate });
+      }
+    }
+  }
+
   return {
     userId,
     name,
@@ -516,6 +603,8 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     resumes: resumesRes.data || [],
     profileExperiences: profileExperiencesRes.data || [],
     profileEducation: profileEducationRes.data || [],
+    activeResumeExperiences,
+    activeResumeEducation,
   };
 }
 
@@ -577,6 +666,28 @@ export function formatUserContextForPrompt(context: UserContext): string {
   if (context.resumeSummary) {
     lines.push(`\n## Resume Summary`);
     lines.push(context.resumeSummary);
+  }
+
+  if (context.activeResumeExperiences && context.activeResumeExperiences.length > 0) {
+    lines.push(`\n## Active Resume Experiences (Parsed from latest uploaded PDF resume)`);
+    context.activeResumeExperiences.forEach(exp => {
+      lines.push(`- Title: ${exp.title} at ${exp.company}`);
+      if (exp.location) lines.push(`  Location: ${exp.location}`);
+      if (exp.startDate || exp.endDate) {
+        lines.push(`  Period: ${exp.startDate || "Unknown"} to ${exp.endDate || "Present"}`);
+      }
+      if (exp.description) lines.push(`  Description: ${exp.description}`);
+    });
+  }
+
+  if (context.activeResumeEducation && context.activeResumeEducation.length > 0) {
+    lines.push(`\n## Active Resume Education (Parsed from latest uploaded PDF resume)`);
+    context.activeResumeEducation.forEach(edu => {
+      lines.push(`- Degree: ${edu.degree} at ${edu.school}`);
+      if (edu.startDate || edu.endDate) {
+        lines.push(`  Period: ${edu.startDate || "Unknown"} to ${edu.endDate || "Present"}`);
+      }
+    });
   }
 
   if (context.candidateMemorySummary) {
