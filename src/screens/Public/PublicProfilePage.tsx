@@ -687,7 +687,7 @@ export const PublicProfilePage = () => {
 
       <section className="relative z-10 mx-auto flex min-h-screen max-w-[96rem] items-end px-4 pb-16 pt-20 sm:px-6 lg:pb-24">
         <div className="grid w-full gap-8 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.78fr)] xl:items-end">
-          <div className="min-w-0">
+          <div className="min-w-0 xl:-translate-y-10">
             <div className="mb-8 flex flex-wrap items-center gap-3 text-sm text-white/60">
               {profile.location ? (
                 <span className="inline-flex items-center gap-2">
