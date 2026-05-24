@@ -188,7 +188,6 @@ function usePhysicsReveals(active: boolean, reducedMotion: boolean) {
       nodes.forEach(({ el }) => {
         el.style.opacity = "1";
         el.style.transform = "none";
-        el.style.filter = "none";
       });
       return;
     }
@@ -196,8 +195,7 @@ function usePhysicsReveals(active: boolean, reducedMotion: boolean) {
     nodes.forEach(({ el }) => {
       el.style.opacity = "0";
       el.style.transform = "translate3d(0, 38px, 0) scale(0.982)";
-      el.style.filter = "blur(12px)";
-      el.style.willChange = "transform, opacity, filter";
+      el.style.willChange = "transform, opacity";
     });
 
     let frame = 0;
@@ -216,14 +214,12 @@ function usePhysicsReveals(active: boolean, reducedMotion: boolean) {
         node.value += node.velocity * dt;
         const value = clamp(node.value, 0, 1);
         const y = (1 - value) * 38;
-        const blur = (1 - value) * 12;
         const scale = 0.982 + value * 0.018;
 
         node.el.style.opacity = String(value);
         node.el.style.transform =
           `translate3d(0, calc(${y}px - var(--lift, 0px)), 0) ` +
           `scale(${scale}) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))`;
-        node.el.style.filter = `blur(${blur}px)`;
 
         if (Math.abs(displacement) > 0.002 || Math.abs(node.velocity) > 0.002) {
           moving = true;
@@ -263,7 +259,6 @@ function usePhysicsReveals(active: boolean, reducedMotion: boolean) {
       nodes.forEach(({ el }) => {
         el.style.removeProperty("opacity");
         el.style.removeProperty("transform");
-        el.style.removeProperty("filter");
         el.style.removeProperty("will-change");
       });
     };
