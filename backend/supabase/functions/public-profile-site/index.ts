@@ -38,6 +38,41 @@ async function readSlug(req: Request): Promise<string | null> {
   return null;
 }
 
+function readPreviewFlag(req: Request) {
+  const url = new URL(req.url);
+  const value = url.searchParams.get("preview");
+  return value === "1" || value === "true";
+}
+
+function createAuthedClient(authHeader: string) {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    {
+      auth: { persistSession: false },
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    },
+  );
+}
+
+async function canPreviewDraft(req: Request, userId: string) {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return false;
+  try {
+    const client = createAuthedClient(authHeader);
+    const { data, error } = await client.auth.getUser();
+    if (error) return false;
+    return data.user?.id === userId;
+  } catch (error) {
+    console.warn("public-profile-site preview auth failed", error);
+    return false;
+  }
+}
+
 function normalizeLinks(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value
@@ -74,6 +109,7 @@ serve(async (req) => {
 
   try {
     const slug = await readSlug(req);
+    const isPreviewRequest = readPreviewFlag(req);
     if (!slug) {
       return new Response(JSON.stringify({ error: "Missing public profile slug" }), {
         status: 400,
@@ -86,7 +122,6 @@ serve(async (req) => {
       .from("public_profile_sites")
       .select(SITE_FIELDS)
       .eq("slug", slug)
-      .eq("is_public", true)
       .maybeSingle();
 
     if (siteError) throw siteError;
@@ -95,6 +130,24 @@ serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const isDraftPreview =
+      site.is_public !== true &&
+      isPreviewRequest &&
+      await canPreviewDraft(req, site.user_id);
+
+    if (site.is_public !== true && !isDraftPreview) {
+      return new Response(
+        JSON.stringify({
+          error: "This public profile has not been published yet",
+          code: "not_published",
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const userId = site.user_id;
@@ -125,10 +178,12 @@ serve(async (req) => {
     const profile = profileRes.data || {};
     const avatarUrl = await signAvatar(serviceClient, profile.avatar_url);
 
-    await serviceClient
-      .from("public_profile_sites")
-      .update({ views: Number(site.views || 0) + 1, updated_at: new Date().toISOString() })
-      .eq("id", site.id);
+    if (!isDraftPreview) {
+      await serviceClient
+        .from("public_profile_sites")
+        .update({ views: Number(site.views || 0) + 1, updated_at: new Date().toISOString() })
+        .eq("id", site.id);
+    }
 
     const fullName = [asString(profile.first_name), asString(profile.last_name)]
       .filter(Boolean)
@@ -146,7 +201,9 @@ serve(async (req) => {
           links: normalizeLinks(site.links),
           design: isRecord(site.design) ? site.design : {},
           sectionOrder: Array.isArray(site.section_order) ? site.section_order : [],
-          views: Number(site.views || 0) + 1,
+          views: Number(site.views || 0) + (isDraftPreview ? 0 : 1),
+          isPublic: site.is_public === true,
+          isPreview: isDraftPreview,
           updatedAt: site.updated_at,
         },
         profile: {

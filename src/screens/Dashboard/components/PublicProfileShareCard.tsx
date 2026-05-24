@@ -22,11 +22,30 @@ export function PublicProfileShareCard({ profile }: { profile: Profile | null })
   const isPublished = site?.is_public === true;
 
   const handleCopy = async () => {
-    const current = site || (await ensureSite());
-    if (!current) return;
-    const url = `${window.location.origin}/u/${current.slug}`;
-    await navigator.clipboard.writeText(url);
-    success("Profile link copied");
+    try {
+      const current = site || (await ensureSite());
+      if (!current) return;
+      const publishedSite = current.is_public ? current : await updateSite({ is_public: true });
+      const slug = publishedSite?.slug || current.slug;
+      const url = `${window.location.origin}/u/${slug}`;
+      await navigator.clipboard.writeText(url);
+      success(current.is_public ? "Profile link copied" : "Portfolio published and link copied");
+    } catch (err: any) {
+      toastError("Copy failed", err.message);
+    }
+  };
+
+  const handlePreview = async () => {
+    try {
+      const current = site || (await ensureSite());
+      if (!current) return;
+      const url = current.is_public
+        ? `/u/${current.slug}`
+        : `/u/${current.slug}?preview=1`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      toastError("Preview failed", err.message);
+    }
   };
 
   const handlePublishToggle = async () => {
@@ -133,15 +152,18 @@ export function PublicProfileShareCard({ profile }: { profile: Profile | null })
               <Copy className="mr-2 h-4 w-4" />
               Copy
             </Button>
-            {site?.slug ? (
-              <a href={`/u/${site.slug}`} target="_blank" rel="noreferrer">
-                <Button type="button" size="sm" variant="outline" className="border-foreground/10">
-                  <Eye className="mr-2 h-4 w-4" />
-                  Preview
-                  <ExternalLink className="ml-2 h-3.5 w-3.5" />
-                </Button>
-              </a>
-            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={saving}
+              onClick={() => void handlePreview()}
+              className="border-foreground/10"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              {isPublished ? "Preview" : "Draft Preview"}
+              <ExternalLink className="ml-2 h-3.5 w-3.5" />
+            </Button>
           </div>
         </div>
       </div>

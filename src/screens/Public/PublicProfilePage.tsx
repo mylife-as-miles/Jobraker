@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   ArrowUpRight,
+  AlertCircle,
   BriefcaseBusiness,
   GraduationCap,
   Loader2,
@@ -23,6 +24,8 @@ type PublicProfilePayload = {
     links: Array<{ label: string; url: string }>;
     design: Record<string, unknown>;
     views: number;
+    isPublic?: boolean;
+    isPreview?: boolean;
   };
   profile: {
     name: string;
@@ -221,20 +224,39 @@ function ProfileShaderBackdrop({ theme }: { theme: { accent: string; alt: string
 
 export const PublicProfilePage = () => {
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
   const [payload, setPayload] = useState<PublicProfilePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     const load = async () => {
       setLoading(true);
       setError("");
+      setErrorCode(null);
       try {
         const base = import.meta.env.VITE_SUPABASE_URL || "https://yquhsllwrwfvrwolqywh.supabase.co";
-        const response = await fetch(`${base}/functions/v1/public-profile-site?slug=${encodeURIComponent(slug || "")}`);
+        const shouldPreview = searchParams.get("preview") === "1";
+        const headers: HeadersInit = {};
+        if (shouldPreview) {
+          const { createClient } = await import("../../lib/supabaseClient");
+          const { data } = await createClient().auth.getSession();
+          if (data.session?.access_token) {
+            headers.Authorization = `Bearer ${data.session.access_token}`;
+          }
+        }
+        const params = new URLSearchParams({ slug: slug || "" });
+        if (shouldPreview) params.set("preview", "1");
+        const response = await fetch(`${base}/functions/v1/public-profile-site?${params.toString()}`, {
+          headers,
+        });
         const data = await response.json();
-        if (!response.ok) throw new Error(data?.error || "Unable to load public profile");
+        if (!response.ok) {
+          setErrorCode(typeof data?.code === "string" ? data.code : null);
+          throw new Error(data?.error || "Unable to load public profile");
+        }
         if (active) setPayload(data);
       } catch (err: any) {
         if (active) setError(err.message || "Unable to load public profile");
@@ -246,7 +268,7 @@ export const PublicProfilePage = () => {
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [searchParams, slug]);
 
   const theme = useMemo(() => {
     const key = payload?.site.theme || "obsidian";
@@ -298,12 +320,28 @@ export const PublicProfilePage = () => {
   }
 
   if (error || !payload) {
+    const notPublished = errorCode === "not_published";
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6 text-center text-white">
-        <p className="text-xl font-semibold">{error || "Public profile not found"}</p>
-        <Link to="/" className="text-sm text-brand hover:underline">
-          Go to JobRaker
-        </Link>
+      <main className="flex min-h-screen items-center justify-center bg-black px-6 text-center text-white">
+        <div className="max-w-md rounded-3xl border border-white/10 bg-white/[0.045] p-8 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-brand/25 bg-brand/10 text-brand">
+            <AlertCircle className="h-6 w-6" />
+          </div>
+          <p className="text-2xl font-semibold">
+            {notPublished ? "This profile is still private" : "Public profile not available"}
+          </p>
+          <p className="mt-3 text-sm leading-6 text-white/58">
+            {notPublished
+              ? "The owner needs to publish this portfolio before recruiters can view it."
+              : error || "The link may be wrong, unpublished, or no longer active."}
+          </p>
+          <Link
+            to="/"
+            className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-brand px-5 text-sm font-semibold text-black transition hover:bg-brand/90"
+          >
+            Go to JobRaker
+          </Link>
+        </div>
       </main>
     );
   }
@@ -328,6 +366,11 @@ export const PublicProfilePage = () => {
     >
       <ProfileShaderBackdrop theme={theme} />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.08),rgba(0,0,0,0.72)),radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.08),transparent_38%)]" />
+      {site.isPreview ? (
+        <div className="fixed left-1/2 top-20 z-40 -translate-x-1/2 rounded-full border border-brand/30 bg-black/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand backdrop-blur-xl">
+          Private preview
+        </div>
+      ) : null}
 
       <header className="fixed left-0 right-0 top-0 z-30 border-b border-white/10 bg-black/20 backdrop-blur-2xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8">
