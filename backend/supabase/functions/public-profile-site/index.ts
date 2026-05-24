@@ -27,6 +27,11 @@ const asNumber = (value: unknown): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+function canHideWatermarkFromTier(value: unknown) {
+  const tier = asString(value)?.toLowerCase();
+  return tier === "basics" || tier === "pro" || tier === "ultimate";
+}
+
 function createServiceClient() {
   return createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -240,9 +245,14 @@ serve(async (req) => {
     if (profileRes.error) throw profileRes.error;
     const profile = profileRes.data || {};
     const avatarUrl = await signAvatar(serviceClient, profile.avatar_url);
-    const { data: authUser } = await serviceClient.auth.admin
-      .getUserById(userId)
-      .catch(() => ({ data: null }));
+    const [authUserRes, tierRes] = await Promise.all([
+      serviceClient.auth.admin.getUserById(userId).catch(() => ({ data: null })),
+      serviceClient.rpc("get_user_tier", { p_user_id: userId }).catch(() => ({ data: "Free" })),
+    ]);
+    const { data: authUser } = authUserRes;
+    const design = isRecord(site.design) ? site.design : {};
+    const wantsWatermarkHidden = design.showWatermark === false || design.watermark === false;
+    const showWatermark = !(wantsWatermarkHidden && canHideWatermarkFromTier(tierRes.data));
     const contactEmail = asString(site.contact_email) || asString(authUser?.user?.email);
     const links = uniqueLinks([
       ...normalizeLinks(site.links),
@@ -270,7 +280,8 @@ serve(async (req) => {
           ctaLabel: site.cta_label,
           contactEmail,
           links,
-          design: isRecord(site.design) ? site.design : {},
+          design,
+          showWatermark,
           sectionOrder: Array.isArray(site.section_order) ? site.section_order : [],
           views: Number(site.views || 0) + (isDraftPreview ? 0 : 1),
           isPublic: site.is_public === true,

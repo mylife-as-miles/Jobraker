@@ -166,6 +166,11 @@ function normalizePublicProfileDesign(value: unknown) {
     const text = asString(value[key]);
     if (text) design[key] = text.slice(0, 80);
   }
+  if (typeof value.showWatermark === "boolean") {
+    design.showWatermark = value.showWatermark;
+  } else if (typeof value.watermark === "boolean") {
+    design.showWatermark = value.watermark;
+  }
   return Object.keys(design).length > 0 ? design : undefined;
 }
 

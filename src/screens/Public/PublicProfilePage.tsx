@@ -25,6 +25,7 @@ type PublicProfilePayload = {
     links: Array<{ label: string; url: string }>;
     design: Record<string, unknown>;
     views: number;
+    showWatermark?: boolean;
     isPublic?: boolean;
     isPreview?: boolean;
   };
@@ -498,6 +499,22 @@ function ProfileShaderBackdrop({
   return <canvas ref={canvasRef} className="fixed inset-0 h-screen w-screen opacity-90" aria-hidden="true" />;
 }
 
+function PublicProfileWatermark({ theme }: { theme: { accent: string } }) {
+  return (
+    <Link
+      to="/"
+      aria-label="Made with JobRaker"
+      className="fixed bottom-4 left-4 z-40 inline-flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-full border border-white/12 bg-black/70 px-4 py-2 text-xs font-semibold text-white/75 shadow-[0_18px_48px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:border-white/25 hover:text-white sm:bottom-5 sm:left-5"
+    >
+      <span
+        className="h-2 w-2 rounded-full shadow-[0_0_18px_currentColor]"
+        style={{ backgroundColor: theme.accent, color: theme.accent }}
+      />
+      Made with JobRaker
+    </Link>
+  );
+}
+
 export const PublicProfilePage = () => {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
@@ -644,26 +661,14 @@ export const PublicProfilePage = () => {
     >
       <ProfileShaderBackdrop theme={theme} reducedMotion={reducedMotion} />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.08),rgba(0,0,0,0.72)),radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.08),transparent_38%)]" />
+      {site.showWatermark !== false ? <PublicProfileWatermark theme={theme} /> : null}
       {site.isPreview ? (
         <div className="fixed left-1/2 top-20 z-40 -translate-x-1/2 rounded-full border border-brand/30 bg-black/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand backdrop-blur-xl">
           Private preview
         </div>
       ) : null}
 
-      <header className="fixed left-0 right-0 top-0 z-30 border-b border-white/10 bg-black/20 backdrop-blur-2xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8">
-          <Link to="/" className="text-sm font-semibold tracking-tight text-white">
-            JobRaker
-          </Link>
-          <div className="hidden items-center gap-5 text-xs uppercase tracking-[0.2em] text-white/50 sm:flex">
-            <a href="#work" className="hover:text-white">Work</a>
-            <a href="#skills" className="hover:text-white">Skills</a>
-            <a href="#contact" className="hover:text-white">Contact</a>
-          </div>
-        </div>
-      </header>
-
-      <section className="relative z-10 mx-auto flex min-h-screen max-w-7xl items-end px-5 pb-16 pt-28 sm:px-8 lg:pb-24">
+      <section className="relative z-10 mx-auto flex min-h-screen max-w-7xl items-end px-5 pb-16 pt-20 sm:px-8 lg:pb-24">
         <div className="grid w-full gap-10 xl:grid-cols-[minmax(0,1.02fr)_minmax(420px,0.78fr)] xl:items-end">
           <div className="min-w-0">
             <div className="mb-8 flex flex-wrap items-center gap-3 text-sm text-white/60">

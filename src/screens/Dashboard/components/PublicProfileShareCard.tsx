@@ -1,9 +1,11 @@
-import { Copy, ExternalLink, Eye, Globe2, Palette, Sparkles } from "lucide-react";
+import { Copy, Crown, ExternalLink, Eye, Globe2, Palette, Sparkles } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { useToast } from "../../../components/ui/toast";
 import type { Profile } from "../../../hooks/useProfileSettings";
 import { usePublicProfileSite, type PublicProfileTheme } from "../../../hooks/usePublicProfileSite";
+import { useSubscriptionTier } from "../../../hooks/useSubscriptionTier";
+import { hasSubscriptionAccess } from "../../../lib/subscriptionAccess";
 
 const THEME_OPTIONS: Array<{
   value: PublicProfileTheme;
@@ -19,7 +21,10 @@ const THEME_OPTIONS: Array<{
 export function PublicProfileShareCard({ profile }: { profile: Profile | null }) {
   const { success, error: toastError } = useToast();
   const { site, saving, publicUrl, ensureSite, updateSite } = usePublicProfileSite(profile);
+  const { subscriptionTier } = useSubscriptionTier();
   const isPublished = site?.is_public === true;
+  const canHideWatermark = hasSubscriptionAccess(subscriptionTier, "Basics");
+  const watermarkVisible = site?.design?.showWatermark !== false;
 
   const handleCopy = async () => {
     try {
@@ -64,6 +69,23 @@ export function PublicProfileShareCard({ profile }: { profile: Profile | null })
       success("Portfolio aesthetic updated");
     } catch (err: any) {
       toastError("Theme update failed", err.message);
+    }
+  };
+
+  const handleWatermarkToggle = async () => {
+    if (!canHideWatermark) return;
+    try {
+      const current = site || (await ensureSite());
+      if (!current) return;
+      await updateSite({
+        design: {
+          ...(current.design || {}),
+          showWatermark: !watermarkVisible,
+        },
+      });
+      success(watermarkVisible ? "Watermark hidden" : "Watermark shown");
+    } catch (err: any) {
+      toastError("Watermark update failed", err.message);
     }
   };
 
@@ -128,6 +150,30 @@ export function PublicProfileShareCard({ profile }: { profile: Profile | null })
             <p className="truncate font-mono text-xs text-foreground/75">
               {site?.slug ? publicUrl : "Create your public profile link"}
             </p>
+          </div>
+
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-foreground/10 bg-black/20 p-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                <Crown className="h-3.5 w-3.5 text-brand" />
+                Made with JobRaker watermark
+              </div>
+              <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                {canHideWatermark
+                  ? "Paid portfolios can hide the floating public tab."
+                  : "Paid users can turn off the floating public tab."}
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={saving || !canHideWatermark}
+              onClick={() => void handleWatermarkToggle()}
+              className="shrink-0 border-foreground/10"
+            >
+              {watermarkVisible ? "Hide" : "Show"}
+            </Button>
           </div>
 
           <div className="flex flex-wrap gap-2">
