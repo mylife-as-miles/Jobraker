@@ -345,6 +345,7 @@ serve(async (req) => {
     );
     const userContext = await fetchUserContext(user.id, authHeader);
     const userSnapshot = buildUserSnapshot(userContext);
+    const navigationMap = buildAppInterfaceGuide();
     const pageRule =
       PAGE_GUIDANCE[pageId] ||
       `The user is on ${pageTitle}. Help them succeed on this page and navigate to the right Jobraker workflow if needed.`;
@@ -372,9 +373,13 @@ Current page:
 Known account context:
 ${userSnapshot}
 
+Available pages and valid routes in the application:
+${navigationMap}
+
 Return valid JSON with:
 - response: string
-- suggestedActions: array of up to 3 items shaped like { "label": string, "route": string | null, "kind": "navigate" | "human" | "reply", "prompt": string | null }`;
+- suggestedActions: array of up to 3 items. For actions that navigate to a page inside the app, set "kind" to "navigate" and "route" to the exact route string from the navigation map. For actions that recommend replying with a message/prompt, set "kind" to "reply", "route" to null, and "prompt" to the prompt text. For general human support, set "kind" to "human".
+The array should be shaped like: { "label": string, "route": string | null, "kind": "navigate" | "human" | "reply", "prompt": string | null }`;
 
     const ai = createGeminiClient();
     const baseContents = [
