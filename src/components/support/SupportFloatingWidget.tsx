@@ -89,7 +89,186 @@ export function SupportFloatingWidget({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [suggestedActions, setSuggestedActions] = useState<SupportAction[]>([]);
+  const getInitialSuggestedActions = (pageId: string): SupportAction[] => {
+    const common = [
+      {
+        label: "Contact Support",
+        kind: "human" as const,
+        route: null,
+        prompt: null,
+      },
+    ];
+
+    switch (pageId) {
+      case "overview":
+      case "dashboard-overview":
+        return [
+          {
+            label: "Check my Resumes",
+            route: "/dashboard/resume",
+            kind: "navigate",
+          },
+          {
+            label: "View Application History",
+            route: "/dashboard/application",
+            kind: "navigate",
+          },
+          ...common,
+        ];
+      case "referrals":
+      case "dashboard-referrals":
+        return [
+          {
+            label: "Invite friends",
+            kind: "reply",
+            prompt: "How do I earn Jobricon credits by referring friends?",
+          },
+          {
+            label: "View Referral Rules",
+            kind: "reply",
+            prompt: "What are the rules and milestone caps for the referral system?",
+          },
+          ...common,
+        ];
+      case "jobs":
+      case "dashboard-jobs":
+        return [
+          {
+            label: "Find Best-Fit Roles",
+            route: "/dashboard/jobs",
+            kind: "navigate",
+          },
+          {
+            label: "Explain ranking",
+            kind: "reply",
+            prompt: "Explain how Jobraker decides which jobs are most worth applying to.",
+          },
+          ...common,
+        ];
+      case "application":
+      case "dashboard-application":
+        return [
+          {
+            label: "Track applications",
+            route: "/dashboard/application",
+            kind: "navigate",
+          },
+          {
+            label: "Update status",
+            kind: "reply",
+            prompt: "How do I update the status of my active job applications?",
+          },
+          ...common,
+        ];
+      case "billing":
+      case "dashboard-billing":
+        return [
+          {
+            label: "Open billing",
+            route: "/dashboard/billing",
+            kind: "navigate",
+          },
+          {
+            label: "Compare plans",
+            kind: "reply",
+            prompt: "Compare Jobraker plans and explain which one fits my usage.",
+          },
+          ...common,
+        ];
+      case "resume":
+      case "dashboard-resume-home":
+        return [
+          {
+            label: "Open resumes",
+            route: "/dashboard/resume",
+            kind: "navigate",
+          },
+          {
+            label: "Improve ATS fit",
+            kind: "reply",
+            prompt: "Show me how to improve ATS alignment without exaggerating my experience.",
+          },
+          ...common,
+        ];
+      case "cover-letter":
+      case "dashboard-cover-letter-home":
+        return [
+          {
+            label: "Open cover letters",
+            route: "/dashboard/cover-letter",
+            kind: "navigate",
+          },
+          {
+            label: "Create cover letter",
+            kind: "reply",
+            prompt: "How do I create a high-converting cover letter using AI?",
+          },
+          ...common,
+        ];
+      case "settings":
+        return [
+          {
+            label: "Open settings",
+            route: "/dashboard/settings/profile",
+            kind: "navigate",
+          },
+          {
+            label: "Change appearance",
+            route: "/dashboard/settings/appearance",
+            kind: "navigate",
+          },
+          ...common,
+        ];
+      case "profile":
+      case "dashboard-profile":
+        return [
+          {
+            label: "Open profile",
+            route: "/dashboard/profile",
+            kind: "navigate",
+          },
+          {
+            label: "Improve match score",
+            kind: "reply",
+            prompt: "How do I update my profile history to get better matches?",
+          },
+          ...common,
+        ];
+      case "analytics":
+      case "dashboard-analytics":
+        return [
+          {
+            label: "Open analytics",
+            route: "/dashboard/analytics",
+            kind: "navigate",
+          },
+          {
+            label: "Explain metrics",
+            kind: "reply",
+            prompt: "Explain my application velocity and conversion rate trends.",
+          },
+          ...common,
+        ];
+      default:
+        return [
+          {
+            label: "Check my Resumes",
+            route: "/dashboard/resume",
+            kind: "navigate",
+          },
+          {
+            label: "View Application History",
+            route: "/dashboard/application",
+            kind: "navigate",
+          },
+          ...common,
+        ];
+    }
+  };
+
+  const [suggestedActions, setSuggestedActions] = useState<SupportAction[]>(() =>
+    getInitialSuggestedActions(currentPageId)
+  );
   const [messages, setMessages] = useState<SupportMessage[]>([
     {
       id: makeId(),
@@ -100,7 +279,7 @@ export function SupportFloatingWidget({
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setSuggestedActions([]);
+    setSuggestedActions(getInitialSuggestedActions(currentPageId));
     setMessages((prev) => {
       const hasUserMessages = prev.some((item) => item.role === "user");
       if (hasUserMessages) return prev;

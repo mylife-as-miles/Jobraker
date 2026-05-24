@@ -17,6 +17,7 @@ import {
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 import { fetchUserContext } from "../_shared/user-context.ts";
+import { buildAppInterfaceGuide } from "../_shared/app-pages.ts";
 import {
   enforceFeatureRateLimit,
   recordFeatureUsage,
@@ -125,6 +126,70 @@ function buildSuggestedActions(pageId: string) {
   ];
 
   switch (pageId) {
+    case "overview":
+      return [
+        {
+          label: "Check my Resumes",
+          kind: "navigate" as const,
+          route: "/dashboard/resume",
+          prompt: null,
+        },
+        {
+          label: "View Application History",
+          kind: "navigate" as const,
+          route: "/dashboard/application",
+          prompt: null,
+        },
+        ...common,
+      ];
+    case "referrals":
+      return [
+        {
+          label: "Invite friends",
+          kind: "reply" as const,
+          route: null,
+          prompt: "How do I earn Jobricon credits by referring friends?",
+        },
+        {
+          label: "View Referral Rules",
+          kind: "reply" as const,
+          route: null,
+          prompt: "What are the rules and milestone caps for the referral system?",
+        },
+        ...common,
+      ];
+    case "jobs":
+      return [
+        {
+          label: "Find Best-Fit Roles",
+          kind: "navigate" as const,
+          route: "/dashboard/jobs",
+          prompt: null,
+        },
+        {
+          label: "Explain ranking",
+          kind: "reply" as const,
+          route: null,
+          prompt: "Explain how Jobraker decides which jobs are most worth applying to.",
+        },
+        ...common,
+      ];
+    case "application":
+      return [
+        {
+          label: "Track applications",
+          kind: "navigate" as const,
+          route: "/dashboard/application",
+          prompt: null,
+        },
+        {
+          label: "Update status",
+          kind: "reply" as const,
+          route: null,
+          prompt: "How do I update the status of my active job applications?",
+        },
+        ...common,
+      ];
     case "billing":
       return [
         {
@@ -138,23 +203,6 @@ function buildSuggestedActions(pageId: string) {
           kind: "reply" as const,
           route: null,
           prompt: "Compare Jobraker plans and explain which one fits my usage.",
-        },
-        ...common,
-      ];
-    case "jobs":
-      return [
-        {
-          label: "Open jobs",
-          kind: "navigate" as const,
-          route: "/dashboard/jobs",
-          prompt: null,
-        },
-        {
-          label: "Explain ranking",
-          kind: "reply" as const,
-          route: null,
-          prompt:
-            "Explain how Jobraker decides which jobs are most worth applying to.",
         },
         ...common,
       ];
@@ -174,19 +222,83 @@ function buildSuggestedActions(pageId: string) {
         },
         ...common,
       ];
-    default:
+    case "cover-letter":
       return [
         {
-          label: "Go to billing",
+          label: "Open cover letters",
           kind: "navigate" as const,
-          route: "/dashboard/billing",
+          route: "/dashboard/cover-letter",
           prompt: null,
         },
         {
-          label: "How do I get started?",
+          label: "Create cover letter",
           kind: "reply" as const,
           route: null,
-          prompt: "Give me the best first steps to get value from Jobraker today.",
+          prompt: "How do I create a high-converting cover letter using AI?",
+        },
+        ...common,
+      ];
+    case "settings":
+      return [
+        {
+          label: "Open settings",
+          kind: "navigate" as const,
+          route: "/dashboard/settings/profile",
+          prompt: null,
+        },
+        {
+          label: "Change appearance",
+          kind: "navigate" as const,
+          route: "/dashboard/settings/appearance",
+          prompt: null,
+        },
+        ...common,
+      ];
+    case "profile":
+      return [
+        {
+          label: "Open profile",
+          kind: "navigate" as const,
+          route: "/dashboard/profile",
+          prompt: null,
+        },
+        {
+          label: "Improve match score",
+          kind: "reply" as const,
+          route: null,
+          prompt: "How do I update my profile history to get better matches?",
+        },
+        ...common,
+      ];
+    case "analytics":
+      return [
+        {
+          label: "Open analytics",
+          kind: "navigate" as const,
+          route: "/dashboard/analytics",
+          prompt: null,
+        },
+        {
+          label: "Explain metrics",
+          kind: "reply" as const,
+          route: null,
+          prompt: "Explain my application velocity and conversion rate trends.",
+        },
+        ...common,
+      ];
+    default:
+      return [
+        {
+          label: "Check my Resumes",
+          kind: "navigate" as const,
+          route: "/dashboard/resume",
+          prompt: null,
+        },
+        {
+          label: "View Application History",
+          kind: "navigate" as const,
+          route: "/dashboard/application",
+          prompt: null,
         },
         ...common,
       ];
