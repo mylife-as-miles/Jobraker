@@ -6,7 +6,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 const SITE_FIELDS =
   "id, user_id, slug, is_public, theme, headline, intro, cta_label, contact_email, links, design, section_order, views, updated_at";
 const PROFILE_FIELDS =
-  "id, first_name, last_name, job_title, experience_years, location, goals, about, avatar_url";
+  "id, first_name, last_name, job_title, experience_years, location, goals, about, avatar_url, phone, socials, availability_start, preferred_weekly_hours, work_timezone, weekly_availability";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -15,6 +15,16 @@ const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+};
+
+const asNumber = (value: unknown): number | null => {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
 };
 
 function createServiceClient() {
@@ -83,6 +93,59 @@ function normalizeLinks(value: unknown) {
     }))
     .filter((item) => item.url.startsWith("https://") || item.url.startsWith("mailto:"))
     .slice(0, 6);
+}
+
+function normalizeSocialLinks(value: unknown) {
+  if (!isRecord(value)) return [];
+  const entries: Array<{ label: string; url: string }> = [];
+  const sources: Array<[string, unknown]> = [
+    ["LinkedIn", value.linkedin || value.linkedIn || value.linkedin_url],
+    ["GitHub", value.github || value.gitHub || value.github_url],
+    ["Portfolio", value.portfolio || value.website || value.website_url],
+  ];
+
+  for (const [label, raw] of sources) {
+    const url = asString(raw);
+    if (url && url.startsWith("https://")) entries.push({ label, url });
+  }
+
+  if (Array.isArray(value.links)) {
+    for (const item of value.links.filter(isRecord)) {
+      const label = asString(item.label) || asString(item.title) || "Link";
+      const url = asString(item.url);
+      if (url && url.startsWith("https://")) entries.push({ label, url });
+    }
+  }
+
+  return entries;
+}
+
+function uniqueLinks(links: Array<{ label: string; url: string }>) {
+  const seen = new Set<string>();
+  return links.filter((link) => {
+    const key = link.url.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 8);
+}
+
+function normalizeWeeklyAvailability(value: unknown) {
+  if (!isRecord(value)) return null;
+  const normalized: Record<string, Array<{ start: string; end: string }>> = {};
+  for (const day of ["0", "1", "2", "3", "4", "5", "6"]) {
+    const slots = value[day];
+    if (!Array.isArray(slots)) continue;
+    const cleanSlots = slots
+      .filter(isRecord)
+      .map((slot) => ({
+        start: asString(slot.start) || "",
+        end: asString(slot.end) || "",
+      }))
+      .filter((slot) => slot.start && slot.end);
+    if (cleanSlots.length > 0) normalized[day] = cleanSlots;
+  }
+  return Object.keys(normalized).length > 0 ? normalized : null;
 }
 
 async function signAvatar(serviceClient: any, path: unknown) {
@@ -177,6 +240,14 @@ serve(async (req) => {
     if (profileRes.error) throw profileRes.error;
     const profile = profileRes.data || {};
     const avatarUrl = await signAvatar(serviceClient, profile.avatar_url);
+    const { data: authUser } = await serviceClient.auth.admin
+      .getUserById(userId)
+      .catch(() => ({ data: null }));
+    const contactEmail = asString(site.contact_email) || asString(authUser?.user?.email);
+    const links = uniqueLinks([
+      ...normalizeLinks(site.links),
+      ...normalizeSocialLinks(profile.socials),
+    ]);
 
     if (!isDraftPreview) {
       await serviceClient
@@ -197,8 +268,8 @@ serve(async (req) => {
           headline: site.headline,
           intro: site.intro,
           ctaLabel: site.cta_label,
-          contactEmail: site.contact_email,
-          links: normalizeLinks(site.links),
+          contactEmail,
+          links,
           design: isRecord(site.design) ? site.design : {},
           sectionOrder: Array.isArray(site.section_order) ? site.section_order : [],
           views: Number(site.views || 0) + (isDraftPreview ? 0 : 1),
@@ -213,6 +284,14 @@ serve(async (req) => {
           location: asString(profile.location),
           goals: Array.isArray(profile.goals) ? profile.goals.filter((item: unknown) => typeof item === "string") : [],
           about: asString(profile.about),
+          email: contactEmail,
+          phone: asString(profile.phone),
+          availability: {
+            start: asString(profile.availability_start),
+            weeklyHours: asNumber(profile.preferred_weekly_hours),
+            timezone: asString(profile.work_timezone),
+            weekly: normalizeWeeklyAvailability(profile.weekly_availability),
+          },
           avatarUrl,
         },
         experiences: Array.isArray(experiencesRes.data) ? experiencesRes.data : [],

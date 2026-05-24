@@ -4,10 +4,13 @@ import {
   ArrowUpRight,
   AlertCircle,
   BriefcaseBusiness,
+  CalendarDays,
+  Clock3,
   GraduationCap,
   Loader2,
   Mail,
   MapPin,
+  Phone,
   Sparkles,
 } from "lucide-react";
 
@@ -32,6 +35,14 @@ type PublicProfilePayload = {
     location: string | null;
     goals: string[];
     about: string | null;
+    email: string | null;
+    phone: string | null;
+    availability: {
+      start: string | null;
+      weeklyHours: number | null;
+      timezone: string | null;
+      weekly: Record<string, Array<{ start: string; end: string }>> | null;
+    };
     avatarUrl: string | null;
   };
   experiences: Array<{
@@ -62,6 +73,15 @@ const THEMES: Record<string, { accent: string; alt: string; bg: string; text: st
   atelier: { accent: "#e6c27a", alt: "#78f0ff", bg: "#090806", text: "#fff8ea" },
   prism: { accent: "#76ffea", alt: "#ff6bd6", bg: "#030615", text: "#f5fbff" },
   mono: { accent: "#ffffff", alt: "#a8ff60", bg: "#050505", text: "#f7f7f0" },
+};
+const DAY_LABELS: Record<string, string> = {
+  "0": "Sun",
+  "1": "Mon",
+  "2": "Tue",
+  "3": "Wed",
+  "4": "Thu",
+  "5": "Fri",
+  "6": "Sat",
 };
 
 type SpringNode = {
@@ -99,6 +119,25 @@ function formatYearRange(start?: string | null, end?: string | null, current?: b
       ? String(endTime.getFullYear())
       : "Recent";
   return [startYear, endYear].filter(Boolean).join(" - ");
+}
+
+function formatAvailabilityStart(value?: string | null) {
+  if (!value) return null;
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatWeeklyAvailability(weekly: Record<string, Array<{ start: string; end: string }>> | null) {
+  if (!weekly) return [];
+  return Object.entries(weekly)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .flatMap(([day, slots]) =>
+      slots.map((slot) => ({
+        day: DAY_LABELS[day] || day,
+        time: `${slot.start} - ${slot.end}`,
+      })),
+    );
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -574,6 +613,29 @@ export const PublicProfilePage = () => {
     site.intro ||
     profile.about ||
     `${profile.name} is a candidate sharing a focused career profile through JobRaker.`;
+  const weeklyAvailability = formatWeeklyAvailability(profile.availability?.weekly || null);
+  const availabilityStart = formatAvailabilityStart(profile.availability?.start);
+  const hasAvailability =
+    Boolean(availabilityStart) ||
+    Boolean(profile.availability?.weeklyHours) ||
+    Boolean(profile.availability?.timezone) ||
+    weeklyAvailability.length > 0;
+  const contactItems = [
+    profile.email
+      ? {
+          label: profile.email,
+          href: `mailto:${profile.email}`,
+          icon: Mail,
+        }
+      : null,
+    profile.phone
+      ? {
+          label: profile.phone,
+          href: `tel:${profile.phone.replace(/\s+/g, "")}`,
+          icon: Phone,
+        }
+      : null,
+  ].filter(Boolean) as Array<{ label: string; href: string; icon: typeof Mail }>;
 
   return (
     <main
@@ -602,8 +664,8 @@ export const PublicProfilePage = () => {
       </header>
 
       <section className="relative z-10 mx-auto flex min-h-screen max-w-7xl items-end px-5 pb-16 pt-28 sm:px-8 lg:pb-24">
-        <div className="grid w-full gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
-          <div>
+        <div className="grid w-full gap-10 xl:grid-cols-[minmax(0,1.02fr)_minmax(420px,0.78fr)] xl:items-end">
+          <div className="min-w-0">
             <div className="mb-8 flex flex-wrap items-center gap-3 text-sm text-white/60">
               {profile.location ? (
                 <span className="inline-flex items-center gap-2">
@@ -615,7 +677,7 @@ export const PublicProfilePage = () => {
                 <span>{profile.experienceYears}+ years of focused experience</span>
               ) : null}
             </div>
-            <h1 className="max-w-5xl text-[clamp(4rem,13vw,11.5rem)] font-black uppercase leading-[0.82] tracking-normal">
+            <h1 className="max-w-5xl break-words text-[clamp(3.5rem,10.5vw,10rem)] font-black uppercase leading-[0.84] tracking-normal">
               {profile.name}
             </h1>
             <p className="mt-8 max-w-2xl text-xl leading-relaxed text-white/72 sm:text-2xl">
@@ -623,7 +685,7 @@ export const PublicProfilePage = () => {
             </p>
           </div>
 
-          <div className="public-profile-reveal public-profile-interactive rounded-[2rem] border border-white/12 bg-white/[0.055] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.38)] backdrop-blur-2xl sm:p-7">
+          <div className="public-profile-reveal public-profile-interactive min-w-0 rounded-[2rem] border border-white/12 bg-white/[0.055] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.38)] backdrop-blur-2xl sm:p-7 xl:max-w-xl xl:justify-self-end">
             <div className="mb-8 flex items-start gap-4">
               <div
                 className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-white/15 bg-white/10 text-3xl font-black text-black"
@@ -648,6 +710,35 @@ export const PublicProfilePage = () => {
                 </span>
               ))}
             </div>
+            {contactItems.length > 0 || site.links.length > 0 ? (
+              <div className="mt-8 grid gap-2">
+                {contactItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      className="inline-flex min-h-11 items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-white/72 hover:border-white/25 hover:text-white"
+                    >
+                      <Icon className="h-4 w-4" style={{ color: theme.accent }} />
+                      <span className="break-all">{item.label}</span>
+                    </a>
+                  );
+                })}
+                {site.links.slice(0, 3).map((link) => (
+                  <a
+                    key={link.url}
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-white/72 hover:border-white/25 hover:text-white"
+                  >
+                    <span>{link.label}</span>
+                    <ArrowUpRight className="h-4 w-4" style={{ color: theme.accent }} />
+                  </a>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
@@ -667,6 +758,62 @@ export const PublicProfilePage = () => {
           ))}
         </div>
       </section>
+
+      {hasAvailability ? (
+        <section className="relative z-10 mx-auto max-w-7xl px-5 py-20 sm:px-8">
+          <div className="public-profile-reveal public-profile-interactive rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur-xl sm:p-8">
+            <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr]">
+              <div>
+                <p className="mb-3 inline-flex items-center gap-2 text-sm uppercase tracking-[0.22em]" style={{ color: theme.accent }}>
+                  <CalendarDays className="h-4 w-4" />
+                  Availability
+                </p>
+                <h2 className="text-4xl font-black uppercase tracking-normal sm:text-6xl">Ready window</h2>
+              </div>
+              <div className="grid gap-4">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {availabilityStart ? (
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-white/40">Start</p>
+                      <p className="mt-2 text-lg font-semibold">{availabilityStart}</p>
+                    </div>
+                  ) : null}
+                  {profile.availability?.weeklyHours ? (
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-white/40">Weekly load</p>
+                      <p className="mt-2 text-lg font-semibold">{profile.availability.weeklyHours} hrs/week</p>
+                    </div>
+                  ) : null}
+                  {profile.availability?.timezone ? (
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-white/40">Timezone</p>
+                      <p className="mt-2 text-lg font-semibold">{profile.availability.timezone}</p>
+                    </div>
+                  ) : null}
+                </div>
+                {weeklyAvailability.length > 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="mb-4 inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
+                      <Clock3 className="h-4 w-4" />
+                      Working hours
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {weeklyAvailability.map((slot) => (
+                        <span
+                          key={`${slot.day}-${slot.time}`}
+                          className="rounded-full border border-white/10 px-3 py-2 text-sm text-white/72"
+                        >
+                          {slot.day} {slot.time}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section id="work" className="relative z-10 mx-auto max-w-7xl px-5 py-24 sm:px-8">
         <div className="mb-10 flex items-end justify-between gap-6">
