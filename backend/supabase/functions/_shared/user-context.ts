@@ -1,5 +1,9 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  fetchAnswerBankEntries,
+  formatAnswerBankForPrompt,
+} from "./answer-bank.ts";
 import { fetchCandidateMemory } from "./candidate-memory.ts";
 
 export interface UserContext {
@@ -9,6 +13,7 @@ export interface UserContext {
   headline: string | null;
   resumeSummary: string | null;
   candidateMemorySummary: string | null;
+  answerBankSummary: string | null;
   recentChatTitles: string[];
   /** Canonical tier from get_user_tier (may be overridden in ai-chat by gate). */
   subscriptionTier: string;
@@ -203,6 +208,9 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
 
   // Parallel fetches for speed
   const candidateMemoryPromise = fetchCandidateMemory(supabase, userId).catch(() => null);
+  const answerBankPromise = fetchAnswerBankEntries(supabase, userId, {
+    limit: 12,
+  }).catch(() => []);
   const [
     profileRes,
     resumeRes,
@@ -219,6 +227,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     tierRes,
     subscriptionRes,
     candidateMemory,
+    answerBankEntries,
   ] = await Promise.all([
     safeQuery(
       supabase
@@ -333,6 +342,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
       { data: null } as any,
     ),
     candidateMemoryPromise,
+    answerBankPromise,
   ]);
 
   const parsedResume = extractParsedResumeSnapshot(resumeRes.data);
@@ -406,6 +416,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     headline: profileRes.data?.job_title || null,
     resumeSummary,
     candidateMemorySummary: candidateMemory?.summaryText || null,
+    answerBankSummary: formatAnswerBankForPrompt(answerBankEntries, 12),
     recentChatTitles: chatsRes.data?.map(c => c.title) || [],
     subscriptionTier: rawTier,
     subscriptionStatus,
@@ -493,6 +504,11 @@ export function formatUserContextForPrompt(context: UserContext): string {
   if (context.candidateMemorySummary) {
     lines.push(`\n## Candidate Memory`);
     lines.push(context.candidateMemorySummary);
+  }
+
+  if (context.answerBankSummary) {
+    lines.push(`\n## Answer Bank`);
+    lines.push(context.answerBankSummary);
   }
 
   if (context.recentApplications.length > 0) {

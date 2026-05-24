@@ -13,6 +13,7 @@ import {
   HelpCircle,
   FolderOpen,
   Info,
+  Sparkles,
 } from "lucide-react";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
@@ -67,11 +68,13 @@ export function AnswerBankPanel() {
     addAnswer,
     updateAnswer,
     deleteAnswer,
+    generateAnswers,
   } = useAnswerBank();
 
   const [activeTheme, setActiveTheme] = useState<AnswerTheme>("identity");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<AnswerBankEntry | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Form states
   const [formTheme, setFormTheme] = useState<AnswerTheme>("identity");
@@ -156,6 +159,16 @@ export function AnswerBankPanel() {
     }
   };
 
+  const handleGenerate = async () => {
+    if (isGenerating) return;
+    setIsGenerating(true);
+    try {
+      await generateAnswers();
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <Card className="product-section-card p-4 sm:p-6 hover:border-brand/30 hover:shadow-lg transition-all duration-300">
       {/* Header */}
@@ -172,14 +185,26 @@ export function AnswerBankPanel() {
             Configure reusable snippets, beliefs, and project experiences. Future auto-apply runs will pull from these records to dynamically generate finished application answers in your own voice.
           </p>
         </div>
-        <Button
-          type="button"
-          onClick={openAddModal}
-          className="bg-brand text-black hover:bg-brand/90 font-medium rounded-xl inline-flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Add Entry
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            className="border-brand/25 text-brand hover:bg-brand/10 font-medium rounded-xl inline-flex items-center gap-2"
+          >
+            <Sparkles className={`h-4 w-4 ${isGenerating ? "animate-pulse" : ""}`} />
+            {isGenerating ? "Generating..." : "Generate from profile"}
+          </Button>
+          <Button
+            type="button"
+            onClick={openAddModal}
+            className="bg-brand text-black hover:bg-brand/90 font-medium rounded-xl inline-flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Entry
+          </Button>
+        </div>
       </div>
 
       {/* Theme selector Tabs */}

@@ -19,6 +19,10 @@ import {
   formatCandidateMemoryForPrompt,
 } from "../_shared/candidate-memory.ts";
 import {
+  fetchAnswerBankEntries,
+  formatAnswerBankForPrompt,
+} from "../_shared/answer-bank.ts";
+import {
   enforceFeatureRateLimit,
   recordFeatureUsage,
 } from "../_shared/feature-limits.ts";
@@ -27,6 +31,7 @@ function buildPrompt(
   jobDescription: string,
   resumeText: string,
   candidateMemory: string,
+  answerBank: string | null,
   instructions?: string,
 ): string {
   return `You are an expert executive resume writer. 
@@ -36,6 +41,11 @@ function buildPrompt(
   CANDIDATE MEMORY:
   """
   ${candidateMemory}
+  """
+
+  ANSWER BANK:
+  """
+  ${answerBank || "None"}
   """
   
   JOB DESCRIPTION:
@@ -97,10 +107,14 @@ serve(async (req) => {
         );
       }
     }
+    const answerBankEntries = await fetchAnswerBankEntries(serviceClient, user.id, {
+      limit: 10,
+    }).catch(() => []);
     const prompt = buildPrompt(
       jobDescription,
       resumeText,
       formatCandidateMemoryForPrompt(candidateMemory),
+      formatAnswerBankForPrompt(answerBankEntries, 10),
       instructions,
     );
 

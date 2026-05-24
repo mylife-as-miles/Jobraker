@@ -98,6 +98,35 @@ export function useAnswerBank() {
     } catch (e: any) { toastError('Delete failed', e.message); }
   }, [supabase, success, toastError]);
 
+  const generateAnswers = useCallback(async (payload?: {
+    themes?: AnswerTheme[];
+    limit?: number;
+    replaceExisting?: boolean;
+  }) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-answer-bank', {
+        body: {
+          themes: payload?.themes,
+          limit: payload?.limit,
+          replace_existing: payload?.replaceExisting === true,
+        },
+      });
+      if (error) throw error;
+      const inserted = Number((data as any)?.inserted ?? 0);
+      const updated = Number((data as any)?.updated ?? 0);
+      success(
+        'Answer Bank refreshed',
+        inserted || updated
+          ? `${inserted} added, ${updated} updated`
+          : 'No new entries were generated',
+      );
+      return data;
+    } catch (e: any) {
+      toastError('Generation failed', e.message || 'Could not generate Answer Bank entries');
+      throw e;
+    }
+  }, [supabase, success, toastError]);
+
   return {
     userId,
     answers,
@@ -105,5 +134,6 @@ export function useAnswerBank() {
     addAnswer,
     updateAnswer,
     deleteAnswer,
+    generateAnswers,
   } as const;
 }

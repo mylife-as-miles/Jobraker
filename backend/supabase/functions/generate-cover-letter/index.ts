@@ -20,6 +20,10 @@ import {
   type CandidateMemory,
 } from "../_shared/candidate-memory.ts";
 import {
+  fetchAnswerBankEntries,
+  formatAnswerBankForPrompt,
+} from "../_shared/answer-bank.ts";
+import {
   enforceFeatureRateLimit,
   recordFeatureUsage,
 } from "../_shared/feature-limits.ts";
@@ -45,6 +49,7 @@ function buildPrompt(
   jobDescription: string,
   resumeText: string,
   candidateMemory: string,
+  answerBank: string | null,
   instructions?: string,
 ): string {
   return `You are an expert career coach and professional copywriter writing a highly persuasive cover letter.
@@ -54,6 +59,10 @@ function buildPrompt(
   <CANDIDATE_MEMORY>
   ${candidateMemory}
   </CANDIDATE_MEMORY>
+
+  <ANSWER_BANK>
+  ${answerBank || "None"}
+  </ANSWER_BANK>
   
   <JOB_DESCRIPTION>
   ${jobDescription}
@@ -160,10 +169,14 @@ serve(async (req) => {
         );
       }
     }
+    const answerBankEntries = await fetchAnswerBankEntries(serviceClient, user.id, {
+      limit: 10,
+    }).catch(() => []);
     const prompt = buildPrompt(
       safeJobDesc,
       safeResume,
       formatCandidateMemoryForPrompt(candidateMemory),
+      formatAnswerBankForPrompt(answerBankEntries, 10),
       safeInstructions,
     );
 

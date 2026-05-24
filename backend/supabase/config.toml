@@ -495,6 +495,12 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/generate-embeddings/index.ts"
 
+[functions.generate-answer-bank]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; auth is enforced in requireAuthenticatedUser.
+verify_jwt = false
+entrypoint = "./functions/generate-answer-bank/index.ts"
+
 [functions.customer-support-chat]
 enabled = true
 # Browser OPTIONS preflight must reach the handler; auth is enforced in requireAuthenticatedUser.

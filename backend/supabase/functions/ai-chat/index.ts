@@ -24,6 +24,15 @@ import {
   agentSearchJobRelatedEmails,
   agentSendJobRelatedEmail,
 } from "../_shared/gmail-job-agent-tools.ts";
+import {
+  createAnswerBankEntry,
+  deleteAnswerBankEntry,
+  fetchAnswerBankEntries,
+  generateAnswerBankEntries,
+  normalizeAnswerBankSlug,
+  updateAnswerBankEntry,
+  upsertGeneratedAnswerBankEntries,
+} from "../_shared/answer-bank.ts";
 
 console.log("JobRaker AI Chat Starting...");
 
@@ -1007,7 +1016,7 @@ function buildGeminiUserParts(
 const ACCOUNT_ACCESS_RULES = `
 You are inside the authenticated user's JobRaker workspace.
 You DO have access to the user's JobRaker account data provided in this prompt and, in agent mode, through the available tools.
-Do not claim that you lack access to the user's JobRaker profile, resumes, tracked jobs, applications, credits, cover letters, subscription period / renewal / days-to-renewal (when the "Subscription & billing" section is present), or recent conversations when that information is present in context or retrievable through tools.
+Do not claim that you lack access to the user's JobRaker profile, resumes, tracked jobs, applications, credits, cover letters, Answer Bank, subscription period / renewal / days-to-renewal (when the "Subscription & billing" section is present), or recent conversations when that information is present in context or retrievable through tools.
 Only describe limitations for external systems that are not connected here, such as LinkedIn dashboards, Indeed, or third-party job boards when Gmail is not connected.
 If the user has connected Gmail in JobRaker Settings, job-related inbox tools may be available in agent mode (search/send guardrails still apply).
 When the user asks for totals, counts, lists, or recent activity inside JobRaker, answer from the account context or tools first before giving generic advice.
@@ -1053,6 +1062,81 @@ const AGENT_FUNCTION_DECLARATIONS = [
     name: "get_user_profile",
     description: "Get the user's career profile (skills, experience, headline).",
     parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "list_answer_bank_entries",
+    description:
+      "List reusable Answer Bank entries for the signed-in user. Use before drafting when the user wants saved voice, stories, beliefs, or profile facts.",
+    parameters: {
+      type: "object",
+      properties: {
+        theme: { type: "string" },
+        query: { type: "string" },
+        limit: { type: "number" },
+      },
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "add_answer_bank_entry",
+    description: "Create a reusable Answer Bank entry for the signed-in user.",
+    parameters: {
+      type: "object",
+      properties: {
+        theme: { type: "string" },
+        slug: { type: "string" },
+        question: { type: "string" },
+        body: { type: "string" },
+        tags: { type: "array", items: { type: "string" } },
+      },
+      required: ["theme", "question", "body"],
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "update_answer_bank_entry",
+    description: "Update an existing Answer Bank entry by id.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        theme: { type: "string" },
+        slug: { type: "string" },
+        question: { type: "string" },
+        body: { type: "string" },
+        tags: { type: "array", items: { type: "string" } },
+      },
+      required: ["id"],
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "delete_answer_bank_entry",
+    description: "Delete an Answer Bank entry by id.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "generate_answer_bank_entries",
+    description:
+      "Generate reusable Answer Bank entries from the user's profile, parsed resume, candidate memory, and recent cover letters, then save them.",
+    parameters: {
+      type: "object",
+      properties: {
+        themes: {
+          type: "array",
+          items: { type: "string" },
+        },
+        limit: { type: "number" },
+        replace_existing: { type: "boolean" },
+      },
+      additionalProperties: true,
+    },
   },
   {
     name: "list_applications",
@@ -1556,8 +1640,9 @@ Job-related Gmail (only when tools are available):
 Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.`;
       const agentCapabilityRules = `
 Profile, resume, and in-app data (execute directly — do not ask the user to copy-paste):
-- update_profile, add_skill, remove_skill, add_experience, save_cover_letter, update_resume, update_application_status, bookmark_job, and hide_job write to the user's own rows via the authenticated Supabase client.
+- update_profile, add_skill, remove_skill, add_experience, save_cover_letter, update_resume, update_application_status, bookmark_job, hide_job, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
 - For resume Experience bullets or sections, use update_resume with list_resumes for ids; use set_experience_items to replace builder experience items, and resume_status to set Active/Draft/Archived when asked.
+- Use list_answer_bank_entries before drafting reusable application narratives when the user wants their saved voice, stories, beliefs, or profile snippets reflected.
 
 Navigation and page control:
 - Use list_app_pages to inspect the full app map.
@@ -1777,6 +1862,112 @@ Edge functions:
                     }
                   } else if (fn.name === "get_user_profile") {
                     result = { success: true, profile: userContext };
+                  } else if (fn.name === "list_answer_bank_entries") {
+                    const rows = await fetchAnswerBankEntries(serviceClient, userId, {
+                      theme:
+                        typeof args.theme === "string"
+                          ? (args.theme.trim().toLowerCase() as any)
+                          : null,
+                      query: asString(args.query),
+                      limit: clampNumber(args.limit, 12, 1, 25),
+                    });
+                    result = { success: true, entries: rows };
+                  } else if (fn.name === "add_answer_bank_entry") {
+                    const theme = asString(args.theme)?.toLowerCase();
+                    const question = asString(args.question) || "";
+                    const body = asString(args.body) || "";
+                    if (!theme || !question || !body) {
+                      result = {
+                        success: false,
+                        error: "theme, question, and body are required",
+                      };
+                    } else {
+                      const entry = await createAnswerBankEntry(serviceClient, userId, {
+                        theme: theme as any,
+                        slug:
+                          asString(args.slug) ||
+                          normalizeAnswerBankSlug(question),
+                        question,
+                        body,
+                        tags: Array.isArray(args.tags)
+                          ? args.tags
+                          : typeof args.tags === "string"
+                            ? String(args.tags)
+                                .split(",")
+                                .map((tag) => tag.trim())
+                                .filter(Boolean)
+                            : [],
+                      });
+                      result = { success: true, entry };
+                    }
+                  } else if (fn.name === "update_answer_bank_entry") {
+                    const entryId = asString(args.id) || "";
+                    if (!entryId) {
+                      result = { success: false, error: "id is required" };
+                    } else {
+                      const entry = await updateAnswerBankEntry(
+                        serviceClient,
+                        userId,
+                        entryId,
+                        {
+                          theme:
+                            typeof args.theme === "string"
+                              ? (args.theme.trim().toLowerCase() as any)
+                              : undefined,
+                          slug: asString(args.slug) || undefined,
+                          question: asString(args.question) || undefined,
+                          body: asString(args.body) || undefined,
+                          tags: Array.isArray(args.tags)
+                            ? (args.tags as string[])
+                            : typeof args.tags === "string"
+                              ? String(args.tags)
+                                  .split(",")
+                                  .map((tag) => tag.trim())
+                                  .filter(Boolean)
+                              : undefined,
+                        },
+                      );
+                      result = { success: true, entry };
+                    }
+                  } else if (fn.name === "delete_answer_bank_entry") {
+                    const entryId = asString(args.id) || "";
+                    if (!entryId) {
+                      result = { success: false, error: "id is required" };
+                    } else {
+                      result = await deleteAnswerBankEntry(serviceClient, userId, entryId);
+                    }
+                  } else if (fn.name === "generate_answer_bank_entries") {
+                    const generated = await generateAnswerBankEntries(
+                      serviceClient,
+                      userId,
+                      {
+                        themes: Array.isArray(args.themes)
+                          ? args.themes
+                              .map((item) =>
+                                typeof item === "string"
+                                  ? item.trim().toLowerCase()
+                                  : "",
+                              )
+                              .filter(Boolean) as any
+                          : undefined,
+                        limit: asNumber(args.limit) || undefined,
+                      },
+                    );
+                    const saved = await upsertGeneratedAnswerBankEntries(
+                      serviceClient,
+                      userId,
+                      generated,
+                      {
+                        replaceExisting: args.replace_existing === true,
+                      },
+                    );
+                    result = {
+                      success: true,
+                      generated_count: generated.length,
+                      inserted: saved.inserted,
+                      updated: saved.updated,
+                      entries: saved.entries,
+                    };
                   } else if (fn.name === "list_app_pages") {
                     result = {
                       success: true,
