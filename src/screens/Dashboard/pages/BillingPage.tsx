@@ -476,7 +476,7 @@ export const BillingPage = () => {
   >([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "subscription" | "packs" | "costs" | "history"
+    "subscription" | "packs" | "boosts" | "costs" | "history"
   >("subscription");
   const [processingPayment, setProcessingPayment] = useState(false);
   const [activeAutoApplyRuns, setActiveAutoApplyRuns] = useState(0);
@@ -1273,6 +1273,11 @@ export const BillingPage = () => {
                 icon: <Package className='w-4 h-4' />,
               },
               {
+                id: "boosts",
+                label: "Parallel Boosts",
+                icon: <Rocket className='w-4 h-4' />,
+              },
+              {
                 id: "costs",
                 label: "Credit Costs",
                 icon: <Receipt className='w-4 h-4' />,
@@ -1285,7 +1290,16 @@ export const BillingPage = () => {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() =>
+                  setActiveTab(
+                    tab.id as
+                      | "subscription"
+                      | "packs"
+                      | "boosts"
+                      | "costs"
+                      | "history",
+                  )
+                }
                 className={`relative flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full transition-all duration-300 ${
                   activeTab === tab.id
                     ? "text-background shadow-lg"
@@ -1835,10 +1849,10 @@ export const BillingPage = () => {
             </motion.div>
           )}
 
-          {/* Credit Packs Tab */}
-          {activeTab === "packs" && (
+          {/* Parallel Boosts Tab */}
+          {activeTab === "boosts" && (
             <motion.div
-              key='packs'
+              key='boosts'
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -2036,15 +2050,26 @@ export const BillingPage = () => {
                   ) : null}
                 </div>
               </section>
+            </motion.div>
+          )}
 
+          {/* Credit Packs Tab */}
+          {activeTab === "packs" && (
+            <motion.div
+              key='packs'
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+              className='space-y-12'
+            >
               <div className='text-center'>
                 <h2 className='text-3xl font-bold text-foreground mb-3'>
                   One-Time Credit Packs
                 </h2>
                 <p className='text-gray-400'>
-                  These packs top up search, evaluation, and drafting. Concurrency
-                  boosts above increase how many auto-apply workflows can run in
-                  parallel.
+                  These packs top up search, evaluation, and drafting so you can
+                  keep using AI features without changing your main plan.
                 </p>
               </div>
 
