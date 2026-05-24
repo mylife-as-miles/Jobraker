@@ -283,6 +283,7 @@ type AutoApplyQuotaResult =
       included: number;
       remaining: number;
       used: number;
+      periodStart: string;
       periodEnd: string;
     }
   | {
@@ -291,6 +292,7 @@ type AutoApplyQuotaResult =
       included: number;
       remaining: number;
       used: number;
+      periodStart: string | null;
       periodEnd: string | null;
       message: string;
     };
@@ -325,6 +327,7 @@ export async function consumeAutoApplyRunQuota({
       included: 0,
       remaining: 0,
       used: 0,
+      periodStart: null,
       periodEnd: null,
       message: `Auto apply is not available on the ${tier} plan.`,
     };
@@ -400,6 +403,7 @@ export async function consumeAutoApplyRunQuota({
       included: includedQuantity,
       remaining,
       used: usedQuantity,
+      periodStart,
       periodEnd,
       message: `Not enough auto apply runs remaining for this billing period on the ${tier} plan.`,
     };
@@ -442,6 +446,193 @@ export async function consumeAutoApplyRunQuota({
     included: includedQuantity,
     remaining: Math.max(0, includedQuantity - nextUsedQuantity),
     used: nextUsedQuantity,
+    periodStart,
     periodEnd,
   };
+}
+
+export async function restoreAutoApplyRunQuota(
+  serviceClient: any,
+  userId: string,
+  periodStart: string,
+  periodEnd: string,
+  quantity = 1,
+) {
+  const { data: quotaRow, error: quotaError } = await serviceClient
+    .from("user_feature_quotas")
+    .select("id, used_quantity")
+    .eq("user_id", userId)
+    .eq("feature_key", "auto_apply")
+    .eq("source", "subscription")
+    .eq("period_start", periodStart)
+    .eq("period_end", periodEnd)
+    .maybeSingle();
+
+  if (quotaError || !quotaRow) {
+    console.error("auto apply quota restore lookup failed", {
+      userId,
+      periodStart,
+      periodEnd,
+      quotaError,
+    });
+    return;
+  }
+
+  const nextUsedQuantity = Math.max(
+    0,
+    Math.floor(Number(quotaRow.used_quantity || 0)) - Math.max(1, Math.floor(quantity)),
+  );
+
+  const { error: updateError } = await serviceClient
+    .from("user_feature_quotas")
+    .update({
+      used_quantity: nextUsedQuantity,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", quotaRow.id);
+
+  if (updateError) {
+    console.error("auto apply quota restore update failed", {
+      userId,
+      periodStart,
+      periodEnd,
+      updateError,
+    });
+  }
+}
+
+type AutoApplyConcurrencyResult = {
+  subscriptionTier: SubscriptionTier;
+  baseLimit: number;
+  addonLimit: number;
+  totalLimit: number;
+  activeRuns: number;
+  availableRuns: number;
+  periodStart: string;
+  periodEnd: string;
+};
+
+async function resolveAutoApplyConcurrencyPeriod(
+  userId: string,
+  serviceClient: any,
+  tier: SubscriptionTier,
+) {
+  let periodStart = startOfCurrentMonth().toISOString();
+  let periodEnd = startOfNextMonth().toISOString();
+
+  if (tier !== "Free") {
+    const { data: subscription } = await serviceClient
+      .from("user_subscriptions")
+      .select("current_period_start, current_period_end")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const subscriptionStart = subscription?.current_period_start;
+    const subscriptionEnd = subscription?.current_period_end;
+    if (subscriptionStart && subscriptionEnd) {
+      periodStart = subscriptionStart;
+      periodEnd = subscriptionEnd;
+    }
+  }
+
+  return { periodStart, periodEnd };
+}
+
+export async function getAutoApplyConcurrencyLimit({
+  userId,
+  serviceClient,
+  subscriptionTier,
+}: FeatureLimitContext): Promise<AutoApplyConcurrencyResult> {
+  const tier = subscriptionTier
+    ? normalizeSubscriptionTier(subscriptionTier)
+    : await resolveSubscriptionTier(userId, serviceClient);
+  const plan = findSharedPlanByName(tier);
+  const baseLimit = Math.max(1, Math.floor(plan?.autoApplyConcurrency || 1));
+  const { periodStart, periodEnd } = await resolveAutoApplyConcurrencyPeriod(
+    userId,
+    serviceClient,
+    tier,
+  );
+  const nowIso = new Date().toISOString();
+
+  const [{ data: addonRows, error: addonError }, { count: activeRuns, error: activeError }] =
+    await Promise.all([
+      serviceClient
+        .from("user_feature_quotas")
+        .select("included_quantity")
+        .eq("user_id", userId)
+        .eq("feature_key", "auto_apply_concurrency")
+        .eq("source", "addon")
+        .lte("period_start", nowIso)
+        .gt("period_end", nowIso),
+      serviceClient
+        .from("applications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("canonical_stage", "queued"),
+    ]);
+
+  if (addonError) {
+    console.error("auto apply concurrency addon lookup failed", {
+      userId,
+      tier,
+      addonError,
+    });
+    throw new Error("Could not verify auto apply concurrency.");
+  }
+
+  if (activeError) {
+    console.error("auto apply concurrency active run lookup failed", {
+      userId,
+      tier,
+      activeError,
+    });
+    throw new Error("Could not verify active auto apply runs.");
+  }
+
+  const addonLimit = Array.isArray(addonRows)
+    ? addonRows.reduce(
+        (sum, row) => sum + Math.max(0, Math.floor(Number(row.included_quantity || 0))),
+        0,
+      )
+    : 0;
+  const totalLimit = baseLimit + addonLimit;
+  const active = typeof activeRuns === "number" ? activeRuns : 0;
+
+  return {
+    subscriptionTier: tier,
+    baseLimit,
+    addonLimit,
+    totalLimit,
+    activeRuns: active,
+    availableRuns: Math.max(0, totalLimit - active),
+    periodStart,
+    periodEnd,
+  };
+}
+
+export async function enforceAutoApplyConcurrency({
+  userId,
+  serviceClient,
+  subscriptionTier,
+  quantity = 1,
+}: FeatureLimitContext) {
+  const requestedRuns = Math.max(1, Math.floor(quantity));
+  const result = await getAutoApplyConcurrencyLimit({
+    userId,
+    serviceClient,
+    subscriptionTier,
+  });
+
+  if (result.availableRuns < requestedRuns) {
+    throw new SubscriptionAccessError(
+      429,
+      `You already have ${result.activeRuns} auto-apply run${result.activeRuns === 1 ? "" : "s"} active. The ${result.subscriptionTier} plan allows ${result.totalLimit} parallel auto-apply run${result.totalLimit === 1 ? "" : "s"}. Upgrade your plan or buy a concurrency boost to launch more in parallel.`,
+    );
+  }
+
+  return result;
 }

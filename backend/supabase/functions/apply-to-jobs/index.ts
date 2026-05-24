@@ -8,7 +8,11 @@ import {
 import { decryptSymmetric } from "../_shared/crypto.ts";
 import { signResumeProxyToken } from "../_shared/resume-proxy-token.ts";
 import { applyMicro1ReferralToUrl } from "../_shared/micro1-referral.ts";
-import { consumeAutoApplyRunQuota } from "../_shared/feature-limits.ts";
+import {
+  consumeAutoApplyRunQuota,
+  enforceAutoApplyConcurrency,
+  restoreAutoApplyRunQuota,
+} from "../_shared/feature-limits.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 const AUTOMATION_RATE_LIMIT_WINDOW_MS = 60_000;
@@ -352,75 +356,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const automationJobCount = jobUrls.length;
-    const quotaResult = await consumeAutoApplyRunQuota({
-      userId,
-      serviceClient,
-      subscriptionTier,
-      quantity: automationJobCount,
-    });
-    if (!quotaResult.success) {
-      return new Response(
-        JSON.stringify({
-          error: quotaResult.message,
-          code: "auto_apply_quota_exceeded",
-          remaining_runs: quotaResult.remaining,
-          included_runs: quotaResult.included,
-          used_runs: quotaResult.used,
-          period_end: quotaResult.periodEnd,
-          subscription_tier: quotaResult.subscriptionTier,
-        }),
-        {
-          status: 429,
-          headers: { ...corsHeaders, "content-type": "application/json" },
-        },
-      );
-    }
-
-    const { data: deductRaw, error: deductError } = await serviceClient.rpc(
-      "deduct_auto_apply_credits",
-      { p_user_id: userId, p_jobs_count: automationJobCount },
-    );
-    if (deductError) {
-      console.error("apply-to-jobs: deduct_auto_apply_credits RPC error:", deductError);
-      return new Response(
-        JSON.stringify({
-          error: "Could not verify automation credits. Please try again.",
-          code: "billing_error",
-        }),
-        {
-          status: 503,
-          headers: { ...corsHeaders, "content-type": "application/json" },
-        },
-      );
-    }
-    const deduct = parseRpcJsonObject(deductRaw);
-    if (!isRpcSuccess(deduct)) {
-      return new Response(
-        JSON.stringify({
-          error: (deduct?.message as string) || "Insufficient credits for auto apply.",
-          code: "insufficient_credits",
-          current_balance: deduct?.current_balance,
-          required_credits: deduct?.required_credits,
-        }),
-        {
-          status: 402,
-          headers: { ...corsHeaders, "content-type": "application/json" },
-        },
-      );
-    }
-
-    billingForResponse = {
-      credits_deducted: deduct?.credits_deducted ?? automationJobCount * 5,
-      remaining_balance: deduct?.remaining_balance,
-      jobs_count: automationJobCount,
-      auto_apply_runs_remaining: quotaResult.remaining,
-      auto_apply_runs_included: quotaResult.included,
-      auto_apply_period_end: quotaResult.periodEnd,
-      note:
-        "Charged when JobRaker starts auto-apply (5 credits per job). Runs started only in Skyvern are not billed here.",
-    };
-
     const envKey = Deno.env.get("SKYVERN_API_KEY");
     const headerKey = req.headers.get("x-skyvern-api-key") || req.headers.get("x-api-key");
     const apiKey = envKey || headerKey;
@@ -452,6 +387,106 @@ Deno.serve(async (req) => {
         },
       );
     }
+
+    const concurrencyResult = await enforceAutoApplyConcurrency({
+      userId,
+      serviceClient,
+      subscriptionTier,
+      quantity: 1,
+    });
+
+    const automationJobCount = jobUrls.length;
+    const quotaResult = await consumeAutoApplyRunQuota({
+      userId,
+      serviceClient,
+      subscriptionTier,
+      quantity: automationJobCount,
+    });
+    if (!quotaResult.success) {
+      return new Response(
+        JSON.stringify({
+          error: quotaResult.message,
+          code: "auto_apply_quota_exceeded",
+          remaining_runs: quotaResult.remaining,
+          included_runs: quotaResult.included,
+          used_runs: quotaResult.used,
+          period_end: quotaResult.periodEnd,
+          subscription_tier: quotaResult.subscriptionTier,
+        }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        },
+      );
+    }
+
+    const { data: deductRaw, error: deductError } = await serviceClient.rpc(
+      "deduct_auto_apply_credits",
+      { p_user_id: userId, p_jobs_count: automationJobCount },
+    );
+    if (deductError) {
+      console.error("apply-to-jobs: deduct_auto_apply_credits RPC error:", deductError);
+      if (quotaResult.success && quotaResult.periodStart && quotaResult.periodEnd) {
+        await restoreAutoApplyRunQuota(
+          serviceClient,
+          userId,
+          quotaResult.periodStart,
+          quotaResult.periodEnd,
+          automationJobCount,
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          error: "Could not verify automation credits. Please try again.",
+          code: "billing_error",
+        }),
+        {
+          status: 503,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        },
+      );
+    }
+    const deduct = parseRpcJsonObject(deductRaw);
+    if (!isRpcSuccess(deduct)) {
+      if (quotaResult.success && quotaResult.periodStart && quotaResult.periodEnd) {
+        await restoreAutoApplyRunQuota(
+          serviceClient,
+          userId,
+          quotaResult.periodStart,
+          quotaResult.periodEnd,
+          automationJobCount,
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          error: (deduct?.message as string) || "Insufficient credits for auto apply.",
+          code: "insufficient_credits",
+          current_balance: deduct?.current_balance,
+          required_credits: deduct?.required_credits,
+        }),
+        {
+          status: 402,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        },
+      );
+    }
+
+    billingForResponse = {
+      credits_deducted: deduct?.credits_deducted ?? automationJobCount * 5,
+      remaining_balance: deduct?.remaining_balance,
+      jobs_count: automationJobCount,
+      auto_apply_runs_remaining: quotaResult.remaining,
+      auto_apply_runs_included: quotaResult.included,
+      auto_apply_period_end: quotaResult.periodEnd,
+      auto_apply_parallel_runs_base: concurrencyResult.baseLimit,
+      auto_apply_parallel_runs_boost: concurrencyResult.addonLimit,
+      auto_apply_parallel_runs_total: concurrencyResult.totalLimit,
+      auto_apply_parallel_runs_active: concurrencyResult.activeRuns,
+      auto_apply_parallel_runs_available_before_launch:
+        concurrencyResult.availableRuns,
+      note:
+        "Charged when JobRaker starts auto-apply (5 credits per job). Runs started only in Skyvern are not billed here.",
+    };
 
     let additionalInformation =
       typeof body?.additional_information === "string"
@@ -738,6 +773,14 @@ Deno.serve(async (req) => {
         ok: true,
         skyvern: data,
         billing: billingForResponse,
+        concurrency: {
+          base_limit: concurrencyResult.baseLimit,
+          boost_limit: concurrencyResult.addonLimit,
+          total_limit: concurrencyResult.totalLimit,
+          active_runs: concurrencyResult.activeRuns + 1,
+          available_runs: Math.max(0, concurrencyResult.availableRuns - 1),
+          period_end: concurrencyResult.periodEnd,
+        },
         submitted: {
           workflow_id: workflowId,
           count: jobUrls.length,

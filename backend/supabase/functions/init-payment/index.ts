@@ -4,12 +4,13 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import {
   DEFAULT_PAYSTACK_USD_TO_NGN_RATE,
   SHARED_SUBSCRIPTION_PLANS,
+  findSharedConcurrencyPackBySku,
 } from "../../shared/billing-catalog.ts";
 
 console.log("Hello from init-payment!");
 
 type PaymentInitRequest = {
-  purchaseType?: "subscription" | "credit_pack";
+  purchaseType?: "subscription" | "credit_pack" | "concurrency_pack";
   planId?: string;
   packSku?: string;
   /** When set to yearly / quarterly, price comes from catalog (not DB monthly price). */
@@ -37,6 +38,15 @@ type CreditPackRow = {
   currency: string | null;
   credits: number;
   bonus_credits: number;
+};
+
+type ConcurrencyPackRow = {
+  sku: string;
+  name: string;
+  description: string | null;
+  price_usd: number;
+  currency: string | null;
+  parallel_slots: number;
 };
 
 const LOW_CREDIT_RESCUE_CODE = "LOWCREDIT_RESCUE";
@@ -95,6 +105,53 @@ const resolveUsdToNgnRate = () => {
   }
   return DEFAULT_PAYSTACK_USD_TO_NGN_RATE;
 };
+
+async function resolveConcurrencyEntitlementWindow(
+  supabaseClient: ReturnType<typeof createClient>,
+  userId: string,
+) {
+  const now = new Date();
+  const fallbackStart = now.toISOString();
+  const fallbackEnd = addBillingCycle(now, "monthly").toISOString();
+
+  const { data: subscription } = await supabaseClient
+    .from("user_subscriptions")
+    .select("current_period_start, current_period_end")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (subscription?.current_period_start && subscription?.current_period_end) {
+    return {
+      periodStart: subscription.current_period_start,
+      periodEnd: subscription.current_period_end,
+    };
+  }
+
+  return {
+    periodStart: fallbackStart,
+    periodEnd: fallbackEnd,
+  };
+}
+
+function addBillingCycle(baseDate: Date, billingCycle: string) {
+  const next = new Date(baseDate.getTime());
+  switch (billingCycle) {
+    case "yearly":
+      next.setFullYear(next.getFullYear() + 1);
+      break;
+    case "quarterly":
+      next.setMonth(next.getMonth() + 3);
+      break;
+    case "monthly":
+    default:
+      next.setMonth(next.getMonth() + 1);
+      break;
+  }
+  return next;
+}
 
 serve(async (req) => {
   const cors = getCorsHeaders(req.headers.get("origin"));
@@ -301,6 +358,71 @@ serve(async (req) => {
         bonus_credits: Number(pack.bonus_credits || 0),
         description: pack.description,
         currency: pack.currency || "USD",
+      };
+    } else if (purchaseType === "concurrency_pack") {
+      if (!body.packSku) {
+        return new Response(
+          JSON.stringify({ error: "Missing concurrency pack identifier" }),
+          {
+            status: 400,
+            headers: { ...cors, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      let pack: ConcurrencyPackRow | null = null;
+      const { data: packData, error: packError } = await supabaseClient
+        .from("concurrency_pack_catalog")
+        .select("sku, name, description, price_usd, currency, parallel_slots")
+        .eq("sku", body.packSku)
+        .eq("is_active", true)
+        .maybeSingle<ConcurrencyPackRow>();
+
+      if (packError) {
+        console.warn("Concurrency pack lookup fallback:", packError);
+      }
+
+      pack = packData ?? null;
+
+      if (!pack) {
+        const sharedPack = findSharedConcurrencyPackBySku(body.packSku);
+        if (sharedPack) {
+          pack = {
+            sku: sharedPack.sku,
+            name: sharedPack.name,
+            description: sharedPack.description,
+            price_usd: sharedPack.priceUsd,
+            currency: "USD",
+            parallel_slots: sharedPack.parallelSlots,
+          };
+        }
+      }
+
+      if (!pack) {
+        return new Response(JSON.stringify({ error: "Invalid concurrency pack" }), {
+          status: 400,
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+
+      const { periodStart, periodEnd } = await resolveConcurrencyEntitlementWindow(
+        supabaseClient,
+        user.id,
+      );
+
+      displayName = pack.name;
+      priceUsd = Number(pack.price_usd || 0);
+      paymentCycle = "one_time";
+      authoritativeMetadata = {
+        purchase_type: "concurrency_pack",
+        sku: pack.sku,
+        pack_name: pack.name,
+        parallel_slots: Number(pack.parallel_slots || 0),
+        description: pack.description,
+        feature_key: "auto_apply_concurrency",
+        currency: pack.currency || "USD",
+        period_start: periodStart,
+        period_end: periodEnd,
       };
     } else {
       return new Response(JSON.stringify({ error: "Unsupported purchase type" }), {

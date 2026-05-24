@@ -30,10 +30,15 @@ import {
   Loader2,
   Receipt,
   Percent,
+  Rocket,
+  Gauge,
+  Layers3,
+  Clock3,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/toast";
 import {
+  BILLING_CONCURRENCY_PACK_DEFINITIONS,
   BILLING_CREDIT_PACK_DEFINITIONS,
   BILLING_PLAN_DEFINITIONS,
 } from "@/lib/billingCatalog";
@@ -52,6 +57,7 @@ interface SubscriptionPlan {
   price: number;
   credits_per_month: number;
   auto_apply_monthly_limit?: number;
+  auto_apply_concurrency?: number;
   description: string;
   features: Array<
     | string
@@ -83,6 +89,15 @@ interface CreditPack {
   is_popular?: boolean;
 }
 
+interface ConcurrencyPack {
+  sku: string;
+  name: string;
+  description: string;
+  parallel_slots: number;
+  price_usd: number;
+  is_popular?: boolean;
+}
+
 const defaultCreditPacks: CreditPack[] = BILLING_CREDIT_PACK_DEFINITIONS.map(
   (pack) => ({
     sku: pack.sku,
@@ -102,10 +117,21 @@ const defaultPlans: SubscriptionPlan[] = BILLING_PLAN_DEFINITIONS.map(
     price: plan.monthlyPriceUsd,
     credits_per_month: plan.creditsPerMonth,
     auto_apply_monthly_limit: plan.autoApplyRunsPerMonth,
+    auto_apply_concurrency: plan.autoApplyConcurrency,
     description: plan.description,
     features: plan.marketingFeatures,
   }),
 );
+
+const defaultConcurrencyPacks: ConcurrencyPack[] =
+  BILLING_CONCURRENCY_PACK_DEFINITIONS.map((pack) => ({
+    sku: pack.sku,
+    name: pack.name,
+    description: pack.description,
+    parallel_slots: pack.parallelSlots,
+    price_usd: pack.priceUsd,
+    is_popular: pack.isPopular,
+  }));
 
 type BillingInterval = "monthly" | "quarterly" | "yearly";
 
@@ -436,6 +462,9 @@ export const BillingPage = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [creditPacks, setCreditPacks] =
     useState<CreditPack[]>(defaultCreditPacks);
+  const [concurrencyPacks, setConcurrencyPacks] = useState<ConcurrencyPack[]>(
+    defaultConcurrencyPacks,
+  );
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [creditCosts, setCreditCosts] = useState<
     Array<{
@@ -450,6 +479,11 @@ export const BillingPage = () => {
     "subscription" | "packs" | "costs" | "history"
   >("subscription");
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [activeAutoApplyRuns, setActiveAutoApplyRuns] = useState(0);
+  const [boostedConcurrencySlots, setBoostedConcurrencySlots] = useState(0);
+  const [selectedConcurrencyPackSku, setSelectedConcurrencyPackSku] = useState<
+    string | null
+  >(defaultConcurrencyPacks.find((pack) => pack.is_popular)?.sku ?? defaultConcurrencyPacks[0]?.sku ?? null);
   /** Billing cadence toggle (quarterly applies to Pro & Ultimate only at checkout). */
   const [billingInterval, setBillingInterval] =
     useState<BillingInterval>("monthly");
@@ -487,6 +521,23 @@ export const BillingPage = () => {
     const stacked = b.monthlyPriceUsd * 12;
     return Math.round(((stacked - b.yearlyPriceUsd) / stacked) * 100);
   }, []);
+
+  const baseConcurrencySlots = useMemo(() => {
+    return (
+      BILLING_PLAN_DEFINITIONS.find((plan) => plan.name === subscriptionTier)
+        ?.autoApplyConcurrency ?? 1
+    );
+  }, [subscriptionTier]);
+
+  const totalConcurrencySlots = baseConcurrencySlots + boostedConcurrencySlots;
+
+  const selectedConcurrencyPack = useMemo(
+    () =>
+      concurrencyPacks.find((pack) => pack.sku === selectedConcurrencyPackSku) ??
+      concurrencyPacks[0] ??
+      null,
+    [concurrencyPacks, selectedConcurrencyPackSku],
+  );
 
   useEffect(() => {
     fetchBillingData();
@@ -578,6 +629,9 @@ export const BillingPage = () => {
       if (!userId) {
         setPlans(defaultPlans);
         setCreditPacks(defaultCreditPacks);
+        setConcurrencyPacks(defaultConcurrencyPacks);
+        setBoostedConcurrencySlots(0);
+        setActiveAutoApplyRuns(0);
         setBillingInterval("monthly");
         setCancelAtPeriodEnd(false);
         setActiveSubscriptionBillingCycle(null);
@@ -725,6 +779,55 @@ export const BillingPage = () => {
         setCreditPacks(defaultCreditPacks);
       }
 
+      const { data: concurrencyPackData } = await supabase
+        .from("concurrency_pack_catalog")
+        .select("sku, name, description, parallel_slots, price_usd, is_popular")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
+
+      if (concurrencyPackData && concurrencyPackData.length > 0) {
+        setConcurrencyPacks(concurrencyPackData as ConcurrencyPack[]);
+        setSelectedConcurrencyPackSku((current) => {
+          if (
+            current &&
+            concurrencyPackData.some((pack) => pack.sku === current)
+          ) {
+            return current;
+          }
+          const popular = concurrencyPackData.find((pack) => pack.is_popular);
+          return popular?.sku ?? concurrencyPackData[0]?.sku ?? null;
+        });
+      } else {
+        setConcurrencyPacks(defaultConcurrencyPacks);
+      }
+
+      const nowIso = new Date().toISOString();
+      const [{ data: concurrencyQuotaRows }, { count: queuedRunsCount }] =
+        await Promise.all([
+          supabase
+            .from("user_feature_quotas")
+            .select("included_quantity")
+            .eq("user_id", userId)
+            .eq("feature_key", "auto_apply_concurrency")
+            .eq("source", "addon")
+            .lte("period_start", nowIso)
+            .gt("period_end", nowIso),
+          supabase
+            .from("applications")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId)
+            .eq("canonical_stage", "queued"),
+        ]);
+
+      const boostSlots = Array.isArray(concurrencyQuotaRows)
+        ? concurrencyQuotaRows.reduce(
+            (sum, row) => sum + Math.max(0, Number(row.included_quantity || 0)),
+            0,
+          )
+        : 0;
+      setBoostedConcurrencySlots(boostSlots);
+      setActiveAutoApplyRuns(typeof queuedRunsCount === "number" ? queuedRunsCount : 0);
+
       // Fetch credit costs
       const { data: costsData } = await supabase
         .from("credit_costs")
@@ -756,13 +859,14 @@ export const BillingPage = () => {
       // Fallback to defaults on error
       setPlans(defaultPlans);
       setCreditPacks(defaultCreditPacks);
+      setConcurrencyPacks(defaultConcurrencyPacks);
     } finally {
       setLoading(false);
     }
   };
 
   const handlePayment = async (
-    type: "subscription" | "credit_pack",
+    type: "subscription" | "credit_pack" | "concurrency_pack",
     item: any,
   ) => {
     try {
@@ -782,12 +886,15 @@ export const BillingPage = () => {
 
       let payload: Record<string, unknown>;
       let analyticsProperties: Record<string, unknown>;
-      if (type === "credit_pack") {
+      if (type === "credit_pack" || type === "concurrency_pack") {
         payload = { purchaseType: type, packSku: item.sku };
         analyticsProperties = {
           purchase_type: type,
           pack_sku: item.sku,
           pack_name: item.name,
+          ...(type === "concurrency_pack"
+            ? { parallel_slots: item.parallel_slots }
+            : {}),
         };
       } else {
         const planId = await resolveSubscriptionPlanUuidForCheckout(supabase, {
@@ -845,6 +952,11 @@ export const BillingPage = () => {
         if (type === "subscription") {
           captureClientEvent("subscription_started", analyticsProperties);
           void captureServerEvent("subscription_started", analyticsProperties);
+        } else if (type === "concurrency_pack") {
+          captureClientEvent(
+            "auto_apply_concurrency_checkout_started",
+            analyticsProperties,
+          );
         } else {
           captureClientEvent("credit_pack_checkout_started", analyticsProperties);
         }
@@ -1733,13 +1845,206 @@ export const BillingPage = () => {
               transition={{ duration: 0.3 }}
               className='space-y-12'
             >
+              <section className='relative overflow-hidden rounded-[2rem] border border-brand/20 bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.14),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] p-6 sm:p-8 lg:p-10'>
+                <div className='absolute inset-0 bg-[linear-gradient(135deg,rgba(29,255,0,0.05),transparent_36%,rgba(255,255,255,0.04))]' />
+                <div className='relative space-y-8'>
+                  <div className='max-w-3xl'>
+                    <div className='mb-4 inline-flex items-center gap-2 rounded-full border border-brand/25 bg-brand/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-brand'>
+                      <Rocket className='h-3.5 w-3.5' />
+                      Parallel Auto-Apply Boost
+                    </div>
+                    <h2 className='text-3xl font-black uppercase leading-[0.95] text-foreground sm:text-4xl lg:text-5xl'>
+                      Run more applications in parallel without changing your main plan
+                    </h2>
+                    <p className='mt-4 max-w-2xl text-sm leading-7 text-gray-300 sm:text-base'>
+                      Your subscription sets the baseline concurrency. Boost packs
+                      stack on top for the current billing period so you can launch
+                      more auto-apply workflows at the same time when search volume
+                      spikes.
+                    </p>
+                  </div>
+
+                  <div className='grid gap-4 lg:grid-cols-[1.2fr_0.8fr]'>
+                    <div className='rounded-[1.75rem] border border-white/8 bg-black/35 p-5 sm:p-6'>
+                      <p className='text-sm font-semibold text-gray-300'>
+                        Current parallel capacity
+                      </p>
+                      <div className='mt-5 grid gap-3 sm:grid-cols-3'>
+                        <div className='rounded-2xl border border-white/6 bg-white/[0.04] p-4'>
+                          <p className='text-xs uppercase tracking-[0.22em] text-gray-500'>
+                            Active now
+                          </p>
+                          <p className='mt-3 text-3xl font-bold text-foreground'>
+                            {activeAutoApplyRuns}/{totalConcurrencySlots}
+                          </p>
+                          <p className='mt-1 text-sm text-gray-400'>
+                            queued auto-apply workflows
+                          </p>
+                        </div>
+                        <div className='rounded-2xl border border-white/6 bg-white/[0.04] p-4'>
+                          <p className='text-xs uppercase tracking-[0.22em] text-gray-500'>
+                            From {subscriptionTier}
+                          </p>
+                          <p className='mt-3 text-3xl font-bold text-foreground'>
+                            {baseConcurrencySlots}
+                          </p>
+                          <p className='mt-1 text-sm text-gray-400'>
+                            included parallel slots
+                          </p>
+                        </div>
+                        <div className='rounded-2xl border border-brand/20 bg-brand/10 p-4'>
+                          <p className='text-xs uppercase tracking-[0.22em] text-brand/80'>
+                            Purchased boost
+                          </p>
+                          <p className='mt-3 text-3xl font-bold text-brand'>
+                            +{boostedConcurrencySlots}
+                          </p>
+                          <p className='mt-1 text-sm text-brand/80'>
+                            active this billing period
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className='mt-5 flex flex-wrap gap-3 text-sm text-gray-300'>
+                        <span className='inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.04] px-3 py-2'>
+                          <Gauge className='h-4 w-4 text-brand' />
+                          Faster automation bursts
+                        </span>
+                        <span className='inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.04] px-3 py-2'>
+                          <Layers3 className='h-4 w-4 text-brand' />
+                          Stacks with paid plans
+                        </span>
+                        <span className='inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.04] px-3 py-2'>
+                          <Clock3 className='h-4 w-4 text-brand' />
+                          Valid through your current billing window
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className='rounded-[1.75rem] border border-white/8 bg-black/35 p-5 sm:p-6'>
+                      <p className='text-sm font-semibold text-gray-300'>
+                        How it works
+                      </p>
+                      <div className='mt-4 space-y-3'>
+                        {[
+                          "Your plan includes a base number of parallel auto-apply runs.",
+                          "Buying a boost increases that cap immediately after payment is verified.",
+                          "Boosted slots are applied only to the current billing period, keeping limits tied to subscription value.",
+                        ].map((item) => (
+                          <div
+                            key={item}
+                            className='flex gap-3 rounded-2xl border border-white/6 bg-white/[0.04] p-3.5'
+                          >
+                            <div className='mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand/15 text-brand'>
+                              <Check className='h-3.5 w-3.5' />
+                            </div>
+                            <p className='text-sm leading-6 text-gray-300'>{item}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
+                    {concurrencyPacks.map((pack) => {
+                      const isSelected = selectedConcurrencyPack?.sku === pack.sku;
+                      return (
+                        <button
+                          key={pack.sku}
+                          type='button'
+                          onClick={() => setSelectedConcurrencyPackSku(pack.sku)}
+                          className={`group rounded-[1.6rem] border p-5 text-left transition-all duration-300 ${
+                            isSelected
+                              ? "border-brand bg-brand/10 shadow-[0_0_28px_rgba(29,255,0,0.18)]"
+                              : "border-white/8 bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.05]"
+                          }`}
+                        >
+                          <div className='flex items-start justify-between gap-3'>
+                            <div>
+                              <p className='text-lg font-bold text-foreground'>
+                                +{pack.parallel_slots} parallel
+                              </p>
+                              <p className='mt-1 text-sm text-gray-400'>{pack.name}</p>
+                            </div>
+                            {pack.is_popular ? (
+                              <span className='rounded-full border border-brand/25 bg-brand/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-brand'>
+                                Popular
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className='mt-4 min-h-[48px] text-sm leading-6 text-gray-400'>
+                            {pack.description}
+                          </p>
+                          <div className='mt-5 flex items-end justify-between gap-3'>
+                            <div>
+                              <p className='text-3xl font-bold text-foreground'>
+                                ${pack.price_usd}
+                              </p>
+                              <p className='text-xs uppercase tracking-[0.18em] text-gray-500'>
+                                current billing period
+                              </p>
+                            </div>
+                            <div
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                isSelected
+                                  ? "bg-brand text-background"
+                                  : "bg-white/[0.08] text-gray-300"
+                              }`}
+                            >
+                              {isSelected ? "Selected" : "Select"}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedConcurrencyPack ? (
+                    <div className='flex flex-col gap-4 rounded-[1.75rem] border border-brand/20 bg-black/35 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6'>
+                      <div>
+                        <p className='text-sm uppercase tracking-[0.22em] text-brand/80'>
+                          Selected boost
+                        </p>
+                        <p className='mt-2 text-2xl font-bold text-foreground'>
+                          {selectedConcurrencyPack.name} adds +
+                          {selectedConcurrencyPack.parallel_slots} parallel auto-apply
+                          slot
+                          {selectedConcurrencyPack.parallel_slots === 1 ? "" : "s"}
+                        </p>
+                        <p className='mt-2 text-sm leading-6 text-gray-400'>
+                          Your live capacity would move from {baseConcurrencySlots}
+                          {" "}to{" "}
+                          {baseConcurrencySlots +
+                            boostedConcurrencySlots +
+                            selectedConcurrencyPack.parallel_slots}{" "}
+                          total parallel runs after payment is applied.
+                        </p>
+                      </div>
+                      <Button
+                        className='h-14 min-w-[220px] rounded-full bg-brand px-8 text-base font-bold text-background shadow-[0_0_32px_rgba(29,255,0,0.28)] hover:bg-brand hover:brightness-110'
+                        disabled={processingPayment}
+                        onClick={() =>
+                          handlePayment("concurrency_pack", selectedConcurrencyPack)
+                        }
+                      >
+                        {processingPayment ? (
+                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                        ) : null}
+                        Buy for ${selectedConcurrencyPack.price_usd}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+
               <div className='text-center'>
                 <h2 className='text-3xl font-bold text-foreground mb-3'>
                   One-Time Credit Packs
                 </h2>
                 <p className='text-gray-400'>
-                  These packs top up search, evaluation, and drafting.
-                  Auto-apply capacity comes from your subscription plan.
+                  These packs top up search, evaluation, and drafting. Concurrency
+                  boosts above increase how many auto-apply workflows can run in
+                  parallel.
                 </p>
               </div>
 

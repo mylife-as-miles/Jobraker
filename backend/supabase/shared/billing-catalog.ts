@@ -9,6 +9,7 @@ export interface SharedSubscriptionPlanDefinition {
   yearlyPriceUsd: number;
   creditsPerMonth: number;
   autoApplyRunsPerMonth: number;
+  autoApplyConcurrency: number;
   description: string;
   marketingFeatures: string[];
   isPopular: boolean;
@@ -24,6 +25,15 @@ export interface SharedCreditPackDefinition {
   isPopular: boolean;
 }
 
+export interface SharedConcurrencyPackDefinition {
+  sku: string;
+  name: string;
+  description: string;
+  priceUsd: number;
+  parallelSlots: number;
+  isPopular: boolean;
+}
+
 export const DEFAULT_PAYSTACK_USD_TO_NGN_RATE = 1500;
 
 export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
@@ -34,6 +44,7 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     yearlyPriceUsd: 0,
     creditsPerMonth: 10,
     autoApplyRunsPerMonth: 2,
+    autoApplyConcurrency: 1,
     description:
       "Explore the core workflow, build your profile, and test governed automation with light monthly usage.",
     isPopular: false,
@@ -53,6 +64,7 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     yearlyPriceUsd: 182,
     creditsPerMonth: 250,
     autoApplyRunsPerMonth: 15,
+    autoApplyConcurrency: 2,
     description: "Turn an active search into a repeatable workflow with stronger drafts and governed automation.",
     isPopular: false,
     marketingFeatures: [
@@ -74,6 +86,7 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     yearlyPriceUsd: 496,
     creditsPerMonth: 1200,
     autoApplyRunsPerMonth: 50,
+    autoApplyConcurrency: 4,
     description: "Move faster across more opportunities with deeper personalization and higher automation capacity.",
     isPopular: true,
     marketingFeatures: [
@@ -95,6 +108,7 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     yearlyPriceUsd: 1252,
     creditsPerMonth: 3500,
     autoApplyRunsPerMonth: 150,
+    autoApplyConcurrency: 8,
     description: "Run a high-volume search with the capacity, support, and intelligence serious pipelines need.",
     isPopular: false,
     marketingFeatures: [
@@ -148,8 +162,46 @@ export const SHARED_CREDIT_PACKS: SharedCreditPackDefinition[] = [
   },
 ];
 
+export const SHARED_CONCURRENCY_PACKS: SharedConcurrencyPackDefinition[] = [
+  {
+    sku: "parallel_1",
+    name: "Starter Boost",
+    description: "Add 1 extra parallel auto-apply slot for the current billing period.",
+    priceUsd: 19,
+    parallelSlots: 1,
+    isPopular: false,
+  },
+  {
+    sku: "parallel_2",
+    name: "Momentum Boost",
+    description: "Add 2 extra parallel auto-apply slots for the current billing period.",
+    priceUsd: 35,
+    parallelSlots: 2,
+    isPopular: true,
+  },
+  {
+    sku: "parallel_4",
+    name: "Scale Boost",
+    description: "Add 4 extra parallel auto-apply slots for the current billing period.",
+    priceUsd: 59,
+    parallelSlots: 4,
+    isPopular: false,
+  },
+  {
+    sku: "parallel_8",
+    name: "Sprint Boost",
+    description: "Add 8 extra parallel auto-apply slots for the current billing period.",
+    priceUsd: 99,
+    parallelSlots: 8,
+    isPopular: false,
+  },
+];
+
 export const findSharedPlanByName = (name?: string | null) =>
   SHARED_SUBSCRIPTION_PLANS.find((plan) => plan.name === name);
 
 export const findSharedCreditPackBySku = (sku?: string | null) =>
   SHARED_CREDIT_PACKS.find((pack) => pack.sku === sku);
+
+export const findSharedConcurrencyPackBySku = (sku?: string | null) =>
+  SHARED_CONCURRENCY_PACKS.find((pack) => pack.sku === sku);

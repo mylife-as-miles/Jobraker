@@ -1,7 +1,7 @@
 type OrderRow = {
   id: string;
   user_id: string;
-  plan_type: "credit_pack" | "subscription";
+  plan_type: "credit_pack" | "subscription" | "concurrency_pack";
   total_amount: number;
   currency: string | null;
   metadata: Record<string, unknown> | null;
@@ -76,6 +76,28 @@ async function hasCreditTransaction(
 
 function creditReferenceTypeForOrder(order: OrderRow) {
   return order.plan_type === "subscription" ? "subscription" : "order";
+}
+
+async function hasConcurrencyProvision(
+  supabaseAdmin: any,
+  userId: string,
+  orderId: string,
+) {
+  const { data, error } = await supabaseAdmin
+    .from("user_feature_quotas")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("feature_key", "auto_apply_concurrency")
+    .eq("source", "addon")
+    .contains("metadata", { order_ids: [orderId] })
+    .limit(1);
+
+  if (error) {
+    console.error("Failed to check concurrency entitlement idempotency:", error);
+    return false;
+  }
+
+  return Boolean(data?.length);
 }
 
 function sleep(ms: number) {
@@ -432,6 +454,109 @@ export async function fulfillVerifiedPaystackPayment({
       status: "fulfilled",
       orderId: order.id,
       newBalance: Number(rpcResult?.new_balance),
+    };
+  }
+
+  if (order.plan_type === "concurrency_pack") {
+    if (await hasConcurrencyProvision(supabaseAdmin, userId, order.id)) {
+      return { ok: true, status: "already_fulfilled", orderId: order.id };
+    }
+
+    const parallelSlots = Number(metadata.parallel_slots || 0);
+    const periodStart =
+      typeof metadata.period_start === "string"
+        ? metadata.period_start
+        : new Date().toISOString();
+    const periodEnd =
+      typeof metadata.period_end === "string"
+        ? metadata.period_end
+        : addBillingCycle(new Date(), "monthly").toISOString();
+
+    if (parallelSlots <= 0) {
+      return {
+        ok: false,
+        status: "invalid_order",
+        orderId: order.id,
+        message: "Concurrency pack order has no parallel slots to add",
+      };
+    }
+
+    const { data: existingQuota, error: quotaLookupError } = await supabaseAdmin
+      .from("user_feature_quotas")
+      .select("id, included_quantity, metadata")
+      .eq("user_id", userId)
+      .eq("feature_key", "auto_apply_concurrency")
+      .eq("source", "addon")
+      .eq("period_start", periodStart)
+      .eq("period_end", periodEnd)
+      .maybeSingle();
+
+    if (quotaLookupError) {
+      console.error("Failed to look up concurrency entitlement:", quotaLookupError);
+      return {
+        ok: false,
+        status: "quota_failed",
+        orderId: order.id,
+        message: "Could not look up concurrency entitlement",
+      };
+    }
+
+    const existingMetadata =
+      existingQuota?.metadata && typeof existingQuota.metadata === "object"
+        ? (existingQuota.metadata as Record<string, unknown>)
+        : {};
+    const existingOrderIds = Array.isArray(existingMetadata.order_ids)
+      ? existingMetadata.order_ids
+          .map((value) => String(value))
+          .filter(Boolean)
+      : [];
+
+    if (existingOrderIds.includes(order.id)) {
+      return { ok: true, status: "already_fulfilled", orderId: order.id };
+    }
+
+    const nextOrderIds = [...existingOrderIds, order.id];
+    const quotaPayload = {
+      user_id: userId,
+      feature_key: "auto_apply_concurrency",
+      source: "addon",
+      period_start: periodStart,
+      period_end: periodEnd,
+      included_quantity:
+        Math.max(0, Math.floor(Number(existingQuota?.included_quantity || 0))) +
+        parallelSlots,
+      used_quantity: 0,
+      updated_at: new Date().toISOString(),
+      metadata: {
+        ...existingMetadata,
+        order_ids: nextOrderIds,
+        last_order_id: order.id,
+        pack_name: metadata.pack_name,
+        sku: metadata.sku,
+      },
+    };
+
+    const quotaMutation = existingQuota?.id
+      ? await supabaseAdmin
+          .from("user_feature_quotas")
+          .update(quotaPayload)
+          .eq("id", existingQuota.id)
+      : await supabaseAdmin.from("user_feature_quotas").insert(quotaPayload);
+
+    if (quotaMutation.error) {
+      console.error("Failed to provision concurrency entitlement:", quotaMutation.error);
+      return {
+        ok: false,
+        status: "quota_failed",
+        orderId: order.id,
+        message: "Could not provision concurrency entitlement",
+      };
+    }
+
+    return {
+      ok: true,
+      status: "fulfilled",
+      orderId: order.id,
     };
   }
 
