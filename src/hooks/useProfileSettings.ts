@@ -49,6 +49,7 @@ export interface Profile {
   }> | null;
   referral_code?: string | null;
   referred_by_user_id?: string | null;
+  subscription_tier?: "Free" | "Basics" | "Pro" | "Ultimate" | null;
 }
 
 // Lightweight collection record types (duplicated from useProfileCollections to avoid coupling)

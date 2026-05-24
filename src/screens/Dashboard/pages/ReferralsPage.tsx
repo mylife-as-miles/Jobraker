@@ -22,6 +22,12 @@ import {
   Sparkle,
   Mail,
   ExternalLink,
+  Lock,
+  Trophy,
+  CheckCircle2,
+  ArrowRight,
+  Coins,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -49,6 +55,8 @@ import {
   useReferrals,
   type ReferralRow,
   type ReferralFunnelStage,
+  type ReferralSuggestion,
+  type LinkedInConnection,
 } from "@/hooks/useReferrals";
 
 const LINKEDIN_DATA_EXPORT_URL =
@@ -558,6 +566,339 @@ const FUNNEL_STAGES = [
 type FunnelStageId = ReferralFunnelStage;
 type ReferralTimeframe = "1d" | "3d" | "7d" | "all";
 
+function PremiumLockOverlay({
+  title,
+  requiredTier,
+  referralsNeeded,
+  currentReferrals,
+  onUpgrade,
+}: {
+  title: string;
+  requiredTier: string;
+  referralsNeeded: number;
+  currentReferrals: number;
+  onUpgrade: () => void;
+}) {
+  return (
+    <div className='absolute inset-0 z-20 bg-background/95 backdrop-blur-md rounded-xl flex flex-col items-center justify-center p-4 text-center border border-border/40 select-none'>
+      <div className='w-10 h-10 rounded-full bg-brand/10 border border-brand/35 flex items-center justify-center mb-2.5 animate-pulse'>
+        <Lock className='w-4.5 h-4.5 text-brand' />
+      </div>
+      <h4 className='font-semibold text-foreground text-sm tracking-tight'>{title}</h4>
+      <p className='text-[11px] text-muted-foreground mt-1 max-w-[200px] leading-normal'>
+        This feature requires a <span className='text-brand font-semibold'>{requiredTier}</span> subscription or <span className='text-foreground font-semibold'>{referralsNeeded} active referrals</span>.
+      </p>
+      <div className='mt-3.5 flex flex-col gap-1.5 w-full max-w-[170px]'>
+        <Button
+          type='button'
+          size='sm'
+          className='w-full bg-brand text-black hover:bg-brand/90 text-[11px] py-1 h-7.5 font-bold rounded-lg shadow-[0_0_12px_rgba(29,255,0,0.25)]'
+          onClick={onUpgrade}
+        >
+          Upgrade to {requiredTier}
+        </Button>
+        <div className='text-[9px] text-muted-foreground font-medium'>
+          Progress: {currentReferrals}/{referralsNeeded} referrals
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MatchSuggestionsSection({
+  suggestions,
+  onCopyLink,
+  onEmailInvite,
+}: {
+  suggestions: ReferralSuggestion[];
+  onCopyLink: (sug: ReferralSuggestion) => void;
+  onEmailInvite: (sug: ReferralSuggestion) => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [minScore, setMinScore] = useState(45);
+
+  const filtered = useMemo(() => {
+    return suggestions.filter((s) => {
+      const connName = `${s.connection?.first_name || ""} ${s.connection?.last_name || ""}`.toLowerCase();
+      const jobTitle = (s.job?.title || "").toLowerCase();
+      const company = (s.job?.company || "").toLowerCase();
+      const matchText =
+        connName.includes(searchQuery.toLowerCase()) ||
+        jobTitle.includes(searchQuery.toLowerCase()) ||
+        company.includes(searchQuery.toLowerCase());
+      return matchText && s.fit_score >= minScore;
+    });
+  }, [suggestions, searchQuery, minScore]);
+
+  return (
+    <div className='mt-8 space-y-4'>
+      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
+        <div>
+          <h3 className='text-base font-bold text-foreground flex items-center gap-2'>
+            <Sparkles className='w-4.5 h-4.5 text-brand' />
+            AI Network Matches
+          </h3>
+          <p className='text-xs text-muted-foreground mt-0.5'>
+            LinkedIn connections matched to saved job postings on your board.
+          </p>
+        </div>
+
+        <div className='flex flex-wrap items-center gap-2'>
+          <div className='relative w-48'>
+            <Search className='absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground' />
+            <input
+              type='search'
+              placeholder='Search matches...'
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className='product-input-surface w-full rounded-lg pl-8 pr-2.5 py-1 text-xs h-8 border border-border/40 bg-card/50'
+            />
+          </div>
+          <div className='flex rounded-lg border border-border/40 p-0.5 bg-card/30'>
+            {[
+              { label: "All (>45%)", value: 45 },
+              { label: "Good (>65%)", value: 65 },
+              { label: "High (>80%)", value: 80 },
+            ].map((t) => (
+              <button
+                key={t.value}
+                type='button'
+                onClick={() => setMinScore(t.value)}
+                className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${
+                  minScore === t.value
+                    ? "bg-brand/20 text-brand border border-brand/35"
+                    : "text-foreground/55 hover:text-foreground/90"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card className='p-8 text-center border-dashed border-border/40 bg-card/20'>
+          <Sparkle className='w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-55' />
+          <p className='text-xs text-muted-foreground'>No matches found. Try widening your search or fit filter.</p>
+        </Card>
+      ) : (
+        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+          {filtered.map((sug) => {
+            const connName =
+              `${sug.connection?.first_name || ""} ${sug.connection?.last_name || ""}`.trim() ||
+              "Someone in your network";
+            const scoreColor =
+              sug.fit_score >= 80
+                ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/10"
+                : sug.fit_score >= 65
+                  ? "text-brand border-brand/20 bg-brand/10"
+                  : "text-amber-500 border-amber-500/20 bg-amber-500/10";
+            return (
+              <Card
+                key={sug.id}
+                className='p-5 border border-border/40 bg-card/65 relative overflow-hidden group hover:border-brand/40 transition-all duration-300'
+              >
+                <div className='absolute top-4 right-4 flex items-center justify-center'>
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-bold ${scoreColor}`}
+                  >
+                    {sug.fit_score}% Match
+                  </span>
+                </div>
+
+                <div className='space-y-3'>
+                  <div>
+                    <h4 className='font-bold text-sm text-foreground leading-tight group-hover:text-brand transition-colors'>
+                      {connName}
+                    </h4>
+                    <p className='text-xs text-muted-foreground mt-0.5'>
+                      {[sug.connection?.position, sug.connection?.company]
+                        .filter(Boolean)
+                        .join(" at ")}
+                    </p>
+                  </div>
+
+                  <div className='rounded-lg bg-background/50 border border-border/30 p-2.5'>
+                    <div className='text-[10px] text-muted-foreground font-semibold uppercase tracking-wider'>
+                      Matched Role
+                    </div>
+                    <div className='text-xs font-semibold text-foreground mt-0.5'>
+                      {sug.job?.title}
+                    </div>
+                    <div className='text-[11px] text-muted-foreground'>
+                      {sug.job?.company}{" "}
+                      {sug.job?.location ? `· ${sug.job?.location}` : ""}
+                    </div>
+                  </div>
+
+                  <p className='text-xs text-foreground/80 leading-normal italic bg-brand/5 border-l-2 border-brand/50 pl-2.5 py-1'>
+                    &ldquo;{sug.rationale}&rdquo;
+                  </p>
+
+                  <div className='flex gap-2 pt-1 border-t border-border/30 mt-2'>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      className='text-[10px] h-8 justify-center flex-1 border-border/40 hover:bg-foreground/5 hover:text-foreground'
+                      onClick={() => onCopyLink(sug)}
+                    >
+                      <Link2 className='w-3.5 h-3.5 mr-1.5' />
+                      Copy Referral Msg
+                    </Button>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      className='text-[10px] h-8 justify-center flex-1 border-border/40 hover:bg-foreground/5 hover:text-foreground'
+                      onClick={() => onEmailInvite(sug)}
+                    >
+                      <Mail className='w-3.5 h-3.5 mr-1.5' />
+                      Quick Invite Email
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConnectionsListSection({
+  connections,
+}: {
+  connections: LinkedInConnection[];
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const filtered = useMemo(() => {
+    return connections.filter((c) => {
+      const connName = `${c.first_name || ""} ${c.last_name || ""}`.toLowerCase();
+      const position = (c.position || "").toLowerCase();
+      const company = (c.company || "").toLowerCase();
+      const matchText =
+        connName.includes(searchQuery.toLowerCase()) ||
+        position.includes(searchQuery.toLowerCase()) ||
+        company.includes(searchQuery.toLowerCase());
+
+      if (statusFilter === "all") return matchText;
+      return matchText && c.agent_scan_status === statusFilter;
+    });
+  }, [connections, searchQuery, statusFilter]);
+
+  return (
+    <div className='mt-8 space-y-4'>
+      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
+        <div>
+          <h3 className='text-base font-bold text-foreground flex items-center gap-2'>
+            <Users className='w-4.5 h-4.5 text-brand/80' />
+            Imported Connections ({connections.length})
+          </h3>
+          <p className='text-xs text-muted-foreground mt-0.5'>
+            Private contacts parsed from your LinkedIn Connections.csv upload.
+          </p>
+        </div>
+
+        <div className='flex flex-wrap items-center gap-2'>
+          <div className='relative w-48'>
+            <Search className='absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground' />
+            <input
+              type='search'
+              placeholder='Search network...'
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className='product-input-surface w-full rounded-lg pl-8 pr-2.5 py-1 text-xs h-8 border border-border/40 bg-card/50'
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className='product-input-surface px-2.5 py-1 text-xs h-8 border border-border/40 bg-card/50 rounded-lg text-foreground/80 focus:outline-none'
+          >
+            <option value='all'>All Status</option>
+            <option value='pending'>Pending Scan</option>
+            <option value='complete'>Complete</option>
+            <option value='error'>Error</option>
+          </select>
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card className='p-8 text-center border-dashed border-border/40 bg-card/20'>
+          <p className='text-xs text-muted-foreground'>No contacts match your filters.</p>
+        </Card>
+      ) : (
+        <Card className='border border-border/40 bg-card/45 overflow-hidden'>
+          <div className='overflow-x-auto max-h-[400px] custom-scrollbar'>
+            <table className='w-full text-xs'>
+              <thead>
+                <tr className='border-b border-border/30 text-left text-muted-foreground uppercase tracking-wider font-semibold bg-background/30'>
+                  <th className='px-4 py-2.5'>Name</th>
+                  <th className='px-4 py-2.5'>Position / Title</th>
+                  <th className='px-4 py-2.5'>Company</th>
+                  <th className='px-4 py-2.5'>Connected On</th>
+                  <th className='px-4 py-2.5'>AI Scan Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((c) => {
+                  const statusColors =
+                    c.agent_scan_status === "complete"
+                      ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                      : c.agent_scan_status === "error"
+                        ? "bg-red-500/10 text-red-500 border-red-500/20"
+                        : "bg-muted text-muted-foreground border-border/30";
+                  return (
+                    <tr
+                      key={c.id}
+                      className='border-b border-border/20 hover:bg-foreground/[0.01]'
+                    >
+                      <td className='px-4 py-2.5 font-bold text-foreground'>
+                        {c.profile_url ? (
+                          <a
+                            href={c.profile_url}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className='hover:text-brand flex items-center gap-1'
+                          >
+                            {c.first_name} {c.last_name}
+                            <ExternalLink className='w-2.5 h-2.5 text-muted-foreground' />
+                          </a>
+                        ) : (
+                          `${c.first_name} ${c.last_name}`
+                        )}
+                      </td>
+                      <td className='px-4 py-2.5 text-foreground/80'>{c.position || "—"}</td>
+                      <td className='px-4 py-2.5 text-foreground/80'>{c.company || "—"}</td>
+                      <td className='px-4 py-2.5 text-muted-foreground'>
+                        {c.connected_on
+                          ? new Date(c.connected_on).toLocaleDateString()
+                          : "—"}
+                      </td>
+                      <td className='px-4 py-2.5'>
+                        <span
+                          className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium capitalize ${statusColors}`}
+                        >
+                          {c.agent_scan_status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 function MyReferralsPanel({
   onOpenFitCheck,
   onShareLink,
@@ -725,7 +1066,7 @@ function MyReferralsPanel({
             <SelectContent>
               <SelectGroup>
                 {FUNNEL_STAGES.map((s) => (
-                  <SelectItem key={s.id} value={s.label}>
+                  <SelectItem key={s.id} value={s.id}>
                     {s.label}
                   </SelectItem>
                 ))}
@@ -876,6 +1217,8 @@ export const ReferralsPage = (): JSX.Element => {
   const [replaceNetwork, setReplaceNetwork] = useState(true);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
+  const { profile } = useProfileSettings();
+
   const {
     loading,
     importing,
@@ -886,6 +1229,8 @@ export const ReferralsPage = (): JSX.Element => {
     suggestionCount,
     referralShareUrl,
     funnelCounts,
+    suggestions,
+    connections,
     refreshAll,
     importLinkedInCsv,
     runAgentScan,
@@ -932,6 +1277,87 @@ export const ReferralsPage = (): JSX.Element => {
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   }, [referralShareUrl, toastError]);
 
+  const copyCustomMsg = useCallback(
+    async (sug: ReferralSuggestion) => {
+      const link = referralShareUrl || "";
+      const connName =
+        `${sug.connection?.first_name || ""} ${sug.connection?.last_name || ""}`.trim();
+      const jobTitle = sug.job?.title || "";
+      const compName = sug.job?.company || "";
+      const score = sug.fit_score;
+      const msg = `Hey ${connName},\n\nI was looking at my career board on JobRaker and our AI matched your background to a ${jobTitle} role at ${compName} with a ${score}% match fit score.\n\nI wanted to share my referral link with you so you can sign up and see the match details:\n\n${link}\n\nHope this is helpful!\n`;
+
+      try {
+        await navigator.clipboard.writeText(msg);
+        success("Custom referral message copied");
+      } catch {
+        toastError("Copy failed", "Could not copy message.");
+      }
+    },
+    [referralShareUrl, success, toastError],
+  );
+
+  const emailCustomInvite = useCallback(
+    (sug: ReferralSuggestion) => {
+      const link = referralShareUrl || "";
+      const connName =
+        `${sug.connection?.first_name || ""} ${sug.connection?.last_name || ""}`.trim();
+      const jobTitle = sug.job?.title || "";
+      const compName = sug.job?.company || "";
+      const score = sug.fit_score;
+      const subject = encodeURIComponent(
+        `Career Match: ${jobTitle} at ${compName}`,
+      );
+      const body = encodeURIComponent(
+        `Hey ${connName},\n\nI was looking at my career board on JobRaker and our AI matched your background to a ${jobTitle} role at ${compName} with a ${score}% match fit score.\n\nI wanted to share my referral link with you so you can sign up and see the match details:\n\n${link}\n\nHope this is helpful!\n`,
+      );
+      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    },
+    [referralShareUrl],
+  );
+
+  const userTier = profile?.subscription_tier || "Free";
+  const referralCount = referrals.length;
+  // Free users can unlock import & match features if they bring in at least 2 active referrals!
+  const hasAccessToImportAndMatch =
+    userTier !== "Free" || referralCount >= 2;
+
+  // Gamification Milestone roadmap settings
+  const milestones = [
+    {
+      level: 1,
+      name: "Connector",
+      target: 1,
+      reward: "+50 Jobricon Credits",
+      desc: "1 friend signs up",
+    },
+    {
+      level: 2,
+      name: "Networker",
+      target: 3,
+      reward: "Connection Matching Unlocked",
+      desc: "3 friends sign up",
+    },
+    {
+      level: 3,
+      name: "Advocate",
+      target: 5,
+      reward: "1 Month Basics Plan OR +250 Credits",
+      desc: "5 friends sign up",
+    },
+    {
+      level: 4,
+      name: "Super Referrer",
+      target: 10,
+      reward: "20% Rev Share & Pro Trial",
+      desc: "10 friends sign up",
+    },
+  ];
+
+  const progressPercent = Math.min(100, (referralCount / 10) * 100);
+
+  const nextMilestone = milestones.find((m) => m.target > referralCount);
+
   return (
     <div className='product-page-shell min-h-screen'>
       <CheckCandidateFitModal
@@ -957,7 +1383,7 @@ export const ReferralsPage = (): JSX.Element => {
           <div className='min-w-0 flex-1'>
             <div className='flex items-center gap-2'>
               <h1 className='text-2xl sm:text-3xl font-bold text-foreground tracking-tight'>
-                Referrals
+                Referrals &amp; Milestones
               </h1>
               <button
                 type='button'
@@ -972,8 +1398,8 @@ export const ReferralsPage = (): JSX.Element => {
             <div className='mt-4 flex gap-6 border-b border-foreground/10'>
               {(
                 [
-                  { id: "connections" as const, label: "My connections" },
-                  { id: "referrals" as const, label: "My referrals" },
+                  { id: "connections" as const, label: "My Network & AI Match" },
+                  { id: "referrals" as const, label: "My referrals log" },
                 ] as const
               ).map((t) => (
                 <button
@@ -983,7 +1409,7 @@ export const ReferralsPage = (): JSX.Element => {
                   className={`pb-3 text-sm font-medium transition-colors relative ${
                     tab === t.id
                       ? "text-brand"
-                      : "text-foreground/50 hover:text-foreground/80"
+                      : "text-foreground/55 hover:text-foreground/85"
                   }`}
                 >
                   {t.label}
@@ -996,339 +1422,351 @@ export const ReferralsPage = (): JSX.Element => {
           </div>
 
           <div className='flex flex-col sm:items-end gap-3 shrink-0'>
-            <span className='inline-flex items-center rounded-full border border-foreground/15 bg-foreground/[0.04] px-3 py-1 text-xs font-medium product-helper-text'>
+            <span className='inline-flex items-center gap-1.5 rounded-full border border-foreground/15 bg-foreground/[0.04] px-3 py-1 text-xs font-medium product-helper-text'>
+              <Coins className='w-3.5 h-3.5 text-brand' />
               {stats?.referrals_today ?? 0} /{" "}
-              {stats?.referrals_today_cap ?? 100} signups via your link today
+              {stats?.referrals_today_cap ?? 100} signups today
             </span>
-            {tab === "connections" ? (
-              <>
-                <div className='flex flex-wrap gap-2 justify-end'>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type='button'
-                        variant='outline'
-                        size='sm'
-                        className='product-outline-button border-foreground/20'
-                      >
-                        <Share2 className='w-3.5 h-3.5 mr-1.5' />
-                        Share
-                        <ChevronDown className='w-3.5 h-3.5 ml-1 opacity-60' />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align='end'>
-                      <DropdownMenuItem onClick={() => void copyReferralLink()}>
-                        <Link2 className='w-4 h-4 mr-2' />
-                        Copy referral link
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={openEmailInvite}>
-                        <Mail className='w-4 h-4 mr-2' />
-                        Email invite…
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            <div className='flex flex-wrap gap-2 justify-end'>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button
                     type='button'
                     variant='outline'
                     size='sm'
                     className='product-outline-button border-foreground/20'
-                    onClick={() => setHelpOpen(true)}
                   >
-                    <HelpCircle className='w-3.5 h-3.5 mr-1.5' />
-                    Help
+                    <Share2 className='w-3.5 h-3.5 mr-1.5' />
+                    Share
+                    <ChevronDown className='w-3.5 h-3.5 ml-1 opacity-60' />
                   </Button>
-                  <Button
-                    type='button'
-                    size='sm'
-                    className='bg-brand text-black hover:bg-brand/90'
-                    onClick={() => setFitOpen(true)}
-                  >
-                    Check candidate fit
-                  </Button>
-                </div>
-                <div className='flex flex-wrap gap-x-2 gap-y-1 text-[11px] product-helper-text justify-end'>
-                  <button
-                    type='button'
-                    className='underline-offset-2 hover:underline text-brand/90'
-                    onClick={() => navigate("/dashboard/settings")}
-                  >
-                    Settings
-                  </button>
-                  <span className='text-foreground/20'>·</span>
-                  <button
-                    type='button'
-                    className='underline-offset-2 hover:underline text-brand/90'
-                    onClick={() => navigate("/dashboard/billing")}
-                  >
-                    Billing
-                  </button>
-                  <span className='text-foreground/20'>·</span>
-                  <button
-                    type='button'
-                    className='underline-offset-2 hover:underline text-brand/90'
-                    onClick={() => setWhatsNewOpen(true)}
-                  >
-                    What&apos;s new
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className='flex flex-wrap gap-2 justify-end'>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type='button'
-                        variant='outline'
-                        size='sm'
-                        className='product-outline-button border-foreground/20'
-                      >
-                        <Share2 className='w-3.5 h-3.5 mr-1.5' />
-                        Share
-                        <ChevronDown className='w-3.5 h-3.5 ml-1 opacity-60' />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align='end'>
-                      <DropdownMenuItem onClick={() => void copyReferralLink()}>
-                        <Link2 className='w-4 h-4 mr-2' />
-                        Copy referral link
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={openEmailInvite}>
-                        <Mail className='w-4 h-4 mr-2' />
-                        Email invite…
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Button
-                    type='button'
-                    variant='outline'
-                    size='sm'
-                    className='product-outline-button border-foreground/20'
-                    onClick={() => setHelpOpen(true)}
-                  >
-                    <HelpCircle className='w-3.5 h-3.5 mr-1.5' />
-                    Help
-                  </Button>
-                  <Button
-                    type='button'
-                    variant='outline'
-                    size='sm'
-                    className='product-outline-button border-foreground/20'
-                    onClick={() => navigate("/dashboard/billing")}
-                  >
-                    Billing &amp; payouts
-                  </Button>
-                  <Button
-                    type='button'
-                    size='sm'
-                    className='bg-brand text-black hover:bg-brand/90'
-                    onClick={() => setFitOpen(true)}
-                  >
-                    Check candidate fit
-                  </Button>
-                </div>
-                <div className='flex gap-2 text-[11px] product-helper-text justify-end'>
-                  <button
-                    type='button'
-                    className='underline-offset-2 hover:underline text-brand/90'
-                    onClick={() => navigate("/dashboard/settings")}
-                  >
-                    Settings
-                  </button>
-                  <span className='text-foreground/20'>·</span>
-                  <button
-                    type='button'
-                    className='underline-offset-2 hover:underline text-brand/90'
-                    onClick={() => setWhatsNewOpen(true)}
-                  >
-                    What&apos;s new
-                  </button>
-                </div>
-              </>
-            )}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align='end'>
+                  <DropdownMenuItem onClick={() => void copyReferralLink()}>
+                    <Link2 className='w-4 h-4 mr-2' />
+                    Copy referral link
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={openEmailInvite}>
+                    <Mail className='w-4 h-4 mr-2' />
+                    Email invite…
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                className='product-outline-button border-foreground/20'
+                onClick={() => setHelpOpen(true)}
+              >
+                <HelpCircle className='w-3.5 h-3.5 mr-1.5' />
+                Help
+              </Button>
+              <Button
+                type='button'
+                size='sm'
+                className='bg-brand text-black hover:bg-brand/90 font-bold'
+                onClick={() => setFitOpen(true)}
+              >
+                Check candidate fit
+              </Button>
+            </div>
           </div>
         </div>
 
-        {tab === "connections" ? (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45 }}
-          >
-            <p className='text-lg sm:text-xl font-semibold text-foreground max-w-3xl'>
-              Grow JobRaker with people you trust—and see when your invites
-              actually use the product.
-            </p>
-            <p className='mt-2 text-sm product-helper-text max-w-2xl'>
-              Import your LinkedIn connections export to match people you know
-              to roles already on your JobRaker board. Nothing is messaged
-              automatically; you stay in control of outreach.
-            </p>
-          </motion.div>
-        ) : null}
-
-        {tab === "connections" ? (
-          <div className='grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6'>
-            <Card className='product-section-card p-5 sm:p-6 hover:border-brand/50 transition-all duration-300 md:col-span-1'>
-              <input
-                ref={csvInputRef}
-                type='file'
-                accept='.csv,text/csv'
-                className='hidden'
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) {
-                    void importLinkedInCsv(f, {
-                      replace: replaceNetwork,
-                    }).catch((err) =>
-                      toastError(
-                        "Import failed",
-                        err instanceof Error
-                          ? err.message
-                          : "Could not import CSV",
-                      ),
-                    );
-                  }
-                  e.target.value = "";
-                }}
-              />
-              <div className='flex items-center justify-between mb-3'>
-                <h3 className='font-semibold text-foreground'>
-                  Upload connections
-                </h3>
-                <button
-                  type='button'
-                  className='rounded-full p-1 text-foreground/35 hover:text-brand hover:bg-brand/10 transition-colors'
-                  aria-label='Help with LinkedIn export'
-                  onClick={() => setHelpOpen(true)}
-                >
-                  <HelpCircle className='w-4 h-4' />
-                </button>
-              </div>
-              <p className='text-sm product-helper-text mb-4'>
-                Request your LinkedIn data archive, unzip it, and upload{" "}
-                <span className='text-foreground/90'>Connections.csv</span>{" "}
-                here. Rows are scoped to your JobRaker account only.
-              </p>
-              <label className='flex items-center gap-2 text-xs product-helper-text mb-3 cursor-pointer'>
-                <input
-                  type='checkbox'
-                  checked={replaceNetwork}
-                  onChange={(e) => setReplaceNetwork(e.target.checked)}
-                  className='accent-brand rounded'
-                />
-                Replace previous import (clear old connections)
-              </label>
-              <p className='text-[11px] product-helper-text mb-2'>
-                Saved contacts:{" "}
-                <span className='text-foreground font-medium'>
-                  {connectionCount}
-                </span>
-              </p>
-              <div className='flex flex-col gap-2'>
-                <Button
-                  type='button'
-                  variant='outline'
-                  className='product-outline-button border-foreground/20 justify-start'
-                  onClick={() =>
-                    window.open(
-                      LINKEDIN_DATA_EXPORT_URL,
-                      "_blank",
-                      "noopener,noreferrer",
-                    )
-                  }
-                >
-                  <Linkedin className='w-4 h-4 mr-2 text-[#0a66c2]' />
-                  Get LinkedIn export
-                </Button>
-                <Button
-                  type='button'
-                  disabled={importing}
-                  className='bg-brand text-black hover:bg-brand/90 justify-start'
-                  onClick={() => csvInputRef.current?.click()}
-                >
-                  {importing ? (
-                    <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                  ) : (
-                    <Upload className='w-4 h-4 mr-2' />
-                  )}
-                  {importing ? "Importing…" : "Upload connections"}
-                </Button>
-              </div>
-            </Card>
-
-            <Card className='product-section-card p-5 sm:p-6 hover:border-brand/50 transition-all duration-300'>
-              <div className='w-10 h-10 rounded-full bg-brand/15 border border-brand/30 flex items-center justify-center mb-4'>
-                <Sparkles className='w-5 h-5 text-brand' />
-              </div>
-              <h3 className='font-semibold text-foreground mb-2'>
-                Match network → job board
+        {/* Milestone Achievement Roadmap Card (Psychological Goal-Gradient Effect) */}
+        <Card className='product-section-card p-6 border border-border/40 bg-card/45 overflow-hidden relative shadow-lg'>
+          <div className='absolute top-0 right-0 w-64 h-64 bg-brand/5 rounded-full blur-3xl pointer-events-none' />
+          <div className='flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6'>
+            <div>
+              <h3 className='text-sm font-bold text-foreground flex items-center gap-2'>
+                <Trophy className='w-4.5 h-4.5 text-brand' />
+                Referral Perks Roadmap
               </h3>
-              <p className='text-sm product-helper-text mb-4'>
-                JobRaker compares imported contacts to jobs in your queue and
-                saves ranked suggestions you can act on. Requires Basics or
-                higher; uses the same jobs you track in the Jobs tab.
+              <p className='text-xs text-muted-foreground mt-0.5'>
+                Give friends **50 Jobricon credits** on signup and unlock premium platform access for yourself.
               </p>
-              <p className='text-xs product-helper-text flex items-center gap-1.5 mb-3'>
-                <Clock className='w-3.5 h-3.5 text-brand/70' />
-                {suggestionCount} saved suggestions
+            </div>
+            <div className='flex items-center gap-2 text-xs font-semibold text-foreground/80'>
+              <span>Referred Friends:</span>
+              <span className='inline-flex items-center justify-center w-6 h-6 rounded-full bg-brand/20 border border-brand/40 text-brand text-xs font-bold font-mono'>
+                {referralCount}
+              </span>
+            </div>
+          </div>
+
+          <div className='relative mt-6 mb-4 px-4'>
+            <div className='absolute top-4 left-0 right-0 h-1 bg-foreground/10 rounded-full' />
+            <div
+              className='absolute top-4 left-0 h-1 bg-brand rounded-full shadow-[0_0_8px_rgba(29,255,0,0.5)] transition-all duration-500 ease-out'
+              style={{ width: `${progressPercent}%` }}
+            />
+
+            <div className='relative flex justify-between'>
+              {milestones.map((m) => {
+                const isUnlocked = referralCount >= m.target;
+                return (
+                  <div
+                    key={m.level}
+                    className='flex flex-col items-center relative z-10'
+                  >
+                    <div
+                      className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all duration-300 ${
+                        isUnlocked
+                          ? "bg-brand border-brand text-black shadow-[0_0_12px_rgba(29,255,0,0.45)] font-bold"
+                          : "bg-background border-border text-muted-foreground"
+                      }`}
+                    >
+                      {isUnlocked ? (
+                        <CheckCircle2 className='w-5 h-5 text-black' />
+                      ) : (
+                        <span className='text-xs font-mono font-bold'>
+                          {m.target}
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold mt-2 ${isUnlocked ? "text-brand" : "text-muted-foreground"}`}
+                    >
+                      {m.name}
+                    </span>
+                    <span className='text-[9px] text-muted-foreground hidden sm:inline max-w-[90px] text-center mt-0.5 leading-tight font-medium'>
+                      {m.reward}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {nextMilestone ? (
+            <div className='mt-4 flex items-center gap-1.5 text-xs text-brand/90 font-medium pl-1 bg-brand/5 py-1.5 px-3 rounded-lg border-l-2 border-brand/65'>
+              <ArrowRight className='w-3.5 h-3.5 text-brand' />
+              <span>
+                You are {nextMilestone.target - referralCount} referral
+                {nextMilestone.target - referralCount > 1 ? "s" : ""} away from
+                unlocking **{nextMilestone.name}** ({nextMilestone.reward}).
+              </span>
+            </div>
+          ) : (
+            <div className='mt-4 flex items-center gap-1.5 text-xs text-brand/90 font-medium pl-1 bg-brand/5 py-1.5 px-3 rounded-lg border-l-2 border-brand/65'>
+              <CheckCircle2 className='w-3.5 h-3.5 text-brand' />
+              <span>You have unlocked all milestone levels! Ultimate rewards active.</span>
+            </div>
+          )}
+        </Card>
+
+        {tab === "connections" ? (
+          <div className='space-y-6'>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45 }}
+            >
+              <h2 className='text-lg font-semibold text-foreground'>
+                Scan LinkedIn Network &amp; AI-Match Roles
+              </h2>
+              <p className='mt-1 text-sm product-helper-text max-w-2xl'>
+                Privately analyze your connections against active roles on your JobRaker board.
+                Nothing is emailed or shared automatically; you stay fully in control.
               </p>
-              <Button
-                type='button'
-                disabled={agentRunning || connectionCount === 0}
-                title={
-                  connectionCount === 0
-                    ? "Upload Connections.csv first"
-                    : undefined
-                }
-                className='w-full bg-foreground/10 border border-brand/40 text-brand hover:bg-brand/10 disabled:opacity-50'
-                onClick={() => void runAgentScan()}
-              >
-                {agentRunning ? (
-                  <>
-                    <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                    Running match…
-                  </>
-                ) : (
-                  <>
-                    <Sparkle className='w-4 h-4 mr-2' />
-                    Run AI network match
-                  </>
+            </motion.div>
+
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+              {/* Card 1: Import */}
+              <Card className='product-section-card p-6 hover:border-brand/35 transition-all duration-300 md:col-span-1 relative overflow-hidden flex flex-col justify-between'>
+                {!hasAccessToImportAndMatch && (
+                  <PremiumLockOverlay
+                    title='LinkedIn Private Import'
+                    requiredTier='Basics'
+                    referralsNeeded={2}
+                    currentReferrals={referralCount}
+                    onUpgrade={() => navigate("/dashboard/billing")}
+                  />
                 )}
-              </Button>
-              {connectionCount === 0 ? (
-                <p className='text-[11px] product-helper-text mt-2'>
-                  Upload connections in the first card to enable matching.
-                </p>
-              ) : null}
-            </Card>
+                <div>
+                  <input
+                    ref={csvInputRef}
+                    type='file'
+                    accept='.csv,text/csv'
+                    className='hidden'
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) {
+                        void importLinkedInCsv(f, {
+                          replace: replaceNetwork,
+                        }).catch((err) =>
+                          toastError(
+                            "Import failed",
+                            err instanceof Error
+                              ? err.message
+                              : "Could not import CSV",
+                          ),
+                        );
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                  <div className='flex items-center justify-between mb-3'>
+                    <h3 className='font-semibold text-foreground text-sm'>
+                      Upload connections
+                    </h3>
+                    <button
+                      type='button'
+                      className='rounded-full p-1 text-foreground/35 hover:text-brand hover:bg-brand/10 transition-colors'
+                      aria-label='Help with LinkedIn export'
+                      onClick={() => setHelpOpen(true)}
+                    >
+                      <HelpCircle className='w-4 h-4' />
+                    </button>
+                  </div>
+                  <p className='text-xs product-helper-text mb-4 leading-normal'>
+                    Upload your unzipped LinkedIn{" "}
+                    <span className='text-foreground/95'>Connections.csv</span>.
+                    Records are private to your workspace and never shared.
+                  </p>
+                  <label className='flex items-center gap-2 text-[11px] product-helper-text mb-3 cursor-pointer select-none'>
+                    <input
+                      type='checkbox'
+                      checked={replaceNetwork}
+                      onChange={(e) => setReplaceNetwork(e.target.checked)}
+                      className='accent-brand rounded'
+                    />
+                    Replace previous import
+                  </label>
+                  <p className='text-[10px] product-helper-text mb-3 font-semibold'>
+                    Connections: <span className='text-foreground'>{connectionCount}</span>
+                  </p>
+                </div>
+                <div className='flex flex-col gap-2 mt-4'>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    className='product-outline-button border-foreground/20 justify-start text-xs'
+                    onClick={() =>
+                      window.open(
+                        LINKEDIN_DATA_EXPORT_URL,
+                        "_blank",
+                        "noopener,noreferrer",
+                      )
+                    }
+                  >
+                    <Linkedin className='w-3.5 h-3.5 mr-2 text-[#0a66c2]' />
+                    Get LinkedIn export
+                  </Button>
+                  <Button
+                    type='button'
+                    disabled={importing}
+                    size='sm'
+                    className='bg-brand text-black hover:bg-brand/90 justify-start text-xs font-bold shadow-md'
+                    onClick={() => csvInputRef.current?.click()}
+                  >
+                    {importing ? (
+                      <Loader2 className='w-3.5 h-3.5 mr-2 animate-spin' />
+                    ) : (
+                      <Upload className='w-3.5 h-3.5 mr-2' />
+                    )}
+                    {importing ? "Importing…" : "Upload connections"}
+                  </Button>
+                </div>
+              </Card>
 
-            <Card className='product-section-card p-5 sm:p-6 hover:border-brand/50 transition-all duration-300'>
-              <div className='w-10 h-10 rounded-full bg-brand/15 border border-brand/30 flex items-center justify-center mb-4'>
-                <Banknote className='w-5 h-5 text-brand' />
-              </div>
-              <h3 className='font-semibold text-foreground mb-2'>
-                Referral rewards
-              </h3>
-              <p className='text-sm product-helper-text mb-4'>
-                Qualifying invites can unlock revenue share (often up to 20% on
-                their spend) once they become paying JobRaker members. Exact
-                rates and eligibility are always shown in Billing.
-              </p>
-              <p className='text-xs product-helper-text flex items-center gap-1.5'>
-                <Clock className='w-3.5 h-3.5 text-brand/70' />
-                Tracked from signup through hired / paid milestones
-              </p>
-              <Button
-                type='button'
-                variant='ghost'
-                size='sm'
-                className='mt-3 px-0 text-brand hover:text-brand hover:bg-transparent'
-                onClick={() => navigate("/dashboard/billing")}
-              >
-                View billing &amp; payouts
-              </Button>
-            </Card>
+              {/* Card 2: Match Scan */}
+              <Card className='product-section-card p-6 hover:border-brand/35 transition-all duration-300 md:col-span-1 relative overflow-hidden flex flex-col justify-between'>
+                {!hasAccessToImportAndMatch && (
+                  <PremiumLockOverlay
+                    title='AI Network Matching'
+                    requiredTier='Basics'
+                    referralsNeeded={2}
+                    currentReferrals={referralCount}
+                    onUpgrade={() => navigate("/dashboard/billing")}
+                  />
+                )}
+                <div>
+                  <div className='w-9 h-9 rounded-full bg-brand/15 border border-brand/30 flex items-center justify-center mb-3.5'>
+                    <Sparkles className='w-4.5 h-4.5 text-brand animate-pulse' />
+                  </div>
+                  <h3 className='font-semibold text-foreground text-sm mb-1.5'>
+                    Match network → job board
+                  </h3>
+                  <p className='text-xs product-helper-text mb-4 leading-normal'>
+                    Scans uploaded contacts and cross-compares their professional history
+                    against jobs in your queue to find matches.
+                  </p>
+                  <p className='text-[10px] product-helper-text flex items-center gap-1.5 mb-3 font-semibold'>
+                    <Clock className='w-3 h-3 text-brand/70' />
+                    AI suggestions: <span className='text-foreground'>{suggestionCount}</span>
+                  </p>
+                </div>
+                <Button
+                  type='button'
+                  disabled={agentRunning || connectionCount === 0}
+                  title={
+                    connectionCount === 0
+                      ? "Upload Connections.csv first"
+                      : undefined
+                  }
+                  className='w-full bg-foreground/10 border border-brand/40 text-brand hover:bg-brand/10 disabled:opacity-50 text-xs py-1.5 h-9 font-bold shadow-md'
+                  onClick={() => void runAgentScan()}
+                >
+                  {agentRunning ? (
+                    <>
+                      <Loader2 className='w-3.5 h-3.5 mr-2 animate-spin' />
+                      Matching…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkle className='w-3.5 h-3.5 mr-2' />
+                      Run AI network match
+                    </>
+                  )}
+                </Button>
+              </Card>
+
+              {/* Card 3: Referral Rewards */}
+              <Card className='product-section-card p-6 hover:border-brand/35 transition-all duration-300 md:col-span-1 relative overflow-hidden flex flex-col justify-between'>
+                <div>
+                  <div className='w-9 h-9 rounded-full bg-brand/15 border border-brand/30 flex items-center justify-center mb-3.5'>
+                    <Banknote className='w-4.5 h-4.5 text-brand' />
+                  </div>
+                  <h3 className='font-semibold text-foreground text-sm mb-1.5'>
+                    Referral rewards
+                  </h3>
+                  <p className='text-xs product-helper-text mb-4 leading-normal'>
+                    Unlock **Jobricon credits** for every friend you refer. Each referral
+                    helps you climb milestones to earn permanent plan benefits or payout splits.
+                  </p>
+                  <p className='text-[10px] product-helper-text flex items-center gap-1.5 mb-3 font-semibold'>
+                    <Clock className='w-3 h-3 text-brand/70' />
+                    Tracks from signup to hiring
+                  </p>
+                </div>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='sm'
+                  className='w-full text-brand hover:text-brand hover:bg-transparent border border-transparent hover:border-brand/20 text-xs py-1.5 h-9 font-bold'
+                  onClick={() => navigate("/dashboard/billing")}
+                >
+                  View billing &amp; payouts
+                </Button>
+              </Card>
+            </div>
+
+            {/* AI Suggestion Matches Section */}
+            {hasAccessToImportAndMatch && suggestions.length > 0 && (
+              <MatchSuggestionsSection
+                suggestions={suggestions}
+                onCopyLink={copyCustomMsg}
+                onEmailInvite={emailCustomInvite}
+              />
+            )}
+
+            {/* Imported Connections List Section */}
+            {hasAccessToImportAndMatch && connections.length > 0 && (
+              <ConnectionsListSection connections={connections} />
+            )}
           </div>
         ) : (
           <motion.div
