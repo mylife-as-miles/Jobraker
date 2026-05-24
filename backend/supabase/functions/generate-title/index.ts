@@ -7,6 +7,15 @@ import {
   GEMINI_MODEL,
 } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import {
+  requireAuthenticatedUser,
+  SubscriptionAccessError,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 console.log("Hello from generate-title!");
 
@@ -46,6 +55,12 @@ serve(async (req) => {
   }
 
   try {
+    const { user, serviceClient } = await requireAuthenticatedUser(req);
+    const subscriptionTier = await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "generate_title",
+      serviceClient,
+    });
     const { message } = await req.json();
 
     if (!message) {
@@ -87,11 +102,21 @@ serve(async (req) => {
     // Ensure title isn't too long
     const cleanTitle = title.length > 50 ? title.substring(0, 47) + "..." : title;
 
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "generate_title",
+      serviceClient,
+      subscriptionTier,
+    });
+
     return new Response(JSON.stringify({ title: cleanTitle }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (error) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
     console.error("Error generating title:", error);
     return new Response(JSON.stringify({ title: "New Chat" }), {
       status: 200,

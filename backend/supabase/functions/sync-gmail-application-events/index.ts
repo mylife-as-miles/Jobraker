@@ -7,6 +7,10 @@ import {
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 import { createNotificationRecord } from "../_shared/notification-center.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 const DEFAULT_QUERY = [
   "newer_than:180d",
@@ -971,11 +975,17 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient } = await requireSubscriptionTier(
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(
       req,
       "Pro",
       "Gmail application checks",
     );
+    await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "sync_gmail_application_events",
+      serviceClient,
+      subscriptionTier,
+    });
     const body = await req.json().catch(() => ({})) as RequestBody;
     const maxResults = Math.max(1, Math.min(100, Number(body.maxResults || 30)));
     const query = typeof body.query === "string" && body.query.trim()
@@ -1223,6 +1233,18 @@ serve(async (req) => {
       })
       .eq("user_id", user.id);
     if (syncUpdateError) throw syncUpdateError;
+
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "sync_gmail_application_events",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        scanned: list.length,
+        classified: classifiedCount,
+        updated: updatedCount,
+      },
+    });
 
     return jsonResponse(
       {

@@ -46,6 +46,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const supabase = createClient();
 
@@ -148,6 +149,7 @@ export const CoverLetterBuilderPage = () => {
   // Remove unused copied
   // const [copied, setCopied] = useState(false);
   const [inlineEdit, setInlineEdit] = useState(false);
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
   type QueuedJobPick = {
     id: string;
@@ -185,6 +187,14 @@ export const CoverLetterBuilderPage = () => {
   const routeId = location.pathname.split("/")[4] || null;
   const activeId = currentLibId || routeId || id;
 
+  const normalizeCoverLetterPayload = (record: any) => {
+    const payload = record?.data ?? record?.content;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return null;
+    }
+    return payload as Record<string, unknown>;
+  };
+
   // Derived
   const finalBody = content.paragraphs.length
     ? content.paragraphs.join("\n\n")
@@ -196,7 +206,7 @@ export const CoverLetterBuilderPage = () => {
   };
 
   const applyLetterRecord = (record: any) => {
-    const payload = record?.data || record?.content;
+    const payload = normalizeCoverLetterPayload(record);
     if (!payload) return;
     const resolvedTitle =
       record?.name || payload.title || "Untitled Cover Letter";
@@ -212,7 +222,13 @@ export const CoverLetterBuilderPage = () => {
   // Load Initial Data
   useEffect(() => {
     const loadData = async () => {
-      if (!routeId) return;
+      if (!routeId) {
+        resetCoverLetter();
+        setCurrentLibId(null);
+        setLibName("");
+        setCoverLetterId("");
+        return;
+      }
 
       try {
         const { data, error } = await supabase
@@ -232,7 +248,7 @@ export const CoverLetterBuilderPage = () => {
       }
     };
     loadData();
-  }, [navigate, routeId]);
+  }, [navigate, resetCoverLetter, routeId, setCoverLetterId]);
 
   useEffect(() => {
     const loadLibrary = async () => {
@@ -715,21 +731,29 @@ export const CoverLetterBuilderPage = () => {
   };
 
   const clearDraft = () => {
-    if (confirm("Are you sure you want to clear all fields?")) {
-      setRole("");
-      setCompany("");
-      setNested("sender", "name", "");
-      setNested("sender", "email", "");
-      setNested("sender", "phone", "");
-      setNested("sender", "address", "");
-      setNested("recipient", "name", "");
-      setNested("recipient", "title", "");
-      setNested("recipient", "address", "");
-      setNested("content", "subject", "");
-      setNested("content", "rawBody", "");
-      setNested("content", "paragraphs", []);
-      setNested("content", "closing", "Best regards,");
-    }
+    setConfirmClearOpen(true);
+  };
+
+  const handleClearDraftConfirm = () => {
+    setRole("");
+    setCompany("");
+    setJobDescription("");
+    setNested("sender", "name", "");
+    setNested("sender", "email", "");
+    setNested("sender", "phone", "");
+    setNested("sender", "address", "");
+    setNested("recipient", "name", "");
+    setNested("recipient", "title", "");
+    setNested("recipient", "address", "");
+    setNested("content", "subject", "");
+    setNested("content", "rawBody", "");
+    setNested("content", "paragraphs", []);
+    setNested("content", "closing", "Best regards,");
+    setNested("content", "signature", "");
+    setNested("content", "date", new Date().toISOString().slice(0, 10));
+    setNested("content", "salutation", "Dear Hiring Manager,");
+    setConfirmClearOpen(false);
+    toastSuccess("Cleared", "Draft cleared.");
   };
 
   // --- Formatting Helpers ---
@@ -883,6 +907,16 @@ export const CoverLetterBuilderPage = () => {
         </div>
       </div>
 
+      <ConfirmDialog
+        open={confirmClearOpen}
+        onCancel={() => setConfirmClearOpen(false)}
+        onConfirm={handleClearDraftConfirm}
+        title="Clear Cover Letter Draft"
+        message="Clear all current fields and start fresh? This will remove the current unsaved content from the editor."
+        confirmText="Clear Draft"
+        cancelText="Cancel"
+      />
+
       {!loadingTier && !hasCoverLetterAiAccess && (
         <UpgradePrompt
           compact
@@ -948,7 +982,7 @@ export const CoverLetterBuilderPage = () => {
                   className='w-full product-input-surface rounded-xl px-3 py-2 text-sm'
                   onChange={(e) => {
                     const lib = library.find((l) => l.id === e.target.value);
-                    const payload = lib?.data || lib?.content;
+                    const payload = normalizeCoverLetterPayload(lib);
                     if (lib && payload) {
                       applyLetterRecord(lib);
                       navigate("/dashboard/cover-letter/edit/" + lib.id, {

@@ -16,6 +16,10 @@ import {
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 interface PolishContentRequest {
   content: string;
@@ -164,7 +168,13 @@ serve(async (req) => {
   }
 
   try {
-    await requireSubscriptionTier(req, "Basics", "AI writing tools");
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Basics", "AI writing tools");
+    await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "polish_content",
+      serviceClient,
+      subscriptionTier,
+    });
     const { content, instruction } = (await req.json()) as PolishContentRequest;
 
     const safeContent = sanitizeInput(content || "", 12000);
@@ -200,6 +210,16 @@ serve(async (req) => {
     }
 
     const response = normalizePolishResponse(parsed, safeContent);
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "polish_content",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        content_length: safeContent.length,
+        has_instruction: Boolean(safeInstruction),
+      },
+    });
     return new Response(JSON.stringify(response), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error: any) {

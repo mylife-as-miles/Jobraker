@@ -2,6 +2,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GoogleGenAI, LiveServerMessage, Modality } from "npm:@google/genai";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
+import {
+  normalizeSubscriptionTier,
+  resolveSubscriptionTier,
+} from "../_shared/subscription.ts";
 
 console.log("Hello from interview-session!");
 
@@ -91,6 +99,29 @@ serve(async (req) => {
              return;
          }
 
+         const serviceClient = createClient(
+            Deno.env.get("SUPABASE_URL")!,
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+            { auth: { persistSession: false } }
+         );
+         const subscriptionTier = normalizeSubscriptionTier(
+            await resolveSubscriptionTier(user.id, serviceClient),
+         );
+         if (subscriptionTier === "Free" || subscriptionTier === "Basics") {
+            ws.send(JSON.stringify({
+              type: "error",
+              message: "Interview Studio requires the Pro plan or higher.",
+            }));
+            ws.close();
+            return;
+         }
+         await enforceFeatureRateLimit({
+            userId: user.id,
+            featureKey: "interview_session",
+            serviceClient,
+            subscriptionTier,
+         });
+
          const ai = new GoogleGenAI({
             apiKey: Deno.env.get("GEMINI_API_KEY")!,
          });
@@ -109,6 +140,14 @@ serve(async (req) => {
             callbacks: {
                 onopen: () => {
                     console.log("Gemini Connected");
+                    void recordFeatureUsage({
+                        userId: user.id,
+                        featureKey: "interview_session",
+                        serviceClient,
+                        subscriptionTier,
+                    }).catch((usageError) =>
+                        console.error("Failed to record interview session usage", usageError),
+                    );
                     ws.send(JSON.stringify({ type: 'connected' }));
                 },
                 onmessage: (msg: LiveServerMessage) => {

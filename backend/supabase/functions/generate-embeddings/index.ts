@@ -6,12 +6,13 @@ import {
   SubscriptionAccessError,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 const MAX_BATCH_SIZE = 32;
 const MAX_TEXT_LENGTH = 8000;
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_REQUESTS = 30;
-const rateLimitBuckets = new Map<string, number[]>();
 
 const jsonResponse = (body: unknown, status: number, headers: Record<string, string>) =>
   new Response(JSON.stringify(body), {
@@ -32,18 +33,12 @@ serve(async (req) => {
 
   try {
     // Authenticate request before invoking embedding models
-    const { user } = await requireAuthenticatedUser(req);
-
-    const now = Date.now();
-    const recentRequests = (rateLimitBuckets.get(user.id) || []).filter(
-      (timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS,
-    );
-    if (recentRequests.length >= RATE_LIMIT_MAX_REQUESTS) {
-      rateLimitBuckets.set(user.id, recentRequests);
-      return jsonResponse({ error: "Rate limit exceeded. Try again shortly." }, 429, corsHeaders);
-    }
-    recentRequests.push(now);
-    rateLimitBuckets.set(user.id, recentRequests);
+    const { user, serviceClient } = await requireAuthenticatedUser(req);
+    const subscriptionTier = await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "generate_embeddings",
+      serviceClient,
+    });
 
     const body = await req.json();
     const { text, texts, model } = body;
@@ -68,6 +63,16 @@ serve(async (req) => {
       }
 
       const embeddings = await embedBatch(texts, { model });
+      await recordFeatureUsage({
+        userId: user.id,
+        featureKey: "generate_embeddings",
+        serviceClient,
+        subscriptionTier,
+        metadata: {
+          mode: "batch",
+          batch_size: texts.length,
+        },
+      });
       return jsonResponse({ embeddings, userId: user.id }, 200, corsHeaders);
     }
 
@@ -81,6 +86,15 @@ serve(async (req) => {
       }
 
       const embedding = await embedText(text, { model });
+      await recordFeatureUsage({
+        userId: user.id,
+        featureKey: "generate_embeddings",
+        serviceClient,
+        subscriptionTier,
+        metadata: {
+          mode: "single",
+        },
+      });
       return jsonResponse({ embedding, userId: user.id }, 200, corsHeaders);
     }
 

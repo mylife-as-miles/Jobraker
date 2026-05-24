@@ -12,6 +12,10 @@ import {
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 type Conn = {
   id: string;
@@ -36,11 +40,17 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient } = await requireSubscriptionTier(
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(
       req,
       "Basics",
       "Referral network AI match",
     );
+    await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "referrals_agent",
+      serviceClient,
+      subscriptionTier,
+    });
 
     const { data: connections, error: cErr } = await serviceClient
       .from("linkedin_connections")
@@ -168,6 +178,18 @@ ${JSON.stringify(jobPayload)}`;
       .from("linkedin_connections")
       .update({ agent_scan_status: "complete" })
       .eq("user_id", user.id);
+
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "referrals_agent",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        suggestions_created: rows.length,
+        connections_scanned: conns.length,
+        jobs_considered: jobRows.length,
+      },
+    });
 
     return new Response(
       JSON.stringify({

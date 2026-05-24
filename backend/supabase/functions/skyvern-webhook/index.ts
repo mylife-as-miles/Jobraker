@@ -7,6 +7,22 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+function hasValidWebhookSecret(req: Request): boolean {
+  const expected = String(Deno.env.get("SKYVERN_WEBHOOK_SECRET") || "").trim();
+  if (!expected) return false;
+
+  const headerSecret = String(
+    req.headers.get("x-jobraker-webhook-secret") ||
+      req.headers.get("x-skyvern-webhook-secret") ||
+      "",
+  ).trim();
+  const authSecret = String(req.headers.get("authorization") || "")
+    .replace(/^Bearer\s+/i, "")
+    .trim();
+
+  return headerSecret === expected || authSecret === expected;
+}
+
 const mapProviderStatusToDisplay = (status: string | null | undefined) => {
   switch ((status || "").toLowerCase()) {
     case "completed":
@@ -113,6 +129,16 @@ serve(async (req) => {
   }
 
   try {
+    if (!hasValidWebhookSecret(req)) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized webhook request" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
     const payload = await req.json();
     const runId = payload.id || payload.run_id;
     const providerStatus = payload.status;

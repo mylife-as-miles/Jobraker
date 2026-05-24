@@ -20,6 +20,10 @@ import {
   type JobEvaluationResult,
 } from "../_shared/job-evaluation.ts";
 import { attachExistingJobIdsBySourceId } from "../_shared/jobs.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 interface IntakeJobUrlRequest {
   url?: string;
@@ -377,11 +381,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient } = await requireSubscriptionTier(
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(
       req,
       "Basics",
       "Job evaluations",
     );
+    await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "intake_job_url",
+      serviceClient,
+      subscriptionTier,
+    });
 
     const body: IntakeJobUrlRequest = await req.json().catch(() => ({}));
     const normalizedUrl = normalizeUrl(body.url || "");
@@ -572,6 +582,17 @@ Deno.serve(async (req) => {
         finalJobError?.message || "The job was saved but could not be reloaded.",
       );
     }
+
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "intake_job_url",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        verification_status: verificationStatus,
+        job_id: finalJob.id,
+      },
+    });
 
     return new Response(
       JSON.stringify({

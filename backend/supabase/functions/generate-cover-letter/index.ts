@@ -19,6 +19,10 @@ import {
   formatCandidateMemoryForPrompt,
   type CandidateMemory,
 } from "../_shared/candidate-memory.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 function sanitizeInput(text: string, maxLength: number): string {
   if (!text) return "";
@@ -120,7 +124,13 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient } = await requireSubscriptionTier(req, "Basics", "AI cover letter generation");
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Basics", "AI cover letter generation");
+    await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "generate_cover_letter",
+      serviceClient,
+      subscriptionTier,
+    });
     const {
       jobDescription,
       resumeText,
@@ -184,6 +194,17 @@ serve(async (req) => {
         candidateMemory,
       );
     }
+
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "generate_cover_letter",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        job_description_length: safeJobDesc.length,
+        resume_length: safeResume.length,
+      },
+    });
 
     return new Response(JSON.stringify({ cover_letter: coverLetter }), { 
       status: 200, 

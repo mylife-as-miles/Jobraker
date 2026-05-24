@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
-  Upload,
   Grid,
   List,
   Calendar,
@@ -16,17 +15,29 @@ import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabaseClient";
 import { CoverLetterCreationModal } from "../components/CoverLetterCreationModal";
 import { CoverLetterPreviewCard } from "../components/CoverLetterPreviewCard";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 
 const supabase = createClient();
 
 export const CoverLetterHomePage = () => {
   const navigate = useNavigate();
+  const { error: toastError } = useToast();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [letters, setLetters] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [letterToDelete, setLetterToDelete] = useState<any | null>(null);
 
   const setCoverLetter = useArtboardStore((state) => state.setCoverLetter);
+
+  const normalizeCoverLetterPayload = (letter: any) => {
+    const payload = letter?.data ?? letter?.content;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return null;
+    }
+    return payload as Record<string, unknown>;
+  };
 
   useEffect(() => {
     const fetchLetters = async () => {
@@ -57,7 +68,7 @@ export const CoverLetterHomePage = () => {
     setIsCreateModalOpen(true);
   };
   const handleEdit = (letter: any) => {
-    const payload = letter.data || letter.content;
+    const payload = normalizeCoverLetterPayload(letter);
     if (payload) {
       setCoverLetter({
         ...payload,
@@ -72,20 +83,24 @@ export const CoverLetterHomePage = () => {
     navigate("/dashboard/cover-letter/edit/" + letter.id);
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this cover letter?")) return;
+  const handleDeleteConfirm = async () => {
+    if (!letterToDelete) return;
 
     try {
       const { error } = await supabase
         .from("cover_letters")
         .delete()
-        .eq("id", id);
+        .eq("id", letterToDelete.id);
 
       if (error) throw error;
-      setLetters((prev) => prev.filter((l) => l.id !== id));
+      setLetters((prev) => prev.filter((l) => l.id !== letterToDelete.id));
+      setLetterToDelete(null);
     } catch (error) {
       console.error("Error deleting cover letter:", error);
+      toastError(
+        "Delete failed",
+        error instanceof Error ? error.message : "Could not delete cover letter.",
+      );
     }
   };
 
@@ -207,21 +222,6 @@ export const CoverLetterHomePage = () => {
                 </span>
               </motion.div>
 
-              {/* Import Existing Card */}
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {}} // Placeholder
-                className='border rounded-2xl border-foreground/20 aspect-[3/4] cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative'
-              >
-                <div className='w-16 h-16 rounded-full bg-foreground/5 flex items-center justify-center text-foreground group-hover:scale-110 transition-transform'>
-                  <Upload className='w-8 h-8' />
-                </div>
-                <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
-                  Import Existing
-                </span>
-              </motion.div>
-
               {/* Letter Cards */}
               {letters.map((letter) => (
                 <motion.div
@@ -236,7 +236,7 @@ export const CoverLetterHomePage = () => {
                   >
                     {/* Mini Cover Letter Preview */}
                     <CoverLetterPreviewCard
-                      data={letter.data || letter.content}
+                      data={normalizeCoverLetterPayload(letter)}
                       name={letter.name}
                     />
 
@@ -264,8 +264,14 @@ export const CoverLetterHomePage = () => {
                         </p>
                       </div>
                       <button
-                        onClick={(e) => handleDelete(e, letter.id)}
+                        type='button'
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLetterToDelete(letter);
+                        }}
                         className='product-helper-text hover:text-brand p-1 rounded hover:bg-brand/10 transition-colors'
+                        title='Delete cover letter'
+                        aria-label={`Delete ${letter.name || "cover letter"}`}
                       >
                         <Trash2 className='w-4 h-4' />
                       </button>
@@ -321,11 +327,11 @@ export const CoverLetterHomePage = () => {
                   <div className='col-span-3 product-helper-text text-sm'>
                     {new Date(letter.updated_at).toLocaleDateString()}
                   </div>
-                  <div className='col-span-3 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
+                  <div className='col-span-3 flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity'>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDelete(e, letter.id);
+                        setLetterToDelete(letter);
                       }}
                       className='p-2 product-helper-text hover:text-brand hover:bg-brand/10 rounded-lg transition-colors'
                       title='Delete'
@@ -339,6 +345,19 @@ export const CoverLetterHomePage = () => {
           )}
         </>
       )}
+      <ConfirmDialog
+        open={Boolean(letterToDelete)}
+        onCancel={() => setLetterToDelete(null)}
+        onConfirm={handleDeleteConfirm}
+        title='Delete Cover Letter'
+        message={
+          letterToDelete
+            ? `Delete "${letterToDelete.name || "Untitled"}"? This action cannot be undone.`
+            : "This action cannot be undone."
+        }
+        confirmText='Delete'
+        cancelText='Cancel'
+      />
     </div>
   );
 };

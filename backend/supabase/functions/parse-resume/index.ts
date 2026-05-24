@@ -14,6 +14,10 @@ import {
   requireAuthenticatedUser,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 interface ParseResumeRequest {
   resumeText: string;
@@ -175,7 +179,12 @@ serve(async (req) => {
   }
 
   try {
-    await requireAuthenticatedUser(req);
+    const { user, serviceClient } = await requireAuthenticatedUser(req);
+    const subscriptionTier = await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "parse_resume",
+      serviceClient,
+    });
 
     const { resumeText } = (await req.json()) as ParseResumeRequest;
     if (!resumeText) {
@@ -207,6 +216,16 @@ serve(async (req) => {
       const repairedText = await repairMalformedJson(ai, text);
       parsed = parseGeminiJson(repairedText);
     }
+
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "parse_resume",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        resume_length: resumeText.length,
+      },
+    });
 
     return new Response(JSON.stringify(parsed), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 

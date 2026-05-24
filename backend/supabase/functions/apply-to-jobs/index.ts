@@ -8,6 +8,7 @@ import {
 import { decryptSymmetric } from "../_shared/crypto.ts";
 import { signResumeProxyToken } from "../_shared/resume-proxy-token.ts";
 import { applyMicro1ReferralToUrl } from "../_shared/micro1-referral.ts";
+import { consumeAutoApplyRunQuota } from "../_shared/feature-limits.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 const AUTOMATION_RATE_LIMIT_WINDOW_MS = 60_000;
@@ -266,7 +267,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { user, serviceClient } = await requireSubscriptionTier(
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(
       req,
       "Free",
       "Auto apply",
@@ -352,6 +353,30 @@ Deno.serve(async (req) => {
     }
 
     const automationJobCount = jobUrls.length;
+    const quotaResult = await consumeAutoApplyRunQuota({
+      userId,
+      serviceClient,
+      subscriptionTier,
+      quantity: automationJobCount,
+    });
+    if (!quotaResult.success) {
+      return new Response(
+        JSON.stringify({
+          error: quotaResult.message,
+          code: "auto_apply_quota_exceeded",
+          remaining_runs: quotaResult.remaining,
+          included_runs: quotaResult.included,
+          used_runs: quotaResult.used,
+          period_end: quotaResult.periodEnd,
+          subscription_tier: quotaResult.subscriptionTier,
+        }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        },
+      );
+    }
+
     const { data: deductRaw, error: deductError } = await serviceClient.rpc(
       "deduct_auto_apply_credits",
       { p_user_id: userId, p_jobs_count: automationJobCount },
@@ -389,6 +414,9 @@ Deno.serve(async (req) => {
       credits_deducted: deduct?.credits_deducted ?? automationJobCount * 5,
       remaining_balance: deduct?.remaining_balance,
       jobs_count: automationJobCount,
+      auto_apply_runs_remaining: quotaResult.remaining,
+      auto_apply_runs_included: quotaResult.included,
+      auto_apply_period_end: quotaResult.periodEnd,
       note:
         "Charged when JobRaker starts auto-apply (5 credits per job). Runs started only in Skyvern are not billed here.",
     };

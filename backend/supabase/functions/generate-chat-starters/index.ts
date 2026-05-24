@@ -10,8 +10,16 @@ import {
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
-import { requireAuthenticatedUser } from "../_shared/subscription.ts";
+import {
+  requireAuthenticatedUser,
+  SubscriptionAccessError,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
 import { fetchUserContext } from "../_shared/user-context.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 type ChatStarterIcon =
   | "resume"
@@ -229,7 +237,12 @@ serve(async (req) => {
   }
 
   try {
-    const { authHeader, user } = await requireAuthenticatedUser(req);
+    const { authHeader, user, serviceClient } = await requireAuthenticatedUser(req);
+    const subscriptionTier = await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "generate_chat_starters",
+      serviceClient,
+    });
     const context = await fetchUserContext(user.id, authHeader);
     const fallback = buildFallbackSuggestions(context);
 
@@ -259,11 +272,25 @@ serve(async (req) => {
       }
     }
 
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "generate_chat_starters",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        application_count: context.applicationCount,
+        job_count: context.jobCount,
+      },
+    });
+
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
     console.error("Error in generate-chat-starters:", error);
     return new Response(
       JSON.stringify({ error: error.message || "Failed to generate starters" }),

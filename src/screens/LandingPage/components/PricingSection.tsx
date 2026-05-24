@@ -3,6 +3,7 @@ import { Pricing } from '../../../components/blocks/pricing';
 import { SUBSCRIPTION_MARKETING_PLANS } from '@/lib/subscriptionAccess';
 import { captureClientEvent } from '@/lib/analytics';
 import { ROUTES } from '@/routes';
+import EnterpriseSalesContact from '@/components/support/EnterpriseSalesContact';
 
 export const PricingSection = () => {
   return (
@@ -29,6 +30,9 @@ export const PricingSection = () => {
           `${ROUTES.SIGNUP}?plan=${encodeURIComponent(plan.name)}&billing=${interval}`
         }
       />
+      <div className="container pb-20">
+        <EnterpriseSalesContact location="landing_pricing" />
+      </div>
     </div>
   );
 };

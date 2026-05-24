@@ -5,6 +5,10 @@ import {
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 interface JobData {
   title: string;
@@ -207,7 +211,13 @@ serve(async (req) => {
   }
 
   try {
-    await requireSubscriptionTier(req, "Basics", "AI match score");
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Basics", "AI match score");
+    await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "calculate_match_score",
+      serviceClient,
+      subscriptionTier,
+    });
     const { jobs, context } = await req.json();
 
     if (!Array.isArray(jobs) || !context) {
@@ -245,6 +255,16 @@ serve(async (req) => {
         console.error(`Failed to process match score for job`, err);
         return { id: (job as any)?.id, score: 0, breakdown: [], summary: "Error calculating score" };
       }
+    });
+
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "calculate_match_score",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        jobs_count: jobs.length,
+      },
     });
 
     return new Response(JSON.stringify({ results }), {

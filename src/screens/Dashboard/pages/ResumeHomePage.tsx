@@ -19,9 +19,12 @@ import { ResumePreviewCard } from "../components/ResumePreviewCard";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { getResumeDisplayName } from "@/lib/resumeDisplay";
 import { useResumes, type ResumeRecord } from "@/hooks/useResumes";
+import { useToast } from "@/components/ui/toast";
+import { downloadResumePDF } from "@/utils/resume-download";
 
 export const ResumeHomePage = () => {
   const navigate = useNavigate();
+  const { error: toastError } = useToast();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -92,7 +95,7 @@ export const ResumeHomePage = () => {
       navigate(`/dashboard/resume/edit/${importedResume.id}`);
     } catch (error: any) {
       console.error("Import failed:", error);
-      alert(`Import failed: ${error.message}`);
+      toastError("Import failed", error?.message || "Could not import resume.");
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -323,7 +326,7 @@ export const ResumeHomePage = () => {
               <div className='col-span-3 product-helper-text text-sm'>
                 {new Date(resume.updated_at).toLocaleDateString()}
               </div>
-              <div className='col-span-3 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
+              <div className='col-span-3 flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity'>
                 <button
                   onClick={() => handleEdit(resume, displayName)}
                   className='p-2 product-helper-text hover:text-foreground hover:bg-brand/10 rounded-lg transition-colors'
@@ -332,6 +335,8 @@ export const ResumeHomePage = () => {
                   <Edit2 className='w-4 h-4' />
                 </button>
                 <button
+                  type='button'
+                  onClick={() => void downloadResumePDF(resume.data)}
                   className='p-2 product-helper-text hover:text-foreground hover:bg-brand/10 rounded-lg transition-colors'
                   title='Download'
                 >

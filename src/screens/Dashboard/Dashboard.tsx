@@ -66,6 +66,7 @@ import { ResumePage } from "./pages/ResumePage";
 import { CoverLetterPage } from "./pages/CoverLetterPage";
 import { ReferralsPage } from "./pages/ReferralsPage";
 import { ExperienceFeedbackPrompt } from "./components/ExperienceFeedbackPrompt";
+import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
 
 type DashboardPage =
   | "overview"
@@ -1042,6 +1043,10 @@ export const Dashboard = (): JSX.Element => {
           onUpgrade={() =>
             navigate("/dashboard/billing?promo=LOWCREDIT_RESCUE")
           }
+        />
+        <SupportFloatingWidget
+          currentPageId={currentPage}
+          currentPageLabel={currentItem?.label || "Dashboard"}
         />
         <ExperienceFeedbackPrompt />
       </div>

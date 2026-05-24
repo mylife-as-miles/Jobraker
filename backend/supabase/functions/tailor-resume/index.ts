@@ -18,6 +18,10 @@ import {
   fetchCandidateMemory,
   formatCandidateMemoryForPrompt,
 } from "../_shared/candidate-memory.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 function buildPrompt(
   jobDescription: string,
@@ -61,7 +65,13 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient } = await requireSubscriptionTier(req, "Basics", "AI resume optimization");
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Basics", "AI resume optimization");
+    await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "tailor_resume",
+      serviceClient,
+      subscriptionTier,
+    });
     const {
       jobDescription,
       resumeText,
@@ -116,6 +126,17 @@ serve(async (req) => {
         console.warn(getGeminiAccessDeniedMessage("AI resume optimization"));
       }
     }
+
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "tailor_resume",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        job_description_length: String(jobDescription).length,
+        resume_length: String(resumeText).length,
+      },
+    });
 
     return new Response(JSON.stringify({ tailored_resume: tailoredResume }), { 
       status: 200, 
