@@ -188,10 +188,10 @@ export function SupportFloatingWidget({
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-[90] flex flex-col items-end gap-3">
+    <div className="fixed bottom-4 right-4 z-[90] flex flex-col items-end gap-3 sm:bottom-5 sm:right-5">
       {open ? (
-        <div className="w-[calc(100vw-2rem)] max-w-[380px] overflow-hidden rounded-3xl border border-foreground/10 bg-background/95 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl">
-          <div className="border-b border-foreground/10 bg-gradient-to-r from-brand/12 via-background to-background px-4 py-3">
+        <div className="flex w-[min(calc(100vw-2rem),420px)] max-h-[min(760px,calc(100dvh-7rem))] flex-col overflow-hidden rounded-3xl border border-foreground/10 bg-background/95 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl">
+          <div className="shrink-0 border-b border-foreground/10 bg-gradient-to-r from-brand/12 via-background to-background px-4 py-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -221,7 +221,7 @@ export function SupportFloatingWidget({
             </div>
           </div>
 
-          <div className="border-b border-foreground/10 px-4 py-3">
+          <div className="shrink-0 border-b border-foreground/10 px-4 py-3">
             <div className="grid grid-cols-2 gap-2">
               {QUICK_ACTIONS.map((action) => {
                 const Icon = action.icon;
@@ -244,7 +244,7 @@ export function SupportFloatingWidget({
 
           <div
             ref={scrollRef}
-            className="custom-scrollbar flex max-h-[48vh] min-h-[260px] flex-col gap-3 overflow-y-auto px-4 py-4"
+            className="custom-scrollbar flex min-h-[180px] flex-1 flex-col gap-3 overflow-y-auto px-4 py-4"
           >
             {messages.map((message) => (
               <div
@@ -280,7 +280,7 @@ export function SupportFloatingWidget({
           </div>
 
           {suggestedActions.length > 0 ? (
-            <div className="border-t border-foreground/10 px-4 py-3">
+            <div className="shrink-0 border-t border-foreground/10 px-4 py-3">
               <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 Next actions
               </p>
@@ -327,7 +327,7 @@ export function SupportFloatingWidget({
             </div>
           ) : null}
 
-          <div className="border-t border-foreground/10 px-4 py-3">
+          <div className="shrink-0 border-t border-foreground/10 px-4 py-3">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                 Ask support
@@ -352,7 +352,7 @@ export function SupportFloatingWidget({
                 }}
                 rows={3}
                 placeholder="Ask about billing, job search, resumes, or a problem you hit."
-                className="min-h-[92px] resize-none rounded-2xl border-foreground/10 bg-foreground/[0.03] text-sm"
+                className="min-h-[84px] resize-none rounded-2xl border-foreground/10 bg-foreground/[0.03] text-sm"
               />
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground">

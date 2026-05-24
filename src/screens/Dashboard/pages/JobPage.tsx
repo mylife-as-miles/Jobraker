@@ -5297,7 +5297,8 @@ export const JobPage = (): JSX.Element => {
                                 {job.matchScore}% Match
                               </span>
                             )}
-                            {typeof job.lead_quality_score === "number" && (
+                            {hasJobQualityAccess &&
+                              typeof job.lead_quality_score === "number" && (
                               <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-foreground/5 text-foreground/55 border border-foreground/10'>
                                 <ShieldCheck className='w-3 h-3' />
                                 {job.lead_quality_score}% Quality
