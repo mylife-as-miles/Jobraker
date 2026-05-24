@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   ArrowUpRight,
   AlertCircle,
@@ -66,6 +64,14 @@ const THEMES: Record<string, { accent: string; alt: string; bg: string; text: st
   mono: { accent: "#ffffff", alt: "#a8ff60", bg: "#050505", text: "#f7f7f0" },
 };
 
+type SpringNode = {
+  el: HTMLElement;
+  index: number;
+  target: number;
+  value: number;
+  velocity: number;
+};
+
 function readDesignColor(design: Record<string, unknown> | undefined, key: string) {
   const value = design?.[key];
   return typeof value === "string" && /^#[0-9a-f]{3,8}$/i.test(value)
@@ -95,7 +101,226 @@ function formatYearRange(start?: string | null, end?: string | null, current?: b
   return [startYear, endYear].filter(Boolean).join(" - ");
 }
 
-function ProfileShaderBackdrop({ theme }: { theme: { accent: string; alt: string; bg: string } }) {
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function edgeResistance(value: number) {
+  const abs = Math.abs(value);
+  const resisted = 1 - 1 / (abs * 0.9 + 1);
+  return Math.sign(value) * resisted;
+}
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  return reduced;
+}
+
+function usePhysicsReveals(active: boolean, reducedMotion: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const nodes: SpringNode[] = Array.from(
+      document.querySelectorAll<HTMLElement>(".public-profile-reveal"),
+    ).map((el, index) => ({
+      el,
+      index,
+      target: 0,
+      value: 0,
+      velocity: 0,
+    }));
+
+    if (reducedMotion) {
+      nodes.forEach(({ el }) => {
+        el.style.opacity = "1";
+        el.style.transform = "none";
+        el.style.filter = "none";
+      });
+      return;
+    }
+
+    nodes.forEach(({ el }) => {
+      el.style.opacity = "0";
+      el.style.transform = "translate3d(0, 38px, 0) scale(0.982)";
+      el.style.filter = "blur(12px)";
+      el.style.willChange = "transform, opacity, filter";
+    });
+
+    let frame = 0;
+    let last = performance.now();
+
+    const tick = (now: number) => {
+      const dt = clamp((now - last) / 1000, 0.001, 0.032);
+      last = now;
+      let moving = false;
+
+      for (const node of nodes) {
+        const displacement = node.target - node.value;
+        const force = displacement * 88;
+        const damping = node.velocity * 16;
+        node.velocity += (force - damping) * dt;
+        node.value += node.velocity * dt;
+        const value = clamp(node.value, 0, 1);
+        const y = (1 - value) * 38;
+        const blur = (1 - value) * 12;
+        const scale = 0.982 + value * 0.018;
+
+        node.el.style.opacity = String(value);
+        node.el.style.transform =
+          `translate3d(0, calc(${y}px - var(--lift, 0px)), 0) ` +
+          `scale(${scale}) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))`;
+        node.el.style.filter = `blur(${blur}px)`;
+
+        if (Math.abs(displacement) > 0.002 || Math.abs(node.velocity) > 0.002) {
+          moving = true;
+        }
+      }
+
+      frame = moving ? requestAnimationFrame(tick) : 0;
+    };
+
+    const ensureTick = () => {
+      if (frame) return;
+      last = performance.now();
+      frame = requestAnimationFrame(tick);
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const node = nodes.find((item) => item.el === entry.target);
+          if (!node) continue;
+          const viewportChoreography = clamp(entry.intersectionRatio * 1.35 - node.index * 0.035, 0, 1);
+          node.target = entry.isIntersecting ? Math.max(viewportChoreography, 0.72) : 0;
+        }
+        ensureTick();
+      },
+      { threshold: [0, 0.15, 0.35, 0.6, 0.85, 1] },
+    );
+
+    nodes.forEach(({ el }) => observer.observe(el));
+    ensureTick();
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      nodes.forEach(({ el }) => {
+        el.style.removeProperty("opacity");
+        el.style.removeProperty("transform");
+        el.style.removeProperty("filter");
+        el.style.removeProperty("will-change");
+      });
+    };
+  }, [active, reducedMotion]);
+}
+
+function usePointerResponsiveCards(active: boolean, reducedMotion: boolean) {
+  useEffect(() => {
+    if (!active || reducedMotion) return;
+    const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    if (!canHover) return;
+
+    const disposers = Array.from(
+      document.querySelectorAll<HTMLElement>(".public-profile-interactive"),
+    ).map((el) => {
+      let frame = 0;
+      let currentX = 0;
+      let currentY = 0;
+      let targetX = 0;
+      let targetY = 0;
+      let velocityX = 0;
+      let velocityY = 0;
+      let last = performance.now();
+      let activePointer = false;
+
+      const tick = (now: number) => {
+        const dt = clamp((now - last) / 1000, 0.001, 0.032);
+        last = now;
+        velocityX += ((targetX - currentX) * 95 - velocityX * 18) * dt;
+        velocityY += ((targetY - currentY) * 95 - velocityY * 18) * dt;
+        currentX += velocityX * dt;
+        currentY += velocityY * dt;
+
+        el.style.setProperty("--tilt-x", `${currentY * -4.5}deg`);
+        el.style.setProperty("--tilt-y", `${currentX * 5.5}deg`);
+        el.style.setProperty("--lift", `${activePointer ? 8 : 0}px`);
+
+        if (
+          activePointer ||
+          Math.abs(targetX - currentX) > 0.002 ||
+          Math.abs(targetY - currentY) > 0.002 ||
+          Math.abs(velocityX) > 0.002 ||
+          Math.abs(velocityY) > 0.002
+        ) {
+          frame = requestAnimationFrame(tick);
+        } else {
+          frame = 0;
+        }
+      };
+
+      const ensureTick = () => {
+        if (!frame) {
+          last = performance.now();
+          frame = requestAnimationFrame(tick);
+        }
+      };
+
+      const onMove = (event: PointerEvent) => {
+        const rect = el.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
+        const y = ((event.clientY - rect.top) / rect.height - 0.5) * 2;
+        targetX = edgeResistance(x);
+        targetY = edgeResistance(y);
+        activePointer = true;
+        ensureTick();
+      };
+
+      const onLeave = () => {
+        targetX = 0;
+        targetY = 0;
+        activePointer = false;
+        ensureTick();
+      };
+
+      el.style.transformStyle = "preserve-3d";
+      el.style.setProperty("--tilt-x", "0deg");
+      el.style.setProperty("--tilt-y", "0deg");
+      el.style.setProperty("--lift", "0px");
+      el.addEventListener("pointermove", onMove);
+      el.addEventListener("pointerleave", onLeave);
+      el.addEventListener("pointercancel", onLeave);
+
+      return () => {
+        cancelAnimationFrame(frame);
+        el.removeEventListener("pointermove", onMove);
+        el.removeEventListener("pointerleave", onLeave);
+        el.removeEventListener("pointercancel", onLeave);
+        el.style.removeProperty("--tilt-x");
+        el.style.removeProperty("--tilt-y");
+        el.style.removeProperty("--lift");
+        el.style.removeProperty("transform-style");
+      };
+    });
+
+    return () => disposers.forEach((dispose) => dispose());
+  }, [active, reducedMotion]);
+}
+
+function ProfileShaderBackdrop({
+  theme,
+  reducedMotion,
+}: {
+  theme: { accent: string; alt: string; bg: string };
+  reducedMotion: boolean;
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -115,6 +340,7 @@ function ProfileShaderBackdrop({ theme }: { theme: { accent: string; alt: string
       uniform vec2 u_resolution;
       uniform float u_time;
       uniform float u_scroll;
+      uniform float u_scroll_velocity;
       uniform vec3 u_accent;
       uniform vec3 u_alt;
       uniform vec3 u_base;
@@ -138,9 +364,9 @@ function ProfileShaderBackdrop({ theme }: { theme: { accent: string; alt: string
         vec2 uv = gl_FragCoord.xy / u_resolution.xy;
         vec2 p = uv * 2.0 - 1.0;
         p.x *= u_resolution.x / u_resolution.y;
-        float t = u_time * 0.12;
+        float t = u_time * 0.12 + u_scroll_velocity * 0.035;
         float field = noise(p * 2.0 + vec2(t, -t + u_scroll * 1.8));
-        float ring = smoothstep(0.72, 0.0, abs(length(p + vec2(0.24, -0.08)) - 0.56));
+        float ring = smoothstep(0.72, 0.0, abs(length(p + vec2(0.24 + u_scroll_velocity * 0.012, -0.08)) - 0.56));
         float beam = smoothstep(0.58, 0.02, abs(p.x * 0.32 + p.y + sin(p.x * 2.4 + t) * 0.18));
         vec3 color = u_base;
         color += u_accent * ring * 0.35;
@@ -182,6 +408,7 @@ function ProfileShaderBackdrop({ theme }: { theme: { accent: string; alt: string
     const resolution = gl.getUniformLocation(program, "u_resolution");
     const time = gl.getUniformLocation(program, "u_time");
     const scroll = gl.getUniformLocation(program, "u_scroll");
+    const scrollVelocity = gl.getUniformLocation(program, "u_scroll_velocity");
     const accent = gl.getUniformLocation(program, "u_accent");
     const alt = gl.getUniformLocation(program, "u_alt");
     const base = gl.getUniformLocation(program, "u_base");
@@ -189,6 +416,9 @@ function ProfileShaderBackdrop({ theme }: { theme: { accent: string; alt: string
     const altRgb = hexToRgb(theme.alt);
     const baseRgb = hexToRgb(theme.bg);
     let frame = 0;
+    let lastScrollY = window.scrollY;
+    let scrollV = 0;
+    let lastTime = performance.now();
 
     const resize = () => {
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
@@ -199,9 +429,16 @@ function ProfileShaderBackdrop({ theme }: { theme: { accent: string; alt: string
 
     const draw = (now: number) => {
       const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const dt = Math.max(16, now - lastTime);
+      const rawVelocity = ((window.scrollY - lastScrollY) / dt) * 16.67;
+      scrollV += (rawVelocity - scrollV) * 0.18;
+      if (reducedMotion) scrollV = 0;
+      lastScrollY = window.scrollY;
+      lastTime = now;
       gl.uniform2f(resolution, canvas.width, canvas.height);
-      gl.uniform1f(time, now / 1000);
+      gl.uniform1f(time, reducedMotion ? 0 : now / 1000);
       gl.uniform1f(scroll, window.scrollY / maxScroll);
+      gl.uniform1f(scrollVelocity, clamp(scrollV, -24, 24));
       gl.uniform3f(accent, accentRgb[0], accentRgb[1], accentRgb[2]);
       gl.uniform3f(alt, altRgb[0], altRgb[1], altRgb[2]);
       gl.uniform3f(base, baseRgb[0], baseRgb[1], baseRgb[2]);
@@ -217,7 +454,7 @@ function ProfileShaderBackdrop({ theme }: { theme: { accent: string; alt: string
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
     };
-  }, [theme]);
+  }, [reducedMotion, theme]);
 
   return <canvas ref={canvasRef} className="fixed inset-0 h-screen w-screen opacity-90" aria-hidden="true" />;
 }
@@ -229,6 +466,7 @@ export const PublicProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     let active = true;
@@ -286,35 +524,13 @@ export const PublicProfilePage = () => {
     };
   }, [payload]);
 
-  useEffect(() => {
-    if (!payload) return;
-    gsap.registerPlugin(ScrollTrigger);
-    const ctx = gsap.context(() => {
-      gsap.utils.toArray<HTMLElement>(".public-profile-reveal").forEach((el) => {
-        gsap.fromTo(
-          el,
-          { opacity: 0, y: 42, filter: "blur(10px)" },
-          {
-            opacity: 1,
-            y: 0,
-            filter: "blur(0px)",
-            duration: 0.9,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: el,
-              start: "top 82%",
-            },
-          },
-        );
-      });
-    });
-    return () => ctx.revert();
-  }, [payload]);
+  usePhysicsReveals(Boolean(payload), reducedMotion);
+  usePointerResponsiveCards(Boolean(payload), reducedMotion);
 
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black text-white">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className={`h-8 w-8 ${reducedMotion ? "" : "animate-spin"}`} />
       </main>
     );
   }
@@ -337,7 +553,7 @@ export const PublicProfilePage = () => {
           </p>
           <Link
             to="/"
-            className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-brand px-5 text-sm font-semibold text-black transition hover:bg-brand/90"
+            className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-brand px-5 text-sm font-semibold text-black hover:bg-brand/90"
           >
             Go to JobRaker
           </Link>
@@ -364,7 +580,7 @@ export const PublicProfilePage = () => {
       className="relative min-h-screen overflow-hidden text-white"
       style={{ backgroundColor: theme.bg, color: theme.text } as CSSProperties}
     >
-      <ProfileShaderBackdrop theme={theme} />
+      <ProfileShaderBackdrop theme={theme} reducedMotion={reducedMotion} />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.08),rgba(0,0,0,0.72)),radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.08),transparent_38%)]" />
       {site.isPreview ? (
         <div className="fixed left-1/2 top-20 z-40 -translate-x-1/2 rounded-full border border-brand/30 bg-black/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand backdrop-blur-xl">
@@ -378,9 +594,9 @@ export const PublicProfilePage = () => {
             JobRaker
           </Link>
           <div className="hidden items-center gap-5 text-xs uppercase tracking-[0.2em] text-white/50 sm:flex">
-            <a href="#work" className="transition hover:text-white">Work</a>
-            <a href="#skills" className="transition hover:text-white">Skills</a>
-            <a href="#contact" className="transition hover:text-white">Contact</a>
+            <a href="#work" className="hover:text-white">Work</a>
+            <a href="#skills" className="hover:text-white">Skills</a>
+            <a href="#contact" className="hover:text-white">Contact</a>
           </div>
         </div>
       </header>
@@ -407,7 +623,7 @@ export const PublicProfilePage = () => {
             </p>
           </div>
 
-          <div className="public-profile-reveal rounded-[2rem] border border-white/12 bg-white/[0.055] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.38)] backdrop-blur-2xl sm:p-7">
+          <div className="public-profile-reveal public-profile-interactive rounded-[2rem] border border-white/12 bg-white/[0.055] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.38)] backdrop-blur-2xl sm:p-7">
             <div className="mb-8 flex items-start gap-4">
               <div
                 className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-white/15 bg-white/10 text-3xl font-black text-black"
@@ -466,7 +682,7 @@ export const PublicProfilePage = () => {
           {experiences.length > 0 ? experiences.map((item, index) => (
             <article
               key={`${item.company}-${item.title}-${index}`}
-              className="public-profile-reveal group grid gap-5 rounded-[1.75rem] border border-white/10 bg-white/[0.045] p-5 backdrop-blur-xl transition duration-300 hover:border-white/20 sm:grid-cols-[0.28fr_0.72fr] sm:p-7"
+              className="public-profile-reveal public-profile-interactive group grid gap-5 rounded-[1.75rem] border border-white/10 bg-white/[0.045] p-5 backdrop-blur-xl hover:border-white/20 sm:grid-cols-[0.28fr_0.72fr] sm:p-7"
             >
               <div>
                 <p className="text-sm text-white/45">{formatYearRange(item.start_date, item.end_date, item.is_current)}</p>
@@ -502,7 +718,7 @@ export const PublicProfilePage = () => {
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {Object.entries(groupedSkills).length > 0 ? Object.entries(groupedSkills).map(([category, items]) => (
-            <div key={category} className="public-profile-reveal rounded-[1.5rem] border border-white/10 bg-white/[0.045] p-5 backdrop-blur-xl">
+            <div key={category} className="public-profile-reveal public-profile-interactive rounded-[1.5rem] border border-white/10 bg-white/[0.045] p-5 backdrop-blur-xl">
               <p className="mb-4 text-xs uppercase tracking-[0.2em] text-white/45">{category}</p>
               <div className="flex flex-wrap gap-2">
                 {items.map((skill) => (
@@ -522,7 +738,7 @@ export const PublicProfilePage = () => {
 
       {education.length > 0 ? (
         <section className="relative z-10 mx-auto max-w-7xl px-5 py-20 sm:px-8">
-          <div className="public-profile-reveal rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur-xl sm:p-8">
+          <div className="public-profile-reveal public-profile-interactive rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 backdrop-blur-xl sm:p-8">
             <p className="mb-6 inline-flex items-center gap-2 text-sm uppercase tracking-[0.22em]" style={{ color: theme.accent }}>
               <GraduationCap className="h-4 w-4" />
               Education
@@ -541,7 +757,7 @@ export const PublicProfilePage = () => {
       ) : null}
 
       <section id="contact" className="relative z-10 mx-auto max-w-7xl px-5 py-24 sm:px-8">
-        <div className="public-profile-reveal overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.06] p-8 backdrop-blur-2xl sm:p-12">
+        <div className="public-profile-reveal public-profile-interactive overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.06] p-8 backdrop-blur-2xl sm:p-12">
           <div className="grid gap-10 lg:grid-cols-[1fr_auto] lg:items-end">
             <div>
               <p className="mb-4 text-sm uppercase tracking-[0.22em]" style={{ color: theme.accent }}>Open to the right conversation</p>
@@ -552,7 +768,7 @@ export const PublicProfilePage = () => {
             <div className="flex flex-wrap gap-3">
               {site.contactEmail ? (
                 <a href={`mailto:${site.contactEmail}`}>
-                  <button className="inline-flex h-12 items-center rounded-full px-6 text-sm font-semibold text-black transition active:scale-[0.98]" style={{ backgroundColor: theme.accent }}>
+                  <button className="inline-flex h-12 items-center rounded-full px-6 text-sm font-semibold text-black active:scale-[0.98]" style={{ backgroundColor: theme.accent }}>
                     <Mail className="mr-2 h-4 w-4" />
                     {site.ctaLabel || "Contact"}
                   </button>
@@ -564,7 +780,7 @@ export const PublicProfilePage = () => {
                   href={link.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex h-12 items-center rounded-full border border-white/12 px-5 text-sm text-white/75 transition hover:border-white/30 hover:text-white"
+                  className="inline-flex h-12 items-center rounded-full border border-white/12 px-5 text-sm text-white/75 hover:border-white/30 hover:text-white"
                 >
                   {link.label}
                   <ArrowUpRight className="ml-2 h-4 w-4" />
