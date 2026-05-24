@@ -81,6 +81,7 @@ const ProfilePage = (): JSX.Element => {
         .select("subscription_plans(name)")
         .eq("user_id", userId)
         .eq("status", "active")
+        .gt("current_period_end", new Date().toISOString())
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -88,16 +89,7 @@ const ProfilePage = (): JSX.Element => {
       if (subscription && (subscription as any).subscription_plans?.name) {
         setSubscriptionTier((subscription as any).subscription_plans.name);
       } else {
-        // Fallback to profile subscription_tier
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("subscription_tier")
-          .eq("id", userId)
-          .maybeSingle();
-
-        if (profileData?.subscription_tier) {
-          setSubscriptionTier(profileData.subscription_tier);
-        }
+        setSubscriptionTier("Free");
       }
     })();
   }, [supabase]);

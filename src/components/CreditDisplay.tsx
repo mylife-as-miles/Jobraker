@@ -42,6 +42,7 @@ export const CreditDisplay = () => {
           .select("subscription_plans(name)")
           .eq("user_id", userId)
           .eq("status", "active")
+          .gt("current_period_end", new Date().toISOString())
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -65,31 +66,7 @@ export const CreditDisplay = () => {
             planName as "Free" | "Basics" | "Pro" | "Ultimate",
           );
         } else {
-          // Fallback to profiles table
-          const { data: profileData, error: profileError } = await supabase
-            .from("profiles")
-            .select("subscription_tier")
-            .eq("id", userId)
-            .maybeSingle();
-
-          if (profileError) {
-            console.error(
-              "CreditDisplay: Failed to fetch fallback profile tier",
-              profileError,
-            );
-          }
-
-          if (
-            profileData?.subscription_tier &&
-            (profileData.subscription_tier === "Free" ||
-              profileData.subscription_tier === "Basics" ||
-              profileData.subscription_tier === "Pro" ||
-              profileData.subscription_tier === "Ultimate")
-          ) {
-            setSubscriptionTier(profileData.subscription_tier);
-          } else {
-            setSubscriptionTier("Free");
-          }
+          setSubscriptionTier("Free");
         }
       } catch (error) {
         console.error("Error fetching credits and tier:", error);

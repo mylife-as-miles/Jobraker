@@ -119,6 +119,7 @@ async function resolveConcurrencyEntitlementWindow(
     .select("current_period_start, current_period_end")
     .eq("user_id", userId)
     .eq("status", "active")
+    .gt("current_period_end", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

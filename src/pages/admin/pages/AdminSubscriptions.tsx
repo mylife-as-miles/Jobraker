@@ -257,28 +257,14 @@ export default function AdminSubscriptions() {
               .from("user_subscriptions")
               .select("*", { count: "exact", head: false })
               .eq("subscription_plan_id", plan.id)
-              .eq("status", "active");
+              .eq("status", "active")
+              .gt("current_period_end", new Date().toISOString());
 
             if (!subsError && activeCount) {
               subscriberCount = activeCount;
             }
           } catch (err) {
             console.warn("Could not fetch user_subscriptions:", err);
-          }
-
-          try {
-            // Get count of users with this tier in profiles (fallback)
-            const { count: profileCount, error: profileError } = await supabase
-              .from("profiles")
-              .select("*", { count: "exact", head: false })
-              .eq("subscription_tier", plan.name);
-
-            if (!profileError && profileCount) {
-              // Use the higher count (active subscriptions or profile tier)
-              subscriberCount = Math.max(subscriberCount, profileCount);
-            }
-          } catch (err) {
-            console.warn("Could not fetch profiles count:", err);
           }
 
           // Ensure features is always an array of strings

@@ -667,6 +667,7 @@ export const BillingPage = () => {
         )
         .eq("user_id", userId)
         .eq("status", "active")
+        .gt("current_period_end", new Date().toISOString())
         .maybeSingle();
 
       let resolvedCycle: "monthly" | "quarterly" | "yearly" | null = null;
@@ -686,6 +687,8 @@ export const BillingPage = () => {
           | undefined;
         resolvedCycle = inferBillingCycleFromSubscriptionPeriod(start, end);
       } else {
+        setSubscriptionTier("Free");
+        setCurrentPeriodEnd(null);
         setCancelAtPeriodEnd(false);
       }
 
@@ -1194,10 +1197,9 @@ export const BillingPage = () => {
                     </span>
                   </div>
                   {(() => {
-                    const next = projectNextRenewalDate(
-                      currentPeriodEnd,
-                      activeSubscriptionBillingCycle,
-                    );
+                    const next = currentPeriodEnd
+                      ? new Date(currentPeriodEnd)
+                      : null;
                     const { primary, secondary } = getPaymentRenewalCaption(
                       cancelAtPeriodEnd,
                       activeSubscriptionBillingCycle,

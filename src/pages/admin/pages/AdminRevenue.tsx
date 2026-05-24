@@ -58,7 +58,8 @@ export default function AdminRevenue() {
         const { data: subscriptions } = await supabase
           .from("user_subscriptions")
           .select("subscription_plan_id, subscription_plans(name, price)")
-          .eq("status", "active");
+          .eq("status", "active")
+          .gt("current_period_end", new Date().toISOString());
 
         if (subscriptions) {
           const breakdown: {

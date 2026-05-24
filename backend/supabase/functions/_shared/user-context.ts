@@ -328,6 +328,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
         )
         .eq("user_id", userId)
         .eq("status", "active")
+        .gt("current_period_end", new Date().toISOString())
         .maybeSingle(),
       { data: null } as any,
     ),
@@ -393,10 +394,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     if (subscriptionCancelAtPeriodEnd) {
       subscriptionNextRenewalOrEndIso = periodEnd;
     } else {
-      const projected = projectNextRenewalDate(periodEnd, subscriptionBillingCycle);
-      subscriptionNextRenewalOrEndIso = projected
-        ? projected.toISOString()
-        : periodEnd;
+      subscriptionNextRenewalOrEndIso = periodEnd;
     }
     subscriptionDaysRemaining = wholeDaysUntil(subscriptionNextRenewalOrEndIso);
   }

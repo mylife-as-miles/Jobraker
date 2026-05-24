@@ -32,6 +32,7 @@ export function useSubscriptionTier() {
           .select("subscription_plans(name)")
           .eq("user_id", user.id)
           .eq("status", "active")
+          .gt("current_period_end", new Date().toISOString())
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -44,16 +45,8 @@ export function useSubscriptionTier() {
           return;
         }
 
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("subscription_tier")
-          .eq("id", user.id)
-          .maybeSingle();
-
         if (active) {
-          setSubscriptionTier(
-            normalizeSubscriptionTier(profileData?.subscription_tier),
-          );
+          setSubscriptionTier("Free");
         }
       } catch (error) {
         console.error("Error fetching subscription tier:", error);

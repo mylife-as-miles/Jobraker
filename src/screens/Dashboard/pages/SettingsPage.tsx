@@ -818,12 +818,16 @@ export const SettingsPage = (): JSX.Element => {
           )
           .eq("user_id", userId)
           .eq("status", "active")
+          .gt("current_period_end", new Date().toISOString())
           .maybeSingle();
 
         if (subscription) {
           const planName = (subscription as any)?.subscription_plans?.name;
           setBillingSubscriptionTier(planName || "Free");
           setCurrentPeriodEnd((subscription as any).current_period_end);
+        } else {
+          setBillingSubscriptionTier("Free");
+          setCurrentPeriodEnd(null);
         }
 
         // Fetch all subscription plans
@@ -1350,8 +1354,12 @@ export const SettingsPage = (): JSX.Element => {
           total_credit_transactions: creditTransactions?.length || 0,
           current_credits: userCredits?.balance || 0,
           active_subscriptions:
-            userSubscriptions?.filter((s: any) => s.status === "active")
-              .length || 0,
+            userSubscriptions?.filter(
+              (s: any) =>
+                s.status === "active" &&
+                (!s.current_period_end ||
+                  new Date(s.current_period_end).getTime() > Date.now()),
+            ).length || 0,
           total_notifications: notifications?.length || 0,
           unread_notifications:
             notifications?.filter((n: any) => !n.read).length || 0,

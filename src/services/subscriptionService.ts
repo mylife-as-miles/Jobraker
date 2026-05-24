@@ -52,6 +52,7 @@ export class SubscriptionService {
         `)
         .eq('user_id', userId)
         .eq('status', 'active')
+        .gt('current_period_end', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -142,7 +143,7 @@ export class SubscriptionService {
         .from('user_subscriptions')
         .insert({
           user_id: userId,
-          plan_id: planId,
+          subscription_plan_id: planId,
           status: 'active',
           current_period_start: currentPeriodStart.toISOString(),
           current_period_end: currentPeriodEnd.toISOString(),
@@ -263,11 +264,11 @@ export class SubscriptionService {
       const periodEnd = new Date(subscription.currentPeriodEnd);
       const now = new Date();
       
-      // Check if subscription has ended and needs renewal
+      // Expired subscriptions are handled by the backend expiry policy.
+      // Do not extend local access without a new successful payment/admin grant.
       if (now >= periodEnd && !subscription.cancelAtPeriodEnd) {
-        // Auto-renew subscription
-        await this.renewSubscription(userId, subscription.id);
-        return true;
+        await this.cancelSubscription(userId, false);
+        return false;
       }
 
       return false;
@@ -342,13 +343,19 @@ export class SubscriptionService {
         .from('user_subscriptions')
         .select(`
           status,
+          current_period_end,
           subscription_plans!inner(name, price)
         `);
 
       if (error) throw error;
 
       const total = subscriptions?.length || 0;
-      const active = subscriptions?.filter(sub => sub.status === 'active').length || 0;
+      const active =
+        subscriptions?.filter(
+          (sub: any) =>
+            sub.status === 'active' &&
+            new Date(sub.current_period_end).getTime() > Date.now(),
+        ).length || 0;
       
       // Calculate revenue (simplified)
       const revenue = subscriptions?.reduce((sum, sub: any) => {
@@ -357,7 +364,13 @@ export class SubscriptionService {
 
       // Find most popular plan
       const planCounts = new Map<string, number>();
-      subscriptions?.forEach((sub: any) => {
+      subscriptions
+        ?.filter(
+          (sub: any) =>
+            sub.status === 'active' &&
+            new Date(sub.current_period_end).getTime() > Date.now(),
+        )
+        .forEach((sub: any) => {
         if (sub.subscription_plans?.name) {
           planCounts.set(
             sub.subscription_plans.name,

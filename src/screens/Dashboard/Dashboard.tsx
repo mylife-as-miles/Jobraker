@@ -319,6 +319,7 @@ export const Dashboard = (): JSX.Element => {
           .select("subscription_plans(name)")
           .eq("user_id", userId)
           .eq("status", "active")
+          .gt("current_period_end", new Date().toISOString())
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -331,23 +332,6 @@ export const Dashboard = (): JSX.Element => {
           planName === "Ultimate"
         ) {
           if (active) setSidebarSubscriptionTier(planName);
-          return;
-        }
-
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("subscription_tier")
-          .eq("id", userId)
-          .maybeSingle();
-
-        const profileTier = profileData?.subscription_tier;
-        if (
-          profileTier === "Free" ||
-          profileTier === "Basics" ||
-          profileTier === "Pro" ||
-          profileTier === "Ultimate"
-        ) {
-          if (active) setSidebarSubscriptionTier(profileTier);
           return;
         }
 

@@ -68,7 +68,8 @@ export const useAdminStats = () => {
         const { data, error } = await supabase
           .from('user_subscriptions')
           .select('user_id, status, subscription_plan_id, subscription_plans(name, price, credits_per_month)')
-          .eq('status', 'active');
+          .eq('status', 'active')
+          .gt('current_period_end', new Date().toISOString());
         if (!error && data) {
           subscriptions = data;
           console.log('Subscriptions fetched:', subscriptions.length, subscriptions);
@@ -298,7 +299,8 @@ export const useUserActivities = () => {
         supabase.from('user_credits').select('user_id, balance, lifetime_spent'),
         supabase.from('user_subscriptions')
           .select('user_id, status, subscription_plan_id, subscription_plans(name, price)')
-          .eq('status', 'active'),
+          .eq('status', 'active')
+          .gt('current_period_end', new Date().toISOString()),
         supabase.from('credit_transactions')
           .select('user_id, reference_type, transaction_type, description, created_at') 
           .order('created_at', { ascending: false })
@@ -543,7 +545,8 @@ export const useRevenueData = (days: number = 30) => {
         const { data, error } = await supabase
           .from('user_subscriptions')
           .select('subscription_plan_id, subscription_plans(price)')
-          .eq('status', 'active');
+          .eq('status', 'active')
+          .gt('current_period_end', new Date().toISOString());
 
         if (!error && data) {
           activeSubscriptions = data;
