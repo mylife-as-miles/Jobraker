@@ -1171,6 +1171,13 @@ export const ChatPage = () => {
         sessionId === activeSessionId
           ? messages
           : sessions.find((session) => session.id === sessionId)?.messages || [];
+      const conversationContext = currentMessages
+        .filter((message) => message.role !== "skill" && message.content.trim())
+        .slice(-8)
+        .map((message) => ({
+          role: message.role === "assistant" ? "assistant" : "user",
+          content: message.content.slice(0, 2000),
+        }));
       const nowMs = Date.now();
       const userMessage: BasicMessage = {
         id: nanoid(),
@@ -1270,6 +1277,7 @@ export const ChatPage = () => {
           rawCommand: parsed.rawCommand,
           userInstruction: parsed.userInstruction,
           args: parsed.args,
+          conversationContext,
           progress: (label) => {
             updateSkillMessage((call) => ({
               ...call,

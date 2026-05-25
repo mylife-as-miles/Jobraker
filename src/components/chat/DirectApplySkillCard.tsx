@@ -104,6 +104,39 @@ export const DirectApplySkillCard = ({ output, onRunPrompt }: Props) => {
     ...new Set(output.results.map((result) => result.companyName)),
   ].join(" OR ");
 
+  if (output.needsClarification && output.results.length === 0) {
+    return (
+      <div className='rounded-2xl border border-amber-400/25 bg-background/70 p-4'>
+        <div className='flex items-start gap-3'>
+          <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-400/25 bg-amber-400/10 text-amber-200'>
+            <Search className='h-4 w-4' />
+          </div>
+          <div>
+            <h3 className='text-base font-semibold text-foreground'>
+              Direct Apply needs a target
+            </h3>
+            <p className='mt-1 text-sm leading-relaxed text-muted-foreground'>
+              {output.needsClarification.reason}
+            </p>
+          </div>
+        </div>
+
+        <div className='mt-4 space-y-2'>
+          {output.needsClarification.suggestedPrompts.map((prompt) => (
+            <button
+              key={prompt}
+              type='button'
+              onClick={() => void runOrCopyPrompt(prompt, "Prompt copied.")}
+              className='block w-full rounded-xl border border-border bg-card/45 px-3 py-2 text-left text-xs leading-relaxed text-foreground transition hover:border-brand/30 hover:bg-brand/10'
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className='space-y-4'>
       <div className='rounded-2xl border border-brand/20 bg-background/70 p-4'>

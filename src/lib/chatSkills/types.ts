@@ -24,6 +24,10 @@ export type SkillExecutionInput = {
   rawCommand: string;
   userInstruction: string;
   args: Record<string, unknown>;
+  conversationContext?: Array<{
+    role: "user" | "assistant" | "skill" | "system";
+    content: string;
+  }>;
   progress?: (label: string) => void;
 };
 
@@ -139,6 +143,10 @@ export type DirectApplyOutput = {
   };
   progress: string[];
   approvalStatus: "not_requested" | "pending_user_review";
+  needsClarification?: {
+    reason: string;
+    suggestedPrompts: string[];
+  };
   connectedInbox: {
     provider: "gmail" | "outlook" | "unknown";
     status: "available_when_connected";

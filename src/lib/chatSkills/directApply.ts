@@ -8,12 +8,72 @@ import type {
 
 const DIRECT_APPLY_PROGRESS = [
   "Reading request",
+  "Resolving target companies from chat context",
   "Searching official company channels",
   "Verifying application paths",
   "Preparing tailored drafts",
   "Mapping connected inbox actions",
   "Ready for review",
 ];
+
+const VAGUE_ROLE_WORDS = new Set([
+  "let",
+  "lets",
+  "try",
+  "apply",
+  "direct",
+  "directly",
+  "start",
+  "initiate",
+  "go",
+  "ahead",
+  "now",
+  "please",
+]);
+
+const COMPANY_STOP_WORDS = new Set([
+  "Application Status",
+  "Application Tracker",
+  "Billing Page",
+  "Core Metrics",
+  "Digital Apply",
+  "Direct Apply",
+  "Gmail",
+  "Google",
+  "JobRaker",
+  "Manual Check",
+  "Next Steps",
+  "Profile Updates Complete",
+  "Ultimate",
+  "Wait",
+]);
+
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const KNOWN_OFFICIAL_CHANNELS: Record<
+  string,
+  {
+    channelValue: string;
+    confidence: "high" | "medium";
+    confidenceScore: number;
+    recommendedAction: string;
+  }
+> = {
+  "digital virgo": {
+    channelValue: "https://www.digitalvirgo.com/careers/",
+    confidence: "medium",
+    confidenceScore: 78,
+    recommendedAction: "Review the official careers page before submitting",
+  },
+  "international breweries": {
+    channelValue: "https://www.ab-inbev.com/careers/",
+    confidence: "medium",
+    confidenceScore: 76,
+    recommendedAction:
+      "Confirm the International Breweries/AB InBev posting before submitting",
+  },
+};
 
 const delay = (ms: number) =>
   new Promise<void>((resolve) => {
@@ -66,7 +126,139 @@ const buildApprovalCommand = (
 ) =>
   `I approve sending this Direct Apply email from my connected Gmail to ${companyName}. Use send_gmail_job_email only for this exact message. To: ${channelValue}. Subject: ${draft.subject}. Body:\n${draft.body}`;
 
-const buildMockResults = (
+const unique = (values: string[]) =>
+  Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+
+const sanitizeCompanyName = (value: string) =>
+  value
+    .replace(/\s+/g, " ")
+    .replace(
+      /\b(?:but|because|however|while|although|then|currently|allows|received|with|using|for)\b.*$/i,
+      "",
+    )
+    .replace(/[()[\]{}:;"!?]+/g, "")
+    .replace(/^[\s,.-]+|[\s,.-]+$/g, "")
+    .trim();
+
+const splitCompanyList = (value: string) =>
+  unique(
+    value
+      .split(/\s+(?:and|or)\s+|,\s*|\/+/i)
+      .map(sanitizeCompanyName)
+      .filter(
+        (company) =>
+          company.length > 1 &&
+          /[A-Z]/.test(company) &&
+          !COMPANY_STOP_WORDS.has(company),
+      ),
+  );
+
+const extractTargetCompaniesFromText = (text: string): string[] => {
+  const matches: string[] = [];
+  const patterns = [
+    /\b(?:auto-apply|direct apply|apply|application|applications|launch|start|submit|initiate)\b[\s\S]{0,90}?\b(?:for|to|at)\s+([A-Z][A-Za-z0-9&.' -]+(?:\s+(?:and|or)\s+[A-Z][A-Za-z0-9&.' -]+)?)/gi,
+    /\b(?:for|to|at)\s+([A-Z][A-Za-z0-9&.' -]+(?:\s+(?:and|or)\s+[A-Z][A-Za-z0-9&.' -]+)?)\b/gi,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      matches.push(...splitCompanyList(match[1] || ""));
+    }
+    if (matches.length) break;
+  }
+
+  return unique(matches).slice(0, 8);
+};
+
+const contextText = (input: SkillExecutionInput) =>
+  [
+    input.userInstruction,
+    ...(input.conversationContext || []).map((message) => message.content),
+  ].join("\n");
+
+const resolveTargetCompanies = (input: SkillExecutionInput) => {
+  const explicit = extractTargetCompaniesFromText(input.userInstruction);
+  if (explicit.length) return explicit;
+
+  const recentMessages = [...(input.conversationContext || [])].reverse();
+  for (const message of recentMessages) {
+    const fromMessage = extractTargetCompaniesFromText(message.content);
+    if (fromMessage.length) return fromMessage;
+  }
+
+  return [];
+};
+
+const isVagueRoleQuery = (value: string) => {
+  const words = value
+    .toLowerCase()
+    .replace(/[^a-z\s-]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+  return !words.length || words.every((word) => VAGUE_ROLE_WORDS.has(word));
+};
+
+const inferRoleFromContext = (
+  args: Record<string, unknown>,
+  fullContext: string,
+  targetCompanies: string[] = [],
+) => {
+  const roleQuery = targetCompanies
+    .reduce(
+      (query, company) =>
+        query.replace(new RegExp(escapeRegExp(company), "gi"), " "),
+      textArg(args, "roleQuery", ""),
+    )
+    .replace(/\b(?:and|or)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (roleQuery && !isVagueRoleQuery(roleQuery)) {
+    return titleCase(roleQuery.replace(/\broles?\b|\bjobs?\b/gi, "").trim());
+  }
+
+  const headlineMatch = fullContext.match(
+    /\bHeadline:\s*([^\n.]+?)(?:\.|\n|$)/i,
+  );
+  if (headlineMatch?.[1]) return headlineMatch[1].trim();
+
+  const roleMatch = fullContext.match(
+    /\b([A-Z][A-Za-z&/ -]+(?:Engineer|Manager|Developer|Analyst|Designer|Specialist|Lead|Consultant|Officer))\b/,
+  );
+
+  return roleMatch?.[1]?.trim() || "Target role";
+};
+
+const buildDynamicCompanyResults = (
+  companies: string[],
+  role: string,
+  location: string,
+): DirectApplyResult[] =>
+  companies.map((companyName) => {
+    const channel = KNOWN_OFFICIAL_CHANNELS[companyName.toLowerCase()];
+    const draftPreview = buildDraft(companyName, role, location);
+    const channelValue = channel?.channelValue || "Official channel pending verification";
+    const channelType = channel ? "careers_page" : "unknown";
+    const confidence = channel?.confidence || "low";
+    const confidenceScore = channel?.confidenceScore || 42;
+
+    return {
+      companyName,
+      role,
+      channelType,
+      channelValue,
+      confidence,
+      confidenceScore,
+      recommendedAction:
+        channel?.recommendedAction ||
+        "Continue researching the official company site before drafting or sending",
+      draftStatus: channel ? "ready_for_review" : "needs_review",
+      approvalStatus: "pending_user_review",
+      draftPreview,
+    };
+  });
+
+const buildSeedResults = (
   args: Record<string, unknown>,
   instruction: string,
 ): DirectApplyResult[] => {
@@ -172,6 +364,34 @@ const buildMockResults = (
   });
 };
 
+const buildClarificationOutput = (
+  progress: string[],
+): DirectApplyOutput => ({
+  results: [],
+  summary: {
+    total: 0,
+    highConfidence: 0,
+    needsReview: 0,
+    lowConfidence: 0,
+  },
+  progress,
+  approvalStatus: "not_requested",
+  needsClarification: {
+    reason:
+      "Direct Apply could not identify the target companies or role from this command or the recent chat context.",
+    suggestedPrompts: [
+      "@DirectApply apply to International Breweries and Digital Virgo for Operations & Systems Project Manager roles",
+      "/direct-apply apply to Courted using the Architectural cover letter",
+      "@DirectApply find verified direct application channels for BetterWorks and prepare drafts for review",
+    ],
+  },
+  connectedInbox: {
+    provider: "gmail",
+    status: "available_when_connected",
+    supportedActions: [],
+  },
+});
+
 export const directApplySkill: JobrakerChatSkill = {
   id: "direct_apply",
   name: "Direct Apply",
@@ -223,7 +443,29 @@ export const directApplySkill: JobrakerChatSkill = {
       await delay(260);
     }
 
-    const results = buildMockResults(input.args, input.userInstruction);
+    const fullContext = contextText(input);
+    const targetCompanies = resolveTargetCompanies(input);
+    const role = inferRoleFromContext(input.args, fullContext, targetCompanies);
+    const location = textArg(input.args, "location", "");
+    const roleQuery = textArg(input.args, "roleQuery", "");
+    const isVagueRequest =
+      !targetCompanies.length &&
+      !textArg(input.args, "industry", "") &&
+      isVagueRoleQuery(`${input.userInstruction} ${roleQuery}`);
+
+    if (isVagueRequest) {
+      const output = buildClarificationOutput(completedProgress);
+      return {
+        status: "completed",
+        content:
+          "Direct Apply needs a target company or role before it can prepare safe direct application channels.",
+        output: output as unknown as Record<string, unknown>,
+      };
+    }
+
+    const results = targetCompanies.length
+      ? buildDynamicCompanyResults(targetCompanies, role, location)
+      : buildSeedResults(input.args, input.userInstruction);
     const highConfidence = results.filter(
       (result) => result.confidence === "high",
     ).length;
