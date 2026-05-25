@@ -1450,14 +1450,17 @@ export const ChatPage = () => {
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  const skillPaletteTrigger = useMemo(
-    () =>
-      detectSkillPaletteTrigger(
-        text,
-        Math.min(caretPosition, text.length),
-      ),
-    [caretPosition, text],
-  );
+  const skillPaletteTrigger = useMemo(() => {
+    const normalizedCaretPosition = Math.min(
+      Math.max(caretPosition, 0),
+      text.length,
+    );
+
+    return (
+      detectSkillPaletteTrigger(text, normalizedCaretPosition) ||
+      detectSkillPaletteTrigger(text, text.length)
+    );
+  }, [caretPosition, text]);
   const skillPaletteSkills = useMemo(
     () =>
       skillPaletteTrigger
@@ -2269,7 +2272,7 @@ export const ChatPage = () => {
                     activeIndex={skillPaletteActiveIndex}
                     onSelect={selectSkillFromPalette}
                   />
-                  <div className='flex flex-col'>
+                  <div className='flex flex-col overflow-hidden rounded-[23px]'>
                   <div className='relative flex items-end p-2 pb-2'>
                     <textarea
                       ref={textareaRef}
@@ -2280,6 +2283,9 @@ export const ChatPage = () => {
                         setDismissedSkillPaletteToken(null);
                       }}
                       onClick={(e) =>
+                        setCaretPosition(e.currentTarget.selectionStart)
+                      }
+                      onFocus={(e) =>
                         setCaretPosition(e.currentTarget.selectionStart)
                       }
                       onKeyUp={(e) =>
@@ -2336,6 +2342,7 @@ export const ChatPage = () => {
                       style={{ height: "auto", minHeight: "52px" }}
                       onInput={(e) => {
                         const target = e.target as HTMLTextAreaElement;
+                        setCaretPosition(target.selectionStart);
                         target.style.height = "auto";
                         target.style.height = `${target.scrollHeight}px`;
                       }}
