@@ -193,6 +193,8 @@ export const JobrackerSignup = (): JSX.Element => {
     e.preventDefault();
 
     try {
+      const sanitizedEmail = sanitizeTextValue(formData.email).value.trim();
+
       if (showForgotPassword) {
         if (!ensureCaptchaToken()) {
           return;
@@ -200,7 +202,7 @@ export const JobrackerSignup = (): JSX.Element => {
 
         setSubmitting(true);
         const { error } = await supabase.auth.resetPasswordForEmail(
-          formData.email,
+          sanitizedEmail,
           {
             redirectTo: AUTH_REDIRECTS.resetPassword(),
             captchaToken: captchaToken ?? undefined,
@@ -241,7 +243,7 @@ export const JobrackerSignup = (): JSX.Element => {
           billing_interval: selectedBilling,
         });
         const { error } = await supabase.auth.signUp({
-          email: formData.email,
+          email: sanitizedEmail,
           password: formData.password,
           options: {
             emailRedirectTo: AUTH_REDIRECTS.signIn(),
@@ -270,7 +272,7 @@ export const JobrackerSignup = (): JSX.Element => {
         setSubmitting(true);
         const { data: signInData, error } =
           await supabase.auth.signInWithPassword({
-            email: formData.email,
+            email: sanitizedEmail,
             password: formData.password,
             options: {
               captchaToken: captchaToken ?? undefined,
@@ -294,6 +296,12 @@ export const JobrackerSignup = (): JSX.Element => {
           // Check security settings
           const securityCheck = await checkSecuritySettings(signInData.user.id);
           if (!securityCheck.allowed) {
+            await logSecurityEvent(
+              signInData.user.id,
+              "login_blocked",
+              `Login blocked: ${securityCheck.reason || "Security policy violation"}`,
+              "medium"
+            );
             await supabase.auth.signOut();
             toastError(
               "Login blocked",
@@ -334,9 +342,26 @@ export const JobrackerSignup = (): JSX.Element => {
       }
     } catch (error: any) {
       console.error("Supabase auth error:", error);
+      const rawMessage = error?.message || String(error);
+      let userFriendlyMessage = "An unexpected error occurred. Please try again.";
+
+      if (rawMessage.includes("User already registered") || rawMessage.includes("already exists")) {
+        userFriendlyMessage = "This email is already registered. Please sign in instead.";
+      } else if (rawMessage.includes("Invalid login credentials") || rawMessage.includes("invalid claim") || rawMessage.includes("Invalid credentials")) {
+        userFriendlyMessage = "Incorrect email or password. Please verify your credentials.";
+      } else if (rawMessage.includes("Email not confirmed") || rawMessage.includes("Email verification required")) {
+        userFriendlyMessage = "Please verify your email address before signing in. Check your inbox for the link.";
+      } else if (rawMessage.includes("rate limit") || rawMessage.includes("too many requests")) {
+        userFriendlyMessage = "Too many attempts. Please wait a few minutes before trying again.";
+      } else if (rawMessage.includes("CAPTCHA") || rawMessage.includes("captcha")) {
+        userFriendlyMessage = "Security verification failed. Please complete the CAPTCHA again.";
+      } else if (rawMessage.length < 80) {
+        userFriendlyMessage = rawMessage;
+      }
+
       toastError(
-        "Authentication failed",
-        error?.message || "Please try again.",
+        showForgotPassword ? "Reset failed" : "Authentication failed",
+        userFriendlyMessage,
       );
     } finally {
       setSubmitting(false);
@@ -349,18 +374,26 @@ export const JobrackerSignup = (): JSX.Element => {
   const handleResendVerification = async () => {
     try {
       setResending(true);
+      const sanitizedEmail = sanitizeTextValue(formData.email).value.trim();
       const authAny = (supabase as any).auth;
       if (authAny && typeof authAny.resend === "function") {
         const { error } = await authAny.resend({
           type: "signup",
-          email: formData.email,
+          email: sanitizedEmail,
           options: { emailRedirectTo: AUTH_REDIRECTS.signIn() },
         });
         if (error) throw error;
       }
       success("Verification email resent");
     } catch (e: any) {
-      toastError("Resend failed", e?.message || "Please try again later.");
+      const rawMessage = e?.message || String(e);
+      let userFriendlyMessage = "Failed to resend verification link. Please try again.";
+      if (rawMessage.includes("rate limit") || rawMessage.includes("too many requests")) {
+        userFriendlyMessage = "Too many requests. Please wait a few minutes before requesting another link.";
+      } else if (rawMessage.length < 80) {
+        userFriendlyMessage = rawMessage;
+      }
+      toastError("Resend failed", userFriendlyMessage);
     } finally {
       setResending(false);
     }

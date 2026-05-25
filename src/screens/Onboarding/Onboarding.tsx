@@ -1023,9 +1023,18 @@ export const Onboarding = (): JSX.Element => {
           (window as any).__profileCompletedTracked = true;
         } catch {}
         navigate("/dashboard/overview");
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to save onboarding:", err);
-        alert("Failed to save onboarding info. Please try again.");
+        const rawMessage = err?.message || String(err);
+        let userMessage = "Failed to save onboarding information. Please try again.";
+        if (rawMessage.includes("invalid input syntax") || rawMessage.includes("violates check constraint")) {
+          userMessage = "Invalid data format. Please verify your experience years or details.";
+        } else if (rawMessage.includes("JWT") || rawMessage.includes("Not authenticated")) {
+          userMessage = "Your session has expired. Please log in again.";
+        } else if (rawMessage.length < 80) {
+          userMessage = rawMessage;
+        }
+        alert(userMessage);
       }
     }
   };
@@ -1091,7 +1100,14 @@ export const Onboarding = (): JSX.Element => {
       navigate("/dashboard/overview");
     } catch (err: any) {
       console.error("Failed to complete onboarding:", err);
-      alert(err.message || "Failed to complete onboarding. Please try again.");
+      const rawMessage = err?.message || String(err);
+      let userMessage = "Failed to complete onboarding. Please try again.";
+      if (rawMessage.includes("JWT") || rawMessage.includes("Not authenticated")) {
+        userMessage = "Your session has expired. Please log in again.";
+      } else if (rawMessage.length < 80) {
+        userMessage = rawMessage;
+      }
+      alert(userMessage);
     } finally {
       setUploading(false);
     }
