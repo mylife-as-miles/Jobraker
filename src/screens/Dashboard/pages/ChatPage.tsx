@@ -263,6 +263,103 @@ const normalizeBasicMessage = (message: any): BasicMessage => ({
   hasPastedImage: Boolean(message?.hasPastedImage),
 });
 
+type ChatRequestMessage = {
+  role: "user" | "assistant";
+  content: string;
+  images?: { mimeType: string; data: string; name?: string }[];
+};
+
+const summarizeSkillCallForHistory = (skillCall?: ChatSkillCall) => {
+  if (!skillCall) return "";
+
+  const lines = [
+    `Chat skill result: ${skillCall.skillName}`,
+    `Status: ${skillCall.status.replace(/_/g, " ")}`,
+  ];
+  const output = skillCall.output as Record<string, any> | undefined;
+
+  if (output?.needsClarification?.reason) {
+    lines.push(`Needs clarification: ${output.needsClarification.reason}`);
+  }
+
+  if (Array.isArray(output?.results)) {
+    const resultLines = output.results.slice(0, 8).map((result: any) => {
+      const company = result?.companyName || "Unknown company";
+      const role = result?.role || "Unknown role";
+      const channel = result?.channelValue || "No channel";
+      const confidence =
+        result?.confidence && result?.confidenceScore
+          ? `${result.confidence} ${result.confidenceScore}%`
+          : result?.confidence || "unknown confidence";
+      const status = result?.draftStatus
+        ? `draft ${String(result.draftStatus).replace(/_/g, " ")}`
+        : "draft status unknown";
+
+      return `- ${company}: ${role}; ${channel}; ${confidence}; ${status}.`;
+    });
+
+    if (resultLines.length) {
+      lines.push("Results:");
+      lines.push(...resultLines);
+    }
+  }
+
+  if (skillCall.error) {
+    lines.push(`Error: ${skillCall.error}`);
+  }
+
+  lines.push(
+    "If the user replies with approval, treat it as approval for this skill result only and still respect safety rules before sending, applying, deleting, or charging.",
+  );
+
+  return lines.join("\n").slice(0, 5000);
+};
+
+const buildChatRequestMessages = (
+  history: BasicMessage[],
+  currentPayload: ChatUserPayload,
+): ChatRequestMessage[] => {
+  const mapped = history
+    .map((msg, idx, arr): ChatRequestMessage | null => {
+      const isLast = idx === arr.length - 1;
+      if (msg.role === "skill") {
+        const content =
+          summarizeSkillCallForHistory(msg.skillCall) || msg.content.trim();
+        return content ? { role: "assistant", content } : null;
+      }
+
+      if (isLast && msg.role === "user" && currentPayload.images?.length) {
+        return {
+          role: "user",
+          content: msg.content.trim(),
+          images: currentPayload.images.map(({ mimeType, data, name }) => ({
+            mimeType,
+            data,
+            ...(name ? { name } : {}),
+          })),
+        };
+      }
+
+      const content = msg.content.trim();
+      if (!content && !(isLast && msg.role === "user" && currentPayload.images?.length)) {
+        return null;
+      }
+
+      return { role: msg.role as "user" | "assistant", content };
+    })
+    .filter((msg): msg is ChatRequestMessage => Boolean(msg));
+
+  return mapped.reduce<ChatRequestMessage[]>((acc, msg) => {
+    const previous = acc[acc.length - 1];
+    if (previous && previous.role === msg.role && !previous.images?.length && !msg.images?.length) {
+      previous.content = `${previous.content}\n\n${msg.content}`.trim();
+      return acc;
+    }
+    acc.push({ ...msg });
+    return acc;
+  }, []);
+};
+
 const normalizeChatSession = (session: ChatSessionRecord): ChatSessionState => {
   const createdAtMs = session.created_at
     ? new Date(session.created_at).getTime()
@@ -380,6 +477,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         const {
           data: { session },
         } = await supabase.auth.getSession();
+        const requestMessages = buildChatRequestMessages(history, m);
 
         const response = await fetch(fnUrl, {
           method: "POST",
@@ -389,33 +487,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           },
           body: JSON.stringify({
             model: chatOpts?.model || DEFAULT_CHAT_MODEL,
-            messages: history
-              .filter((msg, idx, arr) => {
-                if (msg.role === "skill") return false;
-                const isLast = idx === arr.length - 1;
-                if (isLast && msg.role === "user") {
-                  return msg.content.trim() !== "" || Boolean(m.images?.length);
-                }
-                return msg.role === "assistant" || msg.content.trim() !== "";
-              })
-              .map((msg, idx, arr) => {
-                const isLast = idx === arr.length - 1;
-                if (isLast && msg.role === "user" && m.images?.length) {
-                  return {
-                    role: "user",
-                    content: msg.content.trim(),
-                    images: m.images.map(({ mimeType, data, name }) => ({
-                      mimeType,
-                      data,
-                      ...(name ? { name } : {}),
-                    })),
-                  };
-                }
-                return {
-                  role: msg.role as "user" | "assistant",
-                  content: msg.content.trim(),
-                };
-              }),
+            messages: requestMessages,
             mode: chatOpts?.mode || "ask",
             webSearch: chatOpts?.webSearch ?? false,
             system: chatOpts?.system,
@@ -1216,6 +1288,7 @@ export const ChatPage = () => {
 
       setMessages(nextMessages);
       touchSessionMessages(sessionId, nextMessages, null);
+      setResponseId(null);
       setSkillStatus("in_progress");
 
       const isFirstMessage =
@@ -1315,6 +1388,7 @@ export const ChatPage = () => {
       messages,
       sessions,
       setMessages,
+      setResponseId,
       supabase,
       toastError,
       touchSessionMessages,
