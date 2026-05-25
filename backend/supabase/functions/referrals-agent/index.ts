@@ -6,6 +6,7 @@ import {
   extractGeminiText,
   GEMINI_MODEL,
   withGeminiRetry,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import {
   SubscriptionAccessError,
@@ -123,9 +124,9 @@ Jobs JSON:
 ${JSON.stringify(jobPayload)}`;
 
     const ai = createGeminiClient();
-    const response = await withGeminiRetry(() =>
+    const { result: response } = await withModelFallback((model) =>
       ai.models.generateContent({
-        model: GEMINI_MODEL,
+        model,
         config: createGeminiConfig({
           systemInstruction:
             "You output only JSON. Never include markdown fences. Be conservative—prefer fewer high-confidence matches.",
@@ -133,7 +134,7 @@ ${JSON.stringify(jobPayload)}`;
           thinkingLevel: "LOW",
         }),
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-      }),
+      })
     );
 
     const text = extractGeminiText(response);

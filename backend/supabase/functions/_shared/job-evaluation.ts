@@ -2,9 +2,9 @@ import {
   createGeminiClient,
   createGeminiConfig,
   extractGeminiText,
-  GEMINI_MODEL,
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
+  withModelFallback,
 } from "./gemini.ts";
 import {
   type CandidateMemory,
@@ -637,16 +637,18 @@ export async function evaluateAndPersistJobFit(
 
   try {
     const ai = createGeminiClient();
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      config: createGeminiConfig({
-        systemInstruction:
-          "You are Jobraker's structured evaluation engine. Reply with JSON only.",
-        includeTools: false,
-        thinkingLevel: "HIGH",
+    const { result: response } = await withModelFallback(
+      (model) => ai.models.generateContent({
+        model,
+        config: createGeminiConfig({
+          systemInstruction:
+            "You are Jobraker's structured evaluation engine. Reply with JSON only.",
+          includeTools: false,
+          thinkingLevel: "HIGH",
+        }),
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
       }),
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
+    );
 
     const rawText = extractGeminiText(response);
     if (!rawText) {

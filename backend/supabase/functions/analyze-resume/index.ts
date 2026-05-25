@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText } from "../_shared/gemini.ts";
+import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText, withModelFallback } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
 import {
@@ -155,11 +155,13 @@ serve(async (req) => {
     const systemPrompt = "You are JobRaker's resume intelligence engine. Always reply with structured JSON matching the requested schema.";
     const userPrompt = buildPromptBody(resumeText.slice(0, 15000), profileSummary);
 
-    const response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
-        config: createGeminiConfig({ systemInstruction: systemPrompt }),
-        contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
-    });
+    const { result: response } = await withModelFallback(
+      (model) => ai.models.generateContent({
+          model,
+          config: createGeminiConfig({ systemInstruction: systemPrompt }),
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
+      }),
+    );
 
     const content = extractGeminiText(response);
     if (!content) throw new Error("Invalid response from Gemini (empty)");

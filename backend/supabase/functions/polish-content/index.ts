@@ -8,6 +8,7 @@ import {
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
   withGeminiRetry,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -189,8 +190,8 @@ serve(async (req) => {
 
     try {
       const ai = createGeminiClient();
-      const result = await withGeminiRetry(() => ai.models.generateContent({
-        model: GEMINI_MODEL,
+      const { result } = await withModelFallback((model) => ai.models.generateContent({
+        model,
         config: createGeminiConfig({ 
             systemInstruction: "You are a resume polishing assistant. Return ONLY valid JSON matching the requested schema.",
             responseMimeType: "application/json"

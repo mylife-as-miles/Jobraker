@@ -2,8 +2,8 @@ import {
   createGeminiClient,
   createGeminiConfig,
   extractGeminiText,
-  GEMINI_MODEL,
   withGeminiRetry,
+  withModelFallback,
 } from "./gemini.ts";
 import { parseStructuredJson } from "./structured-json.ts";
 import {
@@ -347,16 +347,18 @@ async function generateEntriesWithGemini(
   limit: number,
 ): Promise<AnswerBankEntryInput[]> {
   const ai = createGeminiClient();
-  const response = await withGeminiRetry(() =>
-    ai.models.generateContent({
-      model: GEMINI_MODEL,
-      config: createGeminiConfig({
-        systemInstruction:
-          "You create structured reusable candidate knowledge snippets for a job-search assistant. Return only valid JSON.",
-        responseMimeType: "application/json",
+  const { result: response } = await withModelFallback(
+    (model) => withGeminiRetry(() =>
+      ai.models.generateContent({
+        model,
+        config: createGeminiConfig({
+          systemInstruction:
+            "You create structured reusable candidate knowledge snippets for a job-search assistant. Return only valid JSON.",
+          responseMimeType: "application/json",
+        }),
+        contents: [{ role: "user", parts: [{ text: buildGenerationPrompt(context, themes, limit) }] }],
       }),
-      contents: [{ role: "user", parts: [{ text: buildGenerationPrompt(context, themes, limit) }] }],
-    }),
+    ),
   );
 
   const text = extractGeminiText(response);

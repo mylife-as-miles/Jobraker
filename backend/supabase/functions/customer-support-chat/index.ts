@@ -4,9 +4,11 @@ import {
   createGeminiClient,
   extractGeminiText,
   GEMINI_MODEL,
+  GEMINI_LITE_MODEL,
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
   withGeminiRetry,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -415,8 +417,26 @@ The array should be shaped like: { "label": string, "route": string | null, "kin
     let rawText = "";
 
     try {
-      const response = await generateForModel(DEFAULT_SUPPORT_MODEL);
-      rawText = extractGeminiText(response);
+      if (DEFAULT_SUPPORT_MODEL !== GEMINI_MODEL) {
+        try {
+          const response = await generateForModel(DEFAULT_SUPPORT_MODEL);
+          rawText = extractGeminiText(response);
+        } catch (error) {
+          if (isGeminiAccessDeniedError(error)) throw error;
+          console.warn(`[CustomerSupport] Default model ${DEFAULT_SUPPORT_MODEL} failed, trying Gemini fallback chain...`, error);
+          const { result: response } = await withModelFallback(
+            (model) => generateForModel(model),
+            GEMINI_MODEL
+          );
+          rawText = extractGeminiText(response);
+        }
+      } else {
+        const { result: response } = await withModelFallback(
+          (model) => generateForModel(model),
+          GEMINI_MODEL
+        );
+        rawText = extractGeminiText(response);
+      }
     } catch (error) {
       if (isGeminiAccessDeniedError(error)) {
         return new Response(
@@ -429,13 +449,7 @@ The array should be shaped like: { "label": string, "route": string | null, "kin
           },
         );
       }
-
-      if (DEFAULT_SUPPORT_MODEL !== FALLBACK_SUPPORT_MODEL) {
-        const fallbackResponse = await generateForModel(FALLBACK_SUPPORT_MODEL);
-        rawText = extractGeminiText(fallbackResponse);
-      } else {
-        throw error;
-      }
+      throw error;
     }
 
     const parsed = parseStructuredJson<SupportResponse>(rawText);

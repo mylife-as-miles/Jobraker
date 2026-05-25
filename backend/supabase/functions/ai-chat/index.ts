@@ -4,6 +4,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   createGeminiClient,
   GEMINI_MODEL,
+  GEMINI_LITE_MODEL,
+  GEMINI_PREMIUM_MODEL,
   withGeminiRetry,
   isGeminiRateLimitError,
 } from "../_shared/gemini.ts";
@@ -2084,7 +2086,22 @@ serve(async (req) => {
     }
 
     const genAI = createGeminiClient();
-    const modelName = requestedModel || GEMINI_MODEL;
+
+    // --- Tiered model selection ---
+    // Premium model (gemini-3.5-flash) costs 2 credits; only used when explicitly requested.
+    const isPremiumRequest = requestedModel === GEMINI_PREMIUM_MODEL || requestedModel === "premium";
+    let modelName: string;
+    if (isPremiumRequest) {
+      modelName = GEMINI_PREMIUM_MODEL;
+    } else if (requestedModel && requestedModel !== "default") {
+      modelName = requestedModel;
+    } else {
+      modelName = GEMINI_MODEL;
+    }
+    // Fallback chain for rate-limit resilience: primary → lite
+    const fallbackModels = [modelName, GEMINI_LITE_MODEL].filter(
+      (m, i, arr) => arr.indexOf(m) === i,
+    );
     let userContext = null;
     try {
       userContext = await fetchUserContext(user.id, authHeader);
@@ -2186,17 +2203,39 @@ Edge functions:
 
         try {
           if (mode === "agent") {
-            const chat = genAI.chats.create({
-              model: modelName,
+            let activeModel = fallbackModels[0];
+            let chat = genAI.chats.create({
+              model: activeModel,
               config: chatConfig,
               history,
             });
             /** Max tool *rounds* (each round may include multiple parallel function calls). */
             const MAX_AGENT_TOOL_ROUNDS = 12;
 
-            let response = await withGeminiRetry(() =>
-              chat.sendMessage({ message: lastUserParts }),
-            );
+            let response: any;
+            // Try primary model, fall back on rate limit
+            for (let mi = 0; mi < fallbackModels.length; mi++) {
+              activeModel = fallbackModels[mi];
+              try {
+                if (mi > 0) {
+                  // Recreate chat with fallback model
+                  console.warn(`[ai-chat] Falling back to ${activeModel}`);
+                  chat = genAI.chats.create({
+                    model: activeModel,
+                    config: chatConfig,
+                    history,
+                  });
+                }
+                response = await withGeminiRetry(() =>
+                  chat.sendMessage({ message: lastUserParts }),
+                );
+                break; // success — stop trying models
+              } catch (e) {
+                if (!isGeminiRateLimitError(e) || mi === fallbackModels.length - 1) {
+                  throw e; // non-rate-limit or last fallback exhausted
+                }
+              }
+            }
             let toolRounds = 0;
             let streamedAnyAssistantText = false;
             let agentStoppedForBilling = false;
@@ -3076,17 +3115,33 @@ Edge functions:
               });
             }
           } else {
-            const chat = genAI.chats.create({
-              model: modelName,
-              config: chatConfig,
-              history,
-            });
-            const stream = await withGeminiRetry(() =>
-              chat.sendMessageStream({ message: lastUserParts }),
-            );
-            for await (const chunk of stream) {
-              const text = streamChunkText(chunk);
-              if (text) enqueueEvent("message", { delta: text });
+            // Non-agent (ask) mode with model fallback
+            let streamSuccess = false;
+            for (let mi = 0; mi < fallbackModels.length; mi++) {
+              const askModel = fallbackModels[mi];
+              try {
+                if (mi > 0) {
+                  console.warn(`[ai-chat ask] Falling back to ${askModel}`);
+                }
+                const chat = genAI.chats.create({
+                  model: askModel,
+                  config: chatConfig,
+                  history,
+                });
+                const stream = await withGeminiRetry(() =>
+                  chat.sendMessageStream({ message: lastUserParts }),
+                );
+                for await (const chunk of stream) {
+                  const text = streamChunkText(chunk);
+                  if (text) enqueueEvent("message", { delta: text });
+                }
+                streamSuccess = true;
+                break;
+              } catch (e) {
+                if (!isGeminiRateLimitError(e) || mi === fallbackModels.length - 1) {
+                  throw e;
+                }
+              }
             }
           }
           enqueueEvent("done", "[DONE]");
@@ -3094,7 +3149,7 @@ Edge functions:
         } catch (e: any) {
           console.error("Agent Loop Error:", e);
           const userMessage = isGeminiRateLimitError(e)
-            ? "Our AI service is temporarily busy. Please try again in a moment."
+            ? "Our AI service is temporarily busy across all models. Please try again in a minute."
             : e.message;
           enqueueEvent("error", { error: userMessage });
           controller.close();

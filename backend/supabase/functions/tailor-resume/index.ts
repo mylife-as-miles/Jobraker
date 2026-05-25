@@ -6,6 +6,7 @@ import {
   extractGeminiText,
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
@@ -121,15 +122,17 @@ serve(async (req) => {
     let tailoredResume = resumeText.trim();
     try {
       const ai = createGeminiClient();
-      const result = await ai.models.generateContent({
-        model: GEMINI_MODEL,
-        config: createGeminiConfig({
-          systemInstruction:
-            "You are an expert resume writer. Return ONLY the tailored resume in clean markdown format.",
-          responseMimeType: "text/plain",
+      const { result } = await withModelFallback(
+        (model) => ai.models.generateContent({
+          model,
+          config: createGeminiConfig({
+            systemInstruction:
+              "You are an expert resume writer. Return ONLY the tailored resume in clean markdown format.",
+            responseMimeType: "text/plain",
+          }),
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
         }),
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      });
+      );
 
       const text = extractGeminiText(result);
       if (!text) throw new Error("Empty response from AI");

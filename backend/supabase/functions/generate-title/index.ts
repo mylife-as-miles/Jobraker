@@ -5,6 +5,7 @@ import {
   createGeminiConfig,
   extractGeminiText,
   GEMINI_MODEL,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
@@ -85,14 +86,16 @@ serve(async (req) => {
         Do not include quotes in the output. Just the title text.
       `;
 
-      const response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
-        config: createGeminiConfig({
-          systemInstruction: systemPrompt,
-          responseMimeType: "text/plain",
-        }),
-        contents: [{ role: "user", parts: [{ text: message }] }],
-      });
+      const { result: response } = await withModelFallback((model) =>
+        ai.models.generateContent({
+          model,
+          config: createGeminiConfig({
+            systemInstruction: systemPrompt,
+            responseMimeType: "text/plain",
+          }),
+          contents: [{ role: "user", parts: [{ text: message }] }],
+        })
+      );
 
       title = extractGeminiText(response)?.trim() || title;
     } catch (error) {

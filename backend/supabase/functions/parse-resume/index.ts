@@ -6,6 +6,7 @@ import {
   createGeminiConfig,
   extractGeminiText,
   withGeminiRetry,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -156,16 +157,18 @@ ${JSON.stringify(PARSING_SCHEMA, null, 2)}
 Malformed JSON:
 ${text.slice(0, 14000)}`;
 
-  const repaired = await ai.models.generateContent({
-    model: GEMINI_MODEL,
-    config: createGeminiConfig({
-      systemInstruction:
-        "You repair malformed JSON. Return only valid JSON with no commentary.",
-      includeTools: false,
-      thinkingLevel: "LOW",
+  const { result: repaired } = await withModelFallback(
+    (model) => ai.models.generateContent({
+      model,
+      config: createGeminiConfig({
+        systemInstruction:
+          "You repair malformed JSON. Return only valid JSON with no commentary.",
+        includeTools: false,
+        thinkingLevel: "LOW",
+      }),
+      contents: [{ role: "user", parts: [{ text: repairPrompt }] }],
     }),
-    contents: [{ role: "user", parts: [{ text: repairPrompt }] }],
-  });
+  );
 
   const repairedText = extractGeminiText(repaired);
   if (!repairedText) throw new Error("Empty response while repairing JSON.");
@@ -287,16 +290,18 @@ serve(async (req) => {
     const ai = createGeminiClient();
     const prompt = buildPrompt(resumeText.slice(0, 60000));
 
-    const result = await withGeminiRetry(() => ai.models.generateContent({
-        model: GEMINI_MODEL,
-        config: createGeminiConfig({
-          systemInstruction: "You are a lossless resume parser. Extract, preserve detail, and return only valid JSON.",
-          responseMimeType: "application/json",
-          includeTools: false,
-          thinkingLevel: "LOW",
-        }),
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
-    }));
+    const { result } = await withModelFallback(
+      (model) => withGeminiRetry(() => ai.models.generateContent({
+          model,
+          config: createGeminiConfig({
+            systemInstruction: "You are a lossless resume parser. Extract, preserve detail, and return only valid JSON.",
+            responseMimeType: "application/json",
+            includeTools: false,
+            thinkingLevel: "LOW",
+          }),
+          contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      })),
+    );
 
     const text = extractGeminiText(result);
     if (!text) throw new Error("Empty response from AI");

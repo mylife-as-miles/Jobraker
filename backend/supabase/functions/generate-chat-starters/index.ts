@@ -7,6 +7,7 @@ import {
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
   withGeminiRetry,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -250,16 +251,16 @@ serve(async (req) => {
 
     try {
       const ai = createGeminiClient();
-      const result = await withGeminiRetry(() =>
+      const { result } = await withModelFallback((model) =>
         ai.models.generateContent({
-          model: GEMINI_MODEL,
+          model,
           config: createGeminiConfig({
             systemInstruction:
               "You create personalized starter prompts for a career AI assistant. Return only valid JSON.",
             responseMimeType: "application/json",
           }),
           contents: [{ role: "user", parts: [{ text: buildPrompt(context) }] }],
-        }),
+        })
       );
 
       const text = extractGeminiText(result);

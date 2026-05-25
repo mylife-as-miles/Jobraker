@@ -14,6 +14,7 @@ import {
   createGeminiConfig,
   extractGeminiText,
   GEMINI_MODEL,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import {
   evaluateAndPersistJobFit,
@@ -320,16 +321,18 @@ ${clipText(markdown, 18_000)}
 `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      config: createGeminiConfig({
-        systemInstruction:
-          "You are a structured extraction engine for job postings. Respond with JSON only.",
-        includeTools: false,
-        thinkingLevel: "LOW",
-      }),
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
+    const { result: response } = await withModelFallback((model) =>
+      ai.models.generateContent({
+        model,
+        config: createGeminiConfig({
+          systemInstruction:
+            "You are a structured extraction engine for job postings. Respond with JSON only.",
+          includeTools: false,
+          thinkingLevel: "LOW",
+        }),
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      })
+    );
 
     const raw = extractGeminiText(response);
     const parsed = parseJsonObject(raw);

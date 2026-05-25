@@ -100,9 +100,45 @@ export async function withGeminiRetry<T>(
 }
 
 // Standardize default text/function-calling work on the current shared Gemini model.
-export const GEMINI_MODEL = "gemini-3-flash-preview";
-export const GEMINI_FAST_MODEL = "gemini-3-flash-preview";
-export const GEMINI_PREMIUM_MODEL = "gemini-1.5-pro";
+// Tiered model strategy:
+//   LITE   – cheapest, highest rate limits, best for simple tasks & fallback
+//   MODEL  – standard workhorse for most features
+//   PREMIUM – most capable, costs 2 credits, for advanced reasoning tasks
+export const GEMINI_LITE_MODEL = "gemini-3.1-flash-lite";
+export const GEMINI_MODEL = "gemini-2.5-flash";
+export const GEMINI_FAST_MODEL = GEMINI_LITE_MODEL;
+export const GEMINI_PREMIUM_MODEL = "gemini-3.5-flash";
+
+/** Ordered fallback chain: try primary → standard → lite */
+export const MODEL_FALLBACK_CHAIN = [
+  GEMINI_MODEL,
+  GEMINI_LITE_MODEL,
+] as const;
+
+/**
+ * Try `fn` with the given model. On rate-limit, cascade through cheaper
+ * fallback models before giving up.
+ */
+export async function withModelFallback<T>(
+  fn: (model: string) => Promise<T>,
+  primaryModel: string = GEMINI_MODEL,
+): Promise<{ result: T; modelUsed: string }> {
+  const chain = [primaryModel, ...MODEL_FALLBACK_CHAIN.filter((m) => m !== primaryModel)];
+  let lastError: unknown;
+  for (const model of chain) {
+    try {
+      const result = await fn(model);
+      return { result, modelUsed: model };
+    } catch (error) {
+      lastError = error;
+      if (!isGeminiRateLimitError(error)) {
+        throw error; // non-rate-limit errors propagate immediately
+      }
+      console.warn(`[Gemini] ${model} rate-limited, falling back…`);
+    }
+  }
+  throw lastError;
+}
 
 // Standard tools configuration
 export const GEMINI_TOOLS = [
@@ -200,16 +236,18 @@ export const generateGeminiDescription = async (
   `;
 
   try {
-     const response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
-        config: createGeminiConfig({ systemInstruction: systemPrompt }),
-        contents: [
-            {
-                role: 'user',
-                parts: [{ text: combinedContent }]
-            }
-        ]
-     });
+     const { result: response } = await withModelFallback(
+       (model) => ai.models.generateContent({
+          model,
+          config: createGeminiConfig({ systemInstruction: systemPrompt }),
+          contents: [
+              {
+                  role: 'user',
+                  parts: [{ text: combinedContent }]
+              }
+          ]
+       }),
+     );
 
      const text = extractGeminiText(response);
      if (!text) throw new Error("Empty response from Gemini");
