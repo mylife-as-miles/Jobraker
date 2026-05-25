@@ -15,7 +15,18 @@ type SourceKind =
   | "ashby"
   | "workable"
   | "direct"
+  | "yc"
+  | "hackernews"
+  | "reddit"
+  | "x"
   | "firecrawl";
+
+interface SalarySignal {
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string | null;
+  salary_raw?: string | null;
+}
 
 export type VerificationStatus = "verified" | "stale" | "failed" | "unverified";
 
@@ -32,6 +43,9 @@ export interface DiscoveryJob {
   source_confidence: number;
   verification_status: VerificationStatus;
   is_tracked_company: boolean;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string | null;
   raw_data: Record<string, unknown>;
 }
 
@@ -67,6 +81,9 @@ interface SearchSeed {
     | "allowed_domain"
     | "default_source"
     | "credential_domain"
+    | "ats_signal"
+    | "yc_signal"
+    | "community_signal"
     | "remote_fallback";
   query: string;
   limit: number;
@@ -93,6 +110,9 @@ interface FirecrawlSearchCandidate {
   source_kind: SourceKind;
   source_confidence: number;
   is_tracked_company: boolean;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string | null;
   seed_matches: string[];
   firecrawl_queries: string[];
   priority: number;
@@ -110,6 +130,9 @@ interface NormalizedProviderJob {
   provider_job_id?: string;
   source_kind: SourceKind;
   source_confidence: number;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string | null;
   raw_data: Record<string, unknown>;
 }
 
@@ -164,12 +187,16 @@ const KNOWN_ATS_HINTS: Array<{ kind: SourceKind; match: RegExp }> = [
   { kind: "lever", match: /lever/i },
   { kind: "ashby", match: /ashby/i },
   { kind: "workable", match: /workable/i },
+  { kind: "yc", match: /ycombinator\.com\/jobs|workatastartup\.com/i },
+  { kind: "hackernews", match: /news\.ycombinator\.com/i },
+  { kind: "reddit", match: /reddit\.com/i },
+  { kind: "x", match: /(?:^|\.)x\.com|twitter\.com/i },
 ];
 
-const MAX_FIRECRAWL_SEEDS = 4;
+const MAX_FIRECRAWL_SEEDS = 8;
 const MAX_FIRECRAWL_RESULTS_PER_SEED = 12;
-const MAX_RAW_CANDIDATES = 36;
-const MAX_DIRECT_FETCHES = 8;
+const MAX_RAW_CANDIDATES = 48;
+const MAX_DIRECT_FETCHES = 12;
 const MAX_VERIFICATION_POOL = 16;
 const FIRECRAWL_SEARCH_TIMEOUT_MS = 60000;
 const PROVIDER_LOOKUP_TIMEOUT_MS = 5000;

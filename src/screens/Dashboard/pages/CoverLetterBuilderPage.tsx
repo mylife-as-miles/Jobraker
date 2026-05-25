@@ -188,11 +188,52 @@ export const CoverLetterBuilderPage = () => {
   const activeId = currentLibId || routeId || id;
 
   const normalizeCoverLetterPayload = (record: any) => {
-    const payload = record?.data ?? record?.content;
-    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-      return null;
+    const payload = record?.data;
+    if (payload && typeof payload === "object" && !Array.isArray(payload) && Object.keys(payload).length > 2) {
+      return payload as Record<string, unknown>;
     }
-    return payload as Record<string, unknown>;
+    if (record) {
+      const contentStr = record.content || "";
+      const paragraphs = typeof contentStr === "string" && contentStr.trim()
+        ? contentStr.split(/\n\s*\n+/).map((p: any) => p.trim()).filter(Boolean)
+        : [];
+      return {
+        id: record.id || "",
+        title: record.name || "Untitled Cover Letter",
+        slug: record.slug || "untitled-cover-letter",
+        tags: record.tags || [],
+        role: record.role || "",
+        company: record.company || "",
+        jobDescription: record.job_description || "",
+        tone: record.tone || "professional",
+        lengthPref: record.length_pref || "medium",
+        sender: {
+          name: record.sender_name || "",
+          email: record.sender_email || "",
+          phone: record.sender_phone || "",
+          address: record.sender_address || "",
+        },
+        recipient: {
+          name: record.recipient || "",
+          title: record.recipient_title || "",
+          company: record.company || "",
+          address: record.recipient_address || "",
+        },
+        content: {
+          date: record.date || new Date(record.created_at || Date.now()).toISOString().slice(0, 10),
+          subject: record.subject || (record.role ? `Application for ${record.role}` : ""),
+          salutation: record.salutation || "Dear Hiring Manager,",
+          paragraphs: paragraphs,
+          closing: record.closing || "Best regards,",
+          signature: record.signature_name || "",
+          rawBody: contentStr,
+        },
+        typography: {
+          fontSize: record.font_size || 16,
+        }
+      } as Record<string, unknown>;
+    }
+    return null;
   };
 
   // Derived
