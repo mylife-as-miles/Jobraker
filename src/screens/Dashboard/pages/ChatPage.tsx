@@ -720,6 +720,7 @@ export const ChatPage = () => {
   const [skillStatus, setSkillStatus] = useState<"idle" | "in_progress">(
     "idle",
   );
+  const [caretPosition, setCaretPosition] = useState(0);
   const [skillPaletteActiveIndex, setSkillPaletteActiveIndex] = useState(0);
   const [dismissedSkillPaletteToken, setDismissedSkillPaletteToken] = useState<
     string | null
@@ -1318,6 +1319,7 @@ export const ChatPage = () => {
 
     const attachmentFiles = attachments;
     setText("");
+    setCaretPosition(0);
     setAttachments([]);
     const textarea = textareaRef.current;
     if (textarea) textarea.style.height = "auto";
@@ -1441,6 +1443,7 @@ export const ChatPage = () => {
     }
 
     setText("");
+    setCaretPosition(0);
   };
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1451,9 +1454,9 @@ export const ChatPage = () => {
     () =>
       detectSkillPaletteTrigger(
         text,
-        textareaRef.current?.selectionStart ?? text.length,
+        Math.min(caretPosition, text.length),
       ),
-    [text],
+    [caretPosition, text],
   );
   const skillPaletteSkills = useMemo(
     () =>
@@ -1482,6 +1485,7 @@ export const ChatPage = () => {
         alias,
       );
       setText(nextText);
+      setCaretPosition(skillPaletteTrigger.start + alias.length + 1);
       setDismissedSkillPaletteToken(null);
       window.requestAnimationFrame(() => {
         const textarea = textareaRef.current;
@@ -1845,7 +1849,10 @@ export const ChatPage = () => {
                           return (
                             <button
                               key={suggestion.id}
-                              onClick={() => setText(suggestion.prompt)}
+                              onClick={() => {
+                                setText(suggestion.prompt);
+                                setCaretPosition(suggestion.prompt.length);
+                              }}
                               className='suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group'
                             >
                               <Icon className='text-brand mb-3 w-6 h-6' />
@@ -2249,7 +2256,7 @@ export const ChatPage = () => {
             <div className='shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur md:px-6'>
               <div className='w-full max-w-4xl mx-auto'>
                 <div
-                  className={`relative rounded-[24px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${
+                  className={`relative rounded-[24px] border border-border shadow-2xl overflow-visible transition-all duration-300 ${
                     text.trim() || attachments.length
                       ? "bg-card ring-1 ring-brand/50 border-brand/50"
                       : "bg-card/85 backdrop-blur-xl"
@@ -2269,8 +2276,18 @@ export const ChatPage = () => {
                       value={text}
                       onChange={(e) => {
                         setText(e.target.value);
+                        setCaretPosition(e.currentTarget.selectionStart);
                         setDismissedSkillPaletteToken(null);
                       }}
+                      onClick={(e) =>
+                        setCaretPosition(e.currentTarget.selectionStart)
+                      }
+                      onKeyUp={(e) =>
+                        setCaretPosition(e.currentTarget.selectionStart)
+                      }
+                      onSelect={(e) =>
+                        setCaretPosition(e.currentTarget.selectionStart)
+                      }
                       onPaste={handlePasteImage}
                       onKeyDown={(e) => {
                         if (skillPaletteOpen && skillPaletteSkills.length) {
