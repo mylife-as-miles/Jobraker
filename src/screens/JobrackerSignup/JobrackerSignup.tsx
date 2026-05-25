@@ -31,6 +31,8 @@ import { validatePassword } from "../../utils/password";
 import { useToast } from "../../components/ui/toast-provider";
 import Modal from "../../components/ui/modal";
 import { SelfSolvingCube } from "./components/SelfSolvingCube";
+import { sanitizeTextValue } from "@/lib/inputSecurity";
+import { logSecurityEvent } from "../../utils/sessionManagement";
 
 function isAdminHost() {
   return window.location.hostname.startsWith("admin.");
@@ -69,6 +71,15 @@ export const JobrackerSignup = (): JSX.Element => {
   const selectedPlan = searchParams.get("plan")?.trim().toLowerCase() || null;
   const selectedBilling =
     searchParams.get("billing")?.trim().toLowerCase() || null;
+
+  useEffect(() => {
+    if (selectedPlan) {
+      localStorage.setItem("selectedPlan", selectedPlan);
+    }
+    if (selectedBilling) {
+      localStorage.setItem("selectedBilling", selectedBilling);
+    }
+  }, [selectedPlan, selectedBilling]);
 
   useEffect(() => {
     const savedProvider = localStorage.getItem("lastUsedProvider");
@@ -437,6 +448,45 @@ export const JobrackerSignup = (): JSX.Element => {
               </p>
             </motion.div>
 
+            {isSignUp && selectedPlan && !showForgotPassword && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-brand/10 border border-brand/20 rounded-xl p-3 text-xs space-y-1 relative overflow-hidden"
+              >
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-foreground uppercase tracking-wider text-[10px]">Selected Plan:</span>
+                  <span className="text-brand font-mono font-bold capitalize">{selectedPlan}</span>
+                </div>
+                <div className="text-foreground/75 text-[11px]">
+                  {selectedPlan === "pro" && "1,200 credits/mo • Full AI Tailoring • On Autopilot"}
+                  {selectedPlan === "basics" && "250 credits/mo • Tailoring & Drafts • 15 Auto-Applies"}
+                  {selectedPlan === "ultimate" && "3,500 credits/mo • Scout Mode • Infinite Power"}
+                  {selectedPlan === "free" && "10 credits/mo • Track Active Pipeline"}
+                </div>
+                <div className="text-[10px] text-foreground/50 border-t border-foreground/5 pt-1.5 mt-1">
+                  14-day free trial • Cancel anytime • Zero risk
+                </div>
+              </motion.div>
+            )}
+
+            {isSignUp && !selectedPlan && !showForgotPassword && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-foreground/[0.02] border border-foreground/5 rounded-xl p-3 text-[11px] text-foreground/70 flex items-center justify-between"
+              >
+                <span>Recommended tier: <strong className="text-brand">Pro Plan</strong> (1,200 credits)</span>
+                <button
+                  type="button"
+                  onClick={() => navigate("/pricing")}
+                  className="text-brand hover:underline font-medium text-[10px]"
+                >
+                  View Plans
+                </button>
+              </motion.div>
+            )}
+
             {turnstileEnabled && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -630,21 +680,35 @@ export const JobrackerSignup = (): JSX.Element => {
                       )}
                     </button>
                   </div>
-                  {/* Minimal Password Strength Indicator for Sign Up */}
+                  {/* Upgraded Password Strength & Requirement Checklist */}
                   {formData.password.length > 0 && (
-                    <div className='pt-1.5 flex items-center gap-1.5 text-[10px]'>
-                      <div
-                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 1 ? "bg-brand/100" : "bg-foreground/10"}`}
-                      />
-                      <div
-                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 3 ? "bg-brand/100" : "bg-foreground/10"}`}
-                      />
-                      <div
-                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 4 ? "bg-brand" : "bg-foreground/10"}`}
-                      />
-                      <span className='text-gray-400 ml-1'>
-                        {passwordCheck.strength}
-                      </span>
+                    <div className="pt-2 space-y-1 bg-foreground/[0.02] border border-foreground/5 rounded-lg p-2.5">
+                      <div className='flex items-center justify-between text-[10px] text-gray-400'>
+                        <span>Password Strength: <strong>{passwordCheck.strength}</strong></span>
+                        <span>{passwordCheck.score}/5</span>
+                      </div>
+                      <div className='flex items-center gap-1'>
+                        <div className={`flex-1 h-1 rounded-full ${passwordCheck.score >= 1 ? "bg-brand" : "bg-foreground/10"}`} />
+                        <div className={`flex-1 h-1 rounded-full ${passwordCheck.score >= 3 ? "bg-brand" : "bg-foreground/10"}`} />
+                        <div className={`flex-1 h-1 rounded-full ${passwordCheck.score >= 4 ? "bg-brand" : "bg-foreground/10"}`} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px] pt-1.5 border-t border-foreground/5 mt-1.5">
+                        <div className={`flex items-center gap-1 ${passwordCheck.lengthOk ? "text-brand" : "text-foreground/45"}`}>
+                          <span>{passwordCheck.lengthOk ? "✓" : "○"}</span> 8+ characters
+                        </div>
+                        <div className={`flex items-center gap-1 ${passwordCheck.hasUpper ? "text-brand" : "text-foreground/45"}`}>
+                          <span>{passwordCheck.hasUpper ? "✓" : "○"}</span> Uppercase letter
+                        </div>
+                        <div className={`flex items-center gap-1 ${passwordCheck.hasNumber ? "text-brand" : "text-foreground/45"}`}>
+                          <span>{passwordCheck.hasNumber ? "✓" : "○"}</span> One number
+                        </div>
+                        <div className={`flex items-center gap-1 ${passwordCheck.hasSymbol ? "text-brand" : "text-foreground/45"}`}>
+                          <span>{passwordCheck.hasSymbol ? "✓" : "○"}</span> One symbol
+                        </div>
+                        <div className={`flex items-center gap-1 ${formData.password === formData.confirmPassword && formData.confirmPassword ? "text-brand" : "text-foreground/45"}`}>
+                          <span>{formData.password === formData.confirmPassword && formData.confirmPassword ? "✓" : "○"}</span> Passwords match
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

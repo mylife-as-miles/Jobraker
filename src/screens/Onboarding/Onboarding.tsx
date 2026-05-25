@@ -27,6 +27,10 @@ import { persistParsedResume } from "@/lib/parsedResume";
 import { mapParsedDataToResume } from "@/lib/resume-mapper";
 import { initialResumeState } from "@/store/artboard";
 import { events } from "@/lib/analytics";
+import { sanitizeStructuredPayload } from "@/lib/inputSecurity";
+import { logSecurityEvent } from "@/utils/sessionManagement";
+import { SUBSCRIPTION_MARKETING_PLANS } from "@/lib/subscriptionAccess";
+
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -60,6 +64,12 @@ export const Onboarding = (): JSX.Element => {
   const [parseError, setParseError] = useState<string | null>(null);
   const [parsed, setParsed] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedPlan, setSelectedPlan] = useState<string>(() => {
+    return localStorage.getItem("selectedPlan") || "Pro";
+  });
+  const [selectedBilling, setSelectedBilling] = useState<string>(() => {
+    return localStorage.getItem("selectedBilling") || "monthly";
+  });
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -76,6 +86,49 @@ export const Onboarding = (): JSX.Element => {
       end?: string;
     }[],
   });
+
+  // Load existing profile if any
+  React.useEffect(() => {
+    let active = true;
+    const loadProfile = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (!profile || !active) return;
+
+        // Also fetch education, skills if present
+        const { data: edu } = await supabase.from("profile_education").select("*").eq("user_id", user.id);
+        const { data: sks } = await supabase.from("profile_skills").select("*").eq("user_id", user.id);
+
+        setFormData({
+          firstName: profile.first_name || "",
+          lastName: profile.last_name || "",
+          jobTitle: profile.job_title || "",
+          experience: profile.experience_years != null ? String(profile.experience_years) : "",
+          location: profile.location || "",
+          goals: profile.goals || [],
+          about: profile.about || "",
+          skills: sks ? sks.map(s => s.name) : [],
+          education: edu ? edu.map(e => ({
+            school: e.school || "",
+            degree: e.degree || "",
+            start: e.start_date ? e.start_date.split("-")[0] : "",
+            end: e.end_date ? e.end_date.split("-")[0] : "",
+          })) : [],
+        });
+      } catch (err) {
+        console.warn("Failed to load existing profile:", err);
+      }
+    };
+    loadProfile();
+    return () => { active = false; };
+  }, [supabase]);
+
 
   const updateFormData = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -214,47 +267,19 @@ export const Onboarding = (): JSX.Element => {
     },
     {
       id: 8,
-      title: "All Set!",
-      subtitle: "Your profile is ready.",
+      title: "Choose Your Scouting Power",
+      subtitle: "Select a plan that aligns with your monthly job applications.",
       component: (
-        <div className='text-center space-y-4 sm:space-y-6'>
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
-          >
-            <CheckCircle className='mx-auto h-12 w-12 sm:h-16 sm:w-16 lg:h-20 lg:w-20 text-brand' />
-          </motion.div>
-          <motion.p
-            className='text-foreground text-sm sm:text-base lg:text-lg'
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            You are all set to track your applications!
-          </motion.p>
-          <motion.div
-            className='flex flex-wrap justify-center gap-2 text-xs sm:text-sm product-helper-text'
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-          >
-            <span className='product-section-card-muted px-2 py-1 rounded'>
-              ✓ Profile Complete
-            </span>
-            <span className='product-section-card-muted px-2 py-1 rounded'>
-              ✓ Goals Set
-            </span>
-            <span className='product-section-card-muted px-2 py-1 rounded'>
-              ✓ Ready to Go
-            </span>
-          </motion.div>
-        </div>
+        <PricingSelector
+          selectedPlan={selectedPlan}
+          setSelectedPlan={setSelectedPlan}
+          selectedBilling={selectedBilling}
+          setSelectedBilling={setSelectedBilling}
+        />
       ),
     },
   ];
 
-  // ================= Resume Upload & Parse =================
   const handleResumeFiles = useCallback(
     async (fileList: FileList | null) => {
       if (!fileList || !fileList.length) return;
@@ -275,6 +300,17 @@ export const Onboarding = (): JSX.Element => {
 
         // Upload to storage (resumes bucket)
         const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+        const allowedExtensions = /^(pdf|txt|md|rtf)$/;
+        if (!allowedExtensions.test(ext)) {
+          await logSecurityEvent(
+            user.id,
+            "blocked_malicious_upload",
+            `User attempted to upload file with unallowed extension: .${ext} (${file.name})`,
+            "medium"
+          );
+          throw new Error("Invalid file type. Only PDF, TXT, MD, and RTF files are allowed.");
+        }
+
         const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
         const bytes = await file.arrayBuffer();
         const blob = new Blob([bytes], {
@@ -291,7 +327,7 @@ export const Onboarding = (): JSX.Element => {
         if (upErr) throw upErr;
         setUploadProgress(40);
 
-        const resumeDisplayName = file.name.replace(/\.[^.]+$/, "");
+        const resumeDisplayName = sanitizeStructuredPayload(file.name.replace(/\.[^.]+$/, "")) as string;
         const insertPayload = {
           user_id: user.id,
           name: resumeDisplayName,
@@ -414,9 +450,11 @@ export const Onboarding = (): JSX.Element => {
             ? Math.round(Number(effective.experienceYears))
             : null,
           about: effective.about || null,
-          onboarding_complete: true,
+          onboarding_complete: false, // Maintain false to allow plan confirmation step
           updated_at: new Date().toISOString(),
         };
+
+        const sanitizedProfileData = sanitizeStructuredPayload(profileData) as typeof profileData;
 
         if (effective.education?.length > 0) {
           const eduRows = effective.education
@@ -444,11 +482,12 @@ export const Onboarding = (): JSX.Element => {
               gpa: null,
             }));
 
-          if (eduRows.length > 0) {
+          const sanitizedEduRows = sanitizeStructuredPayload(eduRows) as typeof eduRows;
+          if (sanitizedEduRows.length > 0) {
             try {
               const { error: eduErr } = await (supabase as any)
                 .from("profile_education")
-                .insert(eduRows);
+                .insert(sanitizedEduRows);
               if (eduErr) console.error("Education insert error:", eduErr);
             } catch (eduErr) {
               console.warn("Failed to insert education:", eduErr);
@@ -479,11 +518,12 @@ export const Onboarding = (): JSX.Element => {
               description: e.description || "",
             }));
 
-          if (expRows.length > 0) {
+          const sanitizedExpRows = sanitizeStructuredPayload(expRows) as typeof expRows;
+          if (sanitizedExpRows.length > 0) {
             try {
               const { error: expErr } = await (supabase as any)
                 .from("profile_experiences")
-                .insert(expRows);
+                .insert(sanitizedExpRows);
               if (expErr) console.error("Experience insert error:", expErr);
             } catch (expErr) {
               console.warn("Failed to insert experience:", expErr);
@@ -502,11 +542,12 @@ export const Onboarding = (): JSX.Element => {
             }))
             .filter((r) => r.name);
 
-          if (skillRows.length > 0) {
+          const sanitizedSkillRows = sanitizeStructuredPayload(skillRows) as typeof skillRows;
+          if (sanitizedSkillRows.length > 0) {
             try {
               const { error: skillErr } = await (supabase as any)
                 .from("profile_skills")
-                .insert(skillRows);
+                .insert(sanitizedSkillRows);
               if (skillErr) console.error("Skills insert error:", skillErr);
             } catch (skillErr) {
               console.warn("Failed to insert skills:", skillErr);
@@ -516,28 +557,13 @@ export const Onboarding = (): JSX.Element => {
 
         const { error: profileErr } = await (supabase as any)
           .from("profiles")
-          .upsert({ id: user.id, ...profileData }, { onConflict: "id" });
+          .upsert({ id: user.id, ...sanitizedProfileData }, { onConflict: "id" });
 
         if (profileErr) throw profileErr;
 
         setUploadProgress(100);
         setParsed(true);
         setParsing(false);
-
-        // Track analytics
-        try {
-          const startedAt = (user as any).created_at
-            ? new Date((user as any).created_at).getTime()
-            : undefined;
-          const elapsed = startedAt ? Date.now() - startedAt : undefined;
-          events.profileCompleted(elapsed as any);
-          (window as any).__profileCompletedTracked = true;
-        } catch {}
-
-        // Redirect to dashboard after brief delay
-        setTimeout(() => {
-          navigate("/dashboard/overview");
-        }, 1500);
       } catch (e: any) {
         const rawMessage = e?.message || String(e);
         let userMessage = "An unexpected error occurred while parsing your resume. Please try again.";
@@ -892,26 +918,32 @@ export const Onboarding = (): JSX.Element => {
         const startedAt = (user as any).created_at
           ? new Date((user as any).created_at).getTime()
           : undefined;
-        const { error } = await supabase.from("profiles").upsert(
-          {
-            id: user.id,
-            first_name: formData.firstName || null,
-            last_name: formData.lastName || null,
-            job_title: formData.jobTitle || null,
-            experience_years: formData.experience && !isNaN(Number(formData.experience))
-              ? Math.round(Number(formData.experience))
+        const tier = (selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1).toLowerCase()) as "Free" | "Basics" | "Pro" | "Ultimate";
+        const profilePayload = {
+          id: user.id,
+          first_name: formData.firstName || null,
+          last_name: formData.lastName || null,
+          job_title: formData.jobTitle || null,
+          experience_years: formData.experience && !isNaN(Number(formData.experience))
+            ? Math.round(Number(formData.experience))
+            : null,
+          location: formData.location || null,
+          goals: formData.goals,
+          about: formData.about || null,
+          skills: formData.skills.length ? formData.skills : [],
+          education:
+            formData.education && formData.education.length
+              ? JSON.stringify(formData.education)
               : null,
-            location: formData.location || null,
-            goals: formData.goals,
-            about: formData.about || null,
-            skills: formData.skills.length ? formData.skills : [],
-            education:
-              formData.education && formData.education.length
-                ? JSON.stringify(formData.education)
-                : null,
-            onboarding_complete: true,
-            updated_at: new Date().toISOString(),
-          },
+          onboarding_complete: true,
+          subscription_tier: tier,
+          updated_at: new Date().toISOString(),
+        };
+
+        const sanitizedProfilePayload = sanitizeStructuredPayload(profilePayload) as typeof profilePayload;
+
+        const { error } = await supabase.from("profiles").upsert(
+          sanitizedProfilePayload,
           { onConflict: "id" },
         );
         if (error) throw error;
@@ -941,8 +973,9 @@ export const Onboarding = (): JSX.Element => {
                   end_date: e.end ? `${e.end}-01` : null,
                   gpa: null,
                 }));
-              if (eduRows.length) {
-                await supabase.from("profile_education").insert(eduRows);
+              const sanitizedEduRows = sanitizeStructuredPayload(eduRows) as typeof eduRows;
+              if (sanitizedEduRows.length) {
+                await supabase.from("profile_education").insert(sanitizedEduRows);
               }
             }
           }
@@ -963,8 +996,9 @@ export const Onboarding = (): JSX.Element => {
                   category: "",
                 }))
                 .filter((r) => r.name);
-              if (skillRows.length) {
-                await supabase.from("profile_skills").insert(skillRows);
+              const sanitizedSkillRows = sanitizeStructuredPayload(skillRows) as typeof skillRows;
+              if (sanitizedSkillRows.length) {
+                await supabase.from("profile_skills").insert(sanitizedSkillRows);
               }
             }
           }
@@ -972,6 +1006,14 @@ export const Onboarding = (): JSX.Element => {
           // Non-fatal: log only; profile core saved already
           console.warn("Normalization failed (non-blocking):", normErr);
         }
+
+        // Log completion security event
+        await logSecurityEvent(
+          user.id,
+          "onboarding_complete",
+          `User completed onboarding using manual entry and selected plan: ${tier}`,
+          "low"
+        );
 
         // Analytics: emit counts for collections normalization
         try {
@@ -1022,8 +1064,102 @@ export const Onboarding = (): JSX.Element => {
   };
 
   // Mode gating: keep resume flow on this screen until navigation (never fall through to manual steps).
+  const handleResumePricingSubmit = async () => {
+    try {
+      setUploading(true);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const tier = (selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1).toLowerCase()) as "Free" | "Basics" | "Pro" | "Ultimate";
+      const { error } = await supabase.from("profiles").update({
+        onboarding_complete: true,
+        subscription_tier: tier,
+        updated_at: new Date().toISOString(),
+      }).eq("id", user.id);
+
+      if (error) throw error;
+
+      await logSecurityEvent(
+        user.id,
+        "onboarding_complete",
+        `User completed onboarding using resume parsing and selected plan: ${tier}`,
+        "low"
+      );
+
+      navigate("/dashboard/overview");
+    } catch (err: any) {
+      console.error("Failed to complete onboarding:", err);
+      alert(err.message || "Failed to complete onboarding. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const resumeSuccessPricingScreen = (
+    <div className='product-page-shell min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 relative overflow-hidden'>
+      <div className='absolute inset-0 pointer-events-none'>
+        <div className='absolute -top-32 -left-24 h-72 w-72 rounded-full bg-brand/10 blur-3xl' />
+        <div className='absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-brand/5 blur-3xl' />
+      </div>
+
+      <div className='w-full max-w-4xl relative z-10 space-y-6'>
+        <div className='text-center space-y-2'>
+          <h1 className='text-2xl sm:text-3xl font-bold tracking-tight text-foreground'>
+            Resume Parsed Successfully!
+          </h1>
+          <p className='text-foreground/60 text-sm max-w-xl mx-auto'>
+            Your profile details and experiences have been successfully analyzed. Select your scouting plan to unlock the dashboard.
+          </p>
+        </div>
+
+        <Card className='product-section-card w-full relative overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl p-6 sm:p-8 bg-background/80 backdrop-blur-md border border-foreground/10'>
+          <div className='absolute inset-0 bg-gradient-to-r from-brand/10 via-transparent to-brand/10 opacity-30 pointer-events-none' />
+          
+          <div className='space-y-6'>
+            <div className='bg-foreground/[0.03] border border-foreground/5 rounded-xl p-4 flex flex-wrap gap-4 justify-around text-center text-xs'>
+              <div>
+                <span className='block text-lg font-bold text-brand'>✓ Profile</span>
+                <span className='text-foreground/50'>Structured & mapped</span>
+              </div>
+              <div className='h-8 w-px bg-foreground/10 self-center hidden sm:block' />
+              <div>
+                <span className='block text-lg font-bold text-brand'>✓ Skills</span>
+                <span className='text-foreground/50'>Extracted & normalized</span>
+              </div>
+              <div className='h-8 w-px bg-foreground/10 self-center hidden sm:block' />
+              <div>
+                <span className='block text-lg font-bold text-brand'>✓ Work History</span>
+                <span className='text-foreground/50'>Experiences recorded</span>
+              </div>
+            </div>
+
+            <PricingSelector
+              selectedPlan={selectedPlan}
+              setSelectedPlan={setSelectedPlan}
+              selectedBilling={selectedBilling}
+              setSelectedBilling={setSelectedBilling}
+            />
+
+            <div className='pt-2 flex justify-center'>
+              <Button
+                onClick={handleResumePricingSubmit}
+                disabled={uploading}
+                className='w-full max-w-md bg-brand text-black hover:bg-brand/90 transition-all h-11 text-sm font-semibold rounded-lg shadow-[0_0_15px_rgba(29,255,0,0.2)]'
+              >
+                {uploading ? "Completing setup..." : "Activate Account & Go to Dashboard"}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+
   if (mode === null) return resumeModeScreen;
-  if (mode === "resume") return resumeUploadScreen;
+  if (mode === "resume" && !parsed) return resumeUploadScreen;
+  if (mode === "resume" && parsed) return resumeSuccessPricingScreen;
 
   return (
     <div className='product-page-shell min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8'>
@@ -1290,3 +1426,119 @@ const EducationEditor = ({
     </div>
   );
 };
+
+const PricingSelector = ({
+  selectedPlan,
+  setSelectedPlan,
+  selectedBilling,
+  setSelectedBilling,
+}: {
+  selectedPlan: string;
+  setSelectedPlan: (plan: string) => void;
+  selectedBilling: string;
+  setSelectedBilling: (billing: string) => void;
+}) => {
+  const plans = SUBSCRIPTION_MARKETING_PLANS.filter((p) => p.tier !== "Free");
+
+  return (
+    <div className="w-full space-y-6">
+      {/* Billing toggle */}
+      <div className="flex justify-center items-center gap-3">
+        <span className={`text-sm ${selectedBilling === "monthly" ? "text-foreground font-semibold" : "text-foreground/60"}`}>Monthly</span>
+        <button
+          type="button"
+          onClick={() => setSelectedBilling(selectedBilling === "monthly" ? "annual" : "monthly")}
+          className="relative inline-flex h-6 w-11 items-center rounded-full bg-foreground/10 transition-colors focus:outline-none"
+        >
+          <span
+            className={`${
+              selectedBilling === "annual" ? "translate-x-6" : "translate-x-1"
+            } inline-block h-4 w-4 transform rounded-full bg-brand transition-transform`}
+          />
+        </button>
+        <span className={`text-sm ${selectedBilling === "annual" ? "text-foreground font-semibold" : "text-foreground/60"}`}>
+          Annually <span className="text-xs text-brand bg-brand/10 border border-brand/20 px-1.5 py-0.5 rounded ml-1 font-mono font-bold">Save 30%</span>
+        </span>
+      </div>
+
+      {/* Plan Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+        {plans.map((plan) => {
+          const isSelected = selectedPlan.toLowerCase() === plan.tier.toLowerCase();
+          const isPro = plan.tier === "Pro";
+          const price = selectedBilling === "annual" ? plan.yearlyPrice : plan.price;
+          const displayPrice = selectedBilling === "annual" 
+            ? Math.round(Number(price) / 12)
+            : price;
+
+          return (
+            <button
+              key={plan.tier}
+              type="button"
+              onClick={() => setSelectedPlan(plan.tier)}
+              className={`text-left relative flex flex-col p-5 rounded-2xl border transition-all duration-300 ${
+                isSelected
+                  ? "border-brand bg-brand/5 shadow-[0_0_20px_rgba(29,255,0,0.1)]"
+                  : "border-foreground/10 bg-foreground/[0.02] hover:border-foreground/20 hover:bg-foreground/[0.04]"
+              } ${isPro && !isSelected ? "hover:shadow-[0_0_15px_rgba(255,255,255,0.02)]" : ""}`}
+            >
+              {isPro && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-brand text-black text-[10px] font-bold uppercase tracking-wider shadow">
+                  Most Popular
+                </div>
+              )}
+              <div className="mb-4">
+                <h3 className="text-base font-bold text-foreground">{plan.name}</h3>
+                <p className="text-[11px] text-foreground/60 mt-1 line-clamp-2 min-h-[32px]">{plan.description}</p>
+              </div>
+              <div className="mb-4 flex items-baseline gap-1">
+                <span className="text-2xl font-bold text-foreground">${displayPrice}</span>
+                <span className="text-xs text-foreground/50">/month</span>
+                {selectedBilling === "annual" && (
+                  <span className="text-[10px] text-brand/80 block mt-1">Billed annually (${price}/yr)</span>
+                )}
+              </div>
+              <div className="flex-grow space-y-2 mt-2">
+                <div className="text-[10px] font-semibold text-brand tracking-wider uppercase">
+                  {plan.creditsPerMonth} Credits / mo
+                </div>
+                <ul className="space-y-1 text-[11px] text-foreground/75">
+                  {plan.features.slice(0, 3).map((feat, idx) => {
+                    const featName = typeof feat === "string" ? feat : feat.name;
+                    return (
+                      <li key={idx} className="flex items-start gap-1">
+                        <span className="text-brand mt-0.5">✓</span>
+                        <span className="line-clamp-1">{featName}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Free Plan link */}
+      <div className="text-center pt-2">
+        <button
+          type="button"
+          onClick={() => setSelectedPlan("Free")}
+          className={`text-xs ${selectedPlan.toLowerCase() === "free" ? "text-brand underline font-semibold" : "text-foreground/40 hover:text-foreground/60 underline"}`}
+        >
+          Or continue with the Free Plan (10 credits/mo, basic tracking)
+        </button>
+      </div>
+
+      {/* Trust guarantees */}
+      <div className="flex items-center justify-center gap-4 text-[10px] text-foreground/45 border-t border-foreground/5 pt-4">
+        <span>✓ 14-Day Free Trial</span>
+        <span>•</span>
+        <span>✓ Cancel Anytime</span>
+        <span>•</span>
+        <span>✓ Secure Checkout</span>
+      </div>
+    </div>
+  );
+};
+

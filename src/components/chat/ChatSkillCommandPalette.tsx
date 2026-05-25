@@ -36,7 +36,7 @@ export const ChatSkillCommandPalette = ({
   if (!open || !skills.length) return null;
 
   return (
-    <div className='absolute bottom-[calc(100%+10px)] left-3 right-3 z-30 overflow-hidden rounded-2xl border border-brand/25 bg-card/95 shadow-2xl shadow-black/35 backdrop-blur-xl'>
+    <div className='relative z-30 mx-2 mt-2 overflow-hidden rounded-2xl border border-brand/25 bg-card/95 shadow-2xl shadow-black/35 backdrop-blur-xl'>
       <div className='flex items-center justify-between border-b border-border/70 px-3 py-2'>
         <div className='flex items-center gap-2'>
           <div className='flex h-7 w-7 items-center justify-center rounded-lg border border-brand/20 bg-brand/10 text-brand'>
