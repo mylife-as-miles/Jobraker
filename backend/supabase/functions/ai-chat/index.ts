@@ -39,6 +39,7 @@ import {
 } from "../_shared/answer-bank.ts";
 import { syncUserVectorChunks } from "../_shared/vector-sync.ts";
 import { embedText } from "../_shared/embeddings.ts";
+import { createNotificationRecord } from "../_shared/notification-center.ts";
 
 console.log("JobRaker AI Chat Starting...");
 
@@ -997,6 +998,224 @@ async function refreshApplicationProcesses(opts: {
   };
 }
 
+const CURATED_DATABASE_SCHEMA = [
+  {
+    table: "applications",
+    purpose: "Application Tracker records, pipeline status, automation state, Gmail/provider links.",
+    important_columns: [
+      "id",
+      "user_id",
+      "job_id",
+      "job_title",
+      "company",
+      "location",
+      "applied_date",
+      "status",
+      "canonical_stage",
+      "salary",
+      "notes",
+      "next_step",
+      "interview_date",
+      "app_url",
+      "receipt_url",
+      "success_url",
+      "provider_status",
+      "provider_run_output",
+      "draft_status",
+      "user_review_notes",
+      "match_score",
+      "ai_confidence_score",
+      "created_at",
+      "updated_at",
+    ],
+  },
+  {
+    table: "jobs",
+    purpose: "Discovered and saved job listings, source metadata, quality/evaluation data, and apply URLs.",
+    important_columns: [
+      "id",
+      "user_id",
+      "title",
+      "company",
+      "location",
+      "description",
+      "apply_url",
+      "source_type",
+      "source_kind",
+      "source_confidence",
+      "salary_min",
+      "salary_max",
+      "salary_currency",
+      "canonical_status",
+      "verification_status",
+      "hidden",
+      "bookmarked",
+      "raw_data",
+      "created_at",
+      "updated_at",
+    ],
+  },
+  {
+    table: "notifications",
+    purpose: "Notification center alerts for applications, interviews, Gmail events, billing, and job search.",
+    important_columns: [
+      "id",
+      "user_id",
+      "type",
+      "title",
+      "message",
+      "company",
+      "read",
+      "is_starred",
+      "priority",
+      "source",
+      "source_record_id",
+      "source_record_type",
+      "action_url",
+      "action_label",
+      "metadata",
+      "dedupe_key",
+      "archived_at",
+      "created_at",
+    ],
+  },
+  {
+    table: "gmail_application_events",
+    purpose: "Gmail-derived application events like offers, interviews, rejections, assessments, and application receipts.",
+    important_columns: [
+      "id",
+      "user_id",
+      "application_id",
+      "gmail_message_id",
+      "gmail_thread_id",
+      "event_type",
+      "status",
+      "confidence",
+      "company",
+      "job_title",
+      "sender_name",
+      "sender_email",
+      "subject",
+      "snippet",
+      "received_at",
+      "processed_at",
+      "raw",
+    ],
+  },
+  {
+    table: "profiles",
+    purpose: "Core candidate profile, identity, headline, goals, location, and public profile data.",
+    important_columns: ["id", "first_name", "last_name", "job_title", "about", "location", "goals", "experience_years", "updated_at"],
+  },
+  {
+    table: "profile_experiences",
+    purpose: "Structured work experience cards on the candidate profile.",
+    important_columns: ["id", "user_id", "title", "company", "location", "start_date", "end_date", "is_current", "description", "updated_at"],
+  },
+  {
+    table: "profile_education",
+    purpose: "Structured education cards on the candidate profile.",
+    important_columns: ["id", "user_id", "degree", "school", "location", "start_date", "end_date", "gpa", "updated_at"],
+  },
+  {
+    table: "profile_skills",
+    purpose: "Structured skills with level/category for profile and matching.",
+    important_columns: ["id", "user_id", "name", "level", "category", "updated_at"],
+  },
+  {
+    table: "resumes",
+    purpose: "Resume library and builder JSON, including active/draft/archive state.",
+    important_columns: ["id", "user_id", "name", "status", "data", "file_path", "file_ext", "is_favorite", "updated_at"],
+  },
+  {
+    table: "cover_letters",
+    purpose: "Saved cover letters and generated application letters.",
+    important_columns: ["id", "user_id", "name", "content", "role", "company", "created_at", "updated_at"],
+  },
+  {
+    table: "answer_bank_entries",
+    purpose: "Reusable candidate voice, stories, identity, beliefs, career snippets, and skills evidence for AI drafting.",
+    important_columns: ["id", "user_id", "theme", "slug", "question", "body", "tags", "created_at", "updated_at"],
+  },
+  {
+    table: "gmail_connections",
+    purpose: "Connected Gmail OAuth state and sync cursor.",
+    important_columns: ["user_id", "email", "token_expires_at", "sync_history_id", "updated_at"],
+  },
+  {
+    table: "subscriptions",
+    purpose: "Subscription tier, payment provider, billing period, and expiration/renewal state.",
+    important_columns: ["id", "user_id", "tier", "status", "provider", "current_period_start", "current_period_end", "cancel_at_period_end", "updated_at"],
+  },
+  {
+    table: "ai_credit_balances",
+    purpose: "Paid/included credit accounting for chat, tools, search, and automation.",
+    important_columns: ["user_id", "balance", "included_balance", "updated_at"],
+  },
+] as const;
+
+async function fetchDatabaseSchemaSnapshot(serviceClient: SupabaseLikeClient, opts: {
+  tableName?: string | null;
+  includeColumns?: boolean;
+}) {
+  const tableName = opts.tableName?.trim();
+  const includeColumns = opts.includeColumns !== false;
+
+  try {
+    let query = serviceClient
+      .schema("information_schema")
+      .from("columns")
+      .select("table_schema, table_name, column_name, data_type, is_nullable, column_default, ordinal_position")
+      .eq("table_schema", "public")
+      .order("table_name", { ascending: true })
+      .order("ordinal_position", { ascending: true });
+    if (tableName) query = query.eq("table_name", tableName);
+    const { data, error } = await query.limit(tableName ? 250 : 1500);
+    if (!error && Array.isArray(data) && data.length > 0) {
+      const tables: Record<string, Record<string, unknown>> = {};
+      for (const row of data as Array<Record<string, unknown>>) {
+        const name = asString(row.table_name);
+        if (!name) continue;
+        if (!tables[name]) {
+          tables[name] = {
+            table: name,
+            schema: asString(row.table_schema) || "public",
+            columns: [],
+          };
+        }
+        if (includeColumns) {
+          (tables[name].columns as Array<Record<string, unknown>>).push({
+            name: row.column_name,
+            type: row.data_type,
+            nullable: row.is_nullable,
+            default: row.column_default,
+          });
+        }
+      }
+      return {
+        success: true,
+        source: "information_schema",
+        tables: Object.values(tables),
+      };
+    }
+  } catch (error) {
+    console.warn("database schema information_schema lookup failed", error);
+  }
+
+  const curated = CURATED_DATABASE_SCHEMA.filter((entry) =>
+    tableName ? entry.table.toLowerCase() === tableName.toLowerCase() : true,
+  );
+  return {
+    success: true,
+    source: "curated_fallback",
+    note:
+      "Live information_schema was unavailable through the Edge Function API, so this returns JobRaker's curated app schema map.",
+    tables: includeColumns
+      ? curated
+      : curated.map((entry) => ({ table: entry.table, purpose: entry.purpose })),
+  };
+}
+
 async function runAutoApplyFromUrl(opts: {
   authHeader: string;
   serviceClient: SupabaseLikeClient;
@@ -1943,14 +2162,123 @@ const AGENT_FUNCTION_DECLARATIONS = [
   },
   {
     name: "update_application_status",
-    description: "Update a job application status in the database.",
+    description:
+      "Move an application to a new lifecycle status such as Applied, Interview, Offer, Rejected, or Withdrawn. Updates both status and canonical stage, and creates a notification for important transitions.",
     parameters: {
       type: "object",
       properties: {
         application_id: { type: "string" },
         status: { type: "string" },
+        next_step: { type: "string" },
+        notes: { type: "string" },
       },
       required: ["application_id", "status"],
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "update_application",
+    description:
+      "Update fields on an existing Application Tracker record. Use this for CRUD edits like changing role/company/location/salary/notes/next step/interview date/status/app URL.",
+    parameters: {
+      type: "object",
+      properties: {
+        application_id: { type: "string" },
+        job_title: { type: "string" },
+        company: { type: "string" },
+        location: { type: "string" },
+        status: { type: "string" },
+        salary: { type: "string" },
+        notes: { type: "string" },
+        next_step: { type: "string" },
+        interview_date: { type: "string", description: "ISO timestamp/date, or empty string to clear." },
+        app_url: { type: "string" },
+        receipt_url: { type: "string" },
+        success_url: { type: "string" },
+        user_review_notes: { type: "string" },
+      },
+      required: ["application_id"],
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "delete_application",
+    description:
+      "Delete an Application Tracker record by id. Only use after the user explicitly asks to delete or confirms deletion.",
+    parameters: {
+      type: "object",
+      properties: {
+        application_id: { type: "string" },
+      },
+      required: ["application_id"],
+    },
+  },
+  {
+    name: "get_application_analytics",
+    description:
+      "Return JobRaker analytics from the user's applications and jobs: funnel counts, status breakdown, source breakdown, conversion rates, recent offers/interviews, and trends for a period.",
+    parameters: {
+      type: "object",
+      properties: {
+        period_days: { type: "number", description: "Lookback window in days. Defaults to 30, max 365." },
+        include_jobs: { type: "boolean" },
+      },
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "list_notifications",
+    description:
+      "List JobRaker notifications/alerts for the user, including unread application, interview, Gmail, billing, and job-search notifications.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "number" },
+        unread_only: { type: "boolean" },
+        type: { type: "string", description: "Optional notification type: application, interview, system, company, job_search, credit." },
+        source: { type: "string", description: "Optional source: system, gmail, automation, application, job_search, billing." },
+        include_archived: { type: "boolean" },
+      },
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "create_notification",
+    description:
+      "Create a JobRaker notification/reminder for the user. Prefer create_reminder for future follow-ups; use this for immediate alerts produced by chat actions.",
+    parameters: {
+      type: "object",
+      properties: {
+        type: { type: "string", description: "application, interview, system, company, job_search, or credit." },
+        title: { type: "string" },
+        message: { type: "string" },
+        company: { type: "string" },
+        priority: { type: "string", description: "low, medium, or high." },
+        action_url: { type: "string" },
+        action_label: { type: "string" },
+        source: { type: "string" },
+        source_record_id: { type: "string" },
+        source_record_type: { type: "string" },
+      },
+      required: ["type", "title"],
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "update_notification",
+    description:
+      "Update a notification: mark read/unread, star/unstar, archive/unarchive, or change priority.",
+    parameters: {
+      type: "object",
+      properties: {
+        notification_id: { type: "string" },
+        read: { type: "boolean" },
+        is_starred: { type: "boolean" },
+        archived: { type: "boolean" },
+        priority: { type: "string" },
+      },
+      required: ["notification_id"],
+      additionalProperties: true,
     },
   },
   {
@@ -1997,7 +2325,8 @@ const AGENT_FUNCTION_DECLARATIONS = [
   },
   {
     name: "invoke_edge_function",
-    description: "Invoke a JobRaker edge function with an arbitrary JSON payload and optional custom headers. Confirm before using side-effectful functions.",
+    description:
+      "Invoke a JobRaker edge function with a JSON payload and optional custom headers. Use list_edge_functions/get_edge_function_details first when uncertain. Confirm before side-effectful functions such as billing, apply automation, deletion, or provider webhooks.",
     parameters: {
       type: "object",
       properties: {
@@ -2007,6 +2336,19 @@ const AGENT_FUNCTION_DECLARATIONS = [
         headers: { type: "object" },
       },
       required: ["name"],
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "list_database_schema",
+    description:
+      "Inspect JobRaker database schema/table map before using database-backed tools. Returns live public schema columns when available, otherwise a curated JobRaker schema map for applications, jobs, notifications, Gmail events, profiles, resumes, billing, and credits.",
+    parameters: {
+      type: "object",
+      properties: {
+        table_name: { type: "string", description: "Optional single table to inspect, e.g. applications, jobs, notifications." },
+        include_columns: { type: "boolean", description: "Defaults to true." },
+      },
       additionalProperties: true,
     },
   },
@@ -2297,11 +2639,16 @@ Job-related Gmail (only when tools are available):
 Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.`;
       const agentCapabilityRules = `
 Profile, resume, and in-app data (execute directly — do not ask the user to copy-paste):
-- update_profile, list_profile_records, add_skill, remove_skill, add_experience, update_experience, delete_experience, add_education, update_education, delete_education, save_cover_letter, update_resume, create_application_tracker_entry, update_application_status, bookmark_job, hide_job, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
+- update_profile, list_profile_records, add_skill, remove_skill, add_experience, update_experience, delete_experience, add_education, update_education, delete_education, save_cover_letter, update_resume, create_application_tracker_entry, update_application_status, update_application, delete_application, bookmark_job, hide_job, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
 - For Profile Settings cards, use list_profile_records to get IDs, then add/update/delete the structured experience, education, and skill rows directly. Never tell the user to click Profile Settings + Add unless the tool call fails or they explicitly ask for manual steps.
 - For resume Experience or Education sections, use update_resume with list_resumes for ids; use set_experience_items or set_education_items to replace builder section items, and resume_status to set Active/Draft/Archived when asked.
 - Use list_answer_bank_entries before drafting reusable application narratives when the user wants their saved voice, stories, beliefs, or profile snippets reflected.
 - Use get_public_profile_site and update_public_profile_site when the user wants their recruiter-facing public portfolio link, aesthetic, copy, theme, public links, or publish status changed. Confirm before delete_public_profile_site.
+
+Database and analytics awareness:
+- Use list_database_schema when you need to understand which table/column backs a feature before reading, writing, or explaining it.
+- Use get_application_analytics for analytics questions, funnel breakdowns, source breakdowns, offer/interview rates, and performance summaries.
+- Use list_notifications, create_notification, and update_notification for notification center work. Create notifications after meaningful application lifecycle changes when appropriate.
 
 Navigation and page control:
 - Use list_app_pages to inspect the full app map.
@@ -2309,7 +2656,8 @@ Navigation and page control:
 
 Application process tracking:
 - Use create_application_tracker_entry when the user asks to track a manual/direct outreach, Gmail-sent application email, referral ask, or any legitimate application touchpoint that has no public job posting URL. A missing job URL is not a blocker.
-- Use list_applications and refresh_application_processes to keep up with multi-stage application pipelines across JobRaker, Gmail, and Skyvern.
+- Use list_applications, update_application_status, update_application, delete_application, and refresh_application_processes to keep up with multi-stage application pipelines across JobRaker, Gmail, and Skyvern.
+- When the user says "move this to offer", "mark interview", "add to tracker", "change next step", or similar, use the application tools directly. Ask for the target only when it is ambiguous.
 - Use find_company_contact_channels for "mass email list", "company email list", recruitment contacts, or direct outreach lead-list requests. Return a review list; never claim it sent emails unless send_gmail_job_email was explicitly approved and used.
 
 Edge functions:
@@ -2882,6 +3230,23 @@ Edge functions:
                               note:
                                 "Created an Application Tracker entry for this manual/direct outreach.",
                             };
+                        if (!error && data?.id) {
+                          await createNotificationRecord(serviceClient, {
+                            userId,
+                            type: data.status === "Interview" ? "interview" : "application",
+                            title: `Application tracked: ${data.company}`,
+                            message: `${data.job_title} at ${data.company} was added from chat as ${data.status}.`,
+                            company: asString(data.company),
+                            priority: data.status === "Offer" || data.status === "Interview" ? "high" : "medium",
+                            source: "application",
+                            sourceRecordId: data.id,
+                            sourceRecordType: "application",
+                            actionUrl: "/dashboard/applications",
+                            actionLabel: "View application",
+                            metadata: { created_by: "ai_chat", channel },
+                            dedupeKey: `ai-chat-application-created:${data.id}`,
+                          });
+                        }
                       }
                     }
                   } else if (fn.name === "find_company_contact_channels") {
@@ -3066,6 +3431,11 @@ Edge functions:
                       payload: args.payload,
                       method: asString(args.method),
                       headers: args.headers,
+                    });
+                  } else if (fn.name === "list_database_schema") {
+                    result = await fetchDatabaseSchemaSnapshot(serviceClient, {
+                      tableName: asString(args.table_name),
+                      includeColumns: args.include_columns !== false,
                     });
                   } else if (fn.name === "search_gmail_job_emails") {
                     result = await agentSearchJobRelatedEmails(
@@ -3374,17 +3744,330 @@ Edge functions:
                     result = await runUpdateResumeTool(supabaseUser, userId, args);
                   } else if (fn.name === "update_application_status") {
                     const appId = asString(args.application_id) || "";
-                    const st = asString(args.status) || "";
+                    const st = normalizeApplicationStatus(args.status, "");
                     if (!appId || !st) {
                       result = { success: false, error: "application_id and status are required" };
                     } else {
-                      const { error: appErr } = await supabaseUser
+                      const canonicalStage = canonicalStageFromApplicationStatus(st);
+                      const patch: Record<string, unknown> = {
+                        status: st,
+                        canonical_stage: canonicalStage,
+                        provider_status: `chat:${canonicalStage}`,
+                        updated_at: new Date().toISOString(),
+                      };
+                      const nextStep = asString(args.next_step);
+                      const notes = asString(args.notes);
+                      if (nextStep) patch.next_step = nextStep;
+                      if (notes) patch.notes = notes;
+
+                      const { data: updatedApp, error: appErr } = await supabaseUser
                         .from("applications")
-                        .update({ status: st, updated_at: new Date().toISOString() })
-                        .eq("id", appId);
-                      result = appErr
-                        ? { success: false, error: appErr.message }
-                        : { success: true, application_id: appId, new_status: st };
+                        .update(patch)
+                        .eq("id", appId)
+                        .eq("user_id", userId)
+                        .select("id, job_title, company, status, canonical_stage, next_step, updated_at")
+                        .maybeSingle();
+                      if (appErr) {
+                        result = { success: false, error: appErr.message };
+                      } else if (!updatedApp) {
+                        result = { success: false, error: "Application not found" };
+                      } else {
+                        if (["Interview", "Offer", "Rejected", "Withdrawn", "Applied"].includes(st)) {
+                          await createNotificationRecord(serviceClient, {
+                            userId,
+                            type: st === "Interview" ? "interview" : "application",
+                            title:
+                              st === "Offer"
+                                ? `Offer received: ${updatedApp.company}`
+                                : `Application moved to ${st}: ${updatedApp.company}`,
+                            message:
+                              nextStep ||
+                              `${updatedApp.job_title} at ${updatedApp.company} is now marked as ${st}.`,
+                            company: asString(updatedApp.company),
+                            priority: st === "Offer" || st === "Interview" ? "high" : "medium",
+                            source: "application",
+                            sourceRecordId: appId,
+                            sourceRecordType: "application",
+                            actionUrl: "/dashboard/applications",
+                            actionLabel: "View application",
+                            metadata: { status: st, canonical_stage: canonicalStage, updated_by: "ai_chat" },
+                            dedupeKey: `ai-chat-application-status:${appId}:${canonicalStage}`,
+                          });
+                        }
+                        result = {
+                          success: true,
+                          application: updatedApp,
+                          notification_created: ["Interview", "Offer", "Rejected", "Withdrawn", "Applied"].includes(st),
+                        };
+                      }
+                    }
+                  } else if (fn.name === "update_application") {
+                    const appId = asString(args.application_id) || "";
+                    if (!appId) {
+                      result = { success: false, error: "application_id is required" };
+                    } else {
+                      const patch: Record<string, unknown> = {};
+                      for (const key of [
+                        "job_title",
+                        "company",
+                        "location",
+                        "salary",
+                        "notes",
+                        "next_step",
+                        "app_url",
+                        "receipt_url",
+                        "success_url",
+                        "user_review_notes",
+                      ]) {
+                        if (args[key] !== undefined) patch[key] = asString(args[key]) || null;
+                      }
+                      if (args.interview_date !== undefined) {
+                        patch.interview_date = asString(args.interview_date) || null;
+                      }
+                      if (args.status !== undefined) {
+                        const nextStatus = normalizeApplicationStatus(args.status, "");
+                        if (nextStatus) {
+                          patch.status = nextStatus;
+                          patch.canonical_stage = canonicalStageFromApplicationStatus(nextStatus);
+                          patch.provider_status = `chat:${patch.canonical_stage}`;
+                        }
+                      }
+                      if (Object.keys(patch).length === 0) {
+                        result = { success: false, error: "No application fields to update" };
+                      } else {
+                        patch.updated_at = new Date().toISOString();
+                        const { data: updatedApp, error: updateError } = await supabaseUser
+                          .from("applications")
+                          .update(patch)
+                          .eq("id", appId)
+                          .eq("user_id", userId)
+                          .select(
+                            "id, job_title, company, location, status, canonical_stage, salary, notes, next_step, interview_date, app_url, updated_at",
+                          )
+                          .maybeSingle();
+                        if (updateError) {
+                          result = { success: false, error: updateError.message };
+                        } else if (!updatedApp) {
+                          result = { success: false, error: "Application not found" };
+                        } else {
+                          if (patch.status) {
+                            await createNotificationRecord(serviceClient, {
+                              userId,
+                              type: patch.status === "Interview" ? "interview" : "application",
+                              title: `Application updated: ${updatedApp.company}`,
+                              message: `${updatedApp.job_title} is now ${updatedApp.status}.`,
+                              company: asString(updatedApp.company),
+                              priority: patch.status === "Offer" || patch.status === "Interview" ? "high" : "medium",
+                              source: "application",
+                              sourceRecordId: appId,
+                              sourceRecordType: "application",
+                              actionUrl: "/dashboard/applications",
+                              actionLabel: "View application",
+                              metadata: { updated_fields: Object.keys(patch), updated_by: "ai_chat" },
+                              dedupeKey: `ai-chat-application-update:${appId}:${patch.canonical_stage}`,
+                            });
+                          }
+                          result = { success: true, application: updatedApp };
+                        }
+                      }
+                    }
+                  } else if (fn.name === "delete_application") {
+                    const appId = asString(args.application_id) || "";
+                    if (!appId) {
+                      result = { success: false, error: "application_id is required" };
+                    } else {
+                      const { data: existingApp, error: lookupError } = await supabaseUser
+                        .from("applications")
+                        .select("id, job_title, company")
+                        .eq("id", appId)
+                        .eq("user_id", userId)
+                        .maybeSingle();
+                      if (lookupError) {
+                        result = { success: false, error: lookupError.message };
+                      } else if (!existingApp) {
+                        result = { success: false, error: "Application not found" };
+                      } else {
+                        const { error: deleteError } = await supabaseUser
+                          .from("applications")
+                          .delete()
+                          .eq("id", appId)
+                          .eq("user_id", userId);
+                        if (deleteError) {
+                          result = { success: false, error: deleteError.message };
+                        } else {
+                          await createNotificationRecord(serviceClient, {
+                            userId,
+                            type: "application",
+                            title: `Application deleted: ${existingApp.company}`,
+                            message: `${existingApp.job_title} at ${existingApp.company} was removed from the tracker.`,
+                            company: asString(existingApp.company),
+                            priority: "low",
+                            source: "application",
+                            sourceRecordType: "application",
+                            actionUrl: "/dashboard/applications",
+                            actionLabel: "View tracker",
+                            metadata: { deleted_application_id: appId, deleted_by: "ai_chat" },
+                          });
+                          result = { success: true, deleted_application: existingApp };
+                        }
+                      }
+                    }
+                  } else if (fn.name === "get_application_analytics") {
+                    const periodDays = clampNumber(args.period_days, 30, 1, 365);
+                    const includeJobs = args.include_jobs !== false;
+                    const now = new Date();
+                    const start = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
+                    const previousStart = new Date(start.getTime() - periodDays * 24 * 60 * 60 * 1000);
+                    const { data: appsData, error: appsError } = await supabaseUser
+                      .from("applications")
+                      .select("id, job_title, company, status, canonical_stage, applied_date, created_at, updated_at, match_score, next_step")
+                      .eq("user_id", userId)
+                      .gte("created_at", previousStart.toISOString())
+                      .order("created_at", { ascending: false })
+                      .limit(1000);
+                    if (appsError) {
+                      result = { success: false, error: appsError.message };
+                    } else {
+                      const apps = Array.isArray(appsData) ? appsData : [];
+                      const inRange = (row: Record<string, unknown>, from: Date, to: Date) => {
+                        const date = new Date(asString(row.applied_date) || asString(row.created_at) || "");
+                        const time = date.getTime();
+                        return Number.isFinite(time) && time >= from.getTime() && time <= to.getTime();
+                      };
+                      const currentApps = apps.filter((row) => inRange(row as Record<string, unknown>, start, now));
+                      const previousApps = apps.filter((row) => inRange(row as Record<string, unknown>, previousStart, start));
+                      const countBy = (rows: unknown[], key: string) => {
+                        const out: Record<string, number> = {};
+                        for (const row of rows) {
+                          const value = asString((row as Record<string, unknown>)[key]) || "Unknown";
+                          out[value] = (out[value] || 0) + 1;
+                        }
+                        return out;
+                      };
+                      const currentStatus = countBy(currentApps, "status");
+                      const interviews = (currentStatus.Interview || 0) + (currentStatus.Offer || 0);
+                      const offers = currentStatus.Offer || 0;
+                      const applications = currentApps.length;
+                      let jobsSummary: Record<string, unknown> | null = null;
+                      if (includeJobs) {
+                        const { data: jobsData, error: jobsError } = await supabaseUser
+                          .from("jobs")
+                          .select("id, title, company, source_type, source_kind, created_at, raw_data")
+                          .eq("user_id", userId)
+                          .gte("created_at", start.toISOString())
+                          .order("created_at", { ascending: false })
+                          .limit(1000);
+                        if (jobsError) {
+                          jobsSummary = { error: jobsError.message };
+                        } else {
+                          const jobs = Array.isArray(jobsData) ? jobsData : [];
+                          jobsSummary = {
+                            found: jobs.length,
+                            sources: countBy(jobs, "source_type"),
+                            recent: jobs.slice(0, 8).map((job) => ({
+                              id: job.id,
+                              title: job.title,
+                              company: job.company,
+                              source: job.source_type || job.source_kind,
+                              created_at: job.created_at,
+                            })),
+                          };
+                        }
+                      }
+                      result = {
+                        success: true,
+                        period_days: periodDays,
+                        metrics: {
+                          applications,
+                          previous_applications: previousApps.length,
+                          applications_delta: applications - previousApps.length,
+                          interviews,
+                          offers,
+                          offer_rate: applications ? Math.round((offers / applications) * 100) : 0,
+                          interview_or_offer_rate: applications ? Math.round((interviews / applications) * 100) : 0,
+                        },
+                        status_breakdown: currentStatus,
+                        canonical_stage_breakdown: countBy(currentApps, "canonical_stage"),
+                        recent_offers: currentApps
+                          .filter((row) => asString((row as Record<string, unknown>).status) === "Offer")
+                          .slice(0, 8),
+                        recent_interviews: currentApps
+                          .filter((row) => asString((row as Record<string, unknown>).status) === "Interview")
+                          .slice(0, 8),
+                        jobs: jobsSummary,
+                      };
+                    }
+                  } else if (fn.name === "list_notifications") {
+                    const limit = clampNumber(args.limit, 15, 1, 50);
+                    let query = supabaseUser
+                      .from("notifications")
+                      .select("id, type, title, message, company, read, is_starred, priority, source, source_record_id, source_record_type, action_url, action_label, metadata, archived_at, created_at")
+                      .eq("user_id", userId)
+                      .order("created_at", { ascending: false })
+                      .limit(limit);
+                    if (args.unread_only === true) query = query.eq("read", false);
+                    if (args.include_archived !== true) query = query.is("archived_at", null);
+                    const notificationType = asString(args.type);
+                    if (notificationType) query = query.eq("type", notificationType);
+                    const source = asString(args.source);
+                    if (source) query = query.eq("source", source);
+                    const { data, error } = await query;
+                    result = error
+                      ? { success: false, error: error.message }
+                      : { success: true, notifications: data || [], count: Array.isArray(data) ? data.length : 0 };
+                  } else if (fn.name === "create_notification") {
+                    const type = asString(args.type) || "system";
+                    const title = asString(args.title) || "";
+                    if (!title) {
+                      result = { success: false, error: "title is required" };
+                    } else {
+                      const allowedTypes = new Set(["interview", "application", "system", "company", "job_search", "credit"]);
+                      const priority = asString(args.priority) || "medium";
+                      const notification = await createNotificationRecord(serviceClient, {
+                        userId,
+                        type: allowedTypes.has(type) ? type as "interview" | "application" | "system" | "company" | "job_search" | "credit" : "system",
+                        title,
+                        message: asString(args.message),
+                        company: asString(args.company),
+                        priority: ["low", "medium", "high"].includes(priority) ? priority as "low" | "medium" | "high" : "medium",
+                        source: (asString(args.source) || "system") as "system" | "gmail" | "automation" | "application" | "job_search" | "billing",
+                        sourceRecordId: asString(args.source_record_id),
+                        sourceRecordType: asString(args.source_record_type),
+                        actionUrl: asString(args.action_url),
+                        actionLabel: asString(args.action_label),
+                        metadata: { created_by: "ai_chat" },
+                      });
+                      result = { success: true, ...notification };
+                    }
+                  } else if (fn.name === "update_notification") {
+                    const notificationId = asString(args.notification_id) || "";
+                    if (!notificationId) {
+                      result = { success: false, error: "notification_id is required" };
+                    } else {
+                      const patch: Record<string, unknown> = {};
+                      if (typeof args.read === "boolean") patch.read = args.read;
+                      if (typeof args.is_starred === "boolean") patch.is_starred = args.is_starred;
+                      if (typeof args.archived === "boolean") {
+                        patch.archived_at = args.archived ? new Date().toISOString() : null;
+                      }
+                      const priority = asString(args.priority);
+                      if (priority && ["low", "medium", "high"].includes(priority)) patch.priority = priority;
+                      if (Object.keys(patch).length === 0) {
+                        result = { success: false, error: "No notification fields to update" };
+                      } else {
+                        const { data, error } = await supabaseUser
+                          .from("notifications")
+                          .update(patch)
+                          .eq("id", notificationId)
+                          .eq("user_id", userId)
+                          .select("id, type, title, read, is_starred, priority, archived_at, updated_at")
+                          .maybeSingle();
+                        result = error
+                          ? { success: false, error: error.message }
+                          : data
+                            ? { success: true, notification: data }
+                            : { success: false, error: "Notification not found" };
+                      }
                     }
                   } else if (fn.name === "bookmark_job") {
                     const jId = asString(args.job_id) || "";
