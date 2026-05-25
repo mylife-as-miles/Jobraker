@@ -83,6 +83,20 @@ function asString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function asStringList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => asString(item))
+      .filter((item): item is string => Boolean(item));
+  }
+  const direct = asString(value);
+  if (!direct) return [];
+  return direct
+    .split(/\r?\n|,\s*|\s+;\s*/g)
+    .map((item) => item.replace(/^[-*•\d.)\s]+/, "").trim())
+    .filter(Boolean);
+}
+
 function asNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {
@@ -1570,6 +1584,31 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "find_company_contact_channels",
+    description:
+      "Build a safe, review-first list of official/public hiring channels for companies. Use this for requests like 'check the mass email list', 'find company emails', or 'get recruitment contacts' after a job search. This does not send emails and must not scrape personal/private emails.",
+    parameters: {
+      type: "object",
+      properties: {
+        companies: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional explicit company names to scout.",
+        },
+        query: {
+          type: "string",
+          description:
+            "Optional role/search query used to pull companies from the user's recent saved jobs when companies are not provided.",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum companies to scout. Defaults to 12, max 25.",
+        },
+      },
+      additionalProperties: true,
+    },
+  },
+  {
     name: "refresh_application_processes",
     description: "Refresh multi-stage application tracking by syncing Gmail application events and recent Skyvern provider runs, then return the updated application snapshot.",
     parameters: {
@@ -2076,6 +2115,20 @@ const AGENT_FUNCTION_DECLARATIONS = [
       },
       required: ["skill"]
     }
+  },
+  {
+    name: "create_reminder",
+    description: "Set a future follow-up reminder for a company or application. This creates a notification that will become visible/active at the specified due date.",
+    parameters: {
+      type: "object",
+      properties: {
+        company: { type: "string", description: "The company name to follow up with, e.g. 'Area50 Technologies'" },
+        role: { type: "string", description: "The job title / role, e.g. 'Software Engineer'" },
+        message: { type: "string", description: "The message describing what to do, e.g. 'Send a polite follow-up email to recruitment contact.'" },
+        due_in_days: { type: "number", description: "The number of days from now to trigger the reminder (default: 3)." }
+      },
+      required: ["company"]
+    }
   }
 ];
 
@@ -2257,6 +2310,7 @@ Navigation and page control:
 Application process tracking:
 - Use create_application_tracker_entry when the user asks to track a manual/direct outreach, Gmail-sent application email, referral ask, or any legitimate application touchpoint that has no public job posting URL. A missing job URL is not a blocker.
 - Use list_applications and refresh_application_processes to keep up with multi-stage application pipelines across JobRaker, Gmail, and Skyvern.
+- Use find_company_contact_channels for "mass email list", "company email list", recruitment contacts, or direct outreach lead-list requests. Return a review list; never claim it sent emails unless send_gmail_job_email was explicitly approved and used.
 
 Edge functions:
 - Use list_edge_functions and get_edge_function_details before invoke_edge_function when you need to inspect or manipulate edge-function parameters.
@@ -2830,6 +2884,105 @@ Edge functions:
                             };
                       }
                     }
+                  } else if (fn.name === "find_company_contact_channels") {
+                    const limit = clampNumber(asNumber(args.limit), 12, 1, 25);
+                    const query = asString(args.query) || "";
+                    const explicitCompanies = asStringList(args.companies);
+                    let companies = explicitCompanies;
+                    const sourceJobs: Record<string, unknown>[] = [];
+
+                    if (companies.length === 0) {
+                      const { data: recentJobs, error: jobsError } = await supabaseUser
+                        .from("jobs")
+                        .select("title, company, location, apply_url, source_kind, source_confidence, created_at")
+                        .eq("user_id", userId)
+                        .eq("hidden", false)
+                        .order("created_at", { ascending: false })
+                        .limit(Math.max(40, limit * 4));
+
+                      if (jobsError) {
+                        result = { success: false, error: jobsError.message };
+                      } else {
+                        const q = query.toLowerCase();
+                        for (const row of Array.isArray(recentJobs) ? recentJobs : []) {
+                          const record = row as Record<string, unknown>;
+                          const haystack = `${asString(record.title) || ""} ${asString(record.company) || ""} ${asString(record.location) || ""}`.toLowerCase();
+                          if (q && !haystack.includes(q) && !q.split(/\s+/).some((term) => term.length > 2 && haystack.includes(term))) {
+                            continue;
+                          }
+                          const company = asString(record.company);
+                          if (company) {
+                            companies.push(company);
+                            sourceJobs.push(record);
+                          }
+                          if (companies.length >= limit) break;
+                        }
+                      }
+                    }
+
+                    if (!result) {
+                      const seen = new Set<string>();
+                      companies = companies
+                        .map((company) => company.replace(/\s+/g, " ").trim())
+                        .filter((company) => {
+                          const key = company.toLowerCase();
+                          if (!company || seen.has(key)) return false;
+                          seen.add(key);
+                          return true;
+                        })
+                        .slice(0, limit);
+
+                      if (companies.length === 0) {
+                        result = {
+                          success: false,
+                          error:
+                            "No companies were found to scout. Provide company names or run a job search first.",
+                        };
+                      } else {
+                        const contacts = [];
+                        for (const companyName of companies) {
+                          const scout = await invokeEdgeFunctionByName({
+                            authHeader: authHeader!,
+                            name: "scout-company",
+                            payload: { companyName },
+                          });
+                          const data = isRecord(scout.data) ? scout.data : {};
+                          contacts.push({
+                            companyName,
+                            domain: asString(data.domain) || "",
+                            careersPageUrl: asString(data.careersPageUrl) || "",
+                            contactEmail: asString(data.contactEmail) || "",
+                            publicContactChannels: Array.isArray(data.publicContactChannels)
+                              ? data.publicContactChannels
+                              : [],
+                            confidence: asString(data.confidence) || "low",
+                            foundSource: asString(data.foundSource) || "Company scout",
+                            safeToDraft:
+                              Boolean(asString(data.contactEmail)) &&
+                              (asString(data.confidence) === "high" || asString(data.confidence) === "medium"),
+                            scoutStatus: scout.success ? "completed" : "failed",
+                            scoutError: scout.success ? null : scout.data || scout,
+                          });
+                        }
+
+                        result = {
+                          success: true,
+                          query: query || null,
+                          count: contacts.length,
+                          contacts,
+                          source: explicitCompanies.length
+                            ? "explicit_companies"
+                            : "recent_saved_jobs",
+                          sourceJobs: sourceJobs.slice(0, limit),
+                          guardrails: [
+                            "Official company sites, careers pages, and public recruitment/contact channels only.",
+                            "No personal emails from private profiles.",
+                            "No mass sending. Create drafts and ask for approval first.",
+                            "Low-confidence emails must be verified before use.",
+                          ],
+                        };
+                      }
+                    }
                   } else if (fn.name === "refresh_application_processes") {
                     result = await refreshApplicationProcesses({
                       authHeader: authHeader!,
@@ -3259,6 +3412,36 @@ Edge functions:
                         ? { success: false, error: hErr.message }
                         : { success: true, job_id: jId, hidden: true };
                     }
+                  } else if (fn.name === "create_reminder") {
+                    const company = asString(args.company) || "Target Company";
+                    const role = asString(args.role) || "Target role";
+                    const message = asString(args.message) || `Follow up with ${company} regarding the ${role} application.`;
+                    const dueInDays = asNumber(args.due_in_days) ?? 3;
+
+                    const reminderDate = new Date();
+                    reminderDate.setDate(reminderDate.getDate() + dueInDays);
+
+                    const { data, error: bErr } = await serviceClient
+                      .from("notifications")
+                      .insert({
+                        user_id: userId,
+                        type: "application",
+                        title: `Follow-up reminder: ${company}`,
+                        message: message,
+                        company: company,
+                        priority: "medium",
+                        created_at: reminderDate.toISOString(),
+                      })
+                      .select("*")
+                      .single();
+
+                    result = bErr
+                      ? { success: false, error: bErr.message }
+                      : {
+                          success: true,
+                          reminder: data,
+                          message: `Follow-up reminder scheduled for ${company} on ${reminderDate.toLocaleDateString()}.`
+                        };
                   } else if (fn.name === "evaluate_job_fit") {
                     const t = normalizeSubscriptionTier(subscriptionTier);
                     if (t === "Free") {
