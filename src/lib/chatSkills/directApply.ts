@@ -11,6 +11,7 @@ const DIRECT_APPLY_PROGRESS = [
   "Searching official company channels",
   "Verifying application paths",
   "Preparing tailored drafts",
+  "Mapping connected inbox actions",
   "Ready for review",
 ];
 
@@ -50,6 +51,20 @@ const buildDraft = (companyName: string, role: string, location: string) => ({
   subject: `Application for ${role} at ${companyName}`,
   body: `Hi ${companyName} hiring team,\n\nI am interested in the ${role} opportunity${location ? ` for ${location}` : ""}. I can bring relevant execution, product, and technical experience, and I would like to share a tailored resume and short note for your review.\n\nBest,\nJobRaker Candidate`,
 });
+
+const buildDraftCommand = (
+  companyName: string,
+  channelValue: string,
+  draft: ReturnType<typeof buildDraft>,
+) =>
+  `Create a connected Gmail draft for my approved Direct Apply draft to ${companyName}. Use create_gmail_job_draft with To: ${channelValue}, Subject: ${draft.subject}, Body:\n${draft.body}`;
+
+const buildApprovalCommand = (
+  companyName: string,
+  channelValue: string,
+  draft: ReturnType<typeof buildDraft>,
+) =>
+  `I approve sending this Direct Apply email from my connected Gmail to ${companyName}. Use send_gmail_job_email only for this exact message. To: ${channelValue}. Subject: ${draft.subject}. Body:\n${draft.body}`;
 
 const buildMockResults = (
   args: Record<string, unknown>,
@@ -133,14 +148,28 @@ const buildMockResults = (
           },
         ];
 
-  return companies.slice(0, limit).map((company) => ({
-    ...company,
-    role,
-    draftStatus:
-      company.confidence === "low" ? "needs_review" : "ready_for_review",
-    approvalStatus: "pending_user_review",
-    draftPreview: buildDraft(company.companyName, role, location),
-  }));
+  return companies.slice(0, limit).map((company) => {
+    const draftPreview = buildDraft(company.companyName, role, location);
+    const canUseInboxEmail = company.channelType === "recruitment_email";
+    return {
+      ...company,
+      role,
+      draftStatus:
+        company.confidence === "low" ? "needs_review" : "ready_for_review",
+      approvalStatus: "pending_user_review",
+      draftPreview,
+      draftCommand: canUseInboxEmail
+        ? buildDraftCommand(company.companyName, company.channelValue, draftPreview)
+        : undefined,
+      approvalCommand: canUseInboxEmail
+        ? buildApprovalCommand(
+            company.companyName,
+            company.channelValue,
+            draftPreview,
+          )
+        : undefined,
+    };
+  });
 };
 
 export const directApplySkill: JobrakerChatSkill = {
@@ -177,16 +206,15 @@ export const directApplySkill: JobrakerChatSkill = {
   execute: async (
     input: SkillExecutionInput,
   ): Promise<SkillExecutionResult<Record<string, unknown>>> => {
-    // Guardrails for V1 and future live integrations:
+    // Guardrails for connected inbox execution:
     // - Only use official company websites, career pages, or public recruitment/contact emails.
     // - Do not scrape personal emails from LinkedIn or private profiles.
     // - Do not bypass CAPTCHAs, logins, or access controls.
-    // - Do not send mass emails without user approval.
-    // - Do not send applications automatically in V1.
-    // - Prefer creating drafts for review.
+    // - Do not send mass emails; send only explicit user-approved drafts.
+    // - Prefer connected-inbox drafts before sending.
     // - Mark uncertain emails as low confidence.
     // - Always show the user what will be sent before sending.
-    // - Rate-limit future sending functionality.
+    // - Rate-limit sending functionality and keep reply tracking job-related.
     const completedProgress: string[] = [];
 
     for (const step of DIRECT_APPLY_PROGRESS) {
@@ -212,11 +240,62 @@ export const directApplySkill: JobrakerChatSkill = {
       },
       progress: completedProgress,
       approvalStatus: "pending_user_review",
+      connectedInbox: {
+        provider: "gmail",
+        status: "available_when_connected",
+        supportedActions: [
+          {
+            id: "create_drafts",
+            label: "Create Gmail drafts",
+            description:
+              "Create reviewed job-related drafts in the user's connected inbox.",
+            toolName: "create_gmail_job_draft",
+            approvalRequired: true,
+            connectedInboxRequired: true,
+          },
+          {
+            id: "send_approved",
+            label: "Send approved emails",
+            description:
+              "Send only the exact draft the user approves through connected Gmail.",
+            toolName: "send_gmail_job_email",
+            approvalRequired: true,
+            connectedInboxRequired: true,
+          },
+          {
+            id: "track_replies",
+            label: "Track replies",
+            description:
+              "Sync Gmail application events and update application process state.",
+            toolName: "refresh_application_processes",
+            approvalRequired: false,
+            connectedInboxRequired: true,
+          },
+          {
+            id: "follow_up_reminders",
+            label: "Remind follow-ups",
+            description:
+              "Use tracked application state to remind the user when follow-up is due.",
+            toolName: "notifications",
+            approvalRequired: false,
+            connectedInboxRequired: true,
+          },
+          {
+            id: "label_job_emails",
+            label: "Label job emails",
+            description:
+              "Apply JobRaker labels to job-search emails found by the fixed Gmail job query.",
+            toolName: "label_gmail_job_emails",
+            approvalRequired: true,
+            connectedInboxRequired: true,
+          },
+        ],
+      },
     };
 
     return {
       status: "needs_approval",
-      content: `Direct Apply found ${results.length} possible direct application channels. Review the drafts before any application is sent.`,
+      content: `Direct Apply found ${results.length} possible direct application channels and prepared connected-inbox actions for review.`,
       output: output as unknown as Record<string, unknown>,
     };
   },

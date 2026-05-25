@@ -467,6 +467,9 @@ async function executeTool(
       for (const key of allowed) {
         if (args[key] !== undefined && args[key] !== null) patch[key] = args[key];
       }
+      if (patch.experience_years !== undefined && patch.experience_years !== null) {
+        patch.experience_years = Math.round(Number(patch.experience_years));
+      }
       if (Object.keys(patch).length === 0) return { success: false, error: "No fields to update" };
       patch.updated_at = new Date().toISOString();
       const { error } = await sb.from("profiles").update(patch).eq("id", userId);

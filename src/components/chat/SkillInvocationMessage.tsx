@@ -8,6 +8,7 @@ import type {
 
 type Props = {
   skillCall: ChatSkillCall;
+  onRunPrompt?: (prompt: string) => void;
 };
 
 const isDirectApplyOutput = (
@@ -25,7 +26,7 @@ const isDirectApplyOutput = (
   });
 };
 
-export const SkillInvocationMessage = ({ skillCall }: Props) => {
+export const SkillInvocationMessage = ({ skillCall, onRunPrompt }: Props) => {
   const progress = skillCall.progress || [];
   const running = skillCall.status === "running" || skillCall.status === "queued";
   const failed = skillCall.status === "failed";
@@ -56,7 +57,7 @@ export const SkillInvocationMessage = ({ skillCall }: Props) => {
               </span>
             </div>
             <p className='mt-1 text-xs text-muted-foreground'>
-              Running as an Area50 chat skill. Draft-first and approval-first.
+              Running as a chat skill. Drafts can be created and sent only after approval.
             </p>
           </div>
         </div>
@@ -90,11 +91,11 @@ export const SkillInvocationMessage = ({ skillCall }: Props) => {
       </div>
 
       {directApplyOutput ? (
-        <DirectApplySkillCard output={directApplyOutput} />
+        <DirectApplySkillCard output={directApplyOutput} onRunPrompt={onRunPrompt} />
       ) : skillCall.output ? (
         <div className='rounded-2xl border border-border bg-background/60 p-4 text-xs text-muted-foreground'>
           Skill output is ready. A dedicated renderer can be attached from the
-          Area50 registry.
+          chat skill registry.
         </div>
       ) : null}
     </div>

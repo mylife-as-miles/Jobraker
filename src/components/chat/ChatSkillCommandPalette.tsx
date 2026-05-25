@@ -44,7 +44,7 @@ export const ChatSkillCommandPalette = ({
           </div>
           <div>
             <p className='text-xs font-semibold text-foreground'>
-              Area50 Skills
+              Chat Skills
             </p>
             <p className='text-[10px] text-muted-foreground'>
               {mode === "mention" ? "Mention a specialist" : "Run a command"}

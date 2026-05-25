@@ -11,6 +11,8 @@ const GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
   /** Needed for JobRaker Agent job-related outbound mail (recruiter follow-ups, thank-yous). */
   "https://www.googleapis.com/auth/gmail.send",
+  /** Needed for approved draft creation and job-search mailbox labels. Existing users may need to reconnect. */
+  "https://www.googleapis.com/auth/gmail.modify",
 ];
 
 type Action = "initiate" | "callback" | "status" | "disconnect";

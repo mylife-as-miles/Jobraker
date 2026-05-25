@@ -21,7 +21,7 @@ const createPlaceholderSkill = (
     input: SkillExecutionInput,
   ): Promise<SkillExecutionResult<Record<string, unknown>>> => ({
     status: "completed",
-    content: `${skill.name} is registered in the Area50 skill system. Its live workflow can now be connected behind this handler.`,
+    content: `${skill.name} is registered in the chat skill system. Its live workflow can now be connected behind this handler.`,
     output: {
       skillId: skill.id,
       instruction: input.userInstruction,

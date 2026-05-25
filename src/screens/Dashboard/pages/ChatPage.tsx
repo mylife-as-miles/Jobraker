@@ -1155,7 +1155,7 @@ export const ChatPage = () => {
       if (!skill) {
         toastError(
           "Skill not found",
-          "That Area50 skill is not registered in JobRaker yet.",
+          "That chat skill is not registered in JobRaker yet.",
         );
         return;
       }
@@ -1189,7 +1189,7 @@ export const ChatPage = () => {
           userInstruction: parsed.userInstruction,
           args: parsed.args,
         },
-        progress: ["Queued Area50 skill"],
+        progress: ["Queued chat skill"],
       };
       const skillMessage: BasicMessage = {
         id: nanoid(),
@@ -1897,7 +1897,12 @@ export const ChatPage = () => {
                             {m.content.trim() ? m.content : null}
                           </div>
                         ) : m.role === "skill" && m.skillCall ? (
-                          <SkillInvocationMessage skillCall={m.skillCall} />
+                          <SkillInvocationMessage
+                            skillCall={m.skillCall}
+                            onRunPrompt={(prompt) =>
+                              void handleSubmit({ text: prompt })
+                            }
+                          />
                         ) : (
                           <div className='text-sm prose prose-invert max-w-none overflow-hidden'>
                             {m.toolCalls && m.toolCalls.length > 0 && (

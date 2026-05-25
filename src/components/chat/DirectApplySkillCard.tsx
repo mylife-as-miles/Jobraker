@@ -1,12 +1,16 @@
 import { useMemo, useState } from "react";
 import {
+  Bell,
   CheckCircle2,
   Copy,
   ExternalLink,
   FileCheck2,
   ListFilter,
+  Mail,
+  Send,
   Search,
   ShieldCheck,
+  Tags,
 } from "lucide-react";
 import type {
   DirectApplyOutput,
@@ -16,6 +20,7 @@ import type {
 
 type Props = {
   output: DirectApplyOutput;
+  onRunPrompt?: (prompt: string) => void;
 };
 
 const confidenceClass: Record<SkillConfidence, string> = {
@@ -32,6 +37,14 @@ const channelLabel = (result: DirectApplyResult) => {
   return "Needs verification";
 };
 
+const channelHref = (result: DirectApplyResult) => {
+  if (result.channelValue.startsWith("http")) return result.channelValue;
+  if (result.channelType === "recruitment_email") {
+    return `mailto:${result.channelValue}`;
+  }
+  return undefined;
+};
+
 const resultToExportLine = (result: DirectApplyResult) =>
   [
     result.companyName,
@@ -42,9 +55,18 @@ const resultToExportLine = (result: DirectApplyResult) =>
     result.recommendedAction,
   ].join(",");
 
-export const DirectApplySkillCard = ({ output }: Props) => {
+export const DirectApplySkillCard = ({ output, onRunPrompt }: Props) => {
   const [notice, setNotice] = useState(
-    "Drafts are staged for review. No application will be sent automatically.",
+    "Connected inbox actions are ready. JobRaker can create drafts, send approved emails, track replies, remind follow-ups, and label job emails when Gmail is connected.",
+  );
+  const emailResults = useMemo(
+    () =>
+      output.results.filter(
+        (result) =>
+          result.channelType === "recruitment_email" &&
+          result.confidence !== "low",
+      ),
+    [output.results],
   );
 
   const exportText = useMemo(
@@ -60,6 +82,27 @@ export const DirectApplySkillCard = ({ output }: Props) => {
     await navigator.clipboard.writeText(exportText);
     setNotice("Direct application channel list copied.");
   };
+
+  const runOrCopyPrompt = async (prompt: string, fallbackNotice: string) => {
+    if (onRunPrompt) {
+      onRunPrompt(prompt);
+      return;
+    }
+    await navigator.clipboard.writeText(prompt);
+    setNotice(fallbackNotice);
+  };
+
+  const draftPrompt = emailResults
+    .map((result) => result.draftCommand)
+    .filter(Boolean)
+    .join("\n\n");
+  const sendPrompt = emailResults
+    .map((result) => result.approvalCommand)
+    .filter(Boolean)
+    .join("\n\n");
+  const refineQuery = [
+    ...new Set(output.results.map((result) => result.companyName)),
+  ].join(" OR ");
 
   return (
     <div className='space-y-4'>
@@ -84,9 +127,27 @@ export const DirectApplySkillCard = ({ output }: Props) => {
           </div>
           <span className='inline-flex w-fit items-center gap-1.5 rounded-full border border-brand/25 bg-brand/10 px-3 py-1 text-[11px] font-semibold text-brand'>
             <CheckCircle2 className='h-3.5 w-3.5' />
-            Approval first
+            Connected inbox ready
           </span>
         </div>
+
+        {output.connectedInbox?.supportedActions?.length ? (
+          <div className='mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5'>
+            {output.connectedInbox.supportedActions.map((action) => (
+              <div
+                key={action.id}
+                className='rounded-xl border border-border/70 bg-card/35 px-3 py-2'
+              >
+                <p className='text-[11px] font-semibold text-foreground'>
+                  {action.label}
+                </p>
+                <p className='mt-1 text-[10px] leading-relaxed text-muted-foreground'>
+                  {action.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <div className='mt-4 overflow-hidden rounded-xl border border-border/70'>
           <div className='hidden grid-cols-[1.15fr_1.15fr_1fr_.85fr_.95fr] gap-3 border-b border-border/70 bg-accent/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground md:grid'>
@@ -145,19 +206,72 @@ export const DirectApplySkillCard = ({ output }: Props) => {
           <button
             type='button'
             onClick={() =>
-              setNotice("High-confidence drafts are prepared, but still need approval before sending.")
+              draftPrompt
+                ? void runOrCopyPrompt(
+                    draftPrompt,
+                    "Gmail draft command copied. Paste it into chat to create the drafts.",
+                  )
+                : setNotice(
+                    "No verified recruitment-email channels are ready for Gmail draft creation yet.",
+                  )
             }
             className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
           >
-            <CheckCircle2 className='h-3.5 w-3.5' />
-            Prepare all safe drafts
+            <Mail className='h-3.5 w-3.5' />
+            Create Gmail drafts
           </button>
           <button
             type='button'
             onClick={() =>
-              setNotice("Low-confidence channels are excluded from the safe draft set.")
+              sendPrompt
+                ? void runOrCopyPrompt(
+                    sendPrompt,
+                    "Approved Gmail send command copied. Paste it into chat to send.",
+                  )
+                : setNotice(
+                    "No approved recruitment-email drafts are ready to send yet.",
+                  )
             }
             className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
+          >
+            <Send className='h-3.5 w-3.5' />
+            Send approved
+          </button>
+          <button
+            type='button'
+            onClick={() =>
+              void runOrCopyPrompt(
+                `Label job-related Gmail messages connected to this Direct Apply search with "JobRaker/Applications". Use label_gmail_job_emails with refine_query: ${refineQuery || "applications"}.`,
+                "Gmail labeling command copied. Paste it into chat to label job emails.",
+              )
+            }
+            className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
+          >
+            <Tags className='h-3.5 w-3.5' />
+            Label job emails
+          </button>
+          <button
+            type='button'
+            onClick={() =>
+              void runOrCopyPrompt(
+                "Refresh my application processes including Gmail reply tracking, then remind me which Direct Apply items need follow-up.",
+                "Reply tracking and follow-up command copied. Paste it into chat to run it.",
+              )
+            }
+            className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
+          >
+            <Bell className='h-3.5 w-3.5' />
+            Track + remind
+          </button>
+        </div>
+
+        <div className='mt-2 flex flex-wrap gap-2'>
+          <button
+            type='button'
+            onClick={() =>
+              setNotice("Low-confidence channels are excluded from connected-inbox sends until verified.")
+            }
+            className='inline-flex items-center gap-2 rounded-xl border border-border bg-background/60 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
           >
             <ListFilter className='h-3.5 w-3.5' />
             Ignore low confidence
@@ -165,7 +279,7 @@ export const DirectApplySkillCard = ({ output }: Props) => {
           <button
             type='button'
             onClick={() => void copyExport()}
-            className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
+            className='inline-flex items-center gap-2 rounded-xl border border-border bg-background/60 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
           >
             <Copy className='h-3.5 w-3.5' />
             Export list
@@ -173,9 +287,12 @@ export const DirectApplySkillCard = ({ output }: Props) => {
           <button
             type='button'
             onClick={() =>
-              setNotice("The next version can continue researching official sources before drafting.")
+              void runOrCopyPrompt(
+                "Continue researching official company application channels for this Direct Apply request and update the confidence scores before drafting.",
+                "Research command copied. Paste it into chat to continue.",
+              )
             }
-            className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
+            className='inline-flex items-center gap-2 rounded-xl border border-border bg-background/60 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
           >
             <Search className='h-3.5 w-3.5' />
             Continue researching
@@ -193,7 +310,7 @@ export const DirectApplySkillCard = ({ output }: Props) => {
             Draft previews
           </h4>
           <span className='text-[11px] text-muted-foreground'>
-            V1 review only
+            Connected inbox can draft or send after approval
           </span>
         </div>
         <div className='space-y-3'>
@@ -216,7 +333,7 @@ export const DirectApplySkillCard = ({ output }: Props) => {
                   {result.draftPreview.body}
                 </p>
                 <a
-                  href={result.channelValue.startsWith("http") ? result.channelValue : undefined}
+                  href={channelHref(result)}
                   target='_blank'
                   rel='noreferrer'
                   className='inline-flex items-center gap-1.5 text-brand hover:underline'
@@ -224,6 +341,38 @@ export const DirectApplySkillCard = ({ output }: Props) => {
                   Open official channel
                   <ExternalLink className='h-3 w-3' />
                 </a>
+                {result.draftCommand || result.approvalCommand ? (
+                  <div className='flex flex-wrap gap-2 pt-1'>
+                    {result.draftCommand ? (
+                      <button
+                        type='button'
+                        onClick={() =>
+                          void runOrCopyPrompt(
+                            result.draftCommand || "",
+                            "Draft command copied. Paste it into chat to create this Gmail draft.",
+                          )
+                        }
+                        className='rounded-lg border border-brand/25 bg-brand/10 px-2.5 py-1 text-[11px] font-semibold text-brand transition hover:bg-brand/15'
+                      >
+                        Create Gmail draft
+                      </button>
+                    ) : null}
+                    {result.approvalCommand ? (
+                      <button
+                        type='button'
+                        onClick={() =>
+                          void runOrCopyPrompt(
+                            result.approvalCommand || "",
+                            "Send command copied. Paste it into chat to send this approved email.",
+                          )
+                        }
+                        className='rounded-lg border border-border bg-background/70 px-2.5 py-1 text-[11px] font-semibold text-foreground transition hover:bg-accent/40'
+                      >
+                        Approve send
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </details>
           ))}

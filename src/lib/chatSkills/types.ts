@@ -87,8 +87,29 @@ export type DirectApplyChannelType =
 
 export type DirectApplyDraftStatus =
   | "ready_for_review"
+  | "draft_created"
+  | "sent_after_approval"
   | "needs_review"
   | "not_started";
+
+export type DirectApplyInboxAction = {
+  id:
+    | "create_drafts"
+    | "send_approved"
+    | "track_replies"
+    | "follow_up_reminders"
+    | "label_job_emails";
+  label: string;
+  description: string;
+  toolName:
+    | "create_gmail_job_draft"
+    | "send_gmail_job_email"
+    | "refresh_application_processes"
+    | "label_gmail_job_emails"
+    | "notifications";
+  approvalRequired: boolean;
+  connectedInboxRequired: boolean;
+};
 
 export type DirectApplyResult = {
   companyName: string;
@@ -104,6 +125,8 @@ export type DirectApplyResult = {
     subject: string;
     body: string;
   };
+  approvalCommand?: string;
+  draftCommand?: string;
 };
 
 export type DirectApplyOutput = {
@@ -116,4 +139,9 @@ export type DirectApplyOutput = {
   };
   progress: string[];
   approvalStatus: "not_requested" | "pending_user_review";
+  connectedInbox: {
+    provider: "gmail" | "outlook" | "unknown";
+    status: "available_when_connected";
+    supportedActions: DirectApplyInboxAction[];
+  };
 };

@@ -1960,7 +1960,7 @@ function AboutEditor({
               job_title: jobTitle.trim(),
               location: location.trim() || null,
               location_scope: locationScope,
-              experience_years: years ? Number(years) : null,
+              experience_years: years && !isNaN(Number(years)) ? Math.round(Number(years)) : null,
             })
           }
         >

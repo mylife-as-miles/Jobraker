@@ -21,6 +21,8 @@ import {
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 import {
+  agentCreateJobRelatedDraft,
+  agentLabelJobRelatedEmails,
   agentSearchJobRelatedEmails,
   agentSendJobRelatedEmail,
 } from "../_shared/gmail-job-agent-tools.ts";
@@ -1883,6 +1885,20 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "create_gmail_job_draft",
+    description:
+      "Create a Gmail draft from the user's connected Gmail address ONLY for professional job-related communication. The server rejects non-job content. Requires Gmail connected with modify permission. Always show the user the draft before creating it.",
+    parameters: {
+      type: "object",
+      properties: {
+        to: { type: "string", description: "Recipient email address" },
+        subject: { type: "string", description: "Email subject line" },
+        body: { type: "string", description: "Plain-text body" },
+      },
+      required: ["to", "subject", "body"],
+    },
+  },
+  {
     name: "send_gmail_job_email",
     description:
       "Send an email from the user's Gmail address ONLY for professional job-related communication (recruiter follow-up, thank-you after interview, application status). The server rejects content that does not look job-related. Always confirm recipient, subject, and body with the user before calling. Requires Gmail connected with send permission.",
@@ -1894,6 +1910,33 @@ const AGENT_FUNCTION_DECLARATIONS = [
         body: { type: "string", description: "Plain-text body" },
       },
       required: ["to", "subject", "body"],
+    },
+  },
+  {
+    name: "label_gmail_job_emails",
+    description:
+      "Apply a JobRaker Gmail label to job-search correspondence only. Uses either explicit Gmail message IDs from search_gmail_job_emails or the same fixed job-related server query with optional company/role refinement. Requires Gmail connected with modify permission.",
+    parameters: {
+      type: "object",
+      properties: {
+        message_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Gmail message IDs previously returned by search_gmail_job_emails.",
+        },
+        refine_query: {
+          type: "string",
+          description: "Optional company, role, or recruiter terms to narrow the fixed job-related query.",
+        },
+        max_results: {
+          type: "number",
+          description: "Maximum matching messages to label when message_ids are not supplied.",
+        },
+        label_name: {
+          type: "string",
+          description: "Gmail label name. Defaults to JobRaker/Applications.",
+        },
+      },
     },
   },
   {
@@ -2074,7 +2117,9 @@ serve(async (req) => {
       const gmailJobRules = `
 Job-related Gmail (only when tools are available):
 - search_gmail_job_emails searches using a fixed job-search filter on the server; it is not a full inbox search.
+- create_gmail_job_draft creates Gmail drafts only for clearly job-related messages after showing the exact draft to the user.
 - send_gmail_job_email sends only if the message clearly relates to the user's job search; the server may reject other content. Always show the user the exact To, Subject, and body and obtain explicit confirmation before sending.
+- label_gmail_job_emails labels only job-search correspondence using explicit message IDs or the fixed job-related server query.
 Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.`;
       const agentCapabilityRules = `
 Profile, resume, and in-app data (execute directly — do not ask the user to copy-paste):
@@ -2093,7 +2138,7 @@ Application process tracking:
 
 Edge functions:
 - Use list_edge_functions and get_edge_function_details before invoke_edge_function when you need to inspect or manipulate edge-function parameters.
-- Confirm before invoking side-effectful functions such as apply-to-jobs, init-payment, send_gmail_job_email, or webhook-like endpoints.`;
+- Confirm before invoking side-effectful functions such as apply-to-jobs, init-payment, create_gmail_job_draft, send_gmail_job_email, label_gmail_job_emails, or webhook-like endpoints.`;
       systemInstruction =
         `You are JobRaker Agent. Be proactive, use tools to help the user, and answer from JobRaker data before falling back to general advice. Confirm before applying, deleting, sending email, navigating away for the user, or triggering any side-effectful workflow.\nAfter every batch of tool calls, you MUST reply in plain language: what you did, the result, and the next step or a direct answer (never end with only tools and no message).\n\n${gmailJobRules.trim()}\n\n${agentCapabilityRules.trim()}\n\n${systemInstruction}`;
     }
@@ -2634,6 +2679,16 @@ Edge functions:
                         refine_query?: string;
                       },
                     );
+                  } else if (fn.name === "create_gmail_job_draft") {
+                    result = await agentCreateJobRelatedDraft(
+                      serviceClient,
+                      userId,
+                      (args || {}) as {
+                        to?: string;
+                        subject?: string;
+                        body?: string;
+                      },
+                    );
                   } else if (fn.name === "send_gmail_job_email") {
                     result = await agentSendJobRelatedEmail(
                       serviceClient,
@@ -2642,6 +2697,17 @@ Edge functions:
                         to?: string;
                         subject?: string;
                         body?: string;
+                      },
+                    );
+                  } else if (fn.name === "label_gmail_job_emails") {
+                    result = await agentLabelJobRelatedEmails(
+                      serviceClient,
+                      userId,
+                      (args || {}) as {
+                        message_ids?: string[];
+                        refine_query?: string;
+                        max_results?: number;
+                        label_name?: string;
                       },
                     );
                   } else if (fn.name === "semantic_search") {
@@ -2693,6 +2759,9 @@ Edge functions:
                     ] as const;
                     for (const key of allowed) {
                       if (args[key] !== undefined && args[key] !== null) patch[key] = args[key];
+                    }
+                    if (patch.experience_years !== undefined && patch.experience_years !== null) {
+                      patch.experience_years = Math.round(Number(patch.experience_years));
                     }
                     if (Object.keys(patch).length === 0) {
                       result = { success: false, error: "No fields to update" };

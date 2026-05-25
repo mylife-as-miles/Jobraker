@@ -410,7 +410,9 @@ export const Onboarding = (): JSX.Element => {
           phone: effective.phone || null,
           location: effective.location || null,
           job_title: effective.jobTitle || null,
-          experience_years: effective.experienceYears,
+          experience_years: effective.experienceYears != null && !isNaN(Number(effective.experienceYears))
+            ? Math.round(Number(effective.experienceYears))
+            : null,
           about: effective.about || null,
           onboarding_complete: true,
           updated_at: new Date().toISOString(),
@@ -537,7 +539,23 @@ export const Onboarding = (): JSX.Element => {
           navigate("/dashboard/overview");
         }, 1500);
       } catch (e: any) {
-        setParseError(e.message || "Failed to process resume");
+        const rawMessage = e?.message || String(e);
+        let userMessage = "An unexpected error occurred while parsing your resume. Please try again.";
+        
+        if (rawMessage.includes("invalid input syntax for type integer")) {
+          userMessage = "Resume parsing encountered invalid format for years of experience. Please check your details.";
+        } else if (rawMessage.includes("File exceeds") || rawMessage.includes("exceeds limit")) {
+          userMessage = "The resume file is too large. Please upload a file smaller than 8MB.";
+        } else if (rawMessage.includes("Not authenticated") || rawMessage.includes("JWT")) {
+          userMessage = "Your session has expired. Please sign in again.";
+        } else if (rawMessage.includes("Could not extract text") || rawMessage.includes("Failed to extract text")) {
+          userMessage = "We couldn't read the text in this PDF. Please make sure it's not scanned or password-protected.";
+        } else if (rawMessage.includes("rate limit") || rawMessage.includes("limit exceeded") || rawMessage.includes("Subscription")) {
+          userMessage = "You've reached your resume parsing limit. Please check your subscription.";
+        } else if (rawMessage.trim()) {
+          userMessage = rawMessage.length < 80 ? rawMessage : "Unable to parse this resume. Please try another file.";
+        }
+        setParseError(userMessage);
       } finally {
         setUploading(false);
         setParsing(false);
@@ -880,8 +898,8 @@ export const Onboarding = (): JSX.Element => {
             first_name: formData.firstName || null,
             last_name: formData.lastName || null,
             job_title: formData.jobTitle || null,
-            experience_years: formData.experience
-              ? Number(formData.experience)
+            experience_years: formData.experience && !isNaN(Number(formData.experience))
+              ? Math.round(Number(formData.experience))
               : null,
             location: formData.location || null,
             goals: formData.goals,
