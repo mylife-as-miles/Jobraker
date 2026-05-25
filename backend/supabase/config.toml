@@ -459,6 +459,18 @@ entrypoint = "./functions/generate-cover-letter/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/generate-cover-letter/*.html" ]
 
+[functions.generate-outreach]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; auth is enforced in requireSubscriptionTier.
+verify_jwt = false
+import_map = "./functions/generate-outreach/deno.json"
+entrypoint = "./functions/generate-outreach/index.ts"
+
+[functions.scout-company]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/scout-company/index.ts"
+
 [functions.tailor-resume]
 enabled = true
 # Browser OPTIONS preflight must reach the handler; auth is enforced in requireSubscriptionTier.

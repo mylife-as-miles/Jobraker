@@ -59,6 +59,17 @@ const SKYVERN_TERMINAL_PROVIDER_STATUSES = new Set([
   "terminated",
 ]);
 const ACTIVE_APPLICATION_STATUSES = new Set(["Pending", "Applied", "Interview"]);
+const APPLICATION_STATUSES = new Set([
+  "Draft",
+  "Pending",
+  "Applied",
+  "Failed",
+  "Terminated",
+  "Interview",
+  "Offer",
+  "Rejected",
+  "Withdrawn",
+]);
 
 type SupabaseLikeClient = ReturnType<typeof createClient>;
 
@@ -79,6 +90,60 @@ function asNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+function normalizeApplicationStatus(value: unknown, fallback = "Applied"): string {
+  const raw = asString(value) || fallback;
+  const normalized = raw
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .trim();
+  const aliases: Record<string, string> = {
+    draft: "Draft",
+    ready: "Draft",
+    pending: "Pending",
+    queued: "Pending",
+    sent: "Applied",
+    submitted: "Applied",
+    applied: "Applied",
+    outreach: "Applied",
+    "outreach sent": "Applied",
+    failed: "Failed",
+    error: "Failed",
+    terminated: "Terminated",
+    interview: "Interview",
+    interviewing: "Interview",
+    offer: "Offer",
+    rejected: "Rejected",
+    withdrawn: "Withdrawn",
+  };
+  const status = aliases[normalized] || raw;
+  return APPLICATION_STATUSES.has(status) ? status : fallback;
+}
+
+function canonicalStageFromApplicationStatus(status: string): string {
+  switch (status) {
+    case "Draft":
+      return "draft_ready";
+    case "Pending":
+      return "queued";
+    case "Applied":
+      return "submitted";
+    case "Failed":
+      return "failed";
+    case "Terminated":
+      return "terminated";
+    case "Interview":
+      return "interview";
+    case "Offer":
+      return "offer";
+    case "Rejected":
+      return "rejected";
+    case "Withdrawn":
+      return "withdrawn";
+    default:
+      return "submitted";
+  }
 }
 
 function clampNumber(
@@ -1466,6 +1531,45 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "create_application_tracker_entry",
+    description:
+      "Create an Application Tracker record for a real application touchpoint, including manual/direct outreach with no public job URL. Use after the user approves tracking or after JobRaker has sent/created an approved outreach email.",
+    parameters: {
+      type: "object",
+      properties: {
+        job_title: {
+          type: "string",
+          description: "Role/title to track, e.g. Project Manager or Frontend Developer.",
+        },
+        company: { type: "string", description: "Company name." },
+        location: { type: "string" },
+        status: {
+          type: "string",
+          description:
+            "Draft, Pending, Applied, Interview, Offer, Rejected, Withdrawn, Failed, or Terminated. Use Applied when outreach/email has already been sent.",
+        },
+        channel: {
+          type: "string",
+          description: "How this application was made: email, Gmail, careers page, referral, LinkedIn, manual, etc.",
+        },
+        contact_email: { type: "string" },
+        contact_name: { type: "string" },
+        job_url: { type: "string" },
+        subject: { type: "string" },
+        outreach_body: { type: "string" },
+        applied_date: {
+          type: "string",
+          description: "Optional ISO timestamp/date. Defaults to now.",
+        },
+        notes: { type: "string" },
+        next_step: { type: "string" },
+        salary: { type: "string" },
+      },
+      required: ["job_title", "company"],
+      additionalProperties: true,
+    },
+  },
+  {
     name: "refresh_application_processes",
     description: "Refresh multi-stage application tracking by syncing Gmail application events and recent Skyvern provider runs, then return the updated application snapshot.",
     parameters: {
@@ -2140,7 +2244,7 @@ Job-related Gmail (only when tools are available):
 Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.`;
       const agentCapabilityRules = `
 Profile, resume, and in-app data (execute directly — do not ask the user to copy-paste):
-- update_profile, list_profile_records, add_skill, remove_skill, add_experience, update_experience, delete_experience, add_education, update_education, delete_education, save_cover_letter, update_resume, update_application_status, bookmark_job, hide_job, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
+- update_profile, list_profile_records, add_skill, remove_skill, add_experience, update_experience, delete_experience, add_education, update_education, delete_education, save_cover_letter, update_resume, create_application_tracker_entry, update_application_status, bookmark_job, hide_job, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
 - For Profile Settings cards, use list_profile_records to get IDs, then add/update/delete the structured experience, education, and skill rows directly. Never tell the user to click Profile Settings + Add unless the tool call fails or they explicitly ask for manual steps.
 - For resume Experience or Education sections, use update_resume with list_resumes for ids; use set_experience_items or set_education_items to replace builder section items, and resume_status to set Active/Draft/Archived when asked.
 - Use list_answer_bank_entries before drafting reusable application narratives when the user wants their saved voice, stories, beliefs, or profile snippets reflected.
@@ -2151,6 +2255,7 @@ Navigation and page control:
 - Use open_app_page only when the user wants to open or move to a page.
 
 Application process tracking:
+- Use create_application_tracker_entry when the user asks to track a manual/direct outreach, Gmail-sent application email, referral ask, or any legitimate application touchpoint that has no public job posting URL. A missing job URL is not a blocker.
 - Use list_applications and refresh_application_processes to keep up with multi-stage application pipelines across JobRaker, Gmail, and Skyvern.
 
 Edge functions:
@@ -2625,6 +2730,106 @@ Edge functions:
                       limit: asNumber(args.limit) || undefined,
                       includeRecentEvents: args.include_recent_events !== false,
                     });
+                  } else if (fn.name === "create_application_tracker_entry") {
+                    const jobTitle = asString(args.job_title) || "";
+                    const company = asString(args.company) || "";
+                    if (!jobTitle || !company) {
+                      result = {
+                        success: false,
+                        error: "job_title and company are required",
+                      };
+                    } else {
+                      const status = normalizeApplicationStatus(args.status, "Applied");
+                      const canonicalStage = canonicalStageFromApplicationStatus(status);
+                      const nowIso = new Date().toISOString();
+                      const appliedDate = asString(args.applied_date) || nowIso;
+                      const channel = asString(args.channel) || "manual_outreach";
+                      const contactEmail = asString(args.contact_email);
+                      const contactName = asString(args.contact_name);
+                      const jobUrl = asString(args.job_url);
+                      const subject = asString(args.subject);
+                      const outreachBody = asString(args.outreach_body);
+                      const notes = asString(args.notes);
+                      const nextStep =
+                        asString(args.next_step) ||
+                        (contactEmail
+                          ? `Watch for replies from ${contactEmail} and follow up if there is no response.`
+                          : "Watch for replies and follow up if there is no response.");
+
+                      const { data: existing } = await supabaseUser
+                        .from("applications")
+                        .select("id, job_title, company, status, applied_date")
+                        .eq("user_id", userId)
+                        .ilike("company", company)
+                        .ilike("job_title", jobTitle)
+                        .order("updated_at", { ascending: false })
+                        .limit(1);
+
+                      if (Array.isArray(existing) && existing.length > 0 && args.force !== true) {
+                        result = {
+                          success: true,
+                          already_exists: true,
+                          application: existing[0],
+                          note:
+                            "A matching Application Tracker entry already exists. Pass force=true if you intentionally need a separate entry.",
+                        };
+                      } else {
+                        const trackerPayload = {
+                          user_id: userId,
+                          job_title: jobTitle,
+                          company,
+                          location: asString(args.location) || "",
+                          applied_date: appliedDate,
+                          status,
+                          canonical_stage: canonicalStage,
+                          salary: asString(args.salary),
+                          notes:
+                            notes ||
+                            [
+                              `Tracked from ${channel.replace(/[_-]+/g, " ")} via JobRaker chat.`,
+                              contactEmail ? `Contact: ${contactEmail}` : null,
+                              subject ? `Subject: ${subject}` : null,
+                            ].filter(Boolean).join("\n"),
+                          next_step: nextStep,
+                          draft_status: status === "Draft" ? "draft" : "sent",
+                          provider_status:
+                            status === "Applied" ? "manual_outreach_sent" : "manual_tracking",
+                          user_review_notes: notes || null,
+                          app_url: jobUrl,
+                          receipt_url: jobUrl,
+                          success_url: jobUrl,
+                          provider_run_output: {
+                            source: "ai_chat_manual_tracker",
+                            channel,
+                            contact_email: contactEmail,
+                            contact_name: contactName,
+                            job_url: jobUrl,
+                            subject,
+                            outreach_body: outreachBody,
+                            created_from: "create_application_tracker_entry",
+                          },
+                          updated_at: nowIso,
+                        };
+
+                        const { data, error } = await supabaseUser
+                          .from("applications")
+                          .insert(trackerPayload)
+                          .select(
+                            "id, job_title, company, status, canonical_stage, applied_date, next_step, provider_status",
+                          )
+                          .single();
+
+                        result = error
+                          ? { success: false, error: error.message }
+                          : {
+                              success: true,
+                              application: data,
+                              tracker_url: "/dashboard/applications",
+                              note:
+                                "Created an Application Tracker entry for this manual/direct outreach.",
+                            };
+                      }
+                    }
                   } else if (fn.name === "refresh_application_processes") {
                     result = await refreshApplicationProcesses({
                       authHeader: authHeader!,

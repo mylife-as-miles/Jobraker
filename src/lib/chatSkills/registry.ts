@@ -1,4 +1,7 @@
 import { directApplySkill } from "./directApply";
+import { outreachWriterSkill } from "./outreachWriter";
+import { companyScoutSkill } from "./companyScout";
+import { heartbeatCheckupSkill } from "./heartbeatCheckup";
 import type {
   JobrakerChatSkill,
   SkillExecutionInput,
@@ -32,25 +35,9 @@ const createPlaceholderSkill = (
 
 export const jobrakerChatSkills: JobrakerChatSkill[] = [
   directApplySkill,
-  createPlaceholderSkill({
-    id: "company_scout",
-    name: "Company Scout",
-    aliases: ["@CompanyScout", "/company-scout", "/find-company-emails"],
-    description:
-      "Find companies, career pages, and public hiring contact channels.",
-    icon: "search",
-    category: "research",
-    triggerType: "both",
-  }),
-  createPlaceholderSkill({
-    id: "outreach_writer",
-    name: "Outreach Writer",
-    aliases: ["@OutreachWriter", "/draft-application", "/outreach-writer"],
-    description: "Write tailored application and outreach drafts for review.",
-    icon: "pen",
-    category: "writing",
-    triggerType: "both",
-  }),
+  companyScoutSkill,
+  outreachWriterSkill,
+  heartbeatCheckupSkill,
   createPlaceholderSkill({
     id: "resume_tailor",
     name: "Resume Tailor",

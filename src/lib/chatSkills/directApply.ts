@@ -155,19 +155,53 @@ const splitCompanyList = (value: string) =>
 
 const extractTargetCompaniesFromText = (text: string): string[] => {
   const matches: string[] = [];
-  const patterns = [
-    /\b(?:auto-apply|direct apply|apply|application|applications|launch|start|submit|initiate)\b[\s\S]{0,90}?\b(?:for|to|at)\s+([A-Z][A-Za-z0-9&.' -]+(?:\s+(?:and|or)\s+[A-Z][A-Za-z0-9&.' -]+)?)/gi,
-    /\b(?:for|to|at)\s+([A-Z][A-Za-z0-9&.' -]+(?:\s+(?:and|or)\s+[A-Z][A-Za-z0-9&.' -]+)?)\b/gi,
-  ];
 
-  for (const pattern of patterns) {
-    for (const match of text.matchAll(pattern)) {
-      matches.push(...splitCompanyList(match[1] || ""));
+  // 1. Check if the input looks like a listed/newline-separated list of companies
+  const lines = text.split(/\r?\n/);
+  if (lines.length > 2) {
+    for (const line of lines) {
+      const cleanLine = line.replace(/^[-*•\d.)\s]+/, "").trim(); // remove bullet/number prefix
+      if (cleanLine && cleanLine.length > 1 && cleanLine.length < 50 && /[A-Z]/.test(cleanLine)) {
+        const parsed = splitCompanyList(cleanLine);
+        if (parsed.length) {
+          matches.push(...parsed);
+        }
+      }
     }
-    if (matches.length) break;
   }
 
-  return unique(matches).slice(0, 8);
+  // 2. If it's a comma-separated list of capitalized companies
+  if (matches.length === 0) {
+    const commaParts = text.split(/,\s*/);
+    if (commaParts.length > 2) {
+      for (const part of commaParts) {
+        const trimmed = part.trim();
+        if (trimmed && trimmed.length > 1 && trimmed.length < 50 && /^[A-Z]/.test(trimmed)) {
+          const parsed = splitCompanyList(trimmed);
+          if (parsed.length) {
+            matches.push(...parsed);
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Fallback to standard contextual patterns
+  if (matches.length === 0) {
+    const patterns = [
+      /\b(?:auto-apply|direct apply|apply|application|applications|launch|start|submit|initiate)\b[\s\S]{0,90}?\b(?:for|to|at)\s+([A-Z][A-Za-z0-9&.' -]+(?:\s+(?:and|or)\s+[A-Z][A-Za-z0-9&.' -]+)?)/gi,
+      /\b(?:for|to|at)\s+([A-Z][A-Za-z0-9&.' -]+(?:\s+(?:and|or)\s+[A-Z][A-Za-z0-9&.' -]+)?)\b/gi,
+    ];
+
+    for (const pattern of patterns) {
+      for (const match of text.matchAll(pattern)) {
+        matches.push(...splitCompanyList(match[1] || ""));
+      }
+      if (matches.length) break;
+    }
+  }
+
+  return unique(matches).slice(0, 200);
 };
 
 const contextText = (input: SkillExecutionInput) =>
@@ -176,7 +210,7 @@ const contextText = (input: SkillExecutionInput) =>
     ...(input.conversationContext || []).map((message) => message.content),
   ].join("\n");
 
-const resolveTargetCompanies = (input: SkillExecutionInput) => {
+export const resolveTargetCompanies = (input: SkillExecutionInput) => {
   const explicit = extractTargetCompaniesFromText(input.userInstruction);
   if (explicit.length) return explicit;
 
@@ -199,7 +233,7 @@ const isVagueRoleQuery = (value: string) => {
   return !words.length || words.every((word) => VAGUE_ROLE_WORDS.has(word));
 };
 
-const inferRoleFromContext = (
+export const inferRoleFromContext = (
   args: Record<string, unknown>,
   fullContext: string,
   targetCompanies: string[] = [],

@@ -1,5 +1,8 @@
 import { AlertCircle, Bot, CheckCircle2, Loader2 } from "lucide-react";
 import { DirectApplySkillCard } from "./DirectApplySkillCard";
+import { OutreachWriterSkillCard } from "./OutreachWriterSkillCard";
+import { CompanyScoutSkillCard } from "./CompanyScoutSkillCard";
+import { HeartbeatSkillCard } from "./HeartbeatSkillCard";
 import type {
   ChatSkillCall,
   DirectApplyOutput,
@@ -90,8 +93,14 @@ export const SkillInvocationMessage = ({ skillCall, onRunPrompt }: Props) => {
         )}
       </div>
 
-      {directApplyOutput ? (
+      {skillCall.skillId === "direct_apply" && directApplyOutput ? (
         <DirectApplySkillCard output={directApplyOutput} onRunPrompt={onRunPrompt} />
+      ) : skillCall.skillId === "outreach_writer" && skillCall.output ? (
+        <OutreachWriterSkillCard output={skillCall.output as any} onRunPrompt={onRunPrompt} />
+      ) : skillCall.skillId === "company_scout" && skillCall.output ? (
+        <CompanyScoutSkillCard output={skillCall.output as any} onRunPrompt={onRunPrompt} />
+      ) : skillCall.skillId === "heartbeat" && skillCall.output ? (
+        <HeartbeatSkillCard output={skillCall.output as any} onRunPrompt={onRunPrompt} />
       ) : skillCall.output ? (
         <div className='rounded-2xl border border-border bg-background/60 p-4 text-xs text-muted-foreground'>
           Skill output is ready. A dedicated renderer can be attached from the

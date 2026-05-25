@@ -28,6 +28,24 @@ function stripHtmlTags(html: string): string {
     .trim();
 }
 
+function cleanJobDescription(value: string | undefined | null): string {
+  if (!value) return '';
+  const raw = String(value);
+  const cleaned = /<\/?[a-z][\s\S]*>/i.test(raw) ? stripHtmlTags(raw) : raw;
+  return cleaned.replace(/\[(.*?)\]\((.*?)\)/g, '$1 ($2)').replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function isLikelyAggregateJobPage(url: string, title?: string, description?: string): boolean {
+  const lowerUrl = url.toLowerCase();
+  const text = `${title || ''} ${description || ''}`.toLowerCase();
+  if (/\/(search|job-search|jobs-search|find-jobs|browse|companies|categories)(\/|$)/i.test(lowerUrl)) return true;
+  if (/\/(jobs?|careers?|openings?|positions?|vacancies?|remote-jobs)\/?$/i.test(lowerUrl)) return true;
+  if (/\b\d+\s+(?:fully\s+remote\s+)?[\w\s()/-]{2,80}\s+jobs?\s+in\b/i.test(text)) return true;
+  if (/\b(jobs|vacancies|openings)\s+in\s+(the\s+best\s+)?companies\b/i.test(text)) return true;
+  if (/\b(show|find|browse|view)\s+\d+\+?\s+jobs?\b/i.test(text)) return true;
+  return /\bjob board\b|\bsearch results\b|\ball jobs\b|\bmore jobs\b/i.test(text);
+}
+
 Deno.serve(async (req) => {
   // The Kafka Sink sends the payload as the request body.
   // The payload format depends on the Connector configuration.
@@ -131,7 +149,7 @@ Deno.serve(async (req) => {
         ],
         formats: [
           "markdown",
-          "html",
+          "links",
           {
             type: "json",
             schema: {
@@ -152,12 +170,7 @@ Deno.serve(async (req) => {
                 apply_link: { type: "string" }
               }
             },
-            prompt: "You are extracting structured job posting data..."
-          },
-          {
-            type: "screenshot",
-            fullPage: false,
-            quality: 80
+            prompt: "Extract exactly one specific job posting. If the page is a list, search result, company directory, or generic careers page, leave title/company/description empty instead of inventing a job. Description must be plain text with no HTML."
           }
         ]
       }
@@ -276,11 +289,15 @@ Deno.serve(async (req) => {
       const fullHtml = item?.scraped?.html || item?.html;
       const fullMarkdown = item?.scraped?.markdown || item?.markdown;
       const fallbackDesc = typeof item?.description === 'string' ? item.description : undefined;
+      const cleanDescription = cleanJobDescription(fullMarkdown || scrapedJson?.description || fallbackDesc || fullHtml);
+      if (!isJobPostingUrl(clean) && isLikelyAggregateJobPage(clean, item?.title, cleanDescription)) {
+        continue;
+      }
 
       filtered.push({
         url: referredClean,
         title: hasStructuredData ? (scrapedJson.title || item?.title) : item?.title,
-        description: fullHtml || fullMarkdown || scrapedJson?.description || fallbackDesc,
+        description: cleanDescription,
         category: typeof item?.category === 'string' ? item.category : undefined,
         isJobPosting: isJobPostingUrl(clean),
         company: companyName,
@@ -298,7 +315,7 @@ Deno.serve(async (req) => {
         experience_level: hasStructuredData ? scrapedJson.experience_level : undefined,
         tags: hasStructuredData && Array.isArray(scrapedJson.tags) ? scrapedJson.tags.filter(Boolean) : undefined,
         markdown: fullMarkdown,
-        html: fullHtml,
+        html: undefined,
         screenshot: screenshot,
       });
       if (typeof limit === 'number' && filtered.length >= limit) break;
@@ -318,7 +335,7 @@ Deno.serve(async (req) => {
         aiData = await generateAiDescription(item.html, item.markdown, item.description, item.title || rawQuery);
       } catch (e) {
         console.error('AI enrichment failed', e);
-        const fallbackDescription = item.markdown || (item.description ? stripHtmlTags(item.description) : '');
+        const fallbackDescription = cleanJobDescription(item.markdown || item.description || '');
         aiData = { description: fallbackDescription, tags: item.tags || [] };
       }
 
@@ -411,7 +428,7 @@ Deno.serve(async (req) => {
             deadline: item.deadline,
             screenshot: item.screenshot,
             markdown: item.markdown,
-            html: item.html,
+            html: null,
             scraped_data: {
                 title: item.title,
                 company: item.company,

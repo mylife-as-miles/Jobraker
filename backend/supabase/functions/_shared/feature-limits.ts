@@ -62,6 +62,24 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
       Ultimate: { perMinute: 15, perDay: 100 },
     },
   },
+  generate_outreach: {
+    label: "Outreach generation",
+    limits: {
+      Free: { perMinute: 0, perDay: 0 },
+      Basics: { perMinute: 3, perDay: 15 },
+      Pro: { perMinute: 8, perDay: 40 },
+      Ultimate: { perMinute: 15, perDay: 100 },
+    },
+  },
+  scout_company: {
+    label: "Company scouting",
+    limits: {
+      Free: { perMinute: 0, perDay: 0 },
+      Basics: { perMinute: 3, perDay: 15 },
+      Pro: { perMinute: 8, perDay: 40 },
+      Ultimate: { perMinute: 15, perDay: 100 },
+    },
+  },
   tailor_resume: {
     label: "Resume tailoring",
     limits: {

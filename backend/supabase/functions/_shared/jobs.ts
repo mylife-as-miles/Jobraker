@@ -12,6 +12,9 @@ type JobRowInput = Record<string, unknown> & {
   source_id?: string | null;
 };
 
+const asNumberOrNull = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? Math.round(value) : null;
+
 type ExistingJobRow = {
   id: string;
   source_id: string | null;
@@ -140,6 +143,12 @@ export async function persistDiscoveredJobs(
       last_verified_at: nowIso,
       description: job.description,
       posted_at: job.posted_at,
+      salary_min: asNumberOrNull(job.salary_min),
+      salary_max: asNumberOrNull(job.salary_max),
+      salary_currency:
+        typeof job.salary_currency === "string" && job.salary_currency.trim()
+          ? job.salary_currency.trim().toUpperCase()
+          : null,
       raw_data: {
         ...rawData,
         discovery: {
