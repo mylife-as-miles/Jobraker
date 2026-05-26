@@ -584,7 +584,7 @@ export const OverviewPage = (): JSX.Element => {
               <Card
                 id='overview-calendar'
                 data-tour='overview-calendar'
-                className='rounded-3xl border border-white/8 bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:p-6'
+                className='rounded-3xl border border-white/8 bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-3 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl'
               >
                 <div className='mb-4 flex flex-col gap-3 text-[10px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:text-xs'>
                   <div className='inline-flex w-fit items-center gap-2 rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>

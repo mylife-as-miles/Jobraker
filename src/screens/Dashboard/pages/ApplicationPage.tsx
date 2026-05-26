@@ -1363,7 +1363,7 @@ function ApplicationPage() {
             )}
 
             {viewMode === "calendar" && (
-              <div className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background p-6 shadow-[0_0_30px_rgba(29,255,0,0.1)] overflow-hidden'>
+              <div className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background p-3 sm:p-6 shadow-[0_0_30px_rgba(29,255,0,0.1)] overflow-hidden'>
                 {/* Ambient Glow Effect */}
                 <div className='absolute -top-20 -left-20 h-64 w-64 bg-[#1dff00]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
 

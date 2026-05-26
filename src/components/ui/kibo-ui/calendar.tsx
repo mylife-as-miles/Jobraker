@@ -519,11 +519,11 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               <ChevronRight className='h-4 w-4' />
             </button>
           </div>
-          <div className='flex flex-wrap items-center justify-center sm:justify-end gap-1.5 rounded-2xl border border-white/8 bg-white/[0.02] p-1.5 w-full sm:w-auto shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
+          <div className='flex flex-wrap items-center justify-center sm:justify-end gap-1 sm:gap-1.5 rounded-2xl border border-white/8 bg-white/[0.02] p-1.5 w-full sm:w-auto shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
             <button
               type='button'
               onClick={() => onMonthChange?.(startOfMonth(new Date()))}
-              className='rounded-xl border border-white/8 bg-transparent px-3 py-1.5 text-xs text-foreground/80 transition hover:border-brand/25 hover:bg-brand/10 hover:text-brand'
+              className='rounded-xl border border-white/8 bg-transparent px-2.5 py-1 text-[10px] sm:text-xs sm:px-3 sm:py-1.5 text-foreground/80 transition hover:border-brand/25 hover:bg-brand/10 hover:text-brand'
             >
               Today
             </button>
@@ -532,7 +532,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               onClick={() =>
                 onViewModeChange?.(viewMode === "month" ? "week" : "month")
               }
-              className='rounded-xl border border-white/8 bg-transparent px-3 py-1.5 text-xs text-foreground/75 transition hover:border-brand/25 hover:bg-brand/10 hover:text-brand'
+              className='rounded-xl border border-white/8 bg-transparent px-2.5 py-1 text-[10px] sm:text-xs sm:px-3 sm:py-1.5 text-foreground/75 transition hover:border-brand/25 hover:bg-brand/10 hover:text-brand'
             >
               {viewMode === "month" ? "Week" : "Month"}
             </button>
@@ -554,7 +554,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               type='button'
               onClick={() => onFocusContrastChange?.(!focusContrast)}
               className={
-                "inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs transition " +
+                "inline-flex items-center gap-1 rounded-xl border px-2.5 py-1 text-[10px] sm:text-xs sm:px-3 sm:py-1.5 transition " +
                 (focusContrast
                   ? "bg-brand/15 border-brand/30 text-brand"
                   : "bg-transparent border-white/8 text-foreground/60 hover:border-brand/25 hover:bg-brand/10 hover:text-brand")
@@ -567,7 +567,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               <button
                 type='button'
                 onClick={exportICS}
-                className='inline-flex items-center gap-1 rounded-xl border border-white/8 bg-transparent px-3 py-1.5 text-xs text-foreground/60 transition hover:border-brand/25 hover:bg-brand/10 hover:text-brand'
+                className='inline-flex items-center gap-1 rounded-xl border border-white/8 bg-transparent px-2.5 py-1 text-[10px] sm:text-xs sm:px-3 sm:py-1.5 text-foreground/60 transition hover:border-brand/25 hover:bg-brand/10 hover:text-brand'
               >
                 <Download className='h-3.5 w-3.5' />
                 Export
@@ -604,7 +604,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
       )}
 
       {/* Week header */}
-      <div className='mb-2 grid grid-cols-7 gap-1.5'>
+      <div className='mb-2 grid grid-cols-7 gap-1 sm:gap-1.5'>
         {(() => {
           // Localized weekday narrow labels (Mon .. Sun) respecting weekStartsOn
           const base = [] as string[];
@@ -698,7 +698,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
       )}
 
       {/* Days */}
-      <div className='grid grid-cols-7 gap-1.5'>
+      <div className='grid grid-cols-7 gap-1 sm:gap-1.5'>
         {grid.map((cell, idx) => {
           const isToday = highlightToday && isSameDay(cell.date, today);
           const isSelected = selectedDate && isSameDay(cell.date, selectedDate);
@@ -741,7 +741,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                   setQuickCreate({ key: dayKey, date: cell.date, title: "" });
               }}
               className={[
-                "group relative flex min-h-[60px] sm:min-h-[104px] flex-col gap-1 rounded-2xl p-2.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-all duration-150",
+                "group relative flex min-h-[60px] sm:min-h-[104px] flex-col gap-1 rounded-lg sm:rounded-2xl p-1.5 sm:p-2.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-all duration-150",
                 "focus:outline-none focus-visible:ring-2 ring-brand/60",
                 "border border-white/6 bg-[#0c1017] text-foreground",
                 cell.inCurrent ? "cursor-pointer" : "cursor-pointer opacity-40",
@@ -772,7 +772,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                   {cell.date.getDate()}
                 </div>
                 {showDayEventCount && dayEvents.length > 0 && (
-                  <span className='rounded-full border border-white/8 bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-brand shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
+                  <span className='hidden sm:inline-flex rounded-full border border-white/8 bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-brand shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
                     {dayEvents.length}
                   </span>
                 )}
@@ -786,7 +786,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                         title={ev.title}
                         draggable={allowDrag}
                         onDragStart={(e) => handleDragStart(e, ev)}
-                        className='h-2.5 w-2.5 rounded-full border border-white/15 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]'
+                        className='h-1.5 w-1.5 sm:h-2.5 sm:w-2.5 rounded-full border border-white/15 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]'
                         style={{ background: statusColor(ev.status) }}
                       />
                     ))}
