@@ -96,6 +96,7 @@ import {
   PanelLeft,
   X,
   Coins,
+  History,
 } from "lucide-react";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
@@ -801,6 +802,17 @@ export const ChatPage = () => {
   const [sessions, setSessions] = useState<ChatSessionState[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"chat" | "history">("chat");
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
   const [searchQuery, setSearchQuery] = useState("");
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(
     null,
@@ -1671,11 +1683,20 @@ export const ChatPage = () => {
       {!loadingTier && hasChatAccess && (
         <>
           <aside
-            className={`w-72 bg-card/40 border-r border-border flex flex-col h-full z-20 transition-all duration-300 ${sidebarCollapsed ? "-ml-72" : ""}`}
+            className={`bg-card/40 border-r border-border flex-col h-full z-20 transition-all duration-300 ${
+              isMobile
+                ? mobileTab === "history"
+                  ? "flex w-full"
+                  : "hidden"
+                : `flex w-72 ${sidebarCollapsed ? "-ml-72" : ""}`
+            }`}
           >
             <div className='p-6'>
               <button
-                onClick={() => createSession()}
+                onClick={() => {
+                  createSession();
+                  if (isMobile) setMobileTab("chat");
+                }}
                 className='w-full bg-brand hover:bg-brand/90 text-primary-foreground font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand/20'
               >
                 <Plus size={20} />
@@ -1717,7 +1738,10 @@ export const ChatPage = () => {
                         />
                         <button
                           type='button'
-                          onClick={() => setActiveSessionId(s.id)}
+                          onClick={() => {
+                            setActiveSessionId(s.id);
+                            if (isMobile) setMobileTab("chat");
+                          }}
                           className='min-w-0 flex-1 overflow-hidden text-left bg-transparent'
                         >
                           {renamingSessionId === s.id ? (
@@ -1794,12 +1818,20 @@ export const ChatPage = () => {
             </div>
           </aside>
 
-          <main className='min-h-0 flex-1 relative flex flex-col bg-background overflow-hidden'>
+          <main
+            className={`min-h-0 relative flex-col bg-background overflow-hidden h-full ${
+              isMobile
+                ? mobileTab === "chat"
+                  ? "flex w-full pb-16"
+                  : "hidden"
+                : "flex flex-1"
+            }`}
+          >
             <header className='h-16 flex items-center justify-between px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
               <div className='flex items-center gap-3'>
                 <button
                   onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  className='mr-3 text-foreground/60 hover:text-foreground transition-colors'
+                  className='mr-3 text-foreground/60 hover:text-foreground transition-colors hidden md:block'
                 >
                   <PanelLeft size={20} />
                 </button>
@@ -2058,9 +2090,9 @@ export const ChatPage = () => {
                               remarkPlugins={[remarkGfm]}
                               components={{
                                 table: ({ node, ...props }) => (
-                                  <div className='my-6 overflow-hidden rounded-xl border border-border'>
+                                  <div className='my-6 overflow-x-auto rounded-xl border border-border'>
                                     <table
-                                      className='w-full text-left text-xs bg-background/40'
+                                      className='w-full text-left text-xs bg-background/40 min-w-[500px] sm:min-w-0'
                                       {...props}
                                     />
                                   </div>
@@ -2551,6 +2583,37 @@ export const ChatPage = () => {
             <div className='fixed -bottom-48 -right-48 w-96 h-96 bg-brand/5 rounded-full blur-[120px] pointer-events-none'></div>
             <div className='fixed top-24 left-96 w-64 h-64 bg-brand/5 rounded-full blur-[100px] pointer-events-none'></div>
           </main>
+
+          {/* Mobile Bottom Tab Navigation */}
+          {isMobile && (
+            <div className='fixed bottom-0 left-0 right-0 z-50 bg-background/95 border-t border-border/40 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex h-16 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]'>
+              <button
+                type='button'
+                onClick={() => setMobileTab("chat")}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
+                  mobileTab === "chat"
+                    ? "text-brand bg-brand/5"
+                    : "text-muted-foreground"
+                }`}
+              >
+                <MessageSquare className='w-5 h-5' />
+                <span className='text-[11px] font-medium'>Chat</span>
+              </button>
+              <div className='w-px bg-border/40 my-3' />
+              <button
+                type='button'
+                onClick={() => setMobileTab("history")}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
+                  mobileTab === "history"
+                    ? "text-brand bg-brand/5"
+                    : "text-muted-foreground"
+                }`}
+              >
+                <History className='w-5 h-5' />
+                <span className='text-[11px] font-medium'>History</span>
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

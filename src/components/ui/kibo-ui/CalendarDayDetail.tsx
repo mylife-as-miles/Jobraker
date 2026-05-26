@@ -61,6 +61,28 @@ function formatDateForDatabase(date: Date): string {
   return `${yearStr}-${monthStr}-${dayStr}T00:00:00${offsetStr}`;
 }
 
+function toLocalDayKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getLocalDayKey(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  try {
+    const trimmed = dateStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+    const d = new Date(trimmed);
+    if (isNaN(d.getTime())) return "";
+    return toLocalDayKey(d);
+  } catch {
+    return "";
+  }
+}
+
 export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
   date,
   range,
@@ -202,10 +224,10 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
         topCompanies: [],
         rangeApplications: [],
       };
-    const key = date.toISOString().slice(0, 10);
+    const key = toLocalDayKey(date);
     const dayApplications = applications.filter((a) => {
       try {
-        return a.applied_date.slice(0, 10) === key;
+        return getLocalDayKey(a.applied_date) === key;
       } catch {
         return false;
       }
@@ -213,7 +235,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
     const interviews = applications.filter((a) => {
       if (!a.interview_date) return false;
       try {
-        return a.interview_date.slice(0, 10) === key;
+        return getLocalDayKey(a.interview_date) === key;
       } catch {
         return false;
       }
@@ -262,9 +284,9 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(refDate as Date);
       d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const key = toLocalDayKey(d);
       const count = applications.filter(
-        (a) => a.applied_date.slice(0, 10) === key,
+        (a) => getLocalDayKey(a.applied_date) === key,
       ).length;
       points.push(count);
       labels.push(key.slice(5));
@@ -360,7 +382,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `applications-${date.toISOString().slice(0, 10)}.csv`;
+    a.download = `applications-${toLocalDayKey(date)}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

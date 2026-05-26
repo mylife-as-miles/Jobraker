@@ -216,55 +216,63 @@ export const OverviewPage = (): JSX.Element => {
     let applied = 0;
     let interviews = 0;
     let totalInWindow = 0;
+
+    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - 6);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(now);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
     for (const app of filtered) {
-      const d = new Date(app.applied_date);
+      const appDate = new Date(app.applied_date);
+      const intDate = app.interview_date ? new Date(app.interview_date) : null;
+
+      let appInWindow = false;
+      let intInWindow = false;
+
       if (period === "Today") {
-        const dayStart = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-        );
-        const dayEnd = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate() + 1,
-        );
-        if (d < dayStart || d >= dayEnd) continue;
+        appInWindow = appDate >= dayStart && appDate < dayEnd;
+        intInWindow = intDate ? (intDate >= dayStart && intDate < dayEnd) : false;
       } else if (period === "1 Week") {
-        const weekStart = new Date(now);
-        weekStart.setDate(weekStart.getDate() - 6);
-        weekStart.setHours(0, 0, 0, 0);
-        const weekEnd = new Date(now);
-        weekEnd.setHours(23, 59, 59, 999);
-        if (d < weekStart || d > weekEnd) continue;
+        appInWindow = appDate >= weekStart && appDate <= weekEnd;
+        intInWindow = intDate ? (intDate >= weekStart && intDate <= weekEnd) : false;
       } else {
-        const sixMonthsStart = new Date(
-          now.getFullYear(),
-          now.getMonth() - 5,
-          1,
-        );
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        if (d < sixMonthsStart || d >= monthEnd) continue;
+        appInWindow = appDate >= sixMonthsStart && appDate < monthEnd;
+        intInWindow = intDate ? (intDate >= sixMonthsStart && intDate < monthEnd) : false;
       }
 
-      // Aggregate bucket
-      const idx = buckets.findIndex((b) => d >= b.start && d < b.end);
-      if (idx >= 0) {
-        const s = (app.status as string) || "Applied";
-        if (s in data[idx]) data[idx][s] = (data[idx][s] as number) + 1;
-        else data[idx]["Applied"] = (data[idx]["Applied"] as number) + 1;
+      // Count under interviews if status is "Interview" (active) OR if interview_date falls in the window
+      const countAsInterview = app.status === "Interview" || intInWindow;
+
+      if (appInWindow) {
+        if (app.status === "Applied") applied++;
+        totalInWindow++;
+
+        // Aggregate bucket for chart (only for applications within the window)
+        const idx = buckets.findIndex((b) => appDate >= b.start && appDate < b.end);
+        if (idx >= 0) {
+          const s = (app.status as string) || "Applied";
+          if (s in data[idx]) data[idx][s] = (data[idx][s] as number) + 1;
+          else data[idx]["Applied"] = (data[idx]["Applied"] as number) + 1;
+        }
       }
 
-      if (app.status === "Applied") applied++;
-      if (app.status === "Interview") interviews++;
-      totalInWindow++;
+      if (countAsInterview) {
+        interviews++;
+      }
     }
 
     // Improved distinctive palette for accessibility / color meaning
     const palette: Record<string, string> = {
       Applied: "#1dff00",
       Interview: "#00b2ff",
-      Offer: "#1dff00",
+      Offer: "#10b981",
       Rejected: "#ef4444",
     };
     const series = statuses.map((s) => ({

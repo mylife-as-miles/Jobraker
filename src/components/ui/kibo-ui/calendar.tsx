@@ -100,6 +100,15 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
   onFocusContrastChange,
   reducedMotion,
 }) => {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  const effectiveDensityMode = isMobile ? "compact" : densityMode;
   const today = new Date();
   const viewMonth = startOfMonth(month || today);
   const usedLocale =
@@ -194,7 +203,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
   const eventsByDay = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
     visibleEvents.forEach((ev) => {
-      const key = ev.date.toISOString().slice(0, 10); // YYYY-MM-DD
+      const key = toLocalDayKey(ev.date); // YYYY-MM-DD
       (map[key] ||= []).push(ev);
     });
     // sort events per day by status then title
@@ -510,7 +519,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               <ChevronRight className='h-4 w-4' />
             </button>
           </div>
-          <div className='flex flex-wrap items-center justify-end gap-1.5 rounded-2xl border border-white/8 bg-white/[0.02] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
+          <div className='flex flex-wrap items-center justify-center sm:justify-end gap-1.5 rounded-2xl border border-white/8 bg-white/[0.02] p-1.5 w-full sm:w-auto shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
             <button
               type='button'
               onClick={() => onMonthChange?.(startOfMonth(new Date()))}
@@ -527,18 +536,20 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
             >
               {viewMode === "month" ? "Week" : "Month"}
             </button>
-            <button
-              type='button'
-              onClick={() =>
-                onDensityModeChange?.(
-                  densityMode === "full" ? "compact" : "full",
-                )
-              }
-              className='inline-flex items-center gap-1 rounded-xl border border-white/8 bg-transparent px-3 py-1.5 text-xs text-foreground/65 transition hover:border-brand/25 hover:bg-brand/10 hover:text-brand'
-            >
-              <Layers3 className='h-3.5 w-3.5' />
-              {densityMode === "full" ? "Compact" : "Full"}
-            </button>
+            {!isMobile && (
+              <button
+                type='button'
+                onClick={() =>
+                  onDensityModeChange?.(
+                    densityMode === "full" ? "compact" : "full",
+                  )
+                }
+                className='inline-flex items-center gap-1 rounded-xl border border-white/8 bg-transparent px-3 py-1.5 text-xs text-foreground/65 transition hover:border-brand/25 hover:bg-brand/10 hover:text-brand'
+              >
+                <Layers3 className='h-3.5 w-3.5' />
+                {densityMode === "full" ? "Compact" : "Full"}
+              </button>
+            )}
             <button
               type='button'
               onClick={() => onFocusContrastChange?.(!focusContrast)}
