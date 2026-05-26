@@ -97,6 +97,14 @@ import {
   X,
   Coins,
   History,
+  Brain,
+  CheckCircle2,
+  Clock3,
+  Loader2,
+  ReceiptText,
+  Wrench,
+  AlertTriangle,
+  ListChecks,
 } from "lucide-react";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
@@ -147,9 +155,33 @@ type ChatUiAction = {
   pageTitle?: string | null;
 };
 interface ToolCallEntry {
+  id?: string;
   name: string;
   args?: Record<string, unknown>;
   status: "running" | "done" | "error";
+  result?: Record<string, unknown>;
+  startedAt?: number;
+  finishedAt?: number;
+  creditsCharged?: number;
+}
+interface AgentActivityEntry {
+  id: string;
+  kind:
+    | "thinking"
+    | "tool_batch"
+    | "tool_result"
+    | "billing"
+    | "limit"
+    | "status"
+    | "error";
+  title: string;
+  detail?: string;
+  status: "running" | "done" | "error";
+  createdAt: number;
+  finishedAt?: number;
+  round?: number;
+  creditsCharged?: number;
+  toolCount?: number;
 }
 interface BasicMessage {
   id: string;
@@ -160,6 +192,7 @@ interface BasicMessage {
   createdAt: number;
   meta?: { persona?: Persona; parent?: string };
   toolCalls?: ToolCallEntry[];
+  agentEvents?: AgentActivityEntry[];
   skillCall?: ChatSkillCall;
   /** Persisted: user message included an image (bytes live in IndexedDB). */
   hasPastedImage?: boolean;
@@ -175,7 +208,7 @@ interface UseChatOptions {
   api: string;
   initialMessages?: BasicMessage[];
   onFinish?: (msg: BasicMessage) => void;
-  /** Fired when agent mode charges extra credits for a tool round */
+  /** Fired when agent mode charges extra credits for tool use */
   onCreditsUpdated?: () => void;
   onUiAction?: (action: ChatUiAction) => void;
 }
@@ -219,7 +252,7 @@ type ChatSessionState = {
 const DEFAULT_CHAT_MODEL = "gemini-3-flash-preview";
 const MAX_CHAT_ATTACHMENTS = 3;
 const CHAT_EXTENDED_WAIT_MS = 30_000;
-const CHAT_TIMEOUT_MS = 240_000;
+const CHAT_TIMEOUT_MS = 12 * 60_000;
 
 // Fallback starters removed in favor of dynamic AI suggestions and skeleton loaders.
 
@@ -258,12 +291,367 @@ const normalizeBasicMessage = (message: any): BasicMessage => ({
     message?.meta && typeof message.meta === "object"
       ? message.meta
       : undefined,
+  toolCalls: Array.isArray(message?.toolCalls)
+    ? message.toolCalls
+        .filter((entry: any) => entry && typeof entry.name === "string")
+        .map((entry: any) => ({
+          id: typeof entry.id === "string" ? entry.id : undefined,
+          name: entry.name,
+          args:
+            entry.args && typeof entry.args === "object"
+              ? (entry.args as Record<string, unknown>)
+              : undefined,
+          status:
+            entry.status === "running" ||
+            entry.status === "error" ||
+            entry.status === "done"
+              ? entry.status
+              : "done",
+          result:
+            entry.result && typeof entry.result === "object"
+              ? (entry.result as Record<string, unknown>)
+              : undefined,
+          startedAt:
+            typeof entry.startedAt === "number" ? entry.startedAt : undefined,
+          finishedAt:
+            typeof entry.finishedAt === "number"
+              ? entry.finishedAt
+              : undefined,
+          creditsCharged:
+            typeof entry.creditsCharged === "number"
+              ? entry.creditsCharged
+              : undefined,
+        }))
+    : undefined,
+  agentEvents: Array.isArray(message?.agentEvents)
+    ? message.agentEvents
+        .filter((entry: any) => entry && typeof entry.title === "string")
+        .map((entry: any) => ({
+          id: typeof entry.id === "string" ? entry.id : nanoid(),
+          kind:
+            entry.kind === "thinking" ||
+            entry.kind === "tool_batch" ||
+            entry.kind === "tool_result" ||
+            entry.kind === "billing" ||
+            entry.kind === "limit" ||
+            entry.kind === "error"
+              ? entry.kind
+              : "status",
+          title: entry.title,
+          detail: typeof entry.detail === "string" ? entry.detail : undefined,
+          status:
+            entry.status === "running" ||
+            entry.status === "error" ||
+            entry.status === "done"
+              ? entry.status
+              : "done",
+          createdAt:
+            typeof entry.createdAt === "number" ? entry.createdAt : Date.now(),
+          finishedAt:
+            typeof entry.finishedAt === "number"
+              ? entry.finishedAt
+              : undefined,
+          round: typeof entry.round === "number" ? entry.round : undefined,
+          creditsCharged:
+            typeof entry.creditsCharged === "number"
+              ? entry.creditsCharged
+              : undefined,
+          toolCount:
+            typeof entry.toolCount === "number" ? entry.toolCount : undefined,
+        }))
+    : undefined,
   skillCall:
     message?.skillCall && typeof message.skillCall === "object"
       ? (message.skillCall as ChatSkillCall)
       : undefined,
   hasPastedImage: Boolean(message?.hasPastedImage),
+  attachmentCount:
+    typeof message?.attachmentCount === "number"
+      ? message.attachmentCount
+      : undefined,
 });
+
+const toolDisplayName = (
+  name: string,
+  args?: Record<string, unknown>,
+): string => {
+  const query = String(args?.query || "").trim();
+  const title = String(args?.title || args?.job_title || "").trim();
+  const company = String(args?.company || "").trim();
+
+  const labels: Record<string, string> = {
+    get_account_snapshot: "Read account snapshot",
+    run_job_search: query ? `Search jobs: "${query}"` : "Search jobs",
+    search_public_job_sources: query
+      ? `Search public job sources: "${query}"`
+      : "Search public job sources",
+    get_user_profile: "Read profile",
+    list_profile_records: "List profile records",
+    get_public_profile_site: "Read public portfolio",
+    update_public_profile_site: "Update public portfolio",
+    list_answer_bank_entries: "Read Answer Bank",
+    add_answer_bank_entry: "Save Answer Bank entry",
+    update_answer_bank_entry: "Update Answer Bank entry",
+    delete_answer_bank_entry: "Delete Answer Bank entry",
+    generate_answer_bank_entries: "Generate Answer Bank entries",
+    list_applications: "List applications",
+    create_application_tracker_entry:
+      title && company
+        ? `Track application: ${title} at ${company}`
+        : "Create application tracker entry",
+    find_company_contact_channels: "Find hiring contact channels",
+    refresh_application_processes: "Refresh application processes",
+    list_resumes: "List resumes",
+    get_credits_balance: "Check credits",
+    list_recent_jobs: "List recent jobs",
+    list_app_pages: "Read app pages",
+    open_app_page: "Open app page",
+    apply_to_job: title ? `Apply to job: ${title}` : "Start application",
+    auto_apply_from_url: "Start URL auto-apply",
+    reapply_job: "Retry application automation",
+    analyze_resume: "Analyze resume",
+    generate_cover_letter: "Generate cover letter",
+    evaluate_job_fit: "Evaluate job fit",
+    intake_job_url: "Import job URL",
+    update_profile: "Update profile",
+    add_skill: `Add skill${args?.name ? `: ${String(args.name)}` : ""}`,
+    remove_skill: `Remove skill${args?.name ? `: ${String(args.name)}` : ""}`,
+    add_experience:
+      title && company
+        ? `Add experience: ${title} at ${company}`
+        : "Add experience",
+    update_experience: "Update experience",
+    delete_experience: "Delete experience",
+    add_education: "Add education",
+    update_education: "Update education",
+    delete_education: "Delete education",
+    save_cover_letter: args?.name
+      ? `Save cover letter: ${String(args.name)}`
+      : "Save cover letter",
+    update_resume: "Update resume",
+    update_application_status: args?.status
+      ? `Move application to ${String(args.status)}`
+      : "Update application status",
+    update_application: "Update application",
+    delete_application: "Delete application",
+    bookmark_job: args?.bookmarked ? "Bookmark job" : "Remove job bookmark",
+    hide_job: "Dismiss job",
+    polish_content: "Polish content",
+    list_edge_functions: "List edge functions",
+    get_edge_function_details: "Inspect edge function",
+    invoke_edge_function: "Invoke edge function",
+    list_database_schema: "Inspect database schema",
+    search_gmail_job_emails: "Search job-related Gmail",
+    create_gmail_job_draft: "Create Gmail draft",
+    send_gmail_job_email: "Send Gmail email",
+    label_gmail_job_emails: "Label Gmail messages",
+    semantic_search: query ? `Semantic search: "${query}"` : "Semantic search",
+    get_profile_graph_proof_paths: "Trace profile proof paths",
+    create_reminder: "Create reminder",
+  };
+
+  return labels[name] || name.replace(/_/g, " ");
+};
+
+const summarizeToolResult = (entry: ToolCallEntry): string | undefined => {
+  const result = entry.result || {};
+  const error =
+    typeof result.error === "string"
+      ? result.error
+      : typeof result.message === "string" && result.success === false
+        ? result.message
+        : null;
+  if (error) return error.slice(0, 160);
+
+  const imported =
+    Number(result.imported_count ?? result.imported ?? result.saved_count) || 0;
+  const count =
+    imported ||
+    (Array.isArray(result.jobs) ? result.jobs.length : 0) ||
+    (Array.isArray(result.results) ? result.results.length : 0) ||
+    (Array.isArray(result.applications) ? result.applications.length : 0) ||
+    (Array.isArray(result.resumes) ? result.resumes.length : 0);
+
+  if (
+    entry.name === "run_job_search" ||
+    entry.name === "search_public_job_sources"
+  ) {
+    return count > 0
+      ? `${count} job${count === 1 ? "" : "s"} found or saved`
+      : "Search completed";
+  }
+  if (entry.name === "get_credits_balance") {
+    const turns = Number(result.total_available_chat_turns);
+    const paid = Number(result.paid_ai_credit_balance);
+    if (!Number.isNaN(turns) && turns > 0) {
+      return `${turns} total chat turn${turns === 1 ? "" : "s"} available`;
+    }
+    if (!Number.isNaN(paid)) {
+      return `${paid} paid credit${paid === 1 ? "" : "s"} available`;
+    }
+  }
+  if (count > 0) return `${count} record${count === 1 ? "" : "s"} returned`;
+  if (result.success === true) return "Completed";
+  return undefined;
+};
+
+const formatActivityDuration = (
+  startedAt?: number,
+  finishedAt?: number,
+): string | null => {
+  if (!startedAt || !finishedAt) return null;
+  const seconds = Math.max(0, Math.round((finishedAt - startedAt) / 1000));
+  if (seconds <= 0) return "<1s";
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+};
+
+const AgentWorkTimeline = ({
+  message,
+  elapsedLabel,
+}: {
+  message: BasicMessage;
+  elapsedLabel: string;
+}) => {
+  const toolCalls = message.toolCalls || [];
+  const agentEvents = message.agentEvents || [];
+  const hasTimeline = toolCalls.length > 0 || agentEvents.length > 0;
+  const visibleEvents = agentEvents.slice(-10);
+  const visibleTools = toolCalls.slice(-12);
+
+  if (!hasTimeline && !message.streaming) return null;
+
+  const latestRunningTool = [...toolCalls]
+    .reverse()
+    .find((entry) => entry.status === "running");
+
+  return (
+    <div className='mb-3 overflow-hidden rounded-xl border border-brand/15 bg-black/20'>
+      <div className='flex items-center justify-between gap-3 border-b border-brand/10 px-3 py-2'>
+        <div className='flex min-w-0 items-center gap-2'>
+          <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-brand/10 text-brand'>
+            {message.streaming ? (
+              <Loader2 className='h-3.5 w-3.5 animate-spin' />
+            ) : (
+              <ListChecks className='h-3.5 w-3.5' />
+            )}
+          </div>
+          <div className='min-w-0'>
+            <p className='text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground'>
+              Working process
+            </p>
+            <p className='truncate text-[11px] text-muted-foreground'>
+              {message.streaming
+                ? latestRunningTool
+                  ? toolDisplayName(
+                      latestRunningTool.name,
+                      latestRunningTool.args,
+                    )
+                  : `Thinking... ${elapsedLabel}`
+                : `${toolCalls.length} tool${toolCalls.length === 1 ? "" : "s"} used`}
+            </p>
+          </div>
+        </div>
+        {message.streaming && (
+          <span className='shrink-0 rounded-full border border-brand/20 bg-brand/10 px-2 py-1 text-[10px] font-medium text-brand'>
+            {elapsedLabel}
+          </span>
+        )}
+      </div>
+
+      <div className='space-y-1.5 px-3 py-2'>
+        {!hasTimeline && message.streaming && (
+          <div className='flex gap-2 text-[12px] text-muted-foreground'>
+            <Brain className='mt-0.5 h-3.5 w-3.5 shrink-0 text-brand' />
+            <div>
+              <p className='font-medium text-foreground'>
+                Thinking through the task
+              </p>
+              <p className='text-[11px]'>
+                Reading the request and deciding the next tool step.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {visibleEvents.map((event) => {
+          const Icon =
+            event.kind === "billing"
+              ? ReceiptText
+              : event.kind === "thinking"
+                ? Brain
+                : event.kind === "limit"
+                  ? Clock3
+                  : event.status === "error"
+                    ? AlertTriangle
+                    : event.status === "running"
+                      ? Loader2
+                      : CheckCircle2;
+          return (
+            <div key={event.id} className='flex gap-2 text-[12px]'>
+              <Icon
+                className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${
+                  event.status === "error"
+                    ? "text-red-400"
+                    : event.status === "running"
+                      ? "animate-spin text-brand"
+                      : "text-brand"
+                }`}
+              />
+              <div className='min-w-0'>
+                <p className='text-foreground'>{event.title}</p>
+                {event.detail && (
+                  <p className='text-[11px] text-muted-foreground'>
+                    {event.detail}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {visibleTools.map((tool) => {
+          const duration = formatActivityDuration(
+            tool.startedAt,
+            tool.finishedAt,
+          );
+          const resultSummary = summarizeToolResult(tool);
+          return (
+            <div
+              key={tool.id || `${tool.name}-${tool.startedAt || ""}`}
+              className='flex gap-2 text-[12px]'
+            >
+              {tool.status === "running" ? (
+                <Loader2 className='mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-brand' />
+              ) : tool.status === "error" ? (
+                <AlertTriangle className='mt-0.5 h-3.5 w-3.5 shrink-0 text-red-400' />
+              ) : (
+                <Wrench className='mt-0.5 h-3.5 w-3.5 shrink-0 text-brand' />
+              )}
+              <div className='min-w-0 flex-1'>
+                <div className='flex flex-wrap items-center gap-1.5'>
+                  <p className='text-foreground'>
+                    {toolDisplayName(tool.name, tool.args)}
+                  </p>
+                  {duration && (
+                    <span className='rounded-full border border-border/70 px-1.5 py-0.5 text-[10px] text-muted-foreground'>
+                      {duration}
+                    </span>
+                  )}
+                </div>
+                {resultSummary && (
+                  <p className='text-[11px] text-muted-foreground'>
+                    {resultSummary}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 type ChatRequestMessage = {
   role: "user" | "assistant";
@@ -595,11 +983,58 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                         : msg,
                     ),
                   );
-                } else if (currentEvent === "tool_call") {
+                } else if (currentEvent === "agent_activity") {
+                  const activity: AgentActivityEntry = {
+                    id: data.id || nanoid(),
+                    kind: data.kind || "status",
+                    title: data.title || "Working",
+                    detail:
+                      typeof data.detail === "string" ? data.detail : undefined,
+                    status:
+                      data.status === "error" ||
+                      data.status === "done" ||
+                      data.status === "running"
+                        ? data.status
+                        : "done",
+                    createdAt:
+                      typeof data.created_at === "number"
+                        ? data.created_at
+                        : Date.now(),
+                    finishedAt:
+                      typeof data.finished_at === "number"
+                        ? data.finished_at
+                        : undefined,
+                    round:
+                      typeof data.round === "number" ? data.round : undefined,
+                    creditsCharged:
+                      typeof data.credits_charged === "number"
+                        ? data.credits_charged
+                        : undefined,
+                    toolCount:
+                      typeof data.tool_count === "number"
+                        ? data.tool_count
+                        : undefined,
+                  };
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? {
+                            ...msg,
+                            agentEvents: [
+                              ...(msg.agentEvents || []),
+                              activity,
+                            ],
+                          }
+                        : msg,
+                    ),
+                  );
+                } else if (currentEvent === "tool_start") {
                   const toolEntry: ToolCallEntry = {
+                    id: data.id || nanoid(),
                     name: data.name,
                     args: data.args,
-                    status: data.result?.error ? "error" : "done",
+                    status: "running",
+                    startedAt: Date.now(),
                   };
                   setMessages((prev) =>
                     prev.map((msg) =>
@@ -611,7 +1046,81 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                         : msg,
                     ),
                   );
+                } else if (currentEvent === "tool_call") {
+                  const toolEntry: ToolCallEntry = {
+                    id: data.id,
+                    name: data.name,
+                    args: data.args,
+                    status:
+                      data.result?.error || data.result?.success === false
+                        ? "error"
+                        : "done",
+                    result: data.result,
+                    startedAt:
+                      typeof data.started_at === "number"
+                        ? data.started_at
+                        : undefined,
+                    finishedAt:
+                      typeof data.finished_at === "number"
+                        ? data.finished_at
+                        : Date.now(),
+                  };
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id !== assistantId
+                        ? msg
+                        : {
+                            ...msg,
+                            toolCalls: data.id
+                              ? (msg.toolCalls || []).some(
+                                  (entry) => entry.id === data.id,
+                                )
+                                ? (msg.toolCalls || []).map((entry) =>
+                                    entry.id === data.id
+                                      ? {
+                                          ...entry,
+                                          ...toolEntry,
+                                          startedAt:
+                                            toolEntry.startedAt ||
+                                            entry.startedAt,
+                                        }
+                                      : entry,
+                                  )
+                                : [...(msg.toolCalls || []), toolEntry]
+                              : [...(msg.toolCalls || []), toolEntry],
+                          },
+                    ),
+                  );
                 } else if (currentEvent === "agent_surcharge") {
+                  const creditsCharged = Number(data.credits_charged || 0);
+                  const toolCount = Number(data.tool_count || 0);
+                  const activity: AgentActivityEntry = {
+                    id: data.id || nanoid(),
+                    kind: "billing",
+                    status: "done",
+                    title: `Charged ${creditsCharged} credit${creditsCharged === 1 ? "" : "s"}`,
+                    detail: toolCount
+                      ? `Metered for ${toolCount} agent tool${toolCount === 1 ? "" : "s"} this step. Balance: ${data.balance ?? "updated"}.`
+                      : `Balance: ${data.balance ?? "updated"}.`,
+                    createdAt: Date.now(),
+                    creditsCharged,
+                    toolCount,
+                    round:
+                      typeof data.round === "number" ? data.round : undefined,
+                  };
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? {
+                            ...msg,
+                            agentEvents: [
+                              ...(msg.agentEvents || []),
+                              activity,
+                            ],
+                          }
+                        : msg,
+                    ),
+                  );
                   opts.onCreditsUpdated?.();
                 } else if (currentEvent === "ui_action") {
                   opts.onUiAction?.(data as ChatUiAction);
@@ -686,7 +1195,13 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         abortControllerRef.current = null;
       }
     },
-    [responseId, status, opts.onFinish, opts.onCreditsUpdated],
+    [
+      responseId,
+      status,
+      opts.onFinish,
+      opts.onCreditsUpdated,
+      opts.onUiAction,
+    ],
   );
 
   const append = useCallback(
@@ -2117,63 +2632,10 @@ export const ChatPage = () => {
                           />
                         ) : (
                           <div className='text-sm prose prose-invert max-w-none overflow-hidden'>
-                            {m.toolCalls && m.toolCalls.length > 0 && (
-                              <div className='mb-3 space-y-1.5'>
-                                {m.toolCalls.map((tc, idx) => (
-                                  <div
-                                    key={`${tc.name}-${idx}`}
-                                    className='flex items-center gap-2 text-[11px] font-medium px-2.5 py-1.5 rounded-lg bg-brand/5 border border-brand/10'
-                                  >
-                                    <span
-                                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                        tc.status === "running"
-                                          ? "bg-brand animate-pulse"
-                                          : tc.status === "error"
-                                            ? "bg-brand"
-                                            : "bg-brand"
-                                      }`}
-                                    />
-                                    <span className='text-muted-foreground'>
-                                      {(
-                                        {
-                                          get_account_snapshot:
-                                            "Checked account data",
-                                          run_job_search: `Searched jobs: "${tc.args?.query || ""}"`,
-                                          get_user_profile: "Retrieved profile",
-                                          list_applications:
-                                            "Listed applications",
-                                          list_resumes: "Listed resumes",
-                                          get_credits_balance:
-                                            "Checked credits",
-                                          list_recent_jobs:
-                                            "Listed recent jobs",
-                                          apply_to_job:
-                                            "Submitting application...",
-                                          analyze_resume: "Analyzing resume",
-                                          generate_cover_letter:
-                                            "Generating cover letter",
-                                          evaluate_job_fit:
-                                            "Evaluating job fit",
-                                          intake_job_url:
-                                            "Importing job from URL",
-                                          update_profile: `Updated profile: ${Object.keys(tc.args || {}).join(", ")}`,
-                                          add_skill: `Added skill: ${tc.args?.name || ""}`,
-                                          remove_skill: `Removed skill: ${tc.args?.name || ""}`,
-                                          add_experience: `Added experience: ${tc.args?.title || ""} @ ${tc.args?.company || ""}`,
-                                          save_cover_letter: `Saved cover letter: ${tc.args?.name || ""}`,
-                                          update_resume: `Updated resume: ${(tc.args as any)?.display_name || (tc.args as any)?.full_name || ""}`,
-                                          update_application_status: `Updated application status to ${tc.args?.status || ""}`,
-                                          bookmark_job: tc.args?.bookmarked
-                                            ? "Bookmarked job"
-                                            : "Removed bookmark",
-                                          hide_job: "Dismissed job from queue",
-                                        } as Record<string, string>
-                                      )[tc.name] || tc.name.replace(/_/g, " ")}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                            <AgentWorkTimeline
+                              message={m}
+                              elapsedLabel={requestElapsedLabel}
+                            />
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
@@ -2427,7 +2889,9 @@ export const ChatPage = () => {
                             {m.streaming &&
                               (m.content ? (
                                 <span className='inline-block w-1.5 h-4 ml-1 align-middle bg-brand animate-pulse' />
-                              ) : (
+                              ) : (m.toolCalls?.length || 0) +
+                                  (m.agentEvents?.length || 0) >
+                                0 ? null : (
                                 <span className='text-sm font-medium text-muted-foreground animate-pulse'>
                                   {showExtendedWait
                                     ? `Still working... ${requestElapsedLabel}`
@@ -2590,7 +3054,7 @@ export const ChatPage = () => {
                               ? "bg-brand/10 text-brand border-brand/20"
                               : "text-muted-foreground border-transparent hover:bg-accent/40"
                           }`}
-                          title='Same base credit as Ask, plus 1 credit per round when tools run'
+                          title='Same base credit as Ask, plus 1 credit per tool when tools run'
                         >
                           <BookOpen size={12} />
                           Agent Mode
@@ -2598,8 +3062,8 @@ export const ChatPage = () => {
                       </div>
                       {persona === "analyst" && (
                         <p className='text-[10px] text-muted-foreground px-0.5'>
-                          Agent: 1 credit for your message, then +1 credit each
-                          time tools run (from your balance).
+                          Agent: 1 credit for your message, then +1 credit per
+                          tool used. Long tasks keep going while credits are available.
                         </p>
                       )}
                     </div>

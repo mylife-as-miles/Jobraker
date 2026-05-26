@@ -2265,9 +2265,9 @@ export const BillingPage = () => {
                               note: "Pro: 50 free/mo, Ultimate: 200 free/mo, then 1 credit each (Ask uses this only)",
                             },
                             {
-                              label: "Agent mode — tool round",
+                              label: "Agent mode - tool use",
                               cost: chatAgent?.cost ?? 1,
-                              note: "+1 credit each time the agent runs a batch of tools (after the base message credit)",
+                              note: "+1 credit per tool the agent runs after the base message credit",
                             },
                           ];
                           return rows;

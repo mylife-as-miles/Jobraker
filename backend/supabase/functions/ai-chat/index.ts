@@ -107,6 +107,37 @@ function asNumber(value: unknown): number | null {
   return null;
 }
 
+function extractThoughtSummary(parts: unknown[]): string | null {
+  const summaries: string[] = [];
+
+  for (const part of parts) {
+    if (!isRecord(part)) continue;
+
+    if (part.thought === true) {
+      const text = asString(part.text);
+      if (text) summaries.push(text);
+      continue;
+    }
+
+    if (part.type === "thought_summary" && isRecord(part.content)) {
+      const text = asString(part.content.text);
+      if (text) summaries.push(text);
+      continue;
+    }
+
+    if (Array.isArray(part.summary)) {
+      for (const item of part.summary) {
+        if (!isRecord(item)) continue;
+        const text = asString(item.text);
+        if (text) summaries.push(text);
+      }
+    }
+  }
+
+  if (!summaries.length) return null;
+  return summaries.join(" ").replace(/\s+/g, " ").trim().slice(0, 500);
+}
+
 function normalizeApplicationStatus(value: unknown, fallback = "Applied"): string {
   const raw = asString(value) || fallback;
   const normalized = raw
@@ -1498,11 +1529,14 @@ function streamChunkText(chunk: unknown): string {
   }
   if (typeof textField === "string") return textField;
   const candidates = c.candidates as
-    | Array<{ content?: { parts?: Array<{ text?: string }> } }>
+    | Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }>
     | undefined;
   const parts = candidates?.[0]?.content?.parts;
   if (Array.isArray(parts)) {
-    return parts.filter((p) => typeof p?.text === "string").map((p) => p.text!).join("");
+    return parts
+      .filter((p) => p.thought !== true && typeof p?.text === "string")
+      .map((p) => p.text!)
+      .join("");
   }
   return "";
 }
@@ -2707,7 +2741,7 @@ Edge functions:
         role: "system",
         parts: [{ text: systemInstruction }],
       },
-      thinkingConfig: { thinkingLevel: "MEDIUM" },
+      thinkingConfig: { thinkingLevel: "MEDIUM", includeThoughts: true },
     };
     if (mode === "agent") {
       chatConfig.tools = webSearch
@@ -2745,6 +2779,14 @@ Edge functions:
 
         try {
           if (mode === "agent") {
+            enqueueEvent("agent_activity", {
+              kind: "thinking",
+              status: "running",
+              title: "Reading request",
+              detail: "Building the next agent step from your JobRaker context.",
+              created_at: Date.now(),
+              round: 0,
+            });
             let activeModel = fallbackModels[0];
             let chat = genAI.chats.create({
               model: activeModel,
@@ -2752,7 +2794,7 @@ Edge functions:
               history,
             });
             /** Max tool *rounds* (each round may include multiple parallel function calls). */
-            const MAX_AGENT_TOOL_ROUNDS = 12;
+            const MAX_AGENT_TOOL_ROUNDS = 20;
 
             let response: any;
             // Try primary model, fall back on rate limit
@@ -2784,9 +2826,21 @@ Edge functions:
 
             while (true) {
               const parts = response.candidates?.[0]?.content?.parts || [];
+              const thoughtSummary = extractThoughtSummary(parts);
+              if (thoughtSummary) {
+                enqueueEvent("agent_activity", {
+                  kind: "thinking",
+                  status: "done",
+                  title: "Thinking summary",
+                  detail: thoughtSummary,
+                  created_at: Date.now(),
+                  round: toolRounds,
+                });
+              }
               let textDelta = "";
               for (const p of parts) {
-                const pr = p as { text?: string };
+                const pr = p as { text?: string; thought?: boolean };
+                if (pr.thought === true) continue;
                 if (typeof pr.text === "string" && pr.text.length > 0) {
                   textDelta += pr.text;
                 }
@@ -2803,6 +2857,15 @@ Edge functions:
 
               toolRounds += 1;
               if (toolRounds > MAX_AGENT_TOOL_ROUNDS) {
+                enqueueEvent("agent_activity", {
+                  kind: "limit",
+                  status: "done",
+                  title: "Paused at tool limit",
+                  detail:
+                    "The agent saved the work so far and stopped before running forever. Send Continue to resume from this point.",
+                  created_at: Date.now(),
+                  round: toolRounds,
+                });
                 enqueueEvent("message", {
                   delta:
                     "\n\n—\n*I reached the maximum number of tool steps for this turn. Ask me to **continue** if you need more (e.g. finish applying or summarize).*",
@@ -2811,10 +2874,22 @@ Edge functions:
                 break;
               }
 
-              // Option C: extra credit per agent tool round (Ask mode has no surcharge)
+              enqueueEvent("agent_activity", {
+                kind: "tool_batch",
+                status: "running",
+                title: `Preparing ${functionCalls.length} tool${functionCalls.length === 1 ? "" : "s"}`,
+                detail:
+                  "Agent Mode charges by actual tool use after the base chat turn.",
+                created_at: Date.now(),
+                round: toolRounds,
+                tool_count: functionCalls.length,
+              });
+
+              const creditsToCharge = Math.max(1, functionCalls.length);
+              // Agent mode charges extra credits only when tools run.
               const { data: surchargeResult, error: surchargeError } = await serviceClient.rpc(
                 "consume_ai_chat_tool_surcharge",
-                { p_user_id: userId, p_credits: 1 },
+                { p_user_id: userId, p_credits: creditsToCharge },
               );
               const sur = surchargeResult as Record<string, unknown> | null;
               const surchargeOk =
@@ -2841,15 +2916,27 @@ Edge functions:
               enqueueEvent("agent_surcharge", {
                 credits_charged: sur.credits_charged,
                 balance: sur.balance,
+                round: toolRounds,
+                tool_count: functionCalls.length,
               });
 
               const toolResults = [];
-              for (const fc of functionCalls) {
+              for (let toolIndex = 0; toolIndex < functionCalls.length; toolIndex += 1) {
+                const fc = functionCalls[toolIndex];
                 const fn = fc.functionCall;
+                const args = isRecord(fn.args) ? fn.args : {};
+                const toolCallId = `${toolRounds}-${toolIndex}-${fn.name}-${Date.now()}`;
+                const startedAt = Date.now();
+                enqueueEvent("tool_start", {
+                  id: toolCallId,
+                  name: fn.name,
+                  args,
+                  round: toolRounds,
+                  started_at: startedAt,
+                });
                 console.log(`[Agent] Executing: ${fn.name}`);
                 let result;
                 try {
-                  const args = isRecord(fn.args) ? fn.args : {};
                   const supabaseUser = createAuthedSupabaseClient(authHeader!);
 
                   if (fn.name === "get_account_snapshot") {
@@ -4217,8 +4304,25 @@ Edge functions:
                 }
 
                 toolResults.push({ functionResponse: { name: fn.name, response: result } });
-                enqueueEvent("tool_call", { name: fn.name, args: fn.args, result });
+                enqueueEvent("tool_call", {
+                  id: toolCallId,
+                  name: fn.name,
+                  args,
+                  result,
+                  round: toolRounds,
+                  started_at: startedAt,
+                  finished_at: Date.now(),
+                });
               }
+              enqueueEvent("agent_activity", {
+                kind: "tool_result",
+                status: "done",
+                title: "Returned tool results to the model",
+                detail: "Reviewing the results and deciding whether another step is needed.",
+                created_at: Date.now(),
+                round: toolRounds,
+                tool_count: functionCalls.length,
+              });
               response = await withGeminiRetry(() =>
                 chat.sendMessage({
                   message: { role: "user", parts: toolResults },

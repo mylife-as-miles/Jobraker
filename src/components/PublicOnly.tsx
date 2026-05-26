@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createClient } from "../lib/supabaseClient";
 import { ROUTES } from "../routes";
+import { getCachedAuthSnapshot } from "@/lib/offlineAppCache";
 
 type Props = { children: React.ReactNode };
 
@@ -18,14 +19,38 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
 
   useEffect(() => {
     let mounted = true;
+    const isOffline = () =>
+      typeof navigator !== "undefined" && navigator.onLine === false;
+    const withTimeout = async <T,>(promise: Promise<T>, ms: number) =>
+      await Promise.race<T>([
+        promise,
+        new Promise<T>((_, reject) =>
+          window.setTimeout(() => reject(new Error("Timed out")), ms),
+        ),
+      ]);
+
     const check = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (!mounted) return;
-      if (data.user) {
-        navigate(getAuthenticatedRedirectPath(), { replace: true });
-      } else {
-        setChecking(false);
+      try {
+        const cachedSnapshot = await getCachedAuthSnapshot();
+        const {
+          data: { session },
+        } = await withTimeout(supabase.auth.getSession(), 2500);
+
+        if (!mounted) return;
+        if (session?.user || (isOffline() && cachedSnapshot?.hasSession)) {
+          navigate(getAuthenticatedRedirectPath(), { replace: true });
+          return;
+        }
+      } catch (error) {
+        if (!mounted) return;
+        if (isOffline()) {
+          setChecking(false);
+          return;
+        }
+        console.error("Public auth check error:", error);
       }
+      if (!mounted) return;
+      setChecking(false);
     };
     check();
 
