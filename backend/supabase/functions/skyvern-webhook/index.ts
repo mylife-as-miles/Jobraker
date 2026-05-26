@@ -8,12 +8,13 @@ const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 function hasValidWebhookSecret(req: Request): boolean {
-  const expected = String(
-    Deno.env.get("SKYVERN_WEBHOOK_SECRET") ||
-      Deno.env.get("SKYVERN_API_KEY") ||
-      "",
-  ).trim();
-  if (!expected) return false;
+  const expectedSecrets = [
+    Deno.env.get("SKYVERN_WEBHOOK_SECRET"),
+    Deno.env.get("SKYVERN_API_KEY"),
+  ]
+    .map((secret) => String(secret || "").trim())
+    .filter(Boolean);
+  if (expectedSecrets.length === 0) return false;
 
   let querySecret = "";
   try {
@@ -31,10 +32,8 @@ function hasValidWebhookSecret(req: Request): boolean {
     .replace(/^Bearer\s+/i, "")
     .trim();
 
-  return (
-    querySecret === expected ||
-    headerSecret === expected ||
-    authSecret === expected
+  return [querySecret, headerSecret, authSecret].some((provided) =>
+    expectedSecrets.includes(provided)
   );
 }
 

@@ -4989,11 +4989,11 @@ export const SettingsPage = (): JSX.Element => {
                   Manage your account preferences and configurations
                 </p>
               </div>
-              <div className='flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center'>
+              <div className='flex w-full flex-row gap-3 sm:w-auto items-center'>
                 <Button
                   variant='outline'
                   onClick={handleResetForm}
-                  className='w-full border-foreground/[0.08] text-foreground/70 hover:text-foreground/90 hover:bg-foreground/5 hover:border-foreground/[0.12] transition-all sm:w-auto'
+                  className='flex-1 border-foreground/[0.08] text-foreground/70 hover:text-foreground/90 hover:bg-foreground/5 hover:border-foreground/[0.12] transition-all sm:w-auto'
                 >
                   <RefreshCw className='w-4 h-4 mr-2' />
                   Reset
@@ -5001,7 +5001,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Button
                   variant='outline'
                   onClick={handleExportData}
-                  className='w-full border-foreground/[0.08] text-foreground/70 hover:text-foreground/90 hover:bg-foreground/5 hover:border-foreground/[0.12] transition-all sm:w-auto'
+                  className='flex-1 border-foreground/[0.08] text-foreground/70 hover:text-foreground/90 hover:bg-foreground/5 hover:border-foreground/[0.12] transition-all sm:w-auto'
                 >
                   <Download className='w-4 h-4 mr-2' />
                   Export Data
@@ -5034,8 +5034,8 @@ export const SettingsPage = (): JSX.Element => {
                   data-tour={`settings-tab-btn-${tab.id}`}
                   className={`w-auto lg:w-full flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-2.5 rounded-lg text-xs lg:text-sm transition-all shrink-0 ${
                     activeTab === tab.id
-                      ? "text-foreground/95 bg-gradient-to-r from-foreground/[0.08] to-transparent border-l-2 lg:border-l-2 border-b-2 lg:border-b-0 border-brand"
-                      : "text-foreground/70 hover:text-foreground/80 hover:bg-foreground/5 border-l-2 lg:border-l-2 border-b-2 lg:border-b-0 border-transparent"
+                      ? "text-foreground/95 bg-gradient-to-r from-foreground/[0.08] to-transparent border-b-2 border-l-0 border-t-0 border-r-0 lg:border-l-2 lg:border-b-0 lg:border-t-0 lg:border-r-0 border-brand"
+                      : "text-foreground/70 hover:text-foreground/80 hover:bg-foreground/5 border-b-2 border-l-0 border-t-0 border-r-0 lg:border-l-2 lg:border-b-0 lg:border-t-0 lg:border-r-0 border-transparent"
                   }`}
                 >
                   <span
