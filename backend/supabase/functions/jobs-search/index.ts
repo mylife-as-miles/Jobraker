@@ -1,5 +1,5 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { discoverJobsFirecrawl } from "../_shared/discovery-hybrid.ts";
+import { discoverJobsFirecrawl, type PublicJobSource } from "../_shared/discovery-hybrid.ts";
 import { persistDiscoveredJobs } from "../_shared/jobs.ts";
 import { syncFirecrawlCreditUsage } from "../_shared/provider-credits.ts";
 import {
@@ -7,6 +7,46 @@ import {
   resolveJobSearchExecutionLimits,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+
+const PUBLIC_JOB_SOURCE_ALIASES: Record<string, PublicJobSource> = {
+  web: "web",
+  general: "web",
+  ats: "ats",
+  greenhouse: "ats",
+  lever: "ats",
+  ashby: "ats",
+  workable: "ats",
+  yc: "yc",
+  "yc/jobs": "yc",
+  ycombinator: "yc",
+  "ycombinator.com": "yc",
+  workatastartup: "yc",
+  x: "x",
+  twitter: "x",
+  "x.com": "x",
+  "twitter.com": "x",
+  reddit: "reddit",
+  hn: "hackernews",
+  hackernews: "hackernews",
+  "hacker-news": "hackernews",
+  "news.ycombinator.com": "hackernews",
+  community: "community",
+};
+
+function parsePublicSources(value: unknown): PublicJobSource[] {
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[,;\s]+/)
+      : [];
+  const seen = new Set<PublicJobSource>();
+  for (const item of raw) {
+    const key = String(item || "").trim().toLowerCase();
+    const source = PUBLIC_JOB_SOURCE_ALIASES[key];
+    if (source) seen.add(source);
+  }
+  return Array.from(seen);
+}
 
 Deno.serve(async (req) => {
   const startedAt = Date.now();
@@ -24,6 +64,9 @@ Deno.serve(async (req) => {
     const locationScope = (["city", "country", "global"] as const).includes(body?.locationScope)
       ? (body.locationScope as "city" | "country" | "global")
       : "city";
+    const sourceFocus = parsePublicSources(
+      body?.sources ?? body?.sourceFocus ?? body?.publicSources,
+    );
 
     // Resolve effective location based on scope
     let location = rawLocation;
@@ -88,6 +131,7 @@ Deno.serve(async (req) => {
       userId: user.id,
       searchQuery,
       location,
+      sourceFocus,
       requestedLimit,
       effectiveLimit,
       subscriptionTier,
@@ -101,6 +145,7 @@ Deno.serve(async (req) => {
         searchQuery,
         location,
         limit: effectiveLimit,
+        sourceFocus,
       },
       async (batch) => {
         const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
@@ -233,6 +278,7 @@ Deno.serve(async (req) => {
           is_tracked_company: job.is_tracked_company,
         })),
         count: discoveredJobs.length,
+        sourceFocus,
         warnings,
       }),
       {

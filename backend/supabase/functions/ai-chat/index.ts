@@ -1593,14 +1593,44 @@ const AGENT_FUNCTION_DECLARATIONS = [
   },
   {
     name: "run_job_search",
-    description: "Search for job listings based on a query and location.",
+    description:
+      "Search for job listings based on a query and location. Can focus on public sources like YC Jobs, X/Twitter public posts, Reddit, Hacker News, ATS boards, or general web. This persists discovered jobs to the user's queue and charges normal job-search credits.",
     parameters: {
       type: "object",
       properties: {
         query: { type: "string", description: "Job search query, e.g. 'software engineer'" },
         location: { type: "string", description: "Location, e.g. 'Remote' or 'New York'" },
+        limit: { type: "number", description: "Maximum jobs to import, subject to plan/credit limits." },
+        sources: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional source focus: web, ats, yc, x, reddit, hackernews, community.",
+        },
+        location_scope: { type: "string", description: "city, country, or global." },
       },
       required: ["query"],
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "search_public_job_sources",
+    description:
+      "Scrape/search public job leads from selected public sources such as YC Jobs, X/Twitter public posts, Reddit, Hacker News Who's Hiring, ATS boards, or general web. Public pages only: no login bypass, no private scraping. Persists discovered jobs for review and charges normal job-search credits.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Role query, e.g. 'frontend developer', 'AI SaaS operations manager'." },
+        location: { type: "string", description: "Location or Remote. Defaults to Remote." },
+        limit: { type: "number", description: "Maximum jobs to import, subject to plan/credit limits." },
+        sources: {
+          type: "array",
+          items: { type: "string" },
+          description: "One or more of: yc, x, reddit, hackernews, community, ats, web.",
+        },
+        location_scope: { type: "string", description: "city, country, or global." },
+      },
+      required: ["query"],
+      additionalProperties: true,
     },
   },
   {
@@ -2660,6 +2690,11 @@ Application process tracking:
 - When the user says "move this to offer", "mark interview", "add to tracker", "change next step", or similar, use the application tools directly. Ask for the target only when it is ambiguous.
 - Use find_company_contact_channels for "mass email list", "company email list", recruitment contacts, or direct outreach lead-list requests. Return a review list; never claim it sent emails unless send_gmail_job_email was explicitly approved and used.
 
+Public job-source discovery:
+- Use search_public_job_sources when the user asks for YC Jobs, X/Twitter jobs, Reddit jobs, Hacker News jobs, startup jobs, or community-sourced hiring leads.
+- X/Twitter, Reddit, and Hacker News results are leads from public/indexed pages only. Do not imply private scraping, login bypassing, or guaranteed official application channels.
+- After public-source discovery, summarize source_kind, verification_status, salary signals, and whether the role still needs official-channel verification.
+
 Edge functions:
 - Use list_edge_functions and get_edge_function_details before invoke_edge_function when you need to inspect or manipulate edge-function parameters.
 - Confirm before invoking side-effectful functions such as apply-to-jobs, init-payment, create_gmail_job_draft, send_gmail_job_email, label_gmail_job_emails, or webhook-like endpoints.`;
@@ -2858,6 +2893,22 @@ Edge functions:
                       payload: {
                         searchQuery: asString(args.query) || "",
                         location: asString(args.location) || undefined,
+                        limit: asNumber(args.limit) || undefined,
+                        sources: asStringList(args.sources),
+                        locationScope: asString(args.location_scope) || asString(args.locationScope) || undefined,
+                      },
+                    });
+                  } else if (fn.name === "search_public_job_sources") {
+                    const sources = asStringList(args.sources);
+                    result = await invokeEdgeFunctionByName({
+                      authHeader: authHeader!,
+                      name: "jobs-search",
+                      payload: {
+                        searchQuery: asString(args.query) || "",
+                        location: asString(args.location) || "Remote",
+                        limit: asNumber(args.limit) || 10,
+                        sources: sources.length ? sources : ["yc", "x", "reddit", "hackernews", "ats"],
+                        locationScope: asString(args.location_scope) || asString(args.locationScope) || "global",
                       },
                     });
                   } else if (fn.name === "get_credits_balance") {

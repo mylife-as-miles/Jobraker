@@ -221,6 +221,13 @@ export const EDGE_FUNCTIONS: EdgeFunctionDefinition[] = [
         searchQuery: { type: "string" },
         location: { type: "string" },
         limit: { type: "number" },
+        sources: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Optional source focus: web, ats, yc, x, reddit, hackernews, community. X/Twitter uses public/indexed pages only.",
+        },
+        locationScope: { type: "string", enum: ["city", "country", "global"] },
       },
       additionalProperties: true,
     },

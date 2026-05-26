@@ -21,6 +21,15 @@ type SourceKind =
   | "x"
   | "firecrawl";
 
+export type PublicJobSource =
+  | "web"
+  | "ats"
+  | "yc"
+  | "x"
+  | "reddit"
+  | "hackernews"
+  | "community";
+
 interface SalarySignal {
   salary_min?: number | null;
   salary_max?: number | null;
@@ -62,6 +71,7 @@ interface FirecrawlDiscoveryArgs {
   searchQuery: string;
   location: string;
   limit: number;
+  sourceFocus?: PublicJobSource[];
 }
 
 interface JobSourceSettings {
@@ -83,6 +93,9 @@ interface SearchSeed {
     | "credential_domain"
     | "ats_signal"
     | "yc_signal"
+    | "x_signal"
+    | "reddit_signal"
+    | "hackernews_signal"
     | "community_signal"
     | "remote_fallback";
   query: string;
@@ -203,6 +216,15 @@ const PROVIDER_LOOKUP_TIMEOUT_MS = 5000;
 const DIRECT_PAGE_FETCH_TIMEOUT_MS = 3500;
 const URL_VERIFY_TIMEOUT_MS = 2500;
 const URL_VERIFY_CONCURRENCY = 10;
+const PUBLIC_JOB_SOURCES = new Set<PublicJobSource>([
+  "web",
+  "ats",
+  "yc",
+  "x",
+  "reddit",
+  "hackernews",
+  "community",
+]);
 
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -215,6 +237,40 @@ const asStringArray = (value: unknown): string[] => {
   return value
     .map((item) => asString(item))
     .filter((item): item is string => Boolean(item));
+};
+
+const normalizePublicJobSources = (value: unknown): PublicJobSource[] => {
+  const raw = Array.isArray(value) ? value : typeof value === "string" ? value.split(/[,;\s]+/) : [];
+  const aliases: Record<string, PublicJobSource> = {
+    twitter: "x",
+    "x.com": "x",
+    "twitter.com": "x",
+    yc: "yc",
+    "yc/jobs": "yc",
+    "yc jobs": "yc",
+    "ycombinator": "yc",
+    "ycombinator.com": "yc",
+    "workatastartup": "yc",
+    "work at a startup": "yc",
+    hn: "hackernews",
+    hackernews: "hackernews",
+    "hacker-news": "hackernews",
+    "news.ycombinator.com": "hackernews",
+    reddit: "reddit",
+    ats: "ats",
+    greenhouse: "ats",
+    lever: "ats",
+    ashby: "ats",
+    workable: "ats",
+    web: "web",
+    general: "web",
+    community: "community",
+  };
+  const normalized = raw
+    .map((item) => String(item || "").trim().toLowerCase())
+    .map((item) => aliases[item] || item)
+    .filter((item): item is PublicJobSource => PUBLIC_JOB_SOURCES.has(item as PublicJobSource));
+  return uniqueStrings(normalized);
 };
 
 const toRecord = (value: unknown): Record<string, unknown> =>
@@ -746,6 +802,33 @@ const buildYcSignalQuery = (query: string, location: string): string =>
     "-inurl:login",
   );
 
+const buildXSignalQuery = (query: string, location: string): string =>
+  buildQueryText(
+    `"${query}"`,
+    location,
+    "(site:x.com OR site:twitter.com)",
+    "(hiring OR \"we're hiring\" OR \"is hiring\" OR \"join our team\" OR \"apply now\")",
+    "-inurl:login",
+    "-inurl:i/flow",
+  );
+
+const buildRedditSignalQuery = (query: string, location: string): string =>
+  buildQueryText(
+    `"${query}"`,
+    location,
+    "(site:reddit.com/r/forhire OR site:reddit.com/r/remotework OR site:reddit.com/r/jobs OR site:reddit.com/r/startups)",
+    "(hiring OR \"we're hiring\" OR \"job opening\" OR \"apply\")",
+    "-inurl:login",
+  );
+
+const buildHackerNewsSignalQuery = (query: string, location: string): string =>
+  buildQueryText(
+    `"${query}"`,
+    location,
+    "site:news.ycombinator.com",
+    "(\"Who is hiring\" OR hiring OR remote OR onsite)",
+  );
+
 const buildCommunitySignalQuery = (query: string, location: string): string =>
   buildQueryText(
     `"${query}"`,
@@ -928,6 +1011,11 @@ function buildSearchSeeds(
 ): SearchSeed[] {
   const location = normalizeLocation(args.location || context.candidateMemory.location);
   const searchQuery = args.searchQuery.trim();
+  const sourceFocus = normalizePublicJobSources(args.sourceFocus);
+  const wantsSource = (source: PublicJobSource) =>
+    sourceFocus.length === 0 ||
+    sourceFocus.includes(source) ||
+    (source !== "web" && source !== "ats" && sourceFocus.includes("community"));
   const profileTerms = uniqueStrings(
     context.candidateMemory.skillKeywords
       .slice(0, 4)
@@ -942,7 +1030,7 @@ function buildSearchSeeds(
 
   const seeds: Omit<SearchSeed, "limit">[] = [];
 
-  if (context.settings.include_search) {
+  if (context.settings.include_search && wantsSource("web")) {
     seeds.push({
       type: "general",
       query: buildGeneralQuery(searchQuery, location),
@@ -960,71 +1048,104 @@ function buildSearchSeeds(
     }
   }
 
-  for (const company of context.trackedCompanies.slice(0, 4)) {
-    const domain =
-      normalizeDomain(company.domain) || normalizeDomain(company.careers_url);
+  if (wantsSource("web")) {
+    for (const company of context.trackedCompanies.slice(0, 4)) {
+      const domain =
+        normalizeDomain(company.domain) || normalizeDomain(company.careers_url);
+      seeds.push({
+        type: "tracked_company",
+        query: buildTrackedCompanyQuery(searchQuery, location, company.name, domain || undefined),
+        priority: 0,
+        domain: domain || undefined,
+        company_name: company.name,
+        is_tracked_company: true,
+      });
+    }
+
+    for (const domain of context.settings.allowed_domains.slice(0, 3)) {
+      seeds.push({
+        type: "allowed_domain",
+        query: buildDomainQuery(searchQuery, location, domain),
+        priority: 3,
+        domain,
+        is_tracked_company: false,
+      });
+    }
+
+    for (const domain of context.settings.enabled_default_sources.slice(0, 3)) {
+      seeds.push({
+        type: "default_source",
+        query: buildDomainQuery(searchQuery, location, domain),
+        priority: 4,
+        domain,
+        is_tracked_company: false,
+      });
+    }
+
+    for (const domain of credentialDomains.slice(0, 2)) {
+      seeds.push({
+        type: "credential_domain",
+        query: buildDomainQuery(searchQuery, location, domain),
+        priority: 4,
+        domain,
+        is_tracked_company: false,
+      });
+    }
+  }
+
+  if (wantsSource("ats")) {
     seeds.push({
-      type: "tracked_company",
-      query: buildTrackedCompanyQuery(searchQuery, location, company.name, domain || undefined),
-      priority: 0,
-      domain: domain || undefined,
-      company_name: company.name,
-      is_tracked_company: true,
+      type: "ats_signal",
+      query: buildAtsSignalQuery(searchQuery, location),
+      priority: 2,
+      is_tracked_company: false,
     });
   }
 
-  for (const domain of context.settings.allowed_domains.slice(0, 3)) {
+  if (wantsSource("yc")) {
     seeds.push({
-      type: "allowed_domain",
-      query: buildDomainQuery(searchQuery, location, domain),
+      type: "yc_signal",
+      query: buildYcSignalQuery(searchQuery, location),
       priority: 3,
-      domain,
       is_tracked_company: false,
     });
   }
 
-  for (const domain of context.settings.enabled_default_sources.slice(0, 3)) {
+  if (sourceFocus.length === 0 || sourceFocus.includes("community")) {
     seeds.push({
-      type: "default_source",
-      query: buildDomainQuery(searchQuery, location, domain),
-      priority: 4,
-      domain,
+      type: "community_signal",
+      query: buildCommunitySignalQuery(searchQuery, location),
+      priority: 6,
       is_tracked_company: false,
     });
+  } else {
+    if (wantsSource("x")) {
+      seeds.push({
+        type: "x_signal",
+        query: buildXSignalQuery(searchQuery, location),
+        priority: 4,
+        is_tracked_company: false,
+      });
+    }
+    if (wantsSource("reddit")) {
+      seeds.push({
+        type: "reddit_signal",
+        query: buildRedditSignalQuery(searchQuery, location),
+        priority: 5,
+        is_tracked_company: false,
+      });
+    }
+    if (wantsSource("hackernews")) {
+      seeds.push({
+        type: "hackernews_signal",
+        query: buildHackerNewsSignalQuery(searchQuery, location),
+        priority: 5,
+        is_tracked_company: false,
+      });
+    }
   }
 
-  for (const domain of credentialDomains.slice(0, 2)) {
-    seeds.push({
-      type: "credential_domain",
-      query: buildDomainQuery(searchQuery, location, domain),
-      priority: 4,
-      domain,
-      is_tracked_company: false,
-    });
-  }
-
-  seeds.push({
-    type: "ats_signal",
-    query: buildAtsSignalQuery(searchQuery, location),
-    priority: 2,
-    is_tracked_company: false,
-  });
-
-  seeds.push({
-    type: "yc_signal",
-    query: buildYcSignalQuery(searchQuery, location),
-    priority: 3,
-    is_tracked_company: false,
-  });
-
-  seeds.push({
-    type: "community_signal",
-    query: buildCommunitySignalQuery(searchQuery, location),
-    priority: 6,
-    is_tracked_company: false,
-  });
-
-  if (location.toLowerCase() === "remote") {
+  if (location.toLowerCase() === "remote" && wantsSource("web")) {
     seeds.push({
       type: "remote_fallback",
       query: buildGeneralQuery(searchQuery, "Remote"),
@@ -2667,10 +2788,22 @@ export async function discoverJobsFirecrawl(
   const warnings: string[] = [];
   const apiKey = await resolveFirecrawlApiKey();
   const context = await buildSearchContext(args.serviceClient, args.userId);
+  const requestedSources = normalizePublicJobSources(args.sourceFocus);
+  if (requestedSources.includes("x")) {
+    warnings.push(
+      "X/Twitter discovery uses public/indexed pages only. JobRaker will not bypass logins, CAPTCHAs, or private profile access.",
+    );
+  }
+  if (requestedSources.some((source) => ["reddit", "hackernews", "x", "community"].includes(source))) {
+    warnings.push(
+      "Community-source results are treated as leads until verified against an official company careers page or application channel.",
+    );
+  }
   const seeds = buildSearchSeeds(args, context);
   console.info("firecrawl.discovery.stage", {
     stage: "seed_build",
     seedCount: seeds.length,
+    sourceFocus: requestedSources,
     limit: args.limit,
     elapsed_ms: Date.now() - startedAt,
   });
