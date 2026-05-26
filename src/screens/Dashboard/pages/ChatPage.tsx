@@ -1734,7 +1734,7 @@ export const ChatPage = () => {
                       />
                     )}
                     <MessageSquare size={13} />
-                    <span>Workspace</span>
+                    <span>Chat</span>
                   </button>
                   <button
                     onClick={() => setMobileTab("history")}

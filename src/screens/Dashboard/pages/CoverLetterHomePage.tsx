@@ -159,41 +159,7 @@ export const CoverLetterHomePage = () => {
   };
 
   return (
-    <div className={`product-page-shell flex flex-col h-full bg-background text-foreground overflow-y-auto ${isMobile ? "p-4 pb-6" : "p-8"}`}>
-      {isMobile && (
-        <div className="sticky top-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border/40 p-2 flex justify-center -mx-4 -mt-4 mb-6 shrink-0">
-          <div className="relative flex p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md w-full max-w-[340px]">
-            <button
-              type="button"
-              onClick={() => navigate("/dashboard/chat?tab=chat")}
-              className="relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-full text-muted-foreground hover:text-foreground transition-all duration-300"
-            >
-              <MessageSquare size={13} />
-              <span>Chat</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/dashboard/chat?tab=history")}
-              className="relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-full text-muted-foreground hover:text-foreground transition-all duration-300"
-            >
-              <History size={13} />
-              <span>History</span>
-            </button>
-            <button
-              type="button"
-              className="relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-full text-background transition-all duration-300"
-            >
-              <motion.div
-                layoutId="activeCoverLetterTab"
-                className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
-              <FileText size={13} />
-              <span>Letter</span>
-            </button>
-          </div>
-        </div>
-      )}
+    <div className={`product-page-shell flex flex-col h-full bg-background text-foreground overflow-y-auto ${isMobile ? "p-4 pb-20" : "p-8"}`}>
       {/* Header */}
       <div className='flex items-center justify-between mb-8'>
         <div>

@@ -49,7 +49,7 @@ export const AccountLibraryPage = () => {
 
   return (
     <div className="product-page-shell min-h-screen">
-      <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8 pb-24">
+      <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8 pb-6 md:pb-24">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
             Account Library
@@ -71,7 +71,7 @@ export const AccountLibraryPage = () => {
               onClick={() => navigate(item.path)}
             >
               <Card 
-                className={`product-section-card p-6 bg-gradient-to-br ${item.color} border border-border/40 hover:shadow-2xl transition-all duration-300 relative overflow-hidden flex flex-col justify-between md:flex-row md:items-center gap-6`}
+                className={`product-section-card p-6 bg-gradient-to-br ${item.color} border border-border/40 hover:shadow-2xl transition-all duration-300 relative overflow-hidden flex flex-col justify-start md:flex-row md:items-center gap-4 md:gap-6`}
                 style={{
                   boxShadow: `0 0 40px -10px transparent`,
                 }}
@@ -82,7 +82,7 @@ export const AccountLibraryPage = () => {
                   style={{ backgroundColor: item.glowColor.split(",").slice(0, 3).join(",") + ", 0.4)" }}
                 />
 
-                <div className="flex items-start gap-4 flex-1">
+                <div className="flex items-start gap-4 flex-none md:flex-1">
                   <div className="p-3.5 rounded-2xl bg-foreground/5 border border-foreground/10 shrink-0">
                     {item.icon}
                   </div>

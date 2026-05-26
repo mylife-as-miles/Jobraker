@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Download,
@@ -1526,30 +1527,45 @@ export const CoverLetterBuilderPage = () => {
         )}
       {/* Mobile Bottom Tab Bar */}
       {isMobile && (
-        <div className='fixed bottom-0 left-0 right-0 z-50 bg-background/95 border-t border-border/40 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex h-16 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] text-foreground'>
-          <button
-            onClick={() => setMobileView("editor")}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
-              mobileView === "editor"
-                ? "text-brand bg-brand/5"
-                : "text-muted-foreground"
-            }`}
-          >
-            <PenLine className='w-5 h-5' />
-            <span className='text-[11px] font-medium'>Editor</span>
-          </button>
-          <div className='w-px bg-border/40 my-3' />
-          <button
-            onClick={() => setMobileView("preview")}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
-              mobileView === "preview"
-                ? "text-brand bg-brand/5"
-                : "text-muted-foreground"
-            }`}
-          >
-            <Eye className='w-5 h-5' />
-            <span className='text-[11px] font-medium'>Preview</span>
-          </button>
+        <div className='fixed bottom-0 left-0 right-0 z-50 bg-background/95 border-t border-border/40 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex h-16 items-center justify-center px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]'>
+          <div className="relative flex p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md w-full max-w-[340px]">
+            <button
+              onClick={() => setMobileView("editor")}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
+                mobileView === "editor"
+                  ? "text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {mobileView === "editor" && (
+                <motion.div
+                  layoutId="activeCoverLetterBuilderTab"
+                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              <PenLine size={13} />
+              <span>Editor</span>
+            </button>
+            <button
+              onClick={() => setMobileView("preview")}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
+                mobileView === "preview"
+                  ? "text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {mobileView === "preview" && (
+                <motion.div
+                  layoutId="activeCoverLetterBuilderTab"
+                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              <Eye size={13} />
+              <span>Preview</span>
+            </button>
+          </div>
         </div>
       )}
     </div>

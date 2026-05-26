@@ -1049,11 +1049,11 @@ export const Dashboard = (): JSX.Element => {
 
       {/* Mobile Bottom Tab Bar */}
       {!isDesktop && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border/40 px-2 py-1 flex items-center justify-around h-16 select-none shadow-[0_-8px_32px_rgba(0,0,0,0.4)]">
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border/40 px-2 grid grid-cols-5 h-16 select-none shadow-[0_-8px_32px_rgba(0,0,0,0.4)]">
           {/* Home Tab */}
           <button
             onClick={() => navigate("/dashboard/overview")}
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all duration-200 ${
+            className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
               currentPage === "overview"
                 ? "text-brand scale-105"
                 : "text-muted-foreground hover:text-foreground"
@@ -1066,7 +1066,7 @@ export const Dashboard = (): JSX.Element => {
           {/* Account Tab */}
           <button
             onClick={() => navigate("/dashboard/account")}
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all duration-200 ${
+            className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
               currentPage === "account"
                 ? "text-brand scale-105"
                 : "text-muted-foreground hover:text-foreground"
@@ -1077,7 +1077,7 @@ export const Dashboard = (): JSX.Element => {
           </button>
 
           {/* Career Tab (Center highlighted squircle button) */}
-          <div className="relative flex-1 flex justify-center -mt-6">
+          <div className="relative flex justify-center items-center -mt-6">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -1134,7 +1134,7 @@ export const Dashboard = (): JSX.Element => {
           {/* Chat Tab */}
           <button
             onClick={() => navigate("/dashboard/chat")}
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all duration-200 ${
+            className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
               currentPage === "chat"
                 ? "text-brand scale-105"
                 : "text-muted-foreground hover:text-foreground"
@@ -1147,7 +1147,7 @@ export const Dashboard = (): JSX.Element => {
           {/* Analytics Tab */}
           <button
             onClick={() => navigate("/dashboard/analytics")}
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all duration-200 ${
+            className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
               currentPage === "analytics"
                 ? "text-brand scale-105"
                 : "text-muted-foreground hover:text-foreground"
