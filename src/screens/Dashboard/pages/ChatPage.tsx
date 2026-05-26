@@ -102,6 +102,7 @@ import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
+import { motion } from "framer-motion";
 
 // Custom styles for the new design
 const customStyles = `

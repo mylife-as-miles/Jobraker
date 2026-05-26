@@ -858,14 +858,17 @@ export const Dashboard = (): JSX.Element => {
 
               {/* Logo and Brand on mobile */}
               {currentPage === "overview" ? (
-                <div className='flex sm:hidden items-center shrink-0'>
+                <div className='flex sm:hidden items-center gap-2 shrink-0'>
                   <div className='w-7 h-7 rounded-lg flex items-center justify-center shrink-0 overflow-clip'>
                     <img
                       src='/logo/logo.jpeg'
                       className='object-cover w-full h-full'
-                      alt='logo'
+                      alt='JobRaker logo'
                     />
                   </div>
+                  <span className='text-foreground font-bold text-lg leading-none tracking-tight'>
+                    JobRaker
+                  </span>
                 </div>
               ) : (
                 <span className='sm:hidden text-foreground font-bold text-lg leading-none tracking-tight truncate max-w-[14rem]'>
