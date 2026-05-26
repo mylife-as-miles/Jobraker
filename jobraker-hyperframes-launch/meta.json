@@ -1,0 +1,9 @@
+﻿{
+  "id": "jobraker-hyperframes-launch",
+  "name": "Jobraker HyperFrames Launch",
+  "description": "A 42-second dark, kinetic launch video for Jobraker's AI job-search command center.",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 42
+}

@@ -1,0 +1,257 @@
+﻿<template id="success-cta-template">
+  <div id="success-cta" data-composition-id="success-cta" data-width="1920" data-height="1080" data-start="0" data-duration="7">
+    <div id="success-cta-root" class="clip scene-root" data-start="0" data-duration="7" data-track-index="1">
+      <div class="success-grid" data-layout-ignore></div>
+      <div class="outcome-field" data-layout-ignore>
+        <div class="outcome o1">Interview request</div>
+        <div class="outcome o2">Recruiter replied</div>
+        <div class="outcome o3">Portfolio viewed</div>
+        <div class="outcome o4">Application sent</div>
+        <div class="outcome o5">Follow-up scheduled</div>
+        <div class="outcome o6">Direct intro opened</div>
+      </div>
+      <div class="lockup">
+        <div class="lockup-sheen" data-layout-ignore></div>
+        <img src="assets/jobraker-logo.jpeg" alt="Jobraker logo" />
+        <div class="brand-text">JOBRAKER</div>
+        <h1>Stop applying. Start deploying.</h1>
+        <p>Your AI command center for getting hired.</p>
+        <div class="cta">Launch your job-search agent</div>
+      </div>
+    </div>
+
+    <style>
+      @font-face {
+        font-family: "Anton";
+        src: url("assets/fonts/Anton-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Sans";
+        src: url("assets/fonts/IBMPlexSans-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Sans";
+        src: url("assets/fonts/IBMPlexSans-SemiBold.ttf") format("truetype");
+        font-weight: 600;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-Medium.ttf") format("truetype");
+        font-weight: 500;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-SemiBold.ttf") format("truetype");
+        font-weight: 600;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-Bold.ttf") format("truetype");
+        font-weight: 700;
+        font-style: normal;
+        font-display: block;
+      }
+#success-cta {
+        --bg: #050706;
+        --fg: #f5fff8;
+        --muted: #8a938d;
+        --green: #00ff85;
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #050706;
+        color: var(--fg);
+        font-family: "IBM Plex Sans", sans-serif;
+      }
+
+      #success-cta .scene-root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at 50% 52%, rgba(0, 255, 133, 0.26), rgba(0, 255, 133, 0) 34%),
+          radial-gradient(circle at 50% 50%, rgba(245, 255, 248, 0.08), rgba(245, 255, 248, 0) 24%),
+          #050706;
+      }
+
+      #success-cta .success-grid {
+        position: absolute;
+        inset: 0;
+        opacity: 0.32;
+        background-image:
+          linear-gradient(90deg, rgba(0, 255, 133, 0.08) 1px, transparent 1px),
+          linear-gradient(rgba(0, 255, 133, 0.08) 1px, transparent 1px);
+        background-size: 84px 84px;
+      }
+
+      #success-cta .outcome-field {
+        position: absolute;
+        inset: 0;
+        perspective: 900px;
+      }
+
+      #success-cta .outcome {
+        position: absolute;
+        padding: 16px 20px;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 255, 133, 0.34);
+        background: rgba(12, 21, 16, 0.82);
+        color: #eafff2;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 22px;
+        font-weight: 600;
+        box-shadow: 0 20px 70px rgba(0, 0, 0, 0.36), 0 0 28px rgba(0, 255, 133, 0.12);
+      }
+
+      #success-cta .o1 { left: 116px; top: 142px; transform: rotate(-8deg); }
+      #success-cta .o2 { right: 138px; top: 166px; transform: rotate(7deg); }
+      #success-cta .o3 { left: 154px; bottom: 196px; transform: rotate(6deg); }
+      #success-cta .o4 { right: 174px; bottom: 218px; transform: rotate(-6deg); }
+      #success-cta .o5 { left: 720px; top: 78px; transform: rotate(2deg); }
+      #success-cta .o6 { right: 716px; bottom: 92px; transform: rotate(-2deg); }
+
+      #success-cta .lockup {
+        position: relative;
+        z-index: 8;
+        width: 1240px;
+        min-height: 700px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 52px 64px;
+        border-radius: 46px;
+        border: 1px solid rgba(245, 255, 248, 0.12);
+        background: linear-gradient(180deg, rgba(12, 21, 16, 0.78), rgba(5, 7, 6, 0.86));
+        box-shadow:
+          0 42px 140px rgba(0, 0, 0, 0.46),
+          0 0 130px rgba(0, 255, 133, 0.22),
+          inset 0 1px 0 rgba(245, 255, 248, 0.08);
+        overflow: hidden;
+      }
+
+      #success-cta .lockup-sheen {
+        position: absolute;
+        inset: -60%;
+        background: conic-gradient(from 0deg, rgba(0, 255, 133, 0), rgba(0, 255, 133, 0.28), rgba(0, 255, 133, 0));
+        opacity: 0.28;
+      }
+
+      #success-cta img {
+        position: relative;
+        z-index: 2;
+        width: 132px;
+        height: 132px;
+        object-fit: cover;
+        border-radius: 34px;
+        box-shadow: 0 0 60px rgba(0, 255, 133, 0.34);
+      }
+
+      #success-cta .brand-text {
+        position: relative;
+        z-index: 2;
+        margin-top: 20px;
+        color: var(--green);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: 0.3em;
+      }
+
+      #success-cta h1 {
+        position: relative;
+        z-index: 2;
+        max-width: 1040px;
+        margin-top: 18px;
+        font-family: "Anton", sans-serif;
+        font-size: 96px;
+        font-weight: 400;
+        line-height: 0.92;
+        letter-spacing: -0.035em;
+        text-transform: uppercase;
+      }
+
+      #success-cta p {
+        position: relative;
+        z-index: 2;
+        margin-top: 20px;
+        color: #d8e6dc;
+        font-size: 32px;
+        letter-spacing: -0.02em;
+      }
+
+      #success-cta .cta {
+        position: relative;
+        z-index: 2;
+        margin-top: 28px;
+        padding: 19px 30px;
+        border-radius: 999px;
+        background: var(--green);
+        color: #021108;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 22px;
+        font-weight: 700;
+        box-shadow: 0 0 44px rgba(0, 255, 133, 0.36);
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        window.__timelines = window.__timelines || {};
+        var tl = gsap.timeline({ paused: true });
+        tl.from(".outcome", {
+          opacity: 0,
+          x: function (i) { return [520, -520, 430, -430, 0, 0][i]; },
+          y: function (i) { return [280, 260, -240, -260, 420, -420][i]; },
+          scale: 0.32,
+          rotation: function (i) { return [-28, 26, 24, -20, 14, -14][i]; },
+          filter: "blur(8px)",
+          duration: 0.7,
+          stagger: { each: 0.08, from: "center" },
+          ease: "expo.out"
+        }, 0.18);
+        tl.from(".lockup", { opacity: 0, y: 82, scale: 0.92, filter: "blur(8px)", duration: 0.82, ease: "circ.out" }, 1.1);
+        tl.from(".lockup img", { opacity: 0, scale: 0.62, rotation: -10, duration: 0.54, ease: "back.out(1.7)" }, 1.48);
+        tl.from(".brand-text", { opacity: 0, y: 24, duration: 0.36, ease: "power3.out" }, 1.72);
+        tl.from("h1", { opacity: 0, y: 72, scale: 0.98, duration: 0.58, ease: "expo.out" }, 1.96);
+        tl.from("p", { opacity: 0, y: 28, duration: 0.42, ease: "circ.out" }, 2.44);
+        tl.from(".cta", { opacity: 0, y: 26, scale: 0.92, duration: 0.42, ease: "back.out(1.7)" }, 2.84);
+        tl.to(".lockup-sheen", { rotation: 90, duration: 3.0, ease: "none" }, 2.0);
+        tl.to(".success-grid", { scale: 1.05, opacity: 0.42, duration: 3.4, ease: "sine.inOut" }, 2.6);
+        tl.to(".cta", { scale: 1.025, duration: 0.32, yoyo: true, repeat: 1, ease: "sine.inOut" }, 4.0);
+        window.__timelines["success-cta"] = tl;
+      })();
+    </script>
+  </div>
+</template>

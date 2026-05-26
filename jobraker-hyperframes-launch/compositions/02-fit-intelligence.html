@@ -1,0 +1,419 @@
+﻿<template id="fit-intelligence-template">
+  <div id="fit-intelligence" data-composition-id="fit-intelligence" data-width="1920" data-height="1080" data-start="0" data-duration="8">
+    <div id="fit-intelligence-root" class="clip scene-root" data-start="0" data-duration="8" data-track-index="1">
+      <div class="ambient-glow" data-layout-ignore></div>
+      <header class="scene-header">
+        <div class="label">EXPLAINABLE FIT INTELLIGENCE</div>
+        <h1>Not vibes. Proof.</h1>
+        <p>Every match explained.</p>
+      </header>
+      <main class="fit-layout">
+        <section class="proof-panel profile-panel">
+          <div class="panel-top">
+            <span>Candidate Proof Graph</span>
+            <strong>live evidence</strong>
+          </div>
+          <div class="graph-stage">
+            <svg class="edge-map" viewBox="0 0 760 480" aria-hidden="true">
+              <path class="edge e1" d="M128 84 C260 80 280 176 396 190" />
+              <path class="edge e2" d="M130 204 C272 208 280 230 396 232" />
+              <path class="edge e3" d="M130 326 C270 324 284 282 396 274" />
+              <path class="edge e4" d="M520 190 C616 190 620 124 674 112" />
+              <path class="edge e5" d="M520 232 C610 232 628 242 674 250" />
+              <path class="edge e6" d="M520 274 C610 276 628 338 674 364" />
+            </svg>
+            <div class="node n-skill">Skills</div>
+            <div class="node n-project">Projects</div>
+            <div class="node n-evidence">Evidence</div>
+            <div class="node n-bullets">Resume bullets</div>
+            <div class="node n-react">React: 3 projects</div>
+            <div class="node n-supabase">Supabase auth</div>
+            <div class="node n-auto">Automation signal</div>
+          </div>
+        </section>
+        <section class="proof-panel job-panel">
+          <div class="panel-top">
+            <span>Role Requirements</span>
+            <strong>chunked scan</strong>
+          </div>
+          <div class="job-copy">
+            <div class="scan-chip">Frontend Engineer / Remote</div>
+            <p class="line match">Build React interfaces for AI workflows.</p>
+            <p class="line match">Ship production auth and data systems.</p>
+            <p class="line match">Automate operational processes.</p>
+            <p class="line weak">GraphQL experience preferred.</p>
+          </div>
+          <div class="score-card">
+            <div class="score-meta">
+              <span>Fit score</span>
+              <strong><span class="score-old">42%</span><span class="score-new">87%</span></strong>
+            </div>
+            <div class="score-rail"><div class="score-fill"></div></div>
+          </div>
+          <div class="microcards">
+            <div class="microcard">React: proven in 3 projects</div>
+            <div class="microcard">Supabase: shipped production auth</div>
+            <div class="microcard">Automation: relevant to role</div>
+            <div class="microcard weak">Missing: GraphQL, 1 weak signal</div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <style>
+      @font-face {
+        font-family: "Anton";
+        src: url("assets/fonts/Anton-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Sans";
+        src: url("assets/fonts/IBMPlexSans-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Sans";
+        src: url("assets/fonts/IBMPlexSans-SemiBold.ttf") format("truetype");
+        font-weight: 600;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-Medium.ttf") format("truetype");
+        font-weight: 500;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-SemiBold.ttf") format("truetype");
+        font-weight: 600;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-Bold.ttf") format("truetype");
+        font-weight: 700;
+        font-style: normal;
+        font-display: block;
+      }
+#fit-intelligence {
+        --bg: #050706;
+        --panel: rgba(12, 21, 16, 0.86);
+        --fg: #f5fff8;
+        --muted: #8a938d;
+        --green: #00ff85;
+        --green2: #00e676;
+        --warn: #ffb020;
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #050706;
+        color: var(--fg);
+        font-family: "IBM Plex Sans", sans-serif;
+      }
+
+      #fit-intelligence .scene-root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        padding: 76px 92px 84px;
+        display: flex;
+        flex-direction: column;
+        gap: 38px;
+        overflow: hidden;
+        background:
+          linear-gradient(90deg, rgba(0, 255, 133, 0.06) 1px, transparent 1px),
+          linear-gradient(rgba(0, 255, 133, 0.045) 1px, transparent 1px),
+          #050706;
+        background-size: 96px 96px;
+      }
+
+      #fit-intelligence .ambient-glow {
+        position: absolute;
+        right: -220px;
+        top: -260px;
+        width: 820px;
+        height: 820px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(0, 255, 133, 0.2), rgba(0, 255, 133, 0) 65%);
+        filter: blur(12px);
+      }
+
+      #fit-intelligence .scene-header {
+        position: relative;
+        z-index: 4;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: end;
+        column-gap: 48px;
+      }
+
+      #fit-intelligence .label {
+        grid-column: 1 / -1;
+        margin-bottom: 14px;
+        color: var(--muted);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 20px;
+        letter-spacing: 0.14em;
+      }
+
+      #fit-intelligence h1 {
+        font-family: "Anton", sans-serif;
+        font-size: 124px;
+        font-weight: 400;
+        line-height: 0.9;
+        letter-spacing: -0.035em;
+        text-transform: uppercase;
+      }
+
+      #fit-intelligence p {
+        color: var(--green);
+        font-size: 38px;
+        letter-spacing: -0.02em;
+      }
+
+      #fit-intelligence .fit-layout {
+        position: relative;
+        z-index: 3;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 34px;
+        min-height: 0;
+        flex: 1;
+      }
+
+      #fit-intelligence .proof-panel {
+        position: relative;
+        min-height: 0;
+        border: 1px solid rgba(245, 255, 248, 0.12);
+        border-radius: 30px;
+        background: linear-gradient(180deg, rgba(12, 21, 16, 0.92), rgba(5, 7, 6, 0.76));
+        box-shadow: 0 36px 110px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(245, 255, 248, 0.08);
+        overflow: hidden;
+      }
+
+      #fit-intelligence .panel-top {
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 28px;
+        border-bottom: 1px solid rgba(245, 255, 248, 0.08);
+        font-family: "IBM Plex Mono", monospace;
+        color: var(--muted);
+        font-size: 17px;
+      }
+
+      #fit-intelligence .panel-top strong {
+        color: var(--green);
+        font-weight: 600;
+      }
+
+      #fit-intelligence .graph-stage {
+        position: relative;
+        height: calc(100% - 64px);
+        min-height: 560px;
+      }
+
+      #fit-intelligence .edge-map {
+        position: absolute;
+        inset: 42px 32px 32px;
+        width: calc(100% - 64px);
+        height: calc(100% - 74px);
+        overflow: visible;
+      }
+
+      #fit-intelligence .edge {
+        fill: none;
+        stroke: rgba(0, 255, 133, 0.72);
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-dasharray: 520;
+        stroke-dashoffset: 520;
+        filter: drop-shadow(0 0 8px rgba(0, 255, 133, 0.5));
+      }
+
+      #fit-intelligence .node {
+        position: absolute;
+        min-width: 168px;
+        padding: 15px 18px;
+        border-radius: 18px;
+        border: 1px solid rgba(0, 255, 133, 0.24);
+        background: rgba(7, 10, 8, 0.86);
+        box-shadow: 0 18px 54px rgba(0, 0, 0, 0.32);
+        color: #eafff2;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      #fit-intelligence .n-skill { left: 74px; top: 70px; }
+      #fit-intelligence .n-project { left: 74px; top: 238px; }
+      #fit-intelligence .n-evidence { left: 74px; top: 406px; }
+      #fit-intelligence .n-bullets { left: 360px; top: 232px; }
+      #fit-intelligence .n-react { right: 58px; top: 102px; }
+      #fit-intelligence .n-supabase { right: 48px; top: 272px; }
+      #fit-intelligence .n-auto { right: 64px; top: 442px; }
+
+      #fit-intelligence .job-copy {
+        padding: 24px 28px 14px;
+      }
+
+      #fit-intelligence .scan-chip {
+        display: inline-flex;
+        margin-bottom: 14px;
+        padding: 9px 14px;
+        border-radius: 999px;
+        background: rgba(0, 255, 133, 0.12);
+        color: var(--green);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 17px;
+      }
+
+      #fit-intelligence .line {
+        position: relative;
+        margin: 9px 0;
+        padding: 13px 18px;
+        border-radius: 18px;
+        background: rgba(245, 255, 248, 0.055);
+        color: #dde7e0;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 21px;
+        line-height: 1.18;
+      }
+
+      #fit-intelligence .line.match {
+        box-shadow: inset 4px 0 0 var(--green);
+      }
+
+      #fit-intelligence .line.weak {
+        color: #ffdca4;
+        box-shadow: inset 4px 0 0 var(--warn);
+      }
+
+      #fit-intelligence .score-card {
+        margin: 2px 28px 18px;
+        padding: 20px;
+        border-radius: 24px;
+        border: 1px solid rgba(0, 255, 133, 0.2);
+        background: rgba(0, 255, 133, 0.06);
+      }
+
+      #fit-intelligence .score-meta {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        font-family: "IBM Plex Mono", monospace;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      #fit-intelligence .score-meta strong {
+        position: relative;
+        width: 170px;
+        height: 58px;
+        color: var(--green);
+        font-family: "Anton", sans-serif;
+        font-size: 58px;
+        font-weight: 400;
+        letter-spacing: -0.03em;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      #fit-intelligence .score-old,
+      #fit-intelligence .score-new {
+        position: absolute;
+        right: 0;
+        top: 0;
+      }
+
+      #fit-intelligence .score-new {
+        opacity: 0;
+      }
+
+      #fit-intelligence .score-rail {
+        height: 18px;
+        margin-top: 14px;
+        border-radius: 999px;
+        background: rgba(245, 255, 248, 0.1);
+        overflow: hidden;
+      }
+
+      #fit-intelligence .score-fill {
+        width: 87%;
+        height: 100%;
+        border-radius: inherit;
+        transform-origin: left center;
+        background: linear-gradient(90deg, #00ff85, #a7ffd3);
+        box-shadow: 0 0 24px rgba(0, 255, 133, 0.44);
+      }
+
+      #fit-intelligence .microcards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 0 28px 24px;
+      }
+
+      #fit-intelligence .microcard {
+        min-height: 58px;
+        padding: 13px 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(245, 255, 248, 0.1);
+        background: rgba(245, 255, 248, 0.045);
+        color: #f1fff4;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 16px;
+        line-height: 1.2;
+      }
+
+      #fit-intelligence .microcard.weak {
+        color: #ffdca4;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        window.__timelines = window.__timelines || {};
+        var tl = gsap.timeline({ paused: true });
+        tl.from(".scene-header .label", { opacity: 0, x: -38, duration: 0.38, ease: "power3.out" }, 0.16);
+        tl.from(".scene-header h1", { opacity: 0, y: 68, scale: 0.98, duration: 0.54, ease: "expo.out" }, 0.28);
+        tl.from(".scene-header p", { opacity: 0, x: 52, duration: 0.44, ease: "back.out(1.4)" }, 0.56);
+        tl.from(".proof-panel", { opacity: 0, y: 70, rotationX: -8, duration: 0.62, stagger: 0.12, ease: "circ.out" }, 0.76);
+        tl.from(".node", { opacity: 0, scale: 0.7, filter: "blur(6px)", duration: 0.36, stagger: { each: 0.07, from: "center" }, ease: "back.out(1.6)" }, 1.28);
+        tl.to(".edge", { strokeDashoffset: 0, duration: 0.78, stagger: 0.08, ease: "power2.inOut" }, 1.72);
+        tl.from(".line", { opacity: 0, x: 46, clipPath: "inset(0 100% 0 0)", duration: 0.48, stagger: 0.12, ease: "power4.out" }, 2.02);
+        tl.from(".score-card", { opacity: 0, y: 34, scale: 0.96, duration: 0.46, ease: "back.out(1.2)" }, 3.06);
+        tl.from(".score-fill", { scaleX: 0.48, duration: 1.2, ease: "expo.out" }, 3.32);
+        tl.to(".score-old", { opacity: 0, y: -28, duration: 0.26, ease: "power2.in" }, 3.54);
+        tl.fromTo(".score-new", { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: 0.42, ease: "back.out(1.7)" }, 3.68);
+        tl.from(".microcard", { opacity: 0, y: 30, scale: 0.94, duration: 0.38, stagger: 0.09, ease: "power3.out" }, 4.12);
+        tl.to(".ambient-glow", { scale: 1.22, x: -80, y: 56, duration: 4.6, ease: "sine.inOut" }, 1.2);
+        window.__timelines["fit-intelligence"] = tl;
+      })();
+    </script>
+  </div>
+</template>

@@ -1,0 +1,380 @@
+﻿<template id="cold-open-template">
+  <div id="cold-open" data-composition-id="cold-open" data-width="1920" data-height="1080" data-start="0" data-duration="5">
+    <div id="cold-open-root" class="clip scene-root" data-start="0" data-duration="5" data-track-index="1">
+      <div class="grid-layer" data-layout-ignore></div>
+      <div class="vortex" data-layout-ignore>
+        <div class="vortex-ring ring-1"></div>
+        <div class="vortex-ring ring-2"></div>
+        <div class="vortex-core"></div>
+      </div>
+      <div class="resume-pdf">
+        <div class="pdf-top">RESUME.PDF</div>
+        <div class="pdf-name">MILES A.</div>
+        <div class="pdf-line w1"></div>
+        <div class="pdf-line w2"></div>
+        <div class="pdf-line w3"></div>
+        <div class="pdf-pill">OPEN TO WORK</div>
+      </div>
+      <div id="rejection-field" class="rejection-field" data-layout-ignore></div>
+      <div class="hook-copy">
+        <div class="eyebrow">ATS EVENT HORIZON / 500 APPLICANTS</div>
+        <h1 class="hook-main">Your resume is getting ignored by robots.</h1>
+        <h2 class="hook-reveal">So we built one to fight back.</h2>
+      </div>
+      <div class="signal-readout" data-layout-ignore>
+        <span>ROBOT FILTER</span>
+        <strong>ACTIVE</strong>
+      </div>
+    </div>
+
+    <style>
+      @font-face {
+        font-family: "Anton";
+        src: url("assets/fonts/Anton-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Sans";
+        src: url("assets/fonts/IBMPlexSans-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Sans";
+        src: url("assets/fonts/IBMPlexSans-SemiBold.ttf") format("truetype");
+        font-weight: 600;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-Medium.ttf") format("truetype");
+        font-weight: 500;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-SemiBold.ttf") format("truetype");
+        font-weight: 600;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-Bold.ttf") format("truetype");
+        font-weight: 700;
+        font-style: normal;
+        font-display: block;
+      }
+#cold-open {
+        --bg: #050706;
+        --panel: #0c1510;
+        --fg: #f5fff8;
+        --muted: #8a938d;
+        --green: #00ff85;
+        --red: #ff4d4d;
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: "IBM Plex Sans", sans-serif;
+      }
+
+      #cold-open .scene-root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 50% 44%, rgba(0, 255, 133, 0.1), rgba(0, 255, 133, 0) 34%),
+          radial-gradient(circle at 50% 50%, rgba(255, 77, 77, 0.08), rgba(255, 77, 77, 0) 28%),
+          #050706;
+      }
+
+      #cold-open .grid-layer {
+        position: absolute;
+        inset: 0;
+        opacity: 0.22;
+        background-image:
+          linear-gradient(rgba(245, 255, 248, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(245, 255, 248, 0.05) 1px, transparent 1px);
+        background-size: 80px 80px;
+        transform: perspective(900px) rotateX(58deg) translateY(210px) scale(1.4);
+        transform-origin: center bottom;
+      }
+
+      #cold-open .vortex {
+        position: absolute;
+        left: 50%;
+        top: 47%;
+        width: 560px;
+        height: 560px;
+        margin-left: -280px;
+        margin-top: -280px;
+        border-radius: 50%;
+        filter: drop-shadow(0 0 70px rgba(0, 255, 133, 0.16));
+      }
+
+      #cold-open .vortex-ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 1px solid rgba(0, 255, 133, 0.26);
+        background: conic-gradient(from 40deg, rgba(0, 255, 133, 0.34), rgba(255, 77, 77, 0.14), rgba(0, 0, 0, 0), rgba(0, 255, 133, 0.34));
+        mask-image: radial-gradient(circle, transparent 0 42%, #000 45% 100%);
+      }
+
+      #cold-open .ring-2 {
+        inset: 84px;
+        opacity: 0.74;
+        transform: rotate(23deg);
+      }
+
+      #cold-open .vortex-core {
+        position: absolute;
+        inset: 190px;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle, #000 0 42%, rgba(0, 255, 133, 0.14) 43% 58%, rgba(0, 0, 0, 0) 59%),
+          #020302;
+        box-shadow:
+          inset 0 0 60px rgba(0, 0, 0, 0.94),
+          0 0 90px rgba(0, 255, 133, 0.2);
+      }
+
+      #cold-open .resume-pdf {
+        position: absolute;
+        left: 50%;
+        top: 45%;
+        width: 238px;
+        height: 310px;
+        padding: 28px;
+        margin-left: -119px;
+        margin-top: -155px;
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(16, 28, 21, 0.98), rgba(6, 11, 8, 0.96));
+        color: #f5fff8;
+        box-shadow:
+          0 32px 90px rgba(0, 0, 0, 0.52),
+          0 0 0 1px rgba(0, 255, 133, 0.26),
+          0 0 48px rgba(0, 255, 133, 0.12);
+        z-index: 8;
+      }
+
+      #cold-open .pdf-top {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+      }
+
+      #cold-open .pdf-name {
+        margin-top: 34px;
+        font-family: "Anton", sans-serif;
+        font-size: 39px;
+        letter-spacing: 0.01em;
+      }
+
+      #cold-open .pdf-line {
+        height: 10px;
+        margin-top: 18px;
+        border-radius: 20px;
+        background: rgba(0, 255, 133, 0.18);
+      }
+
+      #cold-open .pdf-line.w1 { width: 100%; }
+      #cold-open .pdf-line.w2 { width: 74%; }
+      #cold-open .pdf-line.w3 { width: 88%; }
+
+      #cold-open .pdf-pill {
+        position: absolute;
+        left: 28px;
+        bottom: 26px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(0, 255, 133, 0.14);
+        color: #9affc8;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      #cold-open .rejection-field {
+        position: absolute;
+        inset: 0;
+        z-index: 12;
+        perspective: 900px;
+      }
+
+      #cold-open .reject-card {
+        position: absolute;
+        width: 212px;
+        padding: 16px 18px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 77, 77, 0.34);
+        background: rgba(18, 12, 12, 0.88);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.36);
+        color: #ffe9e9;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        will-change: transform, opacity, filter;
+      }
+
+      #cold-open .reject-card::before {
+        content: "";
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        margin-right: 10px;
+        border-radius: 50%;
+        background: var(--red);
+        box-shadow: 0 0 16px rgba(255, 77, 77, 0.8);
+        vertical-align: middle;
+      }
+
+      #cold-open .hook-copy {
+        position: absolute;
+        left: 108px;
+        right: 108px;
+        bottom: 86px;
+        z-index: 24;
+      }
+
+      #cold-open .eyebrow {
+        margin-bottom: 16px;
+        color: var(--muted);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 22px;
+        letter-spacing: 0.12em;
+      }
+
+      #cold-open .hook-main,
+      #cold-open .hook-reveal {
+        max-width: 1480px;
+        font-family: "Anton", sans-serif;
+        font-weight: 400;
+        line-height: 0.92;
+        letter-spacing: -0.035em;
+        text-transform: uppercase;
+      }
+
+      #cold-open .hook-main {
+        font-size: 126px;
+        text-shadow: 0 0 40px rgba(255, 77, 77, 0.16);
+      }
+
+      #cold-open .hook-reveal {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        color: var(--green);
+        font-size: 144px;
+        text-shadow: 0 0 50px rgba(0, 255, 133, 0.38);
+      }
+
+      #cold-open .signal-readout {
+        position: absolute;
+        right: 96px;
+        top: 74px;
+        z-index: 20;
+        padding: 16px 20px;
+        border: 1px solid rgba(255, 77, 77, 0.34);
+        border-radius: 999px;
+        background: rgba(10, 10, 10, 0.54);
+        font-family: "IBM Plex Mono", monospace;
+        color: var(--muted);
+        backdrop-filter: blur(14px);
+      }
+
+      #cold-open .signal-readout strong {
+        margin-left: 14px;
+        color: var(--red);
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        window.__timelines = window.__timelines || {};
+        var root = document.querySelector('#cold-open');
+        var field = root.querySelector("#rejection-field");
+        var labels = ["Viewed", "Not selected", "Role closed", "ATS rejected", "Ghosted", "500 applicants", "Low match", "Auto archived"];
+        var positions = [
+          [-160, 210], [1740, 158], [70, 740], [1540, 760], [330, 82], [1220, 122], [150, 430], [1440, 398],
+          [540, 855], [1070, 820], [760, 96], [1660, 555], [420, 610], [1260, 620], [900, 900], [1020, 210],
+          [250, 890], [1780, 880], [610, 260], [1290, 270], [60, 130], [1510, 96], [810, 700], [1050, 680],
+          [300, 330], [1580, 300], [690, 465], [1160, 455], [520, 720], [1370, 725], [880, 80], [970, 900],
+          [210, 610], [1685, 690], [470, 180], [1420, 188], [735, 840], [1165, 860], [830, 320], [1058, 350]
+        ];
+
+        positions.forEach(function (point, i) {
+          var card = document.createElement("div");
+          card.className = "reject-card";
+          card.textContent = labels[i % labels.length];
+          card.style.left = point[0] + "px";
+          card.style.top = point[1] + "px";
+          card.style.transform = "rotate(" + ((i % 9) * 7 - 28) + "deg)";
+          field.appendChild(card);
+        });
+
+        var cards = root.querySelectorAll(".reject-card");
+        var tl = gsap.timeline({ paused: true });
+        tl.addLabel("pdf", 0.12);
+        tl.from(".resume-pdf", { opacity: 0, y: 26, scale: 0.72, rotation: -4, duration: 0.52, ease: "back.out(1.8)" }, "pdf");
+        tl.from(".vortex", { opacity: 0, scale: 0.42, filter: "blur(12px)", duration: 0.62, ease: "circ.out" }, 0.16);
+        tl.from(".eyebrow", { opacity: 0, x: -34, duration: 0.34, ease: "power3.out" }, 0.36);
+        tl.from(".hook-main", { opacity: 0, y: 84, skewX: -4, duration: 0.48, ease: "expo.out" }, 0.54);
+        tl.from(cards, {
+          opacity: 0,
+          scale: 0.42,
+          z: -260,
+          rotationX: -38,
+          filter: "blur(8px)",
+          duration: 0.45,
+          stagger: { each: 0.035, from: "edges" },
+          ease: "back.out(1.2)"
+        }, 0.7);
+        tl.to(".vortex-ring", { rotation: 220, scale: 0.88, duration: 3.0, ease: "none", stagger: 0.08 }, 0.85);
+        tl.to(cards, {
+          x: function (i) { return 860 - positions[i][0]; },
+          y: function (i) { return 430 - positions[i][1]; },
+          scale: function (i) { return 0.16 + (i % 4) * 0.02; },
+          rotation: function (i) { return (i % 2 ? 260 : -260); },
+          opacity: 0.18,
+          filter: "blur(2px)",
+          duration: 1.1,
+          stagger: { each: 0.012, from: "center" },
+          ease: "power4.in"
+        }, 2.7);
+        tl.to(".resume-pdf", { scale: 0.08, rotation: 34, opacity: 0.05, filter: "blur(4px)", duration: 0.74, ease: "power4.in" }, 3.18);
+        tl.to(".hook-main", { x: 14, skewX: 8, color: "#ff4d4d", duration: 0.08, ease: "none" }, 3.86);
+        tl.to(".hook-main", { x: -12, skewX: -8, color: "#f5fff8", duration: 0.08, ease: "none" }, 3.94);
+        tl.to(".hook-main", { opacity: 0, y: -18, filter: "blur(8px)", duration: 0.18, ease: "power2.in" }, 4.04);
+        tl.from(".hook-reveal", { opacity: 0, y: 72, scale: 0.94, skewX: -8, filter: "blur(8px)", duration: 0.48, ease: "expo.out" }, 4.1);
+        tl.to(".signal-readout", { borderColor: "rgba(0,255,133,0.62)", color: "#00ff85", duration: 0.28, ease: "power2.out" }, 4.16);
+        window.__timelines["cold-open"] = tl;
+      })();
+    </script>
+  </div>
+</template>

@@ -1,0 +1,192 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Jobraker Launch - Stop Applying. Start Deploying.</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+            * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #050706;
+      }
+
+      #jobraker-launch-root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #050706;
+      }
+
+      #jobraker-launch-root > div[data-composition-id] {
+        position: absolute;
+        inset: 0;
+      }
+
+      .transition-wipe {
+        position: absolute;
+        inset: 0;
+        z-index: 90;
+        pointer-events: none;
+        overflow: hidden;
+      }
+
+      .transition-wipe .wipe-a,
+      .transition-wipe .wipe-b,
+      .transition-wipe .wipe-glow {
+        position: absolute;
+        inset: -8% -12%;
+        transform-origin: left center;
+        will-change: transform, opacity, filter;
+      }
+
+      .transition-wipe .wipe-a {
+        background: #00ff85;
+        box-shadow: 0 0 120px rgba(0, 255, 133, 0.5);
+      }
+
+      .transition-wipe .wipe-b {
+        background: #07140c;
+        border-top: 1px solid rgba(245, 255, 248, 0.12);
+        border-bottom: 1px solid rgba(245, 255, 248, 0.12);
+      }
+
+      .transition-wipe .wipe-glow {
+        background: radial-gradient(circle at 50% 50%, rgba(0, 255, 133, 0.42), rgba(0, 255, 133, 0));
+        mix-blend-mode: screen;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="jobraker-launch-root"
+      data-composition-id="jobraker-launch"
+      data-start="0"
+      data-duration="42"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div
+        id="scene-cold-open"
+        class="clip"
+        data-composition-id="cold-open"
+        data-composition-src="compositions/00-cold-open.html"
+        data-start="0"
+        data-duration="5"
+        data-width="1920"
+        data-height="1080"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="scene-agent-command"
+        class="clip"
+        data-composition-id="agent-command"
+        data-composition-src="compositions/01-agent-command.html"
+        data-start="5"
+        data-duration="6"
+        data-width="1920"
+        data-height="1080"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="scene-fit-intelligence"
+        class="clip"
+        data-composition-id="fit-intelligence"
+        data-composition-src="compositions/02-fit-intelligence.html"
+        data-start="11"
+        data-duration="8"
+        data-width="1920"
+        data-height="1080"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="scene-direct-apply"
+        class="clip"
+        data-composition-id="direct-apply"
+        data-composition-src="compositions/03-direct-apply.html"
+        data-start="19"
+        data-duration="8"
+        data-width="1920"
+        data-height="1080"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="scene-agent50"
+        class="clip"
+        data-composition-id="agent50"
+        data-composition-src="compositions/04-agent50.html"
+        data-start="27"
+        data-duration="8"
+        data-width="1920"
+        data-height="1080"
+        data-track-index="1"
+      ></div>
+
+      <div
+        id="scene-success-cta"
+        class="clip"
+        data-composition-id="success-cta"
+        data-composition-src="compositions/05-success-cta.html"
+        data-start="35"
+        data-duration="7"
+        data-width="1920"
+        data-height="1080"
+        data-track-index="1"
+      ></div>
+
+      <div id="transition-01" class="clip transition-wipe" data-start="4.72" data-duration="0.52" data-track-index="20" data-layout-allow-overflow>
+        <div class="wipe-a"></div>
+        <div class="wipe-b"></div>
+        <div class="wipe-glow"></div>
+      </div>
+      <div id="transition-02" class="clip transition-wipe" data-start="10.72" data-duration="0.52" data-track-index="21" data-layout-allow-overflow>
+        <div class="wipe-a"></div>
+        <div class="wipe-b"></div>
+        <div class="wipe-glow"></div>
+      </div>
+      <div id="transition-03" class="clip transition-wipe" data-start="18.72" data-duration="0.52" data-track-index="22" data-layout-allow-overflow>
+        <div class="wipe-a"></div>
+        <div class="wipe-b"></div>
+        <div class="wipe-glow"></div>
+      </div>
+      <div id="transition-04" class="clip transition-wipe" data-start="26.72" data-duration="0.52" data-track-index="23" data-layout-allow-overflow>
+        <div class="wipe-a"></div>
+        <div class="wipe-b"></div>
+        <div class="wipe-glow"></div>
+      </div>
+      <div id="transition-05" class="clip transition-wipe" data-start="34.72" data-duration="0.52" data-track-index="24" data-layout-allow-overflow>
+        <div class="wipe-a"></div>
+        <div class="wipe-b"></div>
+        <div class="wipe-glow"></div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        const masterTL = gsap.timeline({ paused: true });
+        ["01", "02", "03", "04", "05"].forEach(function (id, index) {
+          var start = [4.72, 10.72, 18.72, 26.72, 34.72][index];
+          var root = "#transition-" + id;
+          masterTL.fromTo(root + " .wipe-a", { xPercent: -120, skewX: -14 }, { xPercent: 120, skewX: -14, duration: 0.44, ease: "expo.inOut" }, start);
+          masterTL.fromTo(root + " .wipe-b", { xPercent: -150, skewX: -10 }, { xPercent: 115, skewX: -10, duration: 0.5, ease: "power4.inOut" }, start + 0.02);
+          masterTL.fromTo(root + " .wipe-glow", { opacity: 0, scaleX: 0.4 }, { opacity: 1, scaleX: 1.3, duration: 0.22, ease: "power2.out" }, start + 0.08);
+          masterTL.to(root + " .wipe-glow", { opacity: 0, duration: 0.18, ease: "sine.in" }, start + 0.28);
+        });
+        window.__timelines["jobraker-launch"] = masterTL;
+      </script>
+    </div>
+  </body>
+</html>
