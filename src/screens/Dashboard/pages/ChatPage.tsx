@@ -100,9 +100,7 @@ import {
   Brain,
   CheckCircle2,
   Clock3,
-  Loader2,
   ReceiptText,
-  Wrench,
   AlertTriangle,
   ListChecks,
 } from "lucide-react";
@@ -516,139 +514,101 @@ const AgentWorkTimeline = ({
   const toolCalls = message.toolCalls || [];
   const agentEvents = message.agentEvents || [];
   const hasTimeline = toolCalls.length > 0 || agentEvents.length > 0;
-  const visibleEvents = agentEvents.slice(-10);
-  const visibleTools = toolCalls.slice(-12);
+  const visibleEvents = agentEvents
+    .filter(
+      (event) =>
+        event.kind === "thinking" ||
+        event.kind === "billing" ||
+        event.kind === "limit" ||
+        event.kind === "error",
+    )
+    .slice(-3);
+  const visibleTools = toolCalls.slice(-8);
+  const hiddenStepCount =
+    Math.max(0, agentEvents.length - visibleEvents.length) +
+    Math.max(0, toolCalls.length - visibleTools.length);
 
   if (!hasTimeline && !message.streaming) return null;
 
-  const latestRunningTool = [...toolCalls]
-    .reverse()
-    .find((entry) => entry.status === "running");
+  const compactRowClass =
+    "flex max-w-full items-center gap-2 rounded-lg border border-brand/10 bg-brand/5 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground";
 
   return (
-    <div className='mb-3 overflow-hidden rounded-xl border border-brand/15 bg-black/20'>
-      <div className='flex items-center justify-between gap-3 border-b border-brand/10 px-3 py-2'>
-        <div className='flex min-w-0 items-center gap-2'>
-          <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-brand/10 text-brand'>
-            {message.streaming ? (
-              <Loader2 className='h-3.5 w-3.5 animate-spin' />
-            ) : (
-              <ListChecks className='h-3.5 w-3.5' />
-            )}
-          </div>
-          <div className='min-w-0'>
-            <p className='text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground'>
-              Working process
-            </p>
-            <p className='truncate text-[11px] text-muted-foreground'>
-              {message.streaming
-                ? latestRunningTool
-                  ? toolDisplayName(
-                      latestRunningTool.name,
-                      latestRunningTool.args,
-                    )
-                  : `Thinking... ${elapsedLabel}`
-                : `${toolCalls.length} tool${toolCalls.length === 1 ? "" : "s"} used`}
-            </p>
-          </div>
+    <div className='mb-3 space-y-1.5'>
+      {!hasTimeline && message.streaming && (
+        <div className={compactRowClass}>
+          <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-brand animate-pulse' />
+          <span className='truncate'>Thinking... {elapsedLabel}</span>
         </div>
-        {message.streaming && (
-          <span className='shrink-0 rounded-full border border-brand/20 bg-brand/10 px-2 py-1 text-[10px] font-medium text-brand'>
-            {elapsedLabel}
-          </span>
-        )}
-      </div>
+      )}
 
-      <div className='space-y-1.5 px-3 py-2'>
-        {!hasTimeline && message.streaming && (
-          <div className='flex gap-2 text-[12px] text-muted-foreground'>
-            <Brain className='mt-0.5 h-3.5 w-3.5 shrink-0 text-brand' />
-            <div>
-              <p className='font-medium text-foreground'>
-                Thinking through the task
-              </p>
-              <p className='text-[11px]'>
-                Reading the request and deciding the next tool step.
-              </p>
-            </div>
+      {visibleEvents.map((event) => {
+        const Icon =
+          event.kind === "billing"
+            ? ReceiptText
+            : event.kind === "thinking"
+              ? Brain
+              : event.kind === "limit"
+                ? Clock3
+                : event.status === "error"
+                  ? AlertTriangle
+                  : CheckCircle2;
+
+        return (
+          <div key={event.id} className={compactRowClass}>
+            <Icon
+              className={`h-3.5 w-3.5 shrink-0 ${
+                event.status === "error" ? "text-red-400" : "text-brand"
+              }`}
+            />
+            <span className='truncate'>
+              {event.kind === "thinking" && event.detail
+                ? `Thinking: ${event.detail}`
+                : event.detail
+                  ? `${event.title} - ${event.detail}`
+                  : event.title}
+            </span>
           </div>
-        )}
+        );
+      })}
 
-        {visibleEvents.map((event) => {
-          const Icon =
-            event.kind === "billing"
-              ? ReceiptText
-              : event.kind === "thinking"
-                ? Brain
-                : event.kind === "limit"
-                  ? Clock3
-                  : event.status === "error"
-                    ? AlertTriangle
-                    : event.status === "running"
-                      ? Loader2
-                      : CheckCircle2;
-          return (
-            <div key={event.id} className='flex gap-2 text-[12px]'>
-              <Icon
-                className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${
-                  event.status === "error"
-                    ? "text-red-400"
-                    : event.status === "running"
-                      ? "animate-spin text-brand"
-                      : "text-brand"
-                }`}
-              />
-              <div className='min-w-0'>
-                <p className='text-foreground'>{event.title}</p>
-                {event.detail && (
-                  <p className='text-[11px] text-muted-foreground'>
-                    {event.detail}
-                  </p>
-                )}
-              </div>
-            </div>
-          );
-        })}
+      {visibleTools.map((tool) => {
+        const duration = formatActivityDuration(tool.startedAt, tool.finishedAt);
+        const resultSummary = summarizeToolResult(tool);
+        const label = [
+          toolDisplayName(tool.name, tool.args),
+          resultSummary,
+          duration,
+        ]
+          .filter(Boolean)
+          .join(" - ");
 
-        {visibleTools.map((tool) => {
-          const duration = formatActivityDuration(
-            tool.startedAt,
-            tool.finishedAt,
-          );
-          const resultSummary = summarizeToolResult(tool);
-          return (
-            <div
-              key={tool.id || `${tool.name}-${tool.startedAt || ""}`}
-              className='flex gap-2 text-[12px]'
-            >
-              {tool.status === "running" ? (
-                <Loader2 className='mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-brand' />
-              ) : tool.status === "error" ? (
-                <AlertTriangle className='mt-0.5 h-3.5 w-3.5 shrink-0 text-red-400' />
-              ) : (
-                <Wrench className='mt-0.5 h-3.5 w-3.5 shrink-0 text-brand' />
-              )}
-              <div className='min-w-0 flex-1'>
-                <div className='flex flex-wrap items-center gap-1.5'>
-                  <p className='text-foreground'>
-                    {toolDisplayName(tool.name, tool.args)}
-                  </p>
-                  {duration && (
-                    <span className='rounded-full border border-border/70 px-1.5 py-0.5 text-[10px] text-muted-foreground'>
-                      {duration}
-                    </span>
-                  )}
-                </div>
-                {resultSummary && (
-                  <p className='text-[11px] text-muted-foreground'>
-                    {resultSummary}
-                  </p>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+        return (
+          <div
+            key={tool.id || `${tool.name}-${tool.startedAt || ""}`}
+            className={compactRowClass}
+          >
+            {tool.status === "running" ? (
+              <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-brand animate-pulse' />
+            ) : tool.status === "error" ? (
+              <AlertTriangle className='h-3.5 w-3.5 shrink-0 text-red-400' />
+            ) : (
+              <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-brand' />
+            )}
+            <span className='truncate'>{label}</span>
+          </div>
+        );
+      })}
+
+      {hiddenStepCount > 0 && (
+        <div className={compactRowClass}>
+          <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
+          <span className='truncate'>
+            +{hiddenStepCount} earlier working step
+            {hiddenStepCount === 1 ? "" : "s"}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
