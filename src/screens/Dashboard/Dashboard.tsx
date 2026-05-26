@@ -857,18 +857,21 @@ export const Dashboard = (): JSX.Element => {
               </Button>
 
               {/* Logo and Brand on mobile */}
-              <div className='flex sm:hidden items-center gap-2 shrink-0'>
-                <div className='w-7 h-7 rounded-lg flex items-center justify-center shrink-0 overflow-clip'>
-                  <img
-                    src='/logo/logo.jpeg'
-                    className='object-cover w-full h-full'
-                    alt='logo'
-                  />
+              {currentPage === "overview" ? (
+                <div className='flex sm:hidden items-center shrink-0'>
+                  <div className='w-7 h-7 rounded-lg flex items-center justify-center shrink-0 overflow-clip'>
+                    <img
+                      src='/logo/logo.jpeg'
+                      className='object-cover w-full h-full'
+                      alt='logo'
+                    />
+                  </div>
                 </div>
-                <span className='font-bold text-sm leading-none tracking-tight text-foreground'>
-                  JobRaker
+              ) : (
+                <span className='sm:hidden text-foreground font-bold text-lg leading-none tracking-tight truncate max-w-[14rem]'>
+                  {getCurrentBreadcrumb().split(" / ").slice(-1)[0]}
                 </span>
-              </div>
+              )}
 
               {/* Breadcrumb Navigation (sm+) */}
               <div className='hidden sm:flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm lg:text-base min-w-0 whitespace-nowrap overflow-hidden'>

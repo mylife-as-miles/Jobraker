@@ -190,11 +190,18 @@ type MatchScoreRequestJob = {
   };
 };
 
-const MATCH_SCORE_BATCH_SIZE = 10;
+const MATCH_SCORE_BATCH_SIZE = 50;
 const MATCH_SCORE_TEXT_LIMIT = 6_000;
 const MATCH_SCORE_META_LIMIT = 500;
 const MATCH_SCORE_LIST_LIMIT = 25;
+const MATCH_SCORE_CACHE_TTL_MS = 5 * 60_000;
 const AUTO_APPLY_RATE_LIMIT_WAIT_MS = 65_000;
+
+const matchInsightResultCache = new Map<
+  string,
+  { expiresAt: number; jobs: Job[] }
+>();
+const matchInsightInFlight = new Map<string, Promise<Job[]>>();
 
 const sleep = (ms: number) =>
   new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -328,6 +335,22 @@ const buildMatchScoreContext = (
     : null,
 });
 
+const buildMatchInsightCacheKey = (
+  jobs: Job[],
+  context: MatchContext,
+  enabled: boolean,
+) =>
+  JSON.stringify({
+    enabled,
+    context: buildMatchScoreContext(context),
+    jobs: jobs.map((job) => ({
+      id: job.id,
+      title: compactText(job.title, MATCH_SCORE_META_LIMIT),
+      company: compactText(job.company, MATCH_SCORE_META_LIMIT),
+      updated_at: (job as any).updated_at ?? null,
+    })),
+  });
+
 const fetchJobMatchInsights = async (
   jobs: Job[],
   context: MatchContext,
@@ -344,46 +367,46 @@ const fetchJobMatchInsights = async (
     }));
   }
 
-  try {
+  const jobsNeedingScore = jobs.filter(
+    (job) => typeof job.matchScore !== "number",
+  );
+  if (jobsNeedingScore.length === 0) return jobs;
+
+  const jobsToScore = jobsNeedingScore.slice(0, MATCH_SCORE_BATCH_SIZE);
+  const cacheKey = buildMatchInsightCacheKey(jobs, context, enabled);
+  const cached = matchInsightResultCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.jobs;
+  }
+
+  const inFlight = matchInsightInFlight.get(cacheKey);
+  if (inFlight) return inFlight;
+
+  const request = (async () => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session?.access_token) return jobs;
 
-    const compactJobs = jobs.map(buildMatchScoreRequestJob);
+    // The edge function accepts up to 50 jobs per request. Keeping this to a
+    // single request prevents repeated page decoration from tripping rate limits.
+    const compactJobs = jobsToScore.map(buildMatchScoreRequestJob);
     const compactContext = buildMatchScoreContext(context);
-    const results: Array<{
-      id?: string;
-      score?: number;
-      breakdown?: MatchScoreBreakdown[];
-      summary?: string;
-    }> = [];
+    const data = await invokeProtectedFunction<{
+      results?: Array<{
+        id?: string;
+        score?: number;
+        breakdown?: MatchScoreBreakdown[];
+        summary?: string;
+      }>;
+    }>("calculate-match-score", {
+      body: {
+        jobs: compactJobs,
+        context: compactContext,
+      },
+    });
 
-    for (
-      let index = 0;
-      index < compactJobs.length;
-      index += MATCH_SCORE_BATCH_SIZE
-    ) {
-      const batch = compactJobs.slice(index, index + MATCH_SCORE_BATCH_SIZE);
-      const data = await invokeProtectedFunction<{
-        results?: Array<{
-          id?: string;
-          score?: number;
-          breakdown?: MatchScoreBreakdown[];
-          summary?: string;
-        }>;
-      }>("calculate-match-score", {
-        body: {
-          jobs: batch,
-          context: compactContext,
-        },
-      });
-
-      if (Array.isArray(data?.results)) {
-        results.push(...data.results);
-      }
-    }
-
+    const results = Array.isArray(data?.results) ? data.results : [];
     if (!results.length) return jobs;
 
     // Map insights back to jobs
@@ -404,10 +427,23 @@ const fetchJobMatchInsights = async (
       }
       return j;
     });
+  })();
+
+  matchInsightInFlight.set(cacheKey, request);
+
+  try {
+    const decorated = await request;
+    matchInsightResultCache.set(cacheKey, {
+      expiresAt: Date.now() + MATCH_SCORE_CACHE_TTL_MS,
+      jobs: decorated,
+    });
+    return decorated;
   } catch (err) {
     console.error("fetchJobMatchInsights error:", err);
     if (onError) onError(err);
     return jobs; // Fallback to raw jobs if scoring fails
+  } finally {
+    matchInsightInFlight.delete(cacheKey);
   }
 };
 
