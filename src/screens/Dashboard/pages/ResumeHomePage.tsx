@@ -257,12 +257,12 @@ export const ResumeHomePage = () => {
             <motion.div
               key={resume.id}
               whileHover={{ y: -5 }}
-              className='aspect-[3/4] rounded-xl bg-foreground/5 border overflow-hidden group transition-all relative flex flex-col'
+              className='rounded-xl bg-foreground/5 border overflow-hidden group transition-all relative flex flex-col'
             >
               {/* Preview Area (Top 2/3) */}
               <div
                 onClick={() => handleEdit(resume, displayName)}
-                className='flex-1 relative cursor-pointer overflow-hidden'
+                className='relative cursor-pointer overflow-hidden aspect-[794/1123]'
               >
                 {/* Mini Resume Preview */}
                 <ResumePreviewCard
