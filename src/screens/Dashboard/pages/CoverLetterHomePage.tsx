@@ -159,7 +159,41 @@ export const CoverLetterHomePage = () => {
   };
 
   return (
-    <div className={`product-page-shell flex flex-col h-full bg-background text-foreground overflow-y-auto ${isMobile ? "p-4 pb-20" : "p-8"}`}>
+    <div className={`product-page-shell flex flex-col h-full bg-background text-foreground overflow-y-auto ${isMobile ? "p-4 pb-6" : "p-8"}`}>
+      {isMobile && (
+        <div className="sticky top-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border/40 p-2 flex justify-center -mx-4 -mt-4 mb-6 shrink-0">
+          <div className="relative flex p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md w-full max-w-[340px]">
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/chat?tab=chat")}
+              className="relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-full text-muted-foreground hover:text-foreground transition-all duration-300"
+            >
+              <MessageSquare size={13} />
+              <span>Chat</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/chat?tab=history")}
+              className="relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-full text-muted-foreground hover:text-foreground transition-all duration-300"
+            >
+              <History size={13} />
+              <span>History</span>
+            </button>
+            <button
+              type="button"
+              className="relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-full text-background transition-all duration-300"
+            >
+              <motion.div
+                layoutId="activeCoverLetterTab"
+                className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              />
+              <FileText size={13} />
+              <span>Letter</span>
+            </button>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className='flex items-center justify-between mb-8'>
         <div>
@@ -413,36 +447,6 @@ export const CoverLetterHomePage = () => {
         cancelText='Cancel'
       />
 
-      {/* Mobile Bottom Tab Navigation */}
-      {isMobile && (
-        <div className='fixed bottom-0 left-0 right-0 z-50 bg-background/95 border-t border-border/40 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex h-16 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]'>
-          <button
-            type='button'
-            onClick={() => navigate("/dashboard/chat?tab=chat")}
-            className='flex-1 flex flex-col items-center justify-center gap-1 transition-colors text-muted-foreground'
-          >
-            <MessageSquare className='w-5 h-5' />
-            <span className='text-[11px] font-medium'>Chat</span>
-          </button>
-          <div className='w-px bg-border/40 my-3' />
-          <button
-            type='button'
-            onClick={() => navigate("/dashboard/chat?tab=history")}
-            className='flex-1 flex flex-col items-center justify-center gap-1 transition-colors text-muted-foreground'
-          >
-            <History className='w-5 h-5' />
-            <span className='text-[11px] font-medium'>History</span>
-          </button>
-          <div className='w-px bg-border/40 my-3' />
-          <button
-            type='button'
-            className='flex-1 flex flex-col items-center justify-center gap-1 transition-colors text-brand bg-brand/5'
-          >
-            <FileText className='w-5 h-5' />
-            <span className='text-[11px] font-medium'>Cover Letter</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 };
