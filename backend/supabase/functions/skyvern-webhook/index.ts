@@ -8,8 +8,19 @@ const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 function hasValidWebhookSecret(req: Request): boolean {
-  const expected = String(Deno.env.get("SKYVERN_WEBHOOK_SECRET") || "").trim();
+  const expected = String(
+    Deno.env.get("SKYVERN_WEBHOOK_SECRET") ||
+      Deno.env.get("SKYVERN_API_KEY") ||
+      "",
+  ).trim();
   if (!expected) return false;
+
+  let querySecret = "";
+  try {
+    querySecret = new URL(req.url).searchParams.get("token")?.trim() || "";
+  } catch {
+    querySecret = "";
+  }
 
   const headerSecret = String(
     req.headers.get("x-jobraker-webhook-secret") ||
@@ -20,7 +31,11 @@ function hasValidWebhookSecret(req: Request): boolean {
     .replace(/^Bearer\s+/i, "")
     .trim();
 
-  return headerSecret === expected || authSecret === expected;
+  return (
+    querySecret === expected ||
+    headerSecret === expected ||
+    authSecret === expected
+  );
 }
 
 const mapProviderStatusToDisplay = (status: string | null | undefined) => {

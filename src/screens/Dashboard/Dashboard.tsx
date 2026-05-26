@@ -35,6 +35,9 @@ import {
   FileText,
   PenTool,
   Gift,
+  Folder,
+  Crown,
+  Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
@@ -65,6 +68,7 @@ import InterviewStudioPage from "./pages/InterviewStudioPage";
 import { ResumePage } from "./pages/ResumePage";
 import { CoverLetterPage } from "./pages/CoverLetterPage";
 import { ReferralsPage } from "./pages/ReferralsPage";
+import { AccountLibraryPage } from "./pages/AccountLibraryPage";
 import { ExperienceFeedbackPrompt } from "./components/ExperienceFeedbackPrompt";
 import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
 
@@ -82,7 +86,8 @@ type DashboardPage =
   | "interview-studio"
   | "resume"
   | "cover-letter"
-  | "referrals";
+  | "referrals"
+  | "account";
 
 interface PageLink {
   id: DashboardPage;
@@ -243,6 +248,7 @@ export const Dashboard = (): JSX.Element => {
       "resume",
       "cover-letter",
       "referrals",
+      "account",
     ];
     if (isAdmin) {
       basePages.push("interview-studio");
@@ -253,6 +259,19 @@ export const Dashboard = (): JSX.Element => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const [showCareerPopup, setShowCareerPopup] = useState(false);
+
+  useEffect(() => {
+    const handleOutsideClick = () => {
+      setShowCareerPopup(false);
+    };
+    if (showCareerPopup) {
+      window.addEventListener("click", handleOutsideClick);
+    }
+    return () => {
+      window.removeEventListener("click", handleOutsideClick);
+    };
+  }, [showCareerPopup]);
 
   const currentPage = useMemo(() => {
     const segment = (location.pathname.split("/")[2] || "").toLowerCase();
@@ -589,6 +608,8 @@ export const Dashboard = (): JSX.Element => {
         return <ProfilePage />;
       case "referrals":
         return <ReferralsPage />;
+      case "account":
+        return <AccountLibraryPage />;
       default:
         return <OverviewPage />;
     }
@@ -827,7 +848,7 @@ export const Dashboard = (): JSX.Element => {
               <Button
                 variant='ghost'
                 size='sm'
-                className='lg:hidden text-brand hover:bg-brand/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2'
+                className='hidden text-brand hover:bg-brand/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2'
                 onClick={() => setSidebarOpen(true)}
                 title='Open sidebar navigation'
                 aria-label='Open sidebar'
@@ -997,7 +1018,7 @@ export const Dashboard = (): JSX.Element => {
             ["chat", "interview-studio"].includes(currentPage)
               ? "overflow-hidden"
               : "overflow-auto"
-          }`}
+          } ${!isDesktop ? "pb-20" : ""}`}
         >
           <AnimatePresence mode='wait'>
             <motion.div
@@ -1013,6 +1034,128 @@ export const Dashboard = (): JSX.Element => {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Mobile Bottom Tab Bar */}
+      {!isDesktop && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border/40 px-2 py-1 flex items-center justify-around h-16 select-none shadow-[0_-8px_32px_rgba(0,0,0,0.4)]">
+          {/* Home Tab */}
+          <button
+            onClick={() => navigate("/dashboard/overview")}
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all duration-200 ${
+              currentPage === "overview"
+                ? "text-brand scale-105"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Home className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-semibold">Home</span>
+          </button>
+
+          {/* Account Tab */}
+          <button
+            onClick={() => navigate("/dashboard/account")}
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all duration-200 ${
+              currentPage === "account"
+                ? "text-brand scale-105"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Folder className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-semibold">Account</span>
+          </button>
+
+          {/* Career Tab (Center highlighted squircle button) */}
+          <div className="relative flex-1 flex justify-center -mt-6">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowCareerPopup(!showCareerPopup);
+              }}
+              className={`w-12 h-12 rounded-[14px] bg-gradient-to-br from-brand via-brand/90 to-brand/75 flex items-center justify-center text-black shadow-[0_0_20px_rgba(29,255,0,0.45)] active:scale-95 transition-all duration-300 hover:shadow-[0_0_25px_rgba(29,255,0,0.6)] z-50 ${
+                showCareerPopup ? "rotate-45" : ""
+              }`}
+              title="Career actions"
+              aria-label="Open Career menu"
+            >
+              <Sparkles className={`w-5 h-5 transition-transform duration-300 ${showCareerPopup ? "-rotate-45" : ""}`} />
+            </button>
+
+            {/* Popup Menu */}
+            <AnimatePresence>
+              {showCareerPopup && (
+                <motion.div
+                  initial={{ opacity: 0, y: 15, scale: 0.9, x: "-50%" }}
+                  animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
+                  exit={{ opacity: 0, y: 15, scale: 0.9, x: "-50%" }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  className="absolute bottom-16 left-1/2 z-50 min-w-[260px] bg-card/95 backdrop-blur-xl border border-border/40 rounded-2xl p-3 shadow-[0_10px_32px_rgba(0,0,0,0.6),0_0_24px_rgba(29,255,0,0.15)] flex gap-3 items-center justify-between"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Arrow/Triangle */}
+                  <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-card/95 border-r border-b border-border/40 rotate-45" />
+                  
+                  {/* Jobs Button */}
+                  <button
+                    onClick={() => {
+                      navigate("/dashboard/jobs");
+                      setShowCareerPopup(false);
+                    }}
+                    className="flex-1 flex flex-col items-center justify-center py-2 px-3 rounded-xl hover:bg-brand/10 hover:text-brand border border-transparent hover:border-brand/20 transition-all duration-200 group"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-foreground/5 group-hover:bg-brand/20 flex items-center justify-center text-muted-foreground group-hover:text-brand mb-1 transition-colors">
+                      <Briefcase className="w-5 h-5" />
+                    </div>
+                    <span className="text-xs font-semibold text-foreground group-hover:text-brand transition-colors">Jobs</span>
+                  </button>
+
+                  {/* Divider */}
+                  <div className="w-[1px] h-12 bg-border/40 self-center" />
+
+                  {/* Application Button */}
+                  <button
+                    onClick={() => {
+                      navigate("/dashboard/application");
+                      setShowCareerPopup(false);
+                    }}
+                    className="flex-1 flex flex-col items-center justify-center py-2 px-3 rounded-xl hover:bg-brand/10 hover:text-brand border border-transparent hover:border-brand/20 transition-all duration-200 group"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-foreground/5 group-hover:bg-brand/20 flex items-center justify-center text-muted-foreground group-hover:text-brand mb-1 transition-colors">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <span className="text-xs font-semibold text-foreground group-hover:text-brand transition-colors">Application</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Chat Tab */}
+          <button
+            onClick={() => navigate("/dashboard/chat")}
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all duration-200 ${
+              currentPage === "chat"
+                ? "text-brand scale-105"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Crown className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-semibold">Chat</span>
+          </button>
+
+          {/* Analytics Tab */}
+          <button
+            onClick={() => navigate("/dashboard/analytics")}
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all duration-200 ${
+              currentPage === "analytics"
+                ? "text-brand scale-105"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <User className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-semibold">Analytics</span>
+          </button>
+        </div>
+      )}
 
         <LowCreditsPromoModal
           open={lowCreditModalOpen}

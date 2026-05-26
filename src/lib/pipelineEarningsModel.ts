@@ -74,10 +74,27 @@ export type WeightedPipelineApp = {
   parseConfidence: number;
 };
 
+function parseTimestamp(value: string | null | undefined): number {
+  if (!value) return Number.NaN;
+  return Date.parse(value);
+}
+
 function appEventTimestamp(a: ApplicationRecord): number {
-  const t = Date.parse(a.applied_date);
-  if (!Number.isNaN(t)) return t;
-  return Date.parse(a.updated_at) || 0;
+  const statusSpecific =
+    a.status === "Interview"
+      ? parseTimestamp(a.interview_date)
+      : a.status === "Offer"
+        ? parseTimestamp(a.updated_at)
+        : Number.NaN;
+  if (!Number.isNaN(statusSpecific)) return statusSpecific;
+
+  const updated = parseTimestamp(a.updated_at);
+  if (!Number.isNaN(updated)) return updated;
+
+  const applied = parseTimestamp(a.applied_date);
+  if (!Number.isNaN(applied)) return applied;
+
+  return 0;
 }
 
 function weightForStatus(
@@ -112,14 +129,14 @@ function collectWeightedApps(
     const w = weightForStatus(a.status, params);
     if (w <= 0) continue;
 
+    const ts = appEventTimestamp(a);
+    if (ts < t0 || ts > t1) continue;
+
     const parsed = parseAnnualCompensationText(a.salary);
     if (!parsed) {
       missingCompCount++;
       continue;
     }
-
-    const ts = appEventTimestamp(a);
-    if (ts < t0 || ts > t1) continue;
 
     const min = parsed.minAnnual;
     const max = parsed.maxAnnual * (1 + Math.max(0, params.negotiationUplift));
