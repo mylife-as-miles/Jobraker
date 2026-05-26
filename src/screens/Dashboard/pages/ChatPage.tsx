@@ -98,8 +98,6 @@ import {
   Coins,
   History,
   Brain,
-  CheckCircle2,
-  Clock3,
   ReceiptText,
   AlertTriangle,
   ListChecks,
@@ -250,7 +248,7 @@ type ChatSessionState = {
 const DEFAULT_CHAT_MODEL = "gemini-3-flash-preview";
 const MAX_CHAT_ATTACHMENTS = 3;
 const CHAT_EXTENDED_WAIT_MS = 30_000;
-const CHAT_TIMEOUT_MS = 12 * 60_000;
+const CHAT_TIMEOUT_MS = 30 * 60_000;
 
 // Fallback starters removed in favor of dynamic AI suggestions and skeleton loaders.
 
@@ -493,17 +491,6 @@ const summarizeToolResult = (entry: ToolCallEntry): string | undefined => {
   return undefined;
 };
 
-const formatActivityDuration = (
-  startedAt?: number,
-  finishedAt?: number,
-): string | null => {
-  if (!startedAt || !finishedAt) return null;
-  const seconds = Math.max(0, Math.round((finishedAt - startedAt) / 1000));
-  if (seconds <= 0) return "<1s";
-  if (seconds < 60) return `${seconds}s`;
-  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-};
-
 const AgentWorkTimeline = ({
   message,
   elapsedLabel,
@@ -513,99 +500,91 @@ const AgentWorkTimeline = ({
 }) => {
   const toolCalls = message.toolCalls || [];
   const agentEvents = message.agentEvents || [];
-  const hasTimeline = toolCalls.length > 0 || agentEvents.length > 0;
-  const visibleEvents = agentEvents
-    .filter(
-      (event) =>
-        event.kind === "thinking" ||
-        event.kind === "billing" ||
-        event.kind === "limit" ||
-        event.kind === "error",
-    )
-    .slice(-3);
-  const visibleTools = toolCalls.slice(-8);
-  const hiddenStepCount =
-    Math.max(0, agentEvents.length - visibleEvents.length) +
-    Math.max(0, toolCalls.length - visibleTools.length);
-
-  if (!hasTimeline && !message.streaming) return null;
-
-  const compactRowClass =
-    "flex max-w-full items-center gap-2 rounded-lg border border-brand/10 bg-brand/5 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground";
-
-  return (
-    <div className='mb-3 space-y-1.5'>
-      {!hasTimeline && message.streaming && (
-        <div className={compactRowClass}>
-          <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-brand animate-pulse' />
-          <span className='truncate'>Thinking... {elapsedLabel}</span>
-        </div>
-      )}
-
-      {visibleEvents.map((event) => {
-        const Icon =
+  const timelineRows = [
+    ...agentEvents
+      .filter((event) =>
+        ["thinking", "billing", "limit", "error"].includes(event.kind),
+      )
+      .map((event) => ({
+        id: event.id,
+        at: event.createdAt,
+        kind: event.kind,
+        status: event.status,
+        label:
           event.kind === "billing"
-            ? ReceiptText
-            : event.kind === "thinking"
-              ? Brain
-              : event.kind === "limit"
-                ? Clock3
-                : event.status === "error"
-                  ? AlertTriangle
-                  : CheckCircle2;
-
-        return (
-          <div key={event.id} className={compactRowClass}>
-            <Icon
-              className={`h-3.5 w-3.5 shrink-0 ${
-                event.status === "error" ? "text-red-400" : "text-brand"
-              }`}
-            />
-            <span className='truncate'>
-              {event.kind === "thinking" && event.detail
-                ? `Thinking: ${event.detail}`
-                : event.detail
-                  ? `${event.title} - ${event.detail}`
-                  : event.title}
-            </span>
-          </div>
-        );
-      })}
-
-      {visibleTools.map((tool) => {
-        const duration = formatActivityDuration(tool.startedAt, tool.finishedAt);
-        const resultSummary = summarizeToolResult(tool);
-        const label = [
-          toolDisplayName(tool.name, tool.args),
+            ? [event.title, event.detail].filter(Boolean).join(" - ")
+            : event.kind === "thinking" && event.detail
+              ? `Thinking: ${event.detail}`
+              : event.detail
+                ? `${event.title} - ${event.detail}`
+                : event.title,
+      })),
+    ...toolCalls.map((tool) => {
+      const resultSummary = summarizeToolResult(tool);
+      const prefix =
+        tool.status === "running"
+          ? "Running"
+          : tool.status === "error"
+            ? "Failed"
+            : "Finished";
+      return {
+        id: tool.id || `${tool.name}-${tool.startedAt || ""}`,
+        at: tool.startedAt || tool.finishedAt || 0,
+        kind: "tool",
+        status: tool.status,
+        label: [
+          `${prefix} ${toolDisplayName(tool.name, tool.args)}`,
           resultSummary,
-          duration,
         ]
           .filter(Boolean)
-          .join(" - ");
+          .join(" - "),
+      };
+    }),
+  ]
+    .sort((a, b) => a.at - b.at)
+    .slice(-50);
+  const hiddenStepCount =
+    Math.max(0, agentEvents.length + toolCalls.length - timelineRows.length);
 
-        return (
-          <div
-            key={tool.id || `${tool.name}-${tool.startedAt || ""}`}
-            className={compactRowClass}
-          >
-            {tool.status === "running" ? (
-              <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-brand animate-pulse' />
-            ) : tool.status === "error" ? (
-              <AlertTriangle className='h-3.5 w-3.5 shrink-0 text-red-400' />
-            ) : (
-              <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-brand' />
-            )}
-            <span className='truncate'>{label}</span>
-          </div>
-        );
-      })}
+  if (!timelineRows.length && !message.streaming) return null;
+
+  const rowClass =
+    "flex max-w-full items-center gap-2 rounded-lg border border-brand/20 bg-brand/[0.06] px-3 py-2 text-[13px] leading-5 text-muted-foreground";
+
+  return (
+    <div className='mb-3 space-y-2'>
+      {timelineRows.map((row) => (
+        <div key={row.id} className={rowClass}>
+          {row.status === "error" ? (
+            <AlertTriangle className='h-3.5 w-3.5 shrink-0 text-red-400' />
+          ) : row.kind === "thinking" ? (
+            <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />
+          ) : row.kind === "billing" ? (
+            <ReceiptText className='h-3.5 w-3.5 shrink-0 text-brand' />
+          ) : row.kind === "limit" ? (
+            <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
+          ) : (
+            <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-brand' />
+          )}
+          <span className='truncate'>{row.label}</span>
+        </div>
+      ))}
 
       {hiddenStepCount > 0 && (
-        <div className={compactRowClass}>
+        <div className={rowClass}>
           <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
           <span className='truncate'>
             +{hiddenStepCount} earlier working step
             {hiddenStepCount === 1 ? "" : "s"}
+          </span>
+        </div>
+      )}
+
+      {message.streaming && timelineRows.length === 0 && (
+        <div className={rowClass}>
+          <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />
+          <span className='truncate'>
+            Thinking{elapsedLabel ? `: ${elapsedLabel}` : ""}
           </span>
         </div>
       )}
@@ -2849,17 +2828,7 @@ export const ChatPage = () => {
                             {m.streaming &&
                               (m.content ? (
                                 <span className='inline-block w-1.5 h-4 ml-1 align-middle bg-brand animate-pulse' />
-                              ) : (m.toolCalls?.length || 0) +
-                                  (m.agentEvents?.length || 0) >
-                                0 ? null : (
-                                <span className='text-sm font-medium text-muted-foreground animate-pulse'>
-                                  {showExtendedWait
-                                    ? `Still working... ${requestElapsedLabel}`
-                                    : m.toolCalls && m.toolCalls.length > 0
-                                      ? "Working..."
-                                      : "Thinking..."}
-                                </span>
-                              ))}
+                              ) : null)}
                           </div>
                         )}
                       </div>

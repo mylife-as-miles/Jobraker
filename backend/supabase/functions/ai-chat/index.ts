@@ -2794,7 +2794,7 @@ Edge functions:
               history,
             });
             /** Max tool *rounds* (each round may include multiple parallel function calls). */
-            const MAX_AGENT_TOOL_ROUNDS = 20;
+            const MAX_AGENT_TOOL_ROUNDS = 50;
 
             let response: any;
             // Try primary model, fall back on rate limit
