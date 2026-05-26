@@ -8,6 +8,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { flushSync } from "react-dom";
 import { nanoid } from "nanoid";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/light";
 import atomOneDarkStyle from "react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark";
@@ -101,6 +102,7 @@ import {
   ReceiptText,
   AlertTriangle,
   ListChecks,
+  ChevronDown,
 } from "lucide-react";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
@@ -133,6 +135,11 @@ const customStyles = `
     background: hsl(var(--foreground) / 0.2);
   }
 `;
+
+const waitForAgentProgressPaint = () =>
+  new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => window.setTimeout(resolve, 0));
+  });
 
 // Real-deal streaming useChat hook
 type Persona = "concise" | "friendly" | "analyst" | "coach";
@@ -450,7 +457,13 @@ const toolDisplayName = (
 };
 
 const summarizeToolResult = (entry: ToolCallEntry): string | undefined => {
-  const result = entry.result || {};
+  const rawResult = entry.result || {};
+  const result =
+    rawResult.data &&
+    typeof rawResult.data === "object" &&
+    !Array.isArray(rawResult.data)
+      ? (rawResult.data as Record<string, unknown>)
+      : rawResult;
   const error =
     typeof result.error === "string"
       ? result.error
@@ -498,6 +511,7 @@ const AgentWorkTimeline = ({
   message: BasicMessage;
   elapsedLabel: string;
 }) => {
+  const [expanded, setExpanded] = useState(false);
   const toolCalls = message.toolCalls || [];
   const agentEvents = message.agentEvents || [];
   const timelineRows = [
@@ -545,32 +559,73 @@ const AgentWorkTimeline = ({
     .slice(-50);
   const hiddenStepCount =
     Math.max(0, agentEvents.length + toolCalls.length - timelineRows.length);
+  const totalStepCount = agentEvents.length + toolCalls.length;
+  const latestRow = timelineRows[timelineRows.length - 1];
+  const summaryLabel = latestRow?.label || `Thinking${elapsedLabel ? `: ${elapsedLabel}` : ""}`;
+  const stepLabel =
+    totalStepCount > 0
+      ? `${totalStepCount} step${totalStepCount === 1 ? "" : "s"}`
+      : "Thinking";
 
   if (!timelineRows.length && !message.streaming) return null;
 
   const rowClass =
     "flex max-w-full items-center gap-2 rounded-lg border border-brand/20 bg-brand/[0.06] px-3 py-2 text-[13px] leading-5 text-muted-foreground";
+  const iconForRow = (row: { kind: string; status: string }) => {
+    if (row.status === "error") {
+      return <AlertTriangle className='h-3.5 w-3.5 shrink-0 text-red-400' />;
+    }
+    if (row.kind === "thinking") {
+      return <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />;
+    }
+    if (row.kind === "billing") {
+      return <ReceiptText className='h-3.5 w-3.5 shrink-0 text-brand' />;
+    }
+    if (row.kind === "limit") {
+      return <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />;
+    }
+    return <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-brand' />;
+  };
 
   return (
     <div className='mb-3 space-y-2'>
-      {timelineRows.map((row) => (
-        <div key={row.id} className={rowClass}>
-          {row.status === "error" ? (
-            <AlertTriangle className='h-3.5 w-3.5 shrink-0 text-red-400' />
-          ) : row.kind === "thinking" ? (
-            <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />
-          ) : row.kind === "billing" ? (
-            <ReceiptText className='h-3.5 w-3.5 shrink-0 text-brand' />
-          ) : row.kind === "limit" ? (
-            <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
-          ) : (
-            <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-brand' />
-          )}
-          <span className='truncate'>{row.label}</span>
-        </div>
-      ))}
+      <button
+        type='button'
+        onClick={() => setExpanded((value) => !value)}
+        className={`${rowClass} w-full text-left transition-colors hover:bg-brand/[0.09]`}
+        aria-expanded={expanded}
+      >
+        <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
+        <span className='shrink-0 font-medium text-foreground/80'>
+          Working process
+        </span>
+        <span className='shrink-0 text-muted-foreground/70'>-</span>
+        <span className='shrink-0'>{stepLabel}</span>
+        <span className='hidden shrink-0 text-muted-foreground/70 sm:inline'>
+          -
+        </span>
+        <span className='min-w-0 flex-1 truncate text-muted-foreground/80'>
+          {summaryLabel}
+        </span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${
+            expanded ? "rotate-180" : ""
+          }`}
+        />
+      </button>
 
-      {hiddenStepCount > 0 && (
+      {expanded && (
+        <div className='space-y-2'>
+          {timelineRows.map((row) => (
+            <div key={row.id} className={rowClass}>
+              {iconForRow(row)}
+              <span className='truncate'>{row.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {expanded && hiddenStepCount > 0 && (
         <div className={rowClass}>
           <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
           <span className='truncate'>
@@ -580,7 +635,7 @@ const AgentWorkTimeline = ({
         </div>
       )}
 
-      {message.streaming && timelineRows.length === 0 && (
+      {expanded && message.streaming && timelineRows.length === 0 && (
         <div className={rowClass}>
           <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />
           <span className='truncate'>
@@ -910,18 +965,21 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                   }
                 } else if (currentEvent === "error") {
                   const errorText = `Error: ${data.error}`;
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === assistantId
-                        ? {
-                            ...msg,
-                            content: errorText,
-                            parts: [{ type: "text", text: errorText }],
-                            streaming: false,
-                          }
-                        : msg,
-                    ),
-                  );
+                  flushSync(() => {
+                    setMessages((prev) =>
+                      prev.map((msg) =>
+                        msg.id === assistantId
+                          ? {
+                              ...msg,
+                              content: errorText,
+                              parts: [{ type: "text", text: errorText }],
+                              streaming: false,
+                            }
+                          : msg,
+                      ),
+                    );
+                  });
+                  await waitForAgentProgressPaint();
                 } else if (currentEvent === "agent_activity") {
                   const activity: AgentActivityEntry = {
                     id: data.id || nanoid(),
@@ -954,19 +1012,22 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                         ? data.tool_count
                         : undefined,
                   };
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === assistantId
-                        ? {
-                            ...msg,
-                            agentEvents: [
-                              ...(msg.agentEvents || []),
-                              activity,
-                            ],
-                          }
-                        : msg,
-                    ),
-                  );
+                  flushSync(() => {
+                    setMessages((prev) =>
+                      prev.map((msg) =>
+                        msg.id === assistantId
+                          ? {
+                              ...msg,
+                              agentEvents: [
+                                ...(msg.agentEvents || []),
+                                activity,
+                              ],
+                            }
+                          : msg,
+                      ),
+                    );
+                  });
+                  await waitForAgentProgressPaint();
                 } else if (currentEvent === "tool_start") {
                   const toolEntry: ToolCallEntry = {
                     id: data.id || nanoid(),
@@ -975,16 +1036,19 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                     status: "running",
                     startedAt: Date.now(),
                   };
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === assistantId
-                        ? {
-                            ...msg,
-                            toolCalls: [...(msg.toolCalls || []), toolEntry],
-                          }
-                        : msg,
-                    ),
-                  );
+                  flushSync(() => {
+                    setMessages((prev) =>
+                      prev.map((msg) =>
+                        msg.id === assistantId
+                          ? {
+                              ...msg,
+                              toolCalls: [...(msg.toolCalls || []), toolEntry],
+                            }
+                          : msg,
+                      ),
+                    );
+                  });
+                  await waitForAgentProgressPaint();
                 } else if (currentEvent === "tool_call") {
                   const toolEntry: ToolCallEntry = {
                     id: data.id,
@@ -1004,32 +1068,35 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                         ? data.finished_at
                         : Date.now(),
                   };
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id !== assistantId
-                        ? msg
-                        : {
-                            ...msg,
-                            toolCalls: data.id
-                              ? (msg.toolCalls || []).some(
-                                  (entry) => entry.id === data.id,
-                                )
-                                ? (msg.toolCalls || []).map((entry) =>
-                                    entry.id === data.id
-                                      ? {
-                                          ...entry,
-                                          ...toolEntry,
-                                          startedAt:
-                                            toolEntry.startedAt ||
-                                            entry.startedAt,
-                                        }
-                                      : entry,
+                  flushSync(() => {
+                    setMessages((prev) =>
+                      prev.map((msg) =>
+                        msg.id !== assistantId
+                          ? msg
+                          : {
+                              ...msg,
+                              toolCalls: data.id
+                                ? (msg.toolCalls || []).some(
+                                    (entry) => entry.id === data.id,
                                   )
-                                : [...(msg.toolCalls || []), toolEntry]
-                              : [...(msg.toolCalls || []), toolEntry],
-                          },
-                    ),
-                  );
+                                  ? (msg.toolCalls || []).map((entry) =>
+                                      entry.id === data.id
+                                        ? {
+                                            ...entry,
+                                            ...toolEntry,
+                                            startedAt:
+                                              toolEntry.startedAt ||
+                                              entry.startedAt,
+                                          }
+                                        : entry,
+                                    )
+                                  : [...(msg.toolCalls || []), toolEntry]
+                                : [...(msg.toolCalls || []), toolEntry],
+                            },
+                      ),
+                    );
+                  });
+                  await waitForAgentProgressPaint();
                 } else if (currentEvent === "agent_surcharge") {
                   const creditsCharged = Number(data.credits_charged || 0);
                   const toolCount = Number(data.tool_count || 0);
@@ -1047,19 +1114,22 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                     round:
                       typeof data.round === "number" ? data.round : undefined,
                   };
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === assistantId
-                        ? {
-                            ...msg,
-                            agentEvents: [
-                              ...(msg.agentEvents || []),
-                              activity,
-                            ],
-                          }
-                        : msg,
-                    ),
-                  );
+                  flushSync(() => {
+                    setMessages((prev) =>
+                      prev.map((msg) =>
+                        msg.id === assistantId
+                          ? {
+                              ...msg,
+                              agentEvents: [
+                                ...(msg.agentEvents || []),
+                                activity,
+                              ],
+                            }
+                          : msg,
+                      ),
+                    );
+                  });
+                  await waitForAgentProgressPaint();
                   opts.onCreditsUpdated?.();
                 } else if (currentEvent === "ui_action") {
                   opts.onUiAction?.(data as ChatUiAction);

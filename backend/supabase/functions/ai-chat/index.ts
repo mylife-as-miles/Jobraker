@@ -138,6 +138,130 @@ function extractThoughtSummary(parts: unknown[]): string | null {
   return summaries.join(" ").replace(/\s+/g, " ").trim().slice(0, 500);
 }
 
+type AgentToolResultEntry = {
+  name: string;
+  args: Record<string, unknown>;
+  result: unknown;
+};
+
+function summarizeCount(value: unknown, fallback = 0) {
+  const parsed = asNumber(value);
+  return parsed == null ? fallback : parsed;
+}
+
+function formatJobLine(job: unknown, index: number) {
+  if (!isRecord(job)) return null;
+  const title = asString(job.title) || asString(job.job_title) || "Untitled role";
+  const company = asString(job.company) || "Unknown company";
+  const location = asString(job.location);
+  const source = asString(job.source_kind) || asString(job.source_type);
+  const verification = asString(job.verification_status);
+  const url = asString(job.url) || asString(job.job_url);
+  const metadata = [location, source, verification].filter(Boolean).join(" | ");
+  return `${index + 1}. ${title} at ${company}${metadata ? ` (${metadata})` : ""}${url ? `\n   ${url}` : ""}`;
+}
+
+function unwrapToolResultPayload(result: Record<string, unknown>) {
+  return isRecord(result.data) ? result.data : result;
+}
+
+function summarizeAgentToolResults(entries: AgentToolResultEntry[]) {
+  if (!entries.length) {
+    return "I did not receive a final result from the agent tools. Please try again or send Continue and I will pick up from the last step.";
+  }
+
+  const lines: string[] = ["Here is the result:"];
+  let addedActionableSummary = false;
+
+  for (const entry of entries.slice(-8)) {
+    const result = isRecord(entry.result) ? entry.result : {};
+    const payload = unwrapToolResultPayload(result);
+    const toolName = entry.name.replace(/_/g, " ");
+    const error =
+      asString(result.error) ||
+      asString(payload.error) ||
+      asString(result.failure_reason) ||
+      asString(payload.failure_reason);
+    if (error || result.success === false || payload.success === false) {
+      lines.push(`- ${toolName} failed: ${error || "No details returned."}`);
+      addedActionableSummary = true;
+      continue;
+    }
+
+    if (entry.name === "run_job_search" || entry.name === "search_public_job_sources") {
+      const jobs = Array.isArray(payload.jobs)
+        ? payload.jobs
+        : Array.isArray(payload.results)
+          ? payload.results
+          : [];
+      const count = summarizeCount(payload.count, jobs.length);
+      const inserted = summarizeCount(payload.jobsInserted, summarizeCount(payload.inserted, -1));
+      const query = asString(entry.args.query) || asString(entry.args.searchQuery);
+      const savedText = inserted >= 0 ? `, ${inserted} saved to your job queue` : "";
+      lines.push(`- Searched${query ? ` "${query}"` : ""}: ${count} job${count === 1 ? "" : "s"} found${savedText}.`);
+      const jobLines = jobs.slice(0, 6).map(formatJobLine).filter((line): line is string => Boolean(line));
+      if (jobLines.length) {
+        lines.push(...jobLines.map((line) => `  ${line}`));
+      }
+      const warnings = Array.isArray(payload.warnings)
+        ? payload.warnings.map((warning) => asString(warning)).filter(Boolean)
+        : [];
+      if (warnings.length) lines.push(`- Note: ${warnings.slice(0, 2).join(" ")}`);
+      addedActionableSummary = true;
+      continue;
+    }
+
+    if (entry.name === "generate_cover_letter" || entry.name === "save_cover_letter") {
+      const name = asString(payload.name) || asString(payload.title) || asString(entry.args.name);
+      lines.push(`- ${toolName}: ${name ? `${name} - ` : ""}completed.`);
+      addedActionableSummary = true;
+      continue;
+    }
+
+    if (entry.name === "list_applications") {
+      const applications = Array.isArray(payload.applications) ? payload.applications : [];
+      const count = summarizeCount(payload.count, applications.length);
+      lines.push(`- Listed ${count} application${count === 1 ? "" : "s"}.`);
+      addedActionableSummary = true;
+      continue;
+    }
+
+    if (entry.name === "list_notifications") {
+      const count = summarizeCount(payload.count, Array.isArray(payload.notifications) ? payload.notifications.length : 0);
+      lines.push(`- Found ${count} notification${count === 1 ? "" : "s"}.`);
+      addedActionableSummary = true;
+      continue;
+    }
+
+    if (entry.name === "get_credits_balance") {
+      const turns = summarizeCount(payload.total_available_chat_turns, -1);
+      const paid = summarizeCount(payload.paid_ai_credit_balance, -1);
+      if (turns >= 0 || paid >= 0) {
+        lines.push(`- Credit balance checked${turns >= 0 ? `: ${turns} total chat turns available` : ""}${paid >= 0 ? `, ${paid} paid AI credits` : ""}.`);
+        addedActionableSummary = true;
+      }
+      continue;
+    }
+
+    const count = summarizeCount(payload.count, -1);
+    if (count >= 0) {
+      lines.push(`- ${toolName}: ${count} record${count === 1 ? "" : "s"} returned.`);
+      addedActionableSummary = true;
+    } else if (result.success === true || payload.success === true) {
+      lines.push(`- ${toolName}: completed.`);
+      addedActionableSummary = true;
+    }
+  }
+
+  if (!addedActionableSummary) {
+    const names = entries.slice(-5).map((entry) => entry.name.replace(/_/g, " "));
+    lines.push(`- Completed ${names.join(", ")}.`);
+  }
+
+  lines.push("\nNext step: review the saved results in JobRaker, or tell me to continue and I will keep working from here.");
+  return lines.join("\n");
+}
+
 function normalizeApplicationStatus(value: unknown, fallback = "Applied"): string {
   const raw = asString(value) || fallback;
   const normalized = raw
@@ -2772,14 +2896,17 @@ Edge functions:
     const streamBody = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-        const enqueueEvent = (ev: string, data: any) => {
+        const enqueueEvent = async (ev: string, data: any) => {
           const payload = typeof data === "string" ? data : JSON.stringify(data);
           controller.enqueue(encoder.encode(`event: ${ev}\ndata: ${payload}\n\n`));
+          // Yield after every SSE frame so proxies/browser readers can paint
+          // long-running agent progress as it happens instead of one final burst.
+          await new Promise((resolve) => setTimeout(resolve, 0));
         };
 
         try {
           if (mode === "agent") {
-            enqueueEvent("agent_activity", {
+            await enqueueEvent("agent_activity", {
               kind: "thinking",
               status: "running",
               title: "Reading request",
@@ -2821,14 +2948,16 @@ Edge functions:
               }
             }
             let toolRounds = 0;
-            let streamedAnyAssistantText = false;
+            let streamedFinalAssistantText = false;
             let agentStoppedForBilling = false;
+            const completedToolResults: AgentToolResultEntry[] = [];
 
             while (true) {
               const parts = response.candidates?.[0]?.content?.parts || [];
+              const functionCalls = parts.filter((p) => p.functionCall);
               const thoughtSummary = extractThoughtSummary(parts);
               if (thoughtSummary) {
-                enqueueEvent("agent_activity", {
+                await enqueueEvent("agent_activity", {
                   kind: "thinking",
                   status: "done",
                   title: "Thinking summary",
@@ -2846,18 +2975,19 @@ Edge functions:
                 }
               }
               if (textDelta) {
-                streamedAnyAssistantText = true;
-                enqueueEvent("message", { delta: textDelta });
+                if (functionCalls.length === 0) {
+                  streamedFinalAssistantText = true;
+                }
+                await enqueueEvent("message", { delta: textDelta });
               }
 
-              const functionCalls = parts.filter((p) => p.functionCall);
               if (functionCalls.length === 0) {
                 break;
               }
 
               toolRounds += 1;
               if (toolRounds > MAX_AGENT_TOOL_ROUNDS) {
-                enqueueEvent("agent_activity", {
+                await enqueueEvent("agent_activity", {
                   kind: "limit",
                   status: "done",
                   title: "Paused at tool limit",
@@ -2866,15 +2996,15 @@ Edge functions:
                   created_at: Date.now(),
                   round: toolRounds,
                 });
-                enqueueEvent("message", {
+                await enqueueEvent("message", {
                   delta:
                     "\n\n—\n*I reached the maximum number of tool steps for this turn. Ask me to **continue** if you need more (e.g. finish applying or summarize).*",
                 });
-                streamedAnyAssistantText = true;
+                streamedFinalAssistantText = true;
                 break;
               }
 
-              enqueueEvent("agent_activity", {
+              await enqueueEvent("agent_activity", {
                 kind: "tool_batch",
                 status: "running",
                 title: `Preparing ${functionCalls.length} tool${functionCalls.length === 1 ? "" : "s"}`,
@@ -2901,7 +3031,7 @@ Edge functions:
                 }
                 const rpcMsg =
                   typeof sur?.message === "string" ? sur.message : null;
-                enqueueEvent("error", {
+                await enqueueEvent("error", {
                   error: surchargeError
                     ? `Could not charge credits for agent tools. ${(surchargeError as { message?: string }).message || "Please try again."}`
                     : rpcMsg ||
@@ -2913,7 +3043,7 @@ Edge functions:
                 agentStoppedForBilling = true;
                 break;
               }
-              enqueueEvent("agent_surcharge", {
+              await enqueueEvent("agent_surcharge", {
                 credits_charged: sur.credits_charged,
                 balance: sur.balance,
                 round: toolRounds,
@@ -2927,7 +3057,7 @@ Edge functions:
                 const args = isRecord(fn.args) ? fn.args : {};
                 const toolCallId = `${toolRounds}-${toolIndex}-${fn.name}-${Date.now()}`;
                 const startedAt = Date.now();
-                enqueueEvent("tool_start", {
+                await enqueueEvent("tool_start", {
                   id: toolCallId,
                   name: fn.name,
                   args,
@@ -3248,7 +3378,7 @@ Edge functions:
                           "That target route still contains path parameters. Provide a concrete route if you want me to open it.",
                       };
                     } else {
-                      enqueueEvent("ui_action", {
+                      await enqueueEvent("ui_action", {
                         type: "navigate",
                         route: resolvedRoute,
                         pageId: page?.id || null,
@@ -4303,8 +4433,9 @@ Edge functions:
                   result = { success: false, error: e?.message || "Tool execution failed" };
                 }
 
+                completedToolResults.push({ name: fn.name, args, result });
                 toolResults.push({ functionResponse: { name: fn.name, response: result } });
-                enqueueEvent("tool_call", {
+                await enqueueEvent("tool_call", {
                   id: toolCallId,
                   name: fn.name,
                   args,
@@ -4314,7 +4445,7 @@ Edge functions:
                   finished_at: Date.now(),
                 });
               }
-              enqueueEvent("agent_activity", {
+              await enqueueEvent("agent_activity", {
                 kind: "tool_result",
                 status: "done",
                 title: "Returned tool results to the model",
@@ -4332,12 +4463,11 @@ Edge functions:
 
             if (
               toolRounds > 0 &&
-              !streamedAnyAssistantText &&
+              !streamedFinalAssistantText &&
               !agentStoppedForBilling
             ) {
-              enqueueEvent("message", {
-                delta:
-                  "\n\nI ran the tools above. **What should I do next?** For example: confirm auto-apply, draft a follow-up email, or summarize status.",
+              await enqueueEvent("message", {
+                delta: `\n\n${summarizeAgentToolResults(completedToolResults)}`,
               });
             }
           } else {
@@ -4359,7 +4489,7 @@ Edge functions:
                 );
                 for await (const chunk of stream) {
                   const text = streamChunkText(chunk);
-                  if (text) enqueueEvent("message", { delta: text });
+                  if (text) await enqueueEvent("message", { delta: text });
                 }
                 streamSuccess = true;
                 break;
@@ -4370,21 +4500,27 @@ Edge functions:
               }
             }
           }
-          enqueueEvent("done", "[DONE]");
+          await enqueueEvent("done", "[DONE]");
           controller.close();
         } catch (e: any) {
           console.error("Agent Loop Error:", e);
           const userMessage = isGeminiRateLimitError(e)
             ? "Our AI service is temporarily busy across all models. Please try again in a minute."
             : e.message;
-          enqueueEvent("error", { error: userMessage });
+          await enqueueEvent("error", { error: userMessage });
           controller.close();
         }
       },
     });
 
     return new Response(streamBody, {
-      headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" }
+      headers: {
+        ...cors,
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+      }
     });
 
   } catch (error: any) {
