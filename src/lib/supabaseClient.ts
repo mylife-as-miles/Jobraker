@@ -139,13 +139,17 @@ export function createClient(): SupabaseClient {
     // Public routes that should not trigger redirects
     const isPublicRoute = isPublicBrowserRoute(window.location.pathname);
 
+    const isOffline = () =>
+      typeof navigator !== "undefined" && navigator.onLine === false;
+
     // If session is null unexpectedly, it might be due to an invalid refresh token
-    // Only redirect if we're NOT on a public route (i.e., we're on a protected route)
+    // Only redirect if we're NOT on a public route (i.e., we're on a protected route) and not offline
     if (
       !session &&
       event !== "SIGNED_IN" &&
       !handledInvalidToken &&
-      !isPublicRoute
+      !isPublicRoute &&
+      !isOffline()
     ) {
       handledInvalidToken = true;
       console.warn("Session lost, clearing auth state");

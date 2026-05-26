@@ -506,6 +506,12 @@ export const Dashboard = (): JSX.Element => {
         icon: <Plus className='w-5 h-5' />,
         path: "Dashboard / Pricing",
       },
+      {
+        id: "account",
+        label: "Account",
+        icon: <Folder className='w-5 h-5' />,
+        path: "Dashboard / Account",
+      },
     ];
 
     if (isAdmin) {

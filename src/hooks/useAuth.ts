@@ -117,6 +117,14 @@ export const useAuth = () => {
               ?.onboardingComplete ?? null,
           });
         } else {
+          if (isOffline()) {
+            const cachedSnapshot = await getCachedAuthSnapshot();
+            if (cachedSnapshot?.hasSession && cachedSnapshot.user) {
+              setUser(cachedSnapshot.user);
+              setLoading(false);
+              return;
+            }
+          }
           setUser(null);
           await clearCachedAuthSnapshot();
         }

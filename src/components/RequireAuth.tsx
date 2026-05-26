@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../routes";
 import { createClient } from "../lib/supabaseClient";
@@ -16,6 +16,9 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
   const navigate = useNavigate();
   const supabase = createClient();
   const [checking, setChecking] = useState(true);
+  const checkingRef = useRef(checking);
+  checkingRef.current = checking;
+
   const [onboardingCheck, setOnboardingCheck] = useState<{
     done: boolean;
     complete: boolean;
@@ -25,6 +28,20 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
     let mounted = true;
     const isOffline = () =>
       typeof navigator !== "undefined" && navigator.onLine === false;
+
+    const isNetworkError = (error: any) => {
+      if (!error) return false;
+      const msg = String(error.message || error).toLowerCase();
+      return (
+        msg.includes("fetch") ||
+        msg.includes("network") ||
+        msg.includes("timeout") ||
+        msg.includes("timed out") ||
+        msg.includes("err_") ||
+        error instanceof TypeError
+      );
+    };
+
     const withTimeout = async <T,>(promise: Promise<T>, ms: number) =>
       await Promise.race<T>([
         promise,
@@ -60,7 +77,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
 
         if (sessionError) {
           console.error("Session error:", sessionError);
-          if (isOffline() && (await applyCachedAccess())) return;
+          if ((isOffline() || isNetworkError(sessionError)) && (await applyCachedAccess())) return;
           if (!mounted) return;
           navigate(ROUTES.SIGNIN, { replace: true });
           return;
@@ -208,7 +225,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
         setChecking(false);
       } catch (error) {
         console.error("Auth check error:", error);
-        if (isOffline() && (await applyCachedAccess())) return;
+        if ((isOffline() || isNetworkError(error)) && (await applyCachedAccess())) return;
         if (!mounted) return;
         navigate(ROUTES.SIGNIN, { replace: true });
       }
@@ -228,6 +245,20 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
           });
           return;
         }
+
+        // If the initial check is still running, let it handle the initial state
+        if (checkingRef.current) {
+          return;
+        }
+
+        // If session is null, check if we are offline before redirecting
+        if (isOffline()) {
+          const cachedSnapshot = await getCachedAuthSnapshot();
+          if (cachedSnapshot?.hasSession) {
+            return;
+          }
+        }
+
         await clearCachedAuthSnapshot();
         navigate(ROUTES.SIGNIN, { replace: true });
       },

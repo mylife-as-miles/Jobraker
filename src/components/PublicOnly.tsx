@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { createClient } from "../lib/supabaseClient";
 import { ROUTES } from "../routes";
@@ -16,11 +16,27 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
   const navigate = useNavigate();
   const supabase = createClient();
   const [checking, setChecking] = useState(true);
+  const checkingRef = useRef(checking);
+  checkingRef.current = checking;
 
   useEffect(() => {
     let mounted = true;
     const isOffline = () =>
       typeof navigator !== "undefined" && navigator.onLine === false;
+
+    const isNetworkError = (error: any) => {
+      if (!error) return false;
+      const msg = String(error.message || error).toLowerCase();
+      return (
+        msg.includes("fetch") ||
+        msg.includes("network") ||
+        msg.includes("timeout") ||
+        msg.includes("timed out") ||
+        msg.includes("err_") ||
+        error instanceof TypeError
+      );
+    };
+
     const withTimeout = async <T,>(promise: Promise<T>, ms: number) =>
       await Promise.race<T>([
         promise,
@@ -32,21 +48,40 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
     const check = async () => {
       try {
         const cachedSnapshot = await getCachedAuthSnapshot();
-        const {
-          data: { session },
-        } = await withTimeout(supabase.auth.getSession(), 2500);
 
-        if (!mounted) return;
-        if (session?.user || (isOffline() && cachedSnapshot?.hasSession)) {
-          navigate(getAuthenticatedRedirectPath(), { replace: true });
-          return;
-        }
-      } catch (error) {
-        if (!mounted) return;
         if (isOffline()) {
+          if (cachedSnapshot?.hasSession) {
+            navigate(getAuthenticatedRedirectPath(), { replace: true });
+            return;
+          }
           setChecking(false);
           return;
         }
+
+        try {
+          const {
+            data: { session },
+          } = await withTimeout(supabase.auth.getSession(), 2500);
+
+          if (!mounted) return;
+          if (session?.user) {
+            navigate(getAuthenticatedRedirectPath(), { replace: true });
+            return;
+          }
+        } catch (error) {
+          if (!mounted) return;
+          if (isNetworkError(error)) {
+            if (cachedSnapshot?.hasSession) {
+              navigate(getAuthenticatedRedirectPath(), { replace: true });
+              return;
+            }
+            setChecking(false);
+            return;
+          }
+          throw error;
+        }
+      } catch (error) {
+        if (!mounted) return;
         console.error("Public auth check error:", error);
       }
       if (!mounted) return;
@@ -56,8 +91,23 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
 
     const { data: sub } = supabase.auth.onAuthStateChange(
       (_event: any, session: any) => {
-        if (session?.user)
+        if (session?.user) {
+          // If the initial check is still running, let it handle the initial state
+          if (checkingRef.current) {
+            return;
+          }
+
+          if (isOffline()) {
+            getCachedAuthSnapshot().then((cachedSnapshot) => {
+              if (cachedSnapshot?.hasSession && mounted) {
+                navigate(getAuthenticatedRedirectPath(), { replace: true });
+              }
+            });
+            return;
+          }
+
           navigate(getAuthenticatedRedirectPath(), { replace: true });
+        }
       },
     );
 
