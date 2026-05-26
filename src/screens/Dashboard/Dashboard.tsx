@@ -1103,7 +1103,7 @@ export const Dashboard = (): JSX.Element => {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 15, scale: 0.9 }}
                   transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  className="absolute bottom-20 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center pointer-events-auto"
+                  className="absolute bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center pointer-events-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Jobs Pill */}
@@ -1112,7 +1112,7 @@ export const Dashboard = (): JSX.Element => {
                       navigate("/dashboard/jobs");
                       setShowCareerPopup(false);
                     }}
-                    className="absolute right-2 flex w-32 translate-x-[-28px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(29,255,0,0.1)] shrink-0 text-foreground text-sm font-semibold"
+                    className="absolute right-2 flex w-32 translate-x-[-18px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(29,255,0,0.1)] shrink-0 text-foreground text-sm font-semibold"
                   >
                     <Briefcase className="w-4 h-4 text-brand" />
                     <span>Jobs</span>
@@ -1124,7 +1124,7 @@ export const Dashboard = (): JSX.Element => {
                       navigate("/dashboard/application");
                       setShowCareerPopup(false);
                     }}
-                    className="absolute left-2 flex w-40 translate-x-[28px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(29,255,0,0.1)] shrink-0 text-foreground text-sm font-semibold"
+                    className="absolute left-2 flex w-40 translate-x-[18px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(29,255,0,0.1)] shrink-0 text-foreground text-sm font-semibold"
                   >
                     <Users className="w-4 h-4 text-brand" />
                     <span>Applications</span>
