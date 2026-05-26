@@ -741,7 +741,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                   setQuickCreate({ key: dayKey, date: cell.date, title: "" });
               }}
               className={[
-                "group relative flex min-h-[88px] flex-col gap-1 rounded-2xl p-2.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-all duration-150 sm:min-h-[104px]",
+                "group relative flex min-h-[60px] sm:min-h-[104px] flex-col gap-1 rounded-2xl p-2.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-all duration-150",
                 "focus:outline-none focus-visible:ring-2 ring-brand/60",
                 "border border-white/6 bg-[#0c1017] text-foreground",
                 cell.inCurrent ? "cursor-pointer" : "cursor-pointer opacity-40",
@@ -778,7 +778,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                 )}
               </div>
               <div className='flex-1 w-full overflow-hidden flex flex-col'>
-                {densityMode === "compact" && dayEvents.length > 0 && (
+                {effectiveDensityMode === "compact" && dayEvents.length > 0 && (
                   <div className='flex flex-wrap gap-1 mt-1'>
                     {dayEvents.slice(0, limit).map((ev) => (
                       <span
@@ -801,7 +801,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                     )}
                   </div>
                 )}
-                {densityMode === "full" &&
+                {effectiveDensityMode === "full" &&
                   dayEvents.slice(0, limit).map((ev) => (
                     <div
                       key={ev.id}
@@ -859,7 +859,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                       </div>
                     </div>
                   ))}
-                {extra > 0 && densityMode === "full" && !expanded && (
+                {extra > 0 && effectiveDensityMode === "full" && !expanded && (
                   <button
                     type='button'
                     onClick={() => toggleExpanded(dayKey)}
