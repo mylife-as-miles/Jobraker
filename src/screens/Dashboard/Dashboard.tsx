@@ -637,9 +637,6 @@ export const Dashboard = (): JSX.Element => {
                 <span className='font-bold text-lg leading-none tracking-tight text-foreground truncate'>
                   JobRaker
                 </span>
-                <span className='text-[10px] uppercase tracking-widest text-muted-foreground font-medium mt-1 truncate'>
-                  Enterprise AI
-                </span>
               </motion.div>
             )}
 

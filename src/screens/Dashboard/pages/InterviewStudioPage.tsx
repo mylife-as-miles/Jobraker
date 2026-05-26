@@ -523,7 +523,7 @@ export const InterviewStudioPage: React.FC = () => {
                 )}
               </Button>
             </div>
-            <div className='w-24' /> {/* Spacer for balance */}
+            <div className='hidden sm:block w-24' /> {/* Spacer for balance */}
           </div>
         </div>
 

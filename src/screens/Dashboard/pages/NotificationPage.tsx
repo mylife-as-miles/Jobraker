@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import {
   AlertCircle,
   Archive,
+  ArrowLeft,
   Bell,
   Bot,
   Calendar,
@@ -777,7 +778,7 @@ export const NotificationPage = (): JSX.Element => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-          <div className="product-section-card lg:col-span-1 flex max-h-[80vh] flex-col rounded-2xl">
+          <div className={`product-section-card lg:col-span-1 flex max-h-[80vh] flex-col rounded-2xl ${selectedNotification ? "hidden lg:flex" : "flex"}`}>
             <div className="border-b border-border/40 p-4 sm:p-6">
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 product-helper-text" />
@@ -1005,11 +1006,19 @@ export const NotificationPage = (): JSX.Element => {
           <div
             id="notifications-detail"
             data-tour="notifications-detail"
-            className="product-section-card lg:col-span-2 flex flex-col overflow-hidden rounded-2xl"
+            className={`product-section-card lg:col-span-2 flex flex-col overflow-hidden rounded-2xl ${selectedNotification ? "flex" : "hidden lg:flex"}`}
           >
             {selectedNotificationData ? (
               <>
                 <div className="border-b border-border/40 p-6">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="lg:hidden p-0 mb-4 text-brand hover:text-brand/80 h-auto flex items-center"
+                    onClick={() => setSelectedNotification(null)}
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-1.5" /> Back to list
+                  </Button>
                   <div className="flex items-start space-x-4">
                     <div className="flex-shrink-0">{selectedNotificationData.icon}</div>
                     <div className="flex-1 min-w-0">

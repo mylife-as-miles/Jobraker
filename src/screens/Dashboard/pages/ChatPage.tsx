@@ -1827,43 +1827,51 @@ export const ChatPage = () => {
                 : "flex flex-1"
             }`}
           >
-            <header className='h-16 flex items-center justify-between px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
-              <div className='flex items-center gap-3'>
+            <header className='h-16 flex items-center justify-between px-4 md:px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
+              <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
                 <button
                   onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                   className='mr-3 text-foreground/60 hover:text-foreground transition-colors hidden md:block'
                 >
                   <PanelLeft size={20} />
                 </button>
-                <h2 className='font-semibold text-lg text-foreground'>
+                <h2 className='font-semibold text-sm sm:text-lg text-foreground whitespace-nowrap'>
                   AI Assistant
                 </h2>
-                <span className='bg-brand/10 text-brand text-[10px] font-bold px-2 py-0.5 rounded-full border border-brand/20'>
+                <span className='bg-brand/10 text-brand text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full border border-brand/20 shrink-0'>
                   BETA
                 </span>
               </div>
-              <div className='flex items-center gap-4'>
+              <div className='flex items-center gap-2 sm:gap-4 overflow-hidden min-w-0 justify-end'>
                 {chatQuota && (
-                  <div className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/70 border border-border'>
-                    <Coins size={14} className='text-brand' />
-                    <span className='text-xs font-medium text-foreground'>
+                  <div className='flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0'>
+                    <Coins size={14} className='text-brand shrink-0' />
+                    <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
                       {chatQuota.free_remaining > 0
-                        ? `${chatQuota.free_remaining}/${chatQuota.free_total} free${
-                            chatQuota.credit_balance > 0
-                              ? ` + ${chatQuota.credit_balance} paid`
-                              : ""
-                          }`
-                        : `${chatQuota.credit_balance} paid credits`}
+                        ? isMobile
+                          ? `${chatQuota.free_remaining}/${chatQuota.free_total}${
+                              chatQuota.credit_balance > 0
+                                ? ` (+${chatQuota.credit_balance})`
+                                : ""
+                            }`
+                          : `${chatQuota.free_remaining}/${chatQuota.free_total} free${
+                              chatQuota.credit_balance > 0
+                                ? ` + ${chatQuota.credit_balance} paid`
+                                : ""
+                            }`
+                        : isMobile
+                          ? `${chatQuota.credit_balance} paid`
+                          : `${chatQuota.credit_balance} paid credits`}
                     </span>
                   </div>
                 )}
                 <div
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/70 border border-border`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0`}
                 >
                   <div
-                    className={`w-2 h-2 rounded-full ${isChatBusy ? "bg-brand animate-pulse" : "bg-brand"} `}
+                    className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${isChatBusy ? "bg-brand animate-pulse" : "bg-brand"} `}
                   ></div>
-                  <span className='text-xs font-medium text-foreground'>
+                  <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
                     {status === "in_progress"
                       ? showExtendedWait
                         ? `Still working... ${requestElapsedLabel}`
@@ -1877,16 +1885,16 @@ export const ChatPage = () => {
                   <button
                     type='button'
                     onClick={stop}
-                    className='text-sm font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 flex items-center gap-1'
+                    className='text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground px-2 sm:px-3 py-1.5 flex items-center gap-1 shrink-0'
                   >
                     Stop
                   </button>
                 )}
-                {messages.length > 0 && (
+                {messages.length > 0 && !isMobile && (
                   <button
                     onClick={regenerate}
                     disabled={isChatBusy}
-                    className='text-sm font-medium text-brand hover:underline px-3 py-1.5 flex items-center gap-1'
+                    className='text-xs sm:text-sm font-medium text-brand hover:underline px-2 sm:px-3 py-1.5 flex items-center gap-1 shrink-0'
                   >
                     Regenerate
                   </button>

@@ -20,6 +20,8 @@ import {
   Loader2,
   Briefcase,
   ChevronDown,
+  PenLine,
+  Eye,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
@@ -150,6 +152,18 @@ export const CoverLetterBuilderPage = () => {
   // const [copied, setCopied] = useState(false);
   const [inlineEdit, setInlineEdit] = useState(false);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<"editor" | "preview">("editor");
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Responsive Check
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1280); // xl is 1280px
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   type QueuedJobPick = {
     id: string;
@@ -971,10 +985,10 @@ export const CoverLetterBuilderPage = () => {
       {/* Main Layout */}
       <div
         id='cover-main-layout'
-        className='grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full'
+        className={`grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full ${isMobile ? "pb-24" : ""}`}
       >
         {/* CONFIG PANEL (LEFT) */}
-        <Card className='product-section-card p-6 rounded-2xl'>
+        <Card className={`product-section-card p-6 rounded-2xl ${isMobile && mobileView !== "editor" ? "hidden" : "flex flex-col"}`}>
           <div className='grid gap-6'>
             {/* Library */}
             <div className='grid gap-3'>
@@ -1339,7 +1353,7 @@ export const CoverLetterBuilderPage = () => {
         </Card>
 
         {/* PREVIEW PANEL (RIGHT) */}
-        <Card className='p-8 bg-white min-h-[800px] text-black shadow-2xl overflow-y-auto'>
+        <Card className={`p-4 sm:p-8 bg-white min-h-[800px] text-black shadow-2xl overflow-y-auto ${isMobile && mobileView !== "preview" ? "hidden" : "flex flex-col"}`}>
           <div
             className='max-w-[800px] mx-auto space-y-6'
             style={{
@@ -1408,7 +1422,7 @@ export const CoverLetterBuilderPage = () => {
       </div>
 
       {/* Config Toolbar */}
-      <div className='product-section-card fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-2xl p-2 shadow-xl'>
+      <div className={`product-section-card fixed ${isMobile ? "bottom-20" : "bottom-6"} left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-2xl p-2 shadow-xl ${isMobile && mobileView === "editor" ? "hidden" : ""}`}>
         <Button
           size='icon'
           variant='ghost'
@@ -1510,6 +1524,34 @@ export const CoverLetterBuilderPage = () => {
           </div>,
           document.body,
         )}
+      {/* Mobile Bottom Tab Bar */}
+      {isMobile && (
+        <div className='fixed bottom-0 left-0 right-0 z-50 bg-background/95 border-t border-border/40 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex h-16 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] text-foreground'>
+          <button
+            onClick={() => setMobileView("editor")}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
+              mobileView === "editor"
+                ? "text-brand bg-brand/5"
+                : "text-muted-foreground"
+            }`}
+          >
+            <PenLine className='w-5 h-5' />
+            <span className='text-[11px] font-medium'>Editor</span>
+          </button>
+          <div className='w-px bg-border/40 my-3' />
+          <button
+            onClick={() => setMobileView("preview")}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
+              mobileView === "preview"
+                ? "text-brand bg-brand/5"
+                : "text-muted-foreground"
+            }`}
+          >
+            <Eye className='w-5 h-5' />
+            <span className='text-[11px] font-medium'>Preview</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
