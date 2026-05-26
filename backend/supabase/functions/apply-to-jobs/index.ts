@@ -25,7 +25,8 @@ const MAX_MAX_STEPS_OVERRIDE = 500;
 const APPLY_AUTOMATION_HINTS = `[JobRaker automation — prioritize these]
 1) Cookie/consent: Dismiss any cookie banner, “Manage preferences”, or privacy overlay first (Accept, Accept all, Reject non-essential, Save & close, or Close/X) so the form and file inputs are not covered.
 2) Resume required: Parameters include a resume file URL (resume). On iCIMS and similar ATS, use device upload (“My Computer”, “Upload”, “Choose file”) and attach that file; prefer PDF; wait until the upload succeeds and validation clears before Next/Continue.
-3) Avoid burning steps only on overlays; complete resume upload, then remaining required fields.`;
+3) Breezy forms: click “Upload Resume” (not Indeed/LinkedIn), attach the resume file from the resume URL, then wait for a visible filename/upload success state before submitting.
+4) Avoid burning steps only on overlays; complete resume upload, then remaining required fields.`;
 
 function resolveMaxStepsOverride(body: Record<string, unknown>): number {
   const fromBody = body?.max_steps_override ?? body?.maxStepsOverride;

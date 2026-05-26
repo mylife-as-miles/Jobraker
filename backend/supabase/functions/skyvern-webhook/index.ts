@@ -6,6 +6,30 @@ import { createNotificationRecord } from "../_shared/notification-center.ts";
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseKey);
+const PUBLIC_APP_URL =
+  Deno.env.get("PUBLIC_APP_URL") ||
+  Deno.env.get("APP_BASE_URL") ||
+  Deno.env.get("SITE_URL") ||
+  "https://app.jobraker.io";
+
+type AutomationEmailSettings = {
+  email_notifications?: boolean | null;
+  email_applications?: boolean | null;
+};
+
+type AutomationEmailPayload = {
+  userId: string;
+  application: {
+    id: string;
+    job_title?: string | null;
+    company?: string | null;
+  };
+  providerStatus: string | null | undefined;
+  failureReason: string | null;
+  runId: string;
+  event: "retried" | "finalized";
+  actionUrl: string;
+};
 
 function hasValidWebhookSecret(req: Request): boolean {
   const expectedSecrets = [
@@ -61,6 +85,190 @@ const mapProviderStatusToJobState = (status: string | null | undefined) => {
   }
 };
 
+function cleanString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function extractFailureReasonFromValue(value: unknown, depth = 0): string | null {
+  if (!value || depth > 8) return null;
+
+  if (typeof value === "string") {
+    return cleanString(value);
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nested = extractFailureReasonFromValue(item, depth + 1);
+      if (nested) return nested;
+    }
+    return null;
+  }
+
+  if (typeof value !== "object") return null;
+
+  const record = value as Record<string, unknown>;
+  for (const key of ["failure_reason", "error", "error_message", "summary"]) {
+    const direct = cleanString(record[key]);
+    if (direct) return direct;
+  }
+
+  for (const key of [
+    "auto_apply_job_output",
+    "output_value",
+    "for_each_job_output",
+    "workflow_run_output",
+    "workflow_outputs",
+    "output",
+    "data",
+  ]) {
+    const nested = extractFailureReasonFromValue(record[key], depth + 1);
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
+function extractFailureReason(payload: Record<string, unknown>): string | null {
+  const nestedReason = extractFailureReasonFromValue(payload);
+  if (nestedReason) return nestedReason;
+
+  return (
+    cleanString(payload.message) ||
+    cleanString(payload.status_reason) ||
+    null
+  );
+}
+
+function resolveEmailSender(): string {
+  return (
+    String(Deno.env.get("RESEND_FROM_EMAIL") || "").trim() ||
+    "JobRaker Alerts <onboarding@resend.dev>"
+  );
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+async function getApplicationEmailEnabled(userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("notification_settings")
+    .select("email_notifications,email_applications")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Failed to load notification email settings", error);
+    return true;
+  }
+
+  const settings = (data || {}) as AutomationEmailSettings;
+  return settings.email_notifications !== false && settings.email_applications !== false;
+}
+
+async function getUserEmail(userId: string): Promise<string | null> {
+  const { data, error } = await supabase.auth.admin.getUserById(userId);
+  if (error) {
+    console.warn("Failed to load user email for automation notification", error);
+    return null;
+  }
+
+  return cleanString(data?.user?.email);
+}
+
+async function sendAutomationFailureEmail(payload: AutomationEmailPayload) {
+  const apiKey = String(Deno.env.get("RESEND_API_KEY") || "").trim();
+  if (!apiKey) {
+    console.warn("Skipping automation failure email: RESEND_API_KEY is not configured");
+    return { sent: false, reason: "missing_resend_api_key" };
+  }
+
+  const emailEnabled = await getApplicationEmailEnabled(payload.userId);
+  if (!emailEnabled) {
+    return { sent: false, reason: "disabled_by_settings" };
+  }
+
+  const recipient = await getUserEmail(payload.userId);
+  if (!recipient) {
+    return { sent: false, reason: "missing_user_email" };
+  }
+
+  const jobTitle = payload.application.job_title?.trim() || "Application";
+  const company = payload.application.company?.trim();
+  const statusLabel = String(payload.providerStatus || "failed").toLowerCase();
+  const reason = payload.failureReason?.trim() ||
+    "The automation could not complete this application.";
+  const fullActionUrl = new URL(payload.actionUrl, PUBLIC_APP_URL).toString();
+  const isRetry = payload.event === "retried";
+  const subject = isRetry
+    ? `JobRaker auto-apply issue: ${jobTitle}`
+    : `JobRaker auto-apply failed: ${jobTitle}`;
+  const intro = isRetry
+    ? "JobRaker hit an automation issue and queued another attempt."
+    : "JobRaker could not complete this auto-apply run.";
+  const companyLine = company ? `Company: ${company}\n` : "";
+  const text = [
+    intro,
+    "",
+    `Role: ${jobTitle}`,
+    companyLine.trimEnd(),
+    `Status: ${statusLabel}`,
+    `Reason: ${reason}`,
+    "",
+    `Open this application: ${fullActionUrl}`,
+  ].filter(Boolean).join("\n");
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827">
+      <p>${escapeHtml(intro)}</p>
+      <p>
+        <strong>Role:</strong> ${escapeHtml(jobTitle)}<br>
+        ${company ? `<strong>Company:</strong> ${escapeHtml(company)}<br>` : ""}
+        <strong>Status:</strong> ${escapeHtml(statusLabel)}
+      </p>
+      <p><strong>Reason:</strong> ${escapeHtml(reason)}</p>
+      <p><a href="${escapeHtml(fullActionUrl)}">Open this application in JobRaker</a></p>
+    </div>
+  `;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      from: resolveEmailSender(),
+      to: recipient,
+      subject,
+      text,
+      html,
+    }),
+  });
+
+  const responsePayload = await response.json().catch(async () => ({
+    raw: await response.text().catch(() => ""),
+  }));
+
+  if (!response.ok) {
+    console.error("automation-failure-email.resend_failed", {
+      status: response.status,
+      payload: responsePayload,
+      runId: payload.runId,
+      applicationId: payload.application.id,
+    });
+    return { sent: false, reason: "resend_error", status: response.status };
+  }
+
+  return { sent: true };
+}
+
 async function createAutomationNotification(
   userId: string,
   application: {
@@ -87,9 +295,12 @@ async function createAutomationNotification(
 
   if (payload.event === "retried") {
     title = `Retrying auto-apply: ${jobTitle}`;
-    message = company
-      ? `${company} hit a temporary automation issue. JobRaker queued another attempt.`
-      : "JobRaker queued another attempt after a temporary automation issue.";
+    const reason = payload.failureReason?.trim();
+    message = reason
+      ? `${reason} JobRaker queued another attempt.`
+      : company
+        ? `${company} hit a temporary automation issue. JobRaker queued another attempt.`
+        : "JobRaker queued another attempt after a temporary automation issue.";
     priority = "medium";
   } else if (providerStatus === "completed") {
     title = `Auto-apply completed: ${jobTitle}`;
@@ -105,7 +316,7 @@ async function createAutomationNotification(
         ? `${company} could not be completed automatically.`
         : "The automation could not complete this application.";
     priority = "high";
-    type = "system";
+    type = "application";
   }
 
   try {
@@ -135,6 +346,22 @@ async function createAutomationNotification(
   } catch (error) {
     console.warn("Failed to create automation notification", error);
   }
+
+  if (providerStatus === "failed" || providerStatus === "terminated") {
+    try {
+      await sendAutomationFailureEmail({
+        userId,
+        application,
+        providerStatus: payload.providerStatus,
+        failureReason: payload.failureReason,
+        runId: payload.runId,
+        event: payload.event,
+        actionUrl,
+      });
+    } catch (error) {
+      console.warn("Failed to send automation failure email", error);
+    }
+  }
 }
 
 serve(async (req) => {
@@ -157,8 +384,7 @@ serve(async (req) => {
     const runId = payload.id || payload.run_id;
     const providerStatus = payload.status;
     const screenshotUrls: string[] = payload.screenshot_urls || [];
-    const failureReason =
-      payload.error || payload.failure_reason || payload.message || null;
+    const failureReason = extractFailureReason(payload);
 
     if (!runId) {
       return new Response("Missing run_id", { status: 400 });

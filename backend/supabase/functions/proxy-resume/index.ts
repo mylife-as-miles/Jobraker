@@ -5,6 +5,22 @@ import { getCorsHeaders } from "../_shared/types.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { verifyResumeProxyToken } from "../_shared/resume-proxy-token.ts";
 
+function contentTypeForFilename(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "pdf":
+      return "application/pdf";
+    case "doc":
+      return "application/msword";
+    case "docx":
+      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    case "txt":
+      return "text/plain; charset=utf-8";
+    default:
+      return "application/octet-stream";
+  }
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
 
@@ -50,14 +66,15 @@ Deno.serve(async (req) => {
 
     const buf = await data.arrayBuffer();
     const filename = payload.path.split("/").pop() || "resume.pdf";
+    const safeFilename = filename.replace(/"/g, "");
 
     return new Response(buf, {
       status: 200,
       headers: {
         ...corsHeaders,
-        "content-type": "application/pdf",
+        "content-type": contentTypeForFilename(filename),
         "cache-control": "private, max-age=300",
-        "content-disposition": `inline; filename="${filename.replace(/"/g, "")}"`,
+        "content-disposition": `attachment; filename="${safeFilename}"`,
       },
     });
   } catch (e: any) {

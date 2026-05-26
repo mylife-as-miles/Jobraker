@@ -1622,7 +1622,7 @@ export const ChatPage = () => {
   }, [sessions, searchQuery]);
 
   return (
-    <div className='relative flex h-full w-full font-sans bg-background overflow-hidden text-foreground'>
+    <div className='relative flex flex-col md:flex-row h-full w-full font-sans bg-background overflow-hidden text-foreground'>
       <style>{customStyles}</style>
 
       {loadingTier && (
@@ -1682,11 +1682,88 @@ export const ChatPage = () => {
 
       {!loadingTier && hasChatAccess && (
         <>
+          {isMobile && (
+            <div className="flex flex-col border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 z-30 shrink-0">
+              {/* Mobile Page Header */}
+              <div className="h-14 flex items-center justify-between px-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-semibold text-sm text-foreground">
+                    AI Assistant
+                  </h2>
+                  <span className="bg-brand/10 text-brand text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-brand/20">
+                    BETA
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2 overflow-hidden min-w-0">
+                  {chatQuota && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0">
+                      <Coins size={12} className="text-brand shrink-0" />
+                      <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
+                        {chatQuota.free_remaining > 0
+                          ? `${chatQuota.free_remaining}/${chatQuota.free_total} (+${chatQuota.credit_balance})`
+                          : `${chatQuota.credit_balance} paid`}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0">
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand"></div>
+                    <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
+                      Ready
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Premium Tabs */}
+              <div className="px-4 pb-3 pt-1 flex justify-center">
+                <div className="relative flex p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md w-full">
+                  <button
+                    onClick={() => setMobileTab("chat")}
+                    className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
+                      mobileTab === "chat"
+                        ? "text-background"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {mobileTab === "chat" && (
+                      <motion.div
+                        layoutId="activeMobileTab"
+                        className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <MessageSquare size={13} />
+                    <span>Workspace</span>
+                  </button>
+                  <button
+                    onClick={() => setMobileTab("history")}
+                    className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
+                      mobileTab === "history"
+                        ? "text-background"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {mobileTab === "history" && (
+                      <motion.div
+                        layoutId="activeMobileTab"
+                        className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <History size={13} />
+                    <span>History</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <aside
             className={`bg-card/40 border-r border-border flex-col h-full z-20 transition-all duration-300 ${
               isMobile
                 ? mobileTab === "history"
-                  ? "flex w-full"
+                  ? "flex w-full flex-1"
                   : "hidden"
                 : `flex w-72 ${sidebarCollapsed ? "-ml-72" : ""}`
             }`}
@@ -1822,85 +1899,87 @@ export const ChatPage = () => {
             className={`min-h-0 relative flex-col bg-background overflow-hidden h-full ${
               isMobile
                 ? mobileTab === "chat"
-                  ? "flex w-full pb-16"
+                  ? "flex w-full pb-0 flex-1"
                   : "hidden"
                 : "flex flex-1"
             }`}
           >
-            <header className='h-16 flex items-center justify-between px-4 md:px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
-              <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
-                <button
-                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  className='mr-3 text-foreground/60 hover:text-foreground transition-colors hidden md:block'
-                >
-                  <PanelLeft size={20} />
-                </button>
-                <h2 className='font-semibold text-sm sm:text-lg text-foreground whitespace-nowrap'>
-                  AI Assistant
-                </h2>
-                <span className='bg-brand/10 text-brand text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full border border-brand/20 shrink-0'>
-                  BETA
-                </span>
-              </div>
-              <div className='flex items-center gap-2 sm:gap-4 overflow-hidden min-w-0 justify-end'>
-                {chatQuota && (
-                  <div className='flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0'>
-                    <Coins size={14} className='text-brand shrink-0' />
-                    <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
-                      {chatQuota.free_remaining > 0
-                        ? isMobile
-                          ? `${chatQuota.free_remaining}/${chatQuota.free_total}${
-                              chatQuota.credit_balance > 0
-                                ? ` (+${chatQuota.credit_balance})`
-                                : ""
-                            }`
-                          : `${chatQuota.free_remaining}/${chatQuota.free_total} free${
-                              chatQuota.credit_balance > 0
-                                ? ` + ${chatQuota.credit_balance} paid`
-                                : ""
-                            }`
-                        : isMobile
-                          ? `${chatQuota.credit_balance} paid`
-                          : `${chatQuota.credit_balance} paid credits`}
-                    </span>
-                  </div>
-                )}
-                <div
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0`}
-                >
-                  <div
-                    className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${isChatBusy ? "bg-brand animate-pulse" : "bg-brand"} `}
-                  ></div>
-                  <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
-                    {status === "in_progress"
-                      ? showExtendedWait
-                        ? `Still working... ${requestElapsedLabel}`
-                        : "Generating..."
-                      : skillStatus === "in_progress"
-                        ? "Running skill..."
-                      : "Ready"}
+            {!isMobile && (
+              <header className='h-16 flex items-center justify-between px-4 md:px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
+                <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
+                  <button
+                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    className='mr-3 text-foreground/60 hover:text-foreground transition-colors hidden md:block'
+                  >
+                    <PanelLeft size={20} />
+                  </button>
+                  <h2 className='font-semibold text-sm sm:text-lg text-foreground whitespace-nowrap'>
+                    AI Assistant
+                  </h2>
+                  <span className='bg-brand/10 text-brand text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full border border-brand/20 shrink-0'>
+                    BETA
                   </span>
                 </div>
-                {status === "in_progress" && (
-                  <button
-                    type='button'
-                    onClick={stop}
-                    className='text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground px-2 sm:px-3 py-1.5 flex items-center gap-1 shrink-0'
+                <div className='flex items-center gap-2 sm:gap-4 overflow-hidden min-w-0 justify-end'>
+                  {chatQuota && (
+                    <div className='flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0'>
+                      <Coins size={14} className='text-brand shrink-0' />
+                      <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
+                        {chatQuota.free_remaining > 0
+                          ? isMobile
+                            ? `${chatQuota.free_remaining}/${chatQuota.free_total}${
+                                chatQuota.credit_balance > 0
+                                  ? ` (+${chatQuota.credit_balance})`
+                                  : ""
+                              }`
+                            : `${chatQuota.free_remaining}/${chatQuota.free_total} free${
+                                chatQuota.credit_balance > 0
+                                  ? ` + ${chatQuota.credit_balance} paid`
+                                  : ""
+                              }`
+                          : isMobile
+                            ? `${chatQuota.credit_balance} paid`
+                            : `${chatQuota.credit_balance} paid credits`}
+                      </span>
+                    </div>
+                  )}
+                  <div
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0`}
                   >
-                    Stop
-                  </button>
-                )}
-                {messages.length > 0 && !isMobile && (
-                  <button
-                    onClick={regenerate}
-                    disabled={isChatBusy}
-                    className='text-xs sm:text-sm font-medium text-brand hover:underline px-2 sm:px-3 py-1.5 flex items-center gap-1 shrink-0'
-                  >
-                    Regenerate
-                  </button>
-                )}
-              </div>
-            </header>
+                    <div
+                      className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${isChatBusy ? "bg-brand animate-pulse" : "bg-brand"} `}
+                    ></div>
+                    <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
+                      {status === "in_progress"
+                        ? showExtendedWait
+                          ? `Still working... ${requestElapsedLabel}`
+                          : "Generating..."
+                        : skillStatus === "in_progress"
+                          ? "Running skill..."
+                          : "Ready"}
+                    </span>
+                  </div>
+                  {status === "in_progress" && (
+                    <button
+                      type='button'
+                      onClick={stop}
+                      className='text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground px-2 sm:px-3 py-1.5 flex items-center gap-1 shrink-0'
+                    >
+                      Stop
+                    </button>
+                  )}
+                  {messages.length > 0 && !isMobile && (
+                    <button
+                      onClick={regenerate}
+                      disabled={isChatBusy}
+                      className='text-xs sm:text-sm font-medium text-brand hover:underline px-2 sm:px-3 py-1.5 flex items-center gap-1 shrink-0'
+                    >
+                      Regenerate
+                    </button>
+                  )}
+                </div>
+              </header>
+            )}
 
             <div
               ref={chatScrollRef}
@@ -2592,36 +2671,6 @@ export const ChatPage = () => {
             <div className='fixed top-24 left-96 w-64 h-64 bg-brand/5 rounded-full blur-[100px] pointer-events-none'></div>
           </main>
 
-          {/* Mobile Bottom Tab Navigation */}
-          {isMobile && (
-            <div className='fixed bottom-0 left-0 right-0 z-50 bg-background/95 border-t border-border/40 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex h-16 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]'>
-              <button
-                type='button'
-                onClick={() => setMobileTab("chat")}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
-                  mobileTab === "chat"
-                    ? "text-brand bg-brand/5"
-                    : "text-muted-foreground"
-                }`}
-              >
-                <MessageSquare className='w-5 h-5' />
-                <span className='text-[11px] font-medium'>Chat</span>
-              </button>
-              <div className='w-px bg-border/40 my-3' />
-              <button
-                type='button'
-                onClick={() => setMobileTab("history")}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
-                  mobileTab === "history"
-                    ? "text-brand bg-brand/5"
-                    : "text-muted-foreground"
-                }`}
-              >
-                <History className='w-5 h-5' />
-                <span className='text-[11px] font-medium'>History</span>
-              </button>
-            </div>
-          )}
         </>
       )}
     </div>

@@ -1088,41 +1088,31 @@ export const Dashboard = (): JSX.Element => {
                   animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
                   exit={{ opacity: 0, y: 15, scale: 0.9, x: "-50%" }}
                   transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  className="absolute bottom-16 left-1/2 z-50 min-w-[260px] bg-card/95 backdrop-blur-xl border border-border/40 rounded-2xl p-3 shadow-[0_10px_32px_rgba(0,0,0,0.6),0_0_24px_rgba(29,255,0,0.15)] flex gap-3 items-center justify-between"
+                  className="absolute bottom-20 left-1/2 z-50 flex gap-3 items-center justify-center pointer-events-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {/* Arrow/Triangle */}
-                  <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-card/95 border-r border-b border-border/40 rotate-45" />
-                  
-                  {/* Jobs Button */}
+                  {/* Jobs Pill */}
                   <button
                     onClick={() => {
                       navigate("/dashboard/jobs");
                       setShowCareerPopup(false);
                     }}
-                    className="flex-1 flex flex-col items-center justify-center py-2 px-3 rounded-xl hover:bg-brand/10 hover:text-brand border border-transparent hover:border-brand/20 transition-all duration-200 group"
+                    className="flex items-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(29,255,0,0.1)] shrink-0 text-foreground text-sm font-semibold"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-foreground/5 group-hover:bg-brand/20 flex items-center justify-center text-muted-foreground group-hover:text-brand mb-1 transition-colors">
-                      <Briefcase className="w-5 h-5" />
-                    </div>
-                    <span className="text-xs font-semibold text-foreground group-hover:text-brand transition-colors">Jobs</span>
+                    <Briefcase className="w-4 h-4 text-brand" />
+                    <span>Jobs</span>
                   </button>
 
-                  {/* Divider */}
-                  <div className="w-[1px] h-12 bg-border/40 self-center" />
-
-                  {/* Application Button */}
+                  {/* Application Pill */}
                   <button
                     onClick={() => {
                       navigate("/dashboard/application");
                       setShowCareerPopup(false);
                     }}
-                    className="flex-1 flex flex-col items-center justify-center py-2 px-3 rounded-xl hover:bg-brand/10 hover:text-brand border border-transparent hover:border-brand/20 transition-all duration-200 group"
+                    className="flex items-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(29,255,0,0.1)] shrink-0 text-foreground text-sm font-semibold"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-foreground/5 group-hover:bg-brand/20 flex items-center justify-center text-muted-foreground group-hover:text-brand mb-1 transition-colors">
-                      <Users className="w-5 h-5" />
-                    </div>
-                    <span className="text-xs font-semibold text-foreground group-hover:text-brand transition-colors">Application</span>
+                    <Users className="w-4 h-4 text-brand" />
+                    <span>Application</span>
                   </button>
                 </motion.div>
               )}
