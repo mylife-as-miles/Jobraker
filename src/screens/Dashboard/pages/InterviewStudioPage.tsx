@@ -574,7 +574,7 @@ export const InterviewStudioPage: React.FC = () => {
                 <Activity size={12} /> AI Coach
               </h3>
               {isRecording && (
-                <span className='px-1.5 py-0.5 rounded bg-brand text-foreground text-[9px] font-bold animate-pulse'>
+                <span className='px-1.5 py-0.5 rounded bg-brand text-black text-[9px] font-bold animate-pulse'>
                   LIVE
                 </span>
               )}
@@ -681,7 +681,7 @@ export const InterviewStudioPage: React.FC = () => {
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
-            className='absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 bg-brand/90 text-foreground rounded-lg shadow-xl flex items-center gap-3 border border-brand/50 z-50'
+            className='absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 bg-brand/90 text-black rounded-lg shadow-xl flex items-center gap-3 border border-brand/50 z-50'
           >
             <AlertCircle size={18} />
             <span className='text-sm'>{permissionError}</span>

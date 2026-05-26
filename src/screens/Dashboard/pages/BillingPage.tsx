@@ -1261,8 +1261,8 @@ export const BillingPage = () => {
         )}
 
         {/* Custom Tab Navigation */}
-        <div className='flex justify-center mb-12'>
-          <div className='flex items-center p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md'>
+        <div className='flex justify-center mb-12 max-w-full px-4'>
+          <div className='flex items-center p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md overflow-x-auto max-w-full no-scrollbar flex-nowrap sm:flex-wrap'>
             {[
               {
                 id: "subscription",
@@ -1302,7 +1302,7 @@ export const BillingPage = () => {
                       | "history",
                   )
                 }
-                className={`relative flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full transition-all duration-300 ${
+                className={`relative flex items-center gap-1.5 px-3 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-full transition-all duration-300 shrink-0 ${
                   activeTab === tab.id
                     ? "text-background shadow-lg"
                     : "text-gray-400 hover:text-foreground hover:bg-foreground/5"
@@ -2294,7 +2294,7 @@ export const BillingPage = () => {
                       ].map((item, idx) => (
                         <div
                           key={idx}
-                          className='flex items-center justify-between p-4 hover:bg-foreground/[0.02] transition-colors'
+                          className='flex items-start justify-between p-4 hover:bg-foreground/[0.02] transition-colors gap-3'
                         >
                           <div className='flex-1 min-w-0'>
                             <p className='text-sm font-medium text-foreground'>
@@ -2304,7 +2304,7 @@ export const BillingPage = () => {
                               {item.note}
                             </p>
                           </div>
-                          <div className='flex items-center gap-1.5 pl-4 flex-shrink-0'>
+                          <div className='flex items-center gap-1.5 pl-4 flex-shrink-0 pt-0.5'>
                             <span
                               className={`text-lg font-bold font-mono ${item.cost === 0 ? "text-brand" : "text-foreground"}`}
                             >
@@ -2377,7 +2377,7 @@ export const BillingPage = () => {
                       ].map((item, idx) => (
                         <div
                           key={idx}
-                          className='flex items-center justify-between p-4 hover:bg-foreground/[0.02] transition-colors'
+                          className='flex items-start justify-between p-4 hover:bg-foreground/[0.02] transition-colors gap-3'
                         >
                           <div className='flex-1 min-w-0'>
                             <p className='text-sm font-medium text-foreground'>
@@ -2387,7 +2387,7 @@ export const BillingPage = () => {
                               {item.note}
                             </p>
                           </div>
-                          <div className='flex items-center gap-1.5 pl-4 flex-shrink-0'>
+                          <div className='flex items-center gap-1.5 pl-4 flex-shrink-0 pt-0.5'>
                             <span
                               className={`text-lg font-bold font-mono ${item.cost === 0 ? "text-brand" : "text-foreground"}`}
                             >
@@ -2905,7 +2905,7 @@ export const BillingPage = () => {
             >
               <Card className='border-foreground/10 bg-foreground/[0.02] backdrop-blur-md overflow-hidden'>
                 <CardHeader className='border-b border-foreground/10 bg-foreground/[0.02]'>
-                  <div className='flex items-center justify-between'>
+                  <div className='flex flex-col gap-4 sm:flex-row sm:items-center justify-between'>
                     <div>
                       <CardTitle className='text-xl font-bold text-foreground flex items-center gap-2'>
                         Transaction History
@@ -2917,7 +2917,7 @@ export const BillingPage = () => {
                     <Button
                       variant='outline'
                       size='sm'
-                      className='gap-2 border-foreground/10 bg-foreground/5 hover:bg-foreground/10 text-gray-300 hover:text-foreground'
+                      className='gap-2 border-foreground/10 bg-foreground/5 hover:bg-foreground/10 text-gray-300 hover:text-foreground shrink-0'
                     >
                       <Download className='w-4 h-4' />
                       Export CSV

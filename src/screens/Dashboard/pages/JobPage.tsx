@@ -4427,7 +4427,7 @@ export const JobPage = (): JSX.Element => {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
-                        className={`group relative flex-1 sm:flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
+                        className={`group relative flex-1 sm:flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap ${
                           queueStatus === "populating" || queueStatus === "loading"
                             ? "border-foreground/60 text-foreground bg-foreground/15"
                             : "border-foreground/20 text-foreground bg-foreground/5 hover:text-brand hover:border-brand/60 hover:bg-brand/10"
@@ -4502,7 +4502,7 @@ export const JobPage = (): JSX.Element => {
                     onClick={() => {
                       openAutoApplyFlow(null);
                     }}
-                    className={`relative flex-1 sm:flex-none overflow-hidden border border-brand/40 text-foreground px-3 py-2 sm:px-4 sm:py-2 md:px-5 rounded-xl transition-all duration-300 text-xs sm:text-sm ${applyingAll ? "bg-brand/20 text-brand" : "bg-brand/5 text-brand"}`}
+                    className={`relative flex-1 sm:flex-none overflow-hidden border border-brand/40 text-foreground px-3 py-2 sm:px-4 sm:py-2 md:px-5 rounded-xl transition-all duration-300 text-xs sm:text-sm whitespace-nowrap ${applyingAll ? "bg-brand/20 text-brand" : "bg-brand/5 text-brand"}`}
                     title='Auto apply all visible jobs'
                     disabled={
                       applyingAll ||
@@ -4535,7 +4535,7 @@ export const JobPage = (): JSX.Element => {
                   <Button
                     variant='ghost'
                     onClick={exportVisibleJobsCSV}
-                    className='relative flex-1 sm:flex-none overflow-hidden border border-foreground/20 text-foreground/75 bg-foreground/5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-sm hover:border-brand/40 hover:text-brand'
+                    className='relative flex-1 sm:flex-none overflow-hidden border border-foreground/20 text-foreground/75 bg-foreground/5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-sm whitespace-nowrap hover:border-brand/40 hover:text-brand'
                     title='Export visible jobs to CSV'
                     disabled={jobs.length === 0}
                   >
@@ -4544,7 +4544,7 @@ export const JobPage = (): JSX.Element => {
                   <Button
                     variant='ghost'
                     onClick={reevaluateVisibleJobs}
-                    className='relative flex-1 sm:flex-none overflow-hidden border border-foreground/20 text-foreground/75 bg-foreground/5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-sm hover:border-brand/40 hover:text-brand'
+                    className='relative flex-1 sm:flex-none overflow-hidden border border-foreground/20 text-foreground/75 bg-foreground/5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-sm whitespace-nowrap hover:border-brand/40 hover:text-brand'
                     title='Re-evaluate visible jobs'
                     disabled={jobs.length === 0 || !hasJobEvaluationAccess}
                   >
@@ -4553,7 +4553,7 @@ export const JobPage = (): JSX.Element => {
                   <Button
                     variant='ghost'
                     onClick={cleanLowQualityJobs}
-                    className='relative flex-1 sm:flex-none overflow-hidden border border-foreground/20 text-foreground/75 bg-foreground/5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-sm hover:border-brand/40 hover:text-brand'
+                    className='relative flex-1 sm:flex-none overflow-hidden border border-foreground/20 text-foreground/75 bg-foreground/5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-sm whitespace-nowrap hover:border-brand/40 hover:text-brand'
                     title='Hide jobs with poor quality-gate signals'
                     disabled={jobs.length === 0}
                   >
@@ -4562,7 +4562,7 @@ export const JobPage = (): JSX.Element => {
                   <Button
                     variant='ghost'
                     onClick={() => setConfirmDeleteOpen(true)}
-                    className={`group relative flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md ${
+                    className={`group relative flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md whitespace-nowrap ${
                       clearingJobs
                         ? "border-red-600/60 text-red-600 bg-red-600/15 cursor-not-allowed opacity-60"
                         : jobs.length === 0

@@ -8,9 +8,10 @@ type Option = { value: string; label: string };
 type SortDropdownProps = {
   value: string;
   onChange: (value: string) => void;
+  className?: string;
 };
 
-export default function SortDropdown({ value, onChange }: SortDropdownProps) {
+export default function SortDropdown({ value, onChange, className }: SortDropdownProps) {
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -51,7 +52,7 @@ export default function SortDropdown({ value, onChange }: SortDropdownProps) {
   };
 
   return (
-    <div className="relative inline-block text-sm" ref={rootRef}>
+    <div className={`relative inline-block text-sm ${className || "w-[180px]"}`} ref={rootRef}>
       <button
         ref={triggerRef}
         type="button"
@@ -59,7 +60,7 @@ export default function SortDropdown({ value, onChange }: SortDropdownProps) {
         aria-expanded={isOpen}
         onClick={toggleOpen}
         className={[
-          "inline-flex w-[180px] items-center justify-between rounded-xl border px-4 py-3 text-left text-sm",
+          "inline-flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm",
           "bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] text-foreground",
           "border-[#1dff00]/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-sm",
           "transition-all duration-200 hover:border-[#1dff00]/35 hover:bg-[#111722]",
@@ -73,7 +74,7 @@ export default function SortDropdown({ value, onChange }: SortDropdownProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full z-50 mt-2 w-[180px] overflow-hidden rounded-2xl border border-[#1dff00]/18 bg-[#0d131c]/96 shadow-[0_18px_48px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+        <div className="absolute top-full z-50 mt-2 w-full min-w-[180px] overflow-hidden rounded-2xl border border-[#1dff00]/18 bg-[#0d131c]/96 shadow-[0_18px_48px_rgba(0,0,0,0.45)] backdrop-blur-xl">
           <div
             role="listbox"
             aria-label="Sort options"

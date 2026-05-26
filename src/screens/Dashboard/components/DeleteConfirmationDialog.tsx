@@ -54,7 +54,7 @@ export const DeleteConfirmationDialog: React.FC<
           <Button
             onClick={onConfirm}
             disabled={loading}
-            className='bg-brand text-foreground hover:bg-brand font-semibold'
+            className='bg-brand text-black hover:bg-brand/90 font-semibold'
           >
             {loading ? "Deleting..." : "Delete"}
           </Button>

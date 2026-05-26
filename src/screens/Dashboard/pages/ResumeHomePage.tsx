@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -10,6 +10,8 @@ import {
   Edit2,
   Trash2,
   Download,
+  History,
+  MessageSquare,
 } from "lucide-react";
 import { useArtboardStore } from "../../../store/artboard";
 import { Button } from "../../../components/ui/button";
@@ -34,6 +36,16 @@ export const ResumeHomePage = () => {
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { resumes, loading, importResume, remove: removeResume } = useResumes();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const setResumeId = useArtboardStore((state) => state.setResumeId);
   const setResumeTitle = useArtboardStore((state) => state.setResumeTitle);
@@ -103,7 +115,7 @@ export const ResumeHomePage = () => {
   };
 
   return (
-    <div className='product-page-shell flex flex-col h-full bg-background text-foreground p-8 overflow-y-auto'>
+    <div className={`product-page-shell flex flex-col h-full bg-background text-foreground overflow-y-auto ${isMobile ? "p-4 pb-20" : "p-8"}`}>
       <input
         type='file'
         ref={fileInputRef}
@@ -148,7 +160,7 @@ export const ResumeHomePage = () => {
 
           <Button
             onClick={handleCreateNew}
-            className='bg-brand text-foreground hover:bg-brand/90 gap-2 font-semibold'
+            className='bg-brand text-black hover:bg-brand/90 gap-2 font-semibold'
           >
             <Plus className='w-4 h-4' />
             Create New
@@ -407,6 +419,37 @@ export const ResumeHomePage = () => {
         confirmText='Delete'
         cancelText='Cancel'
       />
+
+      {/* Mobile Bottom Tab Navigation */}
+      {isMobile && (
+        <div className='fixed bottom-0 left-0 right-0 z-50 bg-background/95 border-t border-border/40 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex h-16 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]'>
+          <button
+            type='button'
+            onClick={() => navigate("/dashboard/chat?tab=chat")}
+            className='flex-1 flex flex-col items-center justify-center gap-1 transition-colors text-muted-foreground'
+          >
+            <MessageSquare className='w-5 h-5' />
+            <span className='text-[11px] font-medium'>Chat</span>
+          </button>
+          <div className='w-px bg-border/40 my-3' />
+          <button
+            type='button'
+            onClick={() => navigate("/dashboard/chat?tab=history")}
+            className='flex-1 flex flex-col items-center justify-center gap-1 transition-colors text-muted-foreground'
+          >
+            <History className='w-5 h-5' />
+            <span className='text-[11px] font-medium'>History</span>
+          </button>
+          <div className='w-px bg-border/40 my-3' />
+          <button
+            type='button'
+            className='flex-1 flex flex-col items-center justify-center gap-1 transition-colors text-brand bg-brand/5'
+          >
+            <FileText className='w-5 h-5' />
+            <span className='text-[11px] font-medium'>Resume</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

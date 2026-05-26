@@ -5013,7 +5013,7 @@ export const SettingsPage = (): JSX.Element => {
           <div className='grid grid-cols-1 lg:grid-cols-5 gap-8'>
             {/* Minimal Sidebar Navigation */}
             <div
-              className='lg:col-span-1 space-y-1'
+              className='lg:col-span-1 flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 gap-1 lg:gap-1 no-scrollbar whitespace-nowrap scrollbar-none'
               id='settings-tablist'
               data-tour='settings-tabs'
             >
@@ -5032,10 +5032,10 @@ export const SettingsPage = (): JSX.Element => {
                   }}
                   id={`settings-tab-btn-${tab.id}`}
                   data-tour={`settings-tab-btn-${tab.id}`}
-                  className={`w-full flex items-center gap-3 text-in px-4 py-2.5 rounded-lg text-sm transition-all ${
+                  className={`w-auto lg:w-full flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-2.5 rounded-lg text-xs lg:text-sm transition-all shrink-0 ${
                     activeTab === tab.id
-                      ? "text-foreground/95 bg-gradient-to-r from-foreground/[0.08] to-transparent border-l-2 border-brand"
-                      : "text-foreground/70 hover:text-foreground/80 hover:bg-foreground/5 border-l-2 border-transparent"
+                      ? "text-foreground/95 bg-gradient-to-r from-foreground/[0.08] to-transparent border-l-2 lg:border-l-2 border-b-2 lg:border-b-0 border-brand"
+                      : "text-foreground/70 hover:text-foreground/80 hover:bg-foreground/5 border-l-2 lg:border-l-2 border-b-2 lg:border-b-0 border-transparent"
                   }`}
                 >
                   <span
@@ -5049,10 +5049,10 @@ export const SettingsPage = (): JSX.Element => {
                 </button>
               ))}
 
-              <div className='pt-4 mt-4 border-t border-foreground/10'>
+              <div className='pt-0 lg:pt-4 mt-0 lg:mt-4 border-t-0 lg:border-t border-foreground/10 shrink-0'>
                 <button
                   onClick={() => setSignOutDialogOpen(true)}
-                  className='w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-red-500  transition-all border-l-2 border-transparent'
+                  className='w-auto lg:w-full flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-2.5 rounded-lg text-xs lg:text-sm text-red-500 transition-all border-l-2 lg:border-l-2 border-b-2 lg:border-b-0 border-transparent shrink-0'
                 >
                   <LogOut className='w-4 h-4' />
                   <span className='font-medium'>Sign Out</span>

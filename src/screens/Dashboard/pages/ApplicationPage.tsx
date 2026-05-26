@@ -1,4 +1,4 @@
-﻿import SortDropdown from "@/components/SortDropdown";
+import SortDropdown from "@/components/SortDropdown";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -1087,19 +1087,20 @@ function ApplicationPage() {
                 className='pl-12 h-12 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#1dff00]/20 text-foreground placeholder:text-foreground/80 focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all duration-200 rounded-xl'
               />
             </div>
-            <div className='flex items-center gap-3'>
+            <div className='flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto'>
               <SortDropdown
                 value={sortBy}
                 onChange={(newSortBy) => setSortBy(newSortBy as SortOption)}
+                className="flex-1 sm:flex-initial sm:w-[180px]"
               />
 
               <div
                 id='application-view-toggle'
-                className='inline-flex rounded-xl border border-[#1dff00]/30 overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  backdrop-blur-sm shadow-lg'
+                className='inline-flex rounded-xl border border-[#1dff00]/30 overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  backdrop-blur-sm shadow-lg flex-shrink-0'
                 data-tour='application-view-toggle'
               >
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 relative ${viewMode === "gantt" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`group px-3 py-2 sm:px-4 sm:py-3 text-sm transition-all duration-200 relative ${viewMode === "gantt" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Gantt view'
                   onClick={() => setViewMode("gantt")}
                 >
@@ -1109,7 +1110,7 @@ function ApplicationPage() {
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "kanban" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`group px-3 py-2 sm:px-4 sm:py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "kanban" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Kanban view'
                   onClick={() => setViewMode("kanban")}
                 >
@@ -1119,7 +1120,7 @@ function ApplicationPage() {
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "calendar" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`group px-3 py-2 sm:px-4 sm:py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "calendar" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Calendar view'
                   onClick={() => setViewMode("calendar")}
                 >
@@ -1129,7 +1130,7 @@ function ApplicationPage() {
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "table" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`group px-3 py-2 sm:px-4 sm:py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "table" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Table view'
                   onClick={() => setViewMode("table")}
                 >
