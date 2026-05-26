@@ -1025,6 +1025,49 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
         </div>
       </header>
 
+      {isMobile && (
+        <div className='px-4 pb-3 pt-3 flex justify-center border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85'>
+          <div className='relative flex p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md w-full max-w-[340px]'>
+            <button
+              onClick={() => setMobileView("editor")}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
+                mobileView === "editor"
+                  ? "text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {mobileView === "editor" && (
+                <motion.div
+                  layoutId="activeResumeBuilderTab"
+                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              <PenLine size={13} />
+              <span>Editor</span>
+            </button>
+            <button
+              onClick={() => setMobileView("preview")}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
+                mobileView === "preview"
+                  ? "text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {mobileView === "preview" && (
+                <motion.div
+                  layoutId="activeResumeBuilderTab"
+                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              <Eye size={13} />
+              <span>Preview</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {!loadingTier && !hasResumeAiAccess && (
         <div className='px-4 pt-4 md:px-6 md:pt-6'>
           <UpgradePrompt
@@ -1041,7 +1084,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
       <div className='flex-1 flex flex-col md:flex-row overflow-hidden'>
         {/* Editor Panel (Left) */}
         <div
-          className={`${isMobile && mobileView !== "editor" ? "hidden" : "flex"} product-section-card-muted w-full flex-col overflow-y-auto custom-scrollbar rounded-none border-y-0 border-l-0 ${isMobile ? "pb-24" : "pb-20"} flex-1 md:w-[40%] md:min-w-[350px] md:max-w-[500px] md:flex-initial`}
+          className={`${isMobile && mobileView !== "editor" ? "hidden" : "flex"} product-section-card-muted w-full flex-col overflow-y-auto custom-scrollbar rounded-none border-y-0 border-l-0 ${isMobile ? "pb-6" : "pb-20"} flex-1 md:w-[40%] md:min-w-[350px] md:max-w-[500px] md:flex-initial`}
         >
           <div className='p-4 md:p-6 space-y-4'>
             {/* Content Header */}
@@ -1179,7 +1222,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             })}
 
             {/* Add Section Button */}
-            <div className='pt-4 pb-20'>
+            <div>
               <Button
                 variant='outline'
                 className='w-full py-6 border-dashed border-gray-300 dark:border-foreground/20 hover:border-brand hover:text-brand hover:bg-brand/5'
@@ -1195,7 +1238,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
         {/* Preview Panel (Right) */}
         <div
           ref={previewPanelRef}
-          className={`${isMobile && mobileView !== "preview" ? "hidden" : "flex"} flex-1 overflow-auto justify-center p-3 md:p-8 relative custom-scrollbar bg-[hsl(var(--product-surface-muted))] dark:bg-background ${isMobile ? "pb-24 pt-4" : ""}`}
+          className={`${isMobile && mobileView !== "preview" ? "hidden" : "flex"} flex-1 overflow-auto justify-center p-3 md:p-8 relative custom-scrollbar bg-[hsl(var(--product-surface-muted))] dark:bg-background ${isMobile ? "pb-6 pt-4" : ""}`}
         >
           {!isMobile && (
             <div className='absolute right-4 top-4 z-10 flex flex-col gap-2 md:right-8 md:top-8'>
@@ -1237,50 +1280,6 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           </div>
         </div>
       </div>
-
-      {/* Mobile Bottom Tab Bar */}
-      {isMobile && (
-        <div className='fixed bottom-0 left-0 right-0 z-50 bg-background/95 border-t border-border/40 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex h-16 items-center justify-center px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]'>
-          <div className="relative flex p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md w-full max-w-[340px]">
-            <button
-              onClick={() => setMobileView("editor")}
-              className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
-                mobileView === "editor"
-                  ? "text-background"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {mobileView === "editor" && (
-                <motion.div
-                  layoutId="activeResumeBuilderTab"
-                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
-              <PenLine size={13} />
-              <span>Editor</span>
-            </button>
-            <button
-              onClick={() => setMobileView("preview")}
-              className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
-                mobileView === "preview"
-                  ? "text-background"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {mobileView === "preview" && (
-                <motion.div
-                  layoutId="activeResumeBuilderTab"
-                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
-              <Eye size={13} />
-              <span>Preview</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       <TemplateSelector
         isOpen={isTemplateSelectorOpen}

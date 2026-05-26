@@ -851,7 +851,11 @@ export const CoverLetterBuilderPage = () => {
   return (
     <div
       id='cover-page-root'
-      className='product-page-shell relative flex min-h-[calc(100vh-4rem)] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8'
+      className={`product-page-shell relative flex flex-col ${
+        isMobile
+          ? "gap-4 px-3 py-4"
+          : "min-h-[calc(100vh-4rem)] gap-6 px-4 py-6 sm:px-6 lg:px-8"
+      }`}
     >
       {/* Ambient Background Glows */}
       <div className='fixed top-20 right-0 h-96 w-96 bg-brand/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10' />
@@ -963,6 +967,49 @@ export const CoverLetterBuilderPage = () => {
         </div>
       </div>
 
+      {isMobile && (
+        <div className='-mt-3 px-4 pb-1 flex justify-center'>
+          <div className='relative flex p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md w-full max-w-[340px]'>
+            <button
+              onClick={() => setMobileView("editor")}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
+                mobileView === "editor"
+                  ? "text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {mobileView === "editor" && (
+                <motion.div
+                  layoutId="activeCoverLetterBuilderTab"
+                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              <PenLine size={13} />
+              <span>Editor</span>
+            </button>
+            <button
+              onClick={() => setMobileView("preview")}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
+                mobileView === "preview"
+                  ? "text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {mobileView === "preview" && (
+                <motion.div
+                  layoutId="activeCoverLetterBuilderTab"
+                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              <Eye size={13} />
+              <span>Preview</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       <ConfirmDialog
         open={confirmClearOpen}
         onCancel={() => setConfirmClearOpen(false)}
@@ -986,7 +1033,7 @@ export const CoverLetterBuilderPage = () => {
       {/* Main Layout */}
       <div
         id='cover-main-layout'
-        className={`grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full ${isMobile ? "pb-24" : ""}`}
+        className='grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full'
       >
         {/* CONFIG PANEL (LEFT) */}
         <Card className={`product-section-card p-6 rounded-2xl ${isMobile && mobileView !== "editor" ? "hidden" : "flex flex-col"}`}>
@@ -1525,49 +1572,6 @@ export const CoverLetterBuilderPage = () => {
           </div>,
           document.body,
         )}
-      {/* Mobile Bottom Tab Bar */}
-      {isMobile && (
-        <div className='fixed bottom-0 left-0 right-0 z-50 bg-background/95 border-t border-border/40 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex h-16 items-center justify-center px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]'>
-          <div className="relative flex p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md w-full max-w-[340px]">
-            <button
-              onClick={() => setMobileView("editor")}
-              className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
-                mobileView === "editor"
-                  ? "text-background"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {mobileView === "editor" && (
-                <motion.div
-                  layoutId="activeCoverLetterBuilderTab"
-                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
-              <PenLine size={13} />
-              <span>Editor</span>
-            </button>
-            <button
-              onClick={() => setMobileView("preview")}
-              className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
-                mobileView === "preview"
-                  ? "text-background"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {mobileView === "preview" && (
-                <motion.div
-                  layoutId="activeCoverLetterBuilderTab"
-                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
-              <Eye size={13} />
-              <span>Preview</span>
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
