@@ -42,6 +42,7 @@ type SupportResponse = {
 type SupportFloatingWidgetProps = {
   currentPageId: string;
   currentPageLabel: string;
+  inline?: boolean;
 };
 
 const QUICK_ACTIONS: Array<{
@@ -84,6 +85,7 @@ const makeId = () =>
 export function SupportFloatingWidget({
   currentPageId,
   currentPageLabel,
+  inline = false,
 }: SupportFloatingWidgetProps) {
   const supabase = useMemo(() => createClient(), []);
   const [open, setOpen] = useState(false);
@@ -370,7 +372,7 @@ export function SupportFloatingWidget({
 
   const hasUserMessages = messages.some((m) => m.role === "user");
 
-  if (!open) {
+  if (!inline && !open) {
     return (
       <Button
         type="button"
@@ -384,7 +386,7 @@ export function SupportFloatingWidget({
   }
 
   return (
-    <div className="hidden sm:flex fixed top-4 bottom-4 right-4 z-[90] w-[min(calc(100vw-2rem),420px)] flex-col overflow-hidden rounded-3xl border border-foreground/10 bg-background/95 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl sm:top-5 sm:bottom-5 sm:right-5">
+    <div className={inline ? "flex w-full h-[calc(100vh-200px)] min-h-[500px] flex-col overflow-hidden rounded-2xl border border-border/40 bg-card/30 backdrop-blur-xl" : "hidden sm:flex fixed top-4 bottom-4 right-4 z-[90] w-[min(calc(100vw-2rem),420px)] flex-col overflow-hidden rounded-3xl border border-foreground/10 bg-background/95 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl sm:top-5 sm:bottom-5 sm:right-5"}>
       <div className="shrink-0 border-b border-foreground/10 bg-gradient-to-r from-brand/12 via-background to-background px-4 py-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -402,16 +404,18 @@ export function SupportFloatingWidget({
               </div>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 rounded-full p-0 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-            onClick={() => setOpen(false)}
-            aria-label="Close support"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          {!inline && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 rounded-full p-0 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+              onClick={() => setOpen(false)}
+              aria-label="Close support"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 

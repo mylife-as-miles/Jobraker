@@ -856,10 +856,19 @@ export const Dashboard = (): JSX.Element => {
                 <Menu className='w-4 h-4 sm:w-5 sm:h-5' />
               </Button>
 
-              {/* Current page (xs) */}
-              <span className='sm:hidden text-foreground font-medium text-sm truncate'>
-                {getCurrentBreadcrumb().split(" / ").slice(-1)[0]}
-              </span>
+              {/* Logo and Brand on mobile */}
+              <div className='flex sm:hidden items-center gap-2 shrink-0'>
+                <div className='w-7 h-7 rounded-lg flex items-center justify-center shrink-0 overflow-clip'>
+                  <img
+                    src='/logo/logo.jpeg'
+                    className='object-cover w-full h-full'
+                    alt='logo'
+                  />
+                </div>
+                <span className='font-bold text-sm leading-none tracking-tight text-foreground'>
+                  JobRaker
+                </span>
+              </div>
 
               {/* Breadcrumb Navigation (sm+) */}
               <div className='hidden sm:flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm lg:text-base min-w-0 whitespace-nowrap overflow-hidden'>
@@ -1084,11 +1093,11 @@ export const Dashboard = (): JSX.Element => {
             <AnimatePresence>
               {showCareerPopup && (
                 <motion.div
-                  initial={{ opacity: 0, y: 15, scale: 0.9, x: "-50%" }}
-                  animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
-                  exit={{ opacity: 0, y: 15, scale: 0.9, x: "-50%" }}
+                  initial={{ opacity: 0, y: 15, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 15, scale: 0.9 }}
                   transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  className="absolute bottom-20 left-1/2 z-50 flex gap-3 items-center justify-center pointer-events-auto"
+                  className="absolute bottom-20 left-1/2 -translate-x-1/2 z-50 flex gap-3 items-center justify-center pointer-events-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Jobs Pill */}

@@ -46,6 +46,7 @@ import {
   AlertTriangle,
   History,
   X,
+  LifeBuoy,
 } from "lucide-react";
 import remoteCoLogo from "../../../assets/job-sources/remote-co.svg";
 import remotiveLogo from "../../../assets/job-sources/remotive.svg";
@@ -75,6 +76,8 @@ import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 import { getProxiedLogoUrl } from "../../../lib/utils";
+import useMediaQuery from "@/hooks/use-media-query";
+import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
 
 const SignOutDialog = ({
   open,
@@ -152,6 +155,7 @@ async function getQRCode() {
 export const SettingsPage = (): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError } = useToast();
   const { availablePages, isRunning, page: runningTourPage, start: startTour } =
@@ -214,8 +218,16 @@ export const SettingsPage = (): JSX.Element => {
       });
     }
 
+    if (!isDesktop) {
+      baseTabs.push({
+        id: "support",
+        label: "Support",
+        icon: <LifeBuoy className='w-4 h-4' />,
+      });
+    }
+
     return baseTabs;
-  }, [isAdmin]);
+  }, [isAdmin, isDesktop]);
 
   const activeTab = useMemo(() => {
     const segment = location.pathname.split("/")[3];
@@ -4968,6 +4980,26 @@ export const SettingsPage = (): JSX.Element => {
 
       case "answer-bank":
         return <AnswerBankPanel />;
+
+      case "support":
+        return (
+          <div
+            id='settings-tab-support'
+            data-tour='settings-tab-support'
+            className='space-y-6'
+          >
+            <div className='bg-card border border-border/40 rounded-xl p-4 sm:p-6 shadow-sm ring-1 ring-foreground/5'>
+              <h3 className='text-base font-medium text-foreground mb-4'>
+                AI & App Support
+              </h3>
+              <SupportFloatingWidget
+                currentPageId="settings"
+                currentPageLabel="Settings"
+                inline={true}
+              />
+            </div>
+          </div>
+        );
 
       default:
         return null;
