@@ -75,10 +75,10 @@ function buildFallbackScoutResponse(companyName: string): ScoutResult {
   return {
     domain: `${cleanCompany}.com`,
     careersPageUrl: `https://www.${cleanCompany}.com/careers`,
-    contactEmail: `hr@${cleanCompany}.com`,
-    publicContactChannels: ["Contact Form", "LinkedIn Company Page"],
+    contactEmail: "",
+    publicContactChannels: ["Careers Page", "Contact Form", "LinkedIn Company Page"],
     confidence: "low",
-    foundSource: "Heuristic domain matching (needs verification)",
+    foundSource: "Heuristic domain matching only; no verified email found",
   };
 }
 
@@ -179,11 +179,26 @@ serve(async (req) => {
         };
       } catch (geminiError) {
         console.error("Gemini extraction failed, using fallback", geminiError);
-        scoutedResult = buildFallbackScoutResponse(safeCompanyName);
-      }
-    } else {
-      console.info("No search data available, using fallback");
       scoutedResult = buildFallbackScoutResponse(safeCompanyName);
+    }
+  } else {
+    console.info("No search data available, using fallback");
+    scoutedResult = buildFallbackScoutResponse(safeCompanyName);
+  }
+
+    if (scoutedResult.confidence === "low") {
+      scoutedResult = {
+        ...scoutedResult,
+        contactEmail: "",
+        publicContactChannels: Array.from(
+          new Set([
+            "Careers Page",
+            ...scoutedResult.publicContactChannels.filter((channel) =>
+              !/email/i.test(channel)
+            ),
+          ]),
+        ),
+      };
     }
 
     await recordFeatureUsage({

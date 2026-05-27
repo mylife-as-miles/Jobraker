@@ -109,6 +109,8 @@ import type {
   CandidateProfileInput,
   ExplainableJobOpportunity,
 } from "@/services/intelligence/types";
+import { ConcurrencyLimitModal } from "../../../components/ConcurrencyLimitModal";
+import { BILLING_PLAN_DEFINITIONS } from "@/lib/billingCatalog";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -1150,6 +1152,59 @@ export const JobPage = (): JSX.Element => {
   const [activeSearchScope, setActiveSearchScope] =
     useState<JobsQueueScope>(null);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const [concurrencyModalOpen, setConcurrencyModalOpen] = useState(false);
+  const [concurrencyInfo, setConcurrencyInfo] = useState<{
+    activeRuns: number;
+    totalLimit: number;
+  }>({ activeRuns: 0, totalLimit: 1 });
+
+  const fetchConcurrencyInfo = useCallback(async () => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id;
+      if (!userId) return;
+
+      const nowIso = new Date().toISOString();
+      const [{ data: quotaRows }, { count: queuedRunsCount }] = await Promise.all([
+        supabase
+          .from("user_feature_quotas")
+          .select("included_quantity")
+          .eq("user_id", userId)
+          .eq("feature_key", "auto_apply_concurrency")
+          .eq("source", "addon")
+          .lte("period_start", nowIso)
+          .gt("period_end", nowIso),
+        supabase
+          .from("applications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("canonical_stage", "queued"),
+      ]);
+
+      const boostSlots = Array.isArray(quotaRows)
+        ? quotaRows.reduce((sum, row) => sum + Math.max(0, Number(row.included_quantity || 0)), 0)
+        : 0;
+
+      const plan = BILLING_PLAN_DEFINITIONS.find((p) => p.name === subscriptionTier);
+      const baseLimit = plan ? plan.autoApplyConcurrency : 1;
+      const totalLimit = baseLimit + boostSlots;
+      const activeRuns = typeof queuedRunsCount === "number" ? queuedRunsCount : 0;
+
+      const info = { activeRuns, totalLimit };
+      setConcurrencyInfo(info);
+      return { activeRuns, totalLimit, availableSlots: Math.max(0, totalLimit - activeRuns) };
+    } catch (err) {
+      console.warn("Failed to fetch concurrency info:", err);
+      return null;
+    }
+  }, [subscriptionTier]);
+
+  useEffect(() => {
+    if (subscriptionTier) {
+      fetchConcurrencyInfo();
+    }
+  }, [subscriptionTier, fetchConcurrencyInfo]);
+
   const {
     tasks: jobTasks,
     createTask,
@@ -2801,6 +2856,7 @@ export const JobPage = (): JSX.Element => {
       setAiEvaluation(null);
       setForceSubmit(false);
       setJobToAutoApply(targetJob);
+      fetchConcurrencyInfo();
       const preferredResumeId = getPreferredResumeId(
         Array.isArray(resumes) ? resumes : [],
         selectedResumeId,
@@ -2824,6 +2880,7 @@ export const JobPage = (): JSX.Element => {
       loadCoverLetterLibrary();
     },
     [
+      fetchConcurrencyInfo,
       hasAutoApplyAccess,
       jobToAutoApply,
       loadCoverLetterLibrary,
@@ -3110,6 +3167,22 @@ export const JobPage = (): JSX.Element => {
           link: "/dashboard/billing",
         });
         return;
+      }
+
+      if (!saveAsDraftOnly) {
+        setApplyingAll(true);
+        try {
+          const res = await fetchConcurrencyInfo();
+          if (res && res.availableSlots <= 0) {
+            setConcurrencyModalOpen(true);
+            setApplyingAll(false);
+            return;
+          }
+        } catch (concurrencyErr) {
+          console.warn("Failed to verify concurrency prior to launch:", concurrencyErr);
+        } finally {
+          setApplyingAll(false);
+        }
       }
 
       const targetJobs = jobToAutoApply ? [jobToAutoApply] : jobs;

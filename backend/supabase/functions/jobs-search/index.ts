@@ -48,6 +48,47 @@ function parsePublicSources(value: unknown): PublicJobSource[] {
   return Array.from(seen);
 }
 
+function normalizeDomain(value: string): string | null {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(
+      /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`,
+    );
+    return parsed.hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return trimmed
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .replace(/\/.*$/, "")
+      .trim() || null;
+  }
+}
+
+function extractTargetDomains(value: unknown): string[] {
+  const inputs = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? [value]
+      : [];
+  const seen = new Set<string>();
+  for (const item of inputs) {
+    const text = String(item || "");
+    for (const match of text.matchAll(/\bsite:([a-z0-9.-]+\.[a-z]{2,})(?:\/[^\s)"']*)?/gi)) {
+      const domain = normalizeDomain(match[1]);
+      if (domain) seen.add(domain);
+    }
+    for (const match of text.matchAll(/https?:\/\/[^\s<>"')]+/gi)) {
+      const domain = normalizeDomain(match[0]);
+      if (domain) seen.add(domain);
+    }
+    const direct = normalizeDomain(text);
+    if (direct && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(direct)) seen.add(direct);
+  }
+  return Array.from(seen).slice(0, 12);
+}
+
 Deno.serve(async (req) => {
   const startedAt = Date.now();
   const origin = req.headers.get("origin");
@@ -67,6 +108,11 @@ Deno.serve(async (req) => {
     const sourceFocus = parsePublicSources(
       body?.sources ?? body?.sourceFocus ?? body?.publicSources,
     );
+    const targetDomains = extractTargetDomains([
+      searchQuery,
+      ...(Array.isArray(body?.targetDomains) ? body.targetDomains : []),
+      ...(Array.isArray(body?.careerSourceUrls) ? body.careerSourceUrls : []),
+    ]);
 
     // Resolve effective location based on scope
     let location = rawLocation;
@@ -132,6 +178,7 @@ Deno.serve(async (req) => {
       searchQuery,
       location,
       sourceFocus,
+      targetDomains,
       requestedLimit,
       effectiveLimit,
       subscriptionTier,
@@ -146,6 +193,7 @@ Deno.serve(async (req) => {
         location,
         limit: effectiveLimit,
         sourceFocus,
+        targetDomains,
       },
       async (batch) => {
         const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
@@ -279,6 +327,7 @@ Deno.serve(async (req) => {
         })),
         count: discoveredJobs.length,
         sourceFocus,
+        targetDomains,
         warnings,
       }),
       {

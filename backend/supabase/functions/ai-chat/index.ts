@@ -1,5 +1,4 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   createGeminiClient,
@@ -96,6 +95,37 @@ function asStringList(value: unknown): string[] {
     .split(/\r?\n|,\s*|\s+;\s*/g)
     .map((item) => item.replace(/^[-*•\d.)\s]+/, "").trim())
     .filter(Boolean);
+}
+
+function normalizeDomain(value: unknown): string | null {
+  const raw = asString(value);
+  if (!raw) return null;
+  try {
+    const parsed = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    return parsed.hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    const normalized = raw
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .replace(/\/.*$/, "")
+      .trim();
+    return /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(normalized) ? normalized : null;
+  }
+}
+
+function extractTargetDomainsFromText(value: unknown): string[] {
+  const text = asString(value) || "";
+  const domains = new Set<string>();
+  for (const match of text.matchAll(/\bsite:([a-z0-9.-]+\.[a-z]{2,})(?:\/[^\s)"']*)?/gi)) {
+    const domain = normalizeDomain(match[1]);
+    if (domain) domains.add(domain);
+  }
+  for (const match of text.matchAll(/https?:\/\/[^\s<>"')]+/gi)) {
+    const domain = normalizeDomain(match[0]);
+    if (domain) domains.add(domain);
+  }
+  return Array.from(domains).slice(0, 12);
 }
 
 function asNumber(value: unknown): number | null {
@@ -2790,7 +2820,7 @@ const AGENT_FUNCTION_DECLARATIONS = [
   }
 ];
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const cors = getCorsHeaders(req.headers.get("origin"), req);
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: cors });
@@ -2832,6 +2862,14 @@ serve(async (req) => {
     }
 
     const lastNorm = normalizedMessages[normalizedMessages.length - 1];
+    const requestedCareerSourceDomains = Array.from(
+      new Set(
+        normalizedMessages
+          .filter((message) => message.role === "user")
+          .slice(-6)
+          .flatMap((message) => extractTargetDomainsFromText(message.content)),
+      ),
+    ).slice(0, 12);
     if (
       lastNorm.role === "user" &&
       !lastNorm.content.trim() &&
@@ -2981,6 +3019,7 @@ Public job-source discovery:
 - X/Twitter, Reddit, and Hacker News results are leads from public/indexed pages only. Do not imply private scraping, login bypassing, or guaranteed official application channels.
 - After public-source discovery, summarize source_kind, verification_status, salary signals, and whether the role still needs official-channel verification.
 - NEVER run multiple run_job_search or search_public_job_sources tool calls in parallel or in a single turn. It is extremely expensive and wastes user credits. If the user provides multiple company names or career page URLs, combine them into a single search query using the Google search site: operator and OR (e.g. "Operations Project Manager" (site:gitlab.com OR site:automattic.com)). Do not execute a separate search call for each company.
+- If the user provides career page URLs or domains, preserve those domains in the search query using site: operators. Treat off-domain social posts, spreadsheets, blogs, or directories as leads only when the user explicitly asks for community/social leads; otherwise exclude them from the final answer.
 - Only use intake_job_url if the URL represents a single specific job posting. For index career pages, use run_job_search with a combined site query.
 
 Edge functions:
@@ -3236,6 +3275,7 @@ Edge functions:
                         limit: asNumber(args.limit) || undefined,
                         sources: asStringList(args.sources),
                         locationScope: asString(args.location_scope) || asString(args.locationScope) || undefined,
+                        targetDomains: requestedCareerSourceDomains,
                       },
                     });
                   } else if (fn.name === "search_public_job_sources") {
@@ -3250,6 +3290,7 @@ Edge functions:
                         limit: asNumber(args.limit) || 10,
                         sources: sources.length ? sources : ["yc", "x", "reddit", "hackernews", "ats"],
                         locationScope: asString(args.location_scope) || asString(args.locationScope) || "global",
+                        targetDomains: requestedCareerSourceDomains,
                       },
                     });
                   } else if (fn.name === "get_credits_balance") {
@@ -3704,19 +3745,24 @@ Edge functions:
                             payload: { companyName },
                           });
                           const data = isRecord(scout.data) ? scout.data : {};
+                          const confidence = asString(data.confidence) || "low";
+                          const verifiedContactEmail =
+                            confidence === "high" || confidence === "medium"
+                              ? asString(data.contactEmail) || ""
+                              : "";
                           contacts.push({
                             companyName,
                             domain: asString(data.domain) || "",
                             careersPageUrl: asString(data.careersPageUrl) || "",
-                            contactEmail: asString(data.contactEmail) || "",
+                            contactEmail: verifiedContactEmail,
                             publicContactChannels: Array.isArray(data.publicContactChannels)
                               ? data.publicContactChannels
                               : [],
-                            confidence: asString(data.confidence) || "low",
+                            confidence,
                             foundSource: asString(data.foundSource) || "Company scout",
                             safeToDraft:
-                              Boolean(asString(data.contactEmail)) &&
-                              (asString(data.confidence) === "high" || asString(data.confidence) === "medium"),
+                              Boolean(verifiedContactEmail) &&
+                              (confidence === "high" || confidence === "medium"),
                             scoutStatus: scout.success ? "completed" : "failed",
                             scoutError: scout.success ? null : scout.data || scout,
                           });

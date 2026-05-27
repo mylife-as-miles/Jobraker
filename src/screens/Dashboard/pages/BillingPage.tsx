@@ -502,15 +502,25 @@ export const BillingPage = () => {
     if (typeof window === "undefined") return;
     const searchParams = new URLSearchParams(window.location.search);
     const promo = searchParams.get("promo");
-    if (!isLowCreditRescueCode(promo)) return;
-
-    try {
-      const expiryTime = ensureLowCreditRescueExpiry();
-      if (Date.now() < expiryTime) {
-        setPromoApplied(true);
+    if (promo && isLowCreditRescueCode(promo)) {
+      try {
+        const expiryTime = ensureLowCreditRescueExpiry();
+        if (Date.now() < expiryTime) {
+          setPromoApplied(true);
+        }
+      } catch (error) {
+        console.error("Failed to initialize low-credit rescue promo", error);
       }
-    } catch (error) {
-      console.error("Failed to initialize low-credit rescue promo", error);
+    }
+    const tabParam = searchParams.get("tab");
+    if (
+      tabParam === "subscription" ||
+      tabParam === "packs" ||
+      tabParam === "boosts" ||
+      tabParam === "costs" ||
+      tabParam === "history"
+    ) {
+      setActiveTab(tabParam);
     }
   }, []);
 

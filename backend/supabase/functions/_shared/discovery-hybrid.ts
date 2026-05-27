@@ -72,6 +72,7 @@ interface FirecrawlDiscoveryArgs {
   location: string;
   limit: number;
   sourceFocus?: PublicJobSource[];
+  targetDomains?: string[];
 }
 
 interface JobSourceSettings {
@@ -442,6 +443,80 @@ const normalizeDomain = (value: string | null | undefined): string | null => {
 
 const hostFromUrl = (value: string | null | undefined): string | null =>
   normalizeDomain(safeUrl(value)?.hostname ?? value);
+
+const extractTargetDomainsFromText = (value: string | null | undefined): string[] => {
+  const text = asString(value) || "";
+  const domains = new Set<string>();
+
+  for (const match of text.matchAll(/\bsite:([a-z0-9.-]+\.[a-z]{2,})(?:\/[^\s)"']*)?/gi)) {
+    const domain = normalizeDomain(match[1]);
+    if (domain) domains.add(domain);
+  }
+
+  for (const match of text.matchAll(/https?:\/\/[^\s<>"')]+/gi)) {
+    const domain = hostFromUrl(match[0]);
+    if (domain) domains.add(domain);
+  }
+
+  return Array.from(domains);
+};
+
+const normalizeTargetDomains = (value: unknown): string[] =>
+  uniqueStrings([
+    ...asStringArray(value).map((item) => normalizeDomain(item)).filter((item): item is string => Boolean(item)),
+    ...(typeof value === "string" ? extractTargetDomainsFromText(value) : []),
+  ]).slice(0, 12);
+
+const stripSourceTargetsFromQuery = (value: string): string =>
+  value
+    .replace(/\bsite:[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s)"']*)?/gi, " ")
+    .replace(/https?:\/\/[^\s<>"')]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const hostMatchesDomain = (
+  host: string | null | undefined,
+  domain: string | null | undefined,
+): boolean => {
+  const normalizedHost = normalizeDomain(host);
+  const normalizedDomain = normalizeDomain(domain);
+  if (!normalizedHost || !normalizedDomain) return false;
+  return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
+};
+
+const hostMatchesAnyDomain = (
+  host: string | null | undefined,
+  domains: string[],
+): boolean => domains.some((domain) => hostMatchesDomain(host, domain));
+
+const isKnownAtsHost = (host: string | null | undefined): boolean => {
+  const normalized = normalizeDomain(host) || "";
+  return /(?:^|\.)boards\.greenhouse\.io$|(?:^|\.)jobs\.lever\.co$|(?:^|\.)lever\.co$|(?:^|\.)jobs\.ashbyhq\.com$|(?:^|\.)apply\.workable\.com$|(?:^|\.)breezy\.hr$|(?:^|\.)recruitee\.com$|(?:^|\.)smartrecruiters\.com$/i.test(normalized);
+};
+
+const seedDomainMatchesTargets = (
+  value: unknown,
+  targetDomains: string[],
+): boolean =>
+  typeof value === "string" && targetDomains.some((domain) => hostMatchesDomain(value, domain));
+
+const candidateMatchesTargetDomains = (
+  candidate: { url: string; raw_data?: Record<string, unknown>; seed_matches?: string[] },
+  targetDomains: string[],
+): boolean => {
+  if (!targetDomains.length) return true;
+  const host = hostFromUrl(candidate.url);
+  if (hostMatchesAnyDomain(host, targetDomains)) return true;
+
+  const raw = toRecord(candidate.raw_data);
+  const firecrawlResult = toRecord(raw.firecrawl_result);
+  const seedDomain = asString(firecrawlResult.seed_domain);
+  const seedMatchedTarget =
+    seedDomainMatchesTargets(seedDomain, targetDomains) ||
+    (candidate.seed_matches || []).some((match) => seedDomainMatchesTargets(match, targetDomains));
+
+  return seedMatchedTarget && isKnownAtsHost(host);
+};
 
 const normalizeCanonicalJobUrl = (value: string | null | undefined): string | null => {
   const parsed = safeUrl(value);
@@ -1012,6 +1087,13 @@ function buildSearchSeeds(
   const location = normalizeLocation(args.location || context.candidateMemory.location);
   const searchQuery = args.searchQuery.trim();
   const sourceFocus = normalizePublicJobSources(args.sourceFocus);
+  const targetDomains = normalizeTargetDomains([
+    ...(args.targetDomains || []),
+    ...extractTargetDomainsFromText(searchQuery),
+  ]);
+  const roleQuery = targetDomains.length > 0
+    ? stripSourceTargetsFromQuery(searchQuery) || searchQuery
+    : searchQuery;
   const wantsSource = (source: PublicJobSource) =>
     sourceFocus.length === 0 ||
     sourceFocus.includes(source) ||
@@ -1030,7 +1112,19 @@ function buildSearchSeeds(
 
   const seeds: Omit<SearchSeed, "limit">[] = [];
 
-  if (context.settings.include_search && wantsSource("web")) {
+  if (targetDomains.length > 0) {
+    for (const domain of targetDomains) {
+      seeds.push({
+        type: "allowed_domain",
+        query: buildDomainQuery(roleQuery, location, domain),
+        priority: 0,
+        domain,
+        is_tracked_company: context.trackedCompanyDomains.some((trackedDomain) =>
+          hostMatchesDomain(domain, trackedDomain)
+        ),
+      });
+    }
+  } else if (context.settings.include_search && wantsSource("web")) {
     seeds.push({
       type: "general",
       query: buildGeneralQuery(searchQuery, location),
@@ -1048,7 +1142,7 @@ function buildSearchSeeds(
     }
   }
 
-  if (wantsSource("web")) {
+  if (targetDomains.length === 0 && wantsSource("web")) {
     for (const company of context.trackedCompanies.slice(0, 4)) {
       const domain =
         normalizeDomain(company.domain) || normalizeDomain(company.careers_url);
@@ -1093,7 +1187,7 @@ function buildSearchSeeds(
     }
   }
 
-  if (wantsSource("ats")) {
+  if (targetDomains.length === 0 && wantsSource("ats")) {
     seeds.push({
       type: "ats_signal",
       query: buildAtsSignalQuery(searchQuery, location),
@@ -1102,7 +1196,7 @@ function buildSearchSeeds(
     });
   }
 
-  if (wantsSource("yc")) {
+  if (targetDomains.length === 0 && wantsSource("yc")) {
     seeds.push({
       type: "yc_signal",
       query: buildYcSignalQuery(searchQuery, location),
@@ -1111,7 +1205,7 @@ function buildSearchSeeds(
     });
   }
 
-  if (sourceFocus.length === 0 || sourceFocus.includes("community")) {
+  if (targetDomains.length === 0 && (sourceFocus.length === 0 || sourceFocus.includes("community"))) {
     seeds.push({
       type: "community_signal",
       query: buildCommunitySignalQuery(searchQuery, location),
@@ -1145,7 +1239,7 @@ function buildSearchSeeds(
     }
   }
 
-  if (location.toLowerCase() === "remote" && wantsSource("web")) {
+  if (targetDomains.length === 0 && location.toLowerCase() === "remote" && wantsSource("web")) {
     seeds.push({
       type: "remote_fallback",
       query: buildGeneralQuery(searchQuery, "Remote"),
@@ -2789,6 +2883,13 @@ export async function discoverJobsFirecrawl(
   const apiKey = await resolveFirecrawlApiKey();
   const context = await buildSearchContext(args.serviceClient, args.userId);
   const requestedSources = normalizePublicJobSources(args.sourceFocus);
+  const targetDomains = normalizeTargetDomains([
+    ...(args.targetDomains || []),
+    ...extractTargetDomainsFromText(args.searchQuery),
+  ]);
+  const roleQuery = targetDomains.length > 0
+    ? stripSourceTargetsFromQuery(args.searchQuery) || args.searchQuery
+    : args.searchQuery;
   if (requestedSources.includes("x")) {
     warnings.push(
       "X/Twitter discovery uses public/indexed pages only. JobRaker will not bypass logins, CAPTCHAs, or private profile access.",
@@ -2797,6 +2898,11 @@ export async function discoverJobsFirecrawl(
   if (requestedSources.some((source) => ["reddit", "hackernews", "x", "community"].includes(source))) {
     warnings.push(
       "Community-source results are treated as leads until verified against an official company careers page or application channel.",
+    );
+  }
+  if (targetDomains.length > 0) {
+    warnings.push(
+      `Restricted search to requested career-source domain${targetDomains.length === 1 ? "" : "s"}: ${targetDomains.join(", ")}.`,
     );
   }
   const seeds = buildSearchSeeds(args, context);
@@ -2822,6 +2928,7 @@ export async function discoverJobsFirecrawl(
 
   const rawByUrl = new Map<string, FirecrawlSearchCandidate>();
   for (const candidate of seedResults) {
+    if (!candidateMatchesTargetDomains(candidate, targetDomains)) continue;
     const trackedDomainHit = matchesTrackedDomain(
       hostFromUrl(candidate.url),
       context.trackedCompanyDomains,
@@ -2838,7 +2945,7 @@ export async function discoverJobsFirecrawl(
         }
       : candidate;
 
-    if (!roleMatches(enrichedCandidate, args.searchQuery)) continue;
+    if (!roleMatches(enrichedCandidate, roleQuery)) continue;
     const key = normalizeCanonicalJobUrl(enrichedCandidate.url) || enrichedCandidate.url;
     const existing = rawByUrl.get(key);
     rawByUrl.set(
@@ -2893,14 +3000,15 @@ export async function discoverJobsFirecrawl(
     const ranked = normalized
       .filter((job) => !isLikelyAggregateJobPage(job.url, job.title, job.description))
       .filter((job) => job.description.length >= 120 || isKnownJobDetailUrl(job.url))
-      .filter((job) => roleMatches(job, args.searchQuery))
+      .filter((job) => roleMatches(job, roleQuery))
+      .filter((job) => candidateMatchesTargetDomains(job, targetDomains))
       .filter((job) => !isStalePostedAt(job.posted_at))
       .map((job) =>
         attachRankingSignals(
           job,
           computeRankingSignals(
             job,
-            args.searchQuery,
+            roleQuery,
             args.location || context.candidateMemory.location || "Remote",
             context.candidateMemory,
           ),
@@ -2939,7 +3047,7 @@ export async function discoverJobsFirecrawl(
   // -----------------------------------------------------------------------
   // Fallback 1: Location broadening — try country-level then Remote
   // -----------------------------------------------------------------------
-  if (finalJobs.length === 0) {
+  if (targetDomains.length === 0 && finalJobs.length === 0) {
     const broadened = broadenLocation(args.location);
     if (broadened && broadened.toLowerCase() !== args.location.toLowerCase()) {
       console.info("firecrawl.discovery.broadening_location", {
@@ -3003,7 +3111,7 @@ export async function discoverJobsFirecrawl(
   // -----------------------------------------------------------------------
   // Fallback 2: Unrestricted web search — search beyond configured sources
   // -----------------------------------------------------------------------
-  if (finalJobs.length === 0) {
+  if (targetDomains.length === 0 && finalJobs.length === 0) {
     console.info("firecrawl.discovery.unrestricted_fallback", {
       searchQuery: args.searchQuery,
       location: args.location,
@@ -3038,6 +3146,20 @@ export async function discoverJobsFirecrawl(
         `Your search "${args.searchQuery}" in "${args.location}" is very specific and returned no results. Try broadening your job title or changing the location.`,
       );
     }
+  }
+
+  const socialLeadsAllowed = requestedSources.some((source) =>
+    ["x", "reddit", "hackernews", "community"].includes(source)
+  );
+  finalJobs = finalJobs
+    .filter((job) => candidateMatchesTargetDomains(job, targetDomains))
+    .filter((job) => socialLeadsAllowed || !SOCIAL_SIGNAL_HOSTS.test(job.url))
+    .slice(0, args.limit);
+
+  if (targetDomains.length > 0 && finalJobs.length === 0) {
+    warnings.push(
+      "No matching jobs were found on the requested official career-source domains. I did not include off-domain social posts or broad web matches.",
+    );
   }
 
   console.info("firecrawl.discovery.complete", {
