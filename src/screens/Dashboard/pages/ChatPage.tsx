@@ -141,6 +141,42 @@ const waitForAgentProgressPaint = () =>
     window.requestAnimationFrame(() => window.setTimeout(resolve, 0));
   });
 
+const parseSseFrame = (frame: string) => {
+  let event = "message";
+  const dataLines: string[] = [];
+
+  for (const rawLine of frame.split(/\r?\n/)) {
+    const line = rawLine.trimEnd();
+    if (!line || line.startsWith(":")) continue;
+    if (line.startsWith("event:")) {
+      event = line.slice(6).trim() || "message";
+      continue;
+    }
+    if (line.startsWith("data:")) {
+      dataLines.push(line.slice(5).trimStart());
+    }
+  }
+
+  if (!dataLines.length) return null;
+  return {
+    event,
+    data: dataLines.join("\n"),
+  };
+};
+
+const parseSseData = (dataStr: string) => {
+  if (dataStr === "[DONE]") return null;
+  try {
+    return JSON.parse(dataStr);
+  } catch (error) {
+    console.warn("[ai-chat] Could not parse SSE frame", {
+      data: dataStr.slice(0, 240),
+      error,
+    });
+    return null;
+  }
+};
+
 // Real-deal streaming useChat hook
 type Persona = "concise" | "friendly" | "analyst" | "coach";
 type ChatMode = "ask" | "agent";
@@ -511,6 +547,131 @@ const summarizeToolResult = (entry: ToolCallEntry): string | undefined => {
   return undefined;
 };
 
+const buildAgentFinalFallback = (message: BasicMessage): string | undefined => {
+  const completedTools = (message.toolCalls || []).filter(
+    (tool) => tool.status !== "running",
+  );
+  if (!completedTools.length) return undefined;
+
+  const jobResults = completedTools
+    .filter(
+      (tool) =>
+        tool.name === "run_job_search" ||
+        tool.name === "search_public_job_sources",
+    )
+    .flatMap((tool) => {
+      const payload = getToolResultPayload(tool.result);
+      const jobs = Array.isArray(payload.jobs)
+        ? payload.jobs
+        : Array.isArray(payload.results)
+          ? payload.results
+          : [];
+      return jobs
+        .filter(
+          (job): job is Record<string, unknown> =>
+            Boolean(job) && typeof job === "object" && !Array.isArray(job),
+        )
+        .map((job) => ({
+          title:
+            typeof job.title === "string" && job.title.trim()
+              ? job.title.trim()
+              : "Untitled role",
+          company:
+            typeof job.company === "string" && job.company.trim()
+              ? job.company.trim()
+              : "Unknown company",
+          location:
+            typeof job.location === "string" && job.location.trim()
+              ? job.location.trim()
+              : "",
+          url:
+            typeof job.url === "string" && job.url.trim()
+              ? job.url.trim()
+              : "",
+          verification:
+            typeof job.verification_status === "string" &&
+            job.verification_status.trim()
+              ? job.verification_status.trim()
+              : "",
+        }));
+    });
+
+  const uniqueJobs = Array.from(
+    new Map(
+      jobResults.map((job) => [
+        `${job.title}|${job.company}|${job.url}`,
+        job,
+      ]),
+    ).values(),
+  ).slice(0, 8);
+
+  const contactResults = completedTools
+    .filter((tool) => tool.name === "find_company_contact_channels")
+    .flatMap((tool) => {
+      const payload = getToolResultPayload(tool.result);
+      return Array.isArray(payload.contacts) ? payload.contacts : [];
+    })
+    .filter(
+      (contact): contact is Record<string, unknown> =>
+        Boolean(contact) &&
+        typeof contact === "object" &&
+        !Array.isArray(contact),
+    )
+    .slice(0, 8);
+
+  const lines: string[] = [];
+  if (uniqueJobs.length) {
+    lines.push(
+      `I found ${uniqueJobs.length} job lead${uniqueJobs.length === 1 ? "" : "s"} from the tool results:`,
+      "",
+      ...uniqueJobs.map((job) => {
+        const meta = [job.company, job.location, job.verification]
+          .filter(Boolean)
+          .join(" - ");
+        return `- ${job.title}${meta ? ` (${meta})` : ""}${job.url ? `: ${job.url}` : ""}`;
+      }),
+    );
+  }
+
+  if (contactResults.length) {
+    if (lines.length) lines.push("");
+    lines.push(
+      `I also found ${contactResults.length} company contact channel${contactResults.length === 1 ? "" : "s"} for review:`,
+      "",
+      ...contactResults.map((contact) => {
+        const company =
+          typeof contact.companyName === "string"
+            ? contact.companyName
+            : "Company";
+        const email =
+          typeof contact.contactEmail === "string"
+            ? contact.contactEmail
+            : "no email found";
+        const confidence =
+          typeof contact.confidence === "string"
+            ? `, ${contact.confidence} confidence`
+            : "";
+        return `- ${company}: ${email}${confidence}`;
+      }),
+    );
+  }
+
+  if (!lines.length) {
+    const summaries = completedTools
+      .map((tool) => summarizeToolResult(tool))
+      .filter(Boolean);
+    if (!summaries.length) return undefined;
+    lines.push("I finished the tool work, but the model did not return a final written answer.", "");
+    summaries.forEach((summary) => lines.push(`- ${summary}`));
+  }
+
+  lines.push(
+    "",
+    "Note: this is a recovered summary from completed tool results because the assistant did not stream a final written response.",
+  );
+  return lines.join("\n");
+};
+
 const AgentWorkTimeline = ({
   message,
   elapsedLabel,
@@ -656,6 +817,8 @@ const AgentWorkTimeline = ({
 };
 
 const AgentResultPreview = ({ message }: { message: BasicMessage }) => {
+  if (!message.streaming) return null;
+
   const jobResults = (message.toolCalls || [])
     .filter(
       (tool) =>
@@ -719,7 +882,7 @@ const AgentResultPreview = ({ message }: { message: BasicMessage }) => {
     <div className='mb-3 rounded-xl border border-brand/20 bg-brand/[0.04] p-3 text-[13px] text-muted-foreground'>
       <div className='mb-2 flex items-center gap-2 font-medium text-foreground/85'>
         <ListChecks className='h-3.5 w-3.5 text-brand' />
-        Results so far - {uniqueJobs.length} job
+        Live results while JobRaker keeps working - {uniqueJobs.length} job
         {uniqueJobs.length === 1 ? "" : "s"} found
       </div>
       <div className='space-y-2'>
@@ -1028,35 +1191,23 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         const decoder = new TextDecoder();
         let buffer = "";
 
-        let currentEvent = "message";
-
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
+          const frames = buffer.split(/\r?\n\r?\n/);
+          buffer = frames.pop() || "";
 
-          // Keep the last line in the buffer if it's incomplete
-          const endsWithNewLine = buffer.endsWith("\n");
-          if (!endsWithNewLine) {
-            buffer = lines.pop() || "";
-          } else {
-            buffer = "";
-          }
-
-          for (const line of lines) {
-            const trimmedLine = line.trim();
-            if (!trimmedLine) continue;
-
-            if (trimmedLine.startsWith("event:")) {
-              currentEvent = trimmedLine.slice(6).trim();
-            } else if (trimmedLine.startsWith("data:")) {
-              const dataStr = trimmedLine.slice(5).trim();
-              if (dataStr === "[DONE]") continue;
+          for (const frame of frames) {
+            const parsedFrame = parseSseFrame(frame);
+            if (!parsedFrame || parsedFrame.data === "[DONE]") continue;
+            const currentEvent = parsedFrame.event;
+            const dataStr = parsedFrame.data;
 
               try {
-                const data = JSON.parse(dataStr);
+                const data = parseSseData(dataStr);
+                if (!data) continue;
 
                 if (currentEvent === "message") {
                   if (data.delta) {
@@ -1255,7 +1406,6 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
               } catch (e) {
                 // Ignore parse errors for partial lines
               }
-            }
           }
         }
 
@@ -1264,7 +1414,15 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           let finalAssistantMessage: BasicMessage | undefined;
           const finalMessages = prev.map((msg) => {
             if (msg.id === assistantId) {
-              finalAssistantMessage = { ...msg, streaming: false };
+              const fallbackContent = msg.content.trim()
+                ? msg.content
+                : buildAgentFinalFallback(msg) || "";
+              finalAssistantMessage = {
+                ...msg,
+                content: fallbackContent,
+                parts: [{ type: "text", text: fallbackContent }],
+                streaming: false,
+              };
               return finalAssistantMessage;
             }
             return msg;
@@ -1652,6 +1810,7 @@ export const ChatPage = () => {
   const prevSessionIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!activeSessionId) return;
+    if (status === "in_progress") return;
     if (activeSessionId === prevSessionIdRef.current) return;
     prevSessionIdRef.current = activeSessionId;
 
@@ -1665,7 +1824,7 @@ export const ChatPage = () => {
         setPersona("concise");
       }
     }
-  }, [activeSessionId, sessions, setMessages, setResponseId]);
+  }, [activeSessionId, sessions, setMessages, setResponseId, status]);
 
   // Debounced save to DB
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
