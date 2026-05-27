@@ -456,14 +456,21 @@ const toolDisplayName = (
   return labels[name] || name.replace(/_/g, " ");
 };
 
+const getToolResultPayload = (
+  result?: Record<string, unknown>,
+): Record<string, unknown> => {
+  if (
+    result?.data &&
+    typeof result.data === "object" &&
+    !Array.isArray(result.data)
+  ) {
+    return result.data as Record<string, unknown>;
+  }
+  return result || {};
+};
+
 const summarizeToolResult = (entry: ToolCallEntry): string | undefined => {
-  const rawResult = entry.result || {};
-  const result =
-    rawResult.data &&
-    typeof rawResult.data === "object" &&
-    !Array.isArray(rawResult.data)
-      ? (rawResult.data as Record<string, unknown>)
-      : rawResult;
+  const result = getToolResultPayload(entry.result);
   const error =
     typeof result.error === "string"
       ? result.error
@@ -561,11 +568,14 @@ const AgentWorkTimeline = ({
     Math.max(0, agentEvents.length + toolCalls.length - timelineRows.length);
   const totalStepCount = agentEvents.length + toolCalls.length;
   const latestRow = timelineRows[timelineRows.length - 1];
-  const summaryLabel = latestRow?.label || `Thinking${elapsedLabel ? `: ${elapsedLabel}` : ""}`;
+  const fallbackLabel = elapsedLabel
+    ? `Connecting to JobRaker agent (${elapsedLabel})`
+    : "Connecting to JobRaker agent";
+  const summaryLabel = latestRow?.label || fallbackLabel;
   const stepLabel =
     totalStepCount > 0
       ? `${totalStepCount} step${totalStepCount === 1 ? "" : "s"}`
-      : "Thinking";
+      : "Waiting";
 
   if (!timelineRows.length && !message.streaming) return null;
 
@@ -638,11 +648,105 @@ const AgentWorkTimeline = ({
       {expanded && message.streaming && timelineRows.length === 0 && (
         <div className={rowClass}>
           <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />
-          <span className='truncate'>
-            Thinking{elapsedLabel ? `: ${elapsedLabel}` : ""}
-          </span>
+          <span className='truncate'>{fallbackLabel}</span>
         </div>
       )}
+    </div>
+  );
+};
+
+const AgentResultPreview = ({ message }: { message: BasicMessage }) => {
+  const jobResults = (message.toolCalls || [])
+    .filter(
+      (tool) =>
+        tool.status !== "running" &&
+        (tool.name === "run_job_search" ||
+          tool.name === "search_public_job_sources"),
+    )
+    .flatMap((tool) => {
+      const payload = getToolResultPayload(tool.result);
+      const jobs = Array.isArray(payload.jobs)
+        ? payload.jobs
+        : Array.isArray(payload.results)
+          ? payload.results
+          : [];
+      return jobs
+        .filter(
+          (job): job is Record<string, unknown> =>
+            Boolean(job) && typeof job === "object" && !Array.isArray(job),
+        )
+        .map((job) => ({
+          title:
+            typeof job.title === "string" && job.title.trim()
+              ? job.title.trim()
+              : "Untitled role",
+          company:
+            typeof job.company === "string" && job.company.trim()
+              ? job.company.trim()
+              : "Unknown company",
+          location:
+            typeof job.location === "string" && job.location.trim()
+              ? job.location.trim()
+              : "",
+          url:
+            typeof job.url === "string" && job.url.trim()
+              ? job.url.trim()
+              : "",
+          source:
+            typeof job.source_kind === "string" && job.source_kind.trim()
+              ? job.source_kind.trim()
+              : "",
+          verification:
+            typeof job.verification_status === "string" &&
+            job.verification_status.trim()
+              ? job.verification_status.trim()
+              : "",
+        }));
+    });
+
+  if (!jobResults.length) return null;
+
+  const uniqueJobs = Array.from(
+    new Map(
+      jobResults.map((job) => [
+        `${job.title}|${job.company}|${job.url}`,
+        job,
+      ]),
+    ).values(),
+  ).slice(0, 6);
+
+  return (
+    <div className='mb-3 rounded-xl border border-brand/20 bg-brand/[0.04] p-3 text-[13px] text-muted-foreground'>
+      <div className='mb-2 flex items-center gap-2 font-medium text-foreground/85'>
+        <ListChecks className='h-3.5 w-3.5 text-brand' />
+        Results so far - {uniqueJobs.length} job
+        {uniqueJobs.length === 1 ? "" : "s"} found
+      </div>
+      <div className='space-y-2'>
+        {uniqueJobs.map((job) => (
+          <div
+            key={`${job.title}-${job.company}-${job.url}`}
+            className='rounded-lg border border-border/70 bg-background/40 px-3 py-2'
+          >
+            <div className='font-medium text-foreground'>{job.title}</div>
+            <div className='mt-1 text-xs'>
+              {[job.company, job.location, job.source, job.verification]
+                .filter(Boolean)
+                .join(" - ")}
+            </div>
+            {job.url ? (
+              <a
+                href={job.url}
+                target='_blank'
+                rel='noreferrer'
+                className='mt-1 block truncate text-xs text-brand hover:underline'
+              >
+                {job.url}
+              </a>
+            ) : null}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
@@ -843,6 +947,20 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         createdAt: Date.now(),
         parts: [{ type: "text", text: "" }],
         streaming: true,
+        agentEvents:
+          (chatOpts?.mode || "ask") === "agent"
+            ? [
+                {
+                  id: nanoid(),
+                  kind: "thinking",
+                  title: "Starting agent",
+                  detail: "Connecting to JobRaker and preparing the first step.",
+                  status: "running",
+                  createdAt: Date.now(),
+                  round: 0,
+                },
+              ]
+            : undefined,
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
@@ -2645,6 +2763,7 @@ export const ChatPage = () => {
                               message={m}
                               elapsedLabel={requestElapsedLabel}
                             />
+                            <AgentResultPreview message={m} />
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{

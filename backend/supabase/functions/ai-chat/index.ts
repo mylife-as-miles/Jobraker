@@ -861,6 +861,7 @@ async function invokeEdgeFunctionByName(opts: {
   payload?: unknown;
   method?: string | null;
   headers?: unknown;
+  timeoutMs?: number;
 }) {
   const baseUrl = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
   if (!baseUrl) {
@@ -909,11 +910,33 @@ async function invokeEdgeFunctionByName(opts: {
     body = JSON.stringify(opts.payload);
   }
 
-  const response = await fetch(url, {
-    method,
-    headers,
-    ...(body !== undefined ? { body } : {}),
-  });
+  const controller = opts.timeoutMs ? new AbortController() : null;
+  const timeoutId = controller
+    ? setTimeout(() => controller.abort(), opts.timeoutMs)
+    : null;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers,
+      ...(body !== undefined ? { body } : {}),
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+  } catch (error) {
+    if (controller?.signal.aborted) {
+      return {
+        success: false,
+        status: 408,
+        function: name,
+        method,
+        error: `${name} took longer than ${Math.round((opts.timeoutMs || 0) / 1000)} seconds, so I stopped waiting and will summarize the results gathered so far.`,
+        timeout: true,
+      };
+    }
+    throw error;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 
   const rawText = await response.text();
   let data: unknown = null;
@@ -1663,6 +1686,64 @@ function streamChunkText(chunk: unknown): string {
       .join("");
   }
   return "";
+}
+
+function candidatePartsFromChunk(chunk: unknown): unknown[] {
+  const c = chunk as Record<string, unknown> | null;
+  const candidates = c?.candidates as
+    | Array<{ content?: { parts?: unknown[] } }>
+    | undefined;
+  const parts = candidates?.[0]?.content?.parts;
+  return Array.isArray(parts) ? parts : [];
+}
+
+async function streamAgentModelStep(opts: {
+  chat: any;
+  message: unknown;
+  round: number;
+  enqueueEvent: (ev: string, data: any) => Promise<void>;
+}) {
+  let lastChunk: any = null;
+  let accumulatedVisibleText = "";
+  let lastThoughtSummary = "";
+
+  const stream = await withGeminiRetry(() =>
+    opts.chat.sendMessageStream({ message: opts.message }),
+  );
+
+  for await (const chunk of stream) {
+    lastChunk = chunk;
+    const parts = candidatePartsFromChunk(chunk);
+    const thoughtSummary = extractThoughtSummary(parts);
+    if (thoughtSummary && thoughtSummary !== lastThoughtSummary) {
+      lastThoughtSummary = thoughtSummary;
+      await opts.enqueueEvent("agent_activity", {
+        kind: "thinking",
+        status: "running",
+        title: "Thinking",
+        detail: thoughtSummary,
+        created_at: Date.now(),
+        round: opts.round,
+      });
+    }
+
+    const text = streamChunkText(chunk);
+    if (text) {
+      accumulatedVisibleText += text;
+      await opts.enqueueEvent("message", { delta: text });
+    }
+  }
+
+  if (lastChunk) return lastChunk;
+  return {
+    candidates: [
+      {
+        content: {
+          parts: accumulatedVisibleText ? [{ text: accumulatedVisibleText }] : [],
+        },
+      },
+    ],
+  };
 }
 
 /** Gemini multimodal user turn */
@@ -2937,9 +3018,12 @@ Edge functions:
                     history,
                   });
                 }
-                response = await withGeminiRetry(() =>
-                  chat.sendMessage({ message: lastUserParts }),
-                );
+                response = await streamAgentModelStep({
+                  chat,
+                  message: lastUserParts,
+                  round: 0,
+                  enqueueEvent,
+                });
                 break; // success — stop trying models
               } catch (e) {
                 if (!isGeminiRateLimitError(e) || mi === fallbackModels.length - 1) {
@@ -2955,17 +3039,6 @@ Edge functions:
             while (true) {
               const parts = response.candidates?.[0]?.content?.parts || [];
               const functionCalls = parts.filter((p) => p.functionCall);
-              const thoughtSummary = extractThoughtSummary(parts);
-              if (thoughtSummary) {
-                await enqueueEvent("agent_activity", {
-                  kind: "thinking",
-                  status: "done",
-                  title: "Thinking summary",
-                  detail: thoughtSummary,
-                  created_at: Date.now(),
-                  round: toolRounds,
-                });
-              }
               let textDelta = "";
               for (const p of parts) {
                 const pr = p as { text?: string; thought?: boolean };
@@ -2978,7 +3051,6 @@ Edge functions:
                 if (functionCalls.length === 0) {
                   streamedFinalAssistantText = true;
                 }
-                await enqueueEvent("message", { delta: textDelta });
               }
 
               if (functionCalls.length === 0) {
@@ -3107,6 +3179,7 @@ Edge functions:
                     result = await invokeEdgeFunctionByName({
                       authHeader: authHeader!,
                       name: "jobs-search",
+                      timeoutMs: 90_000,
                       payload: {
                         searchQuery: asString(args.query) || "",
                         location: asString(args.location) || undefined,
@@ -3120,6 +3193,7 @@ Edge functions:
                     result = await invokeEdgeFunctionByName({
                       authHeader: authHeader!,
                       name: "jobs-search",
+                      timeoutMs: 90_000,
                       payload: {
                         searchQuery: asString(args.query) || "",
                         location: asString(args.location) || "Remote",
@@ -4454,11 +4528,12 @@ Edge functions:
                 round: toolRounds,
                 tool_count: functionCalls.length,
               });
-              response = await withGeminiRetry(() =>
-                chat.sendMessage({
-                  message: { role: "user", parts: toolResults },
-                }),
-              );
+              response = await streamAgentModelStep({
+                chat,
+                message: { role: "user", parts: toolResults },
+                round: toolRounds,
+                enqueueEvent,
+              });
             }
 
             if (
