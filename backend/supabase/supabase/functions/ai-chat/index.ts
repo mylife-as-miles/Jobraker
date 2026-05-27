@@ -794,7 +794,8 @@ When the user says "change the name on my resume" you MUST: 1) call list_resumes
 
     // SSE stream response
     const bodyStream = new ReadableStream({
-      async start(controller) {
+      start(controller) {
+        (async () => {
         const encoder = new TextEncoder();
         const send = (event: string, data: any) => {
           const payload = typeof data === "string" ? data : JSON.stringify(data);
@@ -933,6 +934,7 @@ When the user says "change the name on my resume" you MUST: 1) call list_resumes
           send("error", { error: userMessage });
           controller.close();
         }
+        })();
       },
     });
 

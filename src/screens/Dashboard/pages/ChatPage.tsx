@@ -552,6 +552,17 @@ const buildAgentFinalFallback = (message: BasicMessage): string | undefined => {
     (tool) => tool.status !== "running",
   );
   if (!completedTools.length) return undefined;
+  const hiddenNoopTools = new Set([
+    "list_applications",
+    "list_notifications",
+    "refresh_application_processes",
+    "search_gmail_job_emails",
+    "label_gmail_job_emails",
+    "semantic_search",
+    "list_profile_records",
+    "list_recent_jobs",
+    "get_account_snapshot",
+  ]);
 
   const jobResults = completedTools
     .filter(
@@ -617,6 +628,17 @@ const buildAgentFinalFallback = (message: BasicMessage): string | undefined => {
         typeof contact === "object" &&
         !Array.isArray(contact),
     )
+    .filter((contact) => {
+      const confidence =
+        typeof contact.confidence === "string"
+          ? contact.confidence.toLowerCase()
+          : "";
+      return (
+        contact.safeToDraft === true ||
+        confidence === "high" ||
+        confidence === "medium"
+      );
+    })
     .slice(0, 8);
 
   const lines: string[] = [];
@@ -658,17 +680,21 @@ const buildAgentFinalFallback = (message: BasicMessage): string | undefined => {
 
   if (!lines.length) {
     const summaries = completedTools
-      .map((tool) => summarizeToolResult(tool))
+      .filter((tool) => !hiddenNoopTools.has(tool.name))
+      .map((tool) => {
+        const payload = getToolResultPayload(tool.result);
+        const count = Number(payload.count);
+        if (Number.isFinite(count) && count <= 0) return undefined;
+        return summarizeToolResult(tool);
+      })
       .filter(Boolean);
-    if (!summaries.length) return undefined;
-    lines.push("I finished the tool work, but the model did not return a final written answer.", "");
+    if (!summaries.length) {
+      return "I checked the available JobRaker data, but I did not find a new actionable result to show yet. Tell me to continue and I will keep working from the last step.";
+    }
+    lines.push("I found these actionable results:", "");
     summaries.forEach((summary) => lines.push(`- ${summary}`));
   }
 
-  lines.push(
-    "",
-    "Note: this is a recovered summary from completed tool results because the assistant did not stream a final written response.",
-  );
   return lines.join("\n");
 };
 
@@ -1148,6 +1174,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Accept": "text/event-stream",
             Authorization: `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({

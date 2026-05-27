@@ -170,8 +170,22 @@ function summarizeAgentToolResults(entries: AgentToolResultEntry[]) {
     return "I did not receive a final result from the agent tools. Please try again or send Continue and I will pick up from the last step.";
   }
 
-  const lines: string[] = ["Here is the result:"];
+  const lines: string[] = [];
   let addedActionableSummary = false;
+  let checkedWithoutAction = false;
+
+  const suppressNoopTool = (name: string) =>
+    [
+      "list_applications",
+      "list_notifications",
+      "refresh_application_processes",
+      "search_gmail_job_emails",
+      "label_gmail_job_emails",
+      "semantic_search",
+      "list_profile_records",
+      "list_recent_jobs",
+      "get_account_snapshot",
+    ].includes(name);
 
   for (const entry of entries.slice(-8)) {
     const result = isRecord(entry.result) ? entry.result : {};
@@ -211,6 +225,32 @@ function summarizeAgentToolResults(entries: AgentToolResultEntry[]) {
       continue;
     }
 
+    if (entry.name === "find_company_contact_channels") {
+      const contacts = Array.isArray(payload.contacts) ? payload.contacts : [];
+      const verifiedContacts = contacts
+        .filter((contact) => isRecord(contact))
+        .filter((contact) => {
+          const confidence = asString(contact.confidence)?.toLowerCase();
+          const safeToDraft = contact.safeToDraft === true;
+          return safeToDraft || confidence === "high" || confidence === "medium";
+        });
+      if (verifiedContacts.length) {
+        lines.push(
+          `- Found ${verifiedContacts.length} reviewable company contact channel${verifiedContacts.length === 1 ? "" : "s"}.`,
+        );
+        for (const contact of verifiedContacts.slice(0, 6)) {
+          const company = asString(contact.companyName) || "Company";
+          const email = asString(contact.contactEmail);
+          const careersPage = asString(contact.careersPageUrl);
+          lines.push(`  ${company}${email ? `: ${email}` : ""}${careersPage ? ` (${careersPage})` : ""}`);
+        }
+        addedActionableSummary = true;
+      } else {
+        checkedWithoutAction = true;
+      }
+      continue;
+    }
+
     if (entry.name === "generate_cover_letter" || entry.name === "save_cover_letter") {
       const name = asString(payload.name) || asString(payload.title) || asString(entry.args.name);
       lines.push(`- ${toolName}: ${name ? `${name} - ` : ""}completed.`);
@@ -219,17 +259,12 @@ function summarizeAgentToolResults(entries: AgentToolResultEntry[]) {
     }
 
     if (entry.name === "list_applications") {
-      const applications = Array.isArray(payload.applications) ? payload.applications : [];
-      const count = summarizeCount(payload.count, applications.length);
-      lines.push(`- Listed ${count} application${count === 1 ? "" : "s"}.`);
-      addedActionableSummary = true;
+      checkedWithoutAction = true;
       continue;
     }
 
     if (entry.name === "list_notifications") {
-      const count = summarizeCount(payload.count, Array.isArray(payload.notifications) ? payload.notifications.length : 0);
-      lines.push(`- Found ${count} notification${count === 1 ? "" : "s"}.`);
-      addedActionableSummary = true;
+      checkedWithoutAction = true;
       continue;
     }
 
@@ -243,21 +278,29 @@ function summarizeAgentToolResults(entries: AgentToolResultEntry[]) {
       continue;
     }
 
+    if (suppressNoopTool(entry.name)) {
+      checkedWithoutAction = true;
+      continue;
+    }
+
     const count = summarizeCount(payload.count, -1);
-    if (count >= 0) {
+    if (count > 0) {
       lines.push(`- ${toolName}: ${count} record${count === 1 ? "" : "s"} returned.`);
       addedActionableSummary = true;
+    } else if (count === 0) {
+      checkedWithoutAction = true;
     } else if (result.success === true || payload.success === true) {
-      lines.push(`- ${toolName}: completed.`);
-      addedActionableSummary = true;
+      checkedWithoutAction = true;
     }
   }
 
   if (!addedActionableSummary) {
-    const names = entries.slice(-5).map((entry) => entry.name.replace(/_/g, " "));
-    lines.push(`- Completed ${names.join(", ")}.`);
+    return checkedWithoutAction
+      ? "I checked the available JobRaker data, but I did not find a new actionable result to show yet. Tell me to continue and I will keep working from the last step."
+      : "I finished the tool work, but there was no user-facing result to show. Tell me to continue and I will keep working from here.";
   }
 
+  lines.unshift("Here is the result:");
   lines.push("\nNext step: review the saved results in JobRaker, or tell me to continue and I will keep working from here.");
   return lines.join("\n");
 }
@@ -1706,6 +1749,7 @@ async function streamAgentModelStep(opts: {
   let lastChunk: any = null;
   let accumulatedVisibleText = "";
   let lastThoughtSummary = "";
+  const accumulatedParts: unknown[] = [];
 
   const stream = await withGeminiRetry(() =>
     opts.chat.sendMessageStream({ message: opts.message }),
@@ -1714,6 +1758,10 @@ async function streamAgentModelStep(opts: {
   for await (const chunk of stream) {
     lastChunk = chunk;
     const parts = candidatePartsFromChunk(chunk);
+    for (const part of parts) {
+      accumulatedParts.push(part);
+    }
+
     const thoughtSummary = extractThoughtSummary(parts);
     if (thoughtSummary && thoughtSummary !== lastThoughtSummary) {
       lastThoughtSummary = thoughtSummary;
@@ -1734,12 +1782,11 @@ async function streamAgentModelStep(opts: {
     }
   }
 
-  if (lastChunk) return lastChunk;
   return {
     candidates: [
       {
         content: {
-          parts: accumulatedVisibleText ? [{ text: accumulatedVisibleText }] : [],
+          parts: accumulatedParts,
         },
       },
     ],
@@ -2975,7 +3022,8 @@ Edge functions:
     );
 
     const streamBody = new ReadableStream({
-      async start(controller) {
+      start(controller) {
+        (async () => {
         const encoder = new TextEncoder();
         const enqueueEvent = async (ev: string, data: any) => {
           const payload = typeof data === "string" ? data : JSON.stringify(data);
@@ -4585,6 +4633,7 @@ Edge functions:
           await enqueueEvent("error", { error: userMessage });
           controller.close();
         }
+        })();
       },
     });
 
