@@ -777,6 +777,10 @@ YOUR WRITE TOOLS (use them!):
 - intake_job_url: Import a job from URL
 - generate_cover_letter / analyze_resume / evaluate_job_fit: AI analysis
 
+Job search and career page guidelines:
+- NEVER run multiple run_job_search tool calls in parallel or in a single turn. It is extremely expensive and wastes user credits. If the user provides multiple company names or career page URLs, combine them into a single search query using the Google search site: operator and OR (e.g. "Operations Project Manager" (site:gitlab.com OR site:automattic.com)). Do not execute a separate search call for each company.
+- Only use intake_job_url if the URL represents a single specific job posting. For index career pages, use run_job_search with a combined site query.
+
 When the user says "change the name on my resume" you MUST: 1) call list_resumes to get IDs, 2) call update_resume with the resume_id and full_name. NEVER tell the user to do it themselves.
 
 \n\n${systemInstruction}`;

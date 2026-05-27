@@ -2980,6 +2980,8 @@ Public job-source discovery:
 - Use search_public_job_sources when the user asks for YC Jobs, X/Twitter jobs, Reddit jobs, Hacker News jobs, startup jobs, or community-sourced hiring leads.
 - X/Twitter, Reddit, and Hacker News results are leads from public/indexed pages only. Do not imply private scraping, login bypassing, or guaranteed official application channels.
 - After public-source discovery, summarize source_kind, verification_status, salary signals, and whether the role still needs official-channel verification.
+- NEVER run multiple run_job_search or search_public_job_sources tool calls in parallel or in a single turn. It is extremely expensive and wastes user credits. If the user provides multiple company names or career page URLs, combine them into a single search query using the Google search site: operator and OR (e.g. "Operations Project Manager" (site:gitlab.com OR site:automattic.com)). Do not execute a separate search call for each company.
+- Only use intake_job_url if the URL represents a single specific job posting. For index career pages, use run_job_search with a combined site query.
 
 Edge functions:
 - Use list_edge_functions and get_edge_function_details before invoke_edge_function when you need to inspect or manipulate edge-function parameters.

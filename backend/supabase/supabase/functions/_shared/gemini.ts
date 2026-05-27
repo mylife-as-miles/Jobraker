@@ -153,9 +153,11 @@ export const createGeminiConfig = (options?: {
     includeTools?: boolean;
     thinkingLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
 }) => ({
-    thinkingConfig: {
-        thinkingLevel: options?.thinkingLevel || 'MEDIUM',
-    },
+    ...(options?.thinkingLevel ? {
+      thinkingConfig: {
+        thinkingLevel: options.thinkingLevel,
+      }
+    } : {}),
     ...(options?.includeTools ? { tools: GEMINI_TOOLS } : {}),
     responseMimeType: options?.responseMimeType || 'application/json',
     ...(options?.systemInstruction ? {

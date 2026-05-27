@@ -8,6 +8,8 @@ import {
   getCachedAuthSnapshot,
 } from "@/lib/offlineAppCache";
 
+const AUTH_SESSION_TIMEOUT_MS = 10_000;
+
 interface User {
   id: string;
   email?: string;
@@ -23,13 +25,34 @@ export const useAuth = () => {
     let mounted = true;
     const isOffline = () =>
       typeof navigator !== "undefined" && navigator.onLine === false;
-    const withTimeout = async <T,>(promise: Promise<T>, ms: number) =>
-      await Promise.race<T>([
-        promise,
-        new Promise<T>((_, reject) =>
-          window.setTimeout(() => reject(new Error("Timed out")), ms),
-        ),
-      ]);
+    const isNetworkError = (error: any) => {
+      if (!error) return false;
+      const msg = String(error.message || error).toLowerCase();
+      return (
+        msg.includes("fetch") ||
+        msg.includes("network") ||
+        msg.includes("timeout") ||
+        msg.includes("timed out") ||
+        msg.includes("err_") ||
+        error instanceof TypeError
+      );
+    };
+    const withTimeout = async <T,>(promise: Promise<T>, ms: number) => {
+      let timeoutId: number | undefined;
+      try {
+        return await Promise.race<T>([
+          promise,
+          new Promise<T>((_, reject) => {
+            timeoutId = window.setTimeout(
+              () => reject(new Error("Timed out")),
+              ms,
+            );
+          }),
+        ]);
+      } finally {
+        if (timeoutId) window.clearTimeout(timeoutId);
+      }
+    };
 
     const applyCachedUser = async () => {
       const cachedSnapshot = await getCachedAuthSnapshot();
@@ -47,11 +70,14 @@ export const useAuth = () => {
         const {
           data: { session },
           error,
-        } = await withTimeout(supabase.auth.getSession(), 2500);
+        } = await withTimeout(
+          supabase.auth.getSession(),
+          AUTH_SESSION_TIMEOUT_MS,
+        );
 
         if (error) {
           console.error("Error getting session:", error);
-          if (isOffline()) {
+          if (isOffline() || isNetworkError(error)) {
             await applyCachedUser();
             return;
           }
@@ -86,7 +112,7 @@ export const useAuth = () => {
         setUser(null);
       } catch (error) {
         console.error("Error getting session:", error);
-        if (isOffline()) {
+        if (isOffline() || isNetworkError(error)) {
           await applyCachedUser();
           return;
         }

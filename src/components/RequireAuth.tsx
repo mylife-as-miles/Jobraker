@@ -12,6 +12,8 @@ import {
 
 type Props = { children: React.ReactNode };
 
+const AUTH_SESSION_TIMEOUT_MS = 10_000;
+
 export const RequireAuth: React.FC<Props> = ({ children }) => {
   const navigate = useNavigate();
   const supabase = createClient();
@@ -23,6 +25,8 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
     done: boolean;
     complete: boolean;
   }>({ done: false, complete: false });
+  const onboardingCheckRef = useRef(onboardingCheck);
+  onboardingCheckRef.current = onboardingCheck;
 
   useEffect(() => {
     let mounted = true;
@@ -42,13 +46,22 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
       );
     };
 
-    const withTimeout = async <T,>(promise: Promise<T>, ms: number) =>
-      await Promise.race<T>([
-        promise,
-        new Promise<T>((_, reject) =>
-          window.setTimeout(() => reject(new Error("Timed out")), ms),
-        ),
-      ]);
+    const withTimeout = async <T,>(promise: Promise<T>, ms: number) => {
+      let timeoutId: number | undefined;
+      try {
+        return await Promise.race<T>([
+          promise,
+          new Promise<T>((_, reject) => {
+            timeoutId = window.setTimeout(
+              () => reject(new Error("Timed out")),
+              ms,
+            );
+          }),
+        ]);
+      } finally {
+        if (timeoutId) window.clearTimeout(timeoutId);
+      }
+    };
 
     const applyCachedAccess = async () => {
       const cachedSnapshot = await getCachedAuthSnapshot();
@@ -73,7 +86,10 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
         const {
           data: { session },
           error: sessionError,
-        } = await withTimeout(supabase.auth.getSession(), 2500);
+        } = await withTimeout(
+          supabase.auth.getSession(),
+          AUTH_SESSION_TIMEOUT_MS,
+        );
 
         if (sessionError) {
           console.error("Session error:", sessionError);
@@ -239,8 +255,8 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
           await cacheAuthSnapshot({
             hasSession: true,
             user: { id: session.user.id, email: session.user.email },
-            onboardingComplete: onboardingCheck.done
-              ? onboardingCheck.complete
+            onboardingComplete: onboardingCheckRef.current.done
+              ? onboardingCheckRef.current.complete
               : null,
           });
           return;
@@ -268,7 +284,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
       mounted = false;
       sub.subscription.unsubscribe();
     };
-  }, [navigate, onboardingCheck.complete, onboardingCheck.done, supabase]);
+  }, [navigate, supabase]);
 
   if (checking || !onboardingCheck.done) {
     return (
