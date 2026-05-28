@@ -35,6 +35,7 @@ import {
   normalizeAnswerBankSlug,
   updateAnswerBankEntry,
   upsertGeneratedAnswerBankEntries,
+  ALL_THEMES,
 } from "../_shared/answer-bank.ts";
 import { syncUserVectorChunks } from "../_shared/vector-sync.ts";
 import { embedText } from "../_shared/embeddings.ts";
@@ -203,6 +204,7 @@ function summarizeAgentToolResults(entries: AgentToolResultEntry[]) {
   const lines: string[] = [];
   let addedActionableSummary = false;
   let checkedWithoutAction = false;
+  let blockedOrIncomplete = false;
 
   const suppressNoopTool = (name: string) =>
     [
@@ -215,7 +217,17 @@ function summarizeAgentToolResults(entries: AgentToolResultEntry[]) {
       "list_profile_records",
       "list_recent_jobs",
       "get_account_snapshot",
+      "evaluate_job_fit",
+      "analyze_resume",
+      "polish_content",
+      "invoke_edge_function",
     ].includes(name);
+
+  const isNonUserFacingToolError = (message: string) =>
+    /jobDescription and resumeText are required/i.test(message) ||
+    /took longer than \d+ seconds/i.test(message) ||
+    /stopped waiting/i.test(message) ||
+    /required$/i.test(message);
 
   for (const entry of entries.slice(-8)) {
     const result = isRecord(entry.result) ? entry.result : {};
@@ -227,6 +239,10 @@ function summarizeAgentToolResults(entries: AgentToolResultEntry[]) {
       asString(result.failure_reason) ||
       asString(payload.failure_reason);
     if (error || result.success === false || payload.success === false) {
+      if (suppressNoopTool(entry.name) || isNonUserFacingToolError(error || "")) {
+        blockedOrIncomplete = true;
+        continue;
+      }
       lines.push(`- ${toolName} failed: ${error || "No details returned."}`);
       addedActionableSummary = true;
       continue;
@@ -314,10 +330,7 @@ function summarizeAgentToolResults(entries: AgentToolResultEntry[]) {
     }
 
     const count = summarizeCount(payload.count, -1);
-    if (count > 0) {
-      lines.push(`- ${toolName}: ${count} record${count === 1 ? "" : "s"} returned.`);
-      addedActionableSummary = true;
-    } else if (count === 0) {
+    if (count >= 0) {
       checkedWithoutAction = true;
     } else if (result.success === true || payload.success === true) {
       checkedWithoutAction = true;
@@ -325,6 +338,9 @@ function summarizeAgentToolResults(entries: AgentToolResultEntry[]) {
   }
 
   if (!addedActionableSummary) {
+    if (blockedOrIncomplete) {
+      return "I checked the available results, but I could not complete every analysis step cleanly. I did not find a new user-facing result worth showing yet. Tell me to continue and I will keep working from the last successful step.";
+    }
     return checkedWithoutAction
       ? "I checked the available JobRaker data, but I did not find a new actionable result to show yet. Tell me to continue and I will keep working from the last step."
       : "I finished the tool work, but there was no user-facing result to show. Tell me to continue and I will keep working from here.";
@@ -2041,7 +2057,7 @@ const AGENT_FUNCTION_DECLARATIONS = [
     parameters: {
       type: "object",
       properties: {
-        theme: { type: "string" },
+        theme: { type: "string", enum: ["identity", "beliefs", "stories", "career", "skills", "voice"] },
         slug: { type: "string" },
         question: { type: "string" },
         body: { type: "string" },
@@ -3427,6 +3443,11 @@ Edge functions:
                       result = {
                         success: false,
                         error: "theme, question, and body are required",
+                      };
+                    } else if (!ALL_THEMES.includes(theme as any)) {
+                      result = {
+                        success: false,
+                        error: `Invalid theme "${theme}". Must be one of: ${ALL_THEMES.join(", ")}`,
                       };
                     } else {
                       const entry = await createAnswerBankEntry(serviceClient, userId, {

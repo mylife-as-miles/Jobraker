@@ -513,6 +513,12 @@ const summarizeToolResult = (entry: ToolCallEntry): string | undefined => {
       : typeof result.message === "string" && result.success === false
         ? result.message
         : null;
+  const hiddenErrors =
+    /jobDescription and resumeText are required/i.test(error || "") ||
+    /took longer than \d+ seconds/i.test(error || "") ||
+    /stopped waiting/i.test(error || "") ||
+    /required$/i.test(error || "");
+  if (hiddenErrors) return undefined;
   if (error) return error.slice(0, 160);
 
   const imported =
@@ -542,8 +548,6 @@ const summarizeToolResult = (entry: ToolCallEntry): string | undefined => {
       return `${paid} paid credit${paid === 1 ? "" : "s"} available`;
     }
   }
-  if (count > 0) return `${count} record${count === 1 ? "" : "s"} returned`;
-  if (result.success === true) return "Completed";
   return undefined;
 };
 
@@ -562,6 +566,10 @@ const buildAgentFinalFallback = (message: BasicMessage): string | undefined => {
     "list_profile_records",
     "list_recent_jobs",
     "get_account_snapshot",
+    "evaluate_job_fit",
+    "analyze_resume",
+    "polish_content",
+    "invoke_edge_function",
   ]);
 
   const jobResults = completedTools

@@ -49,7 +49,7 @@ interface UpsertAnswerBankOptions {
   replaceExisting?: boolean;
 }
 
-const ALL_THEMES: AnswerTheme[] = [
+export const ALL_THEMES: AnswerTheme[] = [
   "identity",
   "beliefs",
   "stories",
