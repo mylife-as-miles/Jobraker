@@ -1226,6 +1226,216 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         const decoder = new TextDecoder();
         let buffer = "";
 
+        const handleSseFrame = async (frame: string) => {
+          const parsedFrame = parseSseFrame(frame);
+          if (!parsedFrame || parsedFrame.data === "[DONE]") return false;
+          const currentEvent = parsedFrame.event;
+          const dataStr = parsedFrame.data;
+
+          try {
+            const data = parseSseData(dataStr);
+            if (!data) return false;
+
+            if (currentEvent === "done") {
+              return true;
+            }
+            if (currentEvent === "message") {
+              if (data.delta) {
+                flushSync(() => {
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? {
+                            ...msg,
+                            content: msg.content + data.delta,
+                            parts: [
+                              {
+                                type: "text",
+                                text: msg.content + data.delta,
+                              },
+                            ],
+                          }
+                        : msg,
+                    ),
+                  );
+                });
+                await waitForAgentProgressPaint();
+              }
+            } else if (currentEvent === "response_id") {
+              if (data.response_id) {
+                setResponseId(data.response_id);
+              }
+            } else if (currentEvent === "error") {
+              const errorText = `Error: ${data.error}`;
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantId
+                      ? {
+                          ...msg,
+                          content: errorText,
+                          parts: [{ type: "text", text: errorText }],
+                          streaming: false,
+                        }
+                      : msg,
+                  ),
+                );
+              });
+              await waitForAgentProgressPaint();
+            } else if (currentEvent === "agent_activity") {
+              const activity: AgentActivityEntry = {
+                id: data.id || nanoid(),
+                kind: data.kind || "status",
+                title: data.title || "Working",
+                detail:
+                  typeof data.detail === "string" ? data.detail : undefined,
+                status:
+                  data.status === "error" ||
+                  data.status === "done" ||
+                  data.status === "running"
+                    ? data.status
+                    : "done",
+                createdAt:
+                  typeof data.created_at === "number"
+                    ? data.created_at
+                    : Date.now(),
+                finishedAt:
+                  typeof data.finished_at === "number"
+                    ? data.finished_at
+                    : undefined,
+                round:
+                  typeof data.round === "number" ? data.round : undefined,
+                creditsCharged:
+                  typeof data.credits_charged === "number"
+                    ? data.credits_charged
+                    : undefined,
+                toolCount:
+                  typeof data.tool_count === "number"
+                    ? data.tool_count
+                    : undefined,
+              };
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantId
+                      ? {
+                          ...msg,
+                          agentEvents: [...(msg.agentEvents || []), activity],
+                        }
+                      : msg,
+                  ),
+                );
+              });
+              await waitForAgentProgressPaint();
+            } else if (currentEvent === "tool_start") {
+              const toolEntry: ToolCallEntry = {
+                id: data.id || nanoid(),
+                name: data.name,
+                args: data.args,
+                status: "running",
+                startedAt: Date.now(),
+              };
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantId
+                      ? {
+                          ...msg,
+                          toolCalls: [...(msg.toolCalls || []), toolEntry],
+                        }
+                      : msg,
+                  ),
+                );
+              });
+              await waitForAgentProgressPaint();
+            } else if (currentEvent === "tool_call") {
+              const toolEntry: ToolCallEntry = {
+                id: data.id,
+                name: data.name,
+                args: data.args,
+                status:
+                  data.result?.error || data.result?.success === false
+                    ? "error"
+                    : "done",
+                result: data.result,
+                startedAt:
+                  typeof data.started_at === "number"
+                    ? data.started_at
+                    : undefined,
+                finishedAt:
+                  typeof data.finished_at === "number"
+                    ? data.finished_at
+                    : Date.now(),
+              };
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id !== assistantId
+                      ? msg
+                      : {
+                          ...msg,
+                          toolCalls: data.id
+                            ? (msg.toolCalls || []).some(
+                                (entry) => entry.id === data.id,
+                              )
+                              ? (msg.toolCalls || []).map((entry) =>
+                                  entry.id === data.id
+                                    ? {
+                                        ...entry,
+                                        ...toolEntry,
+                                        startedAt:
+                                          toolEntry.startedAt ||
+                                          entry.startedAt,
+                                      }
+                                    : entry,
+                                )
+                              : [...(msg.toolCalls || []), toolEntry]
+                            : [...(msg.toolCalls || []), toolEntry],
+                        },
+                  ),
+                );
+              });
+              await waitForAgentProgressPaint();
+            } else if (currentEvent === "agent_surcharge") {
+              const creditsCharged = Number(data.credits_charged || 0);
+              const toolCount = Number(data.tool_count || 0);
+              const activity: AgentActivityEntry = {
+                id: data.id || nanoid(),
+                kind: "billing",
+                status: "done",
+                title: `Charged ${creditsCharged} credit${creditsCharged === 1 ? "" : "s"}`,
+                detail: toolCount
+                  ? `Metered for ${toolCount} agent tool${toolCount === 1 ? "" : "s"} this step. Balance: ${data.balance ?? "updated"}.`
+                  : `Balance: ${data.balance ?? "updated"}.`,
+                createdAt: Date.now(),
+                creditsCharged,
+                toolCount,
+                round:
+                  typeof data.round === "number" ? data.round : undefined,
+              };
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantId
+                      ? {
+                          ...msg,
+                          agentEvents: [...(msg.agentEvents || []), activity],
+                        }
+                      : msg,
+                  ),
+                );
+              });
+              await waitForAgentProgressPaint();
+              opts.onCreditsUpdated?.();
+            } else if (currentEvent === "ui_action") {
+              opts.onUiAction?.(data as ChatUiAction);
+            }
+          } catch (e) {
+            console.warn("[ai-chat] Could not handle SSE frame", e);
+          }
+          return false;
+        };
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -1235,214 +1445,11 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           buffer = frames.pop() || "";
 
           for (const frame of frames) {
-            const parsedFrame = parseSseFrame(frame);
-            if (!parsedFrame || parsedFrame.data === "[DONE]") continue;
-            const currentEvent = parsedFrame.event;
-            const dataStr = parsedFrame.data;
-
-              try {
-                const data = parseSseData(dataStr);
-                if (!data) continue;
-
-                if (currentEvent === "message") {
-                  if (data.delta) {
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id === assistantId
-                          ? {
-                              ...msg,
-                              content: msg.content + data.delta,
-                              parts: [
-                                {
-                                  type: "text",
-                                  text: msg.content + data.delta,
-                                },
-                              ],
-                            }
-                          : msg,
-                      ),
-                    );
-                  }
-                } else if (currentEvent === "response_id") {
-                  if (data.response_id) {
-                    setResponseId(data.response_id);
-                  }
-                } else if (currentEvent === "error") {
-                  const errorText = `Error: ${data.error}`;
-                  flushSync(() => {
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id === assistantId
-                          ? {
-                              ...msg,
-                              content: errorText,
-                              parts: [{ type: "text", text: errorText }],
-                              streaming: false,
-                            }
-                          : msg,
-                      ),
-                    );
-                  });
-                  await waitForAgentProgressPaint();
-                } else if (currentEvent === "agent_activity") {
-                  const activity: AgentActivityEntry = {
-                    id: data.id || nanoid(),
-                    kind: data.kind || "status",
-                    title: data.title || "Working",
-                    detail:
-                      typeof data.detail === "string" ? data.detail : undefined,
-                    status:
-                      data.status === "error" ||
-                      data.status === "done" ||
-                      data.status === "running"
-                        ? data.status
-                        : "done",
-                    createdAt:
-                      typeof data.created_at === "number"
-                        ? data.created_at
-                        : Date.now(),
-                    finishedAt:
-                      typeof data.finished_at === "number"
-                        ? data.finished_at
-                        : undefined,
-                    round:
-                      typeof data.round === "number" ? data.round : undefined,
-                    creditsCharged:
-                      typeof data.credits_charged === "number"
-                        ? data.credits_charged
-                        : undefined,
-                    toolCount:
-                      typeof data.tool_count === "number"
-                        ? data.tool_count
-                        : undefined,
-                  };
-                  flushSync(() => {
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id === assistantId
-                          ? {
-                              ...msg,
-                              agentEvents: [
-                                ...(msg.agentEvents || []),
-                                activity,
-                              ],
-                            }
-                          : msg,
-                      ),
-                    );
-                  });
-                  await waitForAgentProgressPaint();
-                } else if (currentEvent === "tool_start") {
-                  const toolEntry: ToolCallEntry = {
-                    id: data.id || nanoid(),
-                    name: data.name,
-                    args: data.args,
-                    status: "running",
-                    startedAt: Date.now(),
-                  };
-                  flushSync(() => {
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id === assistantId
-                          ? {
-                              ...msg,
-                              toolCalls: [...(msg.toolCalls || []), toolEntry],
-                            }
-                          : msg,
-                      ),
-                    );
-                  });
-                  await waitForAgentProgressPaint();
-                } else if (currentEvent === "tool_call") {
-                  const toolEntry: ToolCallEntry = {
-                    id: data.id,
-                    name: data.name,
-                    args: data.args,
-                    status:
-                      data.result?.error || data.result?.success === false
-                        ? "error"
-                        : "done",
-                    result: data.result,
-                    startedAt:
-                      typeof data.started_at === "number"
-                        ? data.started_at
-                        : undefined,
-                    finishedAt:
-                      typeof data.finished_at === "number"
-                        ? data.finished_at
-                        : Date.now(),
-                  };
-                  flushSync(() => {
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id !== assistantId
-                          ? msg
-                          : {
-                              ...msg,
-                              toolCalls: data.id
-                                ? (msg.toolCalls || []).some(
-                                    (entry) => entry.id === data.id,
-                                  )
-                                  ? (msg.toolCalls || []).map((entry) =>
-                                      entry.id === data.id
-                                        ? {
-                                            ...entry,
-                                            ...toolEntry,
-                                            startedAt:
-                                              toolEntry.startedAt ||
-                                              entry.startedAt,
-                                          }
-                                        : entry,
-                                    )
-                                  : [...(msg.toolCalls || []), toolEntry]
-                                : [...(msg.toolCalls || []), toolEntry],
-                            },
-                      ),
-                    );
-                  });
-                  await waitForAgentProgressPaint();
-                } else if (currentEvent === "agent_surcharge") {
-                  const creditsCharged = Number(data.credits_charged || 0);
-                  const toolCount = Number(data.tool_count || 0);
-                  const activity: AgentActivityEntry = {
-                    id: data.id || nanoid(),
-                    kind: "billing",
-                    status: "done",
-                    title: `Charged ${creditsCharged} credit${creditsCharged === 1 ? "" : "s"}`,
-                    detail: toolCount
-                      ? `Metered for ${toolCount} agent tool${toolCount === 1 ? "" : "s"} this step. Balance: ${data.balance ?? "updated"}.`
-                      : `Balance: ${data.balance ?? "updated"}.`,
-                    createdAt: Date.now(),
-                    creditsCharged,
-                    toolCount,
-                    round:
-                      typeof data.round === "number" ? data.round : undefined,
-                  };
-                  flushSync(() => {
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id === assistantId
-                          ? {
-                              ...msg,
-                              agentEvents: [
-                                ...(msg.agentEvents || []),
-                                activity,
-                              ],
-                            }
-                          : msg,
-                      ),
-                    );
-                  });
-                  await waitForAgentProgressPaint();
-                  opts.onCreditsUpdated?.();
-                } else if (currentEvent === "ui_action") {
-                  opts.onUiAction?.(data as ChatUiAction);
-                }
-              } catch (e) {
-                // Ignore parse errors for partial lines
-              }
+            if (await handleSseFrame(frame)) break;
           }
         }
+        const trailing = buffer.trim();
+        if (trailing) await handleSseFrame(trailing);
 
         // Done
         setMessages((prev) => {
