@@ -236,6 +236,7 @@ interface BasicMessage {
   meta?: { persona?: Persona; parent?: string };
   toolCalls?: ToolCallEntry[];
   agentEvents?: AgentActivityEntry[];
+  streamFrameCount?: number;
   skillCall?: ChatSkillCall;
   /** Persisted: user message included an image (bytes live in IndexedDB). */
   hasPastedImage?: boolean;
@@ -1240,6 +1241,11 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             const data = parseSseData(dataStr);
             if (!data) return false;
 
+            const markStreamFrame = (msg: BasicMessage) => ({
+              ...msg,
+              streamFrameCount: (msg.streamFrameCount || 0) + 1,
+            });
+
             if (currentEvent === "done") {
               return true;
             }
@@ -1250,7 +1256,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                     prev.map((msg) =>
                       msg.id === assistantId
                         ? {
-                            ...msg,
+                            ...markStreamFrame(msg),
                             content: msg.content + data.delta,
                             parts: [
                               {
@@ -1276,7 +1282,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                   prev.map((msg) =>
                     msg.id === assistantId
                       ? {
-                          ...msg,
+                          ...markStreamFrame(msg),
                           content: errorText,
                           parts: [{ type: "text", text: errorText }],
                           streaming: false,
@@ -1323,7 +1329,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                   prev.map((msg) =>
                     msg.id === assistantId
                       ? {
-                          ...msg,
+                          ...markStreamFrame(msg),
                           agentEvents: [...(msg.agentEvents || []), activity],
                         }
                       : msg,
@@ -1344,7 +1350,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                   prev.map((msg) =>
                     msg.id === assistantId
                       ? {
-                          ...msg,
+                          ...markStreamFrame(msg),
                           toolCalls: [...(msg.toolCalls || []), toolEntry],
                         }
                       : msg,
@@ -1377,7 +1383,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                     msg.id !== assistantId
                       ? msg
                       : {
-                          ...msg,
+                          ...markStreamFrame(msg),
                           toolCalls: data.id
                             ? (msg.toolCalls || []).some(
                                 (entry) => entry.id === data.id,
@@ -1422,7 +1428,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                   prev.map((msg) =>
                     msg.id === assistantId
                       ? {
-                          ...msg,
+                          ...markStreamFrame(msg),
                           agentEvents: [...(msg.agentEvents || []), activity],
                         }
                       : msg,
@@ -2463,6 +2469,7 @@ export const ChatPage = () => {
             [
               message.id,
               message.content.length,
+              message.streamFrameCount || 0,
               message.agentEvents?.length || 0,
               message.toolCalls?.length || 0,
               message.streaming ? 1 : 0,
