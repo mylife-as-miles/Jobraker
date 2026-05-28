@@ -138,7 +138,11 @@ const customStyles = `
 
 const waitForAgentProgressPaint = () =>
   new Promise<void>((resolve) => {
-    window.requestAnimationFrame(() => window.setTimeout(resolve, 0));
+    // A real frame boundary keeps SSE updates visible even when many frames
+    // arrive in one network chunk and React would otherwise look "dumped".
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => window.setTimeout(resolve, 35));
+    });
   });
 
 const parseSseFrame = (frame: string) => {
@@ -2451,9 +2455,40 @@ export const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
+  const streamingUpdateKey = useMemo(
+    () =>
+      messages
+        .map(
+          (message) =>
+            [
+              message.id,
+              message.content.length,
+              message.agentEvents?.length || 0,
+              message.toolCalls?.length || 0,
+              message.streaming ? 1 : 0,
+            ].join(":"),
+        )
+        .join("|"),
+    [messages],
+  );
+
   useEffect(() => {
+    const container = chatScrollRef.current;
+    if (!container) {
+      updateScrollState();
+      return;
+    }
+
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    const shouldFollowStream = status === "in_progress" && distanceFromBottom < 240;
+
     updateScrollState();
-  }, [messages.length, updateScrollState]);
+
+    if (shouldFollowStream) {
+      window.requestAnimationFrame(() => scrollToBottom("auto"));
+    }
+  }, [scrollToBottom, status, streamingUpdateKey, updateScrollState]);
 
   const filteredSessions = useMemo(() => {
     if (!searchQuery.trim()) return sessions;
