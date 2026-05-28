@@ -1231,12 +1231,11 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         const decoder = new TextDecoder();
         let buffer = "";
 
-        const handleSseFrame = async (frame: string) => {
-          const parsedFrame = parseSseFrame(frame);
-          if (!parsedFrame || parsedFrame.data === "[DONE]") return false;
-          const currentEvent = parsedFrame.event;
-          const dataStr = parsedFrame.data;
-
+        const handleSsePayload = async (
+          currentEvent: string,
+          dataStr: string,
+        ) => {
+          if (dataStr === "[DONE]") return true;
           try {
             const data = parseSseData(dataStr);
             if (!data) return false;
@@ -1446,19 +1445,41 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           return false;
         };
 
+        const handleSseFrame = async (frame: string) => {
+          const parsedFrame = parseSseFrame(frame);
+          if (!parsedFrame) return false;
+          return handleSsePayload(parsedFrame.event, parsedFrame.data);
+        };
+
+        let currentEvent = "message";
+        let streamFinished = false;
+
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done || streamFinished) break;
 
           buffer += decoder.decode(value, { stream: true });
-          const frames = buffer.split(/\r?\n\r?\n/);
-          buffer = frames.pop() || "";
+          const lines = buffer.split(/\r?\n/);
+          buffer = lines.pop() || "";
 
-          for (const frame of frames) {
-            if (await handleSseFrame(frame)) break;
+          for (const rawLine of lines) {
+            const line = rawLine.trimEnd();
+            if (!line || line.startsWith(":")) continue;
+            if (line.startsWith("event:")) {
+              currentEvent = line.slice(6).trim() || "message";
+              continue;
+            }
+            if (line.startsWith("data:")) {
+              const dataStr = line.slice(5).trimStart();
+              const shouldStop = await handleSsePayload(currentEvent, dataStr);
+              if (shouldStop) {
+                streamFinished = true;
+                break;
+              }
+            }
           }
         }
-        const trailing = buffer.trim();
+        const trailing = streamFinished ? "" : buffer.trim();
         if (trailing) await handleSseFrame(trailing);
 
         // Done
@@ -2894,7 +2915,7 @@ export const ChatPage = () => {
               )}
               {messages.length === 0 ? (
                 <div className='flex-1 flex flex-col items-center justify-start p-6 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
-                  <div className='max-w-2xl w-full text-center space-y-4 md:space-y-6 my-auto py-6 flex flex-col items-center'>
+                  <div className='max-w-2xl w-full text-center space-y-4 md:space-y-6 mt-auto mb-2 py-6 flex flex-col items-center'>
                     <div className='flex justify-center mb-4'>
                       <div className='w-16 h-16 bg-foreground/5 rounded-2xl flex items-center justify-center border border-brand/20 relative shadow-[0_0_15px_rgba(29,255,0,0.05)]'>
                         <Bot className='w-8 h-8 text-brand' />

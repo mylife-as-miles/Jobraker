@@ -3082,10 +3082,9 @@ Edge functions:
       start(controller) {
         (async () => {
         const encoder = new TextEncoder();
-        const flushPadding = `:${" ".repeat(1024)}\n\n`;
         const enqueueEvent = async (ev: string, data: any) => {
           const payload = typeof data === "string" ? data : JSON.stringify(data);
-          controller.enqueue(encoder.encode(`event: ${ev}\ndata: ${payload}\n\n${flushPadding}`));
+          controller.enqueue(encoder.encode(`event: ${ev}\ndata: ${payload}\n\n`));
           // Yield after every SSE frame so proxies/browser readers can paint
           // long-running agent progress as it happens instead of one final burst.
           await new Promise((resolve) => setTimeout(resolve, 16));
