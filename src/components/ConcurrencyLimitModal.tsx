@@ -47,7 +47,7 @@ export function ConcurrencyLimitModal({
     >
       <DialogContent
         hideCloseButton
-        className='max-w-[min(100%,480px)] overflow-hidden gap-0 border border-purple-500/40 bg-zinc-950 p-0 text-foreground shadow-[0_0_50px_-12px_rgba(168,85,247,0.5),0_25px_80px_-20px_rgba(0,0,0,0.95)] sm:rounded-3xl'
+        className='!flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[640px] flex-col overflow-hidden gap-0 border border-purple-500/40 bg-zinc-950 p-0 text-foreground shadow-[0_0_50px_-12px_rgba(168,85,247,0.5),0_25px_80px_-20px_rgba(0,0,0,0.95)] sm:max-h-[calc(100dvh-2rem)] sm:w-[min(92vw,640px)] sm:rounded-3xl'
       >
         <DialogTitle className='sr-only'>
           Your Auto-Apply Queue is Stalled
@@ -57,10 +57,10 @@ export function ConcurrencyLimitModal({
         </DialogDescription>
 
         {/* Top Urgency Bar */}
-        <div className='flex items-center justify-between gap-3 border-b border-red-500/20 bg-red-950/20 px-4 py-2.5'>
+        <div className='flex shrink-0 items-center justify-between gap-3 border-b border-red-500/20 bg-red-950/20 px-3 py-2.5 sm:px-4'>
           <div className='flex min-w-0 items-center gap-2'>
             <Flame className='h-4 w-4 shrink-0 text-red-500 animate-pulse' aria-hidden />
-            <span className='truncate text-[11px] font-bold uppercase tracking-wider text-red-400 sm:text-xs'>
+            <span className='line-clamp-2 text-[10px] font-bold uppercase leading-snug tracking-wider text-red-400 sm:truncate sm:text-xs'>
               Warning: Other candidates are applying to these roles right now
             </span>
           </div>
@@ -75,37 +75,37 @@ export function ConcurrencyLimitModal({
         </div>
 
         {/* Main Body */}
-        <div className='space-y-6 px-6 pb-6 pt-8 relative'>
+        <div className='relative min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 pb-4 pt-5 sm:space-y-6 sm:px-6 sm:pb-6 sm:pt-7'>
           {/* Ambient Glows */}
           <div className='absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-purple-500/10 rounded-full blur-[60px] pointer-events-none' />
 
           <div className='flex justify-center relative z-10'>
             <div
               className={cn(
-                "relative flex h-20 w-20 items-center justify-center rounded-2xl",
+                "relative flex h-16 w-16 items-center justify-center rounded-2xl sm:h-20 sm:w-20",
                 "bg-gradient-to-br from-red-600 via-purple-600 to-indigo-700",
                 "shadow-[0_0_50px_-5px_rgba(168,85,247,0.85)]",
                 "ring-2 ring-purple-400/30",
               )}
             >
               <Zap
-                className='h-10 w-10 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] animate-pulse'
+                className='h-8 w-8 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] animate-pulse sm:h-10 sm:w-10'
                 strokeWidth={2.5}
               />
             </div>
           </div>
 
           <div className='space-y-2 text-center relative z-10'>
-            <h3 className='text-2xl font-black uppercase tracking-tight text-white leading-none'>
+            <h3 className='text-xl font-black uppercase tracking-tight text-white leading-tight sm:text-2xl sm:leading-none'>
               Queue Stalled at <span className='text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500'>{activeRuns}/{totalLimit} Slots</span>
             </h3>
-            <p className='text-sm text-zinc-400 leading-relaxed px-1'>
+            <p className='mx-auto max-w-[54ch] px-1 text-xs leading-relaxed text-zinc-400 sm:text-sm'>
               While your queue waits for an open slot, <span className='text-white font-semibold'>GitLab</span> and other top companies are actively scheduling interviews. Every minute you delay is a first-mover advantage handed to your competitors.
             </p>
           </div>
 
           {/* Social Proof Banner */}
-          <div className='flex items-center gap-2.5 rounded-xl border border-purple-500/20 bg-purple-950/15 p-3 text-xs leading-normal text-purple-300 relative z-10'>
+          <div className='relative z-10 flex items-start gap-2.5 rounded-xl border border-purple-500/20 bg-purple-950/15 p-3 text-xs leading-normal text-purple-300 sm:items-center'>
             <Check className='h-4 w-4 shrink-0 text-purple-400' strokeWidth={3} />
             <span>
               <strong>94% of candidates</strong> who landed interviews this week used Boost Packs to submit applications 3x faster than the competition.
@@ -121,25 +121,25 @@ export function ConcurrencyLimitModal({
                   onUpgrade("boosts");
                   handleClose();
                 }}
-                className='relative flex items-center justify-between p-4.5 rounded-2xl border-2 border-purple-500 bg-zinc-900/90 shadow-[0_0_20px_rgba(168,85,247,0.15)] hover:bg-zinc-900 transition-all duration-200 cursor-pointer group'
+                className='group relative flex cursor-pointer flex-col gap-3 rounded-2xl border-2 border-purple-500 bg-zinc-900/90 p-3.5 shadow-[0_0_20px_rgba(168,85,247,0.15)] transition-all duration-200 hover:bg-zinc-900 sm:flex-row sm:items-center sm:justify-between sm:p-4'
               >
-                <div className='absolute -top-3 right-4 bg-gradient-to-r from-purple-600 to-pink-600 text-[9px] font-black uppercase tracking-widest text-white px-2.5 py-0.5 rounded-full border border-purple-400 shadow-md'>
+                <div className='absolute -top-3 right-3 max-w-[calc(100%-1.5rem)] truncate rounded-full border border-purple-400 bg-gradient-to-r from-purple-600 to-pink-600 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-white shadow-md sm:right-4 sm:text-[9px]'>
                   Recommended Boost
                 </div>
-                <div className='flex items-center gap-3'>
+                <div className='flex min-w-0 items-center gap-3'>
                   <div className='w-8 h-8 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 group-hover:scale-105 transition-transform'>
                     <span className='text-sm font-black'>+{momentumBoost.parallelSlots}</span>
                   </div>
-                  <div>
+                  <div className='min-w-0'>
                     <p className='text-sm font-bold text-white group-hover:text-purple-300 transition-colors'>
                       {momentumBoost.name}
                     </p>
-                    <p className='text-[10px] text-zinc-500'>
+                    <p className='text-[10px] leading-snug text-zinc-500'>
                       Triples your speed. Launch 2 extra applications in parallel now.
                     </p>
                   </div>
                 </div>
-                <div className='text-right shrink-0'>
+                <div className='flex shrink-0 items-end justify-between gap-3 text-right sm:block'>
                   <p className='text-base font-black text-white'>
                     ${momentumBoost.priceUsd}
                   </p>
@@ -157,22 +157,22 @@ export function ConcurrencyLimitModal({
                   onUpgrade("boosts");
                   handleClose();
                 }}
-                className='flex items-center justify-between p-4 rounded-xl border border-white/5 bg-zinc-900/40 hover:bg-zinc-900/80 hover:border-purple-500/20 transition-all duration-200 cursor-pointer group'
+                className='group flex cursor-pointer flex-col gap-3 rounded-xl border border-white/5 bg-zinc-900/40 p-3.5 transition-all duration-200 hover:border-purple-500/20 hover:bg-zinc-900/80 sm:flex-row sm:items-center sm:justify-between sm:p-4'
               >
-                <div className='flex items-center gap-3'>
+                <div className='flex min-w-0 items-center gap-3'>
                   <div className='w-8 h-8 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 group-hover:scale-105 transition-transform'>
                     <span className='text-sm font-black'>+{scaleBoost.parallelSlots}</span>
                   </div>
-                  <div>
+                  <div className='min-w-0'>
                     <p className='text-sm font-bold text-zinc-300 group-hover:text-purple-300 transition-colors'>
                       {scaleBoost.name}
                     </p>
-                    <p className='text-[10px] text-zinc-500'>
+                    <p className='text-[10px] leading-snug text-zinc-500'>
                       Unleash 4 parallel slots. Clear your queue before roles close.
                     </p>
                   </div>
                 </div>
-                <div className='text-right shrink-0'>
+                <div className='flex shrink-0 items-end justify-between gap-3 text-right sm:block'>
                   <p className='text-sm font-bold text-zinc-300'>
                     ${scaleBoost.priceUsd}
                   </p>
@@ -190,22 +190,22 @@ export function ConcurrencyLimitModal({
                   onUpgrade("subscription");
                   handleClose();
                 }}
-                className='flex items-center justify-between p-4 rounded-xl border border-white/5 bg-zinc-900/40 hover:bg-zinc-900/80 hover:border-purple-500/20 transition-all duration-200 cursor-pointer group'
+                className='group flex cursor-pointer flex-col gap-3 rounded-xl border border-white/5 bg-zinc-900/40 p-3.5 transition-all duration-200 hover:border-purple-500/20 hover:bg-zinc-900/80 sm:flex-row sm:items-center sm:justify-between sm:p-4'
               >
-                <div className='flex items-center gap-3'>
+                <div className='flex min-w-0 items-center gap-3'>
                   <div className='w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-105 transition-transform'>
                     <Crown className='w-4 h-4' />
                   </div>
-                  <div>
+                  <div className='min-w-0'>
                     <p className='text-sm font-bold text-zinc-300 group-hover:text-purple-300 transition-colors'>
                       Upgrade to Ultimate
                     </p>
-                    <p className='text-[10px] text-zinc-500'>
+                    <p className='text-[10px] leading-snug text-zinc-500'>
                       8 base slots + 3,500 credits/mo + Priority Autopilot.
                     </p>
                   </div>
                 </div>
-                <div className='text-right shrink-0'>
+                <div className='flex shrink-0 items-end justify-between gap-3 text-right sm:block'>
                   <p className='text-sm font-bold text-zinc-300'>
                     ${ultimatePlan.monthlyPriceUsd}/mo
                   </p>
@@ -225,14 +225,14 @@ export function ConcurrencyLimitModal({
                 onUpgrade("boosts");
                 handleClose();
               }}
-              className='h-12 w-full rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-extrabold text-white shadow-[0_0_24px_rgba(168,85,247,0.35)] transition-all hover:brightness-110 hover:shadow-[0_0_32px_rgba(168,85,247,0.45)] sm:text-base'
+              className='min-h-11 h-auto w-full whitespace-normal rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-3 text-sm font-extrabold leading-tight text-white shadow-[0_0_24px_rgba(168,85,247,0.35)] transition-all hover:brightness-110 hover:shadow-[0_0_32px_rgba(168,85,247,0.45)] sm:min-h-12 sm:text-base'
             >
               Get Ahead of Other Applicants
             </Button>
             <button
               type='button'
               onClick={handleClose}
-              className='w-full py-2 text-center text-xs font-semibold text-zinc-500 hover:text-zinc-400 transition-colors'
+              className='w-full px-3 py-2 text-center text-xs font-semibold leading-snug text-zinc-500 transition-colors hover:text-zinc-400'
             >
               No thanks, I will let my applications sit paused
             </button>

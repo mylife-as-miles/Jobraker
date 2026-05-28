@@ -39,6 +39,10 @@ export async function embedText(text: string, options?: EmbedOptions): Promise<n
       contents: cleaned,
     });
 
+    if (Array.isArray(response?.embeddings) && response.embeddings[0]?.values) {
+      return response.embeddings[0].values;
+    }
+
     if (!response?.embedding?.values) {
       throw new Error(`Invalid response structure from Gemini embedContent: ${JSON.stringify(response)}`);
     }

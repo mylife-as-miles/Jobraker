@@ -4584,6 +4584,38 @@ Edge functions:
                           reminder: data,
                           message: `Follow-up reminder scheduled for ${company} on ${reminderDate.toLocaleDateString()}.`
                         };
+                  } else if (fn.name === "analyze_resume") {
+                    const artifacts = await resolveAutoApplyArtifacts(serviceClient, userId);
+                    const resumeText =
+                      asString(args.resume_text) ||
+                      asString(args.resumeText) ||
+                      artifacts.resumeText;
+                    const profileSummary =
+                      asString(args.profile_summary) ||
+                      asString(args.profileSummary) ||
+                      artifacts.profileSnapshot ||
+                      "";
+
+                    if (!resumeText || !profileSummary) {
+                      result = {
+                        success: false,
+                        error:
+                          "Resume analysis needs a parsed resume and profile summary. Upload or parse a resume first, then try again.",
+                        missing_resume_context: true,
+                      };
+                    } else {
+                      result = await invokeEdgeFunctionByName({
+                        authHeader: authHeader!,
+                        name: "analyze-resume",
+                        payload: {
+                          resumeText,
+                          profileSummary,
+                          resumeId: args.resume_id ?? args.resumeId ?? artifacts.preferredResume?.id,
+                          targetRole:
+                            args.target_role ?? args.targetRole ?? args.role ?? undefined,
+                        },
+                      });
+                    }
                   } else if (fn.name === "evaluate_job_fit") {
                     const t = normalizeSubscriptionTier(subscriptionTier);
                     if (t === "Free") {

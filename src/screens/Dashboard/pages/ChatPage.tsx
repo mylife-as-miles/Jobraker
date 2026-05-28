@@ -510,20 +510,34 @@ const getToolResultPayload = (
   return result || {};
 };
 
+const getToolResultError = (result?: Record<string, unknown>) => {
+  const payload = getToolResultPayload(result);
+  return typeof payload.error === "string"
+    ? payload.error
+    : typeof result?.error === "string"
+      ? result.error
+      : typeof payload.message === "string" && payload.success === false
+        ? payload.message
+        : null;
+};
+
+const isInternalToolFailure = (entry: ToolCallEntry) => {
+  const error = getToolResultError(entry.result);
+  if (!error) return false;
+  return (
+    /jobDescription and resumeText are required/i.test(error) ||
+    /missing required fields:\s*resumeText,\s*profileSummary/i.test(error) ||
+    /invalid response structure from Gemini embedContent/i.test(error) ||
+    /took longer than \d+ seconds/i.test(error) ||
+    /stopped waiting/i.test(error) ||
+    /required$/i.test(error)
+  );
+};
+
 const summarizeToolResult = (entry: ToolCallEntry): string | undefined => {
   const result = getToolResultPayload(entry.result);
-  const error =
-    typeof result.error === "string"
-      ? result.error
-      : typeof result.message === "string" && result.success === false
-        ? result.message
-        : null;
-  const hiddenErrors =
-    /jobDescription and resumeText are required/i.test(error || "") ||
-    /took longer than \d+ seconds/i.test(error || "") ||
-    /stopped waiting/i.test(error || "") ||
-    /required$/i.test(error || "");
-  if (hiddenErrors) return undefined;
+  const error = getToolResultError(entry.result);
+  if (isInternalToolFailure(entry)) return undefined;
   if (error) return error.slice(0, 160);
 
   const imported =
@@ -740,7 +754,7 @@ const AgentWorkTimeline = ({
                 ? `${event.title} - ${event.detail}`
                 : event.title,
       })),
-    ...toolCalls.map((tool) => {
+    ...toolCalls.filter((tool) => !isInternalToolFailure(tool)).map((tool) => {
       const resultSummary = summarizeToolResult(tool);
       const prefix =
         tool.status === "running"
@@ -2914,8 +2928,8 @@ export const ChatPage = () => {
                 </div>
               )}
               {messages.length === 0 ? (
-                <div className='flex-1 flex flex-col items-center justify-start p-6 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
-                  <div className='max-w-2xl w-full text-center space-y-4 md:space-y-6 mt-auto mb-2 py-6 flex flex-col items-center'>
+                <div className='flex-1 flex flex-col items-center justify-start px-6 pb-6 pt-[12vh] md:pt-[16vh] animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
+                  <div className='max-w-2xl w-full text-center space-y-4 md:space-y-6 py-6 flex flex-col items-center'>
                     <div className='flex justify-center mb-4'>
                       <div className='w-16 h-16 bg-foreground/5 rounded-2xl flex items-center justify-center border border-brand/20 relative shadow-[0_0_15px_rgba(29,255,0,0.05)]'>
                         <Bot className='w-8 h-8 text-brand' />
