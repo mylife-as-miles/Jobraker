@@ -2852,11 +2852,17 @@ export const JobPage = (): JSX.Element => {
   }, []);
 
   const openAutoApplyFlow = useCallback(
-    (targetJob: Job | null = jobToAutoApply ?? null) => {
+    async (targetJob: Job | null = jobToAutoApply ?? null) => {
       setAiEvaluation(null);
       setForceSubmit(false);
       setJobToAutoApply(targetJob);
-      fetchConcurrencyInfo();
+      
+      const res = await fetchConcurrencyInfo();
+      if (res && res.availableSlots <= 0) {
+        setConcurrencyModalOpen(true);
+        return;
+      }
+
       const preferredResumeId = getPreferredResumeId(
         Array.isArray(resumes) ? resumes : [],
         selectedResumeId,
@@ -3888,6 +3894,7 @@ export const JobPage = (): JSX.Element => {
       draftData,
       trueAutonomyEnabled,
       gamificationHook,
+      fetchConcurrencyInfo,
     ],
   );
 
@@ -7614,6 +7621,16 @@ export const JobPage = (): JSX.Element => {
             </Modal>
           );
         })()}
+      <ConcurrencyLimitModal
+        open={concurrencyModalOpen}
+        onOpenChange={setConcurrencyModalOpen}
+        activeRuns={concurrencyInfo.activeRuns}
+        totalLimit={concurrencyInfo.totalLimit}
+        currentTier={subscriptionTier}
+        onUpgrade={(tab) => {
+          navigate(`/dashboard/billing${tab ? `?tab=${tab}` : ""}`);
+        }}
+      />
       <ConfirmDialog
         open={confirmDeleteOpen}
         onCancel={() => setConfirmDeleteOpen(false)}

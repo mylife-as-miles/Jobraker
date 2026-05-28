@@ -20,7 +20,10 @@ import {
   evaluateAndPersistJobFit,
   type JobEvaluationResult,
 } from "../_shared/job-evaluation.ts";
-import { attachExistingJobIdsBySourceId } from "../_shared/jobs.ts";
+import {
+  attachExistingJobIdsBySourceId,
+  formatJobTitleAndDescriptionWithAi,
+} from "../_shared/jobs.ts";
 import {
   enforceFeatureRateLimit,
   recordFeatureUsage,
@@ -503,6 +506,10 @@ Deno.serve(async (req) => {
     const nowIso = new Date().toISOString();
     const sourceKind = sourceKindFromUrl(normalizedUrl);
     const sourceId = `direct-url:${normalizedUrl}`;
+
+    const formatted = await formatJobTitleAndDescriptionWithAi(extracted.title, extracted.description || "");
+    extracted.title = formatted.title;
+    extracted.description = formatted.description;
 
     const [jobRow] = await attachExistingJobIdsBySourceId(serviceClient, user.id, [
       {

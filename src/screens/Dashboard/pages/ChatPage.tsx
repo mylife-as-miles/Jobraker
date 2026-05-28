@@ -2893,34 +2893,34 @@ export const ChatPage = () => {
                 </div>
               )}
               {messages.length === 0 ? (
-                <div className='flex-1 flex flex-col items-center justify-center p-6 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700'>
-                  <div className='max-w-2xl w-full text-center space-y-6'>
-                    <div className='flex justify-center mb-8'>
-                      <div className='w-20 h-20 bg-foreground/10 rounded-3xl flex items-center justify-center border border-brand/20 relative'>
-                        <Bot className='w-10 h-10 text-brand' />
-                        <div className='absolute -right-1 -bottom-1 w-6 h-6 bg-brand rounded-full border-4 border-background flex items-center justify-center'>
-                          <span className='w-2 h-2 bg-primary-foreground rounded-full'></span>
+                <div className='flex-1 flex flex-col items-center justify-start p-6 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
+                  <div className='max-w-2xl w-full text-center space-y-4 md:space-y-6 my-auto py-6 flex flex-col items-center'>
+                    <div className='flex justify-center mb-4'>
+                      <div className='w-16 h-16 bg-foreground/5 rounded-2xl flex items-center justify-center border border-brand/20 relative shadow-[0_0_15px_rgba(29,255,0,0.05)]'>
+                        <Bot className='w-8 h-8 text-brand' />
+                        <div className='absolute -right-0.5 -bottom-0.5 w-5 h-5 bg-brand rounded-full border-2 border-background flex items-center justify-center'>
+                          <span className='w-1.5 h-1.5 bg-primary-foreground rounded-full'></span>
                         </div>
                       </div>
                     </div>
-                    <h2 className='product-page-title text-4xl font-bold tracking-tight md:text-5xl'>
+                    <h2 className='product-page-title text-3xl font-bold tracking-tight md:text-4xl'>
                       How can <span className='text-brand'>JobRaker</span> help
                       you today?
                     </h2>
-                    <p className='text-muted-foreground text-lg max-w-lg mx-auto'>
+                    <p className='text-muted-foreground text-sm md:text-base max-w-md mx-auto'>
                       Your autonomous career partner. Ask me to optimize your
                       resume, find roles, or practice interviews.
                     </p>
 
                     {loadingStarterSuggestions ? (
-                      <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mt-12'>
+                      <div className='grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mt-6 md:mt-8 w-full'>
                         {Array.from({ length: 3 }).map((_, idx) => (
                           <div
                             key={`starter-skeleton-${idx}`}
-                            className='suggestion-card glass-panel p-5 rounded-2xl text-left flex flex-col justify-between min-h-[142px] animate-pulse pointer-events-none'
+                            className='suggestion-card glass-panel p-4 rounded-xl text-left flex flex-col justify-between min-h-[120px] animate-pulse pointer-events-none'
                           >
                             <div>
-                              <div className='w-6 h-6 rounded-lg bg-foreground/10 mb-3 border border-border/5' />
+                              <div className='w-5 h-5 rounded-lg bg-foreground/10 mb-2 border border-border/5' />
                               <div className='h-4 bg-foreground/15 rounded w-2/3 mb-2' />
                               <div className='space-y-1.5'>
                                 <div className='h-3 bg-foreground/5 rounded w-full' />
@@ -2931,7 +2931,7 @@ export const ChatPage = () => {
                         ))}
                       </div>
                     ) : starterSuggestions.length > 0 ? (
-                      <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mt-12'>
+                      <div className='grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mt-6 md:mt-8 w-full'>
                         {starterSuggestions.map((suggestion) => {
                           const Icon =
                             CHAT_STARTER_ICONS[suggestion.icon] || FileText;
@@ -2943,22 +2943,24 @@ export const ChatPage = () => {
                                 setText(suggestion.prompt);
                                 setCaretPosition(suggestion.prompt.length);
                               }}
-                              className='suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group'
+                              className='suggestion-card glass-panel p-4 rounded-xl text-left transition-all group min-h-[120px] flex flex-col justify-between'
                             >
-                              <Icon className='text-brand mb-3 w-6 h-6' />
-                              <h4 className='font-semibold text-sm mb-1 text-card-foreground'>
-                                {suggestion.title}
-                              </h4>
-                              <p className='text-xs text-muted-foreground'>
-                                {suggestion.description}
-                              </p>
+                              <div>
+                                <Icon className='text-brand mb-2 w-5 h-5' />
+                                <h4 className='font-semibold text-sm mb-1 text-card-foreground'>
+                                  {suggestion.title}
+                                </h4>
+                                <p className='text-xs text-muted-foreground leading-relaxed'>
+                                  {suggestion.description}
+                                </p>
+                              </div>
                             </button>
                           );
                         })}
                       </div>
                     ) : null}
                     {loadingStarterSuggestions ? (
-                      <p className='text-xs text-muted-foreground animate-pulse'>
+                      <p className='text-xs text-muted-foreground animate-pulse mt-2'>
                         Personalizing your AI starter prompts...
                       </p>
                     ) : null}

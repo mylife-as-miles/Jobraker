@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
-import { generateAiDescription } from '../_shared/gemini.ts';
+import { generateGeminiDescription } from '../_shared/gemini.ts';
+import { formatJobTitleAndDescriptionWithAi } from '../_shared/jobs.ts';
 import { applyMicro1ReferralToUrl } from '../_shared/micro1-referral.ts';
 import { createNotificationRecord } from '../_shared/notification-center.ts';
 
@@ -332,12 +333,15 @@ Deno.serve(async (req) => {
     const jobsToInsert = await Promise.all(filtered.map(async (item) => {
       let aiData;
       try {
-        aiData = await generateAiDescription(item.html, item.markdown, item.description, item.title || rawQuery);
+        aiData = await generateGeminiDescription(item.html, item.markdown, item.description, item.title || rawQuery);
       } catch (e) {
         console.error('AI enrichment failed', e);
         const fallbackDescription = cleanJobDescription(item.markdown || item.description || '');
         aiData = { description: fallbackDescription, tags: item.tags || [] };
       }
+
+      const rawTitle = item.title || rawQuery;
+      const formatted = await formatJobTitleAndDescriptionWithAi(rawTitle, aiData.description);
 
       let expiresAt = null;
       if (item.deadline) {
@@ -402,10 +406,10 @@ Deno.serve(async (req) => {
         user_id: userId,
         source_type: 'web_search',
         source_id: item.url,
-        title: item.title || rawQuery,
+        title: formatted.title,
         company: item.company,
         company_logo: item.company_logo || null,
-        description: aiData.description,
+        description: formatted.description,
         location: item.location || location || 'Remote',
         remote_type: 'Remote',
         employment_type: item.employment_type || null,
