@@ -3355,7 +3355,7 @@ export const ChatPage = () => {
             </div>
 
             {messages.length > 0 && showScrollToBottom && (
-              <div className='pointer-events-none absolute bottom-28 right-6 z-20 md:right-10'>
+              <div className='pointer-events-none absolute bottom-28 left-1/2 -translate-x-1/2 z-20'>
                 <button
                   onClick={() => scrollToBottom()}
                   className='pointer-events-auto inline-flex items-center gap-2 rounded-full border border-brand/30 bg-card/95 px-4 py-2 text-sm font-medium text-brand shadow-lg shadow-black/20 backdrop-blur transition hover:bg-card'

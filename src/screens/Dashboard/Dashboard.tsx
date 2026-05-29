@@ -1184,10 +1184,12 @@ export const Dashboard = (): JSX.Element => {
             navigate("/dashboard/billing?promo=LOWCREDIT_RESCUE")
           }
         />
-        <SupportFloatingWidget
-          currentPageId={currentPage}
-          currentPageLabel={currentItem?.label || "Dashboard"}
-        />
+        {currentPage !== "chat" && (
+          <SupportFloatingWidget
+            currentPageId={currentPage}
+            currentPageLabel={currentItem?.label || "Dashboard"}
+          />
+        )}
         <ExperienceFeedbackPrompt />
       </div>
     </TooltipProvider>
