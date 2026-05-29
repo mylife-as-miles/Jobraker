@@ -5,6 +5,7 @@ import { generateGeminiDescription } from '../_shared/gemini.ts';
 import { formatJobTitleAndDescriptionWithAi } from '../_shared/jobs.ts';
 import { applyMicro1ReferralToUrl } from '../_shared/micro1-referral.ts';
 import { createNotificationRecord } from '../_shared/notification-center.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -50,6 +51,10 @@ function isLikelyAggregateJobPage(url: string, title?: string, description?: str
 Deno.serve(async (req) => {
   // The Kafka Sink sends the payload as the request body.
   // The payload format depends on the Connector configuration.
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'), req);
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   try {
     const payload = await req.json();

@@ -4,6 +4,7 @@ import { discoverJobsFirecrawl } from "../_shared/discovery-hybrid.ts";
 import { persistDiscoveredJobs } from "../_shared/jobs.ts";
 import { resolveJobSearchExecutionLimits } from "../_shared/subscription.ts";
 import { evaluateAndPersistJobFit } from "../_shared/job-evaluation.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 class TaskCanceledError extends Error {
   constructor() {
@@ -180,18 +181,23 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
 
 Deno.serve(async (req) => {
   // Database triggers call process-task Edge Function directly
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
   try {
     const authHeader = req.headers.get("authorization");
     const token = authHeader?.replace(/^Bearer\s+/i, "");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!token || (token !== serviceRoleKey && token !== "SYSTEM_TRIGGER")) {
-      return new Response("Unauthorized", { status: 401 });
+      return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
 
     const { taskId } = await req.json().catch(() => ({}));
     if (!taskId) {
-      return new Response("Missing taskId", { status: 400 });
+      return new Response("Missing taskId", { status: 400, headers: corsHeaders });
     }
 
     const supabase = createClient(
@@ -208,11 +214,11 @@ Deno.serve(async (req) => {
 
     if (loadError || !task) {
       console.error(`[process-task] Failed to load task ${taskId}`, loadError);
-      return new Response("Task not found", { status: 404 });
+      return new Response("Task not found", { status: 404, headers: corsHeaders });
     }
 
     if (task.status === "completed" || task.status === "failed" || task.status === "canceled") {
-      return new Response("Task already completed", { status: 200 });
+      return new Response("Task already completed", { status: 200, headers: corsHeaders });
     }
 
     // Mark task as running
@@ -229,7 +235,7 @@ Deno.serve(async (req) => {
 
     if (runError) {
       console.error(`[process-task] Failed to mark task running ${taskId}`, runError);
-      return new Response("Failed to start task", { status: 500 });
+      return new Response("Failed to start task", { status: 500, headers: corsHeaders });
     }
 
     const progressHelper = {
@@ -345,14 +351,14 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ success: true, message: "Task execution started" }), {
       status: 202,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (error) {
     console.error("[process-task] Unexpected trigger error", error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unexpected error" }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
