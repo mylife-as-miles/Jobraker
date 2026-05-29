@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { restoreAutoApplyRunQuota } from "../_shared/feature-limits.ts";
+import { refundUserCredits } from "../_shared/refunds.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 const AUTO_APPLY_CREDIT_COST = 5;
@@ -68,23 +69,21 @@ async function refundQueuedAutoApplyLaunch(
 
     await restoreAutoApplyRunQuota(supabase, appRow.user_id, periodStart, periodEnd, 1);
 
-    const { error: refundError } = await supabase.rpc("add_credits", {
-      p_user_id: appRow.user_id,
-      p_amount: AUTO_APPLY_CREDIT_COST,
-      p_description: `Refund: Auto-apply failed to start (${appId})`,
-      p_reference_type: "refund",
-      p_reference_id: appId,
-      p_metadata: {
+    await refundUserCredits({
+      serviceClient: supabase,
+      userId: appRow.user_id,
+      amount: AUTO_APPLY_CREDIT_COST,
+      description: `Refund: Auto-apply failed to start (${appId})`,
+      referenceType: "refund",
+      referenceId: appId,
+      metadata: {
+        refund_key: `process-auto-apply-queue:${appId}`,
         application_id: appId,
         job_id: appRow.job_id,
         source: "process-auto-apply-queue",
         reason,
       },
     });
-
-    if (refundError) {
-      throw refundError;
-    }
 
     console.log(`[process-auto-apply-queue] Refunded credits and run quota for user ${appRow.user_id}`);
   } catch (refundErr) {

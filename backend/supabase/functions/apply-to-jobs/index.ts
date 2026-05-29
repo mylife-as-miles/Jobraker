@@ -13,6 +13,7 @@ import {
   getAutoApplyConcurrencyLimit,
   restoreAutoApplyRunQuota,
 } from "../_shared/feature-limits.ts";
+import { refundUserCredits } from "../_shared/refunds.ts";
 
 const AUTOMATION_RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_AUTOMATIONS_PER_WINDOW = 20;
@@ -653,13 +654,15 @@ Deno.serve(async (req) => {
             automationJobCount,
           );
         }
-        await serviceClient.rpc("add_credits", {
-          p_user_id: userId,
-          p_amount: Math.max(1, Number(deduct?.credits_deducted ?? automationJobCount * 5)),
-          p_description: "Refund: Auto-apply could not be queued",
-          p_reference_type: "refund",
-          p_reference_id: jobContext.job_id || null,
-          p_metadata: {
+        await refundUserCredits({
+          serviceClient,
+          userId,
+          amount: Math.max(1, Number(deduct?.credits_deducted ?? automationJobCount * 5)),
+          description: "Refund: Auto-apply could not be queued",
+          referenceType: "refund",
+          referenceId: jobContext.job_id || null,
+          metadata: {
+            refund_key: `apply-to-jobs:${userId}:${jobContext.job_id || jobUrls.join("|")}:${nowIso}`,
             source: "apply-to-jobs",
             job_id: jobContext.job_id,
             job_urls: jobUrls,

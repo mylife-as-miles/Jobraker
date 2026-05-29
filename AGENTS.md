@@ -4,7 +4,8 @@ To ensure consistent and high-quality assistance, all AI agents (including mysel
 
 ## Skill Discovery
 Before performing any task, agents MUST check the global skills directory for available domain expertise:
-- **Skills Path**: `C:\Users\MILES\.gemini\antigravity\skills\`
+- **Skills Path**: `"C:\Users\MILES\.gemini\antigravity-backup\skills"` or "C:\Users\MILES\.gemini\antigravity-ide\skills"
+
 - **Action**: Use the `list_dir` or `view_file` tools to explore relevant skills in this directory.
 
 ## Invocation Pattern

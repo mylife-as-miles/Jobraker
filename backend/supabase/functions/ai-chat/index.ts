@@ -40,6 +40,7 @@ import {
 import { syncUserVectorChunks } from "../_shared/vector-sync.ts";
 import { embedText } from "../_shared/embeddings.ts";
 import { createNotificationRecord } from "../_shared/notification-center.ts";
+import { refundAiChatTurn, refundUserCredits } from "../_shared/refunds.ts";
 
 console.log("JobRaker AI Chat Starting...");
 
@@ -2899,6 +2900,7 @@ Deno.serve(async (req) => {
 
     const userId = user.id;
     const serviceClient = createServiceSupabaseClient();
+    const turnRefundKey = `ai-chat:${userId}:${crypto.randomUUID()}`;
 
     // --- Rate limit check ---
     const { data: rateLimitResult, error: rlError } = await serviceClient.rpc(
@@ -2953,6 +2955,28 @@ Deno.serve(async (req) => {
         },
       );
     }
+
+    let baseChatTurnRefunded = false;
+    const refundBaseChatTurn = async (reason: string, metadata: Record<string, unknown> = {}) => {
+      if (baseChatTurnRefunded) return;
+      baseChatTurnRefunded = true;
+      try {
+        await refundAiChatTurn({
+          serviceClient,
+          userId,
+          consumed,
+          reason,
+          metadata: {
+            refund_key: `${turnRefundKey}:base`,
+            mode,
+            requested_model: requestedModel || "default",
+            ...metadata,
+          },
+        });
+      } catch (refundError) {
+        console.error("AI chat base turn refund failed:", refundError);
+      }
+    };
 
     const genAI = createGeminiClient();
 
@@ -3228,6 +3252,7 @@ Edge functions:
               });
 
               const toolResults = [];
+              let failedToolCount = 0;
               for (let toolIndex = 0; toolIndex < functionCalls.length; toolIndex += 1) {
                 const fc = functionCalls[toolIndex];
                 const fn = fc.functionCall;
@@ -4656,6 +4681,10 @@ Edge functions:
                   result = { success: false, error: e?.message || "Tool execution failed" };
                 }
 
+                if (isRecord(result) && result.success === false) {
+                  failedToolCount += 1;
+                }
+
                 completedToolResults.push({ name: fn.name, args, result });
                 toolResults.push({ functionResponse: { name: fn.name, response: result } });
                 await enqueueEvent("tool_call", {
@@ -4667,6 +4696,32 @@ Edge functions:
                   started_at: startedAt,
                   finished_at: Date.now(),
                 });
+              }
+              if (failedToolCount > 0) {
+                try {
+                  await refundUserCredits({
+                    serviceClient,
+                    userId,
+                    amount: failedToolCount,
+                    description: `Refund: ${failedToolCount} AI agent tool${failedToolCount === 1 ? "" : "s"} did not complete`,
+                    referenceType: "refund",
+                    metadata: {
+                      refund_key: `${turnRefundKey}:tools:${toolRounds}`,
+                      source: "ai_chat_agent",
+                      reason: "tool_result_failed",
+                      round: toolRounds,
+                      failed_tool_count: failedToolCount,
+                      charged_tool_count: functionCalls.length,
+                    },
+                  });
+                  await enqueueEvent("agent_surcharge_refund", {
+                    credits_refunded: failedToolCount,
+                    round: toolRounds,
+                    reason: "tool_result_failed",
+                  });
+                } catch (refundError) {
+                  console.error("AI chat tool surcharge refund failed:", refundError);
+                }
               }
               await enqueueEvent("agent_activity", {
                 kind: "tool_result",
@@ -4728,6 +4783,9 @@ Edge functions:
           controller.close();
         } catch (e: any) {
           console.error("Agent Loop Error:", e);
+          await refundBaseChatTurn("AI chat response failed before completion", {
+            error: e?.message || "Unknown stream error",
+          });
           const userMessage = isGeminiRateLimitError(e)
             ? "Our AI service is temporarily busy across all models. Please try again in a minute."
             : e.message;
