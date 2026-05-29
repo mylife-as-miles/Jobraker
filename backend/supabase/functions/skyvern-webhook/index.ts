@@ -440,7 +440,8 @@ serve(async (req) => {
       const { error: retryUpdateError } = await supabase
         .from("applications")
         .update({
-          provider_status: "pending",
+          provider_status: "waiting",
+          run_id: null,
           retry_count: currentRetries + 1,
           status: "Pending",
           canonical_stage: "queued",

@@ -24,6 +24,12 @@ import {
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../../../components/ui/tooltip";
 import { useToast } from "../../../components/ui/toast";
 import { createClient } from "../../../lib/supabaseClient";
 
@@ -43,6 +49,8 @@ import {
   Mail,
   Zap,
   Trash2,
+  Info,
+  Clock,
 } from "lucide-react";
 import {
   KanbanProvider,
@@ -220,9 +228,33 @@ function getApplicationStatusColor(status: ApplicationStatus) {
   return "#6B7280";
 }
 
-function StatusBadge({ status }: { status: ApplicationStatus }) {
-  const dc = getApplicationStatusColor(status);
-  return (
+function isQueuedApplication(status: ApplicationStatus, providerStatus?: string | null) {
+  return status === "Pending" && providerStatus === "waiting";
+}
+
+function getApplicationStatusDisplay(status: ApplicationStatus, providerStatus?: string | null) {
+  return isQueuedApplication(status, providerStatus) ? "Queued" : status;
+}
+
+function getApplicationStatusDisplayColor(
+  status: ApplicationStatus,
+  providerStatus?: string | null,
+) {
+  return isQueuedApplication(status, providerStatus)
+    ? "#38bdf8"
+    : getApplicationStatusColor(status);
+}
+
+function StatusBadge({
+  status,
+  providerStatus,
+}: {
+  status: ApplicationStatus;
+  providerStatus?: string | null;
+}) {
+  const label = getApplicationStatusDisplay(status, providerStatus);
+  const dc = getApplicationStatusDisplayColor(status, providerStatus);
+  const badge = (
     <span
       className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border'
       style={{
@@ -235,8 +267,24 @@ function StatusBadge({ status }: { status: ApplicationStatus }) {
         className='h-1.5 w-1.5 rounded-full shadow-[0_0_4px_currentColor]'
         style={{ backgroundColor: dc }}
       />
-      {status}
+      {label}
     </span>
+  );
+
+  if (!isQueuedApplication(status, providerStatus)) {
+    return badge;
+  }
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>{badge}</TooltipTrigger>
+        <TooltipContent side='bottom' className='max-w-64 leading-relaxed'>
+          This application is waiting for an automation slot. Higher tiers and
+          concurrency boosts get more parallel runs.
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -1532,7 +1580,10 @@ function ApplicationPage() {
             {/* Header Section with Status Badge */}
             <div className='relative pb-6 border-b border-[#1dff00]/10'>
               <div className='absolute top-0 right-0'>
-                <StatusBadge status={detailApp.status} />
+                <StatusBadge
+                  status={detailApp.status}
+                  providerStatus={detailApp.provider_status}
+                />
               </div>
               <div className='space-y-2 pr-32'>
                 <h2 className='text-2xl font-bold text-foreground'>
@@ -1556,6 +1607,38 @@ function ApplicationPage() {
                 </div>
               </div>
             </div>
+
+            {isQueuedApplication(detailApp.status, detailApp.provider_status) && (
+              <div className='rounded-xl border border-sky-400/25 bg-sky-400/10 p-4'>
+                <div className='flex items-start gap-3'>
+                  <div className='mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-sky-300/25 bg-sky-300/10 text-sky-300'>
+                    <Clock className='h-4 w-4' />
+                  </div>
+                  <div className='min-w-0 space-y-2'>
+                    <div className='flex items-center gap-2 text-sm font-semibold text-sky-200'>
+                      Waiting for an auto-apply slot
+                      <TooltipProvider delayDuration={150}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className='h-3.5 w-3.5 cursor-help text-sky-200/75' />
+                          </TooltipTrigger>
+                          <TooltipContent side='bottom' className='max-w-72 leading-relaxed'>
+                            JobRaker starts queued applications by subscription tier,
+                            then rotates between users in the same tier so one account
+                            cannot consume every platform slot.
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <p className='text-sm leading-relaxed text-foreground/75'>
+                      This run has been charged and reserved, and will launch
+                      automatically when capacity opens. Pro, Ultimate, and
+                      concurrency boosts move more applications in parallel.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Draft Status & AI Confidence Badges */}
             {(detailApp.draft_status || detailApp.ai_confidence_score != null) && (
@@ -2730,7 +2813,14 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           const value = info.getValue() as string;
           const isEditing = editingStatusId === row.id;
           const selectableStatuses = APPLICATION_STATUS_OPTIONS;
-          const color = getApplicationStatusColor(value as ApplicationStatus);
+          const displayValue = getApplicationStatusDisplay(
+            value as ApplicationStatus,
+            row.provider_status,
+          );
+          const color = getApplicationStatusDisplayColor(
+            value as ApplicationStatus,
+            row.provider_status,
+          );
           return (
             <div
               className='relative'
@@ -2759,7 +2849,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
                     className='w-1.5 h-1.5 rounded-full'
                     style={{ backgroundColor: color }}
                   ></span>
-                  {value}
+                  {displayValue}
                 </button>
               )}
               {isEditing && (

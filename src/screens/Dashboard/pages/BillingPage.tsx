@@ -831,6 +831,7 @@ export const BillingPage = () => {
             .select("id", { count: "exact", head: true })
             .eq("user_id", userId)
             .eq("canonical_stage", "queued")
+            .neq("provider_status", "waiting")
             .gt("updated_at", threeHoursAgoIso),
         ]);
 

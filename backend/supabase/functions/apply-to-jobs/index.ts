@@ -10,11 +10,10 @@ import { signResumeProxyToken } from "../_shared/resume-proxy-token.ts";
 import { applyMicro1ReferralToUrl } from "../_shared/micro1-referral.ts";
 import {
   consumeAutoApplyRunQuota,
-  enforceAutoApplyConcurrency,
+  getAutoApplyConcurrencyLimit,
   restoreAutoApplyRunQuota,
 } from "../_shared/feature-limits.ts";
 
-const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 const AUTOMATION_RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_AUTOMATIONS_PER_WINDOW = 20;
 
@@ -238,22 +237,6 @@ function extractJobContext(body: any) {
   };
 }
 
-async function withRetry(fn: () => Promise<any>, attempts = 3, baseDelayMs = 500) {
-  let last: any;
-  for (let index = 0; index < attempts; index += 1) {
-    try {
-      return await fn();
-    } catch (error) {
-      last = error;
-      if (index < attempts - 1) {
-        const delay = baseDelayMs * Math.pow(2, index);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-  }
-  throw last;
-}
-
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
 
@@ -357,21 +340,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const envKey = Deno.env.get("SKYVERN_API_KEY");
-    const headerKey = req.headers.get("x-skyvern-api-key") || req.headers.get("x-api-key");
-    const apiKey = envKey || headerKey;
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({
-          error: "SKYVERN_API_KEY missing (env or x-skyvern-api-key header)",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "content-type": "application/json" },
-        },
-      );
-    }
-
     const workflowId =
       typeof body?.workflow_id === "string" && body.workflow_id
         ? body.workflow_id
@@ -389,11 +357,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const concurrencyResult = await enforceAutoApplyConcurrency({
+    const concurrencyResult = await getAutoApplyConcurrencyLimit({
       userId,
       serviceClient,
       subscriptionTier,
-      quantity: 1,
     });
 
     const automationJobCount = jobUrls.length;
@@ -587,191 +554,172 @@ Deno.serve(async (req) => {
       // Use empty webhook fallback.
     }
 
-    const skyvernRun: Record<string, unknown> = { workflow_id: workflowId, parameters };
-    if (proxyLocation) skyvernRun.proxy_location = proxyLocation;
-    if (webhookUrl) skyvernRun.webhook_url = webhookUrl;
-    if (title) skyvernRun.title = title;
-
     const maxSteps = resolveMaxStepsOverride(body as Record<string, unknown>);
-    const skyvernHeaders: Record<string, string> = {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "x-max-steps-override": String(maxSteps),
+    const queueParameters = {
+      workflow_id: workflowId,
+      parameters,
+      proxy_location: proxyLocation,
+      webhook_url: webhookUrl,
+      title,
+      max_steps_override: maxSteps,
     };
 
-    const response = await withRetry(
-      () =>
-        fetch(SKYVERN_ENDPOINT, {
-          method: "POST",
-          headers: skyvernHeaders,
-          body: JSON.stringify(skyvernRun),
-        }),
-      2,
-      700,
-    );
-
-    const text = await response.text();
-    let data: any = null;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
-
-    if (!response.ok) {
-      const skyvernMessage =
-        data?.detail || data?.message || data?.error || data?.raw || "";
-      const reason =
-        response.status === 401 || response.status === 403
-          ? "Automation service API key is invalid or expired. Please contact support."
-          : response.status === 404
-            ? "Automation template not found. Please contact support."
-            : response.status === 422
-              ? `Automation service rejected the request: ${skyvernMessage}`
-              : response.status === 429
-                ? "Automation rate limit exceeded. Try again in a minute."
-                : `Automation service returned ${response.status}: ${skyvernMessage}`;
-
-      console.error("apply-to-jobs skyvern error", {
-        status: response.status,
-        reason,
-        data,
-        workflowId,
-        jobUrls,
-      });
-
-      return new Response(
-        JSON.stringify({ error: reason, skyvern_status: response.status, data }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, "content-type": "application/json" },
-        },
-      );
-    }
-
-    const runId = data?.run_id || data?.id;
+    const data = { status: "waiting", run_id: null };
     const applyUrl = jobUrls[0] || null;
     const nowIso = new Date().toISOString();
 
-    if (runId) {
-      const applicationPayload = {
-        run_id: runId,
-        job_id: jobContext.job_id,
-        user_id: userId,
-        job_title: jobContext.job_title || title || "Automation run",
-        company: jobContext.company || "Unknown",
-        location: jobContext.location || "",
-        applied_date: nowIso,
-        status: "Pending",
-        canonical_stage: "queued",
-        draft_status: "sent",
-        salary: jobContext.salary || null,
-        notes: `Source: ${jobUrls.join("|")}`,
-        next_step: null,
-        interview_date: null,
-        logo: null,
-        workflow_id: workflowId,
-        app_url: applyUrl,
-        provider_status: "pending",
-        failure_reason: null,
-        match_score: jobContext.match_score,
-        match_reasons: jobContext.match_reasons,
-        ai_confidence_score: jobContext.ai_confidence_score,
-        user_review_notes: null,
+    const applicationPayload = {
+      run_id: null,
+      job_id: jobContext.job_id,
+      user_id: userId,
+      job_title: jobContext.job_title || title || "Automation run",
+      company: jobContext.company || "Unknown",
+      location: jobContext.location || "",
+      applied_date: nowIso,
+      status: "Pending",
+      canonical_stage: "queued",
+      draft_status: "sent",
+      salary: jobContext.salary || null,
+      notes: `Source: ${jobUrls.join("|")}`,
+      next_step: null,
+      interview_date: null,
+      logo: null,
+      workflow_id: workflowId,
+      app_url: applyUrl,
+      provider_status: "waiting",
+      failure_reason: null,
+      match_score: jobContext.match_score,
+      match_reasons: jobContext.match_reasons,
+      ai_confidence_score: jobContext.ai_confidence_score,
+      user_review_notes: null,
+      provider_run_output: { queue_parameters: queueParameters },
+    };
+
+    const upgradeDraftApplication = async (): Promise<boolean> => {
+      if (!jobContext.job_id) return false;
+      const upgradePatch = {
+        run_id: applicationPayload.run_id,
+        job_title: applicationPayload.job_title,
+        company: applicationPayload.company,
+        location: applicationPayload.location,
+        applied_date: applicationPayload.applied_date,
+        status: applicationPayload.status,
+        canonical_stage: applicationPayload.canonical_stage,
+        draft_status: applicationPayload.draft_status,
+        salary: applicationPayload.salary,
+        notes: applicationPayload.notes,
+        next_step: applicationPayload.next_step,
+        interview_date: applicationPayload.interview_date,
+        logo: applicationPayload.logo,
+        workflow_id: applicationPayload.workflow_id,
+        app_url: applicationPayload.app_url,
+        provider_status: applicationPayload.provider_status,
+        failure_reason: applicationPayload.failure_reason,
+        match_score: applicationPayload.match_score,
+        match_reasons: applicationPayload.match_reasons,
+        ai_confidence_score: applicationPayload.ai_confidence_score,
+        user_review_notes: applicationPayload.user_review_notes,
+        provider_run_output: applicationPayload.provider_run_output,
+        updated_at: nowIso,
       };
+      const { data: upgraded, error: upgradeError } = await serviceClient
+        .from("applications")
+        .update(upgradePatch)
+        .eq("user_id", userId)
+        .eq("job_id", jobContext.job_id)
+        .eq("canonical_stage", "draft_ready")
+        .select("id");
+      if (upgradeError) {
+        console.error("Failed to upgrade draft application row", upgradeError);
+        return false;
+      }
+      return Array.isArray(upgraded) && upgraded.length > 0;
+    };
 
-      const upgradeDraftApplication = async (): Promise<boolean> => {
-        if (!jobContext.job_id) return false;
-        const upgradePatch = {
-          run_id: applicationPayload.run_id,
-          job_title: applicationPayload.job_title,
-          company: applicationPayload.company,
-          location: applicationPayload.location,
-          applied_date: applicationPayload.applied_date,
-          status: applicationPayload.status,
-          canonical_stage: applicationPayload.canonical_stage,
-          draft_status: applicationPayload.draft_status,
-          salary: applicationPayload.salary,
-          notes: applicationPayload.notes,
-          next_step: applicationPayload.next_step,
-          interview_date: applicationPayload.interview_date,
-          logo: applicationPayload.logo,
-          workflow_id: applicationPayload.workflow_id,
-          app_url: applicationPayload.app_url,
-          provider_status: applicationPayload.provider_status,
-          failure_reason: applicationPayload.failure_reason,
-          match_score: applicationPayload.match_score,
-          match_reasons: applicationPayload.match_reasons,
-          ai_confidence_score: applicationPayload.ai_confidence_score,
-          user_review_notes: applicationPayload.user_review_notes,
-          updated_at: nowIso,
-        };
-        const { data: upgraded, error: upgradeError } = await serviceClient
-          .from("applications")
-          .update(upgradePatch)
-          .eq("user_id", userId)
-          .eq("job_id", jobContext.job_id)
-          .eq("canonical_stage", "draft_ready")
-          .select("id");
-        if (upgradeError) {
-          console.error("Failed to upgrade draft application row", upgradeError);
-          return false;
+    const upgradedFromDraft = await upgradeDraftApplication();
+    if (!upgradedFromDraft) {
+      const { error: applicationError } = await serviceClient
+        .from("applications")
+        .insert(applicationPayload);
+
+      if (applicationError) {
+        console.error("Failed to create queued application record", applicationError);
+        if (quotaResult.success && quotaResult.periodStart && quotaResult.periodEnd) {
+          await restoreAutoApplyRunQuota(
+            serviceClient,
+            userId,
+            quotaResult.periodStart,
+            quotaResult.periodEnd,
+            automationJobCount,
+          );
         }
-        return Array.isArray(upgraded) && upgraded.length > 0;
+        await serviceClient.rpc("add_credits", {
+          p_user_id: userId,
+          p_amount: Math.max(1, Number(deduct?.credits_deducted ?? automationJobCount * 5)),
+          p_description: "Refund: Auto-apply could not be queued",
+          p_reference_type: "refund",
+          p_reference_id: jobContext.job_id || null,
+          p_metadata: {
+            source: "apply-to-jobs",
+            job_id: jobContext.job_id,
+            job_urls: jobUrls,
+            reason: applicationError.message,
+          },
+        });
+        return new Response(
+          JSON.stringify({
+            error: "Could not queue this auto-apply run. Your credits and run quota were refunded.",
+            code: "auto_apply_enqueue_failed",
+          }),
+          {
+            status: 503,
+            headers: { ...corsHeaders, "content-type": "application/json" },
+          },
+        );
+      }
+    }
+
+    if (jobContext.job_id) {
+      const jobUpdateBase: Record<string, unknown> = {
+        canonical_status: "queued",
+        updated_at: nowIso,
       };
-
-      const upgradedFromDraft = await upgradeDraftApplication();
-      if (!upgradedFromDraft) {
-        const { error: applicationError } = await serviceClient
-          .from("applications")
-          .insert(applicationPayload);
-
-        if (applicationError) {
-          console.error("Failed to create queued application record", applicationError);
-        }
+      const { data: jobRow, error: jobFetchError } = await serviceClient
+        .from("jobs")
+        .select("raw_data")
+        .eq("id", jobContext.job_id)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (jobFetchError) {
+        console.warn("apply-to-jobs: fetch job raw_data", jobFetchError.message);
+      } else if (
+        jobRow?.raw_data &&
+        typeof jobRow.raw_data === "object" &&
+        !Array.isArray(jobRow.raw_data) &&
+        "application_draft" in (jobRow.raw_data as object)
+      ) {
+        const { application_draft: _draft, ...restRaw } = jobRow.raw_data as Record<
+          string,
+          unknown
+        >;
+        jobUpdateBase.raw_data = restRaw;
       }
 
-      if (jobContext.job_id) {
-        const jobUpdateBase: Record<string, unknown> = {
-          canonical_status: "queued",
-          updated_at: nowIso,
-        };
-        const { data: jobRow, error: jobFetchError } = await serviceClient
-          .from("jobs")
-          .select("raw_data")
-          .eq("id", jobContext.job_id)
-          .eq("user_id", userId)
-          .maybeSingle();
-        if (jobFetchError) {
-          console.warn("apply-to-jobs: fetch job raw_data", jobFetchError.message);
-        } else if (
-          jobRow?.raw_data &&
-          typeof jobRow.raw_data === "object" &&
-          !Array.isArray(jobRow.raw_data) &&
-          "application_draft" in (jobRow.raw_data as object)
-        ) {
-          const { application_draft: _draft, ...restRaw } = jobRow.raw_data as Record<
-            string,
-            unknown
-          >;
-          jobUpdateBase.raw_data = restRaw;
-        }
+      const { error: jobUpdateError } = await serviceClient
+        .from("jobs")
+        .update(jobUpdateBase)
+        .eq("id", jobContext.job_id)
+        .eq("user_id", userId);
 
-        const { error: jobUpdateError } = await serviceClient
-          .from("jobs")
-          .update(jobUpdateBase)
-          .eq("id", jobContext.job_id)
-          .eq("user_id", userId);
-
-        if (jobUpdateError) {
-          console.error("Failed to update queued job state", jobUpdateError);
-        }
+      if (jobUpdateError) {
+        console.error("Failed to update queued job state", jobUpdateError);
       }
     }
 
     return new Response(
       JSON.stringify({
         ok: true,
+        enqueued: true,
         automation: data,
         provider: data,
         billing: billingForResponse,
@@ -779,8 +727,8 @@ Deno.serve(async (req) => {
           base_limit: concurrencyResult.baseLimit,
           boost_limit: concurrencyResult.addonLimit,
           total_limit: concurrencyResult.totalLimit,
-          active_runs: concurrencyResult.activeRuns + 1,
-          available_runs: Math.max(0, concurrencyResult.availableRuns - 1),
+          active_runs: concurrencyResult.activeRuns,
+          available_runs: concurrencyResult.availableRuns,
           period_end: concurrencyResult.periodEnd,
         },
         submitted: {
