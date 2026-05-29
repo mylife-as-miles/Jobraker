@@ -362,7 +362,7 @@ export function SupportFloatingWidget({
         {
           id: makeId(),
           role: "assistant",
-          content: `I couldn't complete that just now. ${detail} You can also email support@jobraker.com.`,
+          content: `I couldn't complete that just now. ${detail} You can also email support@jobraker.io.`,
         },
       ]);
     } finally {
@@ -519,7 +519,7 @@ export function SupportFloatingWidget({
                 return (
                   <a
                     key={`${action.label}-${index}`}
-                    href="mailto:support@jobraker.com"
+                    href="mailto:support@jobraker.io"
                     className="inline-flex items-center gap-1 rounded-full border border-foreground/10 px-3 py-1.5 text-xs text-foreground transition-colors hover:border-brand/30 hover:text-brand"
                   >
                     {action.label}
@@ -562,7 +562,7 @@ export function SupportFloatingWidget({
             Ask support
           </p>
           <a
-            href="mailto:support@jobraker.com"
+            href="mailto:support@jobraker.io"
             className="text-xs text-brand transition-colors hover:text-brand/80"
           >
             Talk to a person

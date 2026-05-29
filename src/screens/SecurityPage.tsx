@@ -46,8 +46,8 @@ export const SecurityPage: React.FC = () => {
           <p className='opacity-90'>
             If you believe you found a vulnerability, please do not exploit it
             or access data that does not belong to you. Send details to{" "}
-            <a className='underline' href='mailto:support@jobraker.com'>
-              support@jobraker.com
+            <a className='underline' href='mailto:support@jobraker.io'>
+              support@jobraker.io
             </a>{" "}
             so we can investigate.
           </p>

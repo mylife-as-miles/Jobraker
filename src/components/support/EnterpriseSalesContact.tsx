@@ -150,7 +150,7 @@ export function EnterpriseSalesContact({
       captureClientEvent("enterprise_sales_failed", { location });
       setError(
         submitError?.message ||
-          "We could not send your request. Please try again or email support@jobraker.com.",
+          "We could not send your request. Please try again or email support@jobraker.io.",
       );
     } finally {
       setLoading(false);

@@ -359,7 +359,7 @@ Your job:
 - Use the provided page context and account context to give grounded help.
 - Be concise, clear, and practical.
 - When helpful, tell the user exactly which Jobraker page to open next.
-- If the issue appears account-specific, billing-sensitive, or unresolved after troubleshooting, recommend contacting human support at support@jobraker.com.
+- If the issue appears account-specific, billing-sensitive, or unresolved after troubleshooting, recommend contacting human support at support@jobraker.io.
 
 Boundaries:
 - Do not invent account data, charges, plan limits, feature access, or product behavior.
@@ -405,8 +405,6 @@ The array should be shaped like: { "label": string, "route": string | null, "kin
               role: "system",
               parts: [{ text: systemInstruction }],
             },
-            thinkingConfig: { thinkingLevel: "HIGH" },
-            tools: [{ googleSearch: {} }],
             responseMimeType: "application/json",
           },
           contents: baseContents,

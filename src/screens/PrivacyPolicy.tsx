@@ -88,7 +88,7 @@ export const PrivacyPolicy: React.FC = () => {
 
           <h2 className="text-xl font-semibold mt-8">11. Contact</h2>
           <p className="opacity-90">
-            Questions or requests: <a className="underline" href="mailto:privacy@jobraker.com">privacy@jobraker.com</a>
+            Questions or requests: <a className="underline" href="mailto:privacy@jobraker.io">privacy@jobraker.io</a>
           </p>
         </section>
       </div>

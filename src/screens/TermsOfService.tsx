@@ -79,8 +79,8 @@ export const TermsOfService: React.FC = () => {
           <h2 className='mt-8 text-xl font-semibold'>9. Contact</h2>
           <p className='opacity-90'>
             Questions about these terms:{" "}
-            <a className='underline' href='mailto:support@jobraker.com'>
-              support@jobraker.com
+            <a className='underline' href='mailto:support@jobraker.io'>
+              support@jobraker.io
             </a>
           </p>
         </section>

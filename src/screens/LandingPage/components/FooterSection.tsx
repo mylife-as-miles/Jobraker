@@ -97,12 +97,12 @@ export const FooterSection = () => {
           </p>
           <div className='flex space-x-6'>
             <a
-              href='mailto:support@jobraker.com'
+              href='mailto:support@jobraker.io'
               className='text-gray-500 transition-colors hover:text-brand'
               onClick={() =>
                 captureClientEvent("landing_cta_clicked", {
                   cta_id: "footer_contact_support",
-                  destination: "mailto:support@jobraker.com",
+                  destination: "mailto:support@jobraker.io",
                   location: "footer",
                 })
               }
