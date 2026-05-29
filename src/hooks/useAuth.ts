@@ -8,7 +8,7 @@ import {
   getCachedAuthSnapshot,
 } from "@/lib/offlineAppCache";
 
-const AUTH_SESSION_TIMEOUT_MS = 10_000;
+const AUTH_SESSION_TIMEOUT_MS = 45_000;
 
 interface User {
   id: string;

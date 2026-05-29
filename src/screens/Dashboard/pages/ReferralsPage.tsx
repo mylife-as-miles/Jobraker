@@ -1131,7 +1131,6 @@ function MyReferralsPanel({
                   <th className='px-4 py-3 font-medium'>Email</th>
                   <th className='px-4 py-3 font-medium'>Stage</th>
                   <th className='px-4 py-3 font-medium'>Signed up</th>
-                  <th className='px-4 py-3 font-medium'>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1156,43 +1155,6 @@ function MyReferralsPanel({
                       </td>
                       <td className='px-4 py-3 product-helper-text'>
                         {new Date(r.signed_up_at).toLocaleDateString()}
-                      </td>
-                      <td className='px-4 py-3'>
-                        <div className='flex flex-wrap gap-1'>
-                          {r.funnel_stage !== "hired" &&
-                          r.funnel_stage !== "paid" ? (
-                            <Button
-                              type='button'
-                              variant='outline'
-                              size='sm'
-                              className='h-7 text-[10px] border-foreground/20'
-                              onClick={() =>
-                                void onMarkStage(
-                                  r.referred_user_id,
-                                  "hired",
-                                ).catch((e) => console.warn(e))
-                              }
-                            >
-                              Mark hired
-                            </Button>
-                          ) : null}
-                          {r.funnel_stage === "hired" ? (
-                            <Button
-                              type='button'
-                              variant='outline'
-                              size='sm'
-                              className='h-7 text-[10px] border-foreground/20'
-                              onClick={() =>
-                                void onMarkStage(
-                                  r.referred_user_id,
-                                  "paid",
-                                ).catch((e) => console.warn(e))
-                              }
-                            >
-                              Mark paid
-                            </Button>
-                          ) : null}
-                        </div>
                       </td>
                     </tr>
                   );

@@ -1100,13 +1100,13 @@ export const BillingPage = () => {
                 Billing &
               </span>{" "}
               <span className='text-brand drop-shadow-[0_0_15px_rgba(29,255,0,0.3)]'>
-                Career Velocity
+                Credits
               </span>
             </h1>
             <p className='text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed'>
-              Free lets you taste the machine. Pro runs a serious job-search
-              engine. Ultimate gives you campaign-level capacity, while packs
-              act as emergency fuel when momentum spikes.
+              Price search and drafting separately from automation. Plans
+              include governed auto-apply runs, while packs top up search and AI
+              usage.
             </p>
           </motion.div>
 

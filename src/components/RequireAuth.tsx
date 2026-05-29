@@ -12,7 +12,7 @@ import {
 
 type Props = { children: React.ReactNode };
 
-const AUTH_SESSION_TIMEOUT_MS = 10_000;
+const AUTH_SESSION_TIMEOUT_MS = 45_000;
 
 export const RequireAuth: React.FC<Props> = ({ children }) => {
   const navigate = useNavigate();

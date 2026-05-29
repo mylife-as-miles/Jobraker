@@ -4,6 +4,8 @@ import { createClient } from "../lib/supabaseClient";
 import { ROUTES } from "../routes";
 import { getCachedAuthSnapshot } from "@/lib/offlineAppCache";
 
+const AUTH_SESSION_TIMEOUT_MS = 30_000;
+
 type Props = { children: React.ReactNode };
 
 function getAuthenticatedRedirectPath() {
@@ -61,7 +63,7 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
         try {
           const {
             data: { session },
-          } = await withTimeout(supabase.auth.getSession(), 2500);
+          } = await withTimeout(supabase.auth.getSession(), AUTH_SESSION_TIMEOUT_MS);
 
           if (!mounted) return;
           if (session?.user) {
