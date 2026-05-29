@@ -63,7 +63,6 @@ import {
   type ChatStarterIcon,
   type ChatStarterSuggestion,
 } from "../../../services/ai/generateChatStarters";
-import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
 import { SkillInvocationMessage } from "@/components/chat/SkillInvocationMessage";
 import {
   executeChatSkill,
@@ -745,6 +744,7 @@ const AgentWorkTimeline = ({
   elapsedLabel: string;
 }) => {
   const [expanded, setExpanded] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const toolCalls = message.toolCalls || [];
   const agentEvents = message.agentEvents || [];
   const timelineRows = [
@@ -863,12 +863,35 @@ const AgentWorkTimeline = ({
 
       {expanded && (
         <div className='space-y-2'>
-          {timelineRows.map((row) => (
-            <div key={row.id} className={rowClass}>
-              {iconForRow(row)}
-              <span className='truncate'>{row.label}</span>
-            </div>
-          ))}
+          {timelineRows.map((row) => {
+            const isRowExpanded = !!expandedRows[row.id];
+            return (
+              <div
+                key={row.id}
+                onClick={() => {
+                  setExpandedRows((prev) => ({
+                    ...prev,
+                    [row.id]: !prev[row.id],
+                  }));
+                }}
+                className={`${rowClass} cursor-pointer hover:bg-brand/[0.09] transition-colors ${
+                  isRowExpanded ? "items-start" : "items-center"
+                }`}
+                title={row.label}
+              >
+                {iconForRow(row)}
+                <span
+                  className={
+                    isRowExpanded
+                      ? "break-words whitespace-pre-wrap flex-1 text-left"
+                      : "truncate flex-1 text-left"
+                  }
+                >
+                  {row.label}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -2478,11 +2501,7 @@ export const ChatPage = () => {
         : [],
     [skillPaletteTrigger],
   );
-  const skillPaletteOpen = Boolean(
-    skillPaletteTrigger &&
-      dismissedSkillPaletteToken !== skillPaletteTrigger.token &&
-      skillPaletteSkills.length > 0,
-  );
+  const skillPaletteOpen = false;
 
   useEffect(() => {
     setSkillPaletteActiveIndex(0);
@@ -2955,7 +2974,7 @@ export const ChatPage = () => {
                 </div>
               )}
               {messages.length === 0 ? (
-                <div className='flex-1 flex flex-col items-center justify-start px-6 pb-6 pt-[12vh] md:pt-[16vh] animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
+                <div className='flex-1 flex flex-col items-center justify-center px-6 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
                   <div className='max-w-2xl w-full text-center space-y-4 md:space-y-6 py-6 flex flex-col items-center'>
                     <div className='flex justify-center mb-4'>
                       <div className='w-16 h-16 bg-foreground/5 rounded-2xl flex items-center justify-center border border-brand/20 relative shadow-[0_0_15px_rgba(29,255,0,0.05)]'>
@@ -3356,13 +3375,6 @@ export const ChatPage = () => {
                       : "bg-card/85 backdrop-blur-xl"
                   }`}
                 >
-                  <ChatSkillCommandPalette
-                    open={skillPaletteOpen}
-                    mode={skillPaletteTrigger?.mode || "mention"}
-                    skills={skillPaletteSkills}
-                    activeIndex={skillPaletteActiveIndex}
-                    onSelect={selectSkillFromPalette}
-                  />
                   <div className='flex flex-col overflow-hidden rounded-[23px]'>
                   <div className='relative flex items-end p-2 pb-2'>
                     <textarea

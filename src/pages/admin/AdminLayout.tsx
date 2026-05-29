@@ -1,4 +1,3 @@
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -10,6 +9,7 @@ import {
   Database,
   Zap,
   ChevronRight,
+  ChevronDown,
   Menu,
   X,
   Crown,
@@ -21,22 +21,42 @@ import { motion, AnimatePresence } from "framer-motion";
 import { isCurrentUserAdmin, getCurrentUserAdminSubRole } from "../../lib/adminUtils";
 import { Button } from "../../components/ui/button";
 
-const navigation = [
-  { name: "Overview", icon: LayoutDashboard, path: "/admin" },
-  { name: "Users", icon: Users, path: "/admin/users" },
-  { name: "Chat", icon: MessageSquare, path: "/admin/chat" },
-  { name: "Subscriptions", icon: Crown, path: "/admin/subscriptions" },
-  { name: "Revenue", icon: TrendingUp, path: "/admin/revenue" },
-  { name: "Credits", icon: CreditCard, path: "/admin/credits" },
+const navigationGroups = [
   {
-    name: "Provider Credits",
-    icon: WalletCards,
-    path: "/admin/provider-credits",
+    name: "Dashboard",
+    icon: LayoutDashboard,
+    items: [
+      { name: "Overview", path: "/admin" },
+      { name: "Activity", path: "/admin/activity" },
+      { name: "Performance", path: "/admin/performance" },
+    ],
   },
-  { name: "Activity", icon: Activity, path: "/admin/activity" },
-  { name: "Database", icon: Database, path: "/admin/database" },
-  { name: "Performance", icon: Zap, path: "/admin/performance" },
-  { name: "Settings", icon: Settings, path: "/admin/settings" },
+  {
+    name: "Management",
+    icon: Users,
+    items: [
+      { name: "Users", path: "/admin/users" },
+      { name: "Chat", path: "/admin/chat" },
+    ],
+  },
+  {
+    name: "Billing & Finance",
+    icon: Crown,
+    items: [
+      { name: "Subscriptions", path: "/admin/subscriptions" },
+      { name: "Revenue", path: "/admin/revenue" },
+      { name: "Credits", path: "/admin/credits" },
+      { name: "Provider Credits", path: "/admin/provider-credits" },
+    ],
+  },
+  {
+    name: "System",
+    icon: Settings,
+    items: [
+      { name: "Database", path: "/admin/database" },
+      { name: "Settings", path: "/admin/settings" },
+    ],
+  },
 ];
 
 const APP_DASHBOARD_URL = "https://app.jobraker.io/dashboard";
@@ -66,6 +86,7 @@ export default function AdminLayout() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [subRole, setSubRole] = useState<'owner' | 'editor' | 'reader' | null>(null);
   const [checking, setChecking] = useState(true);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   // Check admin status on mount
   useEffect(() => {
@@ -88,12 +109,30 @@ export default function AdminLayout() {
     checkAdminAccess();
   }, []);
 
-  const visibleNavigation = navigation.filter((item) => {
-    if (item.name === "Database" && subRole !== "owner") {
-      return false;
+  const visibleGroups = navigationGroups.map(group => {
+    const items = group.items.filter(item => {
+      if (item.name === "Database" && subRole !== "owner") {
+        return false;
+      }
+      return true;
+    });
+    return { ...group, items };
+  }).filter(group => group.items.length > 0);
+
+  // Auto-expand group containing active route on load or navigation
+  useEffect(() => {
+    if (visibleGroups.length > 0) {
+      const activeGroup = visibleGroups.find(group => 
+        group.items.some(item => isActiveAdminRoute(location.pathname, item.path))
+      );
+      if (activeGroup) {
+        setExpandedGroups(prev => ({
+          ...prev,
+          [activeGroup.name]: true
+        }));
+      }
     }
-    return true;
-  });
+  }, [location.pathname, subRole, checking]);
 
   // Handle window resize
   useEffect(() => {
@@ -192,40 +231,92 @@ export default function AdminLayout() {
         </div>
 
         {/* Navigation */}
-        <nav className='p-4 space-y-1'>
-          {visibleNavigation.map((item) => {
-            const isActive = isActiveAdminRoute(location.pathname, item.path);
-            const Icon = item.icon;
+        <nav className='p-4 space-y-2 overflow-y-auto max-h-[calc(100vh-170px)] custom-scrollbar'>
+          {visibleGroups.map((group) => {
+            const GroupIcon = group.icon;
+            const isExpanded = !!expandedGroups[group.name];
+            const hasActiveChild = group.items.some(item => isActiveAdminRoute(location.pathname, item.path));
 
             return (
-              <motion.button
-                key={item.path}
-                onClick={() => {
-                  navigate(item.path);
-                  setSidebarOpen(false);
-                }}
-                whileHover={{ x: 4 }}
-                whileTap={{ scale: 0.98 }}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                  isActive
-                    ? "bg-gradient-to-r from-brand/20 to-background/10 text-brand shadow-lg shadow-brand/10 border border-brand/30"
-                    : "text-gray-400 hover:text-white hover:bg-foreground/5 border border-transparent hover:border-brand/20"
-                }`}
-              >
-                <div className='flex items-center gap-3'>
-                  <Icon className={`w-5 h-5 ${isActive ? "text-brand" : ""}`} />
-                  <span>{item.name}</span>
-                </div>
-                {isActive && (
-                  <motion.div
-                    layoutId='activeIndicator'
-                    className='w-1.5 h-1.5 rounded-full bg-brand shadow-[0_0_8px_rgba(29,255,0,0.5)]'
-                  />
-                )}
-              </motion.button>
+              <div key={group.name} className="space-y-1">
+                {/* Group Header Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExpandedGroups(prev => ({
+                      ...prev,
+                      [group.name]: !prev[group.name]
+                    }));
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    hasActiveChild 
+                      ? "text-brand bg-brand/5 border border-brand/20"
+                      : "text-gray-400 hover:text-white hover:bg-foreground/5 border border-transparent"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <GroupIcon className={`w-5 h-5 ${hasActiveChild ? "text-brand" : "text-gray-400"}`} />
+                    <span className="font-semibold">{group.name}</span>
+                  </div>
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  )}
+                </button>
+
+                {/* Sub-items Container */}
+                <AnimatePresence initial={false}>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                      className="overflow-hidden ml-5 relative space-y-1"
+                    >
+                      {group.items.map((item, idx) => {
+                        const isActive = isActiveAdminRoute(location.pathname, item.path);
+                        const isLast = idx === group.items.length - 1;
+
+                        return (
+                          <div key={item.path} className="relative flex items-center pl-6 py-0.5">
+                            {/* Vertical Line */}
+                            <div 
+                              className={`absolute left-2.5 top-0 w-px bg-brand/20 ${
+                                isLast ? "h-1/2" : "h-full"
+                              }`} 
+                            />
+                            {/* Horizontal Connector */}
+                            <div className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-px bg-brand/20" />
+
+                            <button
+                              onClick={() => {
+                                navigate(item.path);
+                                setSidebarOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 relative ${
+                                isActive
+                                  ? "text-brand bg-gradient-to-r from-brand/20 to-background/10 font-bold border border-brand/30 shadow-[0_0_8px_rgba(29,255,0,0.05)]"
+                                  : "text-gray-400 hover:text-white hover:bg-foreground/5 border border-transparent hover:border-brand/20"
+                              }`}
+                            >
+                              <span>{item.name}</span>
+                              {isActive && (
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-brand shadow-[0_0_6px_rgba(29,255,0,0.8)]" />
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             );
           })}
         </nav>
+
 
         {/* Admin Info */}
         <div className='absolute bottom-0 left-0 right-0 p-4 border-t border-brand/20'>
@@ -267,9 +358,10 @@ export default function AdminLayout() {
                 </button>
                 <ChevronRight className='w-4 h-4 text-gray-600' />
                 <span className='text-white font-medium'>
-                  {navigation.find((n) =>
-                    isActiveAdminRoute(location.pathname, n.path),
-                  )?.name || "Dashboard"}
+                  {visibleGroups
+                    .flatMap((g) => g.items)
+                    .find((n) => isActiveAdminRoute(location.pathname, n.path))
+                    ?.name || "Dashboard"}
                 </span>
               </div>
             </div>
