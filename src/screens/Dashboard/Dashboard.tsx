@@ -150,6 +150,7 @@ export const Dashboard = (): JSX.Element => {
   const { profile } = useProfileSettings();
   const { success } = useToast();
   const supabase = useMemo(() => createClient(), []);
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -264,7 +265,6 @@ export const Dashboard = (): JSX.Element => {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [showCareerPopup, setShowCareerPopup] = useState(false);
 
   useEffect(() => {
