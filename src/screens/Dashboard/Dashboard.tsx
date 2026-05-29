@@ -234,12 +234,6 @@ export const Dashboard = (): JSX.Element => {
     checkAdmin();
   }, []);
 
-  useEffect(() => {
-    if (isDesktop && currentPage === "account") {
-      navigate("/dashboard/resume", { replace: true });
-    }
-  }, [isDesktop, currentPage, navigate]);
-
   const pages = useMemo((): DashboardPage[] => {
     const basePages: DashboardPage[] = [
       "overview",
@@ -285,6 +279,12 @@ export const Dashboard = (): JSX.Element => {
       ? (segment as DashboardPage)
       : "overview";
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (isDesktop && currentPage === "account") {
+      navigate("/dashboard/resume", { replace: true });
+    }
+  }, [isDesktop, currentPage, navigate]);
 
   const { balance: creditBalance, loading: creditsLoading } = useCredits();
   const [lowCreditModalOpen, setLowCreditModalOpen] = useState(false);
