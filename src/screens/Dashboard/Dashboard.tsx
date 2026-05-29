@@ -630,7 +630,7 @@ export const Dashboard = (): JSX.Element => {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className='min-h-screen bg-background flex'>
+      <div className='h-screen max-h-screen w-screen overflow-hidden bg-background flex'>
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
