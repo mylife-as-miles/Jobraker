@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { restoreAutoApplyRunQuota } from "../_shared/feature-limits.ts";
 import { refundUserCredits } from "../_shared/refunds.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 const AUTO_APPLY_CREDIT_COST = 5;
@@ -92,6 +93,11 @@ async function refundQueuedAutoApplyLaunch(
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
   try {
     // 1. Verify authorization
     const authHeader = req.headers.get("authorization");
@@ -99,7 +105,7 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!token || (token !== serviceRoleKey && token !== "SYSTEM_TRIGGER")) {
-      return new Response("Unauthorized", { status: 401 });
+      return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -110,7 +116,7 @@ serve(async (req) => {
     const skyvernKey = Deno.env.get("SKYVERN_API_KEY");
     if (!skyvernKey) {
       console.error("[process-auto-apply-queue] SKYVERN_API_KEY is not configured.");
-      return new Response("SKYVERN_API_KEY is not configured", { status: 500 });
+      return new Response("SKYVERN_API_KEY is not configured", { status: 500, headers: corsHeaders });
     }
 
     // 2. Resolve platform-wide concurrency limit
@@ -125,7 +131,7 @@ serve(async (req) => {
 
     if (acquireError) {
       console.error("[process-auto-apply-queue] acquire Candidates RPC error:", acquireError);
-      return new Response(JSON.stringify({ error: acquireError.message }), { status: 500 });
+      return new Response(JSON.stringify({ error: acquireError.message }), { status: 500, headers: corsHeaders });
     }
 
     const ids = Array.isArray(candidateIds)
@@ -134,7 +140,7 @@ serve(async (req) => {
           .filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
       : [];
     if (ids.length === 0) {
-      return new Response(JSON.stringify({ success: true, launched: 0 }), { status: 200 });
+      return new Response(JSON.stringify({ success: true, launched: 0 }), { status: 200, headers: corsHeaders });
     }
 
     console.log(`[process-auto-apply-queue] Found ${ids.length} candidates to process.`);
@@ -339,10 +345,16 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, launched: launchedCount }), { status: 200 });
+    return new Response(JSON.stringify({ success: true, launched: launchedCount }), {
+      status: 200,
+      headers: corsHeaders,
+    });
 
   } catch (error: any) {
     console.error("[process-auto-apply-queue] Server error:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: corsHeaders,
+    });
   }
 });
