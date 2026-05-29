@@ -102,6 +102,7 @@ import {
   AlertTriangle,
   ListChecks,
   ChevronDown,
+  Mic,
 } from "lucide-react";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
@@ -3369,172 +3370,34 @@ export const ChatPage = () => {
             <div className='shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur md:px-6'>
               <div className='w-full max-w-4xl mx-auto'>
                 <div
-                  className={`relative rounded-[24px] border border-border shadow-2xl overflow-visible transition-all duration-300 ${
+                  className={`relative rounded-[32px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${
                     text.trim() || attachments.length
                       ? "bg-card ring-1 ring-brand/50 border-brand/50"
                       : "bg-card/85 backdrop-blur-xl"
                   }`}
                 >
-                  <div className='flex flex-col overflow-hidden rounded-[23px]'>
-                  <div className='relative flex items-end p-2 pb-2'>
-                    <textarea
-                      ref={textareaRef}
-                      value={text}
-                      onChange={(e) => {
-                        setText(e.target.value);
-                        setCaretPosition(e.currentTarget.selectionStart);
-                        setDismissedSkillPaletteToken(null);
-                      }}
-                      onClick={(e) =>
-                        setCaretPosition(e.currentTarget.selectionStart)
-                      }
-                      onFocus={(e) =>
-                        setCaretPosition(e.currentTarget.selectionStart)
-                      }
-                      onKeyUp={(e) =>
-                        setCaretPosition(e.currentTarget.selectionStart)
-                      }
-                      onSelect={(e) =>
-                        setCaretPosition(e.currentTarget.selectionStart)
-                      }
-                      onPaste={handlePasteImage}
-                      onKeyDown={(e) => {
-                        if (skillPaletteOpen && skillPaletteSkills.length) {
-                          if (e.key === "ArrowDown") {
-                            e.preventDefault();
-                            setSkillPaletteActiveIndex((current) =>
-                              Math.min(
-                                current + 1,
-                                skillPaletteSkills.length - 1,
-                              ),
-                            );
-                            return;
-                          }
-                          if (e.key === "ArrowUp") {
-                            e.preventDefault();
-                            setSkillPaletteActiveIndex((current) =>
-                              Math.max(current - 1, 0),
-                            );
-                            return;
-                          }
-                          if (e.key === "Enter" || e.key === "Tab") {
-                            e.preventDefault();
-                            selectSkillFromPalette(
-                              skillPaletteSkills[skillPaletteActiveIndex] ||
-                                skillPaletteSkills[0],
-                            );
-                            return;
-                          }
-                          if (e.key === "Escape") {
-                            e.preventDefault();
-                            setDismissedSkillPaletteToken(
-                              skillPaletteTrigger?.token || null,
-                            );
-                            return;
-                          }
-                        }
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          if (text.trim() || attachments.length)
-                            handleSubmit({ text } as any);
-                        }
-                      }}
-                      className='w-full bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground py-3 px-4 resize-none min-h-[48px] max-h-48 text-base outline-none leading-relaxed scrollbar-hide'
-                      placeholder='Ask your Career Command Center what to do next...'
-                      rows={1}
-                      style={{ height: "auto", minHeight: "52px" }}
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        setCaretPosition(target.selectionStart);
-                        target.style.height = "auto";
-                        target.style.height = `${target.scrollHeight}px`;
-                      }}
-                    />
-
-                    <button
-                      onClick={() =>
-                        (text.trim() || attachments.length > 0) &&
-                        handleSubmit({ text } as any)
-                      }
-                      disabled={
-                        (!text.trim() && attachments.length === 0) ||
-                        isChatBusy
-                      }
-                      className={`mb-1.5 mr-1.5 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                        text.trim() || attachments.length
-                          ? "bg-brand hover:bg-brand/90 text-primary-foreground shadow-[0_0_15px_hsl(var(--brand)/0.3)]"
-                          : "bg-muted text-muted-foreground/60 cursor-not-allowed"
-                      }`}
-                    >
-                      <ArrowUp size={16} className='font-bold' />
-                    </button>
-                  </div>
-
-                  <div className='flex items-center justify-between px-4 pb-3 pt-0'>
-                    <div className='flex flex-col gap-1 min-w-0'>
-                      <div className='flex gap-2 flex-wrap'>
-                        <button
-                          onClick={() => setPersona("concise")}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                            persona === "concise"
-                              ? "bg-brand/10 text-brand border-brand/20"
-                              : "text-muted-foreground border-transparent hover:bg-accent/40"
-                          }`}
-                        >
-                          <Bolt size={12} />
-                          Ask: plan
-                        </button>
-                        <button
-                          onClick={() => setPersona("analyst")}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                            persona === "analyst"
-                              ? "bg-brand/10 text-brand border-brand/20"
-                              : "text-muted-foreground border-transparent hover:bg-accent/40"
-                          }`}
-                          title='Agent Mode does the work and uses credits when it runs career workflow tools'
-                        >
-                          <BookOpen size={12} />
-                          Agent: do work
-                        </button>
-                      </div>
-                      {persona === "analyst" && (
-                        <p className='text-[10px] text-muted-foreground px-0.5'>
-                          Agent Mode spends credits when it searches, evaluates,
-                          drafts, updates your tracker, or prepares applications.
-                        </p>
-                      )}
-                    </div>
-                    <div className='flex gap-2'>
-                      <input
-                        type='file'
-                        ref={fileInputRef}
-                        multiple
-                        accept='image/*'
-                        className='hidden'
-                        onChange={handleFileSelect}
-                      />
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className={`transition-colors ${attachments.length ? "text-brand" : "text-muted-foreground hover:text-foreground"}`}
-                      >
-                        <Paperclip size={16} />
-                      </button>
-                    </div>
-                  </div>
+                  <input
+                    type='file'
+                    ref={fileInputRef}
+                    multiple
+                    accept='image/*'
+                    className='hidden'
+                    onChange={handleFileSelect}
+                  />
 
                   {attachments.length > 0 && (
-                    <div className='px-4 pb-2'>
+                    <div className='px-6 pt-3 pb-1 border-b border-border/40 bg-background/20'>
                       <div className='flex flex-wrap gap-2'>
                         {attachments.map((attachment, index) => (
                           <div
                             key={`${attachment.name}-${attachment.lastModified}-${index}`}
-                            className='inline-flex min-w-0 items-center gap-2 bg-accent/40 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground border border-border'
+                            className='inline-flex min-w-0 items-center gap-2 bg-accent/40 px-3 py-1.5 rounded-xl text-xs font-medium text-foreground border border-border'
                           >
                             {attachmentPreviewUrls[index] ? (
                               <img
                                 src={attachmentPreviewUrls[index] || ""}
                                 alt=''
-                                className='h-10 w-10 rounded-md object-cover border border-border shrink-0'
+                                className='h-8 w-8 rounded-md object-cover border border-border shrink-0'
                               />
                             ) : (
                               <Paperclip size={12} className='text-brand' />
@@ -3561,6 +3424,99 @@ export const ChatPage = () => {
                       </div>
                     </div>
                   )}
+
+                  <div className='flex items-center gap-2 px-4 py-2.5 min-h-[56px]'>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-foreground/5 transition-colors ${
+                        attachments.length ? "text-brand" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title="Upload files"
+                    >
+                      <Plus size={20} />
+                    </button>
+
+                    <div className='flex-1 min-w-0 flex items-center'>
+                      <textarea
+                        ref={textareaRef}
+                        value={text}
+                        onChange={(e) => {
+                          setText(e.target.value);
+                          setCaretPosition(e.currentTarget.selectionStart);
+                        }}
+                        onClick={(e) =>
+                          setCaretPosition(e.currentTarget.selectionStart)
+                        }
+                        onFocus={(e) =>
+                          setCaretPosition(e.currentTarget.selectionStart)
+                        }
+                        onKeyUp={(e) =>
+                          setCaretPosition(e.currentTarget.selectionStart)
+                        }
+                        onSelect={(e) =>
+                          setCaretPosition(e.currentTarget.selectionStart)
+                        }
+                        onPaste={handlePasteImage}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            if (text.trim() || attachments.length)
+                              handleSubmit({ text } as any);
+                          }
+                        }}
+                        className='w-full bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 py-2 px-1 resize-none max-h-36 text-base outline-none leading-normal scrollbar-hide'
+                        placeholder='Ask your Career Command Center...'
+                        rows={1}
+                        style={{ height: "auto", minHeight: "24px" }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          setCaretPosition(target.selectionStart);
+                          target.style.height = "auto";
+                          target.style.height = `${target.scrollHeight}px`;
+                        }}
+                      />
+                    </div>
+
+                    <div className='flex items-center gap-2.5 shrink-0 pl-2'>
+                      <div className="relative">
+                        <select
+                          value={persona}
+                          onChange={(e) => setPersona(e.target.value as any)}
+                          className="appearance-none bg-transparent border-none py-1.5 pl-3 pr-7 rounded-full text-xs font-semibold text-muted-foreground hover:text-foreground focus:outline-none focus:ring-0 cursor-pointer transition-colors"
+                        >
+                          <option value="concise" className="bg-card text-foreground">Ask: plan</option>
+                          <option value="analyst" className="bg-card text-foreground">Agent: do work</option>
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                      </div>
+
+                      <button
+                        type="button"
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+                        title="Voice input"
+                      >
+                        <Mic size={18} />
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          (text.trim() || attachments.length > 0) &&
+                          handleSubmit({ text } as any)
+                        }
+                        disabled={
+                          (!text.trim() && attachments.length === 0) ||
+                          isChatBusy
+                        }
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all ${
+                          text.trim() || attachments.length
+                            ? "bg-white text-black shadow-lg hover:bg-neutral-100"
+                            : "bg-muted text-muted-foreground/60 cursor-not-allowed"
+                        }`}
+                        title="Send message"
+                      >
+                        <ArrowUp size={18} className="font-semibold" />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <p className='text-center text-[10px] text-muted-foreground mt-3 uppercase tracking-widest font-medium'>
