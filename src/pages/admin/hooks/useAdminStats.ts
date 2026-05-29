@@ -402,6 +402,7 @@ export const useUserActivities = () => {
           id: user.id,
           email,
           roles: roleMap.get(user.id) || [],
+          user_roles: user.user_roles || [],
           full_name,
           updated_at,
           credits_balance,

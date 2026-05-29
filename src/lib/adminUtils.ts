@@ -122,3 +122,31 @@ export async function getCurrentUserRoles(): Promise<string[]> {
 
   return Array.from(roles);
 }
+
+export async function getCurrentUserAdminSubRole(): Promise<'owner' | 'editor' | 'reader' | null> {
+  const supabase = createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) return null;
+
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('admin_sub_role')
+    .eq('user_id', user.id)
+    .eq('role', 'admin')
+    .maybeSingle();
+
+  if (!error && data?.admin_sub_role) {
+    return data.admin_sub_role as 'owner' | 'editor' | 'reader';
+  }
+
+  // Fallback to metadata for developers or local configs
+  if (hasMetadataAdminAccess(user)) {
+    return 'owner';
+  }
+
+  return null;
+}

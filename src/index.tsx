@@ -43,6 +43,7 @@ import {
   AdminLayout,
   AdminOverview,
   AdminUsers,
+  AdminChat,
   AdminRevenue,
   AdminCredits,
   AdminProviderCredits,
@@ -289,6 +290,7 @@ function AnimatedRoutes() {
           <Route index element={<AdminOverview />} />
           <Route path='overview' element={<AdminOverview />} />
           <Route path='users' element={<AdminUsers />} />
+          <Route path='chat' element={<AdminChat />} />
           <Route path='subscriptions' element={<AdminSubscriptions />} />
           <Route path='revenue' element={<AdminRevenue />} />
           <Route path='credits' element={<AdminCredits />} />

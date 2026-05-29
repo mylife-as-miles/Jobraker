@@ -2,6 +2,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
+  MessageSquare,
   CreditCard,
   TrendingUp,
   Activity,
@@ -17,12 +18,13 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { isCurrentUserAdmin } from "../../lib/adminUtils";
+import { isCurrentUserAdmin, getCurrentUserAdminSubRole } from "../../lib/adminUtils";
 import { Button } from "../../components/ui/button";
 
 const navigation = [
   { name: "Overview", icon: LayoutDashboard, path: "/admin" },
   { name: "Users", icon: Users, path: "/admin/users" },
+  { name: "Chat", icon: MessageSquare, path: "/admin/chat" },
   { name: "Subscriptions", icon: Crown, path: "/admin/subscriptions" },
   { name: "Revenue", icon: TrendingUp, path: "/admin/revenue" },
   { name: "Credits", icon: CreditCard, path: "/admin/credits" },
@@ -62,6 +64,7 @@ export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [subRole, setSubRole] = useState<'owner' | 'editor' | 'reader' | null>(null);
   const [checking, setChecking] = useState(true);
 
   // Check admin status on mount
@@ -70,6 +73,10 @@ export default function AdminLayout() {
       try {
         const admin = await isCurrentUserAdmin();
         setIsAdmin(admin);
+        if (admin) {
+          const role = await getCurrentUserAdminSubRole();
+          setSubRole(role);
+        }
       } catch (error) {
         console.error("Error checking admin status:", error);
         setIsAdmin(false);
@@ -80,6 +87,13 @@ export default function AdminLayout() {
 
     checkAdminAccess();
   }, []);
+
+  const visibleNavigation = navigation.filter((item) => {
+    if (item.name === "Database" && subRole !== "owner") {
+      return false;
+    }
+    return true;
+  });
 
   // Handle window resize
   useEffect(() => {
@@ -179,7 +193,7 @@ export default function AdminLayout() {
 
         {/* Navigation */}
         <nav className='p-4 space-y-1'>
-          {navigation.map((item) => {
+          {visibleNavigation.map((item) => {
             const isActive = isActiveAdminRoute(location.pathname, item.path);
             const Icon = item.icon;
 
@@ -222,7 +236,7 @@ export default function AdminLayout() {
               </div>
               <div>
                 <p className='text-sm font-medium text-white'>Administrator</p>
-                <p className='text-xs text-gray-400'>Super Admin</p>
+                <p className='text-xs text-gray-400 capitalize'>{subRole ? `${subRole} Admin` : "Super Admin"}</p>
               </div>
             </div>
           </div>

@@ -11,8 +11,10 @@ import {
   Server,
   AlertCircle,
   Loader2,
+  Shield,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getCurrentUserAdminSubRole } from "../../../lib/adminUtils";
 
 // Defined list of core tables to monitor
 const CORE_TABLES = [
@@ -198,6 +200,8 @@ function DatabaseDetailPanel({
 export default function AdminDatabase() {
   const supabase = useMemo(() => createClient(), []);
 
+  const [callerSubRole, setCallerSubRole] = useState<'owner' | 'editor' | 'reader' | null>(null);
+  const [checkingRole, setCheckingRole] = useState(true);
   const [tableStats, setTableStats] = useState<TableStat[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -211,7 +215,16 @@ export default function AdminDatabase() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   useEffect(() => {
-    fetchTableStats();
+    const checkRoleAndLoad = async () => {
+      setCheckingRole(true);
+      const subRole = await getCurrentUserAdminSubRole();
+      setCallerSubRole(subRole);
+      setCheckingRole(false);
+      if (subRole === "owner") {
+        fetchTableStats();
+      }
+    };
+    checkRoleAndLoad();
   }, []);
 
   const fetchTableStats = async () => {
@@ -286,6 +299,40 @@ export default function AdminDatabase() {
           : (bVal as number) - (aVal as number);
       });
   }, [tableStats, searchTerm, sortField, sortOrder]);
+
+  if (checkingRole) {
+    return (
+      <div className='flex items-center justify-center h-96'>
+        <div className='text-center'>
+          <Loader2 className='w-12 h-12 text-brand animate-spin mx-auto mb-4' />
+          <p className='text-gray-400'>Verifying access permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (callerSubRole !== "owner") {
+    return (
+      <div className='flex items-center justify-center h-[60vh]'>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className='max-w-md w-full text-center space-y-6 p-8 rounded-3xl border border-brand/20 bg-gradient-to-br from-background via-[#111111] to-background shadow-2xl shadow-brand/5'
+        >
+          <div className='w-20 h-20 rounded-full bg-brand/10 border border-brand/20 flex items-center justify-center mx-auto'>
+            <Shield className='w-10 h-10 text-brand' />
+          </div>
+          <div className='space-y-2'>
+            <h2 className='text-2xl font-bold text-white'>Access Denied</h2>
+            <p className='text-gray-400 text-sm leading-relaxed'>
+              You do not have permission to view the database schema or query system. 
+              This page is restricted to <span className="text-white font-semibold">Owner</span> admin accounts.
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className='space-y-6'>

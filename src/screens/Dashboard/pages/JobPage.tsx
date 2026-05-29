@@ -4055,7 +4055,7 @@ export const JobPage = (): JSX.Element => {
   };
 
   return (
-    <div className='relative min-h-screen' role='main' aria-label='Job search'>
+    <div className='relative min-h-full' role='main' aria-label='Job search'>
       {/* Animated SVG Background */}
       <AnimatedSVGBackground />
 

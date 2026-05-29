@@ -270,10 +270,9 @@ Deno.serve(async (req) => {
       }
     };
 
-    // Execute task in background, respond 202 Accepted immediately
-    // Wait, Deno.serve returns a Response. If we want it to be asynchronous, we run it in a background promise
-    // and return a 202 Response immediately to the trigger.
-    (async () => {
+    // Execute the task after responding, but register the work with Supabase
+    // Edge Runtime so the isolate is allowed to keep running.
+    const execution = (async () => {
       try {
         let result = {};
         if (task.type === "scout_search") {
@@ -348,6 +347,11 @@ Deno.serve(async (req) => {
         }
       }
     })();
+
+    const edgeRuntime = (globalThis as any).EdgeRuntime;
+    if (typeof edgeRuntime?.waitUntil === "function") {
+      edgeRuntime.waitUntil(execution);
+    }
 
     return new Response(JSON.stringify({ success: true, message: "Task execution started" }), {
       status: 202,

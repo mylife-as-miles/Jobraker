@@ -394,7 +394,7 @@ export const OverviewPage = (): JSX.Element => {
   });
 
   return (
-    <div className='product-page-shell min-h-screen'>
+    <div className='product-page-shell min-h-full'>
       <div className='w-full max-w-7xl mx-auto p-3 sm:p-4 lg:p-6 xl:p-8'>
         {/* Responsive overview layout */}
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 items-start'>

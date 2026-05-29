@@ -13,6 +13,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
+import { getCurrentUserAdminSubRole } from "../../../lib/adminUtils";
 
 type ProviderName = "firecrawl" | "skyvern";
 
@@ -109,6 +110,7 @@ function ProviderCard({
   balance,
   draft,
   busy,
+  isReader,
   onDraftChange,
   onSave,
   onRefresh,
@@ -116,6 +118,7 @@ function ProviderCard({
   balance: ProviderCreditBalance;
   draft: ProviderDraft;
   busy: boolean;
+  isReader: boolean;
   onDraftChange: (patch: Partial<ProviderDraft>) => void;
   onSave: () => void;
   onRefresh?: () => void;
@@ -210,10 +213,11 @@ function ProviderCard({
             type='number'
             min={0}
             value={draft.total_credits}
+            disabled={isReader}
             onChange={(event) =>
               onDraftChange({ total_credits: event.target.value })
             }
-            className='w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-brand'
+            className='w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-brand disabled:opacity-50 disabled:cursor-not-allowed'
           />
         </label>
         <label className='space-y-2'>
@@ -224,10 +228,11 @@ function ProviderCard({
             type='number'
             min={0}
             value={draft.remaining_credits}
+            disabled={isReader}
             onChange={(event) =>
               onDraftChange({ remaining_credits: event.target.value })
             }
-            className='w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-brand'
+            className='w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-brand disabled:opacity-50 disabled:cursor-not-allowed'
           />
         </label>
         <label className='space-y-2'>
@@ -238,10 +243,11 @@ function ProviderCard({
             type='number'
             min={0}
             value={draft.alert_threshold}
+            disabled={isReader}
             onChange={(event) =>
               onDraftChange({ alert_threshold: event.target.value })
             }
-            className='w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-brand'
+            className='w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-brand disabled:opacity-50 disabled:cursor-not-allowed'
           />
         </label>
         <label className='space-y-2'>
@@ -252,10 +258,11 @@ function ProviderCard({
             type='email'
             value={draft.alert_email}
             placeholder='Resend account owner email'
+            disabled={isReader}
             onChange={(event) =>
               onDraftChange({ alert_email: event.target.value })
             }
-            className='w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-brand'
+            className='w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-3 text-white focus:outline-none focus:border-brand disabled:opacity-50 disabled:cursor-not-allowed'
           />
           <p className='text-xs text-gray-500'>
             Resend free/testing mode sends only to the account owner email
@@ -269,42 +276,50 @@ function ProviderCard({
           <input
             type='checkbox'
             checked={draft.alert_enabled}
+            disabled={isReader}
             onChange={(event) =>
               onDraftChange({ alert_enabled: event.target.checked })
             }
-            className='h-4 w-4 rounded border-gray-700 bg-gray-950 accent-brand'
+            className='h-4 w-4 rounded border-gray-700 bg-gray-950 accent-brand disabled:opacity-50 disabled:cursor-not-allowed'
           />
           Send Resend email when remaining credits fall below threshold
         </label>
         <div className='flex flex-wrap items-center gap-3'>
-          {onRefresh && (
-            <button
-              onClick={onRefresh}
-              disabled={busy}
-              className='inline-flex items-center gap-2 rounded-xl border border-brand/30 bg-brand/10 px-4 py-2.5 text-sm font-semibold text-brand hover:bg-brand/20 disabled:opacity-60'
-            >
-              {busy ? (
-                <Loader2 className='w-4 h-4 animate-spin' />
-              ) : (
-                <RefreshCw className='w-4 h-4' />
+          {isReader ? (
+            <span className='text-xs text-gray-500 italic'>Read-only settings</span>
+          ) : (
+            <>
+              {onRefresh && (
+                <button
+                  onClick={onRefresh}
+                  disabled={busy}
+                  className='inline-flex items-center gap-2 rounded-xl border border-brand/30 bg-brand/10 px-4 py-2.5 text-sm font-semibold text-brand hover:bg-brand/20 disabled:opacity-60'
+                >
+                  {busy ? (
+                    <Loader2 className='w-4 h-4 animate-spin' />
+                  ) : (
+                    <RefreshCw className='w-4 h-4' />
+                  )}
+                  Refresh from API
+                </button>
               )}
-              Refresh from API
-            </button>
+              <button
+                onClick={onSave}
+                disabled={busy}
+                className='inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-black hover:bg-brand disabled:opacity-60'
+              >
+                {busy ? (
+                  <Loader2 className='w-4 h-4 animate-spin' />
+                ) : (
+                  <Save className='w-4 h-4' />
+                )}
+                Save settings
+              </button>
+            </>
           )}
-          <button
-            onClick={onSave}
-            disabled={busy}
-            className='inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-black hover:bg-brand disabled:opacity-60'
-          >
-            {busy ? (
-              <Loader2 className='w-4 h-4 animate-spin' />
-            ) : (
-              <Save className='w-4 h-4' />
-            )}
-            Save settings
-          </button>
         </div>
       </div>
+
 
       <div className='mt-5 rounded-xl border border-brand/10 bg-brand/5 p-4 text-sm text-gray-300'>
         <p>{copy.note}</p>
@@ -328,6 +343,7 @@ export default function AdminProviderCredits() {
     skyvern: makeDraft(),
   });
   const [loading, setLoading] = useState(true);
+  const [callerSubRole, setCallerSubRole] = useState<'owner' | 'editor' | 'reader' | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -450,6 +466,11 @@ export default function AdminProviderCredits() {
   };
 
   useEffect(() => {
+    const fetchCallerSubRole = async () => {
+      const subRole = await getCurrentUserAdminSubRole();
+      setCallerSubRole(subRole);
+    };
+    fetchCallerSubRole();
     loadData();
   }, []);
 
@@ -563,6 +584,7 @@ export default function AdminProviderCredits() {
             balance={balance}
             draft={drafts[balance.provider]}
             busy={busyKey?.endsWith(balance.provider) || false}
+            isReader={callerSubRole === "reader"}
             onDraftChange={(patch) => updateDraft(balance.provider, patch)}
             onSave={() => saveProvider(balance.provider)}
             onRefresh={

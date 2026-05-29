@@ -310,7 +310,7 @@ const ProfilePage = (): JSX.Element => {
   });
 
   return (
-    <div className='product-page-shell min-h-screen'>
+    <div className='product-page-shell min-h-full'>
       <div className='w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8'>
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8'>
           {/* Profile Sidebar */}

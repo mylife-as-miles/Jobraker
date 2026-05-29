@@ -1060,7 +1060,7 @@ export const BillingPage = () => {
 
   if (loading) {
     return (
-      <div className='min-h-screen bg-background p-6 space-y-6'>
+      <div className='min-h-full bg-background p-6 space-y-6'>
         <div className='h-8 w-48 bg-foreground/10 rounded-lg animate-pulse' />
         <div className='grid gap-6 md:grid-cols-3'>
           {[1, 2, 3].map((i) => (
@@ -1075,7 +1075,7 @@ export const BillingPage = () => {
   }
 
   return (
-    <div className='min-h-screen bg-background selection:bg-brand/30'>
+    <div className='min-h-full bg-background selection:bg-brand/30'>
       {/* Hero Section */}
       <div className='relative overflow-hidden border-b border-foreground/10 bg-gradient-to-br from-background to-background'>
         {/* Animated background elements */}

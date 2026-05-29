@@ -199,6 +199,37 @@ Deno.serve(async (req) => {
         throw enqueueError;
       }
 
+      const processTaskUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/process-task`;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (serviceRoleKey) {
+        try {
+          const dispatchResponse = await fetch(processTaskUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify({ taskId: task.id }),
+          });
+          if (!dispatchResponse.ok) {
+            console.error("[jobs-search] Failed to dispatch async scout task", {
+              taskId: task.id,
+              status: dispatchResponse.status,
+              body: await dispatchResponse.text().catch(() => ""),
+            });
+          }
+        } catch (dispatchError) {
+          console.error("[jobs-search] Async scout task dispatch failed", {
+            taskId: task.id,
+            error: dispatchError,
+          });
+        }
+      } else {
+        console.warn("[jobs-search] SUPABASE_SERVICE_ROLE_KEY missing; relying on DB trigger for async scout task", {
+          taskId: task.id,
+        });
+      }
+
       return new Response(
         JSON.stringify({
           success: true,

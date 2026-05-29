@@ -5008,7 +5008,7 @@ export const SettingsPage = (): JSX.Element => {
 
   return (
     <>
-      <div className='min-h-screen bg-background'>
+      <div className='min-h-full bg-background'>
         <div className='w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-6'>
           {/* Modern Header */}
           <div className='mb-8 border-b border-foreground/10 pb-6'>

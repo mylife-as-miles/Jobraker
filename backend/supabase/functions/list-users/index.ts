@@ -133,16 +133,20 @@ serve(async (req) => {
 
     const { data: roleRows, error: rolesError } = await serviceClient
       .from("user_roles")
-      .select("user_id, role");
+      .select("user_id, role, admin_sub_role");
 
     if (rolesError) {
       console.warn("list-users.roles_list_failed", rolesError);
     }
 
     const rolesByUser = new Map<string, string[]>();
+    const detailsByUser = new Map<string, Array<{ role: string; admin_sub_role: string | null }>>();
     for (const roleRow of roleRows || []) {
-      const current = rolesByUser.get(roleRow.user_id) || [];
-      rolesByUser.set(roleRow.user_id, [...current, roleRow.role]);
+      const currentRoles = rolesByUser.get(roleRow.user_id) || [];
+      rolesByUser.set(roleRow.user_id, [...currentRoles, roleRow.role]);
+
+      const currentDetails = detailsByUser.get(roleRow.user_id) || [];
+      detailsByUser.set(roleRow.user_id, [...currentDetails, { role: roleRow.role, admin_sub_role: roleRow.admin_sub_role }]);
     }
 
     const formattedUsers = users.map((authUser) => ({
@@ -155,6 +159,7 @@ serve(async (req) => {
       phone: authUser.phone,
       confirmed_at: authUser.confirmed_at,
       roles: rolesByUser.get(authUser.id) || [],
+      user_roles: detailsByUser.get(authUser.id) || [],
     }));
 
     return jsonResponse(req, formattedUsers);

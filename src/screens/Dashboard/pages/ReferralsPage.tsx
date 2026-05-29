@@ -1321,7 +1321,7 @@ export const ReferralsPage = (): JSX.Element => {
   const nextMilestone = milestones.find((m) => m.target > referralCount);
 
   return (
-    <div className='product-page-shell min-h-screen'>
+    <div className='product-page-shell min-h-full'>
       <CheckCandidateFitModal
         open={fitOpen}
         onClose={() => setFitOpen(false)}

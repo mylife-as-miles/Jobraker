@@ -329,22 +329,84 @@ serve(async (req) => {
       serviceClient,
     });
     const body = await req.json().catch(() => ({}));
+    const ticketId = (body as Record<string, unknown>)?.ticketId as string | undefined;
 
-    const message = clampText((body as Record<string, unknown>)?.message, 4_000);
-    const pageId = clampText((body as Record<string, unknown>)?.pageId, 80) || "overview";
-    const pageTitle =
-      clampText((body as Record<string, unknown>)?.pageTitle, 120) || "Dashboard";
-
-    if (!message) {
-      return new Response(JSON.stringify({ error: "Message is required" }), {
+    if (!ticketId) {
+      return new Response(JSON.stringify({ error: "Ticket ID is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const conversation = normalizeConversation(
-      (body as Record<string, unknown>)?.conversation,
-    );
+    // Verify ticket exists and belongs to the user
+    const { data: ticket, error: ticketError } = await serviceClient
+      .from("support_tickets")
+      .select("status, user_id")
+      .eq("id", ticketId)
+      .single();
+
+    if (ticketError || !ticket) {
+      return new Response(JSON.stringify({ error: "Ticket not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (ticket.user_id !== user.id) {
+      return new Response(JSON.stringify({ error: "Unauthorized access to ticket" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // If ticket is not open (e.g. pending_human or resolved), do not reply via AI
+    if (ticket.status !== "open") {
+      return new Response(
+        JSON.stringify({
+          response: "Chat has been handed off to an administrator.",
+          suggestedActions: [],
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const pageId = clampText((body as Record<string, unknown>)?.pageId, 80) || "overview";
+    const pageTitle =
+      clampText((body as Record<string, unknown>)?.pageTitle, 120) || "Dashboard";
+
+    // Fetch conversation from support_messages database table
+    const { data: messageRows, error: messagesError } = await serviceClient
+      .from("support_messages")
+      .select("sender_role, content")
+      .eq("ticket_id", ticketId)
+      .order("created_at", { ascending: true });
+
+    if (messagesError) {
+      throw messagesError;
+    }
+
+    // Convert to Gemini API turns format, keeping the last 6 turns
+    const baseContents = (messageRows || [])
+      .map((row: any) => {
+        const role = row.sender_role === "user" ? "user" : "model";
+        return {
+          role,
+          parts: [{ text: row.content }],
+        };
+      })
+      .slice(-6);
+
+    // If there are no messages in baseContents, we might need a fallback, but the user must have sent one.
+    if (baseContents.length === 0) {
+      return new Response(JSON.stringify({ error: "No messages found in ticket" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const userContext = await fetchUserContext(user.id, authHeader);
     const userSnapshot = buildUserSnapshot(userContext);
     const navigationMap = buildAppInterfaceGuide();
@@ -384,17 +446,6 @@ Return valid JSON with:
 The array should be shaped like: { "label": string, "route": string | null, "kind": "navigate" | "human" | "reply", "prompt": string | null }`;
 
     const ai = createGeminiClient();
-    const baseContents = [
-      ...conversation,
-      {
-        role: "user",
-        parts: [
-          {
-            text: `Customer message: ${message}`,
-          },
-        ],
-      },
-    ];
 
     async function generateForModel(model: string) {
       return withGeminiRetry(() =>
@@ -451,23 +502,45 @@ The array should be shaped like: { "label": string, "route": string | null, "kin
     }
 
     const parsed = parseStructuredJson<SupportResponse>(rawText);
-    const responsePayload: SupportResponse = {
-      response:
-        clampText(parsed?.response, 5_000) ||
-        "I couldn't shape that into a clean answer just yet, but I can help if you try again.",
-      suggestedActions:
-        Array.isArray(parsed?.suggestedActions) && parsed.suggestedActions.length > 0
-          ? parsed.suggestedActions.slice(0, 3).map((item) => ({
-              label: clampText(item?.label, 80) || "Next step",
-              route: clampText(item?.route, 200) || null,
-              kind:
-                item?.kind === "navigate" || item?.kind === "human" || item?.kind === "reply"
-                  ? item.kind
-                  : "reply",
-              prompt: clampText(item?.prompt, 300) || null,
-            }))
-          : buildSuggestedActions(pageId),
-    };
+    const responseText =
+      clampText(parsed?.response, 5_000) ||
+      "I couldn't shape that into a clean answer just yet, but I can help if you try again.";
+
+    const suggestedActions =
+      Array.isArray(parsed?.suggestedActions) && parsed.suggestedActions.length > 0
+        ? parsed.suggestedActions.slice(0, 3).map((item) => ({
+            label: clampText(item?.label, 80) || "Next step",
+            route: clampText(item?.route, 200) || null,
+            kind:
+              item?.kind === "navigate" || item?.kind === "human" || item?.kind === "reply"
+                ? item.kind
+                : "reply",
+            prompt: clampText(item?.prompt, 300) || null,
+          }))
+        : buildSuggestedActions(pageId);
+
+    // Save AI response message to the database
+    const { error: insertError } = await serviceClient
+      .from("support_messages")
+      .insert({
+        ticket_id: ticketId,
+        sender_role: "ai",
+        content: responseText,
+        metadata: { suggestedActions }
+      });
+
+    if (insertError) {
+      throw insertError;
+    }
+
+    // Auto-escalate to human if suggested action includes human contact
+    const hasHumanAction = suggestedActions.some((item) => item.kind === "human");
+    if (hasHumanAction) {
+      await serviceClient
+        .from("support_tickets")
+        .update({ status: "pending_human" })
+        .eq("id", ticketId);
+    }
 
     await recordFeatureUsage({
       userId: user.id,
@@ -478,6 +551,11 @@ The array should be shaped like: { "label": string, "route": string | null, "kin
         page_id: pageId,
       },
     });
+
+    const responsePayload: SupportResponse = {
+      response: responseText,
+      suggestedActions,
+    };
 
     return new Response(JSON.stringify(responsePayload), {
       status: 200,
