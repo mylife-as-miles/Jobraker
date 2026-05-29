@@ -63,7 +63,6 @@ import {
   type ChatStarterIcon,
   type ChatStarterSuggestion,
 } from "../../../services/ai/generateChatStarters";
-import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
 import { SkillInvocationMessage } from "@/components/chat/SkillInvocationMessage";
 import {
   executeChatSkill,
@@ -2571,11 +2570,20 @@ export const ChatPage = () => {
         : [],
     [skillPaletteTrigger],
   );
-  const skillPaletteOpen = false;
+  const skillPaletteOpen = Boolean(
+    skillPaletteTrigger &&
+      skillPaletteSkills.length > 0 &&
+      dismissedSkillPaletteToken !== skillPaletteTrigger.token,
+  );
 
   useEffect(() => {
     setSkillPaletteActiveIndex(0);
   }, [skillPaletteTrigger?.query, skillPaletteTrigger?.mode]);
+
+  useEffect(() => {
+    if (skillPaletteTrigger) return;
+    setDismissedSkillPaletteToken(null);
+  }, [skillPaletteTrigger]);
 
   const selectSkillFromPalette = useCallback(
     (skill: (typeof skillPaletteSkills)[number]) => {
@@ -3534,6 +3542,37 @@ export const ChatPage = () => {
                         }
                         onPaste={handlePasteImage}
                         onKeyDown={(e) => {
+                          if (skillPaletteOpen) {
+                            if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              setSkillPaletteActiveIndex((index) =>
+                                Math.min(index + 1, skillPaletteSkills.length - 1),
+                              );
+                              return;
+                            }
+                            if (e.key === "ArrowUp") {
+                              e.preventDefault();
+                              setSkillPaletteActiveIndex((index) =>
+                                Math.max(index - 1, 0),
+                              );
+                              return;
+                            }
+                            if (e.key === "Enter" || e.key === "Tab") {
+                              e.preventDefault();
+                              selectSkillFromPalette(
+                                skillPaletteSkills[skillPaletteActiveIndex] ||
+                                  skillPaletteSkills[0],
+                              );
+                              return;
+                            }
+                            if (e.key === "Escape") {
+                              e.preventDefault();
+                              setDismissedSkillPaletteToken(
+                                skillPaletteTrigger?.token || null,
+                              );
+                              return;
+                            }
+                          }
                           if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault();
                             if (text.trim() || attachments.length)
@@ -3550,6 +3589,16 @@ export const ChatPage = () => {
                           target.style.height = "auto";
                           target.style.height = `${target.scrollHeight}px`;
                         }}
+                      />
+                    </div>
+
+                    <div className='absolute bottom-full left-0 right-0 mb-2'>
+                      <ChatSkillCommandPalette
+                        open={skillPaletteOpen}
+                        mode={skillPaletteTrigger?.mode || "slash"}
+                        skills={skillPaletteSkills}
+                        activeIndex={skillPaletteActiveIndex}
+                        onSelect={selectSkillFromPalette}
                       />
                     </div>
 
