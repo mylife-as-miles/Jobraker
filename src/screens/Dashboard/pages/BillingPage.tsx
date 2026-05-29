@@ -1100,13 +1100,13 @@ export const BillingPage = () => {
                 Billing &
               </span>{" "}
               <span className='text-brand drop-shadow-[0_0_15px_rgba(29,255,0,0.3)]'>
-                Credits
+                Career Velocity
               </span>
             </h1>
             <p className='text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed'>
-              Price search and drafting separately from automation. Plans
-              include governed auto-apply runs, while packs top up search and AI
-              usage.
+              Free lets you taste the machine. Pro runs a serious job-search
+              engine. Ultimate gives you campaign-level capacity, while packs
+              act as emergency fuel when momentum spikes.
             </p>
           </motion.div>
 
@@ -1131,7 +1131,7 @@ export const BillingPage = () => {
                   </div>
                   <div className='space-y-1'>
                     <p className='text-sm text-gray-400 font-medium'>
-                      Available Credits
+                      Available workflow fuel
                     </p>
                     <p className='text-4xl font-bold text-foreground tracking-tight'>
                       {currentCredits.toLocaleString()}
@@ -1728,11 +1728,11 @@ export const BillingPage = () => {
                                         if (isUltimate) {
                                           if (
                                             typeof feature === "string" &&
-                                            /search and AI credits|3,?500/i.test(
+                                            /search and AI credits|career workflow credits|3,?500/i.test(
                                               feature,
                                             )
                                           ) {
-                                            featureName = `${ultimateCreditsMonthly.toLocaleString()} search and AI credits per month`;
+                                            featureName = `${ultimateCreditsMonthly.toLocaleString()} career workflow credits per month`;
                                           } else if (
                                             typeof feature === "string" &&
                                             /governed auto-apply|150.*runs/i.test(
@@ -1883,13 +1883,12 @@ export const BillingPage = () => {
                       Parallel Auto-Apply Boost
                     </div>
                     <h2 className='text-3xl font-black uppercase leading-[0.95] text-foreground sm:text-4xl lg:text-5xl'>
-                      Run more applications in parallel without changing your main plan
+                      Clear your ready queue faster without changing your main plan
                     </h2>
                     <p className='mt-4 max-w-2xl text-sm leading-7 text-gray-300 sm:text-base'>
-                      Your subscription sets the baseline concurrency. Boost packs
-                      stack on top for the current billing period so you can launch
-                      more auto-apply workflows at the same time when search volume
-                      spikes.
+                      Your subscription sets the baseline automation speed.
+                      Boost packs stack on top for the current billing period so
+                      queued opportunities can keep moving when search volume spikes.
                     </p>
                   </div>
 
@@ -2080,11 +2079,11 @@ export const BillingPage = () => {
             >
               <div className='text-center'>
                 <h2 className='text-3xl font-bold text-foreground mb-3'>
-                  One-Time Credit Packs
+                  One-Time Momentum Packs
                 </h2>
                 <p className='text-gray-400'>
-                  These packs top up search, evaluation, and drafting so you can
-                  keep using AI features without changing your main plan.
+                  Credit packs are emergency fuel for active opportunities. Plans
+                  are still the better deal when you want JobRaker running every week.
                 </p>
               </div>
 

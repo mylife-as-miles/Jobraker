@@ -46,14 +46,14 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     autoApplyRunsPerMonth: 2,
     autoApplyConcurrency: 1,
     description:
-      "Explore the core workflow, build your profile, and test governed automation with light monthly usage.",
+      "Taste the machine: build your profile, save jobs, try AI chat, and run a couple of governed automation tests.",
     isPopular: false,
     marketingFeatures: [
-      "10 search and AI credits each month",
+      "10 career workflow credits each month",
       "Basic match score and job saving",
       "Manual job feedback labels",
       "Resume builder, storage, import, and parsing",
-      "Application tracking for your active pipeline",
+      "Application tracking to start your pipeline",
     ],
   },
   {
@@ -65,10 +65,10 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     creditsPerMonth: 250,
     autoApplyRunsPerMonth: 15,
     autoApplyConcurrency: 2,
-    description: "Turn an active search into a repeatable workflow with stronger drafts and governed automation.",
+    description: "Turn early momentum into a repeatable weekly search workflow with stronger drafts and governed automation.",
     isPopular: false,
     marketingFeatures: [
-      "250 search and AI credits each month",
+      "250 career workflow credits each month",
       "15 governed auto-apply runs each month",
       "Bulk pipeline tools and CSV export",
       "Basic job quality filtering",
@@ -87,10 +87,10 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     creditsPerMonth: 1200,
     autoApplyRunsPerMonth: 50,
     autoApplyConcurrency: 4,
-    description: "Move faster across more opportunities with deeper personalization and higher automation capacity.",
+    description: "Run a serious job search engine with deeper personalization, higher capacity, and steadier pipeline movement.",
     isPopular: true,
     marketingFeatures: [
-      "1,200 search and AI credits each month",
+      "1,200 career workflow credits each month",
       "50 governed auto-apply runs each month",
       "Explainable score breakdowns and interview stories",
       "ATS keyword coverage for generated drafts",
@@ -109,10 +109,10 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     creditsPerMonth: 3500,
     autoApplyRunsPerMonth: 150,
     autoApplyConcurrency: 8,
-    description: "Run a high-volume search with the capacity, support, and intelligence serious pipelines need.",
+    description: "Run a high-volume job-search campaign with the capacity, support, and intelligence serious pipelines need.",
     isPopular: false,
     marketingFeatures: [
-      "3,500 search and AI credits each month",
+      "3,500 career workflow credits each month",
       "150 governed auto-apply runs each month",
       "Scout Mode background discovery summaries",
       "Auto re-evaluation and ready-to-tailor queues",
@@ -127,7 +127,7 @@ export const SHARED_CREDIT_PACKS: SharedCreditPackDefinition[] = [
   {
     sku: "search_150",
     name: "Starter Pack",
-    description: "For targeted search bursts and a few extra AI drafts.",
+    description: "Emergency fuel for targeted search bursts and a few extra AI drafts.",
     priceUsd: 15,
     credits: 150,
     bonusCredits: 0,
@@ -136,7 +136,7 @@ export const SHARED_CREDIT_PACKS: SharedCreditPackDefinition[] = [
   {
     sku: "search_600",
     name: "Growth Pack",
-    description: "A strong top-up for search, evaluation, and document generation.",
+    description: "A strong top-up when your pipeline is moving and you need more evaluations or drafts.",
     priceUsd: 49,
     credits: 600,
     bonusCredits: 75,
@@ -145,7 +145,7 @@ export const SHARED_CREDIT_PACKS: SharedCreditPackDefinition[] = [
   {
     sku: "search_1500",
     name: "Pro Pack",
-    description: "For heavy search weeks and lots of tailored application materials.",
+    description: "For heavy search weeks with lots of tailored application materials.",
     priceUsd: 99,
     credits: 1500,
     bonusCredits: 250,
@@ -154,7 +154,7 @@ export const SHARED_CREDIT_PACKS: SharedCreditPackDefinition[] = [
   {
     sku: "search_4000",
     name: "Scale Pack",
-    description: "Best for recruiters, agencies, and sustained high-volume search research.",
+    description: "Best for sustained high-volume search research and campaign-style workflows.",
     priceUsd: 229,
     credits: 4000,
     bonusCredits: 1000,
@@ -166,7 +166,7 @@ export const SHARED_CONCURRENCY_PACKS: SharedConcurrencyPackDefinition[] = [
   {
     sku: "parallel_1",
     name: "Starter Boost",
-    description: "Add 1 extra parallel auto-apply slot for the current billing period.",
+    description: "Add 1 extra parallel slot for the current billing period when your queue needs a faster lane.",
     priceUsd: 19,
     parallelSlots: 1,
     isPopular: false,
@@ -174,7 +174,7 @@ export const SHARED_CONCURRENCY_PACKS: SharedConcurrencyPackDefinition[] = [
   {
     sku: "parallel_2",
     name: "Momentum Boost",
-    description: "Add 2 extra parallel auto-apply slots for the current billing period.",
+    description: "Add 2 extra parallel slots for the current billing period to clear active opportunities faster.",
     priceUsd: 35,
     parallelSlots: 2,
     isPopular: true,
@@ -182,7 +182,7 @@ export const SHARED_CONCURRENCY_PACKS: SharedConcurrencyPackDefinition[] = [
   {
     sku: "parallel_4",
     name: "Scale Boost",
-    description: "Add 4 extra parallel auto-apply slots for the current billing period.",
+    description: "Add 4 extra parallel slots for the current billing period for a serious application sprint.",
     priceUsd: 59,
     parallelSlots: 4,
     isPopular: false,
@@ -190,7 +190,7 @@ export const SHARED_CONCURRENCY_PACKS: SharedConcurrencyPackDefinition[] = [
   {
     sku: "parallel_8",
     name: "Sprint Boost",
-    description: "Add 8 extra parallel auto-apply slots for the current billing period.",
+    description: "Add 8 extra parallel slots for the current billing period when you need campaign-level throughput.",
     priceUsd: 99,
     parallelSlots: 8,
     isPopular: false,

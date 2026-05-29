@@ -725,6 +725,18 @@ const buildAgentFinalFallback = (message: BasicMessage): string | undefined => {
   return lines.join("\n");
 };
 
+const estimateAgentTimeSavedMinutes = (message: BasicMessage): number => {
+  const completedToolCount = (message.toolCalls || []).filter(
+    (tool) => tool.status !== "running" && !isInternalToolFailure(tool),
+  ).length;
+  const chargedCredits = (message.agentEvents || []).reduce(
+    (sum, event) => sum + (event.creditsCharged || 0),
+    0,
+  );
+  const workUnits = Math.max(completedToolCount, chargedCredits);
+  return workUnits > 0 ? Math.min(180, Math.max(8, workUnits * 8)) : 0;
+};
+
 const AgentWorkTimeline = ({
   message,
   elapsedLabel,
@@ -781,6 +793,7 @@ const AgentWorkTimeline = ({
   const hiddenStepCount =
     Math.max(0, agentEvents.length + toolCalls.length - timelineRows.length);
   const totalStepCount = agentEvents.length + toolCalls.length;
+  const estimatedTimeSaved = estimateAgentTimeSavedMinutes(message);
   const latestRow = timelineRows[timelineRows.length - 1];
   const fallbackLabel = elapsedLabel
     ? `Connecting to JobRaker agent (${elapsedLabel})`
@@ -825,6 +838,16 @@ const AgentWorkTimeline = ({
         </span>
         <span className='shrink-0 text-muted-foreground/70'>-</span>
         <span className='shrink-0'>{stepLabel}</span>
+        {estimatedTimeSaved > 0 ? (
+          <>
+            <span className='hidden shrink-0 text-muted-foreground/70 md:inline'>
+              -
+            </span>
+            <span className='hidden shrink-0 text-brand/90 md:inline'>
+              ~{estimatedTimeSaved} min saved
+            </span>
+          </>
+        ) : null}
         <span className='hidden shrink-0 text-muted-foreground/70 sm:inline'>
           -
         </span>
@@ -1223,7 +1246,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             if (parsed.code === "insufficient_credits") {
               errorMessage =
                 parsed.error ||
-                "You've run out of free messages and credits. Purchase more credits to continue.";
+                "Your Career Command Center has used its included capacity. Upgrade to Pro or add credits to keep Agent Mode searching, evaluating, and drafting for you.";
             } else if (
               parsed.code === "rate_limit" ||
               parsed.code === "daily_limit"
@@ -1422,14 +1445,18 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             } else if (currentEvent === "agent_surcharge") {
               const creditsCharged = Number(data.credits_charged || 0);
               const toolCount = Number(data.tool_count || 0);
+              const estimatedMinutesSaved = Math.max(
+                8,
+                Math.min(180, Math.max(toolCount, creditsCharged) * 8),
+              );
               const activity: AgentActivityEntry = {
                 id: data.id || nanoid(),
                 kind: "billing",
                 status: "done",
-                title: `Charged ${creditsCharged} credit${creditsCharged === 1 ? "" : "s"}`,
+                title: `Agent completed work using ${creditsCharged} credit${creditsCharged === 1 ? "" : "s"}`,
                 detail: toolCount
-                  ? `Metered for ${toolCount} agent tool${toolCount === 1 ? "" : "s"} this step. Balance: ${data.balance ?? "updated"}.`
-                  : `Balance: ${data.balance ?? "updated"}.`,
+                  ? `Ran ${toolCount} work step${toolCount === 1 ? "" : "s"} for this task. Estimated time saved: ${estimatedMinutesSaved} minutes. Balance: ${data.balance ?? "updated"}.`
+                  : `Estimated time saved: ${estimatedMinutesSaved} minutes. Balance: ${data.balance ?? "updated"}.`,
                 createdAt: Date.now(),
                 creditsCharged,
                 toolCount,
@@ -3401,7 +3428,7 @@ export const ChatPage = () => {
                         }
                       }}
                       className='w-full bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground py-3 px-4 resize-none min-h-[48px] max-h-48 text-base outline-none leading-relaxed scrollbar-hide'
-                      placeholder='Ask detailed questions about your career...'
+                      placeholder='Ask your Career Command Center what to do next...'
                       rows={1}
                       style={{ height: "auto", minHeight: "52px" }}
                       onInput={(e) => {
@@ -3443,7 +3470,7 @@ export const ChatPage = () => {
                           }`}
                         >
                           <Bolt size={12} />
-                          Ask
+                          Ask: plan
                         </button>
                         <button
                           onClick={() => setPersona("analyst")}
@@ -3452,16 +3479,16 @@ export const ChatPage = () => {
                               ? "bg-brand/10 text-brand border-brand/20"
                               : "text-muted-foreground border-transparent hover:bg-accent/40"
                           }`}
-                          title='Same base credit as Ask, plus 1 credit per tool when tools run'
+                          title='Agent Mode does the work and uses credits when it runs career workflow tools'
                         >
                           <BookOpen size={12} />
-                          Agent Mode
+                          Agent: do work
                         </button>
                       </div>
                       {persona === "analyst" && (
                         <p className='text-[10px] text-muted-foreground px-0.5'>
-                          Agent: 1 credit for your message, then +1 credit per
-                          tool used. Long tasks keep going while credits are available.
+                          Agent Mode spends credits when it searches, evaluates,
+                          drafts, updates your tracker, or prepares applications.
                         </p>
                       )}
                     </div>

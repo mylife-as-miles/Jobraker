@@ -6,7 +6,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Rocket, Zap, Crown, X, Check, Flame, AlertCircle, ArrowRight } from "lucide-react";
+import { Zap, Crown, X, Check, Flame, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BILLING_PLAN_DEFINITIONS, BILLING_CONCURRENCY_PACK_DEFINITIONS } from "@/lib/billingCatalog";
 
@@ -50,10 +50,10 @@ export function ConcurrencyLimitModal({
         className='!flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[640px] flex-col overflow-hidden gap-0 border border-purple-500/40 bg-zinc-950 p-0 text-foreground shadow-[0_0_50px_-12px_rgba(168,85,247,0.5),0_25px_80px_-20px_rgba(0,0,0,0.95)] sm:max-h-[calc(100dvh-2rem)] sm:w-[min(92vw,640px)] sm:rounded-3xl'
       >
         <DialogTitle className='sr-only'>
-          Your Auto-Apply Queue is Stalled
+          Your automation queue is at capacity
         </DialogTitle>
         <DialogDescription className='sr-only'>
-          All your parallel apply slots are full. Other candidates are applying now. Upgrade to get ahead.
+          All your parallel apply slots are full. Add parallel capacity to keep your job-search pipeline moving.
         </DialogDescription>
 
         {/* Top Urgency Bar */}
@@ -61,7 +61,7 @@ export function ConcurrencyLimitModal({
           <div className='flex min-w-0 items-center gap-2'>
             <Flame className='h-4 w-4 shrink-0 text-red-500 animate-pulse' aria-hidden />
             <span className='line-clamp-2 text-[10px] font-bold uppercase leading-snug tracking-wider text-red-400 sm:truncate sm:text-xs'>
-              Warning: Other candidates are applying to these roles right now
+              Your active applications are waiting for an open automation slot
             </span>
           </div>
           <button
@@ -97,10 +97,10 @@ export function ConcurrencyLimitModal({
 
           <div className='space-y-2 text-center relative z-10'>
             <h3 className='text-xl font-black uppercase tracking-tight text-white leading-tight sm:text-2xl sm:leading-none'>
-              Queue Stalled at <span className='text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500'>{activeRuns}/{totalLimit} Slots</span>
+              Queue paused at <span className='text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500'>{activeRuns}/{totalLimit} Slots</span>
             </h3>
             <p className='mx-auto max-w-[54ch] px-1 text-xs leading-relaxed text-zinc-400 sm:text-sm'>
-              While your queue waits for an open slot, <span className='text-white font-semibold'>GitLab</span> and other top companies are actively scheduling interviews. Every minute you delay is a first-mover advantage handed to your competitors.
+              Your ready applications are queued, but your current plan is already using every parallel run. Add capacity to finish this sprint faster.
             </p>
           </div>
 
@@ -108,7 +108,7 @@ export function ConcurrencyLimitModal({
           <div className='relative z-10 flex items-start gap-2.5 rounded-xl border border-purple-500/20 bg-purple-950/15 p-3 text-xs leading-normal text-purple-300 sm:items-center'>
             <Check className='h-4 w-4 shrink-0 text-purple-400' strokeWidth={3} />
             <span>
-              <strong>94% of candidates</strong> who landed interviews this week used Boost Packs to submit applications 3x faster than the competition.
+              <strong>Boost Packs</strong> add temporary parallel slots for this billing period so active searches can keep moving when volume spikes.
             </span>
           </div>
 
@@ -135,7 +135,7 @@ export function ConcurrencyLimitModal({
                       {momentumBoost.name}
                     </p>
                     <p className='text-[10px] leading-snug text-zinc-500'>
-                      Triples your speed. Launch 2 extra applications in parallel now.
+                      Add 2 extra automation lanes for the rest of this billing period.
                     </p>
                   </div>
                 </div>
@@ -168,7 +168,7 @@ export function ConcurrencyLimitModal({
                       {scaleBoost.name}
                     </p>
                     <p className='text-[10px] leading-snug text-zinc-500'>
-                      Unleash 4 parallel slots. Clear your queue before roles close.
+                      Add 4 parallel lanes for a heavier application sprint.
                     </p>
                   </div>
                 </div>
@@ -227,14 +227,14 @@ export function ConcurrencyLimitModal({
               }}
               className='min-h-11 h-auto w-full whitespace-normal rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-3 text-sm font-extrabold leading-tight text-white shadow-[0_0_24px_rgba(168,85,247,0.35)] transition-all hover:brightness-110 hover:shadow-[0_0_32px_rgba(168,85,247,0.45)] sm:min-h-12 sm:text-base'
             >
-              Get Ahead of Other Applicants
+              Add parallel capacity
             </Button>
             <button
               type='button'
               onClick={handleClose}
               className='w-full px-3 py-2 text-center text-xs font-semibold leading-snug text-zinc-500 transition-colors hover:text-zinc-400'
             >
-              No thanks, I will let my applications sit paused
+              Keep current speed
             </button>
           </div>
         </div>

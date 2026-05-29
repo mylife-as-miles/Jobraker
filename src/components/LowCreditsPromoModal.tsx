@@ -168,18 +168,18 @@ export function LowCreditsPromoModal({
         className='max-w-[min(100%,420px)] overflow-hidden gap-0 border border-fuchsia-500/25 bg-zinc-950 p-0 text-foreground shadow-[0_0_0_1px_rgba(217,70,239,0.15),0_25px_80px_-20px_rgba(0,0,0,0.85)] sm:rounded-2xl'
       >
         <DialogTitle className='sr-only'>
-          Low credits - one-time rescue offer
+          Career momentum is running low
         </DialogTitle>
         <DialogDescription className='sr-only'>
-          You have used most of your credits. This screen unlocks a one-time
-          rescue offer at your next checkout.
+          You have used most of your monthly search capacity. This screen unlocks
+          a one-time rescue offer at your next checkout.
         </DialogDescription>
 
         <div className='flex items-center justify-between gap-3 border-b border-white/10 bg-black/40 px-4 py-2.5'>
           <div className='flex min-w-0 items-center gap-2'>
             <Rocket className='h-4 w-4 shrink-0 text-white' aria-hidden />
             <span className='truncate text-xs font-medium text-white/95 sm:text-sm'>
-              You&apos;ve spent {stats.percentSpent}% of your credits
+              You&apos;ve used {stats.percentSpent}% of your search capacity
             </span>
           </div>
           <button
@@ -211,10 +211,10 @@ export function LowCreditsPromoModal({
 
           <div className='space-y-1 text-center'>
             <p className='text-xl font-extrabold uppercase leading-tight tracking-tight text-fuchsia-400 sm:text-2xl'>
-              Rescue pricing unlocked
+              Keep your pipeline moving
             </p>
             <p className='text-xl font-extrabold uppercase leading-tight tracking-tight text-white sm:text-2xl'>
-              before your credits run dry
+              before momentum stalls
             </p>
           </div>
 
@@ -223,8 +223,8 @@ export function LowCreditsPromoModal({
             <span className='font-semibold text-white'>
               {stats.percentRemaining}%
             </span>{" "}
-            of your credits left. You unlocked a one-time rescue offer for your
-            next paid checkout before this hour closes.
+            of your monthly search capacity left. You unlocked a one-time rescue
+            offer for your next paid checkout before this hour closes.
           </p>
 
           <div className='overflow-hidden rounded-xl border border-white/10 bg-zinc-900/80'>
@@ -240,7 +240,7 @@ export function LowCreditsPromoModal({
                   {PROMO_DISCOUNT_PCT}% OFF
                 </span>
                 <span className='mt-1.5 text-[10px] uppercase tracking-wide text-zinc-500'>
-                  One-time rescue offer
+                  One-time momentum offer
                 </span>
               </div>
               <div className='w-px bg-transparent' aria-hidden />
@@ -271,7 +271,7 @@ export function LowCreditsPromoModal({
             }}
             className='h-12 w-full rounded-xl bg-brand text-sm font-bold text-black shadow-[0_0_24px_rgba(29,255,0,0.35)] transition-all hover:bg-brand hover:brightness-110 hover:shadow-[0_0_32px_rgba(29,255,0,0.45)] sm:text-base'
           >
-            Use my rescue offer
+            Keep my search moving
           </Button>
         </div>
       </DialogContent>

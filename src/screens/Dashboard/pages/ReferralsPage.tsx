@@ -1318,7 +1318,7 @@ export const ReferralsPage = (): JSX.Element => {
 
   const userTier = profile?.subscription_tier || "Free";
   const referralCount = referrals.length;
-  // Free users can unlock import & match features if they bring in at least 2 active referrals!
+  // Free users can unlock import & match features if they bring in at least 2 referrals.
   const hasAccessToImportAndMatch =
     userTier !== "Free" || referralCount >= 2;
 
@@ -1326,31 +1326,31 @@ export const ReferralsPage = (): JSX.Element => {
   const milestones = [
     {
       level: 1,
-      name: "Connector",
+      name: "Scout",
       target: 1,
       reward: "+50 Jobricon Credits",
-      desc: "1 friend signs up",
+      desc: "1 friend joins",
     },
     {
       level: 2,
-      name: "Networker",
+      name: "Connector",
       target: 3,
-      reward: "Connection Matching Unlocked",
-      desc: "3 friends sign up",
+      reward: "Network matching access",
+      desc: "3 friends join",
     },
     {
       level: 3,
-      name: "Advocate",
+      name: "Career Broker",
       target: 5,
-      reward: "1 Month Basics Plan OR +250 Credits",
-      desc: "5 friends sign up",
+      reward: "Pro Pack bonus tier",
+      desc: "5 friends join",
     },
     {
       level: 4,
-      name: "Super Referrer",
+      name: "Rainmaker",
       target: 10,
-      reward: "20% Rev Share & Pro Trial",
-      desc: "10 friends sign up",
+      reward: "Top referral tier",
+      desc: "10 friends join",
     },
   ];
 
@@ -1484,7 +1484,7 @@ export const ReferralsPage = (): JSX.Element => {
                 Referral Perks Roadmap
               </h3>
               <p className='text-xs text-muted-foreground mt-0.5'>
-                Give friends **50 Jobricon credits** on signup and unlock premium platform access for yourself.
+                Give friends <span className='font-semibold text-foreground'>50 Jobricon credits</span> on signup and climb toward premium access perks for yourself.
               </p>
             </div>
             <div className='flex items-center gap-2 text-xs font-semibold text-foreground/80'>
@@ -1545,7 +1545,7 @@ export const ReferralsPage = (): JSX.Element => {
               <span>
                 You are {nextMilestone.target - referralCount} referral
                 {nextMilestone.target - referralCount > 1 ? "s" : ""} away from
-                unlocking **{nextMilestone.name}** ({nextMilestone.reward}).
+                unlocking <span className='font-semibold'>{nextMilestone.name}</span> ({nextMilestone.reward}).
               </span>
             </div>
           ) : (
@@ -1734,8 +1734,7 @@ export const ReferralsPage = (): JSX.Element => {
                     Referral rewards
                   </h3>
                   <p className='text-xs product-helper-text mb-4 leading-normal'>
-                    Unlock **Jobricon credits** for every friend you refer. Each referral
-                    helps you climb milestones to earn permanent plan benefits or payout splits.
+                    Unlock <span className='font-semibold text-foreground/90'>Jobricon credits</span> for friends you refer. Each referral moves you toward milestone perks tied to premium access and extra search capacity.
                   </p>
                   <p className='text-[10px] product-helper-text flex items-center gap-1.5 mb-3 font-semibold'>
                     <Clock className='w-3 h-3 text-brand/70' />

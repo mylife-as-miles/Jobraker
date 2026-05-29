@@ -261,3 +261,34 @@ export const generateGeminiDescription = async (
     throw new Error(`Failed to generate Gemini description: ${error.message}`);
   }
 };
+
+export async function generateGeminiContent(
+  prompt: string,
+  options: {
+    temperature?: number;
+    response_mime_type?: string;
+    responseMimeType?: string;
+    model?: string;
+  } = {},
+): Promise<string> {
+  const ai = createGeminiClient();
+  const responseMimeType = options.responseMimeType || options.response_mime_type;
+  const { result } = await withModelFallback(
+    (model) =>
+      ai.models.generateContent({
+        model,
+        config: {
+          ...createGeminiConfig({
+            responseMimeType: responseMimeType || "text/plain",
+          }),
+          ...(typeof options.temperature === "number"
+            ? { temperature: options.temperature }
+            : {}),
+        },
+        contents: prompt,
+      }),
+    options.model || GEMINI_MODEL,
+  );
+
+  return extractGeminiText(result);
+}
