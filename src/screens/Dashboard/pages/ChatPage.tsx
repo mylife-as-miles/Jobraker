@@ -1729,6 +1729,61 @@ export const ChatPage = () => {
   const navigate = useNavigate();
   // UI state
   const [text, setText] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const toggleListening = useCallback(() => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+    } else {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition ||
+        (window as any).webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        toastError("Speech recognition is not supported in this browser.");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        toastError(`Speech recognition error: ${event.error}`);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[event.results.length - 1][0].transcript;
+        setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    }
+  }, [isListening, toastError]);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
   const [skillStatus, setSkillStatus] = useState<"idle" | "in_progress">(
     "idle",
   );
@@ -3492,8 +3547,13 @@ export const ChatPage = () => {
 
                       <button
                         type="button"
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
-                        title="Voice input"
+                        onClick={toggleListening}
+                        className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
+                          isListening
+                            ? "bg-brand/15 text-brand animate-pulse hover:bg-brand/25"
+                            : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                        }`}
+                        title={isListening ? "Listening... Click to stop" : "Voice input"}
                       >
                         <Mic size={18} />
                       </button>
