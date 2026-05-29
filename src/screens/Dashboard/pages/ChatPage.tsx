@@ -2732,7 +2732,7 @@ export const ChatPage = () => {
                 ? mobileTab === "history"
                   ? "flex w-full flex-1"
                   : "hidden"
-                : `flex w-72 ${sidebarCollapsed ? "-ml-72" : ""}`
+                : `flex w-72 shrink-0 overflow-hidden ${sidebarCollapsed ? "-ml-72" : ""}`
             }`}
           >
             <div className='p-6'>
