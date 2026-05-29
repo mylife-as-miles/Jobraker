@@ -6035,7 +6035,7 @@ function _DefaultsForm() {
   };
 
   const sourceDefs = [
-    { id: "deepresearch", label: "Deep Research (Firecrawl)" },
+    { id: "deepresearch", label: "Deep Research" },
     { id: "remotive", label: "Remotive" },
     { id: "remoteok", label: "RemoteOK" },
     { id: "arbeitnow", label: "Arbeitnow" },

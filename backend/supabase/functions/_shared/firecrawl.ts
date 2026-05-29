@@ -37,7 +37,7 @@ async function resolveFirecrawlApiKey(): Promise<string> {
     return envKey;
   }
   console.error('firecrawl.key_missing');
-  throw new Error('No Firecrawl API key configured in function secrets.');
+  throw new Error('Search provider API key is not configured.');
 }
 
 // Centralized Firecrawl API call function
@@ -60,7 +60,7 @@ async function firecrawlFetch(
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    const err = new Error(`Firecrawl ${path} failed: ${res.status} ${text}`) as any;
+    const err = new Error(`Search provider failed: ${res.status} ${text}`) as any;
     (err as any).status = res.status;
     (err as any).body = text;
     // Attach retry-after seconds if present in header or body
@@ -85,7 +85,7 @@ async function firecrawlFetch(
   const json = await res.json().catch(() => null);
   if (json && typeof json.success === 'boolean' && json.success === false) {
     const code = json.error || json.message || 'request_failed';
-    const err = new Error(`Firecrawl ${path}: ${code}`) as any;
+    const err = new Error(`Search provider error: ${code}`) as any;
     err.firecrawlError = code;
     throw err;
   }
@@ -103,7 +103,7 @@ async function getFirecrawlCreditUsage(apiKey: string, timeoutMs = 15000) {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    const err = new Error(`Firecrawl credit usage failed: ${res.status} ${text}`) as any;
+    const err = new Error(`Credit usage check failed: ${res.status} ${text}`) as any;
     err.status = res.status;
     err.body = text;
     throw err;
@@ -132,7 +132,7 @@ async function getFirecrawlHistoricalCreditUsage(apiKey: string, timeoutMs = 150
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    const err = new Error(`Firecrawl historical credit usage failed: ${res.status} ${text}`) as any;
+    const err = new Error(`Historical credit usage check failed: ${res.status} ${text}`) as any;
     err.status = res.status;
     err.body = text;
     throw err;

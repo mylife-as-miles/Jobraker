@@ -685,7 +685,7 @@ export function useApplications() {
     info("Export started", "CSV");
   }, [applications, info]);
 
-  const syncPendingSkyvernStatus = useCallback(async () => {
+  const syncPendingStatus = useCallback(async () => {
     const pending = applications.filter(
       (a) => a.status === "Pending" && a.run_id,
     );
@@ -695,11 +695,11 @@ export function useApplications() {
     for (const app of pending) {
       try {
         const { data, error: invokeErr } = await (supabase as any).functions.invoke(
-          "sync-skyvern-status",
+          "sync-provider-status",
           { body: { run_id: app.run_id } },
         );
         if (invokeErr) {
-          console.warn("sync-skyvern-status invoke error", app.run_id, invokeErr);
+          console.warn("sync-status invoke error", app.run_id, invokeErr);
           continue;
         }
         const result = typeof data === "string" ? JSON.parse(data) : data;
@@ -711,7 +711,7 @@ export function useApplications() {
                     ...a,
                     status: result.app_status as ApplicationStatus,
                     canonical_stage: result.canonical_stage ?? a.canonical_stage,
-                    provider_status: result.skyvern_status ?? a.provider_status,
+                    provider_status: result.provider_status ?? result.skyvern_status ?? a.provider_status,
                     failure_reason: result.failure_reason ?? a.failure_reason,
                   }
                 : a,
@@ -720,7 +720,7 @@ export function useApplications() {
           synced++;
         }
       } catch (e) {
-        console.warn("sync-skyvern-status error for", app.run_id, e);
+        console.warn("sync-status error for", app.run_id, e);
       }
     }
     return synced;
@@ -731,10 +731,10 @@ export function useApplications() {
     const hasPending = applications.some((a) => a.status === "Pending" && a.run_id);
     if (!hasPending) return;
     const timer = setTimeout(() => {
-      syncPendingSkyvernStatus();
+      syncPendingStatus();
     }, 2000);
     return () => clearTimeout(timer);
-  }, [userId, applications, syncPendingSkyvernStatus]);
+  }, [userId, applications, syncPendingStatus]);
 
   return {
     applications,
@@ -745,7 +745,7 @@ export function useApplications() {
     update,
     remove,
     exportCSV,
-    syncPendingSkyvernStatus,
+    syncPendingStatus,
     stats,
     search,
     filter,

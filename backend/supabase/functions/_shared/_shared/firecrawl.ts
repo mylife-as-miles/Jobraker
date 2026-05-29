@@ -37,7 +37,7 @@ async function resolveFirecrawlApiKey(): Promise<string> {
     return envKey;
   }
   console.error('firecrawl.key_missing');
-  throw new Error('No Firecrawl API key configured in function secrets.');
+  throw new Error('Search provider API key is not configured.');
 }
 
 // Centralized Firecrawl API call function
@@ -51,7 +51,7 @@ async function firecrawlFetch(path: string, apiKey: string, body: any, userId?: 
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    const err = new Error(`Firecrawl ${path} failed: ${res.status} ${text}`) as any;
+    const err = new Error(`Search provider failed: ${res.status} ${text}`) as any;
     (err as any).status = res.status;
     (err as any).body = text;
     // Attach retry-after seconds if present in header or body

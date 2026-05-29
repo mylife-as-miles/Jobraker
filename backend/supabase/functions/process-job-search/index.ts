@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
       searchRes = await withRetry(() => firecrawlFetch('/search', firecrawlApiKey, searchPayload, userId), 2, 600);
     } catch (e: any) {
       console.error('[process-job-search] Firecrawl failed', e);
-      return new Response('Firecrawl error', { status: 500 });
+      return new Response('Search provider error', { status: 500 });
     }
 
     const webItems: any[] = Array.isArray(searchRes?.data?.web) ? searchRes.data.web : [];

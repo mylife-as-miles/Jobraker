@@ -42,7 +42,9 @@ export type ApplyToJobsParams = {
 export async function applyToJobs(payload: ApplyToJobsParams) {
   const data = await invokeProtectedFunction<{
     ok: boolean;
-    skyvern: any;
+    skyvern?: any;
+    automation?: any;
+    provider?: any;
     billing?: {
       credits_deducted?: number;
       remaining_balance?: number;

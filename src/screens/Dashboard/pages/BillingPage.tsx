@@ -815,6 +815,7 @@ export const BillingPage = () => {
       }
 
       const nowIso = new Date().toISOString();
+      const threeHoursAgoIso = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
       const [{ data: concurrencyQuotaRows }, { count: queuedRunsCount }] =
         await Promise.all([
           supabase
@@ -829,7 +830,8 @@ export const BillingPage = () => {
             .from("applications")
             .select("id", { count: "exact", head: true })
             .eq("user_id", userId)
-            .eq("canonical_stage", "queued"),
+            .eq("canonical_stage", "queued")
+            .gt("updated_at", threeHoursAgoIso),
         ]);
 
       const boostSlots = Array.isArray(concurrencyQuotaRows)

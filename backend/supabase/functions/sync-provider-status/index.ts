@@ -1,10 +1,8 @@
-// @ts-nocheck
-// Polls Skyvern for the current status of a workflow run and syncs it back
-// to the applications table.  The frontend calls this for applications stuck
-// in "Pending" to pull through any webhook updates that were missed.
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders } from "../_shared/types.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordSkyvernUsageFromOutput } from "../_shared/provider-credits.ts";
 
 const TERMINAL_SUCCESS = ["succeeded", "completed"];
 const TERMINAL_FAIL = [
@@ -53,36 +51,36 @@ async function fetchSkyvernRun(runId: string, skyvernKey: string) {
   let lastError: { status: number; detail: string; url: string } | null = null;
 
   for (const url of candidateUrls) {
-    const skyvernRes = await fetch(url, {
+    const response = await fetch(url, {
       headers: { "x-api-key": skyvernKey },
     });
 
-    if (skyvernRes.ok) {
-      return {
-        run: await skyvernRes.json(),
-        url,
-      };
+    if (response.ok) {
+      return await response.json();
     }
 
     lastError = {
-      status: skyvernRes.status,
-      detail: await skyvernRes.text(),
+      status: response.status,
+      detail: await response.text(),
       url,
     };
 
-    if (skyvernRes.status !== 404) {
+    if (response.status !== 404) {
       break;
     }
   }
 
-  throw new Error(JSON.stringify({
-    error: "Skyvern fetch failed",
-    ...(lastError || {}),
-  }));
+  return {
+    __error: {
+      error: "Automation run fetch failed",
+      ...(lastError || {}),
+    },
+  };
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -103,9 +101,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!supabaseUrl || !serviceKey || !anonKey) {
+      return new Response(JSON.stringify({ error: "Supabase env vars not set" }), {
+        status: 500,
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      });
+    }
+
+    const anonClient = createClient(supabaseUrl, anonKey);
     const { data: { user }, error: authErr } = await anonClient.auth.getUser(token);
     if (authErr || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -125,34 +131,32 @@ Deno.serve(async (req) => {
 
     const skyvernKey = Deno.env.get("SKYVERN_API_KEY") || "";
     if (!skyvernKey) {
-      return new Response(JSON.stringify({ error: "SKYVERN_API_KEY not set" }), {
+      return new Response(JSON.stringify({ error: "Automation key not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "content-type": "application/json" },
       });
     }
 
-    let run: any;
-    try {
-      const res = await fetchSkyvernRun(runId, skyvernKey);
-      run = res.run;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      let detail = message;
-      try {
-        detail = JSON.parse(message);
-      } catch {
-        // Preserve the original error string when it's not JSON.
+    let run = await fetchSkyvernRun(runId, skyvernKey);
+    if (run?.__error) {
+      if (run.__error.status === 404) {
+        run = {
+          status: "failed",
+          failure_reason: "Automation run not found on provider (404).",
+          error: "Automation run not found on provider (404)."
+        };
+      } else {
+        return new Response(JSON.stringify(run.__error), {
+          status: 502,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        });
       }
-      return new Response(
-        JSON.stringify(detail),
-        { status: 502, headers: { ...corsHeaders, "content-type": "application/json" } },
-      );
     }
 
     const { providerStatus, appStatus, canonicalStage } = mapSkyvernStatus(run?.status);
     const failureReason = run?.failure_reason || run?.error || null;
 
-    const sb = createClient(supabaseUrl, serviceKey, {
+    const serviceClient = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false },
     });
 
@@ -164,32 +168,46 @@ Deno.serve(async (req) => {
       failure_reason: TERMINAL_FAIL.includes(providerStatus) ? failureReason : null,
       ...(run?.recording_url && { recording_url: run.recording_url }),
       ...(run?.app_url && { app_url: run.app_url }),
+      provider_run_output: run,
     };
 
-    const { error: updateErr } = await sb
+    const { error: updateErr } = await serviceClient
       .from("applications")
       .update(patch)
       .eq("run_id", runId)
       .eq("user_id", user.id);
 
     if (updateErr) {
-      console.error("sync-skyvern-status update error", updateErr);
+      console.error("sync-provider-status update error", updateErr);
     }
 
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        run_id: runId,
-        skyvern_status: providerStatus,
-        app_status: appStatus,
-        canonical_stage: canonicalStage,
-        failure_reason: failureReason,
-      }),
-      { headers: { ...corsHeaders, "content-type": "application/json" } },
-    );
-  } catch (e: any) {
-    console.error("sync-skyvern-status error", e);
-    return new Response(JSON.stringify({ error: e?.message || "Unknown error" }), {
+    try {
+      await recordSkyvernUsageFromOutput(serviceClient, run, {
+        runId,
+        status: providerStatus,
+        userId: user.id,
+        source: "sync-provider-status",
+      });
+    } catch (creditError) {
+      console.warn("sync-provider-status credit record failed", creditError);
+    }
+
+    return new Response(JSON.stringify({
+      ok: true,
+      run_id: runId,
+      provider_status: providerStatus,
+      app_status: appStatus,
+      canonical_stage: canonicalStage,
+      failure_reason: failureReason,
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, "content-type": "application/json" },
+    });
+  } catch (error: unknown) {
+    console.error("sync-provider-status error", error);
+    return new Response(JSON.stringify({
+      error: error instanceof Error ? error.message : "Unknown error",
+    }), {
       status: 500,
       headers: { ...corsHeaders, "content-type": "application/json" },
     });

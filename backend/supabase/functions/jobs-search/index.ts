@@ -173,6 +173,45 @@ Deno.serve(async (req) => {
       );
     }
 
+    const isAsync = body?.async === true;
+
+    if (isAsync) {
+      const { data: task, error: enqueueError } = await serviceClient
+        .from("job_intelligence_tasks")
+        .insert({
+          user_id: user.id,
+          type: "scout_search",
+          title: `Scout search: ${searchQuery}`,
+          message: "Queued for background search.",
+          progress_total: 3,
+          params: {
+            search_query: searchQuery,
+            location,
+            limit: requestedLimit,
+            sources: sourceFocus,
+            targetDomains,
+          },
+        })
+        .select("id")
+        .single();
+
+      if (enqueueError) {
+        throw enqueueError;
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          status: "queued",
+          taskId: task.id,
+        }),
+        {
+          status: 202,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        }
+      );
+    }
+
     console.log("[jobs-search] Firecrawl-led discovery", {
       userId: user.id,
       searchQuery,

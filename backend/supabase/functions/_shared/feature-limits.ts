@@ -578,6 +578,7 @@ export async function getAutoApplyConcurrencyLimit({
   );
   const nowIso = new Date().toISOString();
 
+  const threeHoursAgoIso = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
   const [{ data: addonRows, error: addonError }, { count: activeRuns, error: activeError }] =
     await Promise.all([
       serviceClient
@@ -592,7 +593,8 @@ export async function getAutoApplyConcurrencyLimit({
         .from("applications")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
-        .eq("canonical_stage", "queued"),
+        .eq("canonical_stage", "queued")
+        .gt("updated_at", threeHoursAgoIso),
     ]);
 
   if (addonError) {

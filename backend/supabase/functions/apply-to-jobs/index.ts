@@ -623,14 +623,14 @@ Deno.serve(async (req) => {
         data?.detail || data?.message || data?.error || data?.raw || "";
       const reason =
         response.status === 401 || response.status === 403
-          ? "Skyvern API key is invalid or expired. Check SKYVERN_API_KEY in project secrets."
+          ? "Automation service API key is invalid or expired. Please contact support."
           : response.status === 404
-            ? "Skyvern workflow not found. Check SKYVERN_WORKFLOW_ID."
+            ? "Automation template not found. Please contact support."
             : response.status === 422
-              ? `Skyvern rejected the request: ${skyvernMessage}`
+              ? `Automation service rejected the request: ${skyvernMessage}`
               : response.status === 429
-                ? "Skyvern rate limit exceeded. Try again in a minute."
-                : `Skyvern returned ${response.status}: ${skyvernMessage}`;
+                ? "Automation rate limit exceeded. Try again in a minute."
+                : `Automation service returned ${response.status}: ${skyvernMessage}`;
 
       console.error("apply-to-jobs skyvern error", {
         status: response.status,
@@ -772,7 +772,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         ok: true,
-        skyvern: data,
+        automation: data,
+        provider: data,
         billing: billingForResponse,
         concurrency: {
           base_limit: concurrencyResult.baseLimit,

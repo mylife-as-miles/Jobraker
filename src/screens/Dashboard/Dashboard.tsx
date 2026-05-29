@@ -233,6 +233,12 @@ export const Dashboard = (): JSX.Element => {
     checkAdmin();
   }, []);
 
+  useEffect(() => {
+    if (isDesktop && currentPage === "account") {
+      navigate("/dashboard/resume", { replace: true });
+    }
+  }, [isDesktop, currentPage, navigate]);
+
   const pages = useMemo((): DashboardPage[] => {
     const basePages: DashboardPage[] = [
       "overview",
@@ -531,9 +537,10 @@ export const Dashboard = (): JSX.Element => {
   const navigationItems = useMemo(() => {
     return allDashboardPages.filter(
       (page) =>
-        !["profile", "settings", "notifications", "pricing"].includes(page.id),
+        !["profile", "settings", "notifications", "pricing"].includes(page.id) &&
+        !(isDesktop && page.id === "account"),
     );
-  }, [allDashboardPages]);
+  }, [allDashboardPages, isDesktop]);
 
   const currentItem = useMemo(
     () => allDashboardPages.find((item) => item.id === currentPage),

@@ -1199,7 +1199,7 @@ async function refreshApplicationProcesses(opts: {
     MAX_APPLICATION_SYNC_LIMIT,
   );
 
-  let skyvernSync: Record<string, unknown> = {
+  let automationSync: Record<string, unknown> = {
     success: true,
     synced_runs: [],
   };
@@ -1229,21 +1229,21 @@ async function refreshApplicationProcesses(opts: {
       try {
         const syncResult = await invokeEdgeFunctionByName({
           authHeader: opts.authHeader,
-          name: "sync-skyvern-status",
+          name: "sync-provider-status",
           payload: { run_id: runId },
         });
         syncedRuns.push(syncResult as Record<string, unknown>);
       } catch (error) {
         syncedRuns.push({
           success: false,
-          function: "sync-skyvern-status",
+          function: "sync-provider-status",
           run_id: runId,
-          error: error instanceof Error ? error.message : "Skyvern sync failed",
+          error: error instanceof Error ? error.message : "Automation sync failed",
         });
       }
     }
 
-    skyvernSync = {
+    automationSync = {
       success: true,
       synced_runs: syncedRuns,
     };
@@ -1260,7 +1260,7 @@ async function refreshApplicationProcesses(opts: {
   return {
     success: true,
     gmail_sync: gmailSync,
-    skyvern_sync: skyvernSync,
+    automation_sync: automationSync,
     snapshot,
   };
 }
