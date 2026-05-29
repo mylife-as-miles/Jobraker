@@ -63,6 +63,7 @@ import {
   type ChatStarterIcon,
   type ChatStarterSuggestion,
 } from "../../../services/ai/generateChatStarters";
+import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
 import { SkillInvocationMessage } from "@/components/chat/SkillInvocationMessage";
 import {
   executeChatSkill,
@@ -1799,6 +1800,18 @@ export const ChatPage = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "history">("chat");
+  const [isMultiline, setIsMultiline] = useState(false);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      const multiline = textareaRef.current.scrollHeight > 36;
+      if (multiline !== isMultiline) {
+        setIsMultiline(multiline);
+      }
+    } else if (text === "") {
+      setIsMultiline(false);
+    }
+  }, [text, isMultiline]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -3415,20 +3428,20 @@ export const ChatPage = () => {
               )}
             </div>
 
-            {messages.length > 0 && showScrollToBottom && (
-              <div className='pointer-events-none absolute bottom-28 left-1/2 -translate-x-1/2 z-20'>
-                <button
-                  onClick={() => scrollToBottom()}
-                  className='pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-brand/30 bg-card/95 text-brand shadow-lg shadow-black/20 backdrop-blur transition hover:bg-card'
-                  title='Scroll to latest'
-                >
-                  <ArrowDown size={18} />
-                </button>
-              </div>
-            )}
+            <div className='shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur md:px-6 relative'>
+              <div className='w-full max-w-4xl mx-auto relative'>
+                {messages.length > 0 && showScrollToBottom && (
+                  <div className='absolute bottom-full left-1/2 -translate-x-1/2 mb-4 z-20 pointer-events-none'>
+                    <button
+                      onClick={() => scrollToBottom()}
+                      className='pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-brand/30 bg-card/95 text-brand shadow-lg shadow-black/20 backdrop-blur transition hover:bg-card'
+                      title='Scroll to latest'
+                    >
+                      <ArrowDown size={18} />
+                    </button>
+                  </div>
+                )}
 
-            <div className='shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur md:px-6'>
-              <div className='w-full max-w-4xl mx-auto'>
                 <div
                   className={`relative rounded-[32px] border border-border shadow-2xl overflow-visible transition-all duration-300 ${
                     text.trim() || attachments.length
@@ -3485,9 +3498,21 @@ export const ChatPage = () => {
                     </div>
                   )}
 
-                  <div className='flex flex-col px-4 py-3 min-h-[56px]'>
+                  <div
+                    className={`grid gap-x-2 transition-all duration-300 px-4 py-3 min-h-[56px] ${
+                      isMultiline
+                        ? "grid-cols-[auto_1fr_auto] grid-rows-[auto_auto] items-end"
+                        : "grid-cols-[auto_1fr_auto] grid-rows-[auto_auto] items-end md:grid-cols-[auto_1fr_auto] md:grid-rows-[1fr] md:items-center"
+                    }`}
+                  >
                     {/* Textarea input area */}
-                    <div className='w-full min-w-0 mb-1.5'>
+                    <div
+                      className={`min-w-0 transition-all duration-300 ${
+                        isMultiline
+                          ? "col-span-3 row-start-1 mb-1.5"
+                          : "col-span-3 row-start-1 mb-1.5 md:col-span-1 md:row-start-1 md:mb-0"
+                      }`}
+                    >
                       <textarea
                         ref={textareaRef}
                         value={text}
@@ -3528,106 +3553,113 @@ export const ChatPage = () => {
                       />
                     </div>
 
-                    {/* Toolbar area */}
-                    <div className='flex items-center justify-between w-full pt-1'>
-                      {/* Left: Plus button */}
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-foreground/5 transition-colors ${
-                          attachments.length ? "text-brand" : "text-muted-foreground hover:text-foreground"
-                        }`}
-                        title="Upload files"
-                      >
-                        <Plus size={20} />
-                      </button>
+                    {/* Left: Plus button */}
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-foreground/5 transition-colors col-start-1 ${
+                        isMultiline
+                          ? "row-start-2"
+                          : "row-start-2 md:row-start-1"
+                      } ${
+                        attachments.length ? "text-brand" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title="Upload files"
+                    >
+                      <Plus size={20} />
+                    </button>
 
-                      {/* Right: Controls */}
-                      <div className='flex items-center gap-2 shrink-0'>
-                        {/* Custom Dropdown */}
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={() => setDropdownOpen((prev) => !prev)}
-                            className="flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-semibold bg-foreground/5 text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-all border border-border"
-                          >
-                            <span>{persona === "concise" ? "Ask: plan" : "Agent: do work"}</span>
-                            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} />
-                          </button>
-
-                          {dropdownOpen && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-40"
-                                onClick={() => setDropdownOpen(false)}
-                              />
-                              <div className="absolute right-0 bottom-full mb-2 z-50 w-36 rounded-xl border border-border bg-card/95 p-1 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setPersona("concise");
-                                    setDropdownOpen(false);
-                                  }}
-                                  className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                                    persona === "concise"
-                                      ? "text-brand bg-brand/10"
-                                      : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                                  }`}
-                                >
-                                  Ask: plan
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setPersona("analyst");
-                                    setDropdownOpen(false);
-                                  }}
-                                  className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                                    persona === "analyst"
-                                      ? "text-brand bg-brand/10"
-                                      : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                                  }`}
-                                >
-                                  Agent: do work
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Voice Mic Button */}
+                    {/* Right: Controls */}
+                    <div
+                      className={`flex items-center gap-2 shrink-0 col-start-3 ${
+                        isMultiline
+                          ? "row-start-2"
+                          : "row-start-2 md:row-start-1"
+                      }`}
+                    >
+                      {/* Custom Dropdown */}
+                      <div className="relative">
                         <button
                           type="button"
-                          onClick={toggleListening}
-                          className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
-                            isListening
-                              ? "bg-brand/15 text-brand animate-pulse hover:bg-brand/25"
-                              : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                          }`}
-                          title={isListening ? "Listening... Click to stop" : "Voice input"}
+                          onClick={() => setDropdownOpen((prev) => !prev)}
+                          className="flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-semibold bg-foreground/5 text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-all border border-border"
                         >
-                          <Mic size={18} />
+                          <span>{persona === "concise" ? "Ask: plan" : "Agent: do work"}</span>
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} />
                         </button>
 
-                        {/* Send Button */}
-                        <button
-                          onClick={() =>
-                            (text.trim() || attachments.length > 0) &&
-                            handleSubmit({ text } as any)
-                          }
-                          disabled={
-                            (!text.trim() && attachments.length === 0) ||
-                            isChatBusy
-                          }
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all ${
-                            text.trim() || attachments.length
-                              ? "bg-white text-black shadow-lg hover:bg-neutral-100"
-                              : "bg-muted text-muted-foreground/60 cursor-not-allowed"
-                          }`}
-                          title="Send message"
-                        >
-                          <ArrowUp size={18} className="font-semibold" />
-                        </button>
+                        {dropdownOpen && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setDropdownOpen(false)}
+                            />
+                            <div className="absolute right-0 bottom-full mb-2 z-50 w-36 rounded-xl border border-border bg-card/95 p-1 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPersona("concise");
+                                  setDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                                  persona === "concise"
+                                    ? "text-brand bg-brand/10"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                                }`}
+                              >
+                                Ask: plan
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPersona("analyst");
+                                  setDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                                  persona === "analyst"
+                                    ? "text-brand bg-brand/10"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                                }`}
+                              >
+                                Agent: do work
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
+
+                      {/* Voice Mic Button */}
+                      <button
+                        type="button"
+                        onClick={toggleListening}
+                        className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
+                          isListening
+                            ? "bg-brand/15 text-brand animate-pulse hover:bg-brand/25"
+                            : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                        }`}
+                        title={isListening ? "Listening... Click to stop" : "Voice input"}
+                      >
+                        <Mic size={18} />
+                      </button>
+
+                      {/* Send Button */}
+                      <button
+                        onClick={() =>
+                          (text.trim() || attachments.length > 0) &&
+                          handleSubmit({ text } as any)
+                        }
+                        disabled={
+                          (!text.trim() && attachments.length === 0) ||
+                          isChatBusy
+                        }
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all ${
+                          text.trim() || attachments.length
+                            ? "bg-white text-black shadow-lg hover:bg-neutral-100"
+                            : "bg-muted text-muted-foreground/60 cursor-not-allowed"
+                        }`}
+                        title="Send message"
+                      >
+                        <ArrowUp size={18} className="font-semibold" />
+                      </button>
                     </div>
                   </div>
                 </div>
