@@ -1729,6 +1729,7 @@ export const ChatPage = () => {
   const navigate = useNavigate();
   // UI state
   const [text, setText] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
@@ -2783,12 +2784,16 @@ export const ChatPage = () => {
           )}
 
           <aside
-            className={`bg-card/40 border-r border-border flex-col h-full z-20 transition-all duration-300 ${
+            className={`bg-card/40 flex-col h-full z-20 transition-all duration-300 overflow-hidden ${
               isMobile
                 ? mobileTab === "history"
-                  ? "flex w-full flex-1"
+                  ? "flex w-full flex-1 border-r border-border"
                   : "hidden"
-                : `flex w-72 shrink-0 overflow-hidden ${sidebarCollapsed ? "-ml-72" : ""}`
+                : `flex shrink-0 ${
+                    sidebarCollapsed
+                      ? "w-0 border-r-0 opacity-0 pointer-events-none"
+                      : "w-72 border-r border-border opacity-100"
+                  }`
             }`}
           >
             <div className='p-6'>
@@ -3414,10 +3419,10 @@ export const ChatPage = () => {
               <div className='pointer-events-none absolute bottom-28 left-1/2 -translate-x-1/2 z-20'>
                 <button
                   onClick={() => scrollToBottom()}
-                  className='pointer-events-auto inline-flex items-center gap-2 rounded-full border border-brand/30 bg-card/95 px-4 py-2 text-sm font-medium text-brand shadow-lg shadow-black/20 backdrop-blur transition hover:bg-card'
+                  className='pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-brand/30 bg-card/95 text-brand shadow-lg shadow-black/20 backdrop-blur transition hover:bg-card'
+                  title='Scroll to latest'
                 >
-                  <ArrowDown size={16} />
-                  Latest
+                  <ArrowDown size={18} />
                 </button>
               </div>
             )}
@@ -3425,7 +3430,7 @@ export const ChatPage = () => {
             <div className='shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur md:px-6'>
               <div className='w-full max-w-4xl mx-auto'>
                 <div
-                  className={`relative rounded-[32px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${
+                  className={`relative rounded-[32px] border border-border shadow-2xl overflow-visible transition-all duration-300 ${
                     text.trim() || attachments.length
                       ? "bg-card ring-1 ring-brand/50 border-brand/50"
                       : "bg-card/85 backdrop-blur-xl"
@@ -3480,18 +3485,9 @@ export const ChatPage = () => {
                     </div>
                   )}
 
-                  <div className='flex items-center gap-2 px-4 py-2.5 min-h-[56px]'>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-foreground/5 transition-colors ${
-                        attachments.length ? "text-brand" : "text-muted-foreground hover:text-foreground"
-                      }`}
-                      title="Upload files"
-                    >
-                      <Plus size={20} />
-                    </button>
-
-                    <div className='flex-1 min-w-0 flex items-center'>
+                  <div className='flex flex-col px-4 py-3 min-h-[56px]'>
+                    {/* Textarea input area */}
+                    <div className='w-full min-w-0 mb-1.5'>
                       <textarea
                         ref={textareaRef}
                         value={text}
@@ -3519,7 +3515,7 @@ export const ChatPage = () => {
                               handleSubmit({ text } as any);
                           }
                         }}
-                        className='w-full bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 py-2 px-1 resize-none max-h-36 text-base outline-none leading-normal scrollbar-hide'
+                        className='w-full bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 py-1.5 px-1.5 resize-none max-h-36 text-base outline-none leading-normal scrollbar-hide'
                         placeholder='Ask your Career Command Center...'
                         rows={1}
                         style={{ height: "auto", minHeight: "24px" }}
@@ -3532,50 +3528,106 @@ export const ChatPage = () => {
                       />
                     </div>
 
-                    <div className='flex items-center gap-2.5 shrink-0 pl-2'>
-                      <div className="relative">
-                        <select
-                          value={persona}
-                          onChange={(e) => setPersona(e.target.value as any)}
-                          className="appearance-none bg-transparent border-none py-1.5 pl-3 pr-7 rounded-full text-xs font-semibold text-muted-foreground hover:text-foreground focus:outline-none focus:ring-0 cursor-pointer transition-colors"
+                    {/* Toolbar area */}
+                    <div className='flex items-center justify-between w-full pt-1'>
+                      {/* Left: Plus button */}
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-foreground/5 transition-colors ${
+                          attachments.length ? "text-brand" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                        title="Upload files"
+                      >
+                        <Plus size={20} />
+                      </button>
+
+                      {/* Right: Controls */}
+                      <div className='flex items-center gap-2 shrink-0'>
+                        {/* Custom Dropdown */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setDropdownOpen((prev) => !prev)}
+                            className="flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-semibold bg-foreground/5 text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-all border border-border"
+                          >
+                            <span>{persona === "concise" ? "Ask: plan" : "Agent: do work"}</span>
+                            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} />
+                          </button>
+
+                          {dropdownOpen && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-40"
+                                onClick={() => setDropdownOpen(false)}
+                              />
+                              <div className="absolute right-0 bottom-full mb-2 z-50 w-36 rounded-xl border border-border bg-card/95 p-1 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPersona("concise");
+                                    setDropdownOpen(false);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                                    persona === "concise"
+                                      ? "text-brand bg-brand/10"
+                                      : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                                  }`}
+                                >
+                                  Ask: plan
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPersona("analyst");
+                                    setDropdownOpen(false);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                                    persona === "analyst"
+                                      ? "text-brand bg-brand/10"
+                                      : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                                  }`}
+                                >
+                                  Agent: do work
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Voice Mic Button */}
+                        <button
+                          type="button"
+                          onClick={toggleListening}
+                          className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
+                            isListening
+                              ? "bg-brand/15 text-brand animate-pulse hover:bg-brand/25"
+                              : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                          }`}
+                          title={isListening ? "Listening... Click to stop" : "Voice input"}
                         >
-                          <option value="concise" className="bg-card text-foreground">Ask: plan</option>
-                          <option value="analyst" className="bg-card text-foreground">Agent: do work</option>
-                        </select>
-                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                          <Mic size={18} />
+                        </button>
+
+                        {/* Send Button */}
+                        <button
+                          onClick={() =>
+                            (text.trim() || attachments.length > 0) &&
+                            handleSubmit({ text } as any)
+                          }
+                          disabled={
+                            (!text.trim() && attachments.length === 0) ||
+                            isChatBusy
+                          }
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all ${
+                            text.trim() || attachments.length
+                              ? "bg-white text-black shadow-lg hover:bg-neutral-100"
+                              : "bg-muted text-muted-foreground/60 cursor-not-allowed"
+                          }`}
+                          title="Send message"
+                        >
+                          <ArrowUp size={18} className="font-semibold" />
+                        </button>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={toggleListening}
-                        className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
-                          isListening
-                            ? "bg-brand/15 text-brand animate-pulse hover:bg-brand/25"
-                            : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                        }`}
-                        title={isListening ? "Listening... Click to stop" : "Voice input"}
-                      >
-                        <Mic size={18} />
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          (text.trim() || attachments.length > 0) &&
-                          handleSubmit({ text } as any)
-                        }
-                        disabled={
-                          (!text.trim() && attachments.length === 0) ||
-                          isChatBusy
-                        }
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all ${
-                          text.trim() || attachments.length
-                            ? "bg-white text-black shadow-lg hover:bg-neutral-100"
-                            : "bg-muted text-muted-foreground/60 cursor-not-allowed"
-                        }`}
-                        title="Send message"
-                      >
-                        <ArrowUp size={18} className="font-semibold" />
-                      </button>
                     </div>
                   </div>
                 </div>
