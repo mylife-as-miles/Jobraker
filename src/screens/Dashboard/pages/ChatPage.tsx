@@ -64,6 +64,7 @@ import {
   type ChatStarterSuggestion,
 } from "../../../services/ai/generateChatStarters";
 import { SkillInvocationMessage } from "@/components/chat/SkillInvocationMessage";
+import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
 import {
   executeChatSkill,
   getPrimarySkillAlias,
