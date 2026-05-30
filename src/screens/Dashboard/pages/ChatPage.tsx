@@ -3127,7 +3127,32 @@ export const ChatPage = () => {
                       <p className='text-xs text-muted-foreground animate-pulse mt-2'>
                         Personalizing your AI starter prompts...
                       </p>
-                    ) : null}
+                    ) : (
+                      <div className='glass-panel mt-6 p-4 rounded-xl text-left w-full border border-brand/20 bg-brand/5 backdrop-blur-md max-w-2xl flex gap-3.5 items-start mx-auto'>
+                        <div className='p-2 rounded-lg bg-brand/10 text-brand border border-brand/20 shrink-0 mt-0.5'>
+                          <Sparkles size={16} />
+                        </div>
+                        <div className='flex-1 min-w-0'>
+                          <h4 className='text-xs font-semibold text-foreground/95 mb-1 flex items-center gap-1.5'>
+                            Pro Tip: Direct Outreach for Sales & Marketing
+                          </h4>
+                          <p className='text-xs text-muted-foreground leading-relaxed'>
+                            Are you in Sales or Marketing? You can use the{" "}
+                            <button
+                              type='button'
+                              onClick={() => {
+                                setText("/direct-apply ");
+                                if (textareaRef.current) textareaRef.current.focus();
+                              }}
+                              className='font-mono font-bold text-brand hover:underline bg-brand/10 px-1.5 py-0.5 rounded transition-all text-[11px]'
+                            >
+                              /direct-apply
+                            </button>{" "}
+                            command to scrape for target companies, retrieve verified contact details, and draft cold outreach emails automatically.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
