@@ -2955,7 +2955,7 @@ export const ChatPage = () => {
             }`}
           >
             {!isMobile && (
-              <header className='h-16 flex items-center justify-between px-4 md:px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
+              <header className='relative z-30 h-16 flex items-center justify-between px-4 md:px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
                 <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
                   <button
                     onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
