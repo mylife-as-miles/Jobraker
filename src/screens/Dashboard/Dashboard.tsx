@@ -644,6 +644,8 @@ export const Dashboard = (): JSX.Element => {
     }
   };
 
+  console.log("Dashboard hideHeader:", hideHeader);
+
   return (
     <TooltipProvider delayDuration={150}>
       <div className='h-screen max-h-screen w-screen overflow-hidden bg-background flex'>
@@ -1209,6 +1211,9 @@ export const Dashboard = (): JSX.Element => {
           />
         )}
         <ExperienceFeedbackPrompt />
+        <div className="fixed bottom-4 left-4 z-50 bg-black/90 text-red-500 border border-red-500 rounded p-2 text-xs font-bold pointer-events-none">
+          Dashboard: hideHeader={String(hideHeader)}
+        </div>
       </div>
     </TooltipProvider>
   );

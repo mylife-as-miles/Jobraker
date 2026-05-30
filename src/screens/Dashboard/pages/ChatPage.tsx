@@ -2687,6 +2687,8 @@ export const ChatPage = () => {
     );
   }, [sessions, searchQuery]);
 
+  console.log("ChatPage isHeaderCollapsed:", isHeaderCollapsed);
+
   return (
     <div className='relative flex flex-col md:flex-row h-full w-full font-sans bg-background overflow-hidden text-foreground'>
       <style>{customStyles}</style>
@@ -3770,6 +3772,9 @@ export const ChatPage = () => {
 
             <div className='fixed -bottom-48 -right-48 w-96 h-96 bg-brand/5 rounded-full blur-[120px] pointer-events-none'></div>
             <div className='fixed top-24 left-96 w-64 h-64 bg-brand/5 rounded-full blur-[100px] pointer-events-none'></div>
+            <div className="fixed bottom-4 right-4 z-50 bg-black/90 text-red-500 border border-red-500 rounded p-2 text-xs font-bold pointer-events-none">
+              ChatPage: isHeaderCollapsed={String(isHeaderCollapsed)}
+            </div>
           </main>
 
         </>
