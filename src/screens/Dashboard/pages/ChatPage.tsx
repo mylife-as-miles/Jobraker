@@ -1800,16 +1800,6 @@ export const ChatPage = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "history">("chat");
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
-  const lastScrollTopRef = useRef(0);
-
-  useEffect(() => {
-    const event = new CustomEvent("toggle-dashboard-header", {
-      detail: { collapse: isHeaderCollapsed }
-    });
-    window.dispatchEvent(event);
-  }, [isHeaderCollapsed]);
-
   const [isMultiline, setIsMultiline] = useState(false);
 
   useEffect(() => {
@@ -2625,17 +2615,7 @@ export const ChatPage = () => {
     const distanceFromBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight;
     setShowScrollToBottom(distanceFromBottom > 160);
-
-    const currentScrollTop = container.scrollTop;
-    const isScrollingDown = currentScrollTop > lastScrollTopRef.current;
-
-    if (isScrollingDown && currentScrollTop > 60) {
-      setIsHeaderCollapsed(true);
-    } else if (!isScrollingDown || currentScrollTop <= 10) {
-      setIsHeaderCollapsed(false);
-    }
-    lastScrollTopRef.current = currentScrollTop;
-  }, [setIsHeaderCollapsed]);
+  }, []);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -2686,8 +2666,6 @@ export const ChatPage = () => {
         s.messages.some((m) => m.content.toLowerCase().includes(query)),
     );
   }, [sessions, searchQuery]);
-
-  console.log("ChatPage isHeaderCollapsed:", isHeaderCollapsed);
 
   return (
     <div className='relative flex flex-col md:flex-row h-full w-full font-sans bg-background overflow-hidden text-foreground'>
@@ -2751,9 +2729,7 @@ export const ChatPage = () => {
       {!loadingTier && hasChatAccess && (
         <>
           {isMobile && (
-            <div className={`flex flex-col border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 z-30 shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${
-              isHeaderCollapsed ? "max-h-0 py-0 border-b-0 opacity-0 pointer-events-none" : "max-h-32"
-            }`}>
+            <div className="flex flex-col border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 z-30 shrink-0">
               {/* Mobile Page Header */}
               <div className="h-14 flex items-center justify-between px-4">
                 <div className="flex items-center gap-2">
@@ -2979,9 +2955,7 @@ export const ChatPage = () => {
             }`}
           >
             {!isMobile && (
-              <header className={`relative z-30 flex items-center justify-between px-4 md:px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm transition-all duration-300 ease-in-out overflow-hidden ${
-                isHeaderCollapsed ? "max-h-0 h-0 py-0 border-b-0 opacity-0 pointer-events-none" : "max-h-16 h-16"
-              }`}>
+              <header className='relative z-30 h-16 flex items-center justify-between px-4 md:px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
                 <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
                   <button
                     onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -3772,9 +3746,6 @@ export const ChatPage = () => {
 
             <div className='fixed -bottom-48 -right-48 w-96 h-96 bg-brand/5 rounded-full blur-[120px] pointer-events-none'></div>
             <div className='fixed top-24 left-96 w-64 h-64 bg-brand/5 rounded-full blur-[100px] pointer-events-none'></div>
-            <div className="fixed bottom-4 right-4 z-50 bg-black/90 text-red-500 border border-red-500 rounded p-2 text-xs font-bold pointer-events-none">
-              ChatPage: isHeaderCollapsed={String(isHeaderCollapsed)}
-            </div>
           </main>
 
         </>

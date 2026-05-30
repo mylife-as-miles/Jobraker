@@ -280,21 +280,7 @@ export const Dashboard = (): JSX.Element => {
       : "overview";
   }, [location.pathname]);
 
-  const [hideHeader, setHideHeader] = useState(false);
-  useEffect(() => {
-    const handleToggleHeader = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      setHideHeader(customEvent.detail.collapse);
-    };
-    window.addEventListener("toggle-dashboard-header", handleToggleHeader);
-    return () => {
-      window.removeEventListener("toggle-dashboard-header", handleToggleHeader);
-    };
-  }, []);
 
-  useEffect(() => {
-    setHideHeader(false);
-  }, [currentPage]);
 
   useEffect(() => {
     if (isDesktop && currentPage === "account") {
@@ -644,7 +630,6 @@ export const Dashboard = (): JSX.Element => {
     }
   };
 
-  console.log("Dashboard hideHeader:", hideHeader);
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -861,9 +846,7 @@ export const Dashboard = (): JSX.Element => {
         className={`flex-1 flex flex-col min-w-0 transition-all duration-300  ${isDesktop ? (isCollapsed ? "lg:ml-20" : "lg:ml-72") : ""}`}
       >
         {/* Header - Responsive */}
-        <header className={`sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/40 p-2 sm:p-3 lg:p-4 transition-all duration-300 ease-in-out overflow-hidden ${
-          hideHeader ? "max-h-0 py-0 border-b-0 opacity-0 pointer-events-none" : "max-h-20"
-        }`}>
+        <header className='sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/40 p-2 sm:p-3 lg:p-4'>
           <div className='flex items-center justify-between gap-2'>
             <div className='flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1'>
               {/* Desktop collapse toggle */}
@@ -1211,9 +1194,6 @@ export const Dashboard = (): JSX.Element => {
           />
         )}
         <ExperienceFeedbackPrompt />
-        <div className="fixed bottom-4 left-4 z-50 bg-black/90 text-red-500 border border-red-500 rounded p-2 text-xs font-bold pointer-events-none">
-          Dashboard: hideHeader={String(hideHeader)}
-        </div>
       </div>
     </TooltipProvider>
   );
