@@ -2251,6 +2251,24 @@ async function normalizeCandidate(
     }
   }
 
+  if (!normalized && candidate.description && candidate.description.length >= 250) {
+    normalized = {
+      title: candidate.title,
+      company: candidate.company,
+      location: candidate.location,
+      url: candidate.url,
+      description: candidate.description,
+      posted_at: candidate.posted_at,
+      source_kind: candidate.source_kind,
+      source_confidence: candidate.source_confidence,
+      salary_min: candidate.salary_min ?? null,
+      salary_max: candidate.salary_max ?? null,
+      salary_currency: candidate.salary_currency ?? null,
+      raw_data: candidate.raw_data,
+    };
+    normalizationSource = "search_seed_markdown";
+  }
+
   if (!normalized && options?.allowDirectPageFetch !== false) {
     const direct = await fetchDirectJobPage(canonicalUrl, candidate.company);
     if (direct) {

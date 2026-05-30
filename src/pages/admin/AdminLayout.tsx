@@ -21,6 +21,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { isCurrentUserAdmin, getCurrentUserAdminSubRole } from "../../lib/adminUtils";
 import { Button } from "../../components/ui/button";
+import { createClient } from "../../lib/supabaseClient";
 
 const navigationGroups = [
   {
@@ -89,6 +90,11 @@ export default function AdminLayout() {
   const [checking, setChecking] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
+  const [adminProfile, setAdminProfile] = useState<{
+    fullName: string;
+    avatarUrl: string | null;
+  } | null>(null);
+
   // Check admin status on mount
   useEffect(() => {
     const checkAdminAccess = async () => {
@@ -98,6 +104,38 @@ export default function AdminLayout() {
         if (admin) {
           const role = await getCurrentUserAdminSubRole();
           setSubRole(role);
+
+          const supabase = createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            let fullName = user.user_metadata?.full_name || user.user_metadata?.name || "";
+            let avatarUrl = user.user_metadata?.avatar_url || null;
+
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, avatar_url')
+              .eq('id', user.id)
+              .maybeSingle();
+
+            if (profile) {
+              const nameParts = [profile.first_name, profile.last_name].filter(Boolean);
+              if (nameParts.length > 0) {
+                fullName = nameParts.join(' ');
+              }
+              if (profile.avatar_url) {
+                avatarUrl = profile.avatar_url;
+              }
+            }
+
+            if (!fullName) {
+              fullName = user.email ? user.email.split('@')[0] : "Administrator";
+            }
+
+            setAdminProfile({
+              fullName,
+              avatarUrl
+            });
+          }
         }
       } catch (error) {
         console.error("Error checking admin status:", error);
@@ -323,11 +361,21 @@ export default function AdminLayout() {
         <div className='absolute bottom-0 left-0 right-0 p-4 border-t border-brand/20'>
           <div className='bg-gradient-to-br from-brand/10 to-background/5 rounded-xl p-4 border border-brand/20'>
             <div className='flex items-center gap-3'>
-              <div className='w-10 h-10 rounded-full bg-gradient-to-br from-brand to-background flex items-center justify-center text-black font-bold'>
-                A
-              </div>
+              {adminProfile?.avatarUrl ? (
+                <img
+                  src={adminProfile.avatarUrl}
+                  alt={adminProfile.fullName}
+                  className='w-10 h-10 rounded-full object-cover border border-brand/20'
+                />
+              ) : (
+                <div className='w-10 h-10 rounded-full bg-gradient-to-br from-brand to-background flex items-center justify-center text-black font-bold uppercase'>
+                  {adminProfile?.fullName ? adminProfile.fullName.charAt(0) : "A"}
+                </div>
+              )}
               <div>
-                <p className='text-sm font-medium text-white'>Administrator</p>
+                <p className='text-sm font-medium text-white truncate max-w-[150px]'>
+                  {adminProfile?.fullName || "Administrator"}
+                </p>
                 <p className='text-xs text-gray-400 capitalize'>{subRole ? `${subRole} Admin` : "Super Admin"}</p>
               </div>
             </div>
