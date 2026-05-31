@@ -165,7 +165,7 @@ ${text.slice(0, 14000)}`;
           "You repair malformed JSON. Return only valid JSON with no commentary.",
         includeTools: false,
         thinkingLevel: "LOW",
-      }),
+      }, model),
       contents: [{ role: "user", parts: [{ text: repairPrompt }] }],
     }),
   );
@@ -298,7 +298,7 @@ serve(async (req) => {
             responseMimeType: "application/json",
             includeTools: false,
             thinkingLevel: "LOW",
-          }),
+          }, model),
           contents: [{ role: 'user', parts: [{ text: prompt }] }]
       })),
     );

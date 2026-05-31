@@ -1927,7 +1927,7 @@ const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "run_job_search",
     description:
-      "Search for job listings based on a query and location. Can focus on public sources like YC Jobs, X/Twitter public posts, Reddit, Hacker News, ATS boards, or general web. This persists discovered jobs to the user's queue and charges normal job-search credits.",
+      "Search for job listings based on a query and location. This runs asynchronously in the background and returns a taskId immediately, allowing you to tell the user that the search task has been queued and that they can track it using the header/progress UI.",
     parameters: {
       type: "object",
       properties: {
@@ -1948,7 +1948,7 @@ const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "search_public_job_sources",
     description:
-      "Scrape/search public job leads from selected public sources such as YC Jobs, X/Twitter public posts, Reddit, Hacker News Who's Hiring, ATS boards, or general web. Public pages only: no login bypass, support private scraping if requested. Persists discovered jobs for review and charges normal job-search credits.",
+      "Scrape/search public job leads from selected public sources such as YC Jobs, X/Twitter public posts, Reddit, Hacker News Who's Hiring, ATS boards, or general web. Public pages only: no login bypass, support private scraping if requested. This runs asynchronously in the background and returns a taskId immediately, allowing you to tell the user that the search task has been queued and that they can track it using the header/progress UI.",
     parameters: {
       type: "object",
       properties: {
@@ -3317,6 +3317,7 @@ Edge functions:
                         sources: asStringList(args.sources),
                         locationScope: asString(args.location_scope) || asString(args.locationScope) || undefined,
                         targetDomains: requestedCareerSourceDomains,
+                        async: true,
                       },
                     });
                   } else if (fn.name === "search_public_job_sources") {
@@ -3332,6 +3333,7 @@ Edge functions:
                         sources: sources.length ? sources : ["yc", "x", "reddit", "hackernews", "ats"],
                         locationScope: asString(args.location_scope) || asString(args.locationScope) || "global",
                         targetDomains: requestedCareerSourceDomains,
+                        async: true,
                       },
                     });
                   } else if (fn.name === "get_credits_balance") {

@@ -28,6 +28,7 @@ import {
   enforceFeatureRateLimit,
   recordFeatureUsage,
 } from "../_shared/feature-limits.ts";
+import { isLikelyAggregateJobPage } from "../_shared/discovery-hybrid.ts";
 
 interface IntakeJobUrlRequest {
   url?: string;
@@ -332,7 +333,7 @@ ${clipText(markdown, 18_000)}
             "You are a structured extraction engine for job postings. Respond with JSON only.",
           includeTools: false,
           thinkingLevel: "LOW",
-        }),
+        }, model),
         contents: [{ role: "user", parts: [{ text: prompt }] }],
       })
     );
@@ -425,7 +426,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (isSearchUrl(normalizedUrl)) {
+    if (isSearchUrl(normalizedUrl) || isLikelyAggregateJobPage(normalizedUrl)) {
       return new Response(
         JSON.stringify({
           error:

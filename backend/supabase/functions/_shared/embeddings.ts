@@ -9,9 +9,9 @@ const getEmbeddingModel = (options?: EmbedOptions): string => {
   
   // Safe Deno environment check (runs in Edge Functions)
   try {
-    return Deno.env.get("GEMINI_EMBEDDING_MODEL") || "gemini-embedding-2";
+    return Deno.env.get("GEMINI_EMBEDDING_MODEL") || "text-embedding-004";
   } catch {
-    return "gemini-embedding-2"; // Fallback for local testing if env is not accessible
+    return "text-embedding-004"; // Fallback for local testing if env is not accessible
   }
 };
 
@@ -37,6 +37,9 @@ export async function embedText(text: string, options?: EmbedOptions): Promise<n
     const response = await ai.models.embedContent({
       model,
       contents: cleaned,
+      config: {
+        outputDimensionality: 768,
+      },
     });
 
     if (Array.isArray(response?.embeddings) && response.embeddings[0]?.values) {
@@ -71,6 +74,9 @@ export async function embedBatch(texts: string[], options?: EmbedOptions): Promi
       const response = await ai.models.embedContent({
         model,
         contents: slice,
+        config: {
+          outputDimensionality: 768,
+        },
       });
 
       // If batch output, values might be nested, or returned as an array of embeddings

@@ -132,7 +132,7 @@ ${JSON.stringify(jobPayload)}`;
             "You output only JSON. Never include markdown fences. Be conservative—prefer fewer high-confidence matches.",
           responseMimeType: "application/json",
           thinkingLevel: "LOW",
-        }),
+        }, model),
         contents: [{ role: "user", parts: [{ text: prompt }] }],
       })
     );

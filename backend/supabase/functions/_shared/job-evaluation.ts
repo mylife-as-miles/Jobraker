@@ -645,7 +645,7 @@ export async function evaluateAndPersistJobFit(
             "You are Jobraker's structured evaluation engine. Reply with JSON only.",
           includeTools: false,
           thinkingLevel: "HIGH",
-        }),
+        }, model),
         contents: [{ role: "user", parts: [{ text: prompt }] }],
       }),
     );

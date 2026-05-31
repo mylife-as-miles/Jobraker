@@ -209,10 +209,10 @@ const KNOWN_ATS_HINTS: Array<{ kind: SourceKind; match: RegExp }> = [
 
 const MAX_FIRECRAWL_SEEDS = 8;
 const MAX_FIRECRAWL_RESULTS_PER_SEED = 12;
-const MAX_RAW_CANDIDATES = 48;
-const MAX_DIRECT_FETCHES = 12;
-const MAX_VERIFICATION_POOL = 16;
-const FIRECRAWL_SEARCH_TIMEOUT_MS = 60000;
+const MAX_RAW_CANDIDATES = 24;
+const MAX_DIRECT_FETCHES = 6;
+const MAX_VERIFICATION_POOL = 8;
+const FIRECRAWL_SEARCH_TIMEOUT_MS = 20000;
 const PROVIDER_LOOKUP_TIMEOUT_MS = 5000;
 const DIRECT_PAGE_FETCH_TIMEOUT_MS = 3500;
 const URL_VERIFY_TIMEOUT_MS = 2500;
@@ -574,7 +574,8 @@ const isKnownJobDetailUrl = (url: string): boolean => {
   if (/lever\.co$/i.test(host) && path.split("/").filter(Boolean).length >= 2) return true;
   if (/ashbyhq\.com|jobs\.ashbyhq\.com/i.test(host) && path.split("/").filter(Boolean).length >= 2) return true;
   if (/workable\.com/i.test(host) && /\/j\/|\/jobs?\//i.test(path)) return true;
-  if (/ycombinator\.com|workatastartup\.com/i.test(host) && /\/jobs?\//i.test(path)) return true;
+  if (/ycombinator\.com/i.test(host) && /\/companies\/[^/]+\/jobs?\//i.test(path)) return true;
+  if (/workatastartup\.com/i.test(host) && /\/jobs?\/\d+/i.test(path)) return true;
   if (/jobs\.micro1\.ai/i.test(host) && path.split("/").filter(Boolean).length >= 1) return true;
   if (/weworkremotely\.com|remoteok\.com|remotive\.com|jobicy\.com|workingnomads\.com/i.test(host) && /\/(remote-)?jobs?\//i.test(path)) return true;
   if (/builtin\.com|startup\.jobs|cryptojobslist\.com|nodesk\.co|remote\.co/i.test(host) && /\/jobs?\//i.test(path) && path.split("/").filter(Boolean).length >= 2) return true;
@@ -584,7 +585,7 @@ const isKnownJobDetailUrl = (url: string): boolean => {
     !/\/(jobs?|careers?|openings?|positions?|vacancies?)\/?$/i.test(path);
 };
 
-const isLikelyAggregateJobPage = (
+export const isLikelyAggregateJobPage = (
   url: string,
   title?: string | null,
   description?: string | null,
@@ -594,7 +595,7 @@ const isLikelyAggregateJobPage = (
   const text = `${title || ""} ${description || ""}`.toLowerCase();
 
   if (isKnownJobDetailUrl(url)) return false;
-  if (/\/(search|job-search|jobs-search|find-jobs|browse|companies|categories)(\/|$)/i.test(path)) return true;
+  if (/\/(search|job-search|jobs-search|find-jobs|browse|companies|categories|jobs?\/role)(\/|$)/i.test(path)) return true;
   if (/\/(jobs?|careers?|openings?|positions?|vacancies?|remote-jobs)\/?$/i.test(path)) return true;
   if (/\b\d+\s+(?:fully\s+remote\s+)?[\w\s()/-]{2,80}\s+jobs?\s+in\b/i.test(text)) return true;
   if (/\b(jobs|vacancies|openings)\s+in\s+(the\s+best\s+)?companies\b/i.test(text)) return true;
@@ -1143,7 +1144,7 @@ function buildSearchSeeds(
   }
 
   if (targetDomains.length === 0 && wantsSource("web")) {
-    for (const company of context.trackedCompanies.slice(0, 4)) {
+    for (const company of context.trackedCompanies.slice(0, 2)) {
       const domain =
         normalizeDomain(company.domain) || normalizeDomain(company.careers_url);
       seeds.push({
@@ -1156,7 +1157,7 @@ function buildSearchSeeds(
       });
     }
 
-    for (const domain of context.settings.allowed_domains.slice(0, 3)) {
+    for (const domain of context.settings.allowed_domains.slice(0, 1)) {
       seeds.push({
         type: "allowed_domain",
         query: buildDomainQuery(searchQuery, location, domain),
@@ -1166,7 +1167,7 @@ function buildSearchSeeds(
       });
     }
 
-    for (const domain of context.settings.enabled_default_sources.slice(0, 3)) {
+    for (const domain of context.settings.enabled_default_sources.slice(0, 1)) {
       seeds.push({
         type: "default_source",
         query: buildDomainQuery(searchQuery, location, domain),
@@ -1176,7 +1177,7 @@ function buildSearchSeeds(
       });
     }
 
-    for (const domain of credentialDomains.slice(0, 2)) {
+    for (const domain of credentialDomains.slice(0, 1)) {
       seeds.push({
         type: "credential_domain",
         query: buildDomainQuery(searchQuery, location, domain),
@@ -1653,7 +1654,7 @@ async function fetchFirecrawlJobExtraction(
         blockAds: true,
       },
       undefined,
-      25000,
+      12000,
     );
 
     const data = toRecord(response.data);

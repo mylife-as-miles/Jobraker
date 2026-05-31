@@ -8,10 +8,10 @@ SELECT
   metadata 
 FROM function_logs 
 ORDER BY timestamp DESC 
-LIMIT 200
+LIMIT 1000
 `;
 
-const start = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+const start = new Date(Date.now() - 180 * 60 * 1000).toISOString();
 const end = new Date().toISOString();
 
 const url = `https://api.supabase.com/v1/projects/${ref}/analytics/endpoints/logs.all?sql=${encodeURIComponent(sql)}&iso_timestamp_start=${encodeURIComponent(start)}&iso_timestamp_end=${encodeURIComponent(end)}`;

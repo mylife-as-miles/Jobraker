@@ -147,13 +147,21 @@ export const GEMINI_TOOLS = [
 ];
 
 // Standard config with thinking enabled
-export const createGeminiConfig = (options?: {
+export const createGeminiConfig = (
+  options?: {
     systemInstruction?: string;
     responseMimeType?: string;
     includeTools?: boolean;
     thinkingLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
-}) => ({
-    ...(options?.thinkingLevel ? {
+  },
+  modelName?: string
+) => {
+  const supportsThinking = modelName ? (
+    modelName.toLowerCase().includes("thinking")
+  ) : false;
+
+  return {
+    ...(options?.thinkingLevel && supportsThinking ? {
       thinkingConfig: {
         thinkingLevel: options.thinkingLevel,
       }
@@ -166,7 +174,8 @@ export const createGeminiConfig = (options?: {
         parts: [{ text: options.systemInstruction }]
       }
     } : {}),
-});
+  };
+};
 
 /**
  * Safely extract text from a Gemini generateContent response.
@@ -280,7 +289,7 @@ export async function generateGeminiContent(
         config: {
           ...createGeminiConfig({
             responseMimeType: responseMimeType || "text/plain",
-          }),
+          }, model),
           ...(typeof options.temperature === "number"
             ? { temperature: options.temperature }
             : {}),
