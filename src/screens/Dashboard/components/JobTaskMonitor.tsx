@@ -138,7 +138,7 @@ export function JobTaskMonitor({
             Jobraker task registry
           </div>
           <p className='text-xs text-foreground/50'>
-            Live progress for Scout, cleanup, and re-evaluation tasks.
+            Live progress for Scout and cleanup tasks.
           </p>
         </div>
       </div>

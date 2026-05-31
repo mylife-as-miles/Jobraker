@@ -35,6 +35,38 @@ export interface HeartbeatRecommendation {
   actionPrompt: string;
 }
 
+const formatHeartbeatCheckupToMarkdown = (
+  checks: HeartbeatCheck[],
+  recommendations: HeartbeatRecommendation[],
+) => {
+  let md = `### 💓 Jobraker Heartbeat Checkup\n\n`;
+
+  md += `#### 📋 System Status & Checklist\n`;
+  for (const c of checks) {
+    const statusIcon =
+      c.status === "success"
+        ? "🟢"
+        : c.status === "warning"
+          ? "🟡"
+          : c.status === "error"
+            ? "🔴"
+            : "🔵";
+    md += `- **${statusIcon} ${c.name}**: ${c.details}\n`;
+  }
+
+  md += `\n#### 💡 Proactive Recommendations\n`;
+  if (recommendations.length > 0) {
+    for (const r of recommendations) {
+      md += `- **${r.companyName}** (${r.role}): ${r.description}\n`;
+      md += `  *Suggested Action:* \`${r.actionPrompt}\`\n`;
+    }
+  } else {
+    md += `Everything looks up to date! No pending follow-up recommendations at this time.`;
+  }
+
+  return md;
+};
+
 export const heartbeatCheckupSkill: JobrakerChatSkill = {
   id: "heartbeat",
   name: "Heartbeat Checkup",
@@ -164,7 +196,7 @@ export const heartbeatCheckupSkill: JobrakerChatSkill = {
 
     return {
       status: "completed",
-      content: "Proactive Heartbeat Checkup completed successfully.",
+      content: formatHeartbeatCheckupToMarkdown(checks, recommendations),
       output: {
         checks,
         recommendations,

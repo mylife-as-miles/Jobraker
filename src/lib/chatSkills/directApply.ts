@@ -426,6 +426,54 @@ const buildClarificationOutput = (
   },
 });
 
+const formatDirectApplyToMarkdown = (
+  results: DirectApplyResult[],
+  role: string,
+  location: string,
+) => {
+  let md = `### 🎯 Direct Apply Results\n`;
+  md += `I found **${results.length}** possible direct application channels for the role **${role}** ${location ? `in ${location}` : ""}.\n\n`;
+
+  md += `| Company | Channel | Confidence | Recommended Action |\n`;
+  md += `| :--- | :--- | :--- | :--- |\n`;
+  for (const r of results) {
+    const channelLabel =
+      r.channelType === "recruitment_email"
+        ? `📧 ${r.channelValue}`
+        : `🔗 [Careers Page](${r.channelValue})`;
+    const confidenceText =
+      r.confidence === "high"
+        ? "🟢 High"
+        : r.confidence === "medium"
+          ? "🟡 Medium"
+          : "🔴 Low";
+    md += `| **${r.companyName}** | ${channelLabel} | ${confidenceText} (${r.confidenceScore}%) | ${r.recommendedAction} |\n`;
+  }
+
+  md += `\n### ✉️ Tailored Outreach Drafts\n`;
+  const emailDrafts = results.filter(
+    (r) => r.channelType === "recruitment_email" || r.draftPreview,
+  );
+  if (emailDrafts.length > 0) {
+    for (const r of emailDrafts) {
+      if (r.draftPreview) {
+        md += `\n#### 🏢 **Draft for ${r.companyName}** (${r.channelValue})\n`;
+        md += `* **Subject**: \`${r.draftPreview.subject}\`\n`;
+        md += `* **Body**:\n\`\`\`text\n${r.draftPreview.body}\n\`\`\`\n`;
+
+        md += `*To create this draft in your connected Gmail, you can reply with:*\n`;
+        md += `👉 \`Create Gmail draft for ${r.companyName}\`\n`;
+        md += `*To send the email directly, reply with:*\n`;
+        md += `👉 \`Send approved email to ${r.companyName}\`\n`;
+      }
+    }
+  } else {
+    md += `*No direct recruitment emails were found, so outreach drafts could not be prepared automatically. Please visit the careers pages listed above to apply.*`;
+  }
+
+  return md;
+};
+
 export const directApplySkill: JobrakerChatSkill = {
   id: "direct_apply",
   name: "Direct Apply",
@@ -491,8 +539,13 @@ export const directApplySkill: JobrakerChatSkill = {
       const output = buildClarificationOutput(completedProgress);
       return {
         status: "completed",
-        content:
-          "Direct Apply needs a target company or role before it can prepare safe direct application channels.",
+        content: `### 🎯 Direct Apply
+Direct Apply needs a target company or role before it can prepare safe direct application channels.
+
+**Try one of these examples:**
+- \`@DirectApply apply to International Breweries and Digital Virgo for Operations & Systems Project Manager roles\`
+- \`/direct-apply apply to Courted using the Architectural cover letter\`
+- \`@DirectApply find verified direct application channels for BetterWorks and prepare drafts for review\``,
         output: output as unknown as Record<string, unknown>,
       };
     }
@@ -571,7 +624,7 @@ export const directApplySkill: JobrakerChatSkill = {
 
     return {
       status: "needs_approval",
-      content: `Direct Apply found ${results.length} possible direct application channels and prepared connected-inbox actions for review.`,
+      content: formatDirectApplyToMarkdown(results, role, location),
       output: output as unknown as Record<string, unknown>,
     };
   },

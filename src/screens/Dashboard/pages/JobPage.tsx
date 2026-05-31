@@ -596,9 +596,23 @@ const composeCoverLetterPayload = (
 ): string | undefined => {
   if (!entry?.data) return undefined;
   const data = entry.data as Record<string, unknown>;
-  const read = (key: string): string | undefined => {
-    const value = data[key];
-    return typeof value === "string" ? value : undefined;
+
+  // Helper to read nested or flat string values
+  const getVal = (nestedObjKey: string, flatKey: string, nestedSubKey: string): string | undefined => {
+    const obj = data[nestedObjKey];
+    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+      const val = (obj as Record<string, unknown>)[nestedSubKey];
+      if (typeof val === "string") return val;
+    }
+    const flatVal = data[flatKey];
+    if (typeof flatVal === "string") return flatVal;
+    // Fallback: try nestedObjKey.nestedSubKey in case it was stored/flattened differently
+    const altObj = data[nestedObjKey];
+    if (altObj && typeof altObj === "object" && !Array.isArray(altObj)) {
+      const val = (altObj as Record<string, unknown>)[flatKey];
+      if (typeof val === "string") return val;
+    }
+    return undefined;
   };
 
   const lines: string[] = [];
@@ -611,16 +625,15 @@ const composeCoverLetterPayload = (
     if (lines.length > 0 && lines[lines.length - 1] !== "") lines.push("");
   };
 
-  const senderKeys = [
-    "senderName",
-    "senderPhone",
-    "senderEmail",
-    "senderAddress",
-  ];
+  // 1. Sender Section
+  const senderName = getVal("sender", "senderName", "name");
+  const senderPhone = getVal("sender", "senderPhone", "phone");
+  const senderEmail = getVal("sender", "senderEmail", "email");
+  const senderAddress = getVal("sender", "senderAddress", "address");
+
   const senderLines: string[] = [];
-  senderKeys.forEach((key) => {
-    const val = read(key);
-    if (typeof val === "string") {
+  [senderName, senderPhone, senderEmail, senderAddress].forEach((val) => {
+    if (val) {
       const trimmed = val.trim();
       if (trimmed.length > 0) senderLines.push(trimmed);
     }
@@ -630,7 +643,8 @@ const composeCoverLetterPayload = (
     pushSeparator();
   }
 
-  const dateValue = read("date");
+  // 2. Date Section
+  const dateValue = getVal("content", "date", "date");
   if (dateValue) {
     const parsed = new Date(dateValue);
     const formatted = Number.isNaN(parsed.valueOf())
@@ -640,14 +654,15 @@ const composeCoverLetterPayload = (
     pushSeparator();
   }
 
+  // 3. Recipient Section
+  const recipientName = getVal("recipient", "recipient", "name");
+  const recipientTitle = getVal("recipient", "recipientTitle", "title");
+  const recipientCompany = getVal("recipient", "company", "company") || (typeof data.company === "string" ? data.company : undefined);
+  const recipientAddress = getVal("recipient", "recipientAddress", "address");
+
   const recipientLines: string[] = [];
-  [
-    read("recipient"),
-    read("recipientTitle"),
-    read("company") ?? entry.data?.company,
-    read("recipientAddress"),
-  ].forEach((val) => {
-    if (typeof val === "string") {
+  [recipientName, recipientTitle, recipientCompany, recipientAddress].forEach((val) => {
+    if (val) {
       const trimmed = val.trim();
       if (trimmed.length > 0) recipientLines.push(trimmed);
     }
@@ -657,8 +672,9 @@ const composeCoverLetterPayload = (
     pushSeparator();
   }
 
-  const subject = read("subject");
-  if (typeof subject === "string") {
+  // 4. Subject Section
+  const subject = getVal("content", "subject", "subject");
+  if (subject) {
     const trimmedSubject = subject.trim();
     if (trimmedSubject.length > 0) {
       pushLine(`Subject: ${trimmedSubject}`);
@@ -666,8 +682,9 @@ const composeCoverLetterPayload = (
     }
   }
 
-  const salutation = read("salutation");
-  if (typeof salutation === "string") {
+  // 5. Salutation Section
+  const salutation = getVal("content", "salutation", "salutation");
+  if (salutation) {
     const trimmedSalutation = salutation.trim();
     if (trimmedSalutation.length > 0) {
       pushLine(trimmedSalutation);
@@ -675,24 +692,54 @@ const composeCoverLetterPayload = (
     }
   }
 
-  const paragraphs = Array.isArray(data.paragraphs)
-    ? (data.paragraphs as unknown[])
+  // 6. Body Paragraphs Section
+  let paragraphs: string[] = [];
+  const contentObj = data.content;
+  if (contentObj && typeof contentObj === "object" && !Array.isArray(contentObj)) {
+    const nestedParagraphs = (contentObj as Record<string, unknown>).paragraphs;
+    if (Array.isArray(nestedParagraphs)) {
+      paragraphs = nestedParagraphs
         .filter((p): p is string => typeof p === "string")
         .map((p) => p.trim())
-        .filter((p) => p.length > 0)
-    : [];
-  const body = read("content");
-  if (typeof body === "string") {
-    const trimmedBody = body.trim();
-    if (trimmedBody.length > 0) {
-      pushLine(trimmedBody);
+        .filter((p) => p.length > 0);
     }
+  }
+  if (!paragraphs.length && Array.isArray(data.paragraphs)) {
+    paragraphs = (data.paragraphs as unknown[])
+      .filter((p): p is string => typeof p === "string")
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+  }
+
+  let body: string | undefined;
+  if (contentObj && typeof contentObj === "object" && !Array.isArray(contentObj)) {
+    const nestedRawBody = (contentObj as Record<string, unknown>).rawBody;
+    if (typeof nestedRawBody === "string") {
+      body = nestedRawBody;
+    }
+  }
+  if (!body) {
+    const flatContent = data.content;
+    if (typeof flatContent === "string") {
+      body = flatContent;
+    }
+  }
+  if (!body) {
+    const rawBodyVal = data.rawBody;
+    if (typeof rawBodyVal === "string") {
+      body = rawBodyVal;
+    }
+  }
+
+  if (body && body.trim().length > 0) {
+    pushLine(body.trim());
   } else if (paragraphs.length) {
     pushLine(paragraphs.join("\n\n"));
   }
 
-  const closing = read("closing");
-  if (typeof closing === "string") {
+  // 7. Closing Section
+  const closing = getVal("content", "closing", "closing");
+  if (closing) {
     const trimmedClosing = closing.trim();
     if (trimmedClosing.length > 0) {
       pushSeparator();
@@ -700,8 +747,9 @@ const composeCoverLetterPayload = (
     }
   }
 
-  const signature = read("signatureName") || read("senderName");
-  if (typeof signature === "string") {
+  // 8. Signature Section
+  const signature = getVal("content", "signature", "signature") || getVal("content", "signatureName", "signature") || getVal("sender", "senderName", "name");
+  if (signature) {
     const trimmedSignature = signature.trim();
     if (trimmedSignature.length > 0) {
       pushLine(trimmedSignature);
@@ -1236,10 +1284,6 @@ export const JobPage = (): JSX.Element => {
   const hasPipelineCleanupAccess = hasFeatureAccess(
     subscriptionTier,
     "pipeline_cleanup",
-  );
-  const hasJobReevaluationAccess = hasFeatureAccess(
-    subscriptionTier,
-    "job_reevaluation",
   );
 
   // AI Decision Boundary states
@@ -1951,51 +1995,147 @@ export const JobPage = (): JSX.Element => {
     }
   };
 
-  const loadCoverLetterLibrary = useCallback(() => {
+  const loadCoverLetterLibrary = useCallback(async () => {
     if (typeof window === "undefined") return;
     try {
-      const raw = window.localStorage.getItem(COVER_LETTER_LIBRARY_KEY);
       let entries: CoverLetterLibraryEntry[] = [];
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          entries = parsed.filter((item): item is CoverLetterLibraryEntry =>
-            Boolean(item && typeof item.id === "string"),
-          );
-        }
-      }
-      if (!entries.length) {
-        const draftRaw =
-          window.localStorage.getItem(COVER_LETTER_DRAFT_KEY) ||
-          window.localStorage.getItem("jr.coverLetter.draft.v1");
-        if (draftRaw) {
-          try {
-            const parsedDraft = JSON.parse(draftRaw);
-            const draftName =
-              String(
-                parsedDraft?.subject ||
-                  parsedDraft?.role ||
-                  "Latest cover letter",
-              ).trim() || "Latest cover letter";
-            const draftUpdatedAt =
-              parsedDraft?.savedAt || new Date().toISOString();
-            entries = [
-              {
-                id: "__draft__",
-                name: draftName,
-                updatedAt: draftUpdatedAt,
+
+      // 1. Fetch from Supabase
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data, error } = await supabase
+            .from("cover_letters")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false });
+
+          if (!error && data) {
+            entries = data.map((record) => {
+              const payload = record.data;
+              if (
+                payload &&
+                typeof payload === "object" &&
+                !Array.isArray(payload) &&
+                Object.keys(payload).length > 2
+              ) {
+                return {
+                  id: record.id,
+                  name: record.name || (payload as any).title || "Untitled Cover Letter",
+                  updatedAt: record.updated_at || record.created_at,
+                  data: payload,
+                };
+              }
+              const contentStr = record.content || "";
+              const paragraphs =
+                typeof contentStr === "string" && contentStr.trim()
+                  ? contentStr
+                      .split(/\n\s*\n+/)
+                      .map((p: any) => p.trim())
+                      .filter(Boolean)
+                  : [];
+              return {
+                id: record.id,
+                name: record.name || "Untitled Cover Letter",
+                updatedAt: record.updated_at || record.created_at,
                 data: {
-                  role: parsedDraft?.role,
-                  company: parsedDraft?.company,
+                  role: record.role || "",
+                  company: record.company || "",
+                  sender: {
+                    name: record.sender_name || "",
+                    email: record.sender_email || "",
+                    phone: record.sender_phone || "",
+                    address: record.sender_address || "",
+                  },
+                  recipient: {
+                    name: record.recipient || "",
+                    title: record.recipient_title || "",
+                    company: record.company || "",
+                    address: record.recipient_address || "",
+                  },
+                  content: {
+                    date: record.date || new Date(record.created_at || Date.now()).toISOString().slice(0, 10),
+                    subject: record.subject || (record.role ? `Application for ${record.role}` : ""),
+                    salutation: record.salutation || "Dear Hiring Manager,",
+                    paragraphs: paragraphs,
+                    closing: record.closing || "Best regards,",
+                    signature: record.signature_name || "",
+                    rawBody: contentStr,
+                  },
+                  typography: {
+                    fontSize: record.font_size || 16,
+                  },
                 },
-                draft: true,
-              },
-            ];
-          } catch {
-            // ignore malformed drafts
+              };
+            });
           }
         }
+      } catch (dbErr) {
+        console.error("Error loading cover letters from database", dbErr);
       }
+
+      // 2. Append/fallback to local storage draft
+      const draftRaw =
+        window.localStorage.getItem(COVER_LETTER_DRAFT_KEY) ||
+        window.localStorage.getItem("jr.coverLetter.draft.v1");
+      if (draftRaw) {
+        try {
+          const parsedDraft = JSON.parse(draftRaw);
+          const draftName =
+            String(
+              parsedDraft?.subject ||
+                parsedDraft?.role ||
+                "Latest cover letter",
+            ).trim() || "Latest cover letter";
+          const draftUpdatedAt =
+            parsedDraft?.savedAt || new Date().toISOString();
+
+          if (!entries.some((e) => e.id === "__draft__")) {
+            const paragraphs = Array.isArray(parsedDraft?.content?.paragraphs)
+              ? parsedDraft.content.paragraphs
+              : typeof parsedDraft?.content?.rawBody === "string" && parsedDraft.content.rawBody.trim()
+                ? parsedDraft.content.rawBody.split(/\n\s*\n+/).map((p: any) => p.trim()).filter(Boolean)
+                : [];
+            entries.push({
+              id: "__draft__",
+              name: draftName + " (Local Draft)",
+              updatedAt: draftUpdatedAt,
+              data: {
+                role: parsedDraft?.role || "",
+                company: parsedDraft?.company || "",
+                sender: parsedDraft?.sender || {
+                  name: parsedDraft?.senderName || "",
+                  email: parsedDraft?.senderEmail || "",
+                  phone: parsedDraft?.senderPhone || "",
+                  address: parsedDraft?.senderAddress || "",
+                },
+                recipient: parsedDraft?.recipient || {
+                  name: parsedDraft?.recipientName || "",
+                  title: parsedDraft?.recipientTitle || "",
+                  company: parsedDraft?.company || "",
+                  address: parsedDraft?.recipientAddress || "",
+                },
+                content: parsedDraft?.content || {
+                  date: parsedDraft?.date || new Date().toISOString().slice(0, 10),
+                  subject: parsedDraft?.subject || "",
+                  salutation: parsedDraft?.salutation || "Dear Hiring Manager,",
+                  paragraphs: paragraphs,
+                  closing: parsedDraft?.closing || "Best regards,",
+                  signature: parsedDraft?.signatureName || "",
+                  rawBody: parsedDraft?.contentString || "",
+                },
+                typography: parsedDraft?.typography || {
+                  fontSize: parsedDraft?.fontSize || 16,
+                },
+              },
+              draft: true,
+            });
+          }
+        } catch {
+          // ignore malformed drafts
+        }
+      }
+
       setCoverLetterLibrary(entries);
       setSelectedCoverLetterId((prev) => {
         if (prev && entries.some((entry) => entry.id === prev)) return prev;
@@ -2008,7 +2148,7 @@ export const JobPage = (): JSX.Element => {
       setCoverLetterLibrary([]);
       setSelectedCoverLetterId(null);
     }
-  }, []);
+  }, [setCoverLetterLibrary, setSelectedCoverLetterId]);
 
   // Real step updates occur at key phases of the flow; no cycling needed now.
 
@@ -2239,50 +2379,6 @@ export const JobPage = (): JSX.Element => {
     [incrementalMode, isMobile],
   );
 
-  const runBackgroundEvaluations = useCallback(async (options?: {
-    jobIds?: string[];
-  }) => {
-    if (!hasJobEvaluationAccess) return;
-
-    // Check if there is already an active task running
-    const hasActiveTask = jobTasks.some(
-      (task) =>
-        (task.type === "job_reevaluation" || task.type === "scout_search") &&
-        (task.status === "queued" || task.status === "running"),
-    );
-    if (hasActiveTask) return;
-
-    const targetJobIds = options?.jobIds?.length
-      ? options.jobIds
-      : jobsRef.current
-          .filter(
-            (job) =>
-              job.canonical_status === "discovered" &&
-              !job.evaluation_summary?.evaluation_id &&
-              typeof job.description === "string" &&
-              job.description.trim().length > 0,
-          )
-          .map((job) => job.id);
-
-    if (targetJobIds.length === 0) return;
-
-    try {
-      const task = await createTask({
-        type: "job_reevaluation",
-        title: `Auto-evaluation: ${targetJobIds.length} jobs`,
-        message: "Queued for background AI evaluation.",
-        progressTotal: targetJobIds.length,
-        params: { job_ids: targetJobIds },
-      });
-      activeTaskIdRef.current = task.id;
-    } catch (err) {
-      console.warn("Failed to auto-enqueue evaluations", err);
-    }
-  }, [hasJobEvaluationAccess, jobTasks, createTask]);
-
-  useEffect(() => {
-    void runBackgroundEvaluations();
-  }, [jobs, runBackgroundEvaluations]);
 
   const executeClearAllJobs = useCallback(async () => {
     setConfirmDeleteOpen(false);
@@ -3918,61 +4014,6 @@ export const JobPage = (): JSX.Element => {
     toastError,
   ]);
 
-  const reevaluateVisibleJobs = useCallback(async () => {
-    if (!hasJobReevaluationAccess) {
-      toastError(
-        "Upgrade Required",
-        "Bulk re-evaluation is available on Pro and above.",
-      );
-      return;
-    }
-    const visibleJobIds = sortedJobs.map((job) => job.id);
-    if (!visibleJobIds.length) {
-      safeInfo("No jobs to re-evaluate", "Search or load jobs first.");
-      return;
-    }
-    backgroundEvaluationFailedRef.current.clear();
-    jobsRef.current = jobs.map((job) =>
-      visibleJobIds.includes(job.id)
-        ? {
-            ...job,
-            canonical_status: "discovered",
-            evaluation_summary: null,
-          }
-        : job,
-    );
-    setJobs(jobsRef.current);
-    try {
-      const task = await createTask({
-        type: "job_reevaluation",
-        title: "Re-evaluate visible jobs",
-        message: `${visibleJobIds.length} jobs queued for fresh evaluation.`,
-        progressTotal: visibleJobIds.length,
-        params: { job_ids: visibleJobIds },
-      });
-      activeTaskIdRef.current = task.id;
-      canceledTaskIdsRef.current.delete(task.id);
-
-      safeInfo(
-        "Re-evaluation started",
-        `${visibleJobIds.length} jobs are being re-evaluated in the background.`,
-      );
-    } catch (evaluationTaskError) {
-      const message =
-        evaluationTaskError instanceof Error
-          ? evaluationTaskError.message
-          : "Re-evaluation failed.";
-      toastError("Re-evaluation failed", message);
-    }
-  }, [
-    createTask,
-    hasJobReevaluationAccess,
-    jobs,
-    safeInfo,
-    sortedJobs,
-    toastError,
-  ]);
-
   const handleStopJobTask = useCallback(
     (task: JobIntelligenceTask) => {
       canceledTaskIdsRef.current.add(task.id);
@@ -4007,14 +4048,10 @@ export const JobPage = (): JSX.Element => {
         void cleanLowQualityJobs();
         return;
       }
-      if (task.type === "job_reevaluation") {
-        void reevaluateVisibleJobs();
-      }
     },
     [
       cleanLowQualityJobs,
       populateQueue,
-      reevaluateVisibleJobs,
       searchQuery,
       selectedLocation,
     ],
@@ -4303,15 +4340,6 @@ export const JobPage = (): JSX.Element => {
                     disabled={jobs.length === 0}
                   >
                     Export
-                  </Button>
-                  <Button
-                    variant='ghost'
-                    onClick={reevaluateVisibleJobs}
-                    className='relative flex-1 sm:flex-none overflow-hidden border border-foreground/20 text-foreground/75 bg-foreground/5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-sm sm:whitespace-nowrap hover:border-brand/40 hover:text-brand'
-                    title='Re-evaluate visible jobs'
-                    disabled={jobs.length === 0 || !hasJobEvaluationAccess}
-                  >
-                    Re-evaluate
                   </Button>
                   <Button
                     variant='ghost'

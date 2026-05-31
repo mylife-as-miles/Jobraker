@@ -57,6 +57,36 @@ const KNOWN_SCOUT_CONTACTS: Record<
   },
 };
 
+const formatCompanyScoutToMarkdown = (results: any[]) => {
+  let md = `### 🔍 Company Scout Results\n`;
+  md += `I investigated **${results.length}** target companies to locate hiring channels:\n\n`;
+
+  md += `| Company | Careers Page | Contact Email | Confidence | Source |\n`;
+  md += `| :--- | :--- | :--- | :--- | :--- |\n`;
+  for (const r of results) {
+    const pageLink = r.careersPageUrl
+      ? `🔗 [Careers Page](${r.careersPageUrl})`
+      : "N/A";
+    const emailText = r.contactEmail ? `📧 ${r.contactEmail}` : "N/A";
+    const confidenceText =
+      r.confidence === "high"
+        ? "🟢 High"
+        : r.confidence === "medium"
+          ? "🟡 Medium"
+          : "🔴 Low";
+    md += `| **${r.companyName}** | ${pageLink} | ${emailText} | ${confidenceText} | ${r.foundSource} |\n`;
+  }
+
+  md += `\n**Public Contact Channels:**\n`;
+  for (const r of results) {
+    if (r.publicContactChannels?.length) {
+      md += `- **${r.companyName}**: ${r.publicContactChannels.join(", ")}\n`;
+    }
+  }
+
+  return md;
+};
+
 export const companyScoutSkill: JobrakerChatSkill = {
   id: "company_scout",
   name: "Company Scout",
@@ -94,7 +124,12 @@ export const companyScoutSkill: JobrakerChatSkill = {
     if (!targetCompanies.length) {
       return {
         status: "completed",
-        content: "Company Scout needs a target company or role to find hiring channels.",
+        content: `### 🔍 Company Scout
+Company Scout needs a target company or role to find hiring channels.
+
+**Try one of these examples:**
+- \`@CompanyScout find contact details for International Breweries\`
+- \`/company-scout look up Digital Virgo\``,
         output: {
           needsClarification: {
             reason: "Could not identify target companies from chat context.",
@@ -177,7 +212,7 @@ export const companyScoutSkill: JobrakerChatSkill = {
 
     return {
       status: "completed",
-      content: `Company Scout completed. I found information for ${results.length} companies.`,
+      content: formatCompanyScoutToMarkdown(results),
       output: {
         results,
         summary: {

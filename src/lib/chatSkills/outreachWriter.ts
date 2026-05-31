@@ -21,6 +21,24 @@ const delay = (ms: number) =>
     window.setTimeout(resolve, ms);
   });
 
+const formatOutreachWriterToMarkdown = (results: any[]) => {
+  let md = `### 📝 Prepared Outreach Drafts\n`;
+  md += `I've generated tailored outreach messages for **${results.length}** companies:\n\n`;
+
+  for (const r of results) {
+    md += `#### 🏢 **Outreach for ${r.companyName}**\n`;
+    md += `* **Target Role**: ${r.role}\n`;
+    md += `* **Subject**: \`${r.subject}\`\n`;
+    md += `* **Body**:\n\`\`\`text\n${r.body}\n\`\`\`\n`;
+    if (r.publicProfileUrl) {
+      md += `* **Profile Link Included**: [Public Profile](${r.publicProfileUrl})\n`;
+    }
+    md += `---\n\n`;
+  }
+
+  return md;
+};
+
 export const outreachWriterSkill: JobrakerChatSkill = {
   id: "outreach_writer",
   name: "Outreach Writer",
@@ -70,7 +88,12 @@ export const outreachWriterSkill: JobrakerChatSkill = {
     if (!targetCompanies.length) {
       return {
         status: "completed",
-        content: "Outreach Writer needs a target company or role to draft a highly tailored message.",
+        content: `### 📝 Outreach Writer
+Outreach Writer needs a target company or role to draft a highly tailored message.
+
+**Try one of these examples:**
+- \`@OutreachWriter write for International Breweries as Operations & Systems Project Manager\`
+- \`/outreach-writer draft outreach for Digital Virgo\``,
         output: {
           needsClarification: {
             reason: "Could not identify target companies from chat context.",
@@ -234,7 +257,7 @@ Skills: ${skillLines.join(", ")}
 
     return {
       status: "needs_approval",
-      content: `I've prepared highly tailored outreach messages for ${results.length} companies for review.`,
+      content: formatOutreachWriterToMarkdown(results),
       output: {
         results,
         summary: {

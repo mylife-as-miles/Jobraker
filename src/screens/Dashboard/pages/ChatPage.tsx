@@ -63,7 +63,6 @@ import {
   type ChatStarterIcon,
   type ChatStarterSuggestion,
 } from "../../../services/ai/generateChatStarters";
-import { SkillInvocationMessage } from "@/components/chat/SkillInvocationMessage";
 import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
 import {
   executeChatSkill,
@@ -2332,6 +2331,7 @@ export const ChatPage = () => {
 
       const updateSkillMessage = (
         updater: (call: ChatSkillCall) => ChatSkillCall,
+        finalContent?: string,
       ) => {
         setMessages((prev) => {
           const updated = prev.map((message) => {
@@ -2339,20 +2339,19 @@ export const ChatPage = () => {
               return message;
             }
             const updatedSkillCall = updater(message.skillCall);
+            const contentText =
+              finalContent !== undefined
+                ? finalContent
+                : updatedSkillCall.error ||
+                  `${skill.name} ${updatedSkillCall.status.replace(/_/g, " ")}.`;
+
             return {
               ...message,
-              content:
-                updatedSkillCall.error ||
-                `${skill.name} ${updatedSkillCall.status.replace(/_/g, " ")}.`,
+              content: contentText,
               parts: [
                 {
                   type: "text" as const,
-                  text:
-                    updatedSkillCall.error ||
-                    `${skill.name} ${updatedSkillCall.status.replace(
-                      /_/g,
-                      " ",
-                    )}.`,
+                  text: contentText,
                 },
               ],
               skillCall: updatedSkillCall,
@@ -2381,24 +2380,30 @@ export const ChatPage = () => {
           },
         });
 
-        updateSkillMessage((call) => ({
-          ...call,
-          status: result.status,
-          output: result.output,
-          progress: Array.from(
-            new Set([...(call.progress || []), "Ready for review"]),
-          ),
-        }));
+        updateSkillMessage(
+          (call) => ({
+            ...call,
+            status: result.status,
+            output: result.output,
+            progress: Array.from(
+              new Set([...(call.progress || []), "Ready for review"]),
+            ),
+          }),
+          result.content,
+        );
       } catch (error) {
         const message =
           error instanceof Error
             ? error.message
             : "The skill failed before returning a result.";
-        updateSkillMessage((call) => ({
-          ...call,
-          status: "failed",
-          error: message,
-        }));
+        updateSkillMessage(
+          (call) => ({
+            ...call,
+            status: "failed",
+            error: message,
+          }),
+          `### ❌ Error executing ${skill.name}\n\n${message}`,
+        );
       } finally {
         setSkillStatus("idle");
       }
@@ -3184,13 +3189,6 @@ export const ChatPage = () => {
                             />
                             {m.content.trim() ? m.content : null}
                           </div>
-                        ) : m.role === "skill" && m.skillCall ? (
-                          <SkillInvocationMessage
-                            skillCall={m.skillCall}
-                            onRunPrompt={(prompt) =>
-                              void handleSubmit({ text: prompt })
-                            }
-                          />
                         ) : (
                           <div className='text-sm prose prose-invert max-w-none overflow-hidden'>
                             <AgentWorkTimeline

@@ -481,7 +481,7 @@ Deno.serve(async (req) => {
       }
     }
     const coverLetter =
-      typeof body?.cover_letter === "string" ? body.cover_letter : undefined;
+      typeof body?.cover_letter === "string" ? body.cover_letter : "";
     const title = typeof body?.title === "string" ? body.title : undefined;
     const proxyLocation =
       typeof body?.proxy_location === "string" ? body.proxy_location : undefined;
@@ -528,11 +528,8 @@ Deno.serve(async (req) => {
       resume_text: resumeText || (!isResumeUrl && resume ? resume : ""),
       user_input: JSON.stringify(safeUserInput),
       email,
+      cover_letter: coverLetter,
     };
-
-    if (coverLetter && coverLetter.trim()) {
-      parameters.cover_letter = coverLetter;
-    }
 
     let webhookUrl: string | undefined;
     try {
