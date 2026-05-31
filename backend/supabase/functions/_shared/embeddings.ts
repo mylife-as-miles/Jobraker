@@ -9,9 +9,9 @@ const getEmbeddingModel = (options?: EmbedOptions): string => {
   
   // Safe Deno environment check (runs in Edge Functions)
   try {
-    return Deno.env.get("GEMINI_EMBEDDING_MODEL") || "text-embedding-004";
+    return Deno.env.get("GEMINI_EMBEDDING_MODEL") || "gemini-embedding-2";
   } catch {
-    return "text-embedding-004"; // Fallback for local testing if env is not accessible
+    return "gemini-embedding-2"; // Fallback for local testing if env is not accessible
   }
 };
 

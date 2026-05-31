@@ -105,7 +105,7 @@ export async function withGeminiRetry<T>(
 //   MODEL  – standard workhorse for most features
 //   PREMIUM – most capable, costs 2 credits, for advanced reasoning tasks
 export const GEMINI_LITE_MODEL = "gemini-3.1-flash-lite";
-export const GEMINI_MODEL = "gemini-2.5-flash";
+export const GEMINI_MODEL = "gemini-3.0-flash-preview";
 export const GEMINI_FAST_MODEL = GEMINI_LITE_MODEL;
 export const GEMINI_PREMIUM_MODEL = "gemini-3.5-flash";
 
@@ -157,7 +157,11 @@ export const createGeminiConfig = (
   modelName?: string
 ) => {
   const supportsThinking = modelName ? (
-    modelName.toLowerCase().includes("thinking")
+    modelName.toLowerCase().includes("thinking") ||
+    modelName.toLowerCase().includes("gemini-3") ||
+    modelName.toLowerCase().includes("3.0") ||
+    modelName.toLowerCase().includes("3.1") ||
+    modelName.toLowerCase().includes("3.5")
   ) : false;
 
   return {

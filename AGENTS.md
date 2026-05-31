@@ -126,4 +126,6 @@ paywalls
 popups
 launch
 ```
-S
+
+## Model and Stack Restrictions
+- **CRITICAL**: Never change any model name (e.g., `gemini-embedding-2`), model configurations, or tech stack components (libraries, databases, architecture) without explicit user permission or telling the user first.
