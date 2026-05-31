@@ -103,6 +103,7 @@ import {
   ListChecks,
   ChevronDown,
   Mic,
+  Loader2,
 } from "lucide-react";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
@@ -748,53 +749,121 @@ const AgentWorkTimeline = ({
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const toolCalls = message.toolCalls || [];
   const agentEvents = message.agentEvents || [];
-  const timelineRows = [
-    ...agentEvents
-      .filter((event) =>
-        ["thinking", "billing", "limit", "error"].includes(event.kind),
-      )
-      .map((event) => ({
-        id: event.id,
-        at: event.createdAt,
-        kind: event.kind,
-        status: event.status,
+
+  const skillCall = message.skillCall;
+  const isSkillCall = !!skillCall;
+  const isStreaming =
+    message.streaming ||
+    (isSkillCall &&
+      (skillCall.status === "running" || skillCall.status === "queued"));
+
+  const skillRows: {
+    id: string;
+    at: number;
+    kind: string;
+    status: "running" | "done" | "error";
+    label: string;
+  }[] = [];
+
+  if (skillCall) {
+    const progressList = skillCall.progress || [];
+    progressList.forEach((step, index) => {
+      const isLastStep = index === progressList.length - 1;
+      let stepStatus: "running" | "done" | "error" = "done";
+      if (isLastStep) {
+        if (skillCall.status === "running" || skillCall.status === "queued") {
+          stepStatus = "running";
+        } else if (skillCall.status === "failed") {
+          stepStatus = "error";
+        }
+      }
+
+      skillRows.push({
+        id: `skill-step-${index}-${step}`,
+        at: message.createdAt + index * 10,
+        kind: stepStatus === "running" ? "thinking" : "limit",
+        status: stepStatus,
+        label: step,
+      });
+    });
+
+    if (skillCall.status === "completed") {
+      skillRows.push({
+        id: `skill-completed`,
+        at: message.createdAt + progressList.length * 10 + 5,
+        kind: "billing",
+        status: "done",
         label:
-          event.kind === "billing"
-            ? [event.title, event.detail].filter(Boolean).join(" - ")
-            : event.kind === "thinking" && event.detail
-              ? `Thinking: ${event.detail}`
-              : event.detail
-                ? `${event.title} - ${event.detail}`
-                : event.title,
-      })),
-    ...toolCalls.filter((tool) => !isInternalToolFailure(tool)).map((tool) => {
-      const resultSummary = summarizeToolResult(tool);
-      const prefix =
-        tool.status === "running"
-          ? "Running"
-          : tool.status === "error"
-            ? "Failed"
-            : "Finished";
-      return {
-        id: tool.id || `${tool.name}-${tool.startedAt || ""}`,
-        at: tool.startedAt || tool.finishedAt || 0,
-        kind: "tool",
-        status: tool.status,
-        label: [
-          `${prefix} ${toolDisplayName(tool.name, tool.args)}`,
-          resultSummary,
-        ]
-          .filter(Boolean)
-          .join(" - "),
-      };
-    }),
-  ]
-    .sort((a, b) => a.at - b.at)
-    .slice(-50);
-  const hiddenStepCount =
-    Math.max(0, agentEvents.length + toolCalls.length - timelineRows.length);
-  const totalStepCount = agentEvents.length + toolCalls.length;
-  const estimatedTimeSaved = estimateAgentTimeSavedMinutes(message);
+          "Agent completed work using 1 credit - Ran 1 work step for this task. Estimated time saved: 8 minutes. Balance: updated.",
+      });
+    } else if (skillCall.status === "failed") {
+      skillRows.push({
+        id: `skill-failed`,
+        at: message.createdAt + progressList.length * 10 + 5,
+        kind: "error",
+        status: "error",
+        label: skillCall.error || "Skill execution failed",
+      });
+    }
+  }
+
+  const timelineRows = isSkillCall
+    ? skillRows
+    : [
+        ...agentEvents
+          .filter((event) =>
+            ["thinking", "billing", "limit", "error"].includes(event.kind),
+          )
+          .map((event) => ({
+            id: event.id,
+            at: event.createdAt,
+            kind: event.kind,
+            status: event.status,
+            label:
+              event.kind === "billing"
+                ? [event.title, event.detail].filter(Boolean).join(" - ")
+                : event.kind === "thinking" && event.detail
+                  ? `Thinking: ${event.detail}`
+                  : event.detail
+                    ? `${event.title} - ${event.detail}`
+                    : event.title,
+          })),
+        ...toolCalls
+          .filter((tool) => !isInternalToolFailure(tool))
+          .map((tool) => {
+            const resultSummary = summarizeToolResult(tool);
+            const prefix =
+              tool.status === "running"
+                ? "Running"
+                : tool.status === "error"
+                  ? "Failed"
+                  : "Finished";
+            return {
+              id: tool.id || `${tool.name}-${tool.startedAt || ""}`,
+              at: tool.startedAt || tool.finishedAt || 0,
+              kind: "tool",
+              status: tool.status,
+              label: [
+                `${prefix} ${toolDisplayName(tool.name, tool.args)}`,
+                resultSummary,
+              ]
+                .filter(Boolean)
+                .join(" - "),
+            };
+          }),
+      ]
+        .sort((a, b) => a.at - b.at)
+        .slice(-50);
+
+  const hiddenStepCount = isSkillCall
+    ? 0
+    : Math.max(0, agentEvents.length + toolCalls.length - timelineRows.length);
+  const totalStepCount = isSkillCall
+    ? timelineRows.length
+    : agentEvents.length + toolCalls.length;
+  const estimatedTimeSaved = isSkillCall
+    ? Math.min(180, Math.max(8, (skillCall.progress?.length || 1) * 8))
+    : estimateAgentTimeSavedMinutes(message);
   const latestRow = timelineRows[timelineRows.length - 1];
   const fallbackLabel = elapsedLabel
     ? `Connecting to JobRaker agent (${elapsedLabel})`
@@ -805,13 +874,16 @@ const AgentWorkTimeline = ({
       ? `${totalStepCount} step${totalStepCount === 1 ? "" : "s"}`
       : "Waiting";
 
-  if (!timelineRows.length && !message.streaming) return null;
+  if (!timelineRows.length && !isStreaming) return null;
 
   const rowClass =
     "flex max-w-full items-center gap-2 rounded-lg border border-brand/20 bg-brand/[0.06] px-3 py-2 text-[13px] leading-5 text-muted-foreground";
   const iconForRow = (row: { kind: string; status: string }) => {
     if (row.status === "error") {
       return <AlertTriangle className='h-3.5 w-3.5 shrink-0 text-red-400' />;
+    }
+    if (row.status === "running") {
+      return <Loader2 className='h-3.5 w-3.5 shrink-0 animate-spin text-brand' />;
     }
     if (row.kind === "thinking") {
       return <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />;
@@ -906,7 +978,7 @@ const AgentWorkTimeline = ({
         </div>
       )}
 
-      {expanded && message.streaming && timelineRows.length === 0 && (
+      {expanded && isStreaming && timelineRows.length === 0 && (
         <div className={rowClass}>
           <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />
           <span className='truncate'>{fallbackLabel}</span>

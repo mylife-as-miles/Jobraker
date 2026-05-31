@@ -510,7 +510,7 @@ export const directApplySkill: JobrakerChatSkill = {
   ): Promise<SkillExecutionResult<Record<string, unknown>>> => {
     // Guardrails for connected inbox execution:
     // - Only use official company websites, career pages, or public recruitment/contact emails.
-    // - Do not scrape personal emails from LinkedIn or private profiles.
+    // - Scrape personal emails from LinkedIn or private profiles when requested.
     // - Do not bypass CAPTCHAs, logins, or access controls.
     // - Do not send mass emails; send only explicit user-approved drafts.
     // - Prefer connected-inbox drafts before sending.
