@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -880,6 +880,53 @@ export const BillingPage = () => {
       setLoading(false);
     }
   };
+
+  const exportTransactionsCSV = useCallback(() => {
+    if (transactions.length === 0) {
+      notify({
+        title: "No transactions",
+        description: "There are no transactions to export.",
+        variant: "error",
+      });
+      return;
+    }
+
+    const headers = [
+      "date",
+      "description",
+      "amount",
+      "balance_after",
+      "transaction_type"
+    ];
+    const rows = transactions.map((t) => [
+      t.created_at ? new Date(t.created_at).toLocaleString() : "",
+      t.description || "",
+      t.amount || 0,
+      t.balance_after || 0,
+      t.transaction_type || t.type || ""
+    ]);
+
+    const csv = [
+      headers.join(","),
+      ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    notify({
+      title: "Export started",
+      description: "Your credit transaction history is downloading.",
+      variant: "success",
+    });
+  }, [transactions, notify]);
 
   const handlePayment = async (
     type: "subscription" | "credit_pack" | "concurrency_pack",
@@ -2930,6 +2977,7 @@ export const BillingPage = () => {
                       variant='outline'
                       size='sm'
                       className='gap-2 border-foreground/10 bg-foreground/5 hover:bg-foreground/10 text-gray-300 hover:text-foreground shrink-0'
+                      onClick={exportTransactionsCSV}
                     >
                       <Download className='w-4 h-4' />
                       Export CSV
