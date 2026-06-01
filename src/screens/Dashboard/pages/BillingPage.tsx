@@ -881,52 +881,87 @@ export const BillingPage = () => {
     }
   };
 
-  const exportTransactionsCSV = useCallback(() => {
-    if (transactions.length === 0) {
+  const exportTransactionsCSV = useCallback(async () => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (!userId) {
+        notify({
+          title: "Authentication Required",
+          description: "Please sign in to export your transaction history.",
+          variant: "error",
+        });
+        return;
+      }
+
       notify({
-        title: "No transactions",
-        description: "There are no transactions to export.",
+        title: "Preparing export",
+        description: "Fetching your full transaction history...",
+      });
+
+      const { data: allTransactions, error: fetchErr } = await supabase
+        .from("credit_transactions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (fetchErr) throw fetchErr;
+
+      const txList = (allTransactions || []).map(normalizeCreditTransaction);
+
+      if (txList.length === 0) {
+        notify({
+          title: "No transactions",
+          description: "There are no transactions to export.",
+          variant: "error",
+        });
+        return;
+      }
+
+      const headers = [
+        "date",
+        "description",
+        "amount",
+        "balance_after",
+        "transaction_type"
+      ];
+      const rows = txList.map((t) => [
+        t.created_at ? new Date(t.created_at).toLocaleString() : "",
+        t.description || "",
+        t.amount || 0,
+        t.balance_after || 0,
+        t.transaction_type || t.type || ""
+      ]);
+
+      const csv = [
+        headers.join(","),
+        ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")),
+      ].join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `transactions-all-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      notify({
+        title: "Export complete",
+        description: `Successfully exported ${txList.length} transactions.`,
+        variant: "success",
+      });
+    } catch (err: any) {
+      console.error("Failed to export transactions:", err);
+      notify({
+        title: "Export failed",
+        description: err.message || "Could not retrieve transaction history.",
         variant: "error",
       });
-      return;
     }
-
-    const headers = [
-      "date",
-      "description",
-      "amount",
-      "balance_after",
-      "transaction_type"
-    ];
-    const rows = transactions.map((t) => [
-      t.created_at ? new Date(t.created_at).toLocaleString() : "",
-      t.description || "",
-      t.amount || 0,
-      t.balance_after || 0,
-      t.transaction_type || t.type || ""
-    ]);
-
-    const csv = [
-      headers.join(","),
-      ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")),
-    ].join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    notify({
-      title: "Export started",
-      description: "Your credit transaction history is downloading.",
-      variant: "success",
-    });
-  }, [transactions, notify]);
+  }, [supabase, notify]);
 
   const handlePayment = async (
     type: "subscription" | "credit_pack" | "concurrency_pack",
