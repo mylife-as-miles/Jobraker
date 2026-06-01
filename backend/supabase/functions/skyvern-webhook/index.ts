@@ -410,7 +410,7 @@ serve(async (req) => {
 
     const { data: applicationRow, error: fetchError } = await supabase
       .from("applications")
-      .select("id, user_id, job_id, retry_count, notes, job_title, company")
+      .select("id, user_id, job_id, retry_count, notes, job_title, company, agent_run_id")
       .eq("run_id", runId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -509,6 +509,22 @@ serve(async (req) => {
         status: 500,
         headers: { "Content-Type": "application/json" },
       });
+    }
+
+    if (applicationRow.agent_run_id) {
+      try {
+        const { data: settleResult, error: settleError } = await supabase.rpc(
+          "check_and_settle_agent_run",
+          { p_agent_run_id: applicationRow.agent_run_id }
+        );
+        if (settleError) {
+          console.error("Failed to check and settle agent run:", settleError);
+        } else {
+          console.log("Check and settle agent run result:", settleResult);
+        }
+      } catch (err) {
+        console.error("Error invoking check_and_settle_agent_run:", err);
+      }
     }
 
     if (applicationRow.job_id) {

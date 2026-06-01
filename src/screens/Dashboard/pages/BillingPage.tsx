@@ -23,6 +23,7 @@ import {
   Check,
   Star,
   ArrowUpRight,
+  ArrowDownLeft,
   Download,
   Shield,
   Infinity,
@@ -34,6 +35,8 @@ import {
   Gauge,
   Layers3,
   Clock3,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/toast";
@@ -77,6 +80,7 @@ interface CreditTransaction {
   balance_after: number;
   description: string;
   created_at: string;
+  agent_run_id?: string | null;
 }
 
 interface CreditPack {
@@ -142,6 +146,7 @@ function normalizeCreditTransaction(
     ...transaction,
     transaction_type:
       transaction.transaction_type ?? transaction.type ?? "refill",
+    agent_run_id: transaction.agent_run_id ?? null,
   };
 }
 
@@ -497,6 +502,14 @@ export const BillingPage = () => {
   const supabase = useMemo(() => createClient(), []);
   const { notify, error: toastError } = useToast();
   const [promoApplied, setPromoApplied] = useState(false);
+  const [expandedRuns, setExpandedRuns] = useState<Record<string, boolean>>({});
+
+  const toggleRunExpansion = (runId: string) => {
+    setExpandedRuns((prev) => ({
+      ...prev,
+      [runId]: !prev[runId],
+    }));
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -923,14 +936,16 @@ export const BillingPage = () => {
         "description",
         "amount",
         "balance_after",
-        "transaction_type"
+        "transaction_type",
+        "agent_run_id"
       ];
       const rows = txList.map((t) => [
         t.created_at ? new Date(t.created_at).toLocaleString() : "",
         t.description || "",
         t.amount || 0,
         t.balance_after || 0,
-        t.transaction_type || t.type || ""
+        t.transaction_type || t.type || "",
+        t.agent_run_id || ""
       ]);
 
       const csv = [
@@ -1118,8 +1133,21 @@ export const BillingPage = () => {
           color: "text-brand bg-brand/10 border-brand/20",
         };
       case "spend":
+      case "deduction":
         return {
           icon: <ArrowUpRight className='w-4 h-4' />,
+          color: "text-brand bg-brand/10 border-brand/20",
+        };
+      case "refund":
+      case "refunded":
+        return {
+          icon: <ArrowDownLeft className='w-4 h-4' />,
+          color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+        };
+      case "auto_apply":
+      case "job_search":
+        return {
+          icon: <Rocket className='w-4 h-4' />,
           color: "text-brand bg-brand/10 border-brand/20",
         };
       default:
@@ -1139,6 +1167,73 @@ export const BillingPage = () => {
       minute: "2-digit",
     });
   };
+
+  const groupedTransactions = useMemo(() => {
+    const runsMap = new Map<string, CreditTransaction[]>();
+    const ungrouped: CreditTransaction[] = [];
+
+    transactions.forEach((tx) => {
+      if (tx.agent_run_id) {
+        if (!runsMap.has(tx.agent_run_id)) {
+          runsMap.set(tx.agent_run_id, []);
+        }
+        runsMap.get(tx.agent_run_id)!.push(tx);
+      } else {
+        ungrouped.push(tx);
+      }
+    });
+
+    interface GroupedRunItem {
+      isGroupedRun: true;
+      agent_run_id: string;
+      transactions: CreditTransaction[];
+      amount: number;
+      description: string;
+      created_at: string;
+      balance_after: number;
+    }
+
+    const groupedRuns: GroupedRunItem[] = [];
+
+    runsMap.forEach((txs, runId) => {
+      const sortedTxs = [...txs].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      const netAmount = sortedTxs.reduce((sum, t) => sum + t.amount, 0);
+      const reservationTx = sortedTxs.find(t => t.amount < 0) || sortedTxs[0];
+      const refundTx = sortedTxs.find(t => t.amount > 0 && t !== reservationTx);
+      const latestTx = sortedTxs[sortedTxs.length - 1];
+      const balanceAfter = latestTx.balance_after;
+
+      let desc = reservationTx.description || `Agent Run (${runId.slice(0, 8)})`;
+      if (refundTx) {
+        desc = desc.replace("Reservation for ", "") + " (Completed & Settled)";
+      } else if (sortedTxs.some(t => t.description?.includes("Refund"))) {
+        desc = "Agent Run - Refunded";
+      }
+
+      groupedRuns.push({
+        isGroupedRun: true,
+        agent_run_id: runId,
+        transactions: sortedTxs,
+        amount: netAmount,
+        description: desc,
+        created_at: reservationTx.created_at,
+        balance_after: balanceAfter,
+      });
+    });
+
+    type DisplayItem = 
+      | (CreditTransaction & { isGroupedRun?: false }) 
+      | (GroupedRunItem & { id: string });
+
+    const combined: DisplayItem[] = [
+      ...ungrouped.map((tx) => ({ ...tx, isGroupedRun: false as const })),
+      ...groupedRuns.map((run) => ({ ...run, id: run.agent_run_id })),
+    ];
+
+    return combined.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [transactions]);
 
   if (loading) {
     return (
@@ -3020,7 +3115,7 @@ export const BillingPage = () => {
                   </div>
                 </CardHeader>
                 <CardContent className='p-0'>
-                  {transactions.length === 0 ? (
+                  {groupedTransactions.length === 0 ? (
                     <div className='flex flex-col items-center justify-center py-24 text-center'>
                       <div className='p-4 rounded-full bg-foreground/5 mb-4 border border-foreground/10'>
                         <History className='w-8 h-8 text-gray-400' />
@@ -3035,52 +3130,201 @@ export const BillingPage = () => {
                     </div>
                   ) : (
                     <div className='divide-y divide-foreground/5'>
-                      {transactions.map((transaction, index) => {
-                        const iconData = getTransactionIcon(
-                          transaction.transaction_type ??
-                            transaction.type ??
-                            "refill",
-                        );
-                        return (
-                          <motion.div
-                            key={transaction.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className='p-4 sm:p-6 hover:bg-foreground/[0.02] transition-colors duration-200 flex items-center justify-between gap-4 group'
-                          >
-                            <div className='flex items-center gap-4 flex-1 min-w-0'>
+                      {groupedTransactions.map((item, index) => {
+                        if (item.isGroupedRun) {
+                          const isExpanded = !!expandedRuns[item.agent_run_id];
+                          const netAmount = item.amount;
+                          const balanceAfter = item.balance_after;
+                          const createdAt = item.created_at;
+                          const description = item.description;
+                          const runId = item.agent_run_id;
+
+                          // Use Receipt icon for grouped agent run
+                          const iconData = {
+                            icon: <Receipt className="w-4 h-4" />,
+                            color: "text-brand bg-brand/10 border-brand/20",
+                          };
+
+                          return (
+                            <div key={runId} className="border-b border-foreground/5 last:border-0">
                               <div
-                                className={`p-2.5 rounded-xl border ${iconData.color} group-hover:scale-110 transition-transform`}
+                                onClick={() => toggleRunExpansion(runId)}
+                                className="p-4 sm:p-6 hover:bg-foreground/[0.02] transition-colors duration-200 flex items-center justify-between gap-4 cursor-pointer group"
                               >
-                                {iconData.icon}
+                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                  <div
+                                    className={`p-2.5 rounded-xl border ${iconData.color} group-hover:scale-110 transition-transform`}
+                                  >
+                                    {iconData.icon}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-foreground font-medium truncate">
+                                        {description}
+                                      </p>
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-foreground/5 text-gray-400 font-medium">
+                                        Run Receipt
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 font-mono mt-0.5">
+                                      {formatDate(createdAt)}
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-4">
+                                  <div className="text-right flex-shrink-0">
+                                    <p
+                                      className={`text-lg font-bold font-mono ${
+                                        netAmount > 0
+                                          ? "text-brand"
+                                          : netAmount < 0
+                                            ? "text-foreground"
+                                            : "text-gray-400"
+                                      }`}
+                                    >
+                                      {netAmount > 0 ? "+" : ""}
+                                      {netAmount}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      Balance: {balanceAfter}
+                                    </p>
+                                  </div>
+                                  <div className="text-gray-500 group-hover:text-foreground transition-colors">
+                                    {isExpanded ? (
+                                      <ChevronDown className="w-5 h-5" />
+                                    ) : (
+                                      <ChevronRight className="w-5 h-5" />
+                                    )}
+                                  </div>
+                                </div>
                               </div>
-                              <div className='flex-1 min-w-0'>
-                                <p className='text-foreground font-medium truncate mb-0.5'>
-                                  {transaction.description}
+
+                              <AnimatePresence initial={false}>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="overflow-hidden bg-foreground/[0.01] border-t border-foreground/5"
+                                  >
+                                    <div className="p-4 sm:p-6 pl-12 sm:pl-16 space-y-4">
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border border-foreground/5 rounded-xl p-4 bg-background/50">
+                                        <div>
+                                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Reserved Amount</p>
+                                          <p className="text-base font-bold font-mono text-foreground mt-1">
+                                            {(() => {
+                                              const resTx = item.transactions.find(t => t.amount < 0);
+                                              return resTx ? `${resTx.amount} credits` : "0 credits";
+                                            })()}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Refunded Amount</p>
+                                          <p className="text-base font-bold font-mono text-brand mt-1">
+                                            {(() => {
+                                              const refTx = item.transactions.find(t => t.amount > 0);
+                                              return refTx ? `+${refTx.amount} credits` : "0 credits";
+                                            })()}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Net Charged</p>
+                                          <p className="text-base font-bold font-mono text-foreground mt-1">
+                                            {netAmount} credits
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Ledger Breakdown</h4>
+                                        <div className="border border-foreground/5 rounded-xl overflow-hidden divide-y divide-foreground/5 bg-background/20">
+                                          {item.transactions.map((tx) => {
+                                            const subIconData = getTransactionIcon(tx.transaction_type ?? tx.type ?? "refill");
+                                            return (
+                                              <div key={tx.id} className="p-3 flex items-center justify-between text-sm">
+                                                <div className="flex items-center gap-3">
+                                                  <div className={`p-1.5 rounded-lg border ${subIconData.color}`}>
+                                                    {subIconData.icon}
+                                                  </div>
+                                                  <div>
+                                                    <p className="text-foreground font-medium text-xs sm:text-sm">
+                                                      {tx.description}
+                                                    </p>
+                                                    <p className="text-[10px] text-gray-500 font-mono mt-0.5">
+                                                      {formatDate(tx.created_at)}
+                                                    </p>
+                                                  </div>
+                                                </div>
+                                                <div className="text-right">
+                                                  <p className={`font-semibold font-mono text-xs sm:text-sm ${
+                                                    tx.amount > 0 ? "text-brand" : "text-foreground"
+                                                  }`}>
+                                                    {tx.amount > 0 ? "+" : ""}{tx.amount}
+                                                  </p>
+                                                  <p className="text-[10px] text-gray-500">
+                                                    After: {tx.balance_after}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          );
+                        } else {
+                          const iconData = getTransactionIcon(
+                            item.transaction_type ??
+                              item.type ??
+                              "refill",
+                          );
+                          return (
+                            <motion.div
+                              key={item.id}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: index * 0.05 }}
+                              className='p-4 sm:p-6 hover:bg-foreground/[0.02] transition-colors duration-200 flex items-center justify-between gap-4 group'
+                            >
+                              <div className='flex items-center gap-4 flex-1 min-w-0'>
+                                <div
+                                  className={`p-2.5 rounded-xl border ${iconData.color} group-hover:scale-110 transition-transform`}
+                                >
+                                  {iconData.icon}
+                                </div>
+                                <div className='flex-1 min-w-0'>
+                                  <p className='text-foreground font-medium truncate mb-0.5'>
+                                    {item.description}
+                                  </p>
+                                  <p className='text-xs text-gray-500 font-mono'>
+                                    {formatDate(item.created_at)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className='text-right flex-shrink-0'>
+                                <p
+                                  className={`text-lg font-bold font-mono ${
+                                    item.amount > 0
+                                      ? "text-brand"
+                                      : "text-foreground"
+                                  }`}
+                                >
+                                  {item.amount > 0 ? "+" : ""}
+                                  {item.amount}
                                 </p>
-                                <p className='text-xs text-gray-500 font-mono'>
-                                  {formatDate(transaction.created_at)}
+                                <p className='text-xs text-gray-500'>
+                                  Balance: {item.balance_after}
                                 </p>
                               </div>
-                            </div>
-                            <div className='text-right flex-shrink-0'>
-                              <p
-                                className={`text-lg font-bold font-mono ${
-                                  transaction.amount > 0
-                                    ? "text-brand"
-                                    : "text-foreground"
-                                }`}
-                              >
-                                {transaction.amount > 0 ? "+" : ""}
-                                {transaction.amount}
-                              </p>
-                              <p className='text-xs text-gray-500'>
-                                Balance: {transaction.balance_after}
-                              </p>
-                            </div>
-                          </motion.div>
-                        );
+                            </motion.div>
+                          );
+                        }
                       })}
                     </div>
                   )}

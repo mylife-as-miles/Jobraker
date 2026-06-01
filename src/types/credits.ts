@@ -61,6 +61,8 @@ export interface CreditTransaction {
   referenceId: string | null;
   metadata: Record<string, any>;
   createdAt: string;
+  agent_run_id?: string | null;
+  agentRunId?: string | null;
 }
 
 export interface CreditCost {

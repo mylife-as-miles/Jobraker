@@ -253,6 +253,8 @@ Deno.serve(async (req) => {
   }
 
   let billingForResponse: Record<string, unknown> | null = null;
+  let agentRunId: string | null = null;
+  let applicationEnqueued = false;
 
   try {
     const body = await req.json().catch(() => ({}));
@@ -389,12 +391,24 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { data: deductRaw, error: deductError } = await serviceClient.rpc(
-      "deduct_auto_apply_credits",
-      { p_user_id: userId, p_jobs_count: automationJobCount },
+    const runIdempotencyKey = crypto.randomUUID();
+    const { data: reserveRaw, error: reserveError } = await serviceClient.rpc(
+      "reserve_credits_for_run",
+      {
+        p_user_id: userId,
+        p_run_type: "auto_apply",
+        p_estimated_credits: automationJobCount * 5,
+        p_idempotency_key: runIdempotencyKey,
+        p_metadata: {
+          job_id: jobContext.job_id,
+          job_urls: jobUrls,
+          source: "apply-to-jobs",
+        },
+      },
     );
-    if (deductError) {
-      console.error("apply-to-jobs: deduct_auto_apply_credits RPC error:", deductError);
+
+    if (reserveError) {
+      console.error("apply-to-jobs: reserve_credits_for_run RPC error:", reserveError);
       if (quotaResult.success && quotaResult.periodStart && quotaResult.periodEnd) {
         await restoreAutoApplyRunQuota(
           serviceClient,
@@ -415,8 +429,9 @@ Deno.serve(async (req) => {
         },
       );
     }
-    const deduct = parseRpcJsonObject(deductRaw);
-    if (!isRpcSuccess(deduct)) {
+
+    const reserve = parseRpcJsonObject(reserveRaw);
+    if (!isRpcSuccess(reserve)) {
       if (quotaResult.success && quotaResult.periodStart && quotaResult.periodEnd) {
         await restoreAutoApplyRunQuota(
           serviceClient,
@@ -428,10 +443,10 @@ Deno.serve(async (req) => {
       }
       return new Response(
         JSON.stringify({
-          error: (deduct?.message as string) || "Insufficient credits for auto apply.",
+          error: (reserve?.message as string) || "Insufficient credits for auto apply.",
           code: "insufficient_credits",
-          current_balance: deduct?.current_balance,
-          required_credits: deduct?.required_credits,
+          current_balance: reserve?.current_balance,
+          required_credits: automationJobCount * 5,
         }),
         {
           status: 402,
@@ -440,9 +455,12 @@ Deno.serve(async (req) => {
       );
     }
 
+    agentRunId = reserve.agent_run_id as string;
+
     billingForResponse = {
-      credits_deducted: deduct?.credits_deducted ?? automationJobCount * 5,
-      remaining_balance: deduct?.remaining_balance,
+      agent_run_id: agentRunId,
+      credits_reserved: reserve?.credits_reserved ?? automationJobCount * 5,
+      remaining_balance: reserve?.current_balance,
       jobs_count: automationJobCount,
       auto_apply_runs_remaining: quotaResult.remaining,
       auto_apply_runs_included: quotaResult.included,
@@ -454,7 +472,7 @@ Deno.serve(async (req) => {
       auto_apply_parallel_runs_available_before_launch:
         concurrencyResult.availableRuns,
       note:
-        "Charged when JobRaker starts auto-apply (5 credits per job). Runs started only in Skyvern are not billed here.",
+        "Reserved credits for run. Net billing occurs when Skyvern completes execution.",
     };
 
     let additionalInformation =
@@ -568,6 +586,7 @@ Deno.serve(async (req) => {
 
     const applicationPayload = {
       run_id: null,
+      agent_run_id: agentRunId,
       job_id: jobContext.job_id,
       user_id: userId,
       job_title: jobContext.job_title || title || "Automation run",
@@ -597,6 +616,7 @@ Deno.serve(async (req) => {
       if (!jobContext.job_id) return false;
       const upgradePatch = {
         run_id: applicationPayload.run_id,
+        agent_run_id: applicationPayload.agent_run_id,
         job_title: applicationPayload.job_title,
         company: applicationPayload.company,
         location: applicationPayload.location,
@@ -651,21 +671,15 @@ Deno.serve(async (req) => {
             automationJobCount,
           );
         }
-        await refundUserCredits({
-          serviceClient,
-          userId,
-          amount: Math.max(1, Number(deduct?.credits_deducted ?? automationJobCount * 5)),
-          description: "Refund: Auto-apply could not be queued",
-          referenceType: "refund",
-          referenceId: jobContext.job_id || null,
-          metadata: {
-            refund_key: `apply-to-jobs:${userId}:${jobContext.job_id || jobUrls.join("|")}:${nowIso}`,
-            source: "apply-to-jobs",
-            job_id: jobContext.job_id,
-            job_urls: jobUrls,
-            reason: applicationError.message,
-          },
-        });
+        if (agentRunId) {
+          await serviceClient.rpc("settle_run_credits", {
+            p_agent_run_id: agentRunId,
+            p_actual_credits: 0,
+            p_status: "failed",
+            p_failure_reason: "Failed to queue application: " + applicationError.message,
+            p_receipt: { reason: applicationError.message, error_code: "auto_apply_enqueue_failed" }
+          });
+        }
         return new Response(
           JSON.stringify({
             error: "Could not queue this auto-apply run. Your credits and run quota were refunded.",
@@ -678,6 +692,7 @@ Deno.serve(async (req) => {
         );
       }
     }
+    applicationEnqueued = true;
 
     if (jobContext.job_id) {
       const jobUpdateBase: Record<string, unknown> = {
@@ -743,11 +758,24 @@ Deno.serve(async (req) => {
       },
     );
   } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("apply-to-jobs error", message);
+    if (agentRunId && !applicationEnqueued) {
+      try {
+        await serviceClient.rpc("settle_run_credits", {
+          p_agent_run_id: agentRunId,
+          p_actual_credits: 0,
+          p_status: "failed",
+          p_failure_reason: "Function execution error: " + message,
+          p_receipt: { reason: "Edge function execution crash", error: message }
+        });
+      } catch (settleErr) {
+        console.error("Failed to settle run on exception fallback:", settleErr);
+      }
+    }
     if (error instanceof SubscriptionAccessError) {
       return subscriptionErrorResponse(error, corsHeaders);
     }
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("apply-to-jobs error", message);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "content-type": "application/json" },

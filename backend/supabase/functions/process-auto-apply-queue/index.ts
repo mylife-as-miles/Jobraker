@@ -50,7 +50,7 @@ async function resolveAutoApplyConcurrencyPeriod(
 
 async function refundQueuedAutoApplyLaunch(
   supabase: any,
-  appRow: { user_id: string; job_id?: string | null },
+  appRow: { user_id: string; job_id?: string | null; agent_run_id?: string | null },
   appId: string,
   reason: string,
 ) {
@@ -70,21 +70,36 @@ async function refundQueuedAutoApplyLaunch(
 
     await restoreAutoApplyRunQuota(supabase, appRow.user_id, periodStart, periodEnd, 1);
 
-    await refundUserCredits({
-      serviceClient: supabase,
-      userId: appRow.user_id,
-      amount: AUTO_APPLY_CREDIT_COST,
-      description: `Refund: Auto-apply failed to start (${appId})`,
-      referenceType: "refund",
-      referenceId: appId,
-      metadata: {
-        refund_key: `process-auto-apply-queue:${appId}`,
-        application_id: appId,
-        job_id: appRow.job_id,
-        source: "process-auto-apply-queue",
-        reason,
-      },
-    });
+    if (appRow.agent_run_id) {
+      await supabase.rpc("settle_run_credits", {
+        p_agent_run_id: appRow.agent_run_id,
+        p_actual_credits: 0,
+        p_status: "failed",
+        p_failure_reason: `Failed during launch: ${reason}`,
+        p_receipt: {
+          application_id: appId,
+          job_id: appRow.job_id,
+          reason: reason,
+          source: "process-auto-apply-queue"
+        }
+      });
+    } else {
+      await refundUserCredits({
+        serviceClient: supabase,
+        userId: appRow.user_id,
+        amount: AUTO_APPLY_CREDIT_COST,
+        description: `Refund: Auto-apply failed to start (${appId})`,
+        referenceType: "refund",
+        referenceId: appId,
+        metadata: {
+          refund_key: `process-auto-apply-queue:${appId}`,
+          application_id: appId,
+          job_id: appRow.job_id,
+          source: "process-auto-apply-queue",
+          reason,
+        },
+      });
+    }
 
     console.log(`[process-auto-apply-queue] Refunded credits and run quota for user ${appRow.user_id}`);
   } catch (refundErr) {
@@ -150,7 +165,7 @@ serve(async (req) => {
     for (const appId of ids) {
       const { data: appRow, error: fetchError } = await supabase
         .from("applications")
-        .select("user_id, job_id, provider_run_output, retry_count")
+        .select("user_id, job_id, provider_run_output, retry_count, agent_run_id")
         .eq("id", appId)
         .single();
 
