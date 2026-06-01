@@ -1,4 +1,4 @@
--- Fix consume_chat_message RPC to dynamically check for columns on credit_transactions (type vs transaction_type, balance_before) and use 'deduction' to satisfy check constraints
+-- Redefine consume_chat_message to use 'deduction' instead of 'consumed' to satisfy credit_transactions_type_check check constraint
 CREATE OR REPLACE FUNCTION public.consume_chat_message(
     p_user_id UUID
 ) RETURNS json
