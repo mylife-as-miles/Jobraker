@@ -51,6 +51,7 @@ import {
   AdminDatabase,
   AdminPerformance,
   AdminSettings,
+  AdminJobs,
 } from "./pages/admin";
 import AdminSubscriptions from "./pages/admin/pages/AdminSubscriptions";
 
@@ -290,6 +291,7 @@ function AnimatedRoutes() {
           <Route index element={<AdminOverview />} />
           <Route path='overview' element={<AdminOverview />} />
           <Route path='users' element={<AdminUsers />} />
+          <Route path='jobs' element={<AdminJobs />} />
           <Route path='chat' element={<AdminChat />} />
           <Route path='subscriptions' element={<AdminSubscriptions />} />
           <Route path='revenue' element={<AdminRevenue />} />

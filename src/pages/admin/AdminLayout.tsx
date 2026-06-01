@@ -38,6 +38,7 @@ const navigationGroups = [
     icon: Users,
     items: [
       { name: "Users", path: "/admin/users" },
+      { name: "Jobs", path: "/admin/jobs" },
       { name: "Chat", path: "/admin/chat" },
     ],
   },

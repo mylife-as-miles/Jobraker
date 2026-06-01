@@ -130,10 +130,14 @@ export default function AdminRevenue() {
   };
 
   const filteredTransactions = transactions.filter((tx) => {
+    const email = tx.user?.email || "";
+    const fullName = tx.user?.full_name || "";
+    const desc = tx.description || "";
+
     const matchesSearch =
-      tx.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tx.user?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tx.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      desc.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesType =
       typeFilter === "all" || tx.transaction_type === typeFilter;

@@ -9,6 +9,7 @@ import AdminActivity from './pages/AdminActivity';
 import AdminDatabase from './pages/AdminDatabase';
 import AdminPerformance from './pages/AdminPerformance';
 import AdminSettings from './pages/AdminSettings';
+import AdminJobs from './pages/AdminJobs';
 
 export {
   AdminLayout,
@@ -22,4 +23,5 @@ export {
   AdminDatabase,
   AdminPerformance,
   AdminSettings,
+  AdminJobs,
 };
