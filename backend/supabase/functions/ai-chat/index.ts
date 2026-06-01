@@ -2666,6 +2666,23 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "delete_job",
+    description: "Permanently delete an individual job by its ID.",
+    parameters: {
+      type: "object",
+      properties: { job_id: { type: "string" } },
+      required: ["job_id"],
+    },
+  },
+  {
+    name: "clear_all_jobs",
+    description: "Delete all jobs from the user's queue/list.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
     name: "polish_content",
     description: "Improve professional text.",
     parameters: { type: "object", properties: { content: { type: "string" }, instruction: { type: "string" } }, required: ["content"] },
@@ -3033,7 +3050,7 @@ Job-related Gmail (only when tools are available):
 Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.`;
       const agentCapabilityRules = `
 Profile, resume, and in-app data (execute directly — do not ask the user to copy-paste):
-- update_profile, list_profile_records, add_skill, remove_skill, add_experience, update_experience, delete_experience, add_education, update_education, delete_education, save_cover_letter, update_resume, create_application_tracker_entry, update_application_status, update_application, delete_application, bookmark_job, hide_job, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
+- update_profile, list_profile_records, add_skill, remove_skill, add_experience, update_experience, delete_experience, add_education, update_education, delete_education, save_cover_letter, update_resume, create_application_tracker_entry, update_application_status, update_application, delete_application, bookmark_job, hide_job, delete_job, clear_all_jobs, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
 - For Profile Settings cards, use list_profile_records to get IDs, then add/update/delete the structured experience, education, and skill rows directly. Never tell the user to click Profile Settings + Add unless the tool call fails or they explicitly ask for manual steps.
 - For resume Experience or Education sections, use update_resume with list_resumes for ids; use set_experience_items or set_education_items to replace builder section items, and resume_status to set Active/Draft/Archived when asked.
 - Use list_answer_bank_entries before drafting reusable application narratives when the user wants their saved voice, stories, beliefs, or profile snippets reflected.
@@ -4581,6 +4598,27 @@ Edge functions:
                         ? { success: false, error: hErr.message }
                         : { success: true, job_id: jId, hidden: true };
                     }
+                  } else if (fn.name === "delete_job") {
+                    const jId = asString(args.job_id) || "";
+                    if (!jId) {
+                      result = { success: false, error: "job_id is required" };
+                    } else {
+                      const { error: dErr } = await supabaseUser
+                        .from("jobs")
+                        .delete()
+                        .eq("id", jId);
+                      result = dErr
+                        ? { success: false, error: dErr.message }
+                        : { success: true, job_id: jId, deleted: true };
+                    }
+                  } else if (fn.name === "clear_all_jobs") {
+                    const { error: cErr } = await supabaseUser
+                      .from("jobs")
+                      .delete()
+                      .eq("user_id", userId);
+                    result = cErr
+                      ? { success: false, error: cErr.message }
+                      : { success: true, cleared: true };
                   } else if (fn.name === "create_reminder") {
                     const company = asString(args.company) || "Target Company";
                     const role = asString(args.role) || "Target role";
