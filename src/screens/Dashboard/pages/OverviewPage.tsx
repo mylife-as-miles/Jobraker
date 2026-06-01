@@ -137,7 +137,7 @@ export const OverviewPage = (): JSX.Element => {
   }, [stacked, visibleSeries]);
 
   // Build real series based on selected period with status-specific keys
-  const { seriesData, seriesMeta, interviewCount, totals } = useMemo(() => {
+  const { seriesData, seriesMeta, interviewCount, offerRate, rejectionRate, totals } = useMemo(() => {
     const period = selectedPeriod;
 
     // Apply status filtering (search removed per request)
@@ -215,6 +215,8 @@ export const OverviewPage = (): JSX.Element => {
 
     let applied = 0;
     let interviews = 0;
+    let offers = 0;
+    let rejections = 0;
     let totalInWindow = 0;
 
     const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -247,12 +249,11 @@ export const OverviewPage = (): JSX.Element => {
         intInWindow = intDate ? (intDate >= sixMonthsStart && intDate < monthEnd) : false;
       }
 
-      // Count under interviews if status is "Interview" (active) OR if interview_date falls in the window
-      const countAsInterview = app.status === "Interview" || intInWindow;
-
       if (appInWindow) {
-        if (app.status === "Applied") applied++;
         totalInWindow++;
+        if (app.status === "Applied") applied++;
+        else if (app.status === "Offer") offers++;
+        else if (app.status === "Rejected") rejections++;
 
         // Aggregate bucket for chart (only for applications within the window)
         const idx = buckets.findIndex((b) => appDate >= b.start && appDate < b.end);
@@ -263,6 +264,8 @@ export const OverviewPage = (): JSX.Element => {
         }
       }
 
+      // Count under interviews if status is "Interview" AND falls in window, OR if interview_date falls in the window
+      const countAsInterview = (app.status === "Interview" && appInWindow) || intInWindow;
       if (countAsInterview) {
         interviews++;
       }
@@ -281,11 +284,16 @@ export const OverviewPage = (): JSX.Element => {
       color: palette[s] || "#999999",
     }));
 
+    const offerRate = totalInWindow ? offers / totalInWindow : 0;
+    const rejectionRate = totalInWindow ? rejections / totalInWindow : 0;
+
     return {
       seriesData: data,
       seriesMeta: series,
       appliedCount: applied,
       interviewCount: interviews,
+      offerRate,
+      rejectionRate,
       totals: { totalInWindow },
     };
   }, [applications, now, selectedPeriod, statusFilter]);
@@ -530,7 +538,7 @@ export const OverviewPage = (): JSX.Element => {
                   </div>
                   <div className='p-4 rounded-xl bg-brand/10 border border-brand/30'>
                     <div className='text-2xl lg:text-3xl font-bold text-brand mb-1'>
-                      {Math.round(stats.offerRate * 100)}%
+                      {Math.round(offerRate * 100)}%
                     </div>
                     <div className='text-xs text-brand font-medium uppercase tracking-wider'>
                       Offer Rate
@@ -538,7 +546,7 @@ export const OverviewPage = (): JSX.Element => {
                   </div>
                   <div className='p-4 rounded-xl border bg-red-500/10 border-red-500/30'>
                     <div className='text-2xl lg:text-3xl font-bold text-red-500 mb-1'>
-                      {Math.round(stats.rejectionRate * 100)}%
+                      {Math.round(rejectionRate * 100)}%
                     </div>
                     <div className='text-xs text-red-500 font-medium uppercase tracking-wider'>
                       Rejection Rate
