@@ -4546,7 +4546,7 @@ Edge functions:
                           .update(patch)
                           .eq("id", notificationId)
                           .eq("user_id", userId)
-                          .select("id, type, title, read, is_starred, priority, archived_at, updated_at")
+                          .select("id, type, title, read, is_starred, priority, archived_at")
                           .maybeSingle();
                         result = error
                           ? { success: false, error: error.message }
