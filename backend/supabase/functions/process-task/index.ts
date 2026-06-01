@@ -5,6 +5,8 @@ import { persistDiscoveredJobs } from "../_shared/jobs.ts";
 import { resolveJobSearchExecutionLimits } from "../_shared/subscription.ts";
 import { evaluateAndPersistJobFit } from "../_shared/job-evaluation.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { createNotificationRecord } from "../_shared/notification-center.ts";
+
 
 class TaskCanceledError extends Error {
   constructor() {
@@ -179,6 +181,152 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
   };
 }
 
+const PUBLIC_APP_URL =
+  Deno.env.get("PUBLIC_APP_URL") ||
+  Deno.env.get("APP_BASE_URL") ||
+  Deno.env.get("SITE_URL") ||
+  "https://app.jobraker.io";
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+async function getUserEmail(supabase: any, userId: string): Promise<string | null> {
+  const { data, error } = await supabase.auth.admin.getUserById(userId);
+  if (error) {
+    console.warn("[process-task] Failed to load user email for task failure notification", error);
+    return null;
+  }
+  const email = data?.user?.email;
+  return typeof email === "string" && email.trim() ? email.trim() : null;
+}
+
+async function sendTaskFailureEmail(supabase: any, userId: string, task: any, errorMsg: string, recipient: string) {
+  const apiKey = String(Deno.env.get("RESEND_API_KEY") || "").trim();
+  if (!apiKey) {
+    console.warn("[process-task] Skipping email: RESEND_API_KEY is not configured");
+    return { sent: false, reason: "missing_resend_api_key" };
+  }
+
+  // Check if general email notifications are enabled
+  const { data: settings, error: settingsError } = await supabase
+    .from("notification_settings")
+    .select("email_notifications")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (settingsError) {
+    console.warn("[process-task] Failed to load notification email settings, proceeding to send email", settingsError);
+  }
+
+  if (settings && settings.email_notifications === false) {
+    return { sent: false, reason: "disabled_by_settings" };
+  }
+
+  const taskTitle = task.title || "Background Task";
+  const subject = `JobRaker Background Task Failed: ${taskTitle}`;
+  const actionUrl = new URL("/dashboard/jobs", PUBLIC_APP_URL).toString();
+  
+  const text = [
+    `JobRaker encountered an issue while running your background task: "${taskTitle}".`,
+    "",
+    `Type: ${task.type}`,
+    `Status: Failed`,
+    `Error/Reason: ${errorMsg}`,
+    "",
+    `You can view your jobs or status in the dashboard: ${actionUrl}`,
+  ].join("\n");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111827;">
+      <p>JobRaker encountered an issue while running your background task: <strong>${escapeHtml(taskTitle)}</strong>.</p>
+      <p>
+        <strong>Task Type:</strong> ${escapeHtml(task.type)}<br>
+        <strong>Status:</strong> Failed<br>
+        <strong>Error/Reason:</strong> ${escapeHtml(errorMsg)}
+      </p>
+      <p><a href="${escapeHtml(actionUrl)}">Open JobRaker Dashboard</a></p>
+    </div>
+  `;
+
+  const fromEmail = String(Deno.env.get("RESEND_FROM_EMAIL") || "").trim() || "JobRaker Alerts <onboarding@resend.dev>";
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: recipient,
+      subject,
+      text,
+      html,
+    }),
+  });
+
+  const responsePayload = await response.json().catch(async () => ({
+    raw: await response.text().catch(() => ""),
+  }));
+
+  if (!response.ok) {
+    console.error("[process-task] sendTaskFailureEmail.resend_failed", {
+      status: response.status,
+      payload: responsePayload,
+      taskId: task.id,
+    });
+    return { sent: false, reason: "resend_error", status: response.status };
+  }
+
+  return { sent: true };
+}
+
+async function notifyTaskFailure(supabase: any, userId: string, task: any, errorMsg: string) {
+  const isJobSearch = task.type === "scout_search";
+  const type = isJobSearch ? "job_search" : "system";
+  const source = isJobSearch ? "job_search" : "system";
+  const title = isJobSearch ? "Background search failed" : (task.title || "Background task failed");
+  const message = task.title 
+    ? `"${task.title}" went down due to an issue: ${errorMsg}` 
+    : `Background task failed: ${errorMsg}`;
+
+  // 1. Create in-app notification
+  try {
+    await createNotificationRecord(supabase, {
+      userId,
+      type,
+      title,
+      message,
+      priority: "high",
+      source,
+      sourceRecordId: task.id,
+      sourceRecordType: "job_intelligence_task",
+      actionUrl: "/dashboard/jobs",
+      actionLabel: "View jobs",
+    });
+  } catch (error) {
+    console.warn("[process-task] Failed to create in-app notification for task failure", error);
+  }
+
+  // 2. Retrieve user email and send email alert
+  try {
+    const recipient = await getUserEmail(supabase, userId);
+    if (recipient) {
+      await sendTaskFailureEmail(supabase, userId, task, errorMsg, recipient);
+    } else {
+      console.warn("[process-task] Skipping email notification: no valid user email found");
+    }
+  } catch (error) {
+    console.warn("[process-task] Failed to send email alert for task failure", error);
+  }
+}
+
 Deno.serve(async (req) => {
   // Database triggers call process-task Edge Function directly
   const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
@@ -343,6 +491,9 @@ Deno.serve(async (req) => {
                 logs: [...(task.logs || []), { time: failedAt, event: "failure", error: errorMsg, action: "failed_permanent" }],
               })
               .eq("id", taskId);
+
+            // Trigger failure notifications and emails
+            await notifyTaskFailure(supabase, task.user_id, task, errorMsg);
           }
         }
       }
