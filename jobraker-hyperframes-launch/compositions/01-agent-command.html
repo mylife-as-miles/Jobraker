@@ -1,0 +1,395 @@
+﻿<template id="agent-command-template">
+  <div id="agent-command" data-composition-id="agent-command" data-width="1920" data-height="1080" data-start="0" data-duration="6">
+    <div id="agent-command-root" class="clip scene-root" data-start="0" data-duration="6" data-track-index="1">
+      <div class="backgrid" data-layout-ignore></div>
+      <div class="scanline" data-layout-ignore></div>
+      <section class="copy-stack">
+        <div class="kicker">JOBRAKER / AREA50 COMMAND SURFACE</div>
+        <h1>Stop applying manually.</h1>
+        <h2>Start deploying agents.</h2>
+      </section>
+      <section class="terminal-shell">
+        <div class="window-bar">
+          <span class="dot red"></span>
+          <span class="dot amber"></span>
+          <span class="dot green"></span>
+          <span class="window-title">jobraker.chat / agent-runtime</span>
+        </div>
+        <div class="command-palette">
+          <div class="palette-label">COMMANDS</div>
+          <div class="cmd-row primary"><span>/directapply</span> <em>@company</em></div>
+          <div class="cmd-row"><span>/find-fit</span> remote frontend roles</div>
+          <div class="cmd-row"><span>/tailor-resume</span> for this job</div>
+          <div class="cmd-row"><span>/generate-outreach</span> to hiring manager</div>
+        </div>
+        <div class="chat-body">
+          <div class="bubble user">
+            <span class="prompt">&gt;</span>
+            <span class="typed-text">Find me roles I can actually win.</span>
+            <span class="cursor"></span>
+          </div>
+          <div class="bubble agent">
+            <div class="agent-orb"></div>
+            <div>
+              <strong>Deploying Jobraker Agent...</strong>
+              <span>Scanning proof, roles, companies, and outreach paths.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="orb-field" data-layout-ignore>
+        <div class="agent-orb-large"></div>
+        <div class="orbit orbit-a"></div>
+        <div class="orbit orbit-b"></div>
+      </div>
+    </div>
+
+    <style>
+      @font-face {
+        font-family: "Anton";
+        src: url("assets/fonts/Anton-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Sans";
+        src: url("assets/fonts/IBMPlexSans-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Sans";
+        src: url("assets/fonts/IBMPlexSans-SemiBold.ttf") format("truetype");
+        font-weight: 600;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-Medium.ttf") format("truetype");
+        font-weight: 500;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-SemiBold.ttf") format("truetype");
+        font-weight: 600;
+        font-style: normal;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("assets/fonts/IBMPlexMono-Bold.ttf") format("truetype");
+        font-weight: 700;
+        font-style: normal;
+        font-display: block;
+      }
+#agent-command {
+        --bg: #050706;
+        --panel: rgba(12, 21, 16, 0.86);
+        --fg: #f5fff8;
+        --muted: #8a938d;
+        --green: #00ff85;
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #050706;
+        color: var(--fg);
+        font-family: "IBM Plex Sans", sans-serif;
+      }
+
+      #agent-command .scene-root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        padding: 96px 112px;
+        display: grid;
+        grid-template-columns: 0.86fr 1.14fr;
+        gap: 64px;
+        align-items: center;
+      }
+
+      #agent-command .backgrid {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(rgba(0, 255, 133, 0.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 133, 0.08) 1px, transparent 1px),
+          radial-gradient(circle at 72% 50%, rgba(0, 255, 133, 0.18), rgba(0, 255, 133, 0) 34%),
+          #050706;
+        background-size: 72px 72px, 72px 72px, auto, auto;
+        opacity: 0.58;
+      }
+
+      #agent-command .scanline {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 220px;
+        background: linear-gradient(180deg, rgba(0, 255, 133, 0), rgba(0, 255, 133, 0.11), rgba(0, 255, 133, 0));
+        filter: blur(10px);
+      }
+
+      #agent-command .copy-stack {
+        position: relative;
+        z-index: 5;
+        align-self: end;
+        padding-bottom: 82px;
+      }
+
+      #agent-command .kicker {
+        margin-bottom: 24px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 22px;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+      }
+
+      #agent-command h1,
+      #agent-command h2 {
+        font-family: "Anton", sans-serif;
+        text-transform: uppercase;
+        font-weight: 400;
+        line-height: 0.88;
+        letter-spacing: -0.035em;
+      }
+
+      #agent-command h1 {
+        max-width: 660px;
+        font-size: 126px;
+      }
+
+      #agent-command h2 {
+        margin-top: 18px;
+        max-width: 720px;
+        color: var(--green);
+        font-size: 112px;
+        text-shadow: 0 0 44px rgba(0, 255, 133, 0.32);
+      }
+
+      #agent-command .terminal-shell {
+        position: relative;
+        z-index: 6;
+        height: 760px;
+        border-radius: 30px;
+        border: 1px solid rgba(245, 255, 248, 0.12);
+        background: linear-gradient(180deg, rgba(12, 21, 16, 0.92), rgba(5, 7, 6, 0.88));
+        box-shadow:
+          0 40px 120px rgba(0, 0, 0, 0.46),
+          inset 0 1px 0 rgba(245, 255, 248, 0.09),
+          0 0 90px rgba(0, 255, 133, 0.12);
+        overflow: hidden;
+        backdrop-filter: blur(18px);
+      }
+
+      #agent-command .window-bar {
+        height: 64px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 24px;
+        border-bottom: 1px solid rgba(245, 255, 248, 0.08);
+        background: rgba(245, 255, 248, 0.035);
+      }
+
+      #agent-command .dot {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+      }
+
+      #agent-command .red { background: #ff5f57; }
+      #agent-command .amber { background: #febc2e; }
+      #agent-command .green { background: #00ff85; }
+
+      #agent-command .window-title {
+        margin-left: 12px;
+        color: var(--muted);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 18px;
+      }
+
+      #agent-command .command-palette {
+        margin: 34px;
+        padding: 28px;
+        border-radius: 24px;
+        border: 1px solid rgba(0, 255, 133, 0.2);
+        background: rgba(5, 7, 6, 0.74);
+      }
+
+      #agent-command .palette-label {
+        margin-bottom: 18px;
+        color: var(--muted);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 16px;
+        letter-spacing: 0.16em;
+      }
+
+      #agent-command .cmd-row {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        min-height: 54px;
+        padding: 0 18px;
+        border-radius: 14px;
+        color: #c9d4cc;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 25px;
+      }
+
+      #agent-command .cmd-row span {
+        color: var(--green);
+        font-weight: 700;
+      }
+
+      #agent-command .cmd-row em {
+        color: #f5fff8;
+        font-style: normal;
+      }
+
+      #agent-command .cmd-row.primary {
+        background: rgba(0, 255, 133, 0.1);
+        box-shadow: inset 0 0 0 1px rgba(0, 255, 133, 0.22);
+      }
+
+      #agent-command .chat-body {
+        padding: 2px 34px 34px;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+
+      #agent-command .bubble {
+        border-radius: 22px;
+        border: 1px solid rgba(245, 255, 248, 0.1);
+        background: rgba(245, 255, 248, 0.055);
+      }
+
+      #agent-command .bubble.user {
+        padding: 24px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 30px;
+      }
+
+      #agent-command .prompt {
+        color: var(--green);
+        margin-right: 14px;
+      }
+
+      #agent-command .typed-text {
+        display: inline-block;
+        white-space: nowrap;
+        clip-path: inset(0 0 0 0);
+      }
+
+      #agent-command .cursor {
+        display: inline-block;
+        width: 13px;
+        height: 34px;
+        margin-left: 8px;
+        background: var(--green);
+        vertical-align: -6px;
+      }
+
+      #agent-command .bubble.agent {
+        display: flex;
+        gap: 18px;
+        align-items: center;
+        padding: 24px;
+      }
+
+      #agent-command .agent-orb {
+        width: 54px;
+        height: 54px;
+        border-radius: 50%;
+        background: radial-gradient(circle, #f5fff8 0 8%, #00ff85 18% 54%, rgba(0, 255, 133, 0.18) 62%);
+        box-shadow: 0 0 34px rgba(0, 255, 133, 0.62);
+      }
+
+      #agent-command .bubble.agent strong {
+        display: block;
+        font-family: "IBM Plex Mono", monospace;
+        color: var(--green);
+        font-size: 26px;
+      }
+
+      #agent-command .bubble.agent span {
+        display: block;
+        margin-top: 7px;
+        color: var(--muted);
+        font-size: 23px;
+      }
+
+      #agent-command .orb-field {
+        position: absolute;
+        right: 148px;
+        top: 118px;
+        width: 260px;
+        height: 260px;
+        z-index: 7;
+      }
+
+      #agent-command .agent-orb-large {
+        position: absolute;
+        inset: 74px;
+        border-radius: 50%;
+        background: radial-gradient(circle, #f5fff8 0 5%, #00ff85 16% 48%, rgba(0, 255, 133, 0.08) 58%);
+        box-shadow: 0 0 80px rgba(0, 255, 133, 0.5);
+      }
+
+      #agent-command .orbit {
+        position: absolute;
+        inset: 34px;
+        border: 1px solid rgba(0, 255, 133, 0.26);
+        border-radius: 50%;
+      }
+
+      #agent-command .orbit-b {
+        inset: 10px;
+        transform: rotateX(62deg) rotateZ(24deg);
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        window.__timelines = window.__timelines || {};
+        var tl = gsap.timeline({ paused: true });
+        tl.from(".backgrid", { opacity: 0, scale: 1.08, duration: 0.58, ease: "sine.out" }, 0.12);
+        tl.from(".terminal-shell", { opacity: 0, x: 90, rotationY: -10, scale: 0.94, duration: 0.74, ease: "expo.out" }, 0.22);
+        tl.from(".kicker", { opacity: 0, x: -50, duration: 0.38, ease: "power3.out" }, 0.34);
+        tl.from("h1", { opacity: 0, y: 84, duration: 0.48, ease: "back.out(1.1)" }, 0.52);
+        tl.from("h2", { opacity: 0, y: 64, scale: 0.96, duration: 0.54, ease: "circ.out" }, 0.82);
+        tl.from(".cmd-row", { opacity: 0, x: 46, filter: "blur(6px)", duration: 0.34, stagger: 0.08, ease: "power4.out" }, 1.02);
+        tl.from(".typed-text", { clipPath: "inset(0 100% 0 0)", duration: 1.1, ease: "none" }, 2.18);
+        tl.to(".cursor", { opacity: 0, duration: 0.1, repeat: 8, yoyo: true, ease: "none" }, 2.12);
+        tl.from(".bubble.agent", { opacity: 0, y: 34, scale: 0.96, duration: 0.46, ease: "back.out(1.4)" }, 3.42);
+        tl.from(".orb-field", { opacity: 0, scale: 0.2, rotation: -90, duration: 0.7, ease: "expo.out" }, 3.62);
+        tl.to(".agent-orb-large", { scale: 1.24, duration: 0.52, repeat: 3, yoyo: true, ease: "sine.inOut" }, 4.15);
+        tl.to(".orbit-a", { rotation: 180, duration: 1.4, ease: "none" }, 4.0);
+        tl.to(".orbit-b", { rotationZ: 210, duration: 1.5, ease: "none" }, 4.0);
+        tl.to(".scanline", { y: 900, duration: 4.3, ease: "none" }, 0.4);
+        window.__timelines["agent-command"] = tl;
+      })();
+    </script>
+  </div>
+</template>

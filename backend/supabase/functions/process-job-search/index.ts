@@ -1,9 +1,11 @@
 // @ts-nocheck
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
-import { generateAiDescription } from '../_shared/gemini.ts';
+import { generateGeminiDescription } from '../_shared/gemini.ts';
+import { formatJobTitleAndDescriptionWithAi } from '../_shared/jobs.ts';
 import { applyMicro1ReferralToUrl } from '../_shared/micro1-referral.ts';
 import { createNotificationRecord } from '../_shared/notification-center.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -28,9 +30,31 @@ function stripHtmlTags(html: string): string {
     .trim();
 }
 
+function cleanJobDescription(value: string | undefined | null): string {
+  if (!value) return '';
+  const raw = String(value);
+  const cleaned = /<\/?[a-z][\s\S]*>/i.test(raw) ? stripHtmlTags(raw) : raw;
+  return cleaned.replace(/\[(.*?)\]\((.*?)\)/g, '$1 ($2)').replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function isLikelyAggregateJobPage(url: string, title?: string, description?: string): boolean {
+  const lowerUrl = url.toLowerCase();
+  const text = `${title || ''} ${description || ''}`.toLowerCase();
+  if (/\/(search|job-search|jobs-search|find-jobs|browse|companies|categories)(\/|$)/i.test(lowerUrl)) return true;
+  if (/\/(jobs?|careers?|openings?|positions?|vacancies?|remote-jobs)\/?$/i.test(lowerUrl)) return true;
+  if (/\b\d+\s+(?:fully\s+remote\s+)?[\w\s()/-]{2,80}\s+jobs?\s+in\b/i.test(text)) return true;
+  if (/\b(jobs|vacancies|openings)\s+in\s+(the\s+best\s+)?companies\b/i.test(text)) return true;
+  if (/\b(show|find|browse|view)\s+\d+\+?\s+jobs?\b/i.test(text)) return true;
+  return /\bjob board\b|\bsearch results\b|\ball jobs\b|\bmore jobs\b/i.test(text);
+}
+
 Deno.serve(async (req) => {
   // The Kafka Sink sends the payload as the request body.
   // The payload format depends on the Connector configuration.
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'), req);
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   try {
     const payload = await req.json();
@@ -131,7 +155,7 @@ Deno.serve(async (req) => {
         ],
         formats: [
           "markdown",
-          "html",
+          "links",
           {
             type: "json",
             schema: {
@@ -152,12 +176,7 @@ Deno.serve(async (req) => {
                 apply_link: { type: "string" }
               }
             },
-            prompt: "You are extracting structured job posting data..."
-          },
-          {
-            type: "screenshot",
-            fullPage: false,
-            quality: 80
+            prompt: "Extract exactly one specific job posting. If the page is a list, search result, company directory, or generic careers page, leave title/company/description empty instead of inventing a job. Description must be plain text with no HTML."
           }
         ]
       }
@@ -170,7 +189,7 @@ Deno.serve(async (req) => {
       searchRes = await withRetry(() => firecrawlFetch('/search', firecrawlApiKey, searchPayload, userId), 2, 600);
     } catch (e: any) {
       console.error('[process-job-search] Firecrawl failed', e);
-      return new Response('Firecrawl error', { status: 500 });
+      return new Response('Search provider error', { status: 500 });
     }
 
     const webItems: any[] = Array.isArray(searchRes?.data?.web) ? searchRes.data.web : [];
@@ -276,11 +295,15 @@ Deno.serve(async (req) => {
       const fullHtml = item?.scraped?.html || item?.html;
       const fullMarkdown = item?.scraped?.markdown || item?.markdown;
       const fallbackDesc = typeof item?.description === 'string' ? item.description : undefined;
+      const cleanDescription = cleanJobDescription(fullMarkdown || scrapedJson?.description || fallbackDesc || fullHtml);
+      if (!isJobPostingUrl(clean) && isLikelyAggregateJobPage(clean, item?.title, cleanDescription)) {
+        continue;
+      }
 
       filtered.push({
         url: referredClean,
         title: hasStructuredData ? (scrapedJson.title || item?.title) : item?.title,
-        description: fullHtml || fullMarkdown || scrapedJson?.description || fallbackDesc,
+        description: cleanDescription,
         category: typeof item?.category === 'string' ? item.category : undefined,
         isJobPosting: isJobPostingUrl(clean),
         company: companyName,
@@ -298,7 +321,7 @@ Deno.serve(async (req) => {
         experience_level: hasStructuredData ? scrapedJson.experience_level : undefined,
         tags: hasStructuredData && Array.isArray(scrapedJson.tags) ? scrapedJson.tags.filter(Boolean) : undefined,
         markdown: fullMarkdown,
-        html: fullHtml,
+        html: undefined,
         screenshot: screenshot,
       });
       if (typeof limit === 'number' && filtered.length >= limit) break;
@@ -315,12 +338,15 @@ Deno.serve(async (req) => {
     const jobsToInsert = await Promise.all(filtered.map(async (item) => {
       let aiData;
       try {
-        aiData = await generateAiDescription(item.html, item.markdown, item.description, item.title || rawQuery);
+        aiData = await generateGeminiDescription(item.html, item.markdown, item.description, item.title || rawQuery);
       } catch (e) {
         console.error('AI enrichment failed', e);
-        const fallbackDescription = item.markdown || (item.description ? stripHtmlTags(item.description) : '');
+        const fallbackDescription = cleanJobDescription(item.markdown || item.description || '');
         aiData = { description: fallbackDescription, tags: item.tags || [] };
       }
+
+      const rawTitle = item.title || rawQuery;
+      const formatted = await formatJobTitleAndDescriptionWithAi(rawTitle, aiData.description);
 
       let expiresAt = null;
       if (item.deadline) {
@@ -385,10 +411,10 @@ Deno.serve(async (req) => {
         user_id: userId,
         source_type: 'web_search',
         source_id: item.url,
-        title: item.title || rawQuery,
+        title: formatted.title,
         company: item.company,
         company_logo: item.company_logo || null,
-        description: aiData.description,
+        description: formatted.description,
         location: item.location || location || 'Remote',
         remote_type: 'Remote',
         employment_type: item.employment_type || null,
@@ -411,7 +437,7 @@ Deno.serve(async (req) => {
             deadline: item.deadline,
             screenshot: item.screenshot,
             markdown: item.markdown,
-            html: item.html,
+            html: null,
             scraped_data: {
                 title: item.title,
                 company: item.company,

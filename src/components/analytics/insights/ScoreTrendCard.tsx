@@ -38,7 +38,7 @@ export function ScoreTrendCard({
       transition={{ duration: 0.45, delay: 0.1 }}
       className='h-full'
     >
-      <Card className='relative h-full overflow-hidden border border-border/40 bg-card/40 backdrop-blur-xl shadow-2xl transition-all duration-300'>
+      <Card className='relative h-full overflow-hidden border border-foreground/10 bg-card/40 backdrop-blur-xl  transition-all duration-300'>
         {/* Decorative gradient background */}
         <div className='absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[#56c2ff]/5 blur-3xl' />
         <div className='absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-[#56c2ff]/5 blur-3xl' />
@@ -60,7 +60,7 @@ export function ScoreTrendCard({
             </div>
 
             {/* Numeric badge — matches MatchScoreAnalytics style */}
-            <div className='rounded-2xl border border-border/40 bg-background/40 backdrop-blur-md px-5 py-4 text-right shadow-inner ring-1 ring-white/5'>
+            <div className='rounded-2xl border border-foreground/10 bg-background/40 backdrop-blur-md px-5 py-4 text-right  ring-1 ring-white/5'>
               <div className='text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60'>
                 Average
               </div>

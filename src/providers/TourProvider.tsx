@@ -53,6 +53,7 @@ interface TourContextValue {
     skip: string;
     close: string;
   };
+  availablePages: string[];
 }
 
 const TourContext = createContext<TourContextValue | null>(null);
@@ -62,6 +63,19 @@ export const useProductTour = () => {
   if (!ctx)
     throw new Error("useProductTour must be used within <TourProvider />");
   return ctx;
+};
+
+export const TOUR_PAGE_LABELS: Record<string, string> = {
+  overview: "Overview",
+  application: "Applications",
+  analytics: "Analytics",
+  jobs: "Jobs",
+  resume: "Resume",
+  "cover-letter": "Cover Letter",
+  settings: "Settings",
+  notifications: "Notifications",
+  profile: "Profile",
+  chat: "Chat",
 };
 
 // Internal registry keyed by page -> ordered marks
@@ -82,6 +96,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isRunning, setIsRunning] = useState(false);
   const { profile, completeWalkthrough } = useProfileSettings();
   const [waiting, setWaiting] = useState(false);
+  const [registryVersion, setRegistryVersion] = useState(0);
   const labels = {
     back: "Back",
     next: "Next",
@@ -112,6 +127,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!list.find((m) => m.id === mark.id)) {
       list.push({ ...mark, element: null });
       registry.current.set(mark.page || "*", list);
+      setRegistryVersion((v) => v + 1);
     }
   }, []);
 
@@ -346,6 +362,11 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch {}
   }, [isRunning, activeIndex, page, order]);
 
+  const availablePages = useMemo(
+    () => Array.from(registry.current.keys()).filter((key) => key !== "*"),
+    [registryVersion],
+  );
+
   const value = useMemo<TourContextValue>(
     () => ({
       activeId: active?.id || null,
@@ -361,6 +382,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
       activeIndex,
       waiting,
       labels,
+      availablePages,
     }),
     [
       active?.id,
@@ -375,6 +397,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
       order,
       activeIndex,
       waiting,
+      availablePages,
     ],
   );
 
@@ -384,13 +407,6 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
       {/* Legacy overlay removed to avoid double blur & duplicate messaging; Joyride handles spotlight & tooltips */}
       {/* Joyride overlay (auto-built from data-tour attributes) */}
       <JoyrideAdapter />
-      <FloatingTourMenu
-        registry={registry}
-        start={start}
-        page={page}
-        isRunning={isRunning}
-        profile={profile}
-      />
     </TourContext.Provider>
   );
 };

@@ -17,6 +17,7 @@ import { Analytics } from "./screens/Analytics";
 import { Dashboard } from "./screens/Dashboard";
 import { PrivacyPolicy } from "./screens/PrivacyPolicy";
 import { PublicResumePage } from "./screens/Public/PublicResumePage";
+import { PublicProfilePage } from "./screens/Public/PublicProfilePage";
 import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
 import GmailCallbackPage from "./screens/AuthCallback/GmailCallbackPage";
@@ -30,11 +31,19 @@ import { ToastEventBridge } from "./components/system/ToastEventBridge";
 import { InputSecurityGuard } from "./components/system/InputSecurityGuard";
 import { AnimatePresence } from "framer-motion";
 import { PageTransition } from "./components/transitions";
+import posthog, { initPostHog } from "./lib/posthog";
+import { PostHogProvider } from "posthog-js/react";
+import { HelmetProvider } from "react-helmet-async";
 import AdminCheckCredits from "@/pages/AdminCheckCredits";
+import { usePostHogAuthBridge } from "./hooks/usePostHogAuthBridge";
+import { PricingPage } from "./screens/Pricing";
+import TermsOfService from "./screens/TermsOfService";
+import SecurityPage from "./screens/SecurityPage";
 import {
   AdminLayout,
   AdminOverview,
   AdminUsers,
+  AdminChat,
   AdminRevenue,
   AdminCredits,
   AdminProviderCredits,
@@ -42,8 +51,22 @@ import {
   AdminDatabase,
   AdminPerformance,
   AdminSettings,
+  AdminJobs,
 } from "./pages/admin";
 import AdminSubscriptions from "./pages/admin/pages/AdminSubscriptions";
+
+const APP_ORIGIN = "https://app.jobraker.io";
+initPostHog();
+
+function isAdminPublicPath(pathname: string) {
+  return (
+    pathname === "/signin" ||
+    pathname === ROUTES.SIGNIN ||
+    pathname === "/login" ||
+    pathname === ROUTES.SIGNUP ||
+    pathname.startsWith("/auth/")
+  );
+}
 
 // Error boundary component
 class ErrorBoundary extends React.Component<
@@ -97,11 +120,31 @@ function AnimatedRoutes() {
 
         {/* Waitlist Page */}
         <Route
-          path='/waitlist'
+          path={ROUTES.WAITLIST}
           element={
             <PageTransition>
               <WaitlistPage />
             </PageTransition>
+          }
+        />
+
+        <Route
+          path={ROUTES.EARLY_ACCESS}
+          element={
+            <PageTransition>
+              <EarlyAccessPage />
+            </PageTransition>
+          }
+        />
+
+        <Route
+          path={ROUTES.PRICING}
+          element={
+            <PublicOnly>
+              <PageTransition>
+                <PricingPage />
+              </PageTransition>
+            </PublicOnly>
           }
         />
 
@@ -118,7 +161,11 @@ function AnimatedRoutes() {
         />
 
         {/* Sign In Page */}
-        <Route path='/signin' element={<Navigate to={ROUTES.SIGNIN} replace />} />
+        <Route
+          path='/signin'
+          caseSensitive
+          element={<Navigate to={ROUTES.SIGNIN} replace />}
+        />
         <Route path='/login' element={<Navigate to={ROUTES.SIGNIN} replace />} />
         <Route
           path={ROUTES.SIGNIN}
@@ -180,12 +227,44 @@ function AnimatedRoutes() {
           }
         />
 
+        <Route
+          path={ROUTES.TERMS}
+          element={
+            <PublicOnly>
+              <PageTransition>
+                <TermsOfService />
+              </PageTransition>
+            </PublicOnly>
+          }
+        />
+
+        <Route
+          path={ROUTES.SECURITY}
+          element={
+            <PublicOnly>
+              <PageTransition>
+                <SecurityPage />
+              </PageTransition>
+            </PublicOnly>
+          }
+        />
+
         {/* Public Resume View */}
         <Route
           path={ROUTES.PUBLIC_RESUME}
           element={
             <PageTransition>
               <PublicResumePage />
+            </PageTransition>
+          }
+        />
+
+        {/* Public Profile Portfolio View */}
+        <Route
+          path={ROUTES.PUBLIC_PROFILE}
+          element={
+            <PageTransition>
+              <PublicProfilePage />
             </PageTransition>
           }
         />
@@ -210,7 +289,10 @@ function AnimatedRoutes() {
           }
         >
           <Route index element={<AdminOverview />} />
+          <Route path='overview' element={<AdminOverview />} />
           <Route path='users' element={<AdminUsers />} />
+          <Route path='jobs' element={<AdminJobs />} />
+          <Route path='chat' element={<AdminChat />} />
           <Route path='subscriptions' element={<AdminSubscriptions />} />
           <Route path='revenue' element={<AdminRevenue />} />
           <Route path='credits' element={<AdminCredits />} />
@@ -240,17 +322,34 @@ function AnimatedRoutes() {
   );
 }
 
+function ExternalRedirect({ to }: { to: string }) {
+  React.useEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+
+  return null;
+}
+
 function SubdomainGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const hostname = window.location.hostname;
+  const isAdminHost = hostname.startsWith("admin.");
 
   if (
-    hostname.startsWith("admin.") &&
+    isAdminHost &&
+    location.pathname.startsWith("/dashboard")
+  ) {
+    return (
+      <ExternalRedirect
+        to={`${APP_ORIGIN}${location.pathname}${location.search}${location.hash}`}
+      />
+    );
+  }
+
+  if (
+    isAdminHost &&
     !location.pathname.startsWith("/admin") &&
-    location.pathname !== "/signin" &&
-    location.pathname !== "/login" &&
-    location.pathname !== "/signup" &&
-    !location.pathname.startsWith("/auth/")
+    !isAdminPublicPath(location.pathname)
   ) {
     return <Navigate to="/admin" replace />;
   }
@@ -260,22 +359,27 @@ function SubdomainGuard({ children }: { children: React.ReactNode }) {
 
 function App() {
   const [queryClient] = React.useState(() => new QueryClient());
+  usePostHogAuthBridge();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        {/* Global providers */}
-        <ToastProvider>
-          <AppearanceProvider>
-            <InputSecurityGuard />
-            <ToastEventBridge />
-            <SubdomainGuard>
-              <AnimatedRoutes />
-            </SubdomainGuard>
-          </AppearanceProvider>
-        </ToastProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <HelmetProvider>
+      <PostHogProvider client={posthog}>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            {/* Global providers */}
+            <ToastProvider>
+              <AppearanceProvider>
+                <InputSecurityGuard />
+                <ToastEventBridge />
+                <SubdomainGuard>
+                  <AnimatedRoutes />
+                </SubdomainGuard>
+              </AppearanceProvider>
+            </ToastProvider>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </PostHogProvider>
+    </HelmetProvider>
   );
 }
 

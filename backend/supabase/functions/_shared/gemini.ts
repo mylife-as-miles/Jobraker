@@ -100,9 +100,45 @@ export async function withGeminiRetry<T>(
 }
 
 // Standardize default text/function-calling work on the current shared Gemini model.
-export const GEMINI_MODEL = "gemini-3-flash-preview";
-export const GEMINI_FAST_MODEL = "gemini-3-flash-preview";
-export const GEMINI_PREMIUM_MODEL = "gemini-1.5-pro";
+// Tiered model strategy:
+//   LITE   – cheapest, highest rate limits, best for simple tasks & fallback
+//   MODEL  – standard workhorse for most features
+//   PREMIUM – most capable, costs 2 credits, for advanced reasoning tasks
+export const GEMINI_LITE_MODEL = "gemini-3.1-flash-lite";
+export const GEMINI_MODEL = "gemini-3.0-flash-preview";
+export const GEMINI_FAST_MODEL = GEMINI_LITE_MODEL;
+export const GEMINI_PREMIUM_MODEL = "gemini-3.5-flash";
+
+/** Ordered fallback chain: try primary → standard → lite */
+export const MODEL_FALLBACK_CHAIN = [
+  GEMINI_MODEL,
+  GEMINI_LITE_MODEL,
+] as const;
+
+/**
+ * Try `fn` with the given model. On rate-limit, cascade through cheaper
+ * fallback models before giving up.
+ */
+export async function withModelFallback<T>(
+  fn: (model: string) => Promise<T>,
+  primaryModel: string = GEMINI_MODEL,
+): Promise<{ result: T; modelUsed: string }> {
+  const chain = [primaryModel, ...MODEL_FALLBACK_CHAIN.filter((m) => m !== primaryModel)];
+  let lastError: unknown;
+  for (const model of chain) {
+    try {
+      const result = await fn(model);
+      return { result, modelUsed: model };
+    } catch (error) {
+      lastError = error;
+      if (!isGeminiRateLimitError(error)) {
+        throw error; // non-rate-limit errors propagate immediately
+      }
+      console.warn(`[Gemini] ${model} rate-limited, falling back…`);
+    }
+  }
+  throw lastError;
+}
 
 // Standard tools configuration
 export const GEMINI_TOOLS = [
@@ -111,15 +147,29 @@ export const GEMINI_TOOLS = [
 ];
 
 // Standard config with thinking enabled
-export const createGeminiConfig = (options?: {
+export const createGeminiConfig = (
+  options?: {
     systemInstruction?: string;
     responseMimeType?: string;
     includeTools?: boolean;
     thinkingLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
-}) => ({
-    thinkingConfig: {
-        thinkingLevel: options?.thinkingLevel || 'MEDIUM',
-    },
+  },
+  modelName?: string
+) => {
+  const supportsThinking = modelName ? (
+    modelName.toLowerCase().includes("thinking") ||
+    modelName.toLowerCase().includes("gemini-3") ||
+    modelName.toLowerCase().includes("3.0") ||
+    modelName.toLowerCase().includes("3.1") ||
+    modelName.toLowerCase().includes("3.5")
+  ) : false;
+
+  return {
+    ...(options?.thinkingLevel && supportsThinking ? {
+      thinkingConfig: {
+        thinkingLevel: options.thinkingLevel,
+      }
+    } : {}),
     ...(options?.includeTools ? { tools: GEMINI_TOOLS } : {}),
     responseMimeType: options?.responseMimeType || 'application/json',
     ...(options?.systemInstruction ? {
@@ -128,7 +178,8 @@ export const createGeminiConfig = (options?: {
         parts: [{ text: options.systemInstruction }]
       }
     } : {}),
-});
+  };
+};
 
 /**
  * Safely extract text from a Gemini generateContent response.
@@ -200,16 +251,18 @@ export const generateGeminiDescription = async (
   `;
 
   try {
-     const response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
-        config: createGeminiConfig({ systemInstruction: systemPrompt }),
-        contents: [
-            {
-                role: 'user',
-                parts: [{ text: combinedContent }]
-            }
-        ]
-     });
+     const { result: response } = await withModelFallback(
+       (model) => ai.models.generateContent({
+          model,
+          config: createGeminiConfig({ systemInstruction: systemPrompt }),
+          contents: [
+              {
+                  role: 'user',
+                  parts: [{ text: combinedContent }]
+              }
+          ]
+       }),
+     );
 
      const text = extractGeminiText(response);
      if (!text) throw new Error("Empty response from Gemini");
@@ -221,3 +274,34 @@ export const generateGeminiDescription = async (
     throw new Error(`Failed to generate Gemini description: ${error.message}`);
   }
 };
+
+export async function generateGeminiContent(
+  prompt: string,
+  options: {
+    temperature?: number;
+    response_mime_type?: string;
+    responseMimeType?: string;
+    model?: string;
+  } = {},
+): Promise<string> {
+  const ai = createGeminiClient();
+  const responseMimeType = options.responseMimeType || options.response_mime_type;
+  const { result } = await withModelFallback(
+    (model) =>
+      ai.models.generateContent({
+        model,
+        config: {
+          ...createGeminiConfig({
+            responseMimeType: responseMimeType || "text/plain",
+          }, model),
+          ...(typeof options.temperature === "number"
+            ? { temperature: options.temperature }
+            : {}),
+        },
+        contents: prompt,
+      }),
+    options.model || GEMINI_MODEL,
+  );
+
+  return extractGeminiText(result);
+}

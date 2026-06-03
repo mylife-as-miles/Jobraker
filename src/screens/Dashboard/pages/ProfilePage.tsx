@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
@@ -34,6 +35,7 @@ import { createClient } from "../../../lib/supabaseClient";
 import { useGamification } from "../../../hooks/useGamification";
 import { CandidateMemoryEditor } from "../components/CandidateMemoryEditor";
 import { ProfileAvailabilitySection } from "../components/ProfileAvailabilitySection";
+import { PublicProfileShareCard } from "../components/PublicProfileShareCard";
 
 // Data now comes from Supabase via useProfileCollections
 
@@ -81,6 +83,7 @@ const ProfilePage = (): JSX.Element => {
         .select("subscription_plans(name)")
         .eq("user_id", userId)
         .eq("status", "active")
+        .gt("current_period_end", new Date().toISOString())
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -88,16 +91,7 @@ const ProfilePage = (): JSX.Element => {
       if (subscription && (subscription as any).subscription_plans?.name) {
         setSubscriptionTier((subscription as any).subscription_plans.name);
       } else {
-        // Fallback to profile subscription_tier
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("subscription_tier")
-          .eq("id", userId)
-          .maybeSingle();
-
-        if (profileData?.subscription_tier) {
-          setSubscriptionTier(profileData.subscription_tier);
-        }
+        setSubscriptionTier("Free");
       }
     })();
   }, [supabase]);
@@ -316,7 +310,7 @@ const ProfilePage = (): JSX.Element => {
   });
 
   return (
-    <div className='product-page-shell min-h-screen'>
+    <div className='product-page-shell min-h-full'>
       <div className='w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8'>
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8'>
           {/* Profile Sidebar */}
@@ -419,25 +413,76 @@ const ProfilePage = (): JSX.Element => {
                   </div>
 
                   <div className='flex justify-center space-x-2 mt-4'>
-                    <Button
-                      size='sm'
-                      variant='outline'
-                      className='product-outline-button hover:scale-105 transition-all duration-300'
-                    >
-                      <ExternalLink className='w-4 h-4 mr-1' />
-                      LinkedIn
-                    </Button>
-                    <Button
-                      size='sm'
-                      variant='outline'
-                      className='product-outline-button hover:scale-105 transition-all duration-300'
-                    >
-                      <ExternalLink className='w-4 h-4 mr-1' />
-                      GitHub
-                    </Button>
+                    {profile?.linkedin_url ? (
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        className='product-outline-button hover:scale-105 transition-all duration-300'
+                        asChild
+                      >
+                        <a
+                          href={profile.linkedin_url.startsWith('http') ? profile.linkedin_url : `https://${profile.linkedin_url}`}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                        >
+                          <ExternalLink className='w-4 h-4 mr-1' />
+                          LinkedIn
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        className='product-outline-button border-dashed border-foreground/20 text-muted-foreground/60 hover:text-foreground hover:scale-105 transition-all duration-300'
+                        asChild
+                      >
+                        <Link to='/dashboard/settings/profile'>
+                          <Plus className='w-4 h-4 mr-1' />
+                          Add LinkedIn
+                        </Link>
+                      </Button>
+                    )}
+                    {profile?.github_url ? (
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        className='product-outline-button hover:scale-105 transition-all duration-300'
+                        asChild
+                      >
+                        <a
+                          href={profile.github_url.startsWith('http') ? profile.github_url : `https://${profile.github_url}`}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                        >
+                          <ExternalLink className='w-4 h-4 mr-1' />
+                          GitHub
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        className='product-outline-button border-dashed border-foreground/20 text-muted-foreground/60 hover:text-foreground hover:scale-105 transition-all duration-300'
+                        asChild
+                      >
+                        <Link to='/dashboard/settings/profile'>
+                          <Plus className='w-4 h-4 mr-1' />
+                          Add GitHub
+                        </Link>
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.08 }}
+              className='transition-transform duration-300'
+            >
+              <PublicProfileShareCard profile={profile} />
             </motion.div>
 
             {/* Quick Stats */}
@@ -674,7 +719,7 @@ const ProfilePage = (): JSX.Element => {
                     </p>
                   </div>
                 </div>
-                <div className='grid grid-cols-5 gap-2'>
+                <div className='grid grid-cols-3 sm:grid-cols-5 gap-2'>
                   {gamification.allAchievements.map((ach) => (
                     <motion.div
                       key={ach.key}
@@ -1915,7 +1960,7 @@ function AboutEditor({
               job_title: jobTitle.trim(),
               location: location.trim() || null,
               location_scope: locationScope,
-              experience_years: years ? Number(years) : null,
+              experience_years: years && !isNaN(Number(years)) ? Math.round(Number(years)) : null,
             })
           }
         >

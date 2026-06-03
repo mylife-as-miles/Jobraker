@@ -174,6 +174,18 @@ serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const action = String(body?.action || "list");
 
+    if (action === "update_balance" || action === "refresh_firecrawl") {
+      const { data: isEditor, error: editorErr } = await auth.serviceClient.rpc("is_admin_editor", {
+        user_id: auth.user.id,
+      });
+      if (editorErr || !isEditor) {
+        return new Response(JSON.stringify({ error: "Editor permission required" }), {
+          status: 403,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        });
+      }
+    }
+
     if (action === "refresh_firecrawl") {
       const refresh = await syncFirecrawlCreditUsage(auth.serviceClient, {
         source: "admin_refresh",

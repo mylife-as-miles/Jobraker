@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabaseClient';
-import type { AdminStats, UserActivity, RevenueData, AdminTransaction } from '../types';
+import type { AdminStats, UserActivity, RevenueData, AdminTransaction, ExperienceFeedbackStats } from '../types';
 
 export const useAdminStats = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -68,7 +68,8 @@ export const useAdminStats = () => {
         const { data, error } = await supabase
           .from('user_subscriptions')
           .select('user_id, status, subscription_plan_id, subscription_plans(name, price, credits_per_month)')
-          .eq('status', 'active');
+          .eq('status', 'active')
+          .gt('current_period_end', new Date().toISOString());
         if (!error && data) {
           subscriptions = data;
           console.log('Subscriptions fetched:', subscriptions.length, subscriptions);
@@ -167,6 +168,82 @@ export const useAdminStats = () => {
   return { stats, loading, error, refetch: fetchAdminStats };
 };
 
+export const useExperienceFeedbackStats = (days = 90) => {
+  const [stats, setStats] = useState<ExperienceFeedbackStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    void fetchExperienceFeedbackStats();
+  }, [days]);
+
+  const fetchExperienceFeedbackStats = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const cutoffIso = new Date(
+        Date.now() - days * 24 * 60 * 60 * 1000,
+      ).toISOString();
+
+      const { data, error } = await supabase
+        .from("user_experience_feedback")
+        .select("rating, created_at")
+        .gte("created_at", cutoffIso)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      const rows = data ?? [];
+      const distribution = [1, 2, 3, 4, 5].map((rating) => ({
+        rating,
+        count: rows.filter((row: any) => row.rating === rating).length,
+      }));
+
+      const totalResponses = rows.length;
+      const totalScore = rows.reduce(
+        (sum: number, row: any) => sum + Number(row.rating || 0),
+        0,
+      );
+      const fiveStarCount = distribution.find((item) => item.rating === 5)?.count ?? 0;
+
+      const trendMap = new Map<string, { total: number; count: number }>();
+      rows.forEach((row: any) => {
+        const dateKey = new Date(row.created_at).toLocaleDateString("en-CA");
+        const current = trendMap.get(dateKey) ?? { total: 0, count: 0 };
+        trendMap.set(dateKey, {
+          total: current.total + Number(row.rating || 0),
+          count: current.count + 1,
+        });
+      });
+
+      const trend = Array.from(trendMap.entries()).map(([date, value]) => ({
+        date,
+        responses: value.count,
+        averageRating: value.count > 0 ? Number((value.total / value.count).toFixed(2)) : 0,
+      }));
+
+      setStats({
+        responses: totalResponses,
+        averageRating: totalResponses > 0 ? Number((totalScore / totalResponses).toFixed(2)) : 0,
+        fiveStarShare: totalResponses > 0 ? Number(((fiveStarCount / totalResponses) * 100).toFixed(1)) : 0,
+        distribution,
+        trend,
+      });
+    } catch (err: any) {
+      console.error("Error fetching experience feedback stats:", err);
+      setError(err.message ?? "Failed to load feedback analytics.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { stats, loading, error, refetch: fetchExperienceFeedbackStats };
+};
+
 export const useUserActivities = () => {
   const [activities, setActivities] = useState<UserActivity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -222,7 +299,8 @@ export const useUserActivities = () => {
         supabase.from('user_credits').select('user_id, balance, lifetime_spent'),
         supabase.from('user_subscriptions')
           .select('user_id, status, subscription_plan_id, subscription_plans(name, price)')
-          .eq('status', 'active'),
+          .eq('status', 'active')
+          .gt('current_period_end', new Date().toISOString()),
         supabase.from('credit_transactions')
           .select('user_id, reference_type, transaction_type, description, created_at') 
           .order('created_at', { ascending: false })
@@ -324,6 +402,7 @@ export const useUserActivities = () => {
           id: user.id,
           email,
           roles: roleMap.get(user.id) || [],
+          user_roles: user.user_roles || [],
           full_name,
           updated_at,
           credits_balance,
@@ -467,7 +546,8 @@ export const useRevenueData = (days: number = 30) => {
         const { data, error } = await supabase
           .from('user_subscriptions')
           .select('subscription_plan_id, subscription_plans(price)')
-          .eq('status', 'active');
+          .eq('status', 'active')
+          .gt('current_period_end', new Date().toISOString());
 
         if (!error && data) {
           activeSubscriptions = data;

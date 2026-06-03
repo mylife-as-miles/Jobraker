@@ -1,5 +1,5 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { discoverJobsFirecrawl } from "../_shared/discovery-hybrid.ts";
+import { discoverJobsFirecrawl, type PublicJobSource } from "../_shared/discovery-hybrid.ts";
 import { persistDiscoveredJobs } from "../_shared/jobs.ts";
 import { syncFirecrawlCreditUsage } from "../_shared/provider-credits.ts";
 import {
@@ -7,6 +7,87 @@ import {
   resolveJobSearchExecutionLimits,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+
+const PUBLIC_JOB_SOURCE_ALIASES: Record<string, PublicJobSource> = {
+  web: "web",
+  general: "web",
+  ats: "ats",
+  greenhouse: "ats",
+  lever: "ats",
+  ashby: "ats",
+  workable: "ats",
+  yc: "yc",
+  "yc/jobs": "yc",
+  ycombinator: "yc",
+  "ycombinator.com": "yc",
+  workatastartup: "yc",
+  x: "x",
+  twitter: "x",
+  "x.com": "x",
+  "twitter.com": "x",
+  reddit: "reddit",
+  hn: "hackernews",
+  hackernews: "hackernews",
+  "hacker-news": "hackernews",
+  "news.ycombinator.com": "hackernews",
+  community: "community",
+};
+
+function parsePublicSources(value: unknown): PublicJobSource[] {
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[,;\s]+/)
+      : [];
+  const seen = new Set<PublicJobSource>();
+  for (const item of raw) {
+    const key = String(item || "").trim().toLowerCase();
+    const source = PUBLIC_JOB_SOURCE_ALIASES[key];
+    if (source) seen.add(source);
+  }
+  return Array.from(seen);
+}
+
+function normalizeDomain(value: string): string | null {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(
+      /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`,
+    );
+    return parsed.hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return trimmed
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .replace(/\/.*$/, "")
+      .trim() || null;
+  }
+}
+
+function extractTargetDomains(value: unknown): string[] {
+  const inputs = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? [value]
+      : [];
+  const seen = new Set<string>();
+  for (const item of inputs) {
+    const text = String(item || "");
+    for (const match of text.matchAll(/\bsite:([a-z0-9.-]+\.[a-z]{2,})(?:\/[^\s)"']*)?/gi)) {
+      const domain = normalizeDomain(match[1]);
+      if (domain) seen.add(domain);
+    }
+    for (const match of text.matchAll(/https?:\/\/[^\s<>"')]+/gi)) {
+      const domain = normalizeDomain(match[0]);
+      if (domain) seen.add(domain);
+    }
+    const direct = normalizeDomain(text);
+    if (direct && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(direct)) seen.add(direct);
+  }
+  return Array.from(seen).slice(0, 12);
+}
 
 Deno.serve(async (req) => {
   const startedAt = Date.now();
@@ -24,6 +105,14 @@ Deno.serve(async (req) => {
     const locationScope = (["city", "country", "global"] as const).includes(body?.locationScope)
       ? (body.locationScope as "city" | "country" | "global")
       : "city";
+    const sourceFocus = parsePublicSources(
+      body?.sources ?? body?.sourceFocus ?? body?.publicSources,
+    );
+    const targetDomains = extractTargetDomains([
+      searchQuery,
+      ...(Array.isArray(body?.targetDomains) ? body.targetDomains : []),
+      ...(Array.isArray(body?.careerSourceUrls) ? body.careerSourceUrls : []),
+    ]);
 
     // Resolve effective location based on scope
     let location = rawLocation;
@@ -84,10 +173,82 @@ Deno.serve(async (req) => {
       );
     }
 
+    const isAsync = body?.async === true;
+
+    if (isAsync) {
+      const { data: task, error: enqueueError } = await serviceClient
+        .from("job_intelligence_tasks")
+        .insert({
+          user_id: user.id,
+          type: "scout_search",
+          title: `Scout search: ${searchQuery}`,
+          message: "Queued for background search.",
+          progress_total: 3,
+          params: {
+            search_query: searchQuery,
+            location,
+            limit: requestedLimit,
+            sources: sourceFocus,
+            targetDomains,
+          },
+        })
+        .select("id")
+        .single();
+
+      if (enqueueError) {
+        throw enqueueError;
+      }
+
+      const processTaskUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/process-task`;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (serviceRoleKey) {
+        try {
+          const dispatchResponse = await fetch(processTaskUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify({ taskId: task.id }),
+          });
+          if (!dispatchResponse.ok) {
+            console.error("[jobs-search] Failed to dispatch async scout task", {
+              taskId: task.id,
+              status: dispatchResponse.status,
+              body: await dispatchResponse.text().catch(() => ""),
+            });
+          }
+        } catch (dispatchError) {
+          console.error("[jobs-search] Async scout task dispatch failed", {
+            taskId: task.id,
+            error: dispatchError,
+          });
+        }
+      } else {
+        console.warn("[jobs-search] SUPABASE_SERVICE_ROLE_KEY missing; relying on DB trigger for async scout task", {
+          taskId: task.id,
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          status: "queued",
+          taskId: task.id,
+        }),
+        {
+          status: 202,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        }
+      );
+    }
+
     console.log("[jobs-search] Firecrawl-led discovery", {
       userId: user.id,
       searchQuery,
       location,
+      sourceFocus,
+      targetDomains,
       requestedLimit,
       effectiveLimit,
       subscriptionTier,
@@ -101,6 +262,8 @@ Deno.serve(async (req) => {
         searchQuery,
         location,
         limit: effectiveLimit,
+        sourceFocus,
+        targetDomains,
       },
       async (batch) => {
         const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
@@ -223,6 +386,9 @@ Deno.serve(async (req) => {
           location: job.location,
           url: job.url,
           description: job.description,
+          salary_min: job.salary_min ?? null,
+          salary_max: job.salary_max ?? null,
+          salary_currency: job.salary_currency ?? null,
           posted_at: job.posted_at,
           source_kind: job.source_kind,
           source_confidence: job.source_confidence,
@@ -230,6 +396,8 @@ Deno.serve(async (req) => {
           is_tracked_company: job.is_tracked_company,
         })),
         count: discoveredJobs.length,
+        sourceFocus,
+        targetDomains,
         warnings,
       }),
       {

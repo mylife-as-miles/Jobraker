@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -145,48 +146,58 @@ export const AddSectionDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='product-section-card sm:max-w-[600px] text-foreground'>
-        <DialogHeader>
+      <DialogContent className='product-section-card flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] max-w-[600px] flex-col overflow-hidden p-0 text-foreground sm:w-full'>
+        <DialogHeader className='shrink-0 border-b border-border/40 px-5 py-4'>
           <DialogTitle>Add Section</DialogTitle>
           <DialogDescription>
             Choose a section to add to your resume.
           </DialogDescription>
         </DialogHeader>
 
-        <div className='grid grid-cols-1 gap-3 py-4 sm:grid-cols-2'>
-          {availableSections.map((section) => (
-            <button
-              key={section.id}
-              onClick={() => handleAddStandard(section.id)}
-              className='product-section-card-muted group flex flex-col items-start p-4 text-left transition-all hover:border-brand/60 hover:bg-brand/15'
-            >
-              <div className='flex items-center gap-2 mb-2'>
-                <section.icon className='product-helper-text h-4 w-4 transition-colors group-hover:text-brand' />
-                <span className='font-semibold text-sm'>{section.label}</span>
-              </div>
-              <p className='product-helper-text text-xs'>{section.desc}</p>
-            </button>
-          ))}
+        <div className='flex-1 overflow-y-auto px-5 py-4'>
+          <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+            {availableSections.map((section) => (
+              <button
+                key={section.id}
+                onClick={() => handleAddStandard(section.id)}
+                className='product-section-card-muted group flex flex-col items-start p-4 text-left transition-all hover:border-brand/60 hover:bg-brand/15'
+              >
+                <div className='mb-2 flex items-center gap-2'>
+                  <section.icon className='product-helper-text h-4 w-4 transition-colors group-hover:text-brand' />
+                  <span className='text-sm font-semibold'>{section.label}</span>
+                </div>
+                <p className='product-helper-text text-xs'>{section.desc}</p>
+              </button>
+            ))}
+          </div>
+
+          <div className='mt-4 border-t border-border/40 pt-4'>
+            <h4 className='mb-3 text-sm font-medium'>Custom Section</h4>
+            <div className='flex flex-col gap-2 sm:flex-row'>
+              <Input
+                placeholder='e.g. Speaking Engagements'
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                className='flex-1'
+              />
+              <Button
+                onClick={handleAddCustom}
+                disabled={!customName.trim()}
+                className='bg-brand text-black hover:bg-brand'
+              >
+                <Plus className='mr-2 h-4 w-4' />
+                Add
+              </Button>
+            </div>
+          </div>
         </div>
 
-        <div className='mt-2 border-t border-border/40 pt-4'>
-          <h4 className='text-sm font-medium mb-3'>Custom Section</h4>
-          <div className='flex flex-col gap-2 sm:flex-row'>
-            <Input
-              placeholder='e.g. Speaking Engagements'
-              value={customName}
-              onChange={(e) => setCustomName(e.target.value)}
-              className='flex-1'
-            />
-            <Button
-              onClick={handleAddCustom}
-              disabled={!customName.trim()}
-              className='bg-brand text-black hover:bg-brand'
-            >
-              <Plus className='w-4 h-4 mr-2' />
-              Add
+        <div className='shrink-0 border-t border-border/40 px-5 py-4'>
+          <DialogClose asChild>
+            <Button variant='outline' className='w-full sm:w-auto'>
+              Cancel
             </Button>
-          </div>
+          </DialogClose>
         </div>
       </DialogContent>
     </Dialog>

@@ -73,9 +73,7 @@ export function getJobsQueueQueryOptions<TJob>({
           queryBuilder = queryBuilder.gte("discovered_at", scope.startedAt);
         }
 
-        if (typeof scope?.limit === "number" && scope.limit > 0) {
-          queryBuilder = queryBuilder.limit(scope.limit);
-        }
+
       } else {
         queryBuilder = queryBuilder.order("created_at", { ascending: false });
       }

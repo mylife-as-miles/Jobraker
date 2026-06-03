@@ -1,5 +1,27 @@
 import { getCorsHeaders } from "../_shared/types.ts";
 
+function isBlockedHostname(hostname: string): boolean {
+  const lower = hostname.toLowerCase();
+  if (
+    lower === "localhost" ||
+    lower === "::1" ||
+    lower.endsWith(".local")
+  ) {
+    return true;
+  }
+  if (/^127\./.test(lower) || /^10\./.test(lower) || /^192\.168\./.test(lower)) {
+    return true;
+  }
+  const match172 = lower.match(/^172\.(\d+)\./);
+  if (match172) {
+    const secondOctet = Number(match172[1]);
+    if (secondOctet >= 16 && secondOctet <= 31) {
+      return true;
+    }
+  }
+  return false;
+}
+
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin || undefined);
@@ -17,6 +39,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const parsedUrl = new URL(urlStr);
+    if (!["http:", "https:"].includes(parsedUrl.protocol) || isBlockedHostname(parsedUrl.hostname)) {
+      return new Response(JSON.stringify({ error: "Unsupported image URL" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const response = await fetch(urlStr, {
       redirect: "follow",
       headers: {

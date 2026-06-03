@@ -1,9 +1,17 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText } from "../_shared/gemini.ts";
+import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText, withModelFallback } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
+import {
+  requireAuthenticatedUser,
+  SubscriptionAccessError,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 interface ResumeAnalysisRequest {
   resumeText: string;
@@ -127,26 +135,12 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const { user, serviceClient } = await requireAuthenticatedUser(req);
+    const subscriptionTier = await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "analyze_resume",
+      serviceClient,
+    });
 
     const { resumeText, profileSummary, resumeId }: ResumeAnalysisRequest = await req.json();
 
@@ -161,11 +155,13 @@ serve(async (req) => {
     const systemPrompt = "You are JobRaker's resume intelligence engine. Always reply with structured JSON matching the requested schema.";
     const userPrompt = buildPromptBody(resumeText.slice(0, 15000), profileSummary);
 
-    const response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
-        config: createGeminiConfig({ systemInstruction: systemPrompt }),
-        contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
-    });
+    const { result: response } = await withModelFallback(
+      (model) => ai.models.generateContent({
+          model,
+          config: createGeminiConfig({ systemInstruction: systemPrompt }),
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
+      }),
+    );
 
     const content = extractGeminiText(response);
     if (!content) throw new Error("Invalid response from Gemini (empty)");
@@ -184,7 +180,7 @@ serve(async (req) => {
 
     if (resumeId && user.id) {
       try {
-        await supabase.from("resume_analyses").insert({
+        await serviceClient.from("resume_analyses").insert({
           user_id: user.id,
           resume_id: resumeId,
           overall_score: result.overallScore,
@@ -205,11 +201,26 @@ serve(async (req) => {
       }
     }
 
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "analyze_resume",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        resume_length: resumeText.length,
+        profile_summary_length: profileSummary.length,
+        persisted_resume_id: resumeId || null,
+      },
+    });
+
     return new Response(
       JSON.stringify(result),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
     console.error("Error in analyze-resume function:", error);
     return new Response(
       JSON.stringify({ error: error.message || "Internal server error" }),

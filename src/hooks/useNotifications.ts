@@ -84,6 +84,7 @@ export function useNotifications(limit: number = 10) {
         .from('notifications')
         .select('*')
         .eq('user_id', userId)
+        .lte('created_at', new Date().toISOString())
         .order('created_at', { ascending: false });
       if (supportsArchive) query = query.is('archived_at', null);
       const { data, error } = await query.limit(limit);
@@ -93,6 +94,7 @@ export function useNotifications(limit: number = 10) {
           .from('notifications')
           .select('*')
           .eq('user_id', userId)
+          .lte('created_at', new Date().toISOString())
           .order('created_at', { ascending: false })
           .limit(limit);
         if (fallback.error) throw fallback.error;
@@ -134,6 +136,7 @@ export function useNotifications(limit: number = 10) {
           if (eventType === 'INSERT') {
             const inserted = payload.new as NotificationRow;
             if (supportsArchive && inserted.archived_at) return;
+            if (new Date(inserted.created_at) > new Date()) return;
               // Push new item local state
             setItems(prev => [inserted, ...prev].slice(0, limit));
             // Only toast if not part of the initial hydration
@@ -318,6 +321,7 @@ export function useNotifications(limit: number = 10) {
         .from('notifications')
         .select('*')
         .eq('user_id', userId)
+        .lte('created_at', new Date().toISOString())
         .order('created_at', { ascending: false });
       if (supportsArchive) query = query.is('archived_at', null);
       const { data, error } = await query.range(from, to);
@@ -327,6 +331,7 @@ export function useNotifications(limit: number = 10) {
           .from('notifications')
           .select('*')
           .eq('user_id', userId)
+          .lte('created_at', new Date().toISOString())
           .order('created_at', { ascending: false })
           .range(from, to);
         if (fallback.error) throw fallback.error;

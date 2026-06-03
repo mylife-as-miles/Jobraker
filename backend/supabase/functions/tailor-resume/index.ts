@@ -6,6 +6,7 @@ import {
   extractGeminiText,
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
@@ -18,11 +19,20 @@ import {
   fetchCandidateMemory,
   formatCandidateMemoryForPrompt,
 } from "../_shared/candidate-memory.ts";
+import {
+  fetchAnswerBankEntries,
+  formatAnswerBankForPrompt,
+} from "../_shared/answer-bank.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 function buildPrompt(
   jobDescription: string,
   resumeText: string,
   candidateMemory: string,
+  answerBank: string | null,
   instructions?: string,
 ): string {
   return `You are an expert executive resume writer. 
@@ -32,6 +42,11 @@ function buildPrompt(
   CANDIDATE MEMORY:
   """
   ${candidateMemory}
+  """
+
+  ANSWER BANK:
+  """
+  ${answerBank || "None"}
   """
   
   JOB DESCRIPTION:
@@ -61,7 +76,13 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient } = await requireSubscriptionTier(req, "Basics", "AI resume optimization");
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Basics", "AI resume optimization");
+    await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "tailor_resume",
+      serviceClient,
+      subscriptionTier,
+    });
     const {
       jobDescription,
       resumeText,
@@ -87,25 +108,31 @@ serve(async (req) => {
         );
       }
     }
+    const answerBankEntries = await fetchAnswerBankEntries(serviceClient, user.id, {
+      limit: 10,
+    }).catch(() => []);
     const prompt = buildPrompt(
       jobDescription,
       resumeText,
       formatCandidateMemoryForPrompt(candidateMemory),
+      formatAnswerBankForPrompt(answerBankEntries, 10),
       instructions,
     );
 
     let tailoredResume = resumeText.trim();
     try {
       const ai = createGeminiClient();
-      const result = await ai.models.generateContent({
-        model: GEMINI_MODEL,
-        config: createGeminiConfig({
-          systemInstruction:
-            "You are an expert resume writer. Return ONLY the tailored resume in clean markdown format.",
-          responseMimeType: "text/plain",
+      const { result } = await withModelFallback(
+        (model) => ai.models.generateContent({
+          model,
+          config: createGeminiConfig({
+            systemInstruction:
+              "You are an expert resume writer. Return ONLY the tailored resume in clean markdown format.",
+            responseMimeType: "text/plain",
+          }),
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
         }),
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      });
+      );
 
       const text = extractGeminiText(result);
       if (!text) throw new Error("Empty response from AI");
@@ -116,6 +143,17 @@ serve(async (req) => {
         console.warn(getGeminiAccessDeniedMessage("AI resume optimization"));
       }
     }
+
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "tailor_resume",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        job_description_length: String(jobDescription).length,
+        resume_length: String(resumeText).length,
+      },
+    });
 
     return new Response(JSON.stringify({ tailored_resume: tailoredResume }), { 
       status: 200, 

@@ -1,5 +1,14 @@
 // Clean AI-elements only Chat Page implementation
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+import { flushSync } from "react-dom";
 import { nanoid } from "nanoid";
 import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/light";
 import atomOneDarkStyle from "react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark";
@@ -26,12 +35,47 @@ SyntaxHighlighter.registerLanguage("html", xml);
 SyntaxHighlighter.registerLanguage("xml", xml);
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area
+} from "recharts";
 import { useNavigate } from "react-router-dom";
 import { createClient } from "../../../lib/supabaseClient";
 import {
   cacheChatAttachments,
   getChatAttachment,
 } from "../../../lib/chatAttachmentIdb";
+import {
+  generateChatStarters,
+  type ChatStarterIcon,
+  type ChatStarterSuggestion,
+} from "../../../services/ai/generateChatStarters";
+import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
+import {
+  executeChatSkill,
+  getPrimarySkillAlias,
+  getSkillById,
+  getSkillSuggestions,
+} from "@/lib/chatSkills/registry";
+import {
+  detectSkillPaletteTrigger,
+  parseSkillCall,
+  replaceSkillPaletteTrigger,
+} from "@/lib/chatSkills/parser";
+import type { ChatSkillCall, ParsedSkillCall } from "@/lib/chatSkills/types";
 import {
   MessageSquare,
   Wand2,
@@ -52,11 +96,20 @@ import {
   PanelLeft,
   X,
   Coins,
+  History,
+  Brain,
+  ReceiptText,
+  AlertTriangle,
+  ListChecks,
+  ChevronDown,
+  Mic,
+  Loader2,
 } from "lucide-react";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
+import { motion } from "framer-motion";
 
 // Custom styles for the new design
 const customStyles = `
@@ -84,6 +137,51 @@ const customStyles = `
   }
 `;
 
+const waitForAgentProgressPaint = () =>
+  new Promise<void>((resolve) => {
+    // A real frame boundary keeps SSE updates visible even when many frames
+    // arrive in one network chunk and React would otherwise look "dumped".
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => window.setTimeout(resolve, 35));
+    });
+  });
+
+const parseSseFrame = (frame: string) => {
+  let event = "message";
+  const dataLines: string[] = [];
+
+  for (const rawLine of frame.split(/\r?\n/)) {
+    const line = rawLine.trimEnd();
+    if (!line || line.startsWith(":")) continue;
+    if (line.startsWith("event:")) {
+      event = line.slice(6).trim() || "message";
+      continue;
+    }
+    if (line.startsWith("data:")) {
+      dataLines.push(line.slice(5).trimStart());
+    }
+  }
+
+  if (!dataLines.length) return null;
+  return {
+    event,
+    data: dataLines.join("\n"),
+  };
+};
+
+const parseSseData = (dataStr: string) => {
+  if (dataStr === "[DONE]") return null;
+  try {
+    return JSON.parse(dataStr);
+  } catch (error) {
+    console.warn("[ai-chat] Could not parse SSE frame", {
+      data: dataStr.slice(0, 240),
+      error,
+    });
+    return null;
+  }
+};
+
 // Real-deal streaming useChat hook
 type Persona = "concise" | "friendly" | "analyst" | "coach";
 type ChatMode = "ask" | "agent";
@@ -101,19 +199,46 @@ type ChatUiAction = {
   pageTitle?: string | null;
 };
 interface ToolCallEntry {
+  id?: string;
   name: string;
   args?: Record<string, unknown>;
   status: "running" | "done" | "error";
+  result?: Record<string, unknown>;
+  startedAt?: number;
+  finishedAt?: number;
+  creditsCharged?: number;
+}
+interface AgentActivityEntry {
+  id: string;
+  kind:
+    | "thinking"
+    | "tool_batch"
+    | "tool_result"
+    | "billing"
+    | "limit"
+    | "status"
+    | "error";
+  title: string;
+  detail?: string;
+  status: "running" | "done" | "error";
+  createdAt: number;
+  finishedAt?: number;
+  round?: number;
+  creditsCharged?: number;
+  toolCount?: number;
 }
 interface BasicMessage {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "skill";
   content: string;
   parts?: { type: "text"; text: string }[];
   streaming?: boolean;
   createdAt: number;
   meta?: { persona?: Persona; parent?: string };
   toolCalls?: ToolCallEntry[];
+  agentEvents?: AgentActivityEntry[];
+  streamFrameCount?: number;
+  skillCall?: ChatSkillCall;
   /** Persisted: user message included an image (bytes live in IndexedDB). */
   hasPastedImage?: boolean;
   attachmentCount?: number;
@@ -128,7 +253,7 @@ interface UseChatOptions {
   api: string;
   initialMessages?: BasicMessage[];
   onFinish?: (msg: BasicMessage) => void;
-  /** Fired when agent mode charges extra credits for a tool round */
+  /** Fired when agent mode charges extra credits for tool use */
   onCreditsUpdated?: () => void;
   onUiAction?: (action: ChatUiAction) => void;
 }
@@ -138,7 +263,7 @@ interface UseChatReturn {
   append: (m: ChatUserPayload, opts?: ChatRequestOptions) => void;
   regenerate: () => void;
   stop: () => void;
-  setMessages: (m: BasicMessage[]) => void;
+  setMessages: Dispatch<SetStateAction<BasicMessage[]>>;
   responseId: string | null;
   setResponseId: (id: string | null) => void;
   requestStartedAt: number | null;
@@ -172,11 +297,28 @@ type ChatSessionState = {
 const DEFAULT_CHAT_MODEL = "gemini-3-flash-preview";
 const MAX_CHAT_ATTACHMENTS = 3;
 const CHAT_EXTENDED_WAIT_MS = 30_000;
-const CHAT_TIMEOUT_MS = 240_000;
+const CHAT_TIMEOUT_MS = 30 * 60_000;
+
+// Fallback starters removed in favor of dynamic AI suggestions and skeleton loaders.
+
+const CHAT_STARTER_ICONS: Record<
+  ChatStarterIcon,
+  React.ComponentType<{ className?: string }>
+> = {
+  resume: FileText,
+  jobs: Search,
+  interview: MessageSquare,
+  "cover-letter": BookOpen,
+  applications: Target,
+  strategy: Bolt,
+};
 
 const normalizeBasicMessage = (message: any): BasicMessage => ({
   id: typeof message?.id === "string" ? message.id : nanoid(),
-  role: message?.role === "assistant" ? "assistant" : "user",
+  role:
+    message?.role === "assistant" || message?.role === "skill"
+      ? message.role
+      : "user",
   content: typeof message?.content === "string" ? message.content : "",
   parts:
     Array.isArray(message?.parts) && message.parts.length > 0
@@ -194,8 +336,852 @@ const normalizeBasicMessage = (message: any): BasicMessage => ({
     message?.meta && typeof message.meta === "object"
       ? message.meta
       : undefined,
+  toolCalls: Array.isArray(message?.toolCalls)
+    ? message.toolCalls
+        .filter((entry: any) => entry && typeof entry.name === "string")
+        .map((entry: any) => ({
+          id: typeof entry.id === "string" ? entry.id : undefined,
+          name: entry.name,
+          args:
+            entry.args && typeof entry.args === "object"
+              ? (entry.args as Record<string, unknown>)
+              : undefined,
+          status:
+            entry.status === "running" ||
+            entry.status === "error" ||
+            entry.status === "done"
+              ? entry.status
+              : "done",
+          result:
+            entry.result && typeof entry.result === "object"
+              ? (entry.result as Record<string, unknown>)
+              : undefined,
+          startedAt:
+            typeof entry.startedAt === "number" ? entry.startedAt : undefined,
+          finishedAt:
+            typeof entry.finishedAt === "number"
+              ? entry.finishedAt
+              : undefined,
+          creditsCharged:
+            typeof entry.creditsCharged === "number"
+              ? entry.creditsCharged
+              : undefined,
+        }))
+    : undefined,
+  agentEvents: Array.isArray(message?.agentEvents)
+    ? message.agentEvents
+        .filter((entry: any) => entry && typeof entry.title === "string")
+        .map((entry: any) => ({
+          id: typeof entry.id === "string" ? entry.id : nanoid(),
+          kind:
+            entry.kind === "thinking" ||
+            entry.kind === "tool_batch" ||
+            entry.kind === "tool_result" ||
+            entry.kind === "billing" ||
+            entry.kind === "limit" ||
+            entry.kind === "error"
+              ? entry.kind
+              : "status",
+          title: entry.title,
+          detail: typeof entry.detail === "string" ? entry.detail : undefined,
+          status:
+            entry.status === "running" ||
+            entry.status === "error" ||
+            entry.status === "done"
+              ? entry.status
+              : "done",
+          createdAt:
+            typeof entry.createdAt === "number" ? entry.createdAt : Date.now(),
+          finishedAt:
+            typeof entry.finishedAt === "number"
+              ? entry.finishedAt
+              : undefined,
+          round: typeof entry.round === "number" ? entry.round : undefined,
+          creditsCharged:
+            typeof entry.creditsCharged === "number"
+              ? entry.creditsCharged
+              : undefined,
+          toolCount:
+            typeof entry.toolCount === "number" ? entry.toolCount : undefined,
+        }))
+    : undefined,
+  skillCall:
+    message?.skillCall && typeof message.skillCall === "object"
+      ? (message.skillCall as ChatSkillCall)
+      : undefined,
   hasPastedImage: Boolean(message?.hasPastedImage),
+  attachmentCount:
+    typeof message?.attachmentCount === "number"
+      ? message.attachmentCount
+      : undefined,
 });
+
+const toolDisplayName = (
+  name: string,
+  args?: Record<string, unknown>,
+): string => {
+  const query = String(args?.query || "").trim();
+  const title = String(args?.title || args?.job_title || "").trim();
+  const company = String(args?.company || "").trim();
+
+  const labels: Record<string, string> = {
+    get_account_snapshot: "Read account snapshot",
+    run_job_search: query ? `Search jobs: "${query}"` : "Search jobs",
+    search_public_job_sources: query
+      ? `Search public job sources: "${query}"`
+      : "Search public job sources",
+    get_user_profile: "Read profile",
+    list_profile_records: "List profile records",
+    get_public_profile_site: "Read public portfolio",
+    update_public_profile_site: "Update public portfolio",
+    list_answer_bank_entries: "Read Answer Bank",
+    add_answer_bank_entry: "Save Answer Bank entry",
+    update_answer_bank_entry: "Update Answer Bank entry",
+    delete_answer_bank_entry: "Delete Answer Bank entry",
+    generate_answer_bank_entries: "Generate Answer Bank entries",
+    list_applications: "List applications",
+    create_application_tracker_entry:
+      title && company
+        ? `Track application: ${title} at ${company}`
+        : "Create application tracker entry",
+    find_company_contact_channels: "Find hiring contact channels",
+    refresh_application_processes: "Refresh application processes",
+    list_resumes: "List resumes",
+    get_credits_balance: "Check credits",
+    list_recent_jobs: "List recent jobs",
+    list_app_pages: "Read app pages",
+    open_app_page: "Open app page",
+    apply_to_job: title ? `Apply to job: ${title}` : "Start application",
+    auto_apply_from_url: "Start URL auto-apply",
+    reapply_job: "Retry application automation",
+    analyze_resume: "Analyze resume",
+    generate_cover_letter: "Generate cover letter",
+    evaluate_job_fit: "Evaluate job fit",
+    intake_job_url: "Import job URL",
+    update_profile: "Update profile",
+    add_skill: `Add skill${args?.name ? `: ${String(args.name)}` : ""}`,
+    remove_skill: `Remove skill${args?.name ? `: ${String(args.name)}` : ""}`,
+    add_experience:
+      title && company
+        ? `Add experience: ${title} at ${company}`
+        : "Add experience",
+    update_experience: "Update experience",
+    delete_experience: "Delete experience",
+    add_education: "Add education",
+    update_education: "Update education",
+    delete_education: "Delete education",
+    save_cover_letter: args?.name
+      ? `Save cover letter: ${String(args.name)}`
+      : "Save cover letter",
+    update_resume: "Update resume",
+    update_application_status: args?.status
+      ? `Move application to ${String(args.status)}`
+      : "Update application status",
+    update_application: "Update application",
+    delete_application: "Delete application",
+    bookmark_job: args?.bookmarked ? "Bookmark job" : "Remove job bookmark",
+    hide_job: "Dismiss job",
+    polish_content: "Polish content",
+    list_edge_functions: "List edge functions",
+    get_edge_function_details: "Inspect edge function",
+    invoke_edge_function: "Invoke edge function",
+    list_database_schema: "Inspect database schema",
+    search_gmail_job_emails: "Search job-related Gmail",
+    create_gmail_job_draft: "Create Gmail draft",
+    send_gmail_job_email: "Send Gmail email",
+    label_gmail_job_emails: "Label Gmail messages",
+    semantic_search: query ? `Semantic search: "${query}"` : "Semantic search",
+    get_profile_graph_proof_paths: "Trace profile proof paths",
+    create_reminder: "Create reminder",
+  };
+
+  return labels[name] || name.replace(/_/g, " ");
+};
+
+const getToolResultPayload = (
+  result?: Record<string, unknown>,
+): Record<string, unknown> => {
+  if (
+    result?.data &&
+    typeof result.data === "object" &&
+    !Array.isArray(result.data)
+  ) {
+    return result.data as Record<string, unknown>;
+  }
+  return result || {};
+};
+
+const getToolResultError = (result?: Record<string, unknown>) => {
+  const payload = getToolResultPayload(result);
+  return typeof payload.error === "string"
+    ? payload.error
+    : typeof result?.error === "string"
+      ? result.error
+      : typeof payload.message === "string" && payload.success === false
+        ? payload.message
+        : null;
+};
+
+const isInternalToolFailure = (entry: ToolCallEntry) => {
+  const error = getToolResultError(entry.result);
+  if (!error) return false;
+  return (
+    /jobDescription and resumeText are required/i.test(error) ||
+    /missing required fields:\s*resumeText,\s*profileSummary/i.test(error) ||
+    /invalid response structure from Gemini embedContent/i.test(error) ||
+    /took longer than \d+ seconds/i.test(error) ||
+    /stopped waiting/i.test(error) ||
+    /required$/i.test(error)
+  );
+};
+
+const summarizeToolResult = (entry: ToolCallEntry): string | undefined => {
+  const result = getToolResultPayload(entry.result);
+  const error = getToolResultError(entry.result);
+  if (isInternalToolFailure(entry)) return undefined;
+  if (error) return error.slice(0, 160);
+
+  const imported =
+    Number(result.imported_count ?? result.imported ?? result.saved_count) || 0;
+  const count =
+    imported ||
+    (Array.isArray(result.jobs) ? result.jobs.length : 0) ||
+    (Array.isArray(result.results) ? result.results.length : 0) ||
+    (Array.isArray(result.applications) ? result.applications.length : 0) ||
+    (Array.isArray(result.resumes) ? result.resumes.length : 0);
+
+  if (
+    entry.name === "run_job_search" ||
+    entry.name === "search_public_job_sources"
+  ) {
+    return count > 0
+      ? `${count} job${count === 1 ? "" : "s"} found or saved`
+      : "Search completed";
+  }
+  if (entry.name === "get_credits_balance") {
+    const turns = Number(result.total_available_chat_turns);
+    const paid = Number(result.paid_ai_credit_balance);
+    if (!Number.isNaN(turns) && turns > 0) {
+      return `${turns} total chat turn${turns === 1 ? "" : "s"} available`;
+    }
+    if (!Number.isNaN(paid)) {
+      return `${paid} paid credit${paid === 1 ? "" : "s"} available`;
+    }
+  }
+  return undefined;
+};
+
+const buildAgentFinalFallback = (message: BasicMessage): string | undefined => {
+  const completedTools = (message.toolCalls || []).filter(
+    (tool) => tool.status !== "running",
+  );
+  if (!completedTools.length) return undefined;
+  const hiddenNoopTools = new Set([
+    "list_applications",
+    "list_notifications",
+    "refresh_application_processes",
+    "search_gmail_job_emails",
+    "label_gmail_job_emails",
+    "semantic_search",
+    "list_profile_records",
+    "list_recent_jobs",
+    "get_account_snapshot",
+    "evaluate_job_fit",
+    "analyze_resume",
+    "polish_content",
+    "invoke_edge_function",
+  ]);
+
+  const jobResults = completedTools
+    .filter(
+      (tool) =>
+        tool.name === "run_job_search" ||
+        tool.name === "search_public_job_sources",
+    )
+    .flatMap((tool) => {
+      const payload = getToolResultPayload(tool.result);
+      const jobs = Array.isArray(payload.jobs)
+        ? payload.jobs
+        : Array.isArray(payload.results)
+          ? payload.results
+          : [];
+      return jobs
+        .filter(
+          (job): job is Record<string, unknown> =>
+            Boolean(job) && typeof job === "object" && !Array.isArray(job),
+        )
+        .map((job) => ({
+          title:
+            typeof job.title === "string" && job.title.trim()
+              ? job.title.trim()
+              : "Untitled role",
+          company:
+            typeof job.company === "string" && job.company.trim()
+              ? job.company.trim()
+              : "Unknown company",
+          location:
+            typeof job.location === "string" && job.location.trim()
+              ? job.location.trim()
+              : "",
+          url:
+            typeof job.url === "string" && job.url.trim()
+              ? job.url.trim()
+              : "",
+          verification:
+            typeof job.verification_status === "string" &&
+            job.verification_status.trim()
+              ? job.verification_status.trim()
+              : "",
+        }));
+    });
+
+  const uniqueJobs = Array.from(
+    new Map(
+      jobResults.map((job) => [
+        `${job.title}|${job.company}|${job.url}`,
+        job,
+      ]),
+    ).values(),
+  ).slice(0, 8);
+
+  const contactResults = completedTools
+    .filter((tool) => tool.name === "find_company_contact_channels")
+    .flatMap((tool) => {
+      const payload = getToolResultPayload(tool.result);
+      return Array.isArray(payload.contacts) ? payload.contacts : [];
+    })
+    .filter(
+      (contact): contact is Record<string, unknown> =>
+        Boolean(contact) &&
+        typeof contact === "object" &&
+        !Array.isArray(contact),
+    )
+    .filter((contact) => {
+      const confidence =
+        typeof contact.confidence === "string"
+          ? contact.confidence.toLowerCase()
+          : "";
+      return (
+        contact.safeToDraft === true ||
+        confidence === "high" ||
+        confidence === "medium"
+      );
+    })
+    .slice(0, 8);
+
+  const lines: string[] = [];
+  if (uniqueJobs.length) {
+    lines.push(
+      `I found ${uniqueJobs.length} job lead${uniqueJobs.length === 1 ? "" : "s"} from the tool results:`,
+      "",
+      ...uniqueJobs.map((job) => {
+        const meta = [job.company, job.location, job.verification]
+          .filter(Boolean)
+          .join(" - ");
+        return `- ${job.title}${meta ? ` (${meta})` : ""}${job.url ? `: ${job.url}` : ""}`;
+      }),
+    );
+  }
+
+  if (contactResults.length) {
+    if (lines.length) lines.push("");
+    lines.push(
+      `I also found ${contactResults.length} company contact channel${contactResults.length === 1 ? "" : "s"} for review:`,
+      "",
+      ...contactResults.map((contact) => {
+        const company =
+          typeof contact.companyName === "string"
+            ? contact.companyName
+            : "Company";
+        const email =
+          typeof contact.contactEmail === "string"
+            ? contact.contactEmail
+            : "no email found";
+        const confidence =
+          typeof contact.confidence === "string"
+            ? `, ${contact.confidence} confidence`
+            : "";
+        return `- ${company}: ${email}${confidence}`;
+      }),
+    );
+  }
+
+  if (!lines.length) {
+    const summaries = completedTools
+      .filter((tool) => !hiddenNoopTools.has(tool.name))
+      .map((tool) => {
+        const payload = getToolResultPayload(tool.result);
+        const count = Number(payload.count);
+        if (Number.isFinite(count) && count <= 0) return undefined;
+        return summarizeToolResult(tool);
+      })
+      .filter(Boolean);
+    if (!summaries.length) {
+      return "I checked the available JobRaker data, but I did not find a new actionable result to show yet. Tell me to continue and I will keep working from the last step.";
+    }
+    lines.push("I found these actionable results:", "");
+    summaries.forEach((summary) => lines.push(`- ${summary}`));
+  }
+
+  return lines.join("\n");
+};
+
+const estimateAgentTimeSavedMinutes = (message: BasicMessage): number => {
+  const completedToolCount = (message.toolCalls || []).filter(
+    (tool) => tool.status !== "running" && !isInternalToolFailure(tool),
+  ).length;
+  const chargedCredits = (message.agentEvents || []).reduce(
+    (sum, event) => sum + (event.creditsCharged || 0),
+    0,
+  );
+  const workUnits = Math.max(completedToolCount, chargedCredits);
+  return workUnits > 0 ? Math.min(180, Math.max(8, workUnits * 8)) : 0;
+};
+
+const AgentWorkTimeline = ({
+  message,
+  elapsedLabel,
+}: {
+  message: BasicMessage;
+  elapsedLabel: string;
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const toolCalls = message.toolCalls || [];
+  const agentEvents = message.agentEvents || [];
+
+  const skillCall = message.skillCall;
+  const isSkillCall = !!skillCall;
+  const isStreaming =
+    message.streaming ||
+    (isSkillCall &&
+      (skillCall.status === "running" || skillCall.status === "queued"));
+
+  const skillRows: {
+    id: string;
+    at: number;
+    kind: string;
+    status: "running" | "done" | "error";
+    label: string;
+  }[] = [];
+
+  if (skillCall) {
+    const progressList = skillCall.progress || [];
+    progressList.forEach((step, index) => {
+      const isLastStep = index === progressList.length - 1;
+      let stepStatus: "running" | "done" | "error" = "done";
+      if (isLastStep) {
+        if (skillCall.status === "running" || skillCall.status === "queued") {
+          stepStatus = "running";
+        } else if (skillCall.status === "failed") {
+          stepStatus = "error";
+        }
+      }
+
+      skillRows.push({
+        id: `skill-step-${index}-${step}`,
+        at: message.createdAt + index * 10,
+        kind: stepStatus === "running" ? "thinking" : "limit",
+        status: stepStatus,
+        label: step,
+      });
+    });
+
+    if (skillCall.status === "completed") {
+      skillRows.push({
+        id: `skill-completed`,
+        at: message.createdAt + progressList.length * 10 + 5,
+        kind: "billing",
+        status: "done",
+        label:
+          "Agent completed work using 1 credit - Ran 1 work step for this task. Estimated time saved: 8 minutes. Balance: updated.",
+      });
+    } else if (skillCall.status === "failed") {
+      skillRows.push({
+        id: `skill-failed`,
+        at: message.createdAt + progressList.length * 10 + 5,
+        kind: "error",
+        status: "error",
+        label: skillCall.error || "Skill execution failed",
+      });
+    }
+  }
+
+  const timelineRows = isSkillCall
+    ? skillRows
+    : [
+        ...agentEvents
+          .filter((event) =>
+            ["thinking", "billing", "limit", "error"].includes(event.kind),
+          )
+          .map((event) => ({
+            id: event.id,
+            at: event.createdAt,
+            kind: event.kind,
+            status: event.status,
+            label:
+              event.kind === "billing"
+                ? [event.title, event.detail].filter(Boolean).join(" - ")
+                : event.kind === "thinking" && event.detail
+                  ? `Thinking: ${event.detail}`
+                  : event.detail
+                    ? `${event.title} - ${event.detail}`
+                    : event.title,
+          })),
+        ...toolCalls
+          .filter((tool) => !isInternalToolFailure(tool))
+          .map((tool) => {
+            const resultSummary = summarizeToolResult(tool);
+            const prefix =
+              tool.status === "running"
+                ? "Running"
+                : tool.status === "error"
+                  ? "Failed"
+                  : "Finished";
+            return {
+              id: tool.id || `${tool.name}-${tool.startedAt || ""}`,
+              at: tool.startedAt || tool.finishedAt || 0,
+              kind: "tool",
+              status: tool.status,
+              label: [
+                `${prefix} ${toolDisplayName(tool.name, tool.args)}`,
+                resultSummary,
+              ]
+                .filter(Boolean)
+                .join(" - "),
+            };
+          }),
+      ]
+        .sort((a, b) => a.at - b.at)
+        .slice(-50);
+
+  const hiddenStepCount = isSkillCall
+    ? 0
+    : Math.max(0, agentEvents.length + toolCalls.length - timelineRows.length);
+  const totalStepCount = isSkillCall
+    ? timelineRows.length
+    : agentEvents.length + toolCalls.length;
+  const estimatedTimeSaved = isSkillCall
+    ? Math.min(180, Math.max(8, (skillCall.progress?.length || 1) * 8))
+    : estimateAgentTimeSavedMinutes(message);
+  const latestRow = timelineRows[timelineRows.length - 1];
+  const fallbackLabel = elapsedLabel
+    ? `Connecting to JobRaker agent (${elapsedLabel})`
+    : "Connecting to JobRaker agent";
+  const summaryLabel = latestRow?.label || fallbackLabel;
+  const stepLabel =
+    totalStepCount > 0
+      ? `${totalStepCount} step${totalStepCount === 1 ? "" : "s"}`
+      : "Waiting";
+
+  if (!timelineRows.length && !isStreaming) return null;
+
+  const rowClass =
+    "flex max-w-full items-center gap-2 rounded-lg border border-brand/20 bg-brand/[0.06] px-3 py-2 text-[13px] leading-5 text-muted-foreground";
+  const iconForRow = (row: { kind: string; status: string }) => {
+    if (row.status === "error") {
+      return <AlertTriangle className='h-3.5 w-3.5 shrink-0 text-red-400' />;
+    }
+    if (row.status === "running") {
+      return <Loader2 className='h-3.5 w-3.5 shrink-0 animate-spin text-brand' />;
+    }
+    if (row.kind === "thinking") {
+      return <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />;
+    }
+    if (row.kind === "billing") {
+      return <ReceiptText className='h-3.5 w-3.5 shrink-0 text-brand' />;
+    }
+    if (row.kind === "limit") {
+      return <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />;
+    }
+    return <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-brand' />;
+  };
+
+  return (
+    <div className='mb-3 space-y-2'>
+      <button
+        type='button'
+        onClick={() => setExpanded((value) => !value)}
+        className={`${rowClass} w-full text-left transition-colors hover:bg-brand/[0.09]`}
+        aria-expanded={expanded}
+      >
+        <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
+        <span className='shrink-0 font-medium text-foreground/80'>
+          Working process
+        </span>
+        <span className='shrink-0 text-muted-foreground/70'>-</span>
+        <span className='shrink-0'>{stepLabel}</span>
+        {estimatedTimeSaved > 0 ? (
+          <>
+            <span className='hidden shrink-0 text-muted-foreground/70 md:inline'>
+              -
+            </span>
+            <span className='hidden shrink-0 text-brand/90 md:inline'>
+              ~{estimatedTimeSaved} min saved
+            </span>
+          </>
+        ) : null}
+        <span className='hidden shrink-0 text-muted-foreground/70 sm:inline'>
+          -
+        </span>
+        <span className='min-w-0 flex-1 truncate text-muted-foreground/80'>
+          {summaryLabel}
+        </span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${
+            expanded ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {expanded && (
+        <div className='space-y-2'>
+          {timelineRows.map((row) => {
+            const isRowExpanded = !!expandedRows[row.id];
+            return (
+              <div
+                key={row.id}
+                onClick={() => {
+                  setExpandedRows((prev) => ({
+                    ...prev,
+                    [row.id]: !prev[row.id],
+                  }));
+                }}
+                className={`${rowClass} cursor-pointer hover:bg-brand/[0.09] transition-colors ${
+                  isRowExpanded ? "items-start" : "items-center"
+                }`}
+                title={row.label}
+              >
+                {iconForRow(row)}
+                <span
+                  className={
+                    isRowExpanded
+                      ? "break-words whitespace-pre-wrap flex-1 text-left"
+                      : "truncate flex-1 text-left"
+                  }
+                >
+                  {row.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {expanded && hiddenStepCount > 0 && (
+        <div className={rowClass}>
+          <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
+          <span className='truncate'>
+            +{hiddenStepCount} earlier working step
+            {hiddenStepCount === 1 ? "" : "s"}
+          </span>
+        </div>
+      )}
+
+      {expanded && isStreaming && timelineRows.length === 0 && (
+        <div className={rowClass}>
+          <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />
+          <span className='truncate'>{fallbackLabel}</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AgentResultPreview = ({ message }: { message: BasicMessage }) => {
+  if (!message.streaming) return null;
+
+  const jobResults = (message.toolCalls || [])
+    .filter(
+      (tool) =>
+        tool.status !== "running" &&
+        (tool.name === "run_job_search" ||
+          tool.name === "search_public_job_sources"),
+    )
+    .flatMap((tool) => {
+      const payload = getToolResultPayload(tool.result);
+      const jobs = Array.isArray(payload.jobs)
+        ? payload.jobs
+        : Array.isArray(payload.results)
+          ? payload.results
+          : [];
+      return jobs
+        .filter(
+          (job): job is Record<string, unknown> =>
+            Boolean(job) && typeof job === "object" && !Array.isArray(job),
+        )
+        .map((job) => ({
+          title:
+            typeof job.title === "string" && job.title.trim()
+              ? job.title.trim()
+              : "Untitled role",
+          company:
+            typeof job.company === "string" && job.company.trim()
+              ? job.company.trim()
+              : "Unknown company",
+          location:
+            typeof job.location === "string" && job.location.trim()
+              ? job.location.trim()
+              : "",
+          url:
+            typeof job.url === "string" && job.url.trim()
+              ? job.url.trim()
+              : "",
+          source:
+            typeof job.source_kind === "string" && job.source_kind.trim()
+              ? job.source_kind.trim()
+              : "",
+          verification:
+            typeof job.verification_status === "string" &&
+            job.verification_status.trim()
+              ? job.verification_status.trim()
+              : "",
+        }));
+    });
+
+  if (!jobResults.length) return null;
+
+  const uniqueJobs = Array.from(
+    new Map(
+      jobResults.map((job) => [
+        `${job.title}|${job.company}|${job.url}`,
+        job,
+      ]),
+    ).values(),
+  ).slice(0, 6);
+
+  return (
+    <div className='mb-3 rounded-xl border border-brand/20 bg-brand/[0.04] p-3 text-[13px] text-muted-foreground'>
+      <div className='mb-2 flex items-center gap-2 font-medium text-foreground/85'>
+        <ListChecks className='h-3.5 w-3.5 text-brand' />
+        Live results while JobRaker keeps working - {uniqueJobs.length} job
+        {uniqueJobs.length === 1 ? "" : "s"} found
+      </div>
+      <div className='space-y-2'>
+        {uniqueJobs.map((job) => (
+          <div
+            key={`${job.title}-${job.company}-${job.url}`}
+            className='rounded-lg border border-border/70 bg-background/40 px-3 py-2'
+          >
+            <div className='font-medium text-foreground'>{job.title}</div>
+            <div className='mt-1 text-xs'>
+              {[job.company, job.location, job.source, job.verification]
+                .filter(Boolean)
+                .join(" - ")}
+            </div>
+            {job.url ? (
+              <a
+                href={job.url}
+                target='_blank'
+                rel='noreferrer'
+                className='mt-1 block truncate text-xs text-brand hover:underline'
+              >
+                {job.url}
+              </a>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+type ChatRequestMessage = {
+  role: "user" | "assistant";
+  content: string;
+  images?: { mimeType: string; data: string; name?: string }[];
+};
+
+const summarizeSkillCallForHistory = (skillCall?: ChatSkillCall) => {
+  if (!skillCall) return "";
+
+  const lines = [
+    `Chat skill result: ${skillCall.skillName}`,
+    `Status: ${skillCall.status.replace(/_/g, " ")}`,
+  ];
+  const output = skillCall.output as Record<string, any> | undefined;
+
+  if (output?.needsClarification?.reason) {
+    lines.push(`Needs clarification: ${output.needsClarification.reason}`);
+  }
+
+  if (Array.isArray(output?.results)) {
+    const resultLines = output.results.slice(0, 8).map((result: any) => {
+      const company = result?.companyName || "Unknown company";
+      const role = result?.role || "Unknown role";
+      const channel = result?.channelValue || "No channel";
+      const confidence =
+        result?.confidence && result?.confidenceScore
+          ? `${result.confidence} ${result.confidenceScore}%`
+          : result?.confidence || "unknown confidence";
+      const status = result?.draftStatus
+        ? `draft ${String(result.draftStatus).replace(/_/g, " ")}`
+        : "draft status unknown";
+
+      return `- ${company}: ${role}; ${channel}; ${confidence}; ${status}.`;
+    });
+
+    if (resultLines.length) {
+      lines.push("Results:");
+      lines.push(...resultLines);
+    }
+  }
+
+  if (skillCall.error) {
+    lines.push(`Error: ${skillCall.error}`);
+  }
+
+  lines.push(
+    "If the user replies with approval, treat it as approval for this skill result only and still respect safety rules before sending, applying, deleting, or charging.",
+  );
+
+  return lines.join("\n").slice(0, 5000);
+};
+
+const buildChatRequestMessages = (
+  history: BasicMessage[],
+  currentPayload: ChatUserPayload,
+): ChatRequestMessage[] => {
+  const mapped = history
+    .map((msg, idx, arr): ChatRequestMessage | null => {
+      const isLast = idx === arr.length - 1;
+      if (msg.role === "skill") {
+        const content =
+          summarizeSkillCallForHistory(msg.skillCall) || msg.content.trim();
+        return content ? { role: "assistant", content } : null;
+      }
+
+      if (isLast && msg.role === "user" && currentPayload.images?.length) {
+        return {
+          role: "user",
+          content: msg.content.trim(),
+          images: currentPayload.images.map(({ mimeType, data, name }) => ({
+            mimeType,
+            data,
+            ...(name ? { name } : {}),
+          })),
+        };
+      }
+
+      const content = msg.content.trim();
+      if (!content && !(isLast && msg.role === "user" && currentPayload.images?.length)) {
+        return null;
+      }
+
+      return { role: msg.role as "user" | "assistant", content };
+    })
+    .filter((msg): msg is ChatRequestMessage => Boolean(msg));
+
+  return mapped.reduce<ChatRequestMessage[]>((acc, msg) => {
+    const previous = acc[acc.length - 1];
+    if (previous && previous.role === msg.role && !previous.images?.length && !msg.images?.length) {
+      previous.content = `${previous.content}\n\n${msg.content}`.trim();
+      return acc;
+    }
+    acc.push({ ...msg });
+    return acc;
+  }, []);
+};
 
 const normalizeChatSession = (session: ChatSessionRecord): ChatSessionState => {
   const createdAtMs = session.created_at
@@ -296,6 +1282,20 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         createdAt: Date.now(),
         parts: [{ type: "text", text: "" }],
         streaming: true,
+        agentEvents:
+          (chatOpts?.mode || "ask") === "agent"
+            ? [
+                {
+                  id: nanoid(),
+                  kind: "thinking",
+                  title: "Starting agent",
+                  detail: "Connecting to JobRaker and preparing the first step.",
+                  status: "running",
+                  createdAt: Date.now(),
+                  round: 0,
+                },
+              ]
+            : undefined,
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
@@ -314,38 +1314,18 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         const {
           data: { session },
         } = await supabase.auth.getSession();
+        const requestMessages = buildChatRequestMessages(history, m);
 
         const response = await fetch(fnUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Accept": "text/event-stream",
             Authorization: `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({
             model: chatOpts?.model || DEFAULT_CHAT_MODEL,
-            messages: history
-              .filter((msg, idx, arr) => {
-                const isLast = idx === arr.length - 1;
-                if (isLast && msg.role === "user") {
-                  return msg.content.trim() !== "" || Boolean(m.images?.length);
-                }
-                return msg.role === "assistant" || msg.content.trim() !== "";
-              })
-              .map((msg, idx, arr) => {
-                const isLast = idx === arr.length - 1;
-                if (isLast && msg.role === "user" && m.images?.length) {
-                  return {
-                    role: "user",
-                    content: msg.content.trim(),
-                    images: m.images.map(({ mimeType, data, name }) => ({
-                      mimeType,
-                      data,
-                      ...(name ? { name } : {}),
-                    })),
-                  };
-                }
-                return { role: msg.role, content: msg.content.trim() };
-              }),
+            messages: requestMessages,
             mode: chatOpts?.mode || "ask",
             webSearch: chatOpts?.webSearch ?? false,
             system: chatOpts?.system,
@@ -362,7 +1342,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             if (parsed.code === "insufficient_credits") {
               errorMessage =
                 parsed.error ||
-                "You've run out of free messages and credits. Purchase more credits to continue.";
+                "Your Career Command Center has used its included capacity. Upgrade to Pro or add credits to keep Agent Mode searching, evaluating, and drafting for you.";
             } else if (
               parsed.code === "rate_limit" ||
               parsed.code === "daily_limit"
@@ -384,107 +1364,275 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         const decoder = new TextDecoder();
         let buffer = "";
 
+        const handleSsePayload = async (
+          currentEvent: string,
+          dataStr: string,
+        ) => {
+          if (dataStr === "[DONE]") return true;
+          try {
+            const data = parseSseData(dataStr);
+            if (!data) return false;
+
+            const markStreamFrame = (msg: BasicMessage) => ({
+              ...msg,
+              streamFrameCount: (msg.streamFrameCount || 0) + 1,
+            });
+
+            if (currentEvent === "done") {
+              return true;
+            }
+            if (currentEvent === "message") {
+              if (data.delta) {
+                flushSync(() => {
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? {
+                            ...markStreamFrame(msg),
+                            content: msg.content + data.delta,
+                            parts: [
+                              {
+                                type: "text",
+                                text: msg.content + data.delta,
+                              },
+                            ],
+                          }
+                        : msg,
+                    ),
+                  );
+                });
+                await waitForAgentProgressPaint();
+              }
+            } else if (currentEvent === "response_id") {
+              if (data.response_id) {
+                setResponseId(data.response_id);
+              }
+            } else if (currentEvent === "error") {
+              const errorText = `Error: ${data.error}`;
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantId
+                      ? {
+                          ...markStreamFrame(msg),
+                          content: errorText,
+                          parts: [{ type: "text", text: errorText }],
+                          streaming: false,
+                        }
+                      : msg,
+                  ),
+                );
+              });
+              await waitForAgentProgressPaint();
+            } else if (currentEvent === "agent_activity") {
+              const activity: AgentActivityEntry = {
+                id: data.id || nanoid(),
+                kind: data.kind || "status",
+                title: data.title || "Working",
+                detail:
+                  typeof data.detail === "string" ? data.detail : undefined,
+                status:
+                  data.status === "error" ||
+                  data.status === "done" ||
+                  data.status === "running"
+                    ? data.status
+                    : "done",
+                createdAt:
+                  typeof data.created_at === "number"
+                    ? data.created_at
+                    : Date.now(),
+                finishedAt:
+                  typeof data.finished_at === "number"
+                    ? data.finished_at
+                    : undefined,
+                round:
+                  typeof data.round === "number" ? data.round : undefined,
+                creditsCharged:
+                  typeof data.credits_charged === "number"
+                    ? data.credits_charged
+                    : undefined,
+                toolCount:
+                  typeof data.tool_count === "number"
+                    ? data.tool_count
+                    : undefined,
+              };
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantId
+                      ? {
+                          ...markStreamFrame(msg),
+                          agentEvents: [...(msg.agentEvents || []), activity],
+                        }
+                      : msg,
+                  ),
+                );
+              });
+              await waitForAgentProgressPaint();
+            } else if (currentEvent === "tool_start") {
+              const toolEntry: ToolCallEntry = {
+                id: data.id || nanoid(),
+                name: data.name,
+                args: data.args,
+                status: "running",
+                startedAt: Date.now(),
+              };
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantId
+                      ? {
+                          ...markStreamFrame(msg),
+                          toolCalls: [...(msg.toolCalls || []), toolEntry],
+                        }
+                      : msg,
+                  ),
+                );
+              });
+              await waitForAgentProgressPaint();
+            } else if (currentEvent === "tool_call") {
+              const toolEntry: ToolCallEntry = {
+                id: data.id,
+                name: data.name,
+                args: data.args,
+                status:
+                  data.result?.error || data.result?.success === false
+                    ? "error"
+                    : "done",
+                result: data.result,
+                startedAt:
+                  typeof data.started_at === "number"
+                    ? data.started_at
+                    : undefined,
+                finishedAt:
+                  typeof data.finished_at === "number"
+                    ? data.finished_at
+                    : Date.now(),
+              };
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id !== assistantId
+                      ? msg
+                      : {
+                          ...markStreamFrame(msg),
+                          toolCalls: data.id
+                            ? (msg.toolCalls || []).some(
+                                (entry) => entry.id === data.id,
+                              )
+                              ? (msg.toolCalls || []).map((entry) =>
+                                  entry.id === data.id
+                                    ? {
+                                        ...entry,
+                                        ...toolEntry,
+                                        startedAt:
+                                          toolEntry.startedAt ||
+                                          entry.startedAt,
+                                      }
+                                    : entry,
+                                )
+                              : [...(msg.toolCalls || []), toolEntry]
+                            : [...(msg.toolCalls || []), toolEntry],
+                        },
+                  ),
+                );
+              });
+              await waitForAgentProgressPaint();
+            } else if (currentEvent === "agent_surcharge") {
+              const creditsCharged = Number(data.credits_charged || 0);
+              const toolCount = Number(data.tool_count || 0);
+              const estimatedMinutesSaved = Math.max(
+                8,
+                Math.min(180, Math.max(toolCount, creditsCharged) * 8),
+              );
+              const activity: AgentActivityEntry = {
+                id: data.id || nanoid(),
+                kind: "billing",
+                status: "done",
+                title: `Agent completed work using ${creditsCharged} credit${creditsCharged === 1 ? "" : "s"}`,
+                detail: toolCount
+                  ? `Ran ${toolCount} work step${toolCount === 1 ? "" : "s"} for this task. Estimated time saved: ${estimatedMinutesSaved} minutes. Balance: ${data.balance ?? "updated"}.`
+                  : `Estimated time saved: ${estimatedMinutesSaved} minutes. Balance: ${data.balance ?? "updated"}.`,
+                createdAt: Date.now(),
+                creditsCharged,
+                toolCount,
+                round:
+                  typeof data.round === "number" ? data.round : undefined,
+              };
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantId
+                      ? {
+                          ...markStreamFrame(msg),
+                          agentEvents: [...(msg.agentEvents || []), activity],
+                        }
+                      : msg,
+                  ),
+                );
+              });
+              await waitForAgentProgressPaint();
+              opts.onCreditsUpdated?.();
+            } else if (currentEvent === "ui_action") {
+              opts.onUiAction?.(data as ChatUiAction);
+            }
+          } catch (e) {
+            console.warn("[ai-chat] Could not handle SSE frame", e);
+          }
+          return false;
+        };
+
+        const handleSseFrame = async (frame: string) => {
+          const parsedFrame = parseSseFrame(frame);
+          if (!parsedFrame) return false;
+          return handleSsePayload(parsedFrame.event, parsedFrame.data);
+        };
+
         let currentEvent = "message";
+        let streamFinished = false;
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done || streamFinished) break;
 
           buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
+          const lines = buffer.split(/\r?\n/);
+          buffer = lines.pop() || "";
 
-          // Keep the last line in the buffer if it's incomplete
-          const endsWithNewLine = buffer.endsWith("\n");
-          if (!endsWithNewLine) {
-            buffer = lines.pop() || "";
-          } else {
-            buffer = "";
-          }
-
-          for (const line of lines) {
-            const trimmedLine = line.trim();
-            if (!trimmedLine) continue;
-
-            if (trimmedLine.startsWith("event:")) {
-              currentEvent = trimmedLine.slice(6).trim();
-            } else if (trimmedLine.startsWith("data:")) {
-              const dataStr = trimmedLine.slice(5).trim();
-              if (dataStr === "[DONE]") continue;
-
-              try {
-                const data = JSON.parse(dataStr);
-
-                if (currentEvent === "message") {
-                  if (data.delta) {
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id === assistantId
-                          ? {
-                              ...msg,
-                              content: msg.content + data.delta,
-                              parts: [
-                                {
-                                  type: "text",
-                                  text: msg.content + data.delta,
-                                },
-                              ],
-                            }
-                          : msg,
-                      ),
-                    );
-                  }
-                } else if (currentEvent === "response_id") {
-                  if (data.response_id) {
-                    setResponseId(data.response_id);
-                  }
-                } else if (currentEvent === "error") {
-                  const errorText = `Error: ${data.error}`;
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === assistantId
-                        ? {
-                            ...msg,
-                            content: errorText,
-                            parts: [{ type: "text", text: errorText }],
-                            streaming: false,
-                          }
-                        : msg,
-                    ),
-                  );
-                } else if (currentEvent === "tool_call") {
-                  const toolEntry: ToolCallEntry = {
-                    name: data.name,
-                    args: data.args,
-                    status: data.result?.error ? "error" : "done",
-                  };
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === assistantId
-                        ? {
-                            ...msg,
-                            toolCalls: [...(msg.toolCalls || []), toolEntry],
-                          }
-                        : msg,
-                    ),
-                  );
-                } else if (currentEvent === "agent_surcharge") {
-                  opts.onCreditsUpdated?.();
-                } else if (currentEvent === "ui_action") {
-                  opts.onUiAction?.(data as ChatUiAction);
-                }
-              } catch (e) {
-                // Ignore parse errors for partial lines
+          for (const rawLine of lines) {
+            const line = rawLine.trimEnd();
+            if (!line || line.startsWith(":")) continue;
+            if (line.startsWith("event:")) {
+              currentEvent = line.slice(6).trim() || "message";
+              continue;
+            }
+            if (line.startsWith("data:")) {
+              const dataStr = line.slice(5).trimStart();
+              const shouldStop = await handleSsePayload(currentEvent, dataStr);
+              if (shouldStop) {
+                streamFinished = true;
+                break;
               }
             }
           }
         }
+        const trailing = streamFinished ? "" : buffer.trim();
+        if (trailing) await handleSseFrame(trailing);
 
         // Done
         setMessages((prev) => {
           let finalAssistantMessage: BasicMessage | undefined;
           const finalMessages = prev.map((msg) => {
             if (msg.id === assistantId) {
-              finalAssistantMessage = { ...msg, streaming: false };
+              const fallbackContent = msg.content.trim()
+                ? msg.content
+                : buildAgentFinalFallback(msg) || "";
+              finalAssistantMessage = {
+                ...msg,
+                content: fallbackContent,
+                parts: [{ type: "text", text: fallbackContent }],
+                streaming: false,
+              };
               return finalAssistantMessage;
             }
             return msg;
@@ -542,7 +1690,13 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         abortControllerRef.current = null;
       }
     },
-    [responseId, status, opts.onFinish, opts.onCreditsUpdated],
+    [
+      responseId,
+      status,
+      opts.onFinish,
+      opts.onCreditsUpdated,
+      opts.onUiAction,
+    ],
   );
 
   const append = useCallback(
@@ -647,15 +1801,107 @@ export const ChatPage = () => {
   const navigate = useNavigate();
   // UI state
   const [text, setText] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const toggleListening = useCallback(() => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+    } else {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition ||
+        (window as any).webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        toastError("Speech recognition is not supported in this browser.");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        toastError(`Speech recognition error: ${event.error}`);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[event.results.length - 1][0].transcript;
+        setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    }
+  }, [isListening, toastError]);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+  const [skillStatus, setSkillStatus] = useState<"idle" | "in_progress">(
+    "idle",
+  );
+  const [caretPosition, setCaretPosition] = useState(0);
+  const [skillPaletteActiveIndex, setSkillPaletteActiveIndex] = useState(0);
+  const [dismissedSkillPaletteToken, setDismissedSkillPaletteToken] = useState<
+    string | null
+  >(null);
   const [persona, setPersona] = useState<Persona>("analyst");
   const [sessions, setSessions] = useState<ChatSessionState[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"chat" | "history">("chat");
+  const [isMultiline, setIsMultiline] = useState(false);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      const multiline = textareaRef.current.scrollHeight > 36;
+      if (multiline !== isMultiline) {
+        setIsMultiline(multiline);
+      }
+    } else if (text === "") {
+      setIsMultiline(false);
+    }
+  }, [text, isMultiline]);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
   const [searchQuery, setSearchQuery] = useState("");
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(
     null,
   );
   const [renamingTitle, setRenamingTitle] = useState("");
+  const [starterSuggestions, setStarterSuggestions] = useState<
+    ChatStarterSuggestion[]
+  >([]);
+  const [loadingStarterSuggestions, setLoadingStarterSuggestions] =
+    useState(true);
   const supabase = useMemo(() => createClient(), []);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -704,6 +1950,35 @@ export const ChatPage = () => {
     if (hasChatAccess) fetchChatQuota();
   }, [hasChatAccess, fetchChatQuota]);
 
+  useEffect(() => {
+    if (!hasChatAccess) {
+      setLoadingStarterSuggestions(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadStarterSuggestions = async () => {
+      setLoadingStarterSuggestions(true);
+      try {
+        const suggestions = await generateChatStarters();
+        if (!cancelled && suggestions.length > 0) {
+          setStarterSuggestions(suggestions);
+        }
+      } catch (error) {
+        console.error("Failed to load AI chat starters", error);
+      } finally {
+        if (!cancelled) setLoadingStarterSuggestions(false);
+      }
+    };
+
+    void loadStarterSuggestions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasChatAccess]);
+
   // Chat logic
   const chat = useChat({
     api: "/api/ai-chat",
@@ -737,6 +2012,7 @@ export const ChatPage = () => {
     const seconds = totalSeconds % 60;
     return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
   }, [requestElapsedMs]);
+  const isChatBusy = status === "in_progress" || skillStatus === "in_progress";
 
   useEffect(() => {
     if (status !== "in_progress") return;
@@ -812,6 +2088,7 @@ export const ChatPage = () => {
   const prevSessionIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!activeSessionId) return;
+    if (status === "in_progress") return;
     if (activeSessionId === prevSessionIdRef.current) return;
     prevSessionIdRef.current = activeSessionId;
 
@@ -825,7 +2102,7 @@ export const ChatPage = () => {
         setPersona("concise");
       }
     }
-  }, [activeSessionId, sessions, setMessages, setResponseId]);
+  }, [activeSessionId, sessions, setMessages, setResponseId, status]);
 
   // Debounced save to DB
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1000,15 +2277,239 @@ export const ChatPage = () => {
     [],
   );
 
+  const touchSessionMessages = useCallback(
+    (
+      sessionId: string,
+      nextMessages: BasicMessage[],
+      nextResponseId = responseId,
+    ) => {
+      const updatedAt = new Date();
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === sessionId
+            ? {
+                ...session,
+                messages: nextMessages,
+                responseId: nextResponseId,
+                persona:
+                  session.persona || (persona === "analyst" ? "agent" : "ask"),
+                model: session.model || DEFAULT_CHAT_MODEL,
+                updatedAt: updatedAt.getTime(),
+                updated_at: updatedAt.toISOString(),
+              }
+            : session,
+        ),
+      );
+      void supabase
+        .from("chat_sessions")
+        .update({
+          messages: nextMessages as any,
+          response_id: nextResponseId,
+        })
+        .eq("id", sessionId)
+        .then(({ error }) => {
+          if (error) console.error("Failed to persist skill chat turn", error);
+        });
+    },
+    [persona, responseId, supabase],
+  );
+
+  const runSkillCall = useCallback(
+    async (parsed: ParsedSkillCall, rawContent: string) => {
+      const skill = getSkillById(parsed.skillId);
+      if (!skill) {
+        toastError(
+          "Skill not found",
+          "That chat skill is not registered in JobRaker yet.",
+        );
+        return;
+      }
+
+      const sessionId = activeSessionId || (await createSession(true));
+      if (!sessionId) {
+        toastError("Could not start chat", "Please try again.");
+        return;
+      }
+
+      const currentMessages =
+        sessionId === activeSessionId
+          ? messages
+          : sessions.find((session) => session.id === sessionId)?.messages || [];
+      const conversationContext = currentMessages
+        .filter((message) => message.role !== "skill" && message.content.trim())
+        .slice(-8)
+        .map((message) => ({
+          role: message.role === "assistant" ? "assistant" : "user",
+          content: message.content.slice(0, 2000),
+        }));
+      const nowMs = Date.now();
+      const userMessage: BasicMessage = {
+        id: nanoid(),
+        role: "user",
+        content: rawContent.trim(),
+        createdAt: nowMs,
+        parts: [{ type: "text", text: rawContent.trim() }],
+      };
+      const skillCall: ChatSkillCall = {
+        id: nanoid(),
+        skillId: skill.id,
+        skillName: skill.name,
+        status: "running",
+        input: {
+          trigger: parsed.trigger,
+          rawCommand: parsed.rawCommand,
+          userInstruction: parsed.userInstruction,
+          args: parsed.args,
+        },
+        progress: ["Queued chat skill"],
+      };
+      const skillMessage: BasicMessage = {
+        id: nanoid(),
+        role: "skill",
+        content: `${skill.name} is reading the request.`,
+        createdAt: nowMs + 1,
+        parts: [
+          {
+            type: "text",
+            text: `${skill.name} is reading the request.`,
+          },
+        ],
+        skillCall,
+      };
+      const nextMessages = [...currentMessages, userMessage, skillMessage];
+
+      setMessages(nextMessages);
+      touchSessionMessages(sessionId, nextMessages, null);
+      setResponseId(null);
+      setSkillStatus("in_progress");
+
+      const isFirstMessage =
+        currentMessages.filter((message) => message.role === "user").length ===
+        0;
+      if (isFirstMessage) {
+        const optimisticTitle = rawContent.trim().slice(0, 40) || skill.name;
+        setSessions((prev) =>
+          prev.map((session) =>
+            session.id === sessionId
+              ? { ...session, title: optimisticTitle }
+              : session,
+          ),
+        );
+        void supabase
+          .from("chat_sessions")
+          .update({ title: optimisticTitle })
+          .eq("id", sessionId);
+      }
+
+      const updateSkillMessage = (
+        updater: (call: ChatSkillCall) => ChatSkillCall,
+        finalContent?: string,
+      ) => {
+        setMessages((prev) => {
+          const updated = prev.map((message) => {
+            if (message.id !== skillMessage.id || !message.skillCall) {
+              return message;
+            }
+            const updatedSkillCall = updater(message.skillCall);
+            const contentText =
+              finalContent !== undefined
+                ? finalContent
+                : updatedSkillCall.error ||
+                  `${skill.name} ${updatedSkillCall.status.replace(/_/g, " ")}.`;
+
+            return {
+              ...message,
+              content: contentText,
+              parts: [
+                {
+                  type: "text" as const,
+                  text: contentText,
+                },
+              ],
+              skillCall: updatedSkillCall,
+            };
+          });
+          touchSessionMessages(sessionId, updated, null);
+          return updated;
+        });
+      };
+
+      try {
+        const result = await executeChatSkill({
+          invocationId: skillCall.id,
+          skillId: skill.id,
+          trigger: parsed.trigger,
+          rawCommand: parsed.rawCommand,
+          userInstruction: parsed.userInstruction,
+          args: parsed.args,
+          conversationContext,
+          progress: (label) => {
+            updateSkillMessage((call) => ({
+              ...call,
+              status: "running",
+              progress: Array.from(new Set([...(call.progress || []), label])),
+            }));
+          },
+        });
+
+        updateSkillMessage(
+          (call) => ({
+            ...call,
+            status: result.status,
+            output: result.output,
+            progress: Array.from(
+              new Set([...(call.progress || []), "Ready for review"]),
+            ),
+          }),
+          result.content,
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "The skill failed before returning a result.";
+        updateSkillMessage(
+          (call) => ({
+            ...call,
+            status: "failed",
+            error: message,
+          }),
+          `### ❌ Error executing ${skill.name}\n\n${message}`,
+        );
+      } finally {
+        setSkillStatus("idle");
+      }
+    },
+    [
+      activeSessionId,
+      createSession,
+      messages,
+      sessions,
+      setMessages,
+      setResponseId,
+      supabase,
+      toastError,
+      touchSessionMessages,
+    ],
+  );
+
   const handleSubmit = async (message: { text: string }) => {
-    if ((!message.text.trim() && attachments.length === 0) || status === "in_progress")
+    if ((!message.text.trim() && attachments.length === 0) || isChatBusy)
       return;
 
     const attachmentFiles = attachments;
     setText("");
+    setCaretPosition(0);
     setAttachments([]);
     const textarea = textareaRef.current;
     if (textarea) textarea.style.height = "auto";
+
+    const content = message.text || "";
+    const parsedSkillCall = parseSkillCall(content);
+    if (parsedSkillCall.detected && attachmentFiles.length === 0) {
+      await runSkillCall(parsedSkillCall, content);
+      return;
+    }
 
     let images: { mimeType: string; data: string; name: string }[] | undefined;
     if (attachmentFiles.length) {
@@ -1022,8 +2523,6 @@ export const ChatPage = () => {
         return;
       }
     }
-
-    const content = message.text || "";
 
     const systemInstruction = {
       concise: "You are a concise and direct assistant.",
@@ -1124,12 +2623,68 @@ export const ChatPage = () => {
     }
 
     setText("");
+    setCaretPosition(0);
   };
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const skillPaletteTrigger = useMemo(() => {
+    const normalizedCaretPosition = Math.min(
+      Math.max(caretPosition, 0),
+      text.length,
+    );
+
+    return (
+      detectSkillPaletteTrigger(text, normalizedCaretPosition) ||
+      detectSkillPaletteTrigger(text, text.length)
+    );
+  }, [caretPosition, text]);
+  const skillPaletteSkills = useMemo(
+    () =>
+      skillPaletteTrigger
+        ? getSkillSuggestions(skillPaletteTrigger.query, skillPaletteTrigger.mode)
+        : [],
+    [skillPaletteTrigger],
+  );
+  const skillPaletteOpen = Boolean(
+    skillPaletteTrigger &&
+      skillPaletteSkills.length > 0 &&
+      dismissedSkillPaletteToken !== skillPaletteTrigger.token,
+  );
+
+  useEffect(() => {
+    setSkillPaletteActiveIndex(0);
+  }, [skillPaletteTrigger?.query, skillPaletteTrigger?.mode]);
+
+  useEffect(() => {
+    if (skillPaletteTrigger) return;
+    setDismissedSkillPaletteToken(null);
+  }, [skillPaletteTrigger]);
+
+  const selectSkillFromPalette = useCallback(
+    (skill: (typeof skillPaletteSkills)[number]) => {
+      if (!skillPaletteTrigger) return;
+      const alias = getPrimarySkillAlias(skill, skillPaletteTrigger.mode);
+      const nextText = replaceSkillPaletteTrigger(
+        text,
+        skillPaletteTrigger,
+        alias,
+      );
+      setText(nextText);
+      setCaretPosition(skillPaletteTrigger.start + alias.length + 1);
+      setDismissedSkillPaletteToken(null);
+      window.requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+        const cursor = skillPaletteTrigger.start + alias.length + 1;
+        textarea.focus();
+        textarea.setSelectionRange(cursor, cursor);
+      });
+    },
+    [skillPaletteTrigger, text],
+  );
 
   const updateScrollState = useCallback(() => {
     const container = chatScrollRef.current;
@@ -1143,9 +2698,41 @@ export const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
+  const streamingUpdateKey = useMemo(
+    () =>
+      messages
+        .map(
+          (message) =>
+            [
+              message.id,
+              message.content.length,
+              message.streamFrameCount || 0,
+              message.agentEvents?.length || 0,
+              message.toolCalls?.length || 0,
+              message.streaming ? 1 : 0,
+            ].join(":"),
+        )
+        .join("|"),
+    [messages],
+  );
+
   useEffect(() => {
+    const container = chatScrollRef.current;
+    if (!container) {
+      updateScrollState();
+      return;
+    }
+
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    const shouldFollowStream = status === "in_progress" && distanceFromBottom < 240;
+
     updateScrollState();
-  }, [messages.length, updateScrollState]);
+
+    if (shouldFollowStream) {
+      window.requestAnimationFrame(() => scrollToBottom("auto"));
+    }
+  }, [scrollToBottom, status, streamingUpdateKey, updateScrollState]);
 
   const filteredSessions = useMemo(() => {
     if (!searchQuery.trim()) return sessions;
@@ -1158,7 +2745,7 @@ export const ChatPage = () => {
   }, [sessions, searchQuery]);
 
   return (
-    <div className='relative flex h-full w-full font-sans bg-background overflow-hidden text-foreground'>
+    <div className='relative flex flex-col md:flex-row h-full w-full font-sans bg-background overflow-hidden text-foreground'>
       <style>{customStyles}</style>
 
       {loadingTier && (
@@ -1218,12 +2805,102 @@ export const ChatPage = () => {
 
       {!loadingTier && hasChatAccess && (
         <>
+          {isMobile && (
+            <div className="flex flex-col border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 z-30 shrink-0">
+              {/* Mobile Page Header */}
+              <div className="h-14 flex items-center justify-between px-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-semibold text-sm text-foreground">
+                    AI Assistant
+                  </h2>
+                  <span className="bg-brand/10 text-brand text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-brand/20">
+                    BETA
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2 overflow-hidden min-w-0">
+                  {chatQuota && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0">
+                      <Coins size={12} className="text-brand shrink-0" />
+                      <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
+                        {chatQuota.free_remaining > 0
+                          ? `${chatQuota.free_remaining}/${chatQuota.free_total} (+${chatQuota.credit_balance})`
+                          : `${chatQuota.credit_balance} paid`}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0">
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand"></div>
+                    <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
+                      Ready
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Premium Tabs */}
+              <div className="px-4 pb-3 pt-1 flex justify-center">
+                <div className="relative flex p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md w-full">
+                  <button
+                    onClick={() => setMobileTab("chat")}
+                    className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
+                      mobileTab === "chat"
+                        ? "text-background"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {mobileTab === "chat" && (
+                      <motion.div
+                        layoutId="activeMobileTab"
+                        className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <MessageSquare size={13} />
+                    <span>Chat</span>
+                  </button>
+                  <button
+                    onClick={() => setMobileTab("history")}
+                    className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
+                      mobileTab === "history"
+                        ? "text-background"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {mobileTab === "history" && (
+                      <motion.div
+                        layoutId="activeMobileTab"
+                        className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <History size={13} />
+                    <span>History</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <aside
-            className={`w-72 bg-card/40 border-r border-border flex flex-col h-full z-20 transition-all duration-300 ${sidebarCollapsed ? "-ml-72" : ""}`}
+            className={`bg-card/40 flex-col h-full z-20 transition-all duration-300 overflow-hidden ${
+              isMobile
+                ? mobileTab === "history"
+                  ? "flex w-full flex-1 border-r border-border"
+                  : "hidden"
+                : `flex shrink-0 ${
+                    sidebarCollapsed
+                      ? "w-0 border-r-0 opacity-0 pointer-events-none"
+                      : "w-72 border-r border-border opacity-100"
+                  }`
+            }`}
           >
             <div className='p-6'>
               <button
-                onClick={() => createSession()}
+                onClick={() => {
+                  createSession();
+                  if (isMobile) setMobileTab("chat");
+                }}
                 className='w-full bg-brand hover:bg-brand/90 text-primary-foreground font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand/20'
               >
                 <Plus size={20} />
@@ -1265,8 +2942,11 @@ export const ChatPage = () => {
                         />
                         <button
                           type='button'
-                          onClick={() => setActiveSessionId(s.id)}
-                          className='min-w-0 flex-1 overflow-hidden text-left'
+                          onClick={() => {
+                            setActiveSessionId(s.id);
+                            if (isMobile) setMobileTab("chat");
+                          }}
+                          className='min-w-0 flex-1 overflow-hidden text-left bg-transparent'
                         >
                           {renamingSessionId === s.id ? (
                             <input
@@ -1342,71 +3022,91 @@ export const ChatPage = () => {
             </div>
           </aside>
 
-          <main className='min-h-0 flex-1 relative flex flex-col bg-background overflow-hidden'>
-            <header className='h-16 flex items-center justify-between px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
-              <div className='flex items-center gap-3'>
-                <button
-                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  className='mr-3 text-foreground/60 hover:text-foreground transition-colors'
-                >
-                  <PanelLeft size={20} />
-                </button>
-                <h2 className='font-semibold text-xs xl:text-lg text-foreground'>
-                  AI Assistant
-                </h2>
-                <span className='bg-brand/10 text-brand text-[10px] font-bold px-2 py-0.5 rounded-full border border-brand/20'>
-                  BETA
-                </span>
-              </div>
-              <div className='flex items-center gap-4'>
-                {chatQuota && (
-                  <div className='flex items-center gap-2 px-2 py-1 rounded-full bg-card/70 border border-border'>
-                    <Coins size={14} className='text-brand' />
-                    <span className='text-xs font-medium text-foreground'>
-                      {chatQuota.free_remaining > 0
-                        ? `${chatQuota.free_remaining}/${chatQuota.free_total} free${
-                            chatQuota.credit_balance > 0
-                              ? ` + ${chatQuota.credit_balance} paid`
-                              : ""
-                          }`
-                        : `${chatQuota.credit_balance} paid credits`}
-                    </span>
-                  </div>
-                )}
-                <div
-                  className={`flex items-center gap-2 px-2 py-1 rounded-full bg-card/70 border border-border`}
-                >
-                  <div
-                    className={`w-2 h-2 rounded-full ${status === "in_progress" ? "bg-brand animate-pulse" : "bg-brand"} `}
-                  ></div>
-                  <span className='text-xs font-medium text-foreground'>
-                    {status === "in_progress"
-                      ? showExtendedWait
-                        ? `Still working... ${requestElapsedLabel}`
-                        : "Generating..."
-                      : "Ready"}
+          <main
+            className={`min-h-0 relative flex-col bg-background overflow-hidden h-full ${
+              isMobile
+                ? mobileTab === "chat"
+                  ? "flex w-full pb-0 flex-1"
+                  : "hidden"
+                : "flex flex-1"
+            }`}
+          >
+            {!isMobile && (
+              <header className='relative z-30 h-16 flex items-center justify-between px-4 md:px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
+                <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
+                  <button
+                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    className='mr-3 text-foreground/60 hover:text-foreground transition-colors hidden md:block'
+                  >
+                    <PanelLeft size={20} />
+                  </button>
+                  <h2 className='font-semibold text-sm sm:text-lg text-foreground whitespace-nowrap'>
+                    AI Assistant
+                  </h2>
+                  <span className='bg-brand/10 text-brand text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full border border-brand/20 shrink-0'>
+                    BETA
                   </span>
                 </div>
-                {status === "in_progress" && (
-                  <button
-                    type='button'
-                    onClick={stop}
-                    className='text-sm font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 flex items-center gap-1'
+                <div className='flex items-center gap-2 sm:gap-4 overflow-hidden min-w-0 justify-end'>
+                  {chatQuota && (
+                    <div className='flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0'>
+                      <Coins size={14} className='text-brand shrink-0' />
+                      <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
+                        {chatQuota.free_remaining > 0
+                          ? isMobile
+                            ? `${chatQuota.free_remaining}/${chatQuota.free_total}${
+                                chatQuota.credit_balance > 0
+                                  ? ` (+${chatQuota.credit_balance})`
+                                  : ""
+                              }`
+                            : `${chatQuota.free_remaining}/${chatQuota.free_total} free${
+                                chatQuota.credit_balance > 0
+                                  ? ` + ${chatQuota.credit_balance} paid`
+                                  : ""
+                              }`
+                          : isMobile
+                            ? `${chatQuota.credit_balance} paid`
+                            : `${chatQuota.credit_balance} paid credits`}
+                      </span>
+                    </div>
+                  )}
+                  <div
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0`}
                   >
-                    Stop
-                  </button>
-                )}
-                {messages.length > 0 && (
-                  <button
-                    onClick={regenerate}
-                    disabled={status === "in_progress"}
-                    className='text-sm font-medium text-brand hover:underline px-3 py-1.5 flex items-center gap-1'
-                  >
-                    Regenerate
-                  </button>
-                )}
-              </div>
-            </header>
+                    <div
+                      className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${isChatBusy ? "bg-brand animate-pulse" : "bg-brand"} `}
+                    ></div>
+                    <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
+                      {status === "in_progress"
+                        ? showExtendedWait
+                          ? `Still working... ${requestElapsedLabel}`
+                          : "Generating..."
+                        : skillStatus === "in_progress"
+                          ? "Running skill..."
+                          : "Ready"}
+                    </span>
+                  </div>
+                  {status === "in_progress" && (
+                    <button
+                      type='button'
+                      onClick={stop}
+                      className='text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground px-2 sm:px-3 py-1.5 flex items-center gap-1 shrink-0'
+                    >
+                      Stop
+                    </button>
+                  )}
+                  {messages.length > 0 && !isMobile && (
+                    <button
+                      onClick={regenerate}
+                      disabled={isChatBusy}
+                      className='text-xs sm:text-sm font-medium text-brand hover:underline px-2 sm:px-3 py-1.5 flex items-center gap-1 shrink-0'
+                    >
+                      Regenerate
+                    </button>
+                  )}
+                </div>
+              </header>
+            )}
 
             <div
               ref={chatScrollRef}
@@ -1434,72 +3134,102 @@ export const ChatPage = () => {
                 </div>
               )}
               {messages.length === 0 ? (
-                <div className='flex-1 flex flex-col items-center justify-center p-6 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700'>
-                  <div className='max-w-2xl w-full text-center space-y-6'>
-                    <div className='flex justify-center mb-8'>
-                      <div className='w-20 h-20 bg-foreground/10 rounded-3xl flex items-center justify-center border border-brand/20 relative'>
-                        <Bot className='w-10 h-10 text-brand' />
-                        <div className='absolute -right-1 -bottom-1 w-6 h-6 bg-brand rounded-full border-4 border-background flex items-center justify-center'>
-                          <span className='w-2 h-2 bg-primary-foreground rounded-full'></span>
+                <div className='flex-1 flex flex-col items-center justify-center px-6 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
+                  <div className='max-w-2xl w-full text-center space-y-4 md:space-y-6 py-6 flex flex-col items-center'>
+                    <div className='flex justify-center mb-4'>
+                      <div className='w-16 h-16 bg-foreground/5 rounded-2xl flex items-center justify-center border border-brand/20 relative shadow-[0_0_15px_rgba(29,255,0,0.05)]'>
+                        <Bot className='w-8 h-8 text-brand' />
+                        <div className='absolute -right-0.5 -bottom-0.5 w-5 h-5 bg-brand rounded-full border-2 border-background flex items-center justify-center'>
+                          <span className='w-1.5 h-1.5 bg-primary-foreground rounded-full'></span>
                         </div>
                       </div>
                     </div>
-                    <h2 className='product-page-title text-4xl font-bold tracking-tight md:text-5xl'>
+                    <h2 className='product-page-title text-3xl font-bold tracking-tight md:text-4xl'>
                       How can <span className='text-brand'>JobRaker</span> help
                       you today?
                     </h2>
-                    <p className='text-muted-foreground text-lg max-w-lg mx-auto'>
+                    <p className='text-muted-foreground text-sm md:text-base max-w-md mx-auto'>
                       Your autonomous career partner. Ask me to optimize your
                       resume, find roles, or practice interviews.
                     </p>
 
-                    <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mt-12'>
-                      <button
-                        onClick={() =>
-                          setText(
-                            "Optimize my resume for a Senior Frontend role",
-                          )
-                        }
-                        className='suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group'
-                      >
-                        <FileText className='text-brand mb-3 w-6 h-6' />
-                        <h4 className='font-semibold text-sm mb-1 text-card-foreground'>
-                          Optimize Resume
-                        </h4>
-                        <p className='text-xs text-muted-foreground'>
-                          Tailor your CV for specific job descriptions.
-                        </p>
-                      </button>
+                    {loadingStarterSuggestions ? (
+                      <div className='grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mt-6 md:mt-8 w-full'>
+                        {Array.from({ length: 3 }).map((_, idx) => (
+                          <div
+                            key={`starter-skeleton-${idx}`}
+                            className='suggestion-card glass-panel p-4 rounded-xl text-left flex flex-col justify-between min-h-[120px] animate-pulse pointer-events-none'
+                          >
+                            <div>
+                              <div className='w-5 h-5 rounded-lg bg-foreground/10 mb-2 border border-border/5' />
+                              <div className='h-4 bg-foreground/15 rounded w-2/3 mb-2' />
+                              <div className='space-y-1.5'>
+                                <div className='h-3 bg-foreground/5 rounded w-full' />
+                                <div className='h-3 bg-foreground/5 rounded w-5/6' />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : starterSuggestions.length > 0 ? (
+                      <div className='grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mt-6 md:mt-8 w-full'>
+                        {starterSuggestions.map((suggestion) => {
+                          const Icon =
+                            CHAT_STARTER_ICONS[suggestion.icon] || FileText;
 
-                      <button
-                        onClick={() =>
-                          setText("Find remote software engineer jobs in US")
-                        }
-                        className='suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group'
-                      >
-                        <Search className='text-brand mb-3 w-6 h-6' />
-                        <h4 className='font-semibold text-sm mb-1 text-card-foreground'>
-                          Find Remote Roles
-                        </h4>
-                        <p className='text-xs text-muted-foreground'>
-                          Discover top-tier remote software engineering jobs.
-                        </p>
-                      </button>
-                      <button
-                        onClick={() =>
-                          setText("Interview me for a Product Manager position")
-                        }
-                        className='suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group'
-                      >
-                        <MessageSquare className='text-brand mb-3 w-6 h-6' />
-                        <h4 className='font-semibold text-sm mb-1 text-card-foreground'>
-                          Interview Prep
-                        </h4>
-                        <p className='text-xs text-muted-foreground'>
-                          Mock interviews and feedback on your answers.
-                        </p>
-                      </button>
-                    </div>
+                          return (
+                            <button
+                              key={suggestion.id}
+                              onClick={() => {
+                                setText(suggestion.prompt);
+                                setCaretPosition(suggestion.prompt.length);
+                              }}
+                              className='suggestion-card glass-panel p-4 rounded-xl text-left transition-all group min-h-[120px] flex flex-col justify-between'
+                            >
+                              <div>
+                                <Icon className='text-brand mb-2 w-5 h-5' />
+                                <h4 className='font-semibold text-sm mb-1 text-card-foreground'>
+                                  {suggestion.title}
+                                </h4>
+                                <p className='text-xs text-muted-foreground leading-relaxed'>
+                                  {suggestion.description}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                    {loadingStarterSuggestions ? (
+                      <p className='text-xs text-muted-foreground animate-pulse mt-2'>
+                        Personalizing your AI starter prompts...
+                      </p>
+                    ) : (
+                      <div className='glass-panel mt-6 p-4 rounded-xl text-left w-full border border-brand/20 bg-brand/5 backdrop-blur-md max-w-2xl flex gap-3.5 items-start mx-auto'>
+                        <div className='p-2 rounded-lg bg-brand/10 text-brand border border-brand/20 shrink-0 mt-0.5'>
+                          <Sparkles size={16} />
+                        </div>
+                        <div className='flex-1 min-w-0'>
+                          <h4 className='text-xs font-semibold text-foreground/95 mb-1 flex items-center gap-1.5'>
+                            Pro Tip: Direct Outreach for Sales & Marketing
+                          </h4>
+                          <p className='text-xs text-muted-foreground leading-relaxed'>
+                            Are you in Sales or Marketing? You can use the{" "}
+                            <button
+                              type='button'
+                              onClick={() => {
+                                setText("/direct-apply ");
+                                if (textareaRef.current) textareaRef.current.focus();
+                              }}
+                              className='font-mono font-bold text-brand hover:underline bg-brand/10 px-1.5 py-0.5 rounded transition-all text-[11px]'
+                            >
+                              /direct-apply
+                            </button>{" "}
+                            command to scrape for target companies, retrieve verified contact details, and draft cold outreach emails automatically.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -1509,16 +3239,18 @@ export const ChatPage = () => {
                       key={m.id}
                       className={`flex gap-4 ${m.role === "user" ? "justify-end" : "justify-start"}`}
                     >
-                      {m.role === "assistant" && (
+                      {m.role !== "user" && (
                         <div className='w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center shrink-0 border border-brand/20 mt-1'>
                           <Bot size={16} className='text-brand' />
                         </div>
                       )}
                       <div
-                        className={`max-w-[85%] rounded-2xl p-4 shadow-sm ${
+                        className={`rounded-2xl shadow-sm ${
                           m.role === "user"
-                            ? "bg-brand text-primary-foreground font-medium rounded-tr-sm"
-                            : "glass-panel text-card-foreground rounded-tl-sm"
+                            ? "max-w-[85%] bg-brand text-primary-foreground font-medium rounded-tr-sm p-4"
+                            : m.role === "skill"
+                              ? "max-w-[95%] bg-transparent p-0 shadow-none"
+                              : "max-w-[85%] glass-panel text-card-foreground rounded-tl-sm p-4"
                         }`}
                       >
                         {m.role === "user" ? (
@@ -1531,70 +3263,18 @@ export const ChatPage = () => {
                           </div>
                         ) : (
                           <div className='text-sm prose prose-invert max-w-none overflow-hidden'>
-                            {m.toolCalls && m.toolCalls.length > 0 && (
-                              <div className='mb-3 space-y-1.5'>
-                                {m.toolCalls.map((tc, idx) => (
-                                  <div
-                                    key={`${tc.name}-${idx}`}
-                                    className='flex items-center gap-2 text-[11px] font-medium px-2.5 py-1.5 rounded-lg bg-brand/5 border border-brand/10'
-                                  >
-                                    <span
-                                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                        tc.status === "running"
-                                          ? "bg-brand animate-pulse"
-                                          : tc.status === "error"
-                                            ? "bg-brand"
-                                            : "bg-brand"
-                                      }`}
-                                    />
-                                    <span className='text-muted-foreground'>
-                                      {(
-                                        {
-                                          get_account_snapshot:
-                                            "Checked account data",
-                                          run_job_search: `Searched jobs: "${tc.args?.query || ""}"`,
-                                          get_user_profile: "Retrieved profile",
-                                          list_applications:
-                                            "Listed applications",
-                                          list_resumes: "Listed resumes",
-                                          get_credits_balance:
-                                            "Checked credits",
-                                          list_recent_jobs:
-                                            "Listed recent jobs",
-                                          apply_to_job:
-                                            "Submitting application...",
-                                          analyze_resume: "Analyzing resume",
-                                          generate_cover_letter:
-                                            "Generating cover letter",
-                                          evaluate_job_fit:
-                                            "Evaluating job fit",
-                                          intake_job_url:
-                                            "Importing job from URL",
-                                          update_profile: `Updated profile: ${Object.keys(tc.args || {}).join(", ")}`,
-                                          add_skill: `Added skill: ${tc.args?.name || ""}`,
-                                          remove_skill: `Removed skill: ${tc.args?.name || ""}`,
-                                          add_experience: `Added experience: ${tc.args?.title || ""} @ ${tc.args?.company || ""}`,
-                                          save_cover_letter: `Saved cover letter: ${tc.args?.name || ""}`,
-                                          update_resume: `Updated resume: ${(tc.args as any)?.display_name || (tc.args as any)?.full_name || ""}`,
-                                          update_application_status: `Updated application status to ${tc.args?.status || ""}`,
-                                          bookmark_job: tc.args?.bookmarked
-                                            ? "Bookmarked job"
-                                            : "Removed bookmark",
-                                          hide_job: "Dismissed job from queue",
-                                        } as Record<string, string>
-                                      )[tc.name] || tc.name.replace(/_/g, " ")}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                            <AgentWorkTimeline
+                              message={m}
+                              elapsedLabel={requestElapsedLabel}
+                            />
+                            <AgentResultPreview message={m} />
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
                                 table: ({ node, ...props }) => (
-                                  <div className='my-6 overflow-hidden rounded-xl border border-border'>
+                                  <div className='my-6 overflow-x-auto rounded-xl border border-border'>
                                     <table
-                                      className='w-full text-left text-xs bg-background/40'
+                                      className='w-full text-left text-xs bg-background/40 min-w-[500px] sm:min-w-0'
                                       {...props}
                                     />
                                   </div>
@@ -1636,6 +3316,112 @@ export const ChatPage = () => {
                                   const match = /language-(\w+)/.exec(
                                     className || "",
                                   );
+                                  const lang = match ? match[1] : "";
+                                  
+                                  if (!inline && lang && lang.startsWith("chart")) {
+                                    try {
+                                      const parsed = JSON.parse(String(children));
+                                      const chartType = lang.replace("chart-", "").replace("chart", "bar");
+                                      const title = parsed.title || "";
+                                      const data = parsed.data || [];
+                                      const keys = parsed.keys || [];
+                                      const colors = parsed.colors || ["hsl(var(--brand))", "hsl(var(--accent))", "#10b981", "#f59e0b", "#6366f1"];
+                                      
+                                      return (
+                                        <div className="my-6 p-4 rounded-xl border border-border bg-card/40 glass-panel overflow-hidden">
+                                          {title && <h5 className="text-sm font-semibold text-foreground mb-3">{title}</h5>}
+                                          <div className="w-full h-[240px] text-xs">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                              {chartType === "line" ? (
+                                                <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+                                                  <XAxis dataKey="name" stroke="hsl(var(--foreground) / 0.5)" />
+                                                  <YAxis stroke="hsl(var(--foreground) / 0.5)" />
+                                                  <Tooltip 
+                                                    contentStyle={{ 
+                                                      background: "hsl(var(--card))", 
+                                                      border: "1px solid hsl(var(--border))",
+                                                      borderRadius: "8px",
+                                                      color: "hsl(var(--foreground))" 
+                                                    }} 
+                                                  />
+                                                  <Legend />
+                                                  {keys.map((key: string, idx: number) => (
+                                                    <Line key={key} type="monotone" dataKey={key} stroke={colors[idx % colors.length]} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                                  ))}
+                                                </LineChart>
+                                              ) : chartType === "pie" ? (
+                                                <PieChart>
+                                                  <Pie
+                                                    data={data}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    labelLine={false}
+                                                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                                                    outerRadius={80}
+                                                    fill="#8884d8"
+                                                    dataKey={keys[0] || "value"}
+                                                  >
+                                                    {data.map((entry: any, index: number) => (
+                                                      <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                                                    ))}
+                                                  </Pie>
+                                                  <Tooltip 
+                                                    contentStyle={{ 
+                                                      background: "hsl(var(--card))", 
+                                                      border: "1px solid hsl(var(--border))",
+                                                      borderRadius: "8px",
+                                                      color: "hsl(var(--foreground))" 
+                                                    }} 
+                                                  />
+                                                  <Legend />
+                                                </PieChart>
+                                              ) : chartType === "area" ? (
+                                                <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+                                                  <XAxis dataKey="name" stroke="hsl(var(--foreground) / 0.5)" />
+                                                  <YAxis stroke="hsl(var(--foreground) / 0.5)" />
+                                                  <Tooltip 
+                                                    contentStyle={{ 
+                                                      background: "hsl(var(--card))", 
+                                                      border: "1px solid hsl(var(--border))",
+                                                      borderRadius: "8px",
+                                                      color: "hsl(var(--foreground))" 
+                                                    }} 
+                                                  />
+                                                  <Legend />
+                                                  {keys.map((key: string, idx: number) => (
+                                                    <Area key={key} type="monotone" dataKey={key} stroke={colors[idx % colors.length]} fill={colors[idx % colors.length]} fillOpacity={0.2} />
+                                                  ))}
+                                                </AreaChart>
+                                              ) : (
+                                                <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+                                                  <XAxis dataKey="name" stroke="hsl(var(--foreground) / 0.5)" />
+                                                  <YAxis stroke="hsl(var(--foreground) / 0.5)" />
+                                                  <Tooltip 
+                                                    contentStyle={{ 
+                                                      background: "hsl(var(--card))", 
+                                                      border: "1px solid hsl(var(--border))",
+                                                      borderRadius: "8px",
+                                                      color: "hsl(var(--foreground))" 
+                                                    }} 
+                                                  />
+                                                  <Legend />
+                                                  {keys.map((key: string, idx: number) => (
+                                                    <Bar key={key} dataKey={key} fill={colors[idx % colors.length]} radius={[4, 4, 0, 0]} />
+                                                  ))}
+                                                </BarChart>
+                                              )}
+                                            </ResponsiveContainer>
+                                          </div>
+                                        </div>
+                                      );
+                                    } catch (err) {
+                                      console.error("Failed to parse chart code block:", err);
+                                    }
+                                  }
+
                                   return !inline && match ? (
                                     <div className='my-4 rounded-xl border border-border bg-muted/40 overflow-hidden'>
                                       <div className='flex items-center justify-between px-3 py-1.5 bg-accent/40 border-b border-border'>
@@ -1735,15 +3521,7 @@ export const ChatPage = () => {
                             {m.streaming &&
                               (m.content ? (
                                 <span className='inline-block w-1.5 h-4 ml-1 align-middle bg-brand animate-pulse' />
-                              ) : (
-                                <span className='text-sm font-medium text-muted-foreground animate-pulse'>
-                                  {showExtendedWait
-                                    ? `Still working... ${requestElapsedLabel}`
-                                    : m.toolCalls && m.toolCalls.length > 0
-                                      ? "Working..."
-                                      : "Thinking..."}
-                                </span>
-                              ))}
+                              ) : null)}
                           </div>
                         )}
                       </div>
@@ -1754,136 +3532,49 @@ export const ChatPage = () => {
               )}
             </div>
 
-            {messages.length > 0 && showScrollToBottom && (
-              <div className='pointer-events-none absolute bottom-28 right-6 z-20 md:right-10'>
-                <button
-                  onClick={() => scrollToBottom()}
-                  className='pointer-events-auto inline-flex items-center gap-2 rounded-full border border-brand/30 bg-card/95 px-4 py-2 text-sm font-medium text-brand shadow-lg shadow-black/20 backdrop-blur transition hover:bg-card'
-                >
-                  <ArrowDown size={16} />
-                  Latest
-                </button>
-              </div>
-            )}
+            <div className='shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur md:px-6 relative'>
+              <div className='w-full max-w-4xl mx-auto relative'>
+                {messages.length > 0 && showScrollToBottom && (
+                  <div className='absolute bottom-full left-1/2 -translate-x-1/2 mb-4 z-20 pointer-events-none'>
+                    <button
+                      onClick={() => scrollToBottom()}
+                      className='pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-brand/30 bg-card/95 text-brand shadow-lg shadow-black/20 backdrop-blur transition hover:bg-card'
+                      title='Scroll to latest'
+                    >
+                      <ArrowDown size={18} />
+                    </button>
+                  </div>
+                )}
 
-            <div className='shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur md:px-6'>
-              <div className='w-full max-w-4xl mx-auto'>
                 <div
-                  className={`relative rounded-[24px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${
+                  className={`relative rounded-[32px] border border-border shadow-2xl overflow-visible transition-all duration-300 ${
                     text.trim() || attachments.length
                       ? "bg-card ring-1 ring-brand/50 border-brand/50"
                       : "bg-card/85 backdrop-blur-xl"
                   }`}
                 >
-                  <div className='flex flex-col'>
-                  <div className='relative flex items-end p-2 pb-2'>
-                    <textarea
-                      ref={textareaRef}
-                      value={text}
-                      onChange={(e) => setText(e.target.value)}
-                      onPaste={handlePasteImage}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          if (text.trim() || attachments.length)
-                            handleSubmit({ text } as any);
-                        }
-                      }}
-                      className='w-full bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground py-3 px-4 resize-none min-h-[48px] max-h-48 text-base outline-none leading-relaxed scrollbar-hide'
-                      placeholder='Ask detailed questions about your career...'
-                      rows={1}
-                      style={{ height: "auto", minHeight: "52px" }}
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = "auto";
-                        target.style.height = `${target.scrollHeight}px`;
-                      }}
-                    />
-
-                    <button
-                      onClick={() =>
-                        (text.trim() || attachments.length > 0) &&
-                        handleSubmit({ text } as any)
-                      }
-                      disabled={
-                        (!text.trim() && attachments.length === 0) ||
-                        status === "in_progress"
-                      }
-                      className={`mb-1.5 mr-1.5 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                        text.trim() || attachments.length
-                          ? "bg-brand hover:bg-brand/90 text-primary-foreground shadow-[0_0_15px_hsl(var(--brand)/0.3)]"
-                          : "bg-muted text-muted-foreground/60 cursor-not-allowed"
-                      }`}
-                    >
-                      <ArrowUp size={16} className='font-bold' />
-                    </button>
-                  </div>
-
-                  <div className='flex items-center justify-between px-4 pb-3 pt-0'>
-                    <div className='flex flex-col gap-1 min-w-0'>
-                      <div className='flex gap-2 flex-wrap'>
-                        <button
-                          onClick={() => setPersona("concise")}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                            persona === "concise"
-                              ? "bg-brand/10 text-brand border-brand/20"
-                              : "text-muted-foreground border-transparent hover:bg-accent/40"
-                          }`}
-                        >
-                          <Bolt size={12} />
-                          Ask
-                        </button>
-                        <button
-                          onClick={() => setPersona("analyst")}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                            persona === "analyst"
-                              ? "bg-brand/10 text-brand border-brand/20"
-                              : "text-muted-foreground border-transparent hover:bg-accent/40"
-                          }`}
-                          title='Same base credit as Ask, plus 1 credit per round when tools run'
-                        >
-                          <BookOpen size={12} />
-                          Agent Mode
-                        </button>
-                      </div>
-                      {persona === "analyst" && (
-                        <p className='text-[10px] text-muted-foreground px-0.5'>
-                          Agent: 1 credit for your message, then +1 credit each
-                          time tools run (from your balance).
-                        </p>
-                      )}
-                    </div>
-                    <div className='flex gap-2'>
-                      <input
-                        type='file'
-                        ref={fileInputRef}
-                        multiple
-                        accept='image/*'
-                        className='hidden'
-                        onChange={handleFileSelect}
-                      />
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className={`transition-colors ${attachments.length ? "text-brand" : "text-muted-foreground hover:text-foreground"}`}
-                      >
-                        <Paperclip size={16} />
-                      </button>
-                    </div>
-                  </div>
+                  <input
+                    type='file'
+                    ref={fileInputRef}
+                    multiple
+                    accept='image/*'
+                    className='hidden'
+                    onChange={handleFileSelect}
+                  />
 
                   {attachments.length > 0 && (
-                    <div className='px-4 pb-2'>
+                    <div className='px-6 pt-3 pb-1 border-b border-border/40 bg-background/20'>
                       <div className='flex flex-wrap gap-2'>
                         {attachments.map((attachment, index) => (
                           <div
                             key={`${attachment.name}-${attachment.lastModified}-${index}`}
-                            className='inline-flex min-w-0 items-center gap-2 bg-accent/40 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground border border-border'
+                            className='inline-flex min-w-0 items-center gap-2 bg-accent/40 px-3 py-1.5 rounded-xl text-xs font-medium text-foreground border border-border'
                           >
                             {attachmentPreviewUrls[index] ? (
                               <img
                                 src={attachmentPreviewUrls[index] || ""}
                                 alt=''
-                                className='h-10 w-10 rounded-md object-cover border border-border shrink-0'
+                                className='h-8 w-8 rounded-md object-cover border border-border shrink-0'
                               />
                             ) : (
                               <Paperclip size={12} className='text-brand' />
@@ -1910,6 +3601,211 @@ export const ChatPage = () => {
                       </div>
                     </div>
                   )}
+
+                  <div
+                    className={`grid gap-x-2 transition-all duration-300 px-4 py-3 min-h-[56px] ${
+                      isMultiline
+                        ? "grid-cols-[auto_1fr_auto] grid-rows-[auto_auto] items-end"
+                        : "grid-cols-[auto_1fr_auto] grid-rows-[auto_auto] items-end md:grid-cols-[auto_1fr_auto] md:grid-rows-[1fr] md:items-center"
+                    }`}
+                  >
+                    {/* Textarea input area */}
+                    <div
+                      className={`min-w-0 transition-all duration-300 ${
+                        isMultiline
+                          ? "col-span-3 row-start-1 mb-1.5"
+                          : "col-span-3 row-start-1 mb-1.5 md:col-span-1 md:row-start-1 md:mb-0"
+                      }`}
+                    >
+                      <textarea
+                        ref={textareaRef}
+                        value={text}
+                        onChange={(e) => {
+                          setText(e.target.value);
+                          setCaretPosition(e.currentTarget.selectionStart);
+                        }}
+                        onClick={(e) =>
+                          setCaretPosition(e.currentTarget.selectionStart)
+                        }
+                        onFocus={(e) =>
+                          setCaretPosition(e.currentTarget.selectionStart)
+                        }
+                        onKeyUp={(e) =>
+                          setCaretPosition(e.currentTarget.selectionStart)
+                        }
+                        onSelect={(e) =>
+                          setCaretPosition(e.currentTarget.selectionStart)
+                        }
+                        onPaste={handlePasteImage}
+                        onKeyDown={(e) => {
+                          if (skillPaletteOpen) {
+                            if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              setSkillPaletteActiveIndex((index) =>
+                                Math.min(index + 1, skillPaletteSkills.length - 1),
+                              );
+                              return;
+                            }
+                            if (e.key === "ArrowUp") {
+                              e.preventDefault();
+                              setSkillPaletteActiveIndex((index) =>
+                                Math.max(index - 1, 0),
+                              );
+                              return;
+                            }
+                            if (e.key === "Enter" || e.key === "Tab") {
+                              e.preventDefault();
+                              selectSkillFromPalette(
+                                skillPaletteSkills[skillPaletteActiveIndex] ||
+                                  skillPaletteSkills[0],
+                              );
+                              return;
+                            }
+                            if (e.key === "Escape") {
+                              e.preventDefault();
+                              setDismissedSkillPaletteToken(
+                                skillPaletteTrigger?.token || null,
+                              );
+                              return;
+                            }
+                          }
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            if (text.trim() || attachments.length)
+                              handleSubmit({ text } as any);
+                          }
+                        }}
+                        className='w-full bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 py-1.5 px-1.5 resize-none max-h-36 text-base outline-none leading-normal scrollbar-hide'
+                        placeholder='Ask your Career Command Center...'
+                        rows={1}
+                        style={{ height: "auto", minHeight: "24px" }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          setCaretPosition(target.selectionStart);
+                          target.style.height = "auto";
+                          target.style.height = `${target.scrollHeight}px`;
+                        }}
+                      />
+                    </div>
+
+                    <div className='absolute bottom-full left-0 right-0 mb-2'>
+                      <ChatSkillCommandPalette
+                        open={skillPaletteOpen}
+                        mode={skillPaletteTrigger?.mode || "slash"}
+                        skills={skillPaletteSkills}
+                        activeIndex={skillPaletteActiveIndex}
+                        onSelect={selectSkillFromPalette}
+                      />
+                    </div>
+
+                    {/* Left: Plus button */}
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-foreground/5 transition-colors col-start-1 ${
+                        isMultiline
+                          ? "row-start-2"
+                          : "row-start-2 md:row-start-1"
+                      } ${
+                        attachments.length ? "text-brand" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title="Upload files"
+                    >
+                      <Plus size={20} />
+                    </button>
+
+                    {/* Right: Controls */}
+                    <div
+                      className={`flex items-center gap-2 shrink-0 col-start-3 ${
+                        isMultiline
+                          ? "row-start-2"
+                          : "row-start-2 md:row-start-1"
+                      }`}
+                    >
+                      {/* Custom Dropdown */}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setDropdownOpen((prev) => !prev)}
+                          className="flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-semibold bg-foreground/5 text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-all border border-border"
+                        >
+                          <span>{persona === "concise" ? "Ask: plan" : "Agent: do work"}</span>
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} />
+                        </button>
+
+                        {dropdownOpen && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setDropdownOpen(false)}
+                            />
+                            <div className="absolute right-0 bottom-full mb-2 z-50 w-36 rounded-xl border border-border bg-card/95 p-1 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPersona("concise");
+                                  setDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                                  persona === "concise"
+                                    ? "text-brand bg-brand/10"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                                }`}
+                              >
+                                Ask: plan
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPersona("analyst");
+                                  setDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                                  persona === "analyst"
+                                    ? "text-brand bg-brand/10"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                                }`}
+                              >
+                                Agent: do work
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Voice Mic Button */}
+                      <button
+                        type="button"
+                        onClick={toggleListening}
+                        className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
+                          isListening
+                            ? "bg-brand/15 text-brand animate-pulse hover:bg-brand/25"
+                            : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                        }`}
+                        title={isListening ? "Listening... Click to stop" : "Voice input"}
+                      >
+                        <Mic size={18} />
+                      </button>
+
+                      {/* Send Button */}
+                      <button
+                        onClick={() =>
+                          (text.trim() || attachments.length > 0) &&
+                          handleSubmit({ text } as any)
+                        }
+                        disabled={
+                          (!text.trim() && attachments.length === 0) ||
+                          isChatBusy
+                        }
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all ${
+                          text.trim() || attachments.length
+                            ? "bg-white text-black shadow-lg hover:bg-neutral-100"
+                            : "bg-muted text-muted-foreground/60 cursor-not-allowed"
+                        }`}
+                        title="Send message"
+                      >
+                        <ArrowUp size={18} className="font-semibold" />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <p className='text-center text-[10px] text-muted-foreground mt-3 uppercase tracking-widest font-medium'>
@@ -1921,6 +3817,7 @@ export const ChatPage = () => {
             <div className='fixed -bottom-48 -right-48 w-96 h-96 bg-brand/5 rounded-full blur-[120px] pointer-events-none'></div>
             <div className='fixed top-24 left-96 w-64 h-64 bg-brand/5 rounded-full blur-[100px] pointer-events-none'></div>
           </main>
+
         </>
       )}
     </div>

@@ -27,6 +27,14 @@ export interface EvaluateJobFitResponse {
   missing_requirements: string[];
   tailoring_suggestions: string[];
   matched_keywords: string[];
+  score_breakdown?: Record<string, unknown>;
+  ats_keyword_coverage?: {
+    jd_terms?: string[];
+    covered_terms?: string[];
+    missing_terms?: string[];
+    incorporated_terms?: string[];
+    coverage_percent?: number;
+  } & Record<string, unknown>;
 }
 
 export async function evaluateJobFit(

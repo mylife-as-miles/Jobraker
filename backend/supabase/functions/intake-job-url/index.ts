@@ -14,12 +14,21 @@ import {
   createGeminiConfig,
   extractGeminiText,
   GEMINI_MODEL,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import {
   evaluateAndPersistJobFit,
   type JobEvaluationResult,
 } from "../_shared/job-evaluation.ts";
-import { attachExistingJobIdsBySourceId } from "../_shared/jobs.ts";
+import {
+  attachExistingJobIdsBySourceId,
+  formatJobTitleAndDescriptionWithAi,
+} from "../_shared/jobs.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
+import { isLikelyAggregateJobPage } from "../_shared/discovery-hybrid.ts";
 
 interface IntakeJobUrlRequest {
   url?: string;
@@ -113,6 +122,25 @@ const isProfileUrl = (url: string): boolean => {
     /\/(freelancers?|profiles?|users?|people|team|about-us)(\/|$)/i.test(lower)
   )
     return true;
+  return false;
+};
+
+const isSearchUrl = (url: string): boolean => {
+  const lower = url.toLowerCase();
+  if (
+    lower.includes("indeed.com") &&
+    !lower.includes("/viewjob") &&
+    !lower.includes("/rc/clk") &&
+    lower.includes("/jobs")
+  ) {
+    return true;
+  }
+  if (
+    lower.includes("linkedin.com") &&
+    (lower.includes("/jobs/search") || lower.includes("/search"))
+  ) {
+    return true;
+  }
   return false;
 };
 
@@ -297,16 +325,18 @@ ${clipText(markdown, 18_000)}
 `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      config: createGeminiConfig({
-        systemInstruction:
-          "You are a structured extraction engine for job postings. Respond with JSON only.",
-        includeTools: false,
-        thinkingLevel: "LOW",
-      }),
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
+    const { result: response } = await withModelFallback((model) =>
+      ai.models.generateContent({
+        model,
+        config: createGeminiConfig({
+          systemInstruction:
+            "You are a structured extraction engine for job postings. Respond with JSON only.",
+          includeTools: false,
+          thinkingLevel: "LOW",
+        }, model),
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      })
+    );
 
     const raw = extractGeminiText(response);
     const parsed = parseJsonObject(raw);
@@ -358,11 +388,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient } = await requireSubscriptionTier(
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(
       req,
       "Basics",
       "Job evaluations",
     );
+    await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "intake_job_url",
+      serviceClient,
+      subscriptionTier,
+    });
 
     const body: IntakeJobUrlRequest = await req.json().catch(() => ({}));
     const normalizedUrl = normalizeUrl(body.url || "");
@@ -382,6 +418,19 @@ Deno.serve(async (req) => {
         JSON.stringify({
           error:
             "That URL looks like a freelancer or personal profile, not a job posting. Please paste the link to the actual job listing.",
+        }),
+        {
+          status: 422,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        },
+      );
+    }
+
+    if (isSearchUrl(normalizedUrl) || isLikelyAggregateJobPage(normalizedUrl)) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "That URL looks like a search results list, not an individual job posting. Please click on a specific job to open it, then copy and paste its unique link.",
         }),
         {
           status: 422,
@@ -442,11 +491,11 @@ Deno.serve(async (req) => {
       markdown,
     );
 
-    if (!extracted.description || extracted.description.length < 120) {
+    if (!extracted.description || extracted.description.length < 250) {
       return new Response(
         JSON.stringify({
           error:
-            "Jobraker could not extract enough detail from that posting to evaluate it yet.",
+            "Jobraker could not extract enough detail from that posting to evaluate it. This often happens if the link points to a search page, requires a login, or is blocked by bot protection.",
         }),
         {
           status: 422,
@@ -458,6 +507,10 @@ Deno.serve(async (req) => {
     const nowIso = new Date().toISOString();
     const sourceKind = sourceKindFromUrl(normalizedUrl);
     const sourceId = `direct-url:${normalizedUrl}`;
+
+    const formatted = await formatJobTitleAndDescriptionWithAi(extracted.title, extracted.description || "");
+    extracted.title = formatted.title;
+    extracted.description = formatted.description;
 
     const [jobRow] = await attachExistingJobIdsBySourceId(serviceClient, user.id, [
       {
@@ -540,6 +593,17 @@ Deno.serve(async (req) => {
         finalJobError?.message || "The job was saved but could not be reloaded.",
       );
     }
+
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "intake_job_url",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        verification_status: verificationStatus,
+        job_id: finalJob.id,
+      },
+    });
 
     return new Response(
       JSON.stringify({

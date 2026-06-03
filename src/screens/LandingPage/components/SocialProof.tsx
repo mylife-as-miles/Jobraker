@@ -2,14 +2,14 @@ import React from "react";
 import { motion } from "framer-motion";
 
 const companies = [
-  "Google",
-  "Meta",
-  "Amazon",
-  "Netflix",
-  "Microsoft",
-  "Apple",
-  "Spotify",
-  "Uber",
+  "Product",
+  "Growth",
+  "Operations",
+  "Software",
+  "Design",
+  "Data",
+  "GTM",
+  "Customer Success",
 ];
 
 export const SocialProof = () => {
@@ -19,7 +19,7 @@ export const SocialProof = () => {
 
       <div className='text-center mb-8'>
         <p className='text-gray-500 font-mono text-sm tracking-widest uppercase'>
-          Built for candidates targeting top companies
+          Built for candidates across high-intent knowledge roles
         </p>
       </div>
 

@@ -9,6 +9,10 @@ import {
   evaluateAndPersistJobFit,
   type JobEvaluationResult,
 } from "../_shared/job-evaluation.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
@@ -18,11 +22,17 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient } = await requireSubscriptionTier(
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(
       req,
       "Basics",
       "Auto apply",
     );
+    await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "evaluate_job_fit",
+      serviceClient,
+      subscriptionTier,
+    });
 
     const raw = (await req.json()) as Record<string, unknown>;
     const jobDescription =
@@ -56,6 +66,16 @@ serve(async (req) => {
       jobDescription,
       profileSnapshot: (typeof profileSnapshot === "string" ? profileSnapshot : null) || null,
       resumeText: (typeof resumeText === "string" ? resumeText : null) || null,
+    });
+
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "evaluate_job_fit",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        job_id: (typeof jobId === "string" ? jobId : null) || null,
+      },
     });
 
     return new Response(JSON.stringify(evaluation), {

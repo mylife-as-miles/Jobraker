@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useRegisterCoachMarks } from "../../../providers/TourProvider";
+import {
+  TOUR_PAGE_LABELS,
+  useProductTour,
+  useRegisterCoachMarks,
+} from "../../../providers/TourProvider";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
@@ -42,6 +46,7 @@ import {
   AlertTriangle,
   History,
   X,
+  LifeBuoy,
 } from "lucide-react";
 import remoteCoLogo from "../../../assets/job-sources/remote-co.svg";
 import remotiveLogo from "../../../assets/job-sources/remotive.svg";
@@ -55,6 +60,7 @@ import { useSecuritySettings } from "../../../hooks/useSecuritySettings";
 import { createClient } from "../../../lib/supabaseClient";
 import { useAppearance } from "../../../providers/AppearanceProvider";
 import { useToast } from "../../../components/ui/toast";
+import { AnswerBankPanel } from "../components/AnswerBankPanel";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
 import {
@@ -70,6 +76,8 @@ import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 import { getProxiedLogoUrl } from "../../../lib/utils";
+import useMediaQuery from "@/hooks/use-media-query";
+import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
 
 const SignOutDialog = ({
   open,
@@ -147,16 +155,25 @@ async function getQRCode() {
 export const SettingsPage = (): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError } = useToast();
+  const { availablePages, isRunning, page: runningTourPage, start: startTour } =
+    useProductTour();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasGmailIntegrationAccess = hasSubscriptionAccess(
     subscriptionTier,
     "Pro",
   );
+  const [isAdmin, setIsAdmin] = useState(false);
   const tabs = useMemo(() => {
     const baseTabs = [
       { id: "profile", label: "Profile", icon: <User className='w-4 h-4' /> },
+      {
+        id: "answer-bank",
+        label: "Answer Bank",
+        icon: <Database className='w-4 h-4' />,
+      },
       {
         id: "notifications",
         label: "Notifications",
@@ -192,8 +209,25 @@ export const SettingsPage = (): JSX.Element => {
       icon: <Link className='w-4 h-4' />,
     });
 
+    if (isAdmin) {
+      const guidedToursIndex = baseTabs.findIndex((t) => t.id === "billing");
+      baseTabs.splice(guidedToursIndex, 0, {
+        id: "guided-tours",
+        label: "Guided Tours",
+        icon: <Sparkles className='w-4 h-4' />,
+      });
+    }
+
+    if (!isDesktop) {
+      baseTabs.push({
+        id: "support",
+        label: "Support",
+        icon: <LifeBuoy className='w-4 h-4' />,
+      });
+    }
+
     return baseTabs;
-  }, []);
+  }, [isAdmin, isDesktop]);
 
   const activeTab = useMemo(() => {
     const segment = location.pathname.split("/")[3];
@@ -283,6 +317,8 @@ export const SettingsPage = (): JSX.Element => {
     newPassword: string;
     confirmPassword: string;
     avatar_url: string;
+    linkedin_url: string;
+    github_url: string;
   };
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
@@ -294,6 +330,8 @@ export const SettingsPage = (): JSX.Element => {
     newPassword: "",
     confirmPassword: "",
     avatar_url: "",
+    linkedin_url: "",
+    github_url: "",
   });
 
   // 2FA modal state
@@ -403,6 +441,18 @@ export const SettingsPage = (): JSX.Element => {
       }
     })();
   }, [supabase]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { isCurrentUserAdmin } = await import("@/lib/adminUtils");
+        setIsAdmin(await isCurrentUserAdmin());
+      } catch (error) {
+        console.error("Error checking admin status:", error);
+        setIsAdmin(false);
+      }
+    })();
+  }, []);
 
   const handleConnectGmail = async () => {
     try {
@@ -753,6 +803,8 @@ export const SettingsPage = (): JSX.Element => {
         phone: (profile as any)?.phone || "",
         location: profile?.location || "",
         avatar_url: (profile as any)?.avatar_url || "",
+        linkedin_url: (profile as any)?.linkedin_url || "",
+        github_url: (profile as any)?.github_url || "",
       }));
     })();
   }, [profile, supabase]);
@@ -784,12 +836,16 @@ export const SettingsPage = (): JSX.Element => {
           )
           .eq("user_id", userId)
           .eq("status", "active")
+          .gt("current_period_end", new Date().toISOString())
           .maybeSingle();
 
         if (subscription) {
           const planName = (subscription as any)?.subscription_plans?.name;
           setBillingSubscriptionTier(planName || "Free");
           setCurrentPeriodEnd((subscription as any).current_period_end);
+        } else {
+          setBillingSubscriptionTier("Free");
+          setCurrentPeriodEnd(null);
         }
 
         // Fetch all subscription plans
@@ -945,6 +1001,14 @@ export const SettingsPage = (): JSX.Element => {
         title: "Integrations",
         body: "Connect your accounts from other services like Gmail, LinkedIn, and GitHub to enhance your job search workflow.",
         condition: { type: "click", autoNext: true },
+        next: isAdmin ? "settings-tab-guided-tours" : "settings-tab-billing",
+      },
+      {
+        id: "settings-tab-guided-tours",
+        selector: "#settings-tab-btn-guided-tours",
+        title: "Guided Tours",
+        body: "Restart any product tour from Settings whenever you want a quick walkthrough of a page.",
+        condition: { type: "click", autoNext: true },
         next: "settings-tab-billing",
       },
       {
@@ -970,6 +1034,11 @@ export const SettingsPage = (): JSX.Element => {
     (activeTab === "privacy" && privacyLoading) ||
     (activeTab === "appearance" && appearanceLoading) ||
     (activeTab === "security" && securityLoading);
+
+  const guidedTourPages = useMemo(
+    () => availablePages.filter((tourPageId) => tourPageId !== "*"),
+    [availablePages],
+  );
 
   const TabSkeleton = () => (
     <div className='space-y-6'>
@@ -1094,6 +1163,8 @@ export const SettingsPage = (): JSX.Element => {
           location: formData.location,
           phone: formData.phone as any,
           avatar_url: formData.avatar_url as any,
+          linkedin_url: formData.linkedin_url.trim() || null,
+          github_url: formData.github_url.trim() || null,
         } as any);
       } else {
         await updateProfile({
@@ -1102,6 +1173,8 @@ export const SettingsPage = (): JSX.Element => {
           location: formData.location,
           phone: formData.phone as any,
           avatar_url: formData.avatar_url as any,
+          linkedin_url: formData.linkedin_url.trim() || null,
+          github_url: formData.github_url.trim() || null,
         } as any);
       }
 
@@ -1303,8 +1376,12 @@ export const SettingsPage = (): JSX.Element => {
           total_credit_transactions: creditTransactions?.length || 0,
           current_credits: userCredits?.balance || 0,
           active_subscriptions:
-            userSubscriptions?.filter((s: any) => s.status === "active")
-              .length || 0,
+            userSubscriptions?.filter(
+              (s: any) =>
+                s.status === "active" &&
+                (!s.current_period_end ||
+                  new Date(s.current_period_end).getTime() > Date.now()),
+            ).length || 0,
           total_notifications: notifications?.length || 0,
           unread_notifications:
             notifications?.filter((n: any) => !n.read).length || 0,
@@ -1581,6 +1658,32 @@ export const SettingsPage = (): JSX.Element => {
                     autoComplete='address-level2'
                     className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
                     placeholder='City, Country'
+                  />
+                </div>
+                <div>
+                  <label className='block text-xs font-bold text-muted-foreground/80 mb-2 uppercase tracking-wider'>
+                    LinkedIn URL
+                  </label>
+                  <Input
+                    value={formData.linkedin_url}
+                    onChange={(e) =>
+                      handleInputChange("linkedin_url", e.target.value)
+                    }
+                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
+                    placeholder='https://linkedin.com/in/username'
+                  />
+                </div>
+                <div>
+                  <label className='block text-xs font-bold text-muted-foreground/80 mb-2 uppercase tracking-wider'>
+                    GitHub URL
+                  </label>
+                  <Input
+                    value={formData.github_url}
+                    onChange={(e) =>
+                      handleInputChange("github_url", e.target.value)
+                    }
+                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
+                    placeholder='https://github.com/username'
                   />
                 </div>
               </div>
@@ -4781,6 +4884,123 @@ export const SettingsPage = (): JSX.Element => {
           </div>
         );
 
+      case "guided-tours":
+        return (
+          <div className='space-y-6'>
+            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
+              <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+                <div>
+                  <h3 className='text-base font-medium text-foreground/95'>
+                    Guided Tours
+                  </h3>
+                  <p className='text-sm text-muted-foreground mt-0.5 max-w-2xl'>
+                    Restart any product walkthrough from Settings instead of
+                    using the floating launcher. Tours resume from saved progress
+                    when available.
+                  </p>
+                </div>
+                <div className='inline-flex items-center gap-2 rounded-lg border border-brand/20 bg-brand/10 px-3 py-2 text-sm font-medium text-brand'>
+                  <Sparkles className='w-4 h-4' />
+                  Admin tools
+                </div>
+              </div>
+            </div>
+
+            <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+              {guidedTourPages.map((tourPageId) => {
+                const isCompleted =
+                  (profile as any)?.[`walkthrough_${tourPageId}`] === true;
+                const isActiveTour =
+                  isRunning && runningTourPage === tourPageId;
+                return (
+                  <div
+                    key={tourPageId}
+                    className={`rounded-xl border p-5 shadow-sm ring-1 transition-all ${
+                      isActiveTour
+                        ? "border-brand/40 bg-brand/5 ring-brand/20"
+                        : "border-border/40 bg-card ring-foreground/5"
+                    }`}
+                  >
+                    <div className='flex items-start justify-between gap-3'>
+                      <div>
+                        <h4 className='text-base font-semibold text-foreground'>
+                          {TOUR_PAGE_LABELS[tourPageId] || tourPageId}
+                        </h4>
+                        <p className='mt-1 text-sm text-muted-foreground'>
+                          {isCompleted
+                            ? "Completed before. You can restart it anytime."
+                            : "Not completed yet."}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                          isActiveTour
+                            ? "bg-brand text-background"
+                            : isCompleted
+                              ? "bg-blue-500/15 text-blue-400"
+                              : "bg-foreground/5 text-muted-foreground"
+                        }`}
+                      >
+                        {isActiveTour
+                          ? "Running"
+                          : isCompleted
+                            ? "Done"
+                            : "Ready"}
+                      </span>
+                    </div>
+
+                    <div className='mt-5 flex items-center justify-between gap-3'>
+                      <span className='text-xs uppercase tracking-[0.18em] text-muted-foreground'>
+                        {tourPageId}
+                      </span>
+                      <Button
+                        variant={isActiveTour ? "outline" : "default"}
+                        className={
+                          isActiveTour
+                            ? "border-brand/30 text-brand hover:bg-brand/10"
+                            : "bg-brand text-background hover:bg-brand/90"
+                        }
+                        onClick={() => startTour(tourPageId)}
+                      >
+                        {isActiveTour ? "Restart Tour" : "Start Tour"}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {guidedTourPages.length === 0 ? (
+              <div className='rounded-xl border border-border/40 bg-card p-6 text-sm text-muted-foreground shadow-sm ring-1 ring-foreground/5'>
+                No tours are registered yet on this build.
+              </div>
+            ) : null}
+          </div>
+        );
+
+      case "answer-bank":
+        return <AnswerBankPanel />;
+
+      case "support":
+        return (
+          <div
+            id='settings-tab-support'
+            data-tour='settings-tab-support'
+            className='space-y-6'
+          >
+            <div className='bg-card border border-border/40 rounded-xl p-4 sm:p-6 shadow-sm ring-1 ring-foreground/5'>
+              <h3 className='text-base font-medium text-foreground mb-4'>
+                AI & App Support
+              </h3>
+              <SupportFloatingWidget
+                currentPageId="settings"
+                currentPageLabel="Settings"
+                inline={true}
+              />
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -4788,7 +5008,7 @@ export const SettingsPage = (): JSX.Element => {
 
   return (
     <>
-      <div className='min-h-screen bg-background'>
+      <div className='min-h-full bg-background'>
         <div className='w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-6'>
           {/* Modern Header */}
           <div className='mb-8 border-b border-foreground/10 pb-6'>
@@ -4801,11 +5021,11 @@ export const SettingsPage = (): JSX.Element => {
                   Manage your account preferences and configurations
                 </p>
               </div>
-              <div className='flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center'>
+              <div className='flex md:basis-1/3 w-full flex-row gap-3 sm:w-auto items-center'>
                 <Button
                   variant='outline'
                   onClick={handleResetForm}
-                  className='w-full border-foreground/[0.08] text-foreground/70 hover:text-foreground/90 hover:bg-foreground/5 hover:border-foreground/[0.12] transition-all sm:w-auto'
+                  className='flex-1 border-foreground/[0.08] text-foreground/70 hover:text-foreground/90  hover:bg-foreground/5 hover:border-foreground/[0.12] transition-all sm:w-auto'
                 >
                   <RefreshCw className='w-4 h-4 mr-2' />
                   Reset
@@ -4813,7 +5033,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Button
                   variant='outline'
                   onClick={handleExportData}
-                  className='w-full border-foreground/[0.08] text-foreground/70 hover:text-foreground/90 hover:bg-foreground/5 hover:border-foreground/[0.12] transition-all sm:w-auto'
+                  className='flex-1 border-foreground/[0.08] text-foreground/70 hover:text-foreground/90 hover:bg-foreground/5 hover:border-foreground/[0.12] transition-all sm:w-auto'
                 >
                   <Download className='w-4 h-4 mr-2' />
                   Export Data
@@ -4825,7 +5045,7 @@ export const SettingsPage = (): JSX.Element => {
           <div className='grid grid-cols-1 lg:grid-cols-5 gap-8'>
             {/* Minimal Sidebar Navigation */}
             <div
-              className='lg:col-span-1 space-y-1'
+              className='lg:col-span-1 flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 gap-1 lg:gap-1 no-scrollbar whitespace-nowrap scrollbar-none'
               id='settings-tablist'
               data-tour='settings-tabs'
             >
@@ -4844,10 +5064,10 @@ export const SettingsPage = (): JSX.Element => {
                   }}
                   id={`settings-tab-btn-${tab.id}`}
                   data-tour={`settings-tab-btn-${tab.id}`}
-                  className={`w-full flex items-center gap-3 text-in px-4 py-2.5 rounded-lg text-sm transition-all ${
+                  className={`w-auto lg:w-full flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-2.5 rounded-lg text-xs lg:text-sm transition-all shrink-0 ${
                     activeTab === tab.id
-                      ? "text-foreground/95 bg-gradient-to-r from-foreground/[0.08] to-transparent border-l-2 border-brand"
-                      : "text-foreground/70 hover:text-foreground/80 hover:bg-foreground/5 border-l-2 border-transparent"
+                      ? "text-foreground/95 bg-gradient-to-r from-foreground/[0.08] to-transparent border-b-2 border-l-0 border-t-0 border-r-0 lg:border-l-2 lg:border-b-0 lg:border-t-0 lg:border-r-0 border-brand"
+                      : "text-foreground/70 hover:text-foreground/80 hover:bg-foreground/5 border-b-2 border-l-0 border-t-0 border-r-0 lg:border-l-2 lg:border-b-0 lg:border-t-0 lg:border-r-0 border-transparent"
                   }`}
                 >
                   <span
@@ -4861,10 +5081,10 @@ export const SettingsPage = (): JSX.Element => {
                 </button>
               ))}
 
-              <div className='pt-4 mt-4 border-t border-foreground/10'>
+              <div className='pt-0 lg:pt-4 mt-0 lg:mt-4 border-t-0 lg:border-t border-foreground/10 shrink-0'>
                 <button
                   onClick={() => setSignOutDialogOpen(true)}
-                  className='w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-red-500  transition-all border-l-2 border-transparent'
+                  className='w-auto lg:w-full flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-2.5 rounded-lg text-xs lg:text-sm text-red-500 transition-all border-l-2 lg:border-l-2 border-b-2 lg:border-b-0 border-transparent shrink-0'
                 >
                   <LogOut className='w-4 h-4' />
                   <span className='font-medium'>Sign Out</span>
@@ -5815,7 +6035,7 @@ function _DefaultsForm() {
   };
 
   const sourceDefs = [
-    { id: "deepresearch", label: "Deep Research (Firecrawl)" },
+    { id: "deepresearch", label: "Deep Research" },
     { id: "remotive", label: "Remotive" },
     { id: "remoteok", label: "RemoteOK" },
     { id: "arbeitnow", label: "Arbeitnow" },

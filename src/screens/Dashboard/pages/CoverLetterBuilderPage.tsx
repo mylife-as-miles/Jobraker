@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Download,
@@ -20,6 +21,8 @@ import {
   Loader2,
   Briefcase,
   ChevronDown,
+  PenLine,
+  Eye,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
@@ -46,6 +49,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const supabase = createClient();
 
@@ -148,6 +152,19 @@ export const CoverLetterBuilderPage = () => {
   // Remove unused copied
   // const [copied, setCopied] = useState(false);
   const [inlineEdit, setInlineEdit] = useState(false);
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<"editor" | "preview">("editor");
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Responsive Check
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1280); // xl is 1280px
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   type QueuedJobPick = {
     id: string;
@@ -176,7 +193,7 @@ export const CoverLetterBuilderPage = () => {
     setJobDescription(job.description);
     toastSuccess(
       "Job description loaded",
-      `${job.title}${job.company ? ` · ${job.company}` : ""}`,
+      [job.title, job.company].filter(Boolean).join(" - "),
     );
   };
   const [isSaving, setIsSaving] = useState(false);
@@ -184,6 +201,55 @@ export const CoverLetterBuilderPage = () => {
 
   const routeId = location.pathname.split("/")[4] || null;
   const activeId = currentLibId || routeId || id;
+
+  const normalizeCoverLetterPayload = (record: any) => {
+    const payload = record?.data;
+    if (payload && typeof payload === "object" && !Array.isArray(payload) && Object.keys(payload).length > 2) {
+      return payload as Record<string, unknown>;
+    }
+    if (record) {
+      const contentStr = record.content || "";
+      const paragraphs = typeof contentStr === "string" && contentStr.trim()
+        ? contentStr.split(/\n\s*\n+/).map((p: any) => p.trim()).filter(Boolean)
+        : [];
+      return {
+        id: record.id || "",
+        title: record.name || "Untitled Cover Letter",
+        slug: record.slug || "untitled-cover-letter",
+        tags: record.tags || [],
+        role: record.role || "",
+        company: record.company || "",
+        jobDescription: record.job_description || "",
+        tone: record.tone || "professional",
+        lengthPref: record.length_pref || "medium",
+        sender: {
+          name: record.sender_name || "",
+          email: record.sender_email || "",
+          phone: record.sender_phone || "",
+          address: record.sender_address || "",
+        },
+        recipient: {
+          name: record.recipient || "",
+          title: record.recipient_title || "",
+          company: record.company || "",
+          address: record.recipient_address || "",
+        },
+        content: {
+          date: record.date || new Date(record.created_at || Date.now()).toISOString().slice(0, 10),
+          subject: record.subject || (record.role ? `Application for ${record.role}` : ""),
+          salutation: record.salutation || "Dear Hiring Manager,",
+          paragraphs: paragraphs,
+          closing: record.closing || "Best regards,",
+          signature: record.signature_name || "",
+          rawBody: contentStr,
+        },
+        typography: {
+          fontSize: record.font_size || 16,
+        }
+      } as Record<string, unknown>;
+    }
+    return null;
+  };
 
   // Derived
   const finalBody = content.paragraphs.length
@@ -196,7 +262,7 @@ export const CoverLetterBuilderPage = () => {
   };
 
   const applyLetterRecord = (record: any) => {
-    const payload = record?.data || record?.content;
+    const payload = normalizeCoverLetterPayload(record);
     if (!payload) return;
     const resolvedTitle =
       record?.name || payload.title || "Untitled Cover Letter";
@@ -212,7 +278,13 @@ export const CoverLetterBuilderPage = () => {
   // Load Initial Data
   useEffect(() => {
     const loadData = async () => {
-      if (!routeId) return;
+      if (!routeId) {
+        resetCoverLetter();
+        setCurrentLibId(null);
+        setLibName("");
+        setCoverLetterId("");
+        return;
+      }
 
       try {
         const { data, error } = await supabase
@@ -232,7 +304,7 @@ export const CoverLetterBuilderPage = () => {
       }
     };
     loadData();
-  }, [navigate, routeId]);
+  }, [navigate, resetCoverLetter, routeId, setCoverLetterId]);
 
   useEffect(() => {
     const loadLibrary = async () => {
@@ -715,21 +787,29 @@ export const CoverLetterBuilderPage = () => {
   };
 
   const clearDraft = () => {
-    if (confirm("Are you sure you want to clear all fields?")) {
-      setRole("");
-      setCompany("");
-      setNested("sender", "name", "");
-      setNested("sender", "email", "");
-      setNested("sender", "phone", "");
-      setNested("sender", "address", "");
-      setNested("recipient", "name", "");
-      setNested("recipient", "title", "");
-      setNested("recipient", "address", "");
-      setNested("content", "subject", "");
-      setNested("content", "rawBody", "");
-      setNested("content", "paragraphs", []);
-      setNested("content", "closing", "Best regards,");
-    }
+    setConfirmClearOpen(true);
+  };
+
+  const handleClearDraftConfirm = () => {
+    setRole("");
+    setCompany("");
+    setJobDescription("");
+    setNested("sender", "name", "");
+    setNested("sender", "email", "");
+    setNested("sender", "phone", "");
+    setNested("sender", "address", "");
+    setNested("recipient", "name", "");
+    setNested("recipient", "title", "");
+    setNested("recipient", "address", "");
+    setNested("content", "subject", "");
+    setNested("content", "rawBody", "");
+    setNested("content", "paragraphs", []);
+    setNested("content", "closing", "Best regards,");
+    setNested("content", "signature", "");
+    setNested("content", "date", new Date().toISOString().slice(0, 10));
+    setNested("content", "salutation", "Dear Hiring Manager,");
+    setConfirmClearOpen(false);
+    toastSuccess("Cleared", "Draft cleared.");
   };
 
   // --- Formatting Helpers ---
@@ -771,7 +851,11 @@ export const CoverLetterBuilderPage = () => {
   return (
     <div
       id='cover-page-root'
-      className='product-page-shell relative flex min-h-[calc(100vh-4rem)] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8'
+      className={`product-page-shell relative flex flex-col ${
+        isMobile
+          ? "gap-4 px-3 py-4"
+          : "min-h-[calc(100vh-4rem)] gap-6 px-4 py-6 sm:px-6 lg:px-8"
+      }`}
     >
       {/* Ambient Background Glows */}
       <div className='fixed top-20 right-0 h-96 w-96 bg-brand/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10' />
@@ -883,6 +967,59 @@ export const CoverLetterBuilderPage = () => {
         </div>
       </div>
 
+      {isMobile && (
+        <div className='-mt-3 px-4 pb-1 flex justify-center'>
+          <div className='relative flex p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md w-full max-w-[340px]'>
+            <button
+              onClick={() => setMobileView("editor")}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
+                mobileView === "editor"
+                  ? "text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {mobileView === "editor" && (
+                <motion.div
+                  layoutId="activeCoverLetterBuilderTab"
+                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              <PenLine size={13} />
+              <span>Editor</span>
+            </button>
+            <button
+              onClick={() => setMobileView("preview")}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${
+                mobileView === "preview"
+                  ? "text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {mobileView === "preview" && (
+                <motion.div
+                  layoutId="activeCoverLetterBuilderTab"
+                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              <Eye size={13} />
+              <span>Preview</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmClearOpen}
+        onCancel={() => setConfirmClearOpen(false)}
+        onConfirm={handleClearDraftConfirm}
+        title="Clear Cover Letter Draft"
+        message="Clear all current fields and start fresh? This will remove the current unsaved content from the editor."
+        confirmText="Clear Draft"
+        cancelText="Cancel"
+      />
+
       {!loadingTier && !hasCoverLetterAiAccess && (
         <UpgradePrompt
           compact
@@ -899,7 +1036,7 @@ export const CoverLetterBuilderPage = () => {
         className='grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full'
       >
         {/* CONFIG PANEL (LEFT) */}
-        <Card className='product-section-card p-6 rounded-2xl'>
+        <Card className={`product-section-card p-6 rounded-2xl ${isMobile && mobileView !== "editor" ? "hidden" : "flex flex-col"}`}>
           <div className='grid gap-6'>
             {/* Library */}
             <div className='grid gap-3'>
@@ -948,7 +1085,7 @@ export const CoverLetterBuilderPage = () => {
                   className='w-full product-input-surface rounded-xl px-3 py-2 text-sm'
                   onChange={(e) => {
                     const lib = library.find((l) => l.id === e.target.value);
-                    const payload = lib?.data || lib?.content;
+                    const payload = normalizeCoverLetterPayload(lib);
                     if (lib && payload) {
                       applyLetterRecord(lib);
                       navigate("/dashboard/cover-letter/edit/" + lib.id, {
@@ -1264,7 +1401,7 @@ export const CoverLetterBuilderPage = () => {
         </Card>
 
         {/* PREVIEW PANEL (RIGHT) */}
-        <Card className='p-8 bg-white min-h-[800px] text-black shadow-2xl overflow-y-auto'>
+        <Card className={`p-4 sm:p-8 bg-white min-h-[800px] text-black shadow-2xl overflow-y-auto ${isMobile && mobileView !== "preview" ? "hidden" : "flex flex-col"}`}>
           <div
             className='max-w-[800px] mx-auto space-y-6'
             style={{
@@ -1333,7 +1470,7 @@ export const CoverLetterBuilderPage = () => {
       </div>
 
       {/* Config Toolbar */}
-      <div className='product-section-card fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-2xl p-2 shadow-xl'>
+      <div className={`product-section-card fixed ${isMobile ? "bottom-20" : "bottom-6"} left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-2xl p-2 shadow-xl ${isMobile && mobileView === "editor" ? "hidden" : ""}`}>
         <Button
           size='icon'
           variant='ghost'

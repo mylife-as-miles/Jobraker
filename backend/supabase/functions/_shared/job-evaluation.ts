@@ -2,9 +2,9 @@ import {
   createGeminiClient,
   createGeminiConfig,
   extractGeminiText,
-  GEMINI_MODEL,
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
+  withModelFallback,
 } from "./gemini.ts";
 import {
   type CandidateMemory,
@@ -47,6 +47,8 @@ export interface JobEvaluationResult {
   missing_requirements: string[];
   tailoring_suggestions: string[];
   matched_keywords: string[];
+  score_breakdown?: Record<string, unknown>;
+  ats_keyword_coverage?: Record<string, unknown>;
 }
 
 interface EvaluateJobFitArgs {
@@ -82,6 +84,8 @@ const DEFAULT_EVALUATION: JobEvaluationResult = {
   missing_requirements: [],
   tailoring_suggestions: [],
   matched_keywords: [],
+  score_breakdown: {},
+  ats_keyword_coverage: {},
 };
 
 const STOPWORDS = new Set([
@@ -230,6 +234,15 @@ const normalizeEvaluation = (
     missing_requirements: asStringArray(payload.missing_requirements),
     tailoring_suggestions: asStringArray(payload.tailoring_suggestions),
     matched_keywords: asStringArray(payload.matched_keywords),
+    score_breakdown:
+      payload.score_breakdown && typeof payload.score_breakdown === "object"
+        ? (payload.score_breakdown as Record<string, unknown>)
+        : {},
+    ats_keyword_coverage:
+      payload.ats_keyword_coverage &&
+      typeof payload.ats_keyword_coverage === "object"
+        ? (payload.ats_keyword_coverage as Record<string, unknown>)
+        : {},
   };
 };
 
@@ -267,7 +280,23 @@ Return only valid JSON using this schema:
   ],
   "missing_requirements": ["string"],
   "tailoring_suggestions": ["string"],
-  "matched_keywords": ["string"]
+  "matched_keywords": ["string"],
+  "score_breakdown": {
+    "role_alignment": 0,
+    "skills_stack": 0,
+    "seniority": 0,
+    "location": 0,
+    "compensation": 0,
+    "evidence": 0,
+    "red_flags": 0
+  },
+  "ats_keyword_coverage": {
+    "jd_terms": ["string"],
+    "covered_terms": ["string"],
+    "missing_terms": ["string"],
+    "incorporated_terms": ["string"],
+    "coverage_percent": 0
+  }
 }
 
 Decision guidance:
@@ -338,6 +367,66 @@ const topKeywords = (text: string, limit: number): string[] => {
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, limit)
     .map(([token]) => token);
+};
+
+const calculateKeywordCoverage = (
+  jobDescription: string,
+  candidateText: string,
+  incorporatedTerms: string[] = [],
+) => {
+  const jdTerms = topKeywords(jobDescription, 32).map(formatKeyword);
+  const candidateTokens = new Set(tokenize(candidateText));
+  const coveredTerms = jdTerms.filter((term) =>
+    candidateTokens.has(term.toLowerCase()),
+  );
+  const missingTerms = jdTerms.filter((term) => !coveredTerms.includes(term));
+  const incorporated = incorporatedTerms.filter((term) =>
+    coveredTerms.some((covered) => covered.toLowerCase() === term.toLowerCase()),
+  );
+
+  return {
+    jd_terms: jdTerms,
+    covered_terms: coveredTerms,
+    missing_terms: missingTerms.slice(0, 16),
+    incorporated_terms: incorporated,
+    coverage_percent:
+      jdTerms.length > 0
+        ? clampScore((coveredTerms.length / jdTerms.length) * 100)
+        : 0,
+  };
+};
+
+const calculateScoreBreakdown = (
+  evaluation: JobEvaluationResult,
+  args: EvaluateJobFitArgs,
+) => {
+  const combinedJobText = `${args.jobTitle || ""}\n${args.jobDescription}`;
+  const compensationScore =
+    evaluation.compensation.signals.length > 0 ||
+    /salary|compensation|equity|bonus|benefits/i.test(combinedJobText)
+      ? 75
+      : 45;
+  const hasRemoteOrLocation =
+    /remote|hybrid|onsite|location|relocation/i.test(combinedJobText);
+  const seniorityPenalty =
+    /senior|staff|principal|lead|manager|director/i.test(combinedJobText) &&
+    evaluation.missing_requirements.length > 1
+      ? 20
+      : 0;
+
+  return {
+    role_alignment: clampScore(evaluation.confidence_score),
+    skills_stack: clampScore(
+      35 + Math.min(evaluation.matched_keywords.length, 10) * 6,
+    ),
+    seniority: clampScore(75 - seniorityPenalty - evaluation.blockers.length * 8),
+    location: hasRemoteOrLocation ? 70 : 55,
+    compensation: compensationScore,
+    evidence: clampScore(
+      40 + Math.min(evaluation.exact_fit_evidence.length, 6) * 10,
+    ),
+    red_flags: clampScore(100 - evaluation.blockers.length * 18),
+  };
 };
 
 const sentenceFragments = (text: string): string[] =>
@@ -525,6 +614,8 @@ const buildFallbackEvaluation = (
         ? fallbackTailoringSuggestions
         : ["Tailor the resume summary and top bullets to the role before submitting."],
     matched_keywords: matchedKeywords.map(formatKeyword),
+    score_breakdown: {},
+    ats_keyword_coverage: {},
   };
 };
 
@@ -546,16 +637,18 @@ export async function evaluateAndPersistJobFit(
 
   try {
     const ai = createGeminiClient();
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      config: createGeminiConfig({
-        systemInstruction:
-          "You are Jobraker's structured evaluation engine. Reply with JSON only.",
-        includeTools: false,
-        thinkingLevel: "HIGH",
+    const { result: response } = await withModelFallback(
+      (model) => ai.models.generateContent({
+        model,
+        config: createGeminiConfig({
+          systemInstruction:
+            "You are Jobraker's structured evaluation engine. Reply with JSON only.",
+          includeTools: false,
+          thinkingLevel: "HIGH",
+        }, model),
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
       }),
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
+    );
 
     const rawText = extractGeminiText(response);
     if (!rawText) {
@@ -569,6 +662,29 @@ export async function evaluateAndPersistJobFit(
     console.error("evaluateAndPersistJobFit falling back", error);
     parsed = buildFallbackEvaluation(args, candidateMemory, fallbackReason);
   }
+
+  const candidateTextForCoverage = [
+    args.profileSnapshot || "",
+    args.resumeText || "",
+    candidateMemory.summaryText,
+    candidateMemory.skillKeywords.join(" "),
+  ].join("\n");
+  parsed = {
+    ...parsed,
+    score_breakdown:
+      parsed.score_breakdown && Object.keys(parsed.score_breakdown).length > 0
+        ? parsed.score_breakdown
+        : calculateScoreBreakdown(parsed, args),
+    ats_keyword_coverage:
+      parsed.ats_keyword_coverage &&
+      Object.keys(parsed.ats_keyword_coverage).length > 0
+        ? parsed.ats_keyword_coverage
+        : calculateKeywordCoverage(
+            args.jobDescription,
+            candidateTextForCoverage,
+            parsed.matched_keywords,
+          ),
+  };
 
   if (!args.jobId) {
     return parsed;
@@ -598,6 +714,8 @@ export async function evaluateAndPersistJobFit(
           matched_keywords: parsed.matched_keywords,
           missing_requirements: parsed.missing_requirements,
           tailoring_suggestions: parsed.tailoring_suggestions,
+          score_breakdown: parsed.score_breakdown,
+          ats_keyword_coverage: parsed.ats_keyword_coverage,
           report: {
             ...parsed,
             candidate_memory: candidateMemory.summaryText,

@@ -22,12 +22,21 @@ import {
   Target,
   TrendingUp,
   Lock,
+  Zap,
+  Crown,
+  X,
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "../../../components/ui/dropdown-menu";
 import Modal from "../../../components/ui/modal";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { MarkdownContent } from "../../../components/ui/MarkdownContent";
@@ -47,6 +56,12 @@ import {
   type Profile,
 } from "../../../hooks/useProfileSettings";
 import { events } from "../../../lib/analytics";
+import {
+  JOB_FEEDBACK_COPY,
+  type JobFeedbackLabel,
+  saveApplicationPackage,
+  submitJobFeedback,
+} from "@/lib/jobIntelligence";
 import { useToast } from "../../../components/ui/toast";
 import { SimpleDropdown } from "../../../components/SimpleDropdown";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
@@ -70,14 +85,32 @@ import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { JobEvaluationTeaser } from "../../../components/JobEvaluationTeaser";
 import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
 import { JobEvaluationReport } from "../components/JobEvaluationReport";
+import { OpportunityScoreSummary } from "../../../components/jobs/OpportunityScoreSummary";
+import { JobTaskMonitor } from "../components/JobTaskMonitor";
 import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
 import { loadParsedResumeText } from "../../../lib/parsedResume";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
-import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
+import {
+  useJobIntelligenceTasks,
+  type JobIntelligenceTask,
+} from "@/hooks/useJobIntelligenceTasks";
+import {
+  hasFeatureAccess,
+  hasSubscriptionAccess,
+} from "@/lib/subscriptionAccess";
 import {
   VISIBLE_JOB_QUEUE_STATES,
   type JobCanonicalStatus,
 } from "@/lib/applicationState";
+import {
+  buildExplainableJobOpportunities,
+} from "@/services/intelligence/opportunityScoreEngine";
+import type {
+  CandidateProfileInput,
+  ExplainableJobOpportunity,
+} from "@/services/intelligence/types";
+import { ConcurrencyLimitModal } from "../../../components/ConcurrencyLimitModal";
+import { BILLING_PLAN_DEFINITIONS } from "@/lib/billingCatalog";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -109,6 +142,9 @@ interface Job {
   source_kind?: string | null;
   source_confidence?: number | null;
   is_tracked_company?: boolean;
+  lead_quality_score?: number | null;
+  lead_quality_reason?: string | null;
+  lead_quality_tags?: string[] | null;
   evaluation_summary?: {
     evaluation_id?: string | null;
     archetype?: string;
@@ -121,6 +157,7 @@ interface Job {
   matchScore?: number;
   matchBreakdown?: MatchScoreBreakdown[];
   matchSummary?: string;
+  explainableOpportunity?: ExplainableJobOpportunity;
 }
 
 type MatchScoreBreakdown = {
@@ -155,11 +192,18 @@ type MatchScoreRequestJob = {
   };
 };
 
-const MATCH_SCORE_BATCH_SIZE = 10;
+const MATCH_SCORE_BATCH_SIZE = 50;
 const MATCH_SCORE_TEXT_LIMIT = 6_000;
 const MATCH_SCORE_META_LIMIT = 500;
 const MATCH_SCORE_LIST_LIMIT = 25;
+const MATCH_SCORE_CACHE_TTL_MS = 5 * 60_000;
 const AUTO_APPLY_RATE_LIMIT_WAIT_MS = 65_000;
+
+const matchInsightResultCache = new Map<
+  string,
+  { expiresAt: number; jobs: Job[] }
+>();
+const matchInsightInFlight = new Map<string, Promise<Job[]>>();
 
 const sleep = (ms: number) =>
   new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -293,6 +337,22 @@ const buildMatchScoreContext = (
     : null,
 });
 
+const buildMatchInsightCacheKey = (
+  jobs: Job[],
+  context: MatchContext,
+  enabled: boolean,
+) =>
+  JSON.stringify({
+    enabled,
+    context: buildMatchScoreContext(context),
+    jobs: jobs.map((job) => ({
+      id: job.id,
+      title: compactText(job.title, MATCH_SCORE_META_LIMIT),
+      company: compactText(job.company, MATCH_SCORE_META_LIMIT),
+      updated_at: (job as any).updated_at ?? null,
+    })),
+  });
+
 const fetchJobMatchInsights = async (
   jobs: Job[],
   context: MatchContext,
@@ -309,46 +369,46 @@ const fetchJobMatchInsights = async (
     }));
   }
 
-  try {
+  const jobsNeedingScore = jobs.filter(
+    (job) => typeof job.matchScore !== "number",
+  );
+  if (jobsNeedingScore.length === 0) return jobs;
+
+  const jobsToScore = jobsNeedingScore.slice(0, MATCH_SCORE_BATCH_SIZE);
+  const cacheKey = buildMatchInsightCacheKey(jobs, context, enabled);
+  const cached = matchInsightResultCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.jobs;
+  }
+
+  const inFlight = matchInsightInFlight.get(cacheKey);
+  if (inFlight) return inFlight;
+
+  const request = (async () => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session?.access_token) return jobs;
 
-    const compactJobs = jobs.map(buildMatchScoreRequestJob);
+    // The edge function accepts up to 50 jobs per request. Keeping this to a
+    // single request prevents repeated page decoration from tripping rate limits.
+    const compactJobs = jobsToScore.map(buildMatchScoreRequestJob);
     const compactContext = buildMatchScoreContext(context);
-    const results: Array<{
-      id?: string;
-      score?: number;
-      breakdown?: MatchScoreBreakdown[];
-      summary?: string;
-    }> = [];
+    const data = await invokeProtectedFunction<{
+      results?: Array<{
+        id?: string;
+        score?: number;
+        breakdown?: MatchScoreBreakdown[];
+        summary?: string;
+      }>;
+    }>("calculate-match-score", {
+      body: {
+        jobs: compactJobs,
+        context: compactContext,
+      },
+    });
 
-    for (
-      let index = 0;
-      index < compactJobs.length;
-      index += MATCH_SCORE_BATCH_SIZE
-    ) {
-      const batch = compactJobs.slice(index, index + MATCH_SCORE_BATCH_SIZE);
-      const data = await invokeProtectedFunction<{
-        results?: Array<{
-          id?: string;
-          score?: number;
-          breakdown?: MatchScoreBreakdown[];
-          summary?: string;
-        }>;
-      }>("calculate-match-score", {
-        body: {
-          jobs: batch,
-          context: compactContext,
-        },
-      });
-
-      if (Array.isArray(data?.results)) {
-        results.push(...data.results);
-      }
-    }
-
+    const results = Array.isArray(data?.results) ? data.results : [];
     if (!results.length) return jobs;
 
     // Map insights back to jobs
@@ -369,10 +429,23 @@ const fetchJobMatchInsights = async (
       }
       return j;
     });
+  })();
+
+  matchInsightInFlight.set(cacheKey, request);
+
+  try {
+    const decorated = await request;
+    matchInsightResultCache.set(cacheKey, {
+      expiresAt: Date.now() + MATCH_SCORE_CACHE_TTL_MS,
+      jobs: decorated,
+    });
+    return decorated;
   } catch (err) {
     console.error("fetchJobMatchInsights error:", err);
     if (onError) onError(err);
     return jobs; // Fallback to raw jobs if scoring fails
+  } finally {
+    matchInsightInFlight.delete(cacheKey);
   }
 };
 
@@ -523,9 +596,23 @@ const composeCoverLetterPayload = (
 ): string | undefined => {
   if (!entry?.data) return undefined;
   const data = entry.data as Record<string, unknown>;
-  const read = (key: string): string | undefined => {
-    const value = data[key];
-    return typeof value === "string" ? value : undefined;
+
+  // Helper to read nested or flat string values
+  const getVal = (nestedObjKey: string, flatKey: string, nestedSubKey: string): string | undefined => {
+    const obj = data[nestedObjKey];
+    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+      const val = (obj as Record<string, unknown>)[nestedSubKey];
+      if (typeof val === "string") return val;
+    }
+    const flatVal = data[flatKey];
+    if (typeof flatVal === "string") return flatVal;
+    // Fallback: try nestedObjKey.nestedSubKey in case it was stored/flattened differently
+    const altObj = data[nestedObjKey];
+    if (altObj && typeof altObj === "object" && !Array.isArray(altObj)) {
+      const val = (altObj as Record<string, unknown>)[flatKey];
+      if (typeof val === "string") return val;
+    }
+    return undefined;
   };
 
   const lines: string[] = [];
@@ -538,16 +625,15 @@ const composeCoverLetterPayload = (
     if (lines.length > 0 && lines[lines.length - 1] !== "") lines.push("");
   };
 
-  const senderKeys = [
-    "senderName",
-    "senderPhone",
-    "senderEmail",
-    "senderAddress",
-  ];
+  // 1. Sender Section
+  const senderName = getVal("sender", "senderName", "name");
+  const senderPhone = getVal("sender", "senderPhone", "phone");
+  const senderEmail = getVal("sender", "senderEmail", "email");
+  const senderAddress = getVal("sender", "senderAddress", "address");
+
   const senderLines: string[] = [];
-  senderKeys.forEach((key) => {
-    const val = read(key);
-    if (typeof val === "string") {
+  [senderName, senderPhone, senderEmail, senderAddress].forEach((val) => {
+    if (val) {
       const trimmed = val.trim();
       if (trimmed.length > 0) senderLines.push(trimmed);
     }
@@ -557,7 +643,8 @@ const composeCoverLetterPayload = (
     pushSeparator();
   }
 
-  const dateValue = read("date");
+  // 2. Date Section
+  const dateValue = getVal("content", "date", "date");
   if (dateValue) {
     const parsed = new Date(dateValue);
     const formatted = Number.isNaN(parsed.valueOf())
@@ -567,14 +654,15 @@ const composeCoverLetterPayload = (
     pushSeparator();
   }
 
+  // 3. Recipient Section
+  const recipientName = getVal("recipient", "recipient", "name");
+  const recipientTitle = getVal("recipient", "recipientTitle", "title");
+  const recipientCompany = getVal("recipient", "company", "company") || (typeof data.company === "string" ? data.company : undefined);
+  const recipientAddress = getVal("recipient", "recipientAddress", "address");
+
   const recipientLines: string[] = [];
-  [
-    read("recipient"),
-    read("recipientTitle"),
-    read("company") ?? entry.data?.company,
-    read("recipientAddress"),
-  ].forEach((val) => {
-    if (typeof val === "string") {
+  [recipientName, recipientTitle, recipientCompany, recipientAddress].forEach((val) => {
+    if (val) {
       const trimmed = val.trim();
       if (trimmed.length > 0) recipientLines.push(trimmed);
     }
@@ -584,8 +672,9 @@ const composeCoverLetterPayload = (
     pushSeparator();
   }
 
-  const subject = read("subject");
-  if (typeof subject === "string") {
+  // 4. Subject Section
+  const subject = getVal("content", "subject", "subject");
+  if (subject) {
     const trimmedSubject = subject.trim();
     if (trimmedSubject.length > 0) {
       pushLine(`Subject: ${trimmedSubject}`);
@@ -593,8 +682,9 @@ const composeCoverLetterPayload = (
     }
   }
 
-  const salutation = read("salutation");
-  if (typeof salutation === "string") {
+  // 5. Salutation Section
+  const salutation = getVal("content", "salutation", "salutation");
+  if (salutation) {
     const trimmedSalutation = salutation.trim();
     if (trimmedSalutation.length > 0) {
       pushLine(trimmedSalutation);
@@ -602,24 +692,54 @@ const composeCoverLetterPayload = (
     }
   }
 
-  const paragraphs = Array.isArray(data.paragraphs)
-    ? (data.paragraphs as unknown[])
+  // 6. Body Paragraphs Section
+  let paragraphs: string[] = [];
+  const contentObj = data.content;
+  if (contentObj && typeof contentObj === "object" && !Array.isArray(contentObj)) {
+    const nestedParagraphs = (contentObj as Record<string, unknown>).paragraphs;
+    if (Array.isArray(nestedParagraphs)) {
+      paragraphs = nestedParagraphs
         .filter((p): p is string => typeof p === "string")
         .map((p) => p.trim())
-        .filter((p) => p.length > 0)
-    : [];
-  const body = read("content");
-  if (typeof body === "string") {
-    const trimmedBody = body.trim();
-    if (trimmedBody.length > 0) {
-      pushLine(trimmedBody);
+        .filter((p) => p.length > 0);
     }
+  }
+  if (!paragraphs.length && Array.isArray(data.paragraphs)) {
+    paragraphs = (data.paragraphs as unknown[])
+      .filter((p): p is string => typeof p === "string")
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+  }
+
+  let body: string | undefined;
+  if (contentObj && typeof contentObj === "object" && !Array.isArray(contentObj)) {
+    const nestedRawBody = (contentObj as Record<string, unknown>).rawBody;
+    if (typeof nestedRawBody === "string") {
+      body = nestedRawBody;
+    }
+  }
+  if (!body) {
+    const flatContent = data.content;
+    if (typeof flatContent === "string") {
+      body = flatContent;
+    }
+  }
+  if (!body) {
+    const rawBodyVal = data.rawBody;
+    if (typeof rawBodyVal === "string") {
+      body = rawBodyVal;
+    }
+  }
+
+  if (body && body.trim().length > 0) {
+    pushLine(body.trim());
   } else if (paragraphs.length) {
     pushLine(paragraphs.join("\n\n"));
   }
 
-  const closing = read("closing");
-  if (typeof closing === "string") {
+  // 7. Closing Section
+  const closing = getVal("content", "closing", "closing");
+  if (closing) {
     const trimmedClosing = closing.trim();
     if (trimmedClosing.length > 0) {
       pushSeparator();
@@ -627,8 +747,9 @@ const composeCoverLetterPayload = (
     }
   }
 
-  const signature = read("signatureName") || read("senderName");
-  if (typeof signature === "string") {
+  // 8. Signature Section
+  const signature = getVal("content", "signature", "signature") || getVal("content", "signatureName", "signature") || getVal("sender", "senderName", "name");
+  if (signature) {
     const trimmedSignature = signature.trim();
     if (trimmedSignature.length > 0) {
       pushLine(trimmedSignature);
@@ -748,7 +869,7 @@ const extractAutomationMetadata = (
       recordingUrl: null,
     } as const;
   }
-  const skyvern = result.skyvern ?? null;
+  const skyvern = result.skyvern ?? result.automation ?? result.provider ?? null;
   const runId =
     skyvern?.run?.id ??
     skyvern?.id ??
@@ -776,16 +897,56 @@ const extractAutomationMetadata = (
   } as const;
 };
 
+const isGenericJobPortal = (domain: string): boolean => {
+  const lower = domain.toLowerCase();
+  const genericPortals = [
+    "lever.co",
+    "greenhouse.io",
+    "ashbyhq.com",
+    "workable.com",
+    "indeed.com",
+    "linkedin.com",
+    "careers-page.com",
+    "ziprecruiter.com",
+    "glassdoor.com",
+    "monster.com",
+    "careerbuilder.com",
+    "simplyhired.com",
+    "weworkremotely.com",
+    "remote.co",
+    "remotive.com",
+    "remoteok.com",
+    "jobicy.com",
+    "wellfound.com",
+    "builtin.com",
+    "otta.com",
+  ];
+  return genericPortals.some(
+    (portal) => lower === portal || lower.endsWith(`.${portal}`),
+  );
+};
+
 const getCompanyLogoUrl = (
-  companyName?: string,
+  companyName: string,
   sourceUrl?: string,
 ): string | undefined => {
-  if (!companyName) return undefined;
   try {
-    const domain = new URL(
-      sourceUrl ||
-        `https://www.${companyName.toLowerCase().replace(/\s/g, "")}.com`,
-    ).hostname;
+    let domain: string | undefined;
+    if (sourceUrl) {
+      const parsedUrl = new URL(sourceUrl);
+      const host = parsedUrl.hostname.toLowerCase().replace(/^www\./, "");
+      if (!isGenericJobPortal(host)) {
+        domain = parsedUrl.hostname;
+      }
+    }
+
+    if (!domain) {
+      const cleanCompany = companyName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, ""); // strip non-alphanumeric
+      domain = `www.${cleanCompany}.com`;
+    }
+
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
   } catch {
     return undefined;
@@ -822,6 +983,19 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
           ? Number(dbJob.source_confidence)
           : null,
     is_tracked_company: Boolean(dbJob.is_tracked_company),
+    lead_quality_score:
+      typeof dbJob.lead_quality_score === "number"
+        ? dbJob.lead_quality_score
+        : dbJob.lead_quality_score != null
+          ? Number(dbJob.lead_quality_score)
+          : null,
+    lead_quality_reason:
+      typeof dbJob.lead_quality_reason === "string"
+        ? dbJob.lead_quality_reason
+        : null,
+    lead_quality_tags: Array.isArray(dbJob.lead_quality_tags)
+      ? dbJob.lead_quality_tags
+      : null,
     evaluation_summary:
       dbJob.evaluation_summary && typeof dbJob.evaluation_summary === "object"
         ? dbJob.evaluation_summary
@@ -835,6 +1009,119 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
       typeof insights?.summary === "string" ? insights.summary : undefined,
   };
 };
+
+const jobFeedbackLabels: JobFeedbackLabel[] = [
+  "relevant",
+  "not_relevant",
+  "low_quality",
+  "duplicate",
+  "already_applied",
+  "good_fit",
+];
+
+function JobQualityAndFeedback({
+  job,
+  compact = false,
+  onFeedback,
+  fullAccess = true,
+}: {
+  job: Job;
+  compact?: boolean;
+  onFeedback: (job: Job, label: JobFeedbackLabel) => void;
+  fullAccess?: boolean;
+}) {
+  if (!fullAccess) {
+    return (
+      <UpgradePrompt
+        title='Job quality gate'
+        description='See whether a role looks trustworthy before you spend time on it.'
+        features={[
+          {
+            icon: <ShieldCheck className='h-5 w-5' />,
+            title: "Lead trust checks",
+            description: "Spot thin, vague, stale, or suspicious postings faster.",
+          },
+          {
+            icon: <Target className='h-5 w-5' />,
+            title: "Quality filtering",
+            description: "Prioritize cleaner leads before you tailor or apply.",
+          },
+        ]}
+        requiredTier='Basics'
+        icon={<ShieldCheck className='h-12 w-12 text-brand' />}
+        compact
+      />
+    );
+  }
+
+  const qualityScore =
+    typeof job.lead_quality_score === "number" ? job.lead_quality_score : null;
+  const qualityTone =
+    qualityScore == null
+      ? "border-foreground/10 text-foreground/60"
+      : qualityScore >= 75
+        ? "border-brand/30 text-brand"
+        : qualityScore >= 50
+          ? "border-foreground/15 text-foreground/70"
+          : "border-brand/30 text-brand";
+
+  return (
+    <Card
+      className={`border border-foreground/10 bg-card/80 ${compact ? "p-4" : "p-5"} space-y-4`}
+    >
+      <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+        <div className='space-y-1'>
+          <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
+            <ShieldCheck className='h-4 w-4 text-brand' />
+            Job quality gate
+          </div>
+          <p className='text-sm text-foreground/55'>
+            {job.lead_quality_reason ||
+              "No quality gate score has been recorded for this job yet."}
+          </p>
+        </div>
+        {qualityScore != null ? (
+          <span
+            className={`inline-flex items-center justify-center rounded-full border px-3 py-1 text-xs font-semibold ${qualityTone}`}
+          >
+            {qualityScore}/100
+          </span>
+        ) : null}
+      </div>
+      {Array.isArray(job.lead_quality_tags) && job.lead_quality_tags.length > 0 ? (
+        <div className='flex flex-wrap gap-1.5'>
+          {job.lead_quality_tags.slice(0, 8).map((tag) => (
+            <span
+              key={tag}
+              className='rounded-full border border-foreground/10 bg-foreground/5 px-2 py-1 text-[11px] text-foreground/55'
+            >
+              {tag.replace(/_/g, " ")}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <div className='space-y-2'>
+        <div className='text-[11px] uppercase tracking-[0.28em] text-foreground/40'>
+          Tune ranking
+        </div>
+        <div className='flex flex-wrap gap-2'>
+          {jobFeedbackLabels.map((label) => (
+            <Button
+              key={label}
+              type='button'
+              size='sm'
+              variant='outline'
+              className='h-8 rounded-full border-foreground/15 bg-foreground/5 px-3 text-xs text-foreground/70 hover:border-brand/40 hover:text-brand'
+              onClick={() => onFeedback(job, label)}
+            >
+              {JOB_FEEDBACK_COPY[label]}
+            </Button>
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export const JobPage = (): JSX.Element => {
   const isMobile = useMediaQuery("(max-width: 1023px)");
@@ -886,8 +1173,10 @@ export const JobPage = (): JSX.Element => {
     }>
   >([]);
   const [automationFinished, setAutomationFinished] = useState(false);
-  const [sortBy, setSortBy] = useState<"recent" | "company" | "deadline">(
-    "recent",
+  const [sortBy, setSortBy] = useState<
+    "opportunity" | "recent" | "company" | "deadline"
+  >(
+    "opportunity",
   );
   const [clearingJobs, setClearingJobs] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -911,13 +1200,91 @@ export const JobPage = (): JSX.Element => {
   const [activeSearchScope, setActiveSearchScope] =
     useState<JobsQueueScope>(null);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const [concurrencyModalOpen, setConcurrencyModalOpen] = useState(false);
+  const [concurrencyInfo, setConcurrencyInfo] = useState<{
+    activeRuns: number;
+    totalLimit: number;
+  }>({ activeRuns: 0, totalLimit: 1 });
+
+  const fetchConcurrencyInfo = useCallback(async () => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id;
+      if (!userId) return;
+
+      const nowIso = new Date().toISOString();
+      const threeHoursAgoIso = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+      const [{ data: quotaRows }, { count: queuedRunsCount }] = await Promise.all([
+        supabase
+          .from("user_feature_quotas")
+          .select("included_quantity")
+          .eq("user_id", userId)
+          .eq("feature_key", "auto_apply_concurrency")
+          .eq("source", "addon")
+          .lte("period_start", nowIso)
+          .gt("period_end", nowIso),
+        supabase
+          .from("applications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("canonical_stage", "queued")
+          .neq("provider_status", "waiting")
+          .gt("updated_at", threeHoursAgoIso),
+      ]);
+
+      const boostSlots = Array.isArray(quotaRows)
+        ? quotaRows.reduce((sum, row) => sum + Math.max(0, Number(row.included_quantity || 0)), 0)
+        : 0;
+
+      const plan = BILLING_PLAN_DEFINITIONS.find((p) => p.name === subscriptionTier);
+      const baseLimit = plan ? plan.autoApplyConcurrency : 1;
+      const totalLimit = baseLimit + boostSlots;
+      const activeRuns = typeof queuedRunsCount === "number" ? queuedRunsCount : 0;
+
+      const info = { activeRuns, totalLimit };
+      setConcurrencyInfo(info);
+      return { activeRuns, totalLimit, availableSlots: Math.max(0, totalLimit - activeRuns) };
+    } catch (err) {
+      console.warn("Failed to fetch concurrency info:", err);
+      return null;
+    }
+  }, [subscriptionTier]);
+
+  useEffect(() => {
+    if (subscriptionTier) {
+      fetchConcurrencyInfo();
+    }
+  }, [subscriptionTier, fetchConcurrencyInfo]);
+
+  const {
+    tasks: jobTasks,
+    createTask,
+    updateTask,
+    cancelTask,
+  } = useJobIntelligenceTasks();
   const hasPaidInsightsAccess = hasSubscriptionAccess(
     subscriptionTier,
     "Basics",
   );
   const hasMatchScoreAccess = hasPaidInsightsAccess;
-  const hasJobEvaluationAccess = hasPaidInsightsAccess;
+  const hasJobQualityAccess = hasFeatureAccess(
+    subscriptionTier,
+    "basic_job_quality_filter",
+  );
+  const hasOpportunityBreakdownAccess = hasFeatureAccess(
+    subscriptionTier,
+    "explainable_score_breakdown",
+  );
+  const hasJobEvaluationAccess = hasOpportunityBreakdownAccess;
   const hasAutoApplyAccess = hasSubscriptionAccess(subscriptionTier, "Free");
+  const hasBulkPipelineAccess = hasFeatureAccess(
+    subscriptionTier,
+    "bulk_pipeline_tools",
+  );
+  const hasPipelineCleanupAccess = hasFeatureAccess(
+    subscriptionTier,
+    "pipeline_cleanup",
+  );
 
   // AI Decision Boundary states
   const [evaluatingJob, setEvaluatingJob] = useState(false);
@@ -931,12 +1298,16 @@ export const JobPage = (): JSX.Element => {
   const backgroundEvaluationRunnerRef = useRef(false);
   const backgroundEvaluationInFlightRef = useRef<Set<string>>(new Set());
   const backgroundEvaluationFailedRef = useRef<Set<string>>(new Set());
+  const activeTaskIdRef = useRef<string | null>(null);
+  const canceledTaskIdsRef = useRef<Set<string>>(new Set());
   const jobsRef = useRef<Job[]>([]);
 
   const {
     profile,
     updateProfile,
     loading: profileLoading,
+    experiences: profileExperiences,
+    skills: profileSkills,
   } = useProfileSettings();
   // Load user resumes for selection (used by the Auto Apply -> "Choose a resume" dialog)
   const { resumes, loading: resumesLoading } = useResumes();
@@ -1304,6 +1675,24 @@ export const JobPage = (): JSX.Element => {
     () => jobs.find((job) => job.id === selectedJob) ?? null,
     [jobs, selectedJob],
   );
+  const handleJobFeedback = useCallback(
+    async (job: Job, label: JobFeedbackLabel) => {
+      try {
+        await submitJobFeedback(job.id, label);
+        safeInfo(
+          "Feedback saved",
+          `${JOB_FEEDBACK_COPY[label]} feedback will tune future job ranking.`,
+        );
+      } catch (feedbackError) {
+        const message =
+          feedbackError instanceof Error
+            ? feedbackError.message
+            : "Failed to save feedback.";
+        toastError("Feedback failed", message);
+      }
+    },
+    [safeInfo, toastError],
+  );
   const savedStoryTitles = useMemo(
     () =>
       Array.isArray(profile?.story_bank)
@@ -1321,6 +1710,46 @@ export const JobPage = (): JSX.Element => {
     }),
     [searchQuery, selectedLocation, profile],
   );
+  const explainableCandidateProfile = useMemo<CandidateProfileInput>(
+    () => ({
+      targetTitle: profile?.job_title ?? searchQuery,
+      searchQuery,
+      location: profile?.location ?? selectedLocation,
+      locationScope: profile?.location_scope ?? "city",
+      experienceYears: profile?.experience_years ?? null,
+      goals: Array.isArray(profile?.goals) ? profile.goals : [],
+      proofPoints: profile?.proof_points ?? [],
+      skills: (profileSkills.data ?? []).map((skill) => ({
+        name: skill.name,
+        level: skill.level,
+        category: skill.category,
+      })),
+      experiences: (profileExperiences.data ?? []).map((experience) => ({
+        title: experience.title,
+        company: experience.company,
+        description: experience.description,
+        start_date: experience.start_date,
+        end_date: experience.end_date,
+        is_current: experience.is_current,
+      })),
+      resumeText: activeResumeText,
+    }),
+    [
+      activeResumeText,
+      profile?.experience_years,
+      profile?.goals,
+      profile?.job_title,
+      profile?.location,
+      profile?.location_scope,
+      profile?.proof_points,
+      profileExperiences.data,
+      profileSkills.data,
+      searchQuery,
+      selectedLocation,
+    ],
+  );
+
+  const opportunityCacheRef = useRef<Map<string, ExplainableJobOpportunity[]>>(new Map());
 
   const decorateJobsRef = useRef<(list: Job[]) => Promise<Job[]>>(
     async (list) => list,
@@ -1328,8 +1757,8 @@ export const JobPage = (): JSX.Element => {
   const activeSearchScopeRef = useRef<JobsQueueScope>(null);
 
   const decorateJobs = useCallback(
-    async (list: Job[]) =>
-      await fetchJobMatchInsights(
+    async (list: Job[]) => {
+      const withMatchInsights = await fetchJobMatchInsights(
         list,
         matchContext,
         hasMatchScoreAccess && !applyingAll,
@@ -1339,8 +1768,48 @@ export const JobPage = (): JSX.Element => {
             "Could not fetch AI match scores. Showing basic results.",
           );
         },
-      ),
-    [applyingAll, hasMatchScoreAccess, matchContext, toastError],
+      );
+
+      const feedbackEvents = profile?.id
+        ? (
+            await supabase
+              .from("candidate_feedback_events")
+              .select("*")
+              .eq("user_id", profile.id)
+          ).data || []
+        : [];
+
+      const cacheKey = `${profile?.id || "anonymous"}_${profile?.updated_at || ""}_${withMatchInsights.map((job) => job.id).join("|")}_${feedbackEvents.length}`;
+      let finalOpportunities = opportunityCacheRef.current.get(cacheKey);
+
+      if (!finalOpportunities) {
+        finalOpportunities = buildExplainableJobOpportunities(
+          withMatchInsights,
+          explainableCandidateProfile,
+          { feedbackEvents },
+        );
+        opportunityCacheRef.current.clear();
+        opportunityCacheRef.current.set(cacheKey, finalOpportunities);
+      }
+
+      const opportunityByJobId = new Map(
+        finalOpportunities.map((opportunity) => [opportunity.jobId, opportunity]),
+      );
+
+      return withMatchInsights.map((job) => ({
+        ...job,
+        explainableOpportunity: opportunityByJobId.get(job.id),
+      }));
+    },
+    [
+      applyingAll,
+      explainableCandidateProfile,
+      hasMatchScoreAccess,
+      matchContext,
+      profile?.id,
+      profile?.updated_at,
+      toastError,
+    ],
   );
 
   useEffect(() => {
@@ -1516,51 +1985,147 @@ export const JobPage = (): JSX.Element => {
     }
   };
 
-  const loadCoverLetterLibrary = useCallback(() => {
+  const loadCoverLetterLibrary = useCallback(async () => {
     if (typeof window === "undefined") return;
     try {
-      const raw = window.localStorage.getItem(COVER_LETTER_LIBRARY_KEY);
       let entries: CoverLetterLibraryEntry[] = [];
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          entries = parsed.filter((item): item is CoverLetterLibraryEntry =>
-            Boolean(item && typeof item.id === "string"),
-          );
-        }
-      }
-      if (!entries.length) {
-        const draftRaw =
-          window.localStorage.getItem(COVER_LETTER_DRAFT_KEY) ||
-          window.localStorage.getItem("jr.coverLetter.draft.v1");
-        if (draftRaw) {
-          try {
-            const parsedDraft = JSON.parse(draftRaw);
-            const draftName =
-              String(
-                parsedDraft?.subject ||
-                  parsedDraft?.role ||
-                  "Latest cover letter",
-              ).trim() || "Latest cover letter";
-            const draftUpdatedAt =
-              parsedDraft?.savedAt || new Date().toISOString();
-            entries = [
-              {
-                id: "__draft__",
-                name: draftName,
-                updatedAt: draftUpdatedAt,
+
+      // 1. Fetch from Supabase
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data, error } = await supabase
+            .from("cover_letters")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false });
+
+          if (!error && data) {
+            entries = data.map((record) => {
+              const payload = record.data;
+              if (
+                payload &&
+                typeof payload === "object" &&
+                !Array.isArray(payload) &&
+                Object.keys(payload).length > 2
+              ) {
+                return {
+                  id: record.id,
+                  name: record.name || (payload as any).title || "Untitled Cover Letter",
+                  updatedAt: record.updated_at || record.created_at,
+                  data: payload,
+                };
+              }
+              const contentStr = record.content || "";
+              const paragraphs =
+                typeof contentStr === "string" && contentStr.trim()
+                  ? contentStr
+                      .split(/\n\s*\n+/)
+                      .map((p: any) => p.trim())
+                      .filter(Boolean)
+                  : [];
+              return {
+                id: record.id,
+                name: record.name || "Untitled Cover Letter",
+                updatedAt: record.updated_at || record.created_at,
                 data: {
-                  role: parsedDraft?.role,
-                  company: parsedDraft?.company,
+                  role: record.role || "",
+                  company: record.company || "",
+                  sender: {
+                    name: record.sender_name || "",
+                    email: record.sender_email || "",
+                    phone: record.sender_phone || "",
+                    address: record.sender_address || "",
+                  },
+                  recipient: {
+                    name: record.recipient || "",
+                    title: record.recipient_title || "",
+                    company: record.company || "",
+                    address: record.recipient_address || "",
+                  },
+                  content: {
+                    date: record.date || new Date(record.created_at || Date.now()).toISOString().slice(0, 10),
+                    subject: record.subject || (record.role ? `Application for ${record.role}` : ""),
+                    salutation: record.salutation || "Dear Hiring Manager,",
+                    paragraphs: paragraphs,
+                    closing: record.closing || "Best regards,",
+                    signature: record.signature_name || "",
+                    rawBody: contentStr,
+                  },
+                  typography: {
+                    fontSize: record.font_size || 16,
+                  },
                 },
-                draft: true,
-              },
-            ];
-          } catch {
-            // ignore malformed drafts
+              };
+            });
           }
         }
+      } catch (dbErr) {
+        console.error("Error loading cover letters from database", dbErr);
       }
+
+      // 2. Append/fallback to local storage draft
+      const draftRaw =
+        window.localStorage.getItem(COVER_LETTER_DRAFT_KEY) ||
+        window.localStorage.getItem("jr.coverLetter.draft.v1");
+      if (draftRaw) {
+        try {
+          const parsedDraft = JSON.parse(draftRaw);
+          const draftName =
+            String(
+              parsedDraft?.subject ||
+                parsedDraft?.role ||
+                "Latest cover letter",
+            ).trim() || "Latest cover letter";
+          const draftUpdatedAt =
+            parsedDraft?.savedAt || new Date().toISOString();
+
+          if (!entries.some((e) => e.id === "__draft__")) {
+            const paragraphs = Array.isArray(parsedDraft?.content?.paragraphs)
+              ? parsedDraft.content.paragraphs
+              : typeof parsedDraft?.content?.rawBody === "string" && parsedDraft.content.rawBody.trim()
+                ? parsedDraft.content.rawBody.split(/\n\s*\n+/).map((p: any) => p.trim()).filter(Boolean)
+                : [];
+            entries.push({
+              id: "__draft__",
+              name: draftName + " (Local Draft)",
+              updatedAt: draftUpdatedAt,
+              data: {
+                role: parsedDraft?.role || "",
+                company: parsedDraft?.company || "",
+                sender: parsedDraft?.sender || {
+                  name: parsedDraft?.senderName || "",
+                  email: parsedDraft?.senderEmail || "",
+                  phone: parsedDraft?.senderPhone || "",
+                  address: parsedDraft?.senderAddress || "",
+                },
+                recipient: parsedDraft?.recipient || {
+                  name: parsedDraft?.recipientName || "",
+                  title: parsedDraft?.recipientTitle || "",
+                  company: parsedDraft?.company || "",
+                  address: parsedDraft?.recipientAddress || "",
+                },
+                content: parsedDraft?.content || {
+                  date: parsedDraft?.date || new Date().toISOString().slice(0, 10),
+                  subject: parsedDraft?.subject || "",
+                  salutation: parsedDraft?.salutation || "Dear Hiring Manager,",
+                  paragraphs: paragraphs,
+                  closing: parsedDraft?.closing || "Best regards,",
+                  signature: parsedDraft?.signatureName || "",
+                  rawBody: parsedDraft?.contentString || "",
+                },
+                typography: parsedDraft?.typography || {
+                  fontSize: parsedDraft?.fontSize || 16,
+                },
+              },
+              draft: true,
+            });
+          }
+        } catch {
+          // ignore malformed drafts
+        }
+      }
+
       setCoverLetterLibrary(entries);
       setSelectedCoverLetterId((prev) => {
         if (prev && entries.some((entry) => entry.id === prev)) return prev;
@@ -1573,7 +2138,7 @@ export const JobPage = (): JSX.Element => {
       setCoverLetterLibrary([]);
       setSelectedCoverLetterId(null);
     }
-  }, []);
+  }, [setCoverLetterLibrary, setSelectedCoverLetterId]);
 
   // Real step updates occur at key phases of the flow; no cycling needed now.
 
@@ -1765,9 +2330,7 @@ export const JobPage = (): JSX.Element => {
             queryBuilder = queryBuilder.gte("discovered_at", scope.startedAt);
           }
 
-          if (typeof scope?.limit === "number" && scope.limit > 0) {
-            queryBuilder = queryBuilder.limit(scope.limit);
-          }
+
         } else {
           queryBuilder = queryBuilder.order("created_at", { ascending: false });
         }
@@ -1806,77 +2369,6 @@ export const JobPage = (): JSX.Element => {
     [incrementalMode, isMobile],
   );
 
-  const runBackgroundEvaluations = useCallback(async () => {
-    if (backgroundEvaluationRunnerRef.current || !hasJobEvaluationAccess)
-      return;
-
-    backgroundEvaluationRunnerRef.current = true;
-    try {
-      while (true) {
-        const nextJob = jobsRef.current.find((job) => {
-          const needsEvaluation =
-            job.canonical_status === "discovered" &&
-            !job.evaluation_summary?.evaluation_id;
-          const hasDescription =
-            typeof job.description === "string" &&
-            job.description.trim().length > 0;
-
-          return (
-            needsEvaluation &&
-            hasDescription &&
-            !backgroundEvaluationInFlightRef.current.has(job.id) &&
-            !backgroundEvaluationFailedRef.current.has(job.id)
-          );
-        });
-
-        if (!nextJob) {
-          break;
-        }
-
-        backgroundEvaluationInFlightRef.current.add(nextJob.id);
-        setEvaluationLoadingByJob((prev) => ({ ...prev, [nextJob.id]: true }));
-
-        try {
-          const evaluation = await evaluateJobFit(
-            nextJob.id,
-            nextJob.title,
-            nextJob.company,
-            nextJob.description || "",
-            profileSnapshot || "No profile provided.",
-            activeResumeText || "No resume content provided.",
-          );
-
-          backgroundEvaluationFailedRef.current.delete(nextJob.id);
-          mergeEvaluationIntoState(nextJob.id, evaluation);
-        } catch (error) {
-          backgroundEvaluationFailedRef.current.add(nextJob.id);
-          console.error("background job evaluation failed", {
-            jobId: nextJob.id,
-            error,
-          });
-        } finally {
-          backgroundEvaluationInFlightRef.current.delete(nextJob.id);
-          setEvaluationLoadingByJob((prev) => {
-            if (!(nextJob.id in prev)) return prev;
-            const next = { ...prev };
-            delete next[nextJob.id];
-            return next;
-          });
-        }
-      }
-    } finally {
-      backgroundEvaluationRunnerRef.current = false;
-    }
-  }, [
-    activeResumeText,
-    hasJobEvaluationAccess,
-    mergeEvaluationIntoState,
-    profileSnapshot,
-  ]);
-
-  useEffect(() => {
-    void runBackgroundEvaluations();
-  }, [jobs, runBackgroundEvaluations]);
 
   const executeClearAllJobs = useCallback(async () => {
     setConfirmDeleteOpen(false);
@@ -1922,7 +2414,7 @@ export const JobPage = (): JSX.Element => {
   }, [queryClient, safeInfo, setErrorDedup, supabase]);
 
   const populateQueue = useCallback(
-    async (query: string, _location?: string) => {
+    async (query: string, _location?: string, customLimit?: number) => {
       // Prevent re-entry if a run is active
       if (incrementalMode) return;
       if (!query || !query.trim()) {
@@ -1940,252 +2432,78 @@ export const JobPage = (): JSX.Element => {
       backgroundEvaluationFailedRef.current.clear();
 
       try {
-        // Determine max results per search based on subscription tier
-        // No monthly limits - users can search as many times as they want
-        let maxResultsPerSearch = 10; // Free tier
+        // Determine max results per search based on subscription tier or customLimit
+        let maxResultsPerSearch = customLimit || 10; // Free tier default
 
-        if (subscriptionTier === "Ultimate") {
-          maxResultsPerSearch = 100;
-        } else if (subscriptionTier === "Pro") {
-          maxResultsPerSearch = 50;
-        } else if (subscriptionTier === "Basics") {
-          maxResultsPerSearch = 20;
+        if (!customLimit) {
+          if (subscriptionTier === "Ultimate") {
+            maxResultsPerSearch = 100;
+          } else if (subscriptionTier === "Pro") {
+            maxResultsPerSearch = 50;
+          } else if (subscriptionTier === "Basics") {
+            maxResultsPerSearch = 20;
+          }
         }
 
         const { data: authData } = await supabase.auth.getUser();
         const userId = authData?.user?.id;
 
-        if (userId) {
-          const { data: creditCheck, error: checkError } = await supabase.rpc(
-            "check_credits_available",
-            {
-              p_user_id: userId,
-              p_feature_type: "job_search",
-              p_quantity: maxResultsPerSearch,
-            },
-          );
-
-          if (checkError) {
-            setError({
-              message: "Failed to verify credits. Please try again.",
-              link: "/dashboard/billing",
-            });
-            setQueueStatus("idle");
-            setIncrementalMode(false);
-            return;
-          }
-
-          if (!creditCheck?.available) {
-            const creditMessage =
-              typeof creditCheck?.message === "string" &&
-              creditCheck.message.trim().length > 0
-                ? creditCheck.message
-                : `Insufficient credits. Job search requires ${creditCheck?.required ?? 0} credits but you only have ${creditCheck?.current_balance ?? 0}.`;
-
-            setError({
-              message: creditMessage,
-              link: "/dashboard/billing",
-            });
-            safeInfo(
-              "Not enough credits",
-              "Upgrade or purchase credits to use job search.",
-            );
-            setQueueStatus("idle");
-            setIncrementalMode(false);
-            return;
-          }
-        } else {
+        if (!userId) {
           setError({ message: "User not authenticated. Please login again." });
           setQueueStatus("idle");
           setIncrementalMode(false);
           return;
         }
 
-        // Use backend jobs-search to discover and save jobs directly
-        safeInfo("Searching the web for jobs...");
         const currentSearchScope: JobsQueueScope = {
           searchQuery: query.trim(),
-          location: (selectedLocation || "Remote").trim() || "Remote",
+          location: (_location || selectedLocation || "Remote").trim() || "Remote",
           limit: maxResultsPerSearch,
           startedAt: new Date(Date.now() - 30 * 1000).toISOString(),
         };
+
         const searchPayload = {
-          searchQuery: query,
+          searchQuery: query.trim(),
           location: currentSearchScope.location,
           locationScope,
-          limit: maxResultsPerSearch, // Use tier-based result limit per search
+          limit: maxResultsPerSearch,
+          async: true,
         };
-        const attemptInvoke = async (): Promise<any> => {
-          if (debugMode)
-            console.log("[debug] jobs-search request", searchPayload);
+
+        if (debugMode) {
+          console.log("[debug] jobs-search async request", searchPayload);
           setDbgSearchReq(searchPayload);
-
-          const result = (await Promise.race([
-            supabase.functions.invoke("jobs-search", {
-              body: searchPayload,
-            }),
-            new Promise<never>((_, reject) =>
-              setTimeout(
-                () =>
-                  reject(new Error("Job search timed out. Please try again.")),
-                120000,
-              ),
-            ),
-          ])) as {
-            data: any;
-            error?: { message?: string } | null;
-          };
-
-          const { data, error: invokeErr } = result;
-          if (invokeErr)
-            throw new Error(invokeErr.message || "Job search failed.");
-          if (debugMode) console.log("[debug] jobs-search response", data);
-          setDbgSearchRes(data);
-          return data;
-        };
-
-        // Start background polling to show incremental results
-        let isSearchActive = true;
-        const pollInterval = window.setInterval(async () => {
-          if (!isSearchActive) {
-            window.clearInterval(pollInterval);
-            return;
-          }
-          try {
-            const currentJobs = await fetchJobQueue(currentSearchScope);
-            if (currentJobs.length > 0) {
-              setInsertedThisRun(currentJobs.length);
-            }
-          } catch (err) {
-            console.warn("[poll] incremental fetch failed", err);
-          }
-        }, 3000);
-
-        let searchData;
-        try {
-          searchData = await attemptInvoke();
-        } finally {
-          isSearchActive = false;
-          window.clearInterval(pollInterval);
         }
-        if (searchData?.error === "rate_limited") {
-          const retrySec = Math.max(
-            10,
-            Math.min(120, Number(searchData?.retryAfterSeconds || 55)),
-          );
-          setErrorDedup({
-            message: `Rate limited by Firecrawl. Retrying in ${retrySec}s…`,
-          });
-          await new Promise((r) => setTimeout(r, retrySec * 1000));
-          searchData = await attemptInvoke();
+
+        const { data: searchData, error: invokeErr } = await supabase.functions.invoke("jobs-search", {
+          body: searchPayload,
+        });
+
+        if (invokeErr) {
+          throw new Error(invokeErr.message || "Job search invocation failed.");
+        }
+
+        if (debugMode) {
+          console.log("[debug] jobs-search async response", searchData);
+          setDbgSearchRes(searchData);
         }
 
         if (searchData?.error) {
-          activeSearchScopeRef.current = null;
-          setActiveSearchScope(null);
-          if (searchData.error === "missing_api_key") {
-            setErrorDedup({
-              message:
-                "Firecrawl is not configured. Ask your admin to set FIRECRAWL_API_KEY in Supabase Function Secrets.",
-            });
-          } else if (searchData.error === "rate_limited") {
-            setErrorDedup({
-              message: "Rate limited by Firecrawl. Please try again shortly.",
-            });
-          } else {
-            const detail = searchData.detail || "An unknown error occurred.";
-            setErrorDedup({ message: `Failed to search: ${detail}` });
-          }
+          throw new Error(searchData.detail || searchData.error);
+        }
 
-          const cachedJobs = await fetchJobQueue(null);
+        if (searchData?.taskId) {
+          activeTaskIdRef.current = searchData.taskId;
+          activeSearchScopeRef.current = currentSearchScope;
+          setActiveSearchScope(currentSearchScope);
+
           safeInfo(
-            "Search fallback",
-            cachedJobs.length > 0
-              ? "Showing your recently saved jobs instead due to search failure."
-              : "Search failed and no saved jobs were available.",
+            "Search started",
+            "Searching the web and analyzing matches in the background.",
           );
-          setIncrementalMode(false);
-          setCurrentSource(null);
-          return;
-        }
-
-        // Jobs are now saved directly by jobs-search function
-        // Try different possible response structures
-        const inserted =
-          searchData?.jobsInserted ||
-          searchData?.inserted ||
-          searchData?.count ||
-          searchData?.jobs?.length ||
-          0;
-
-        if (userId && inserted > 0) {
-          const { data: deductResult, error: deductError } = await supabase.rpc(
-            "deduct_job_search_credits",
-            {
-              p_user_id: userId,
-              p_jobs_count: inserted,
-            },
-          );
-
-          if (deductError) {
-            console.error("Failed to deduct job search credits:", deductError);
-            toastError("Credit Deduction Failed", deductError.message);
-            toastError("Credit Deduction Failed", deductError.message);
-            safeInfo(
-              "Credit deduction failed",
-              "There was an issue processing your credits.",
-            );
-          } else if (deductResult && !deductResult.success) {
-            console.warn("Credit deduction failed:", deductResult.message);
-            safeInfo("Credit deduction failed", deductResult.message);
-          } else if (deductResult?.success) {
-            safeInfo(
-              "Credits deducted",
-              `Used ${deductResult.credits_deducted} credits. ${deductResult.remaining_balance} remaining.`,
-            );
-          }
-        }
-
-        setStepIndex(1); // Stage 1: Saving Results
-        setInsertedThisRun(inserted);
-        activeSearchScopeRef.current = currentSearchScope;
-        setActiveSearchScope(currentSearchScope);
-
-        // Transition to Finalizing
-        if (inserted > 0) {
-          // Poll for results if we know we inserted some, but fetch returns empty
-          let currentJobs = await fetchJobQueue(currentSearchScope);
-          if (currentJobs.length === 0) {
-            // Wait 1.5s and retry once
-            await new Promise((r) => setTimeout(r, 1500));
-            currentJobs = await fetchJobQueue(currentSearchScope);
-          }
         } else {
-          setJobs([]);
-          setSelectedJob(null);
-          setCurrentPage(1);
-          setQueueStatus("empty");
+          throw new Error("No task ID returned from background search.");
         }
-
-        setStepIndex(2); // Stage 2: Finalizing List
-        // Brief pause for visual closure
-        await new Promise((r) => setTimeout(r, 800));
-
-        setIncrementalMode(false);
-        safeInfo(
-          "Job search complete!",
-          inserted > 0
-            ? `Found and saved ${inserted} jobs. Evaluations are running in the background.`
-            : "No jobs found for this search.",
-        );
-
-        // Display any warnings from the search (e.g. broadened location, searched beyond sources)
-        const searchWarnings: string[] = searchData?.warnings || [];
-        for (const warning of searchWarnings) {
-          safeInfo("Search note", warning, 2000);
-        }
-
-        setCurrentSource(null);
       } catch (e: any) {
         activeSearchScopeRef.current = null;
         setActiveSearchScope(null);
@@ -2194,7 +2512,6 @@ export const JobPage = (): JSX.Element => {
         if (fallbackJobs.length === 0) {
           setQueueStatus("idle");
         }
-        setCurrentSource(null);
         setIncrementalMode(false);
       }
     },
@@ -2204,12 +2521,126 @@ export const JobPage = (): JSX.Element => {
       incrementalMode,
       fetchJobQueue,
       safeInfo,
-      setErrorDedup,
       selectedLocation,
+      locationScope,
       subscriptionTier,
-      info,
     ],
   );
+
+  // Listen for background task changes via real-time subscription
+  useEffect(() => {
+    const activeTaskId = activeTaskIdRef.current;
+    if (!activeTaskId) return;
+
+    const activeTask = jobTasks.find((t) => t.id === activeTaskId);
+    if (!activeTask) return;
+
+    // 1. Scout Search task progress handling
+    if (activeTask.type === "scout_search") {
+      if (activeTask.status === "running") {
+        setIncrementalMode(true);
+        setQueueStatus("populating");
+        setStepIndex(activeTask.progress_current);
+        const currentCount = typeof activeTask.result?.count === "number"
+          ? activeTask.result.count
+          : activeTask.progress_current;
+        setInsertedThisRun(currentCount);
+        if (activeTask.message) {
+          setCurrentSource(activeTask.message);
+        }
+      } else if (activeTask.status === "completed") {
+        const finalCount = typeof activeTask.result?.count === "number"
+          ? activeTask.result.count
+          : insertedThisRun;
+        setInsertedThisRun(finalCount);
+        setStepIndex(2);
+
+        void fetchJobQueue().then((currentJobs) => {
+          if (currentJobs.length > 0) {
+            setQueueStatus("ready");
+            setSelectedJob((prev) => {
+              if (prev && currentJobs.some((j) => j.id === prev)) return prev;
+              return isMobile ? null : currentJobs[0].id;
+            });
+          } else {
+            setQueueStatus("empty");
+          }
+        });
+
+        safeInfo(
+          "Job search complete!",
+          finalCount > 0
+            ? `Found and saved ${finalCount} jobs.`
+            : "No jobs found for this search.",
+        );
+
+        setTimeout(() => {
+          setIncrementalMode(false);
+          setCurrentSource(null);
+          if (activeTaskIdRef.current === activeTaskId) {
+            activeTaskIdRef.current = null;
+          }
+        }, 800);
+      } else if (["failed", "canceled"].includes(activeTask.status)) {
+        setIncrementalMode(false);
+        setQueueStatus(jobs.length > 0 ? "ready" : "empty");
+        setCurrentSource(null);
+        if (activeTask.status === "failed") {
+          setError({ message: activeTask.message || "Search task failed." });
+        }
+        if (activeTaskIdRef.current === activeTaskId) {
+          activeTaskIdRef.current = null;
+        }
+      }
+    }
+
+    // 2. Job Reevaluation task progress handling
+    if (activeTask.type === "job_reevaluation") {
+      if (activeTask.status === "running") {
+        if (activeTask.message) {
+          safeInfo("Re-evaluating jobs", activeTask.message);
+        }
+      } else if (activeTask.status === "completed") {
+        void fetchJobQueue();
+        safeInfo("Re-evaluation complete", activeTask.message || "All visible jobs re-evaluated.");
+        if (activeTaskIdRef.current === activeTaskId) {
+          activeTaskIdRef.current = null;
+        }
+      } else if (["failed", "canceled"].includes(activeTask.status)) {
+        if (activeTask.status === "failed") {
+          toastError("Re-evaluation failed", activeTask.message || "AI Fit evaluation failed.");
+        }
+        if (activeTaskIdRef.current === activeTaskId) {
+          activeTaskIdRef.current = null;
+        }
+      }
+    }
+
+    // 3. Pipeline Cleanup task progress handling
+    if (activeTask.type === "pipeline_cleanup") {
+      if (activeTask.status === "completed") {
+        const cleanedIds = (activeTask.result?.cleaned_job_ids || activeTask.params?.job_ids || []) as string[];
+        if (cleanedIds.length > 0) {
+          setJobs((prev) => prev.filter((job) => !cleanedIds.includes(job.id)));
+          void queryClient.invalidateQueries({ queryKey: jobsQueueKeys.all });
+          safeInfo(
+            "Pipeline cleaned",
+            `Hid ${cleanedIds.length} low-quality job${cleanedIds.length === 1 ? "" : "s"}.`,
+          );
+        }
+        if (activeTaskIdRef.current === activeTaskId) {
+          activeTaskIdRef.current = null;
+        }
+      } else if (["failed", "canceled"].includes(activeTask.status)) {
+        if (activeTask.status === "failed") {
+          toastError("Cleanup failed", activeTask.message || "Pipeline cleanup failed.");
+        }
+        if (activeTaskIdRef.current === activeTaskId) {
+          activeTaskIdRef.current = null;
+        }
+      }
+    }
+  }, [jobTasks, fetchJobQueue, insertedThisRun, safeInfo, toastError, queryClient, jobs.length]);
 
   // Removed old process-and-match and polling logic - jobs are now saved directly
 
@@ -2218,6 +2649,17 @@ export const JobPage = (): JSX.Element => {
     setQueueStatus(jobs.length > 0 ? "ready" : "empty");
     setCurrentSource(null);
   }, [jobs.length]);
+
+  const handleCancelPopulation = useCallback(() => {
+    const activeTaskId = activeTaskIdRef.current;
+    if (activeTaskId) {
+      canceledTaskIdsRef.current.add(activeTaskId);
+      void cancelTask(activeTaskId).catch((error) => {
+        console.warn("Failed to cancel active scout task", error);
+      });
+    }
+    cancelPopulation();
+  }, [cancelPopulation, cancelTask]);
 
   const loadAutoApplyTargetJob = useCallback(async (jobId: string) => {
     const {
@@ -2244,10 +2686,17 @@ export const JobPage = (): JSX.Element => {
   }, []);
 
   const openAutoApplyFlow = useCallback(
-    (targetJob: Job | null = jobToAutoApply ?? null) => {
+    async (targetJob: Job | null = jobToAutoApply ?? null) => {
       setAiEvaluation(null);
       setForceSubmit(false);
       setJobToAutoApply(targetJob);
+      
+      const res = await fetchConcurrencyInfo();
+      if (res && res.availableSlots <= 0) {
+        setConcurrencyModalOpen(true);
+        return;
+      }
+
       const preferredResumeId = getPreferredResumeId(
         Array.isArray(resumes) ? resumes : [],
         selectedResumeId,
@@ -2271,6 +2720,7 @@ export const JobPage = (): JSX.Element => {
       loadCoverLetterLibrary();
     },
     [
+      fetchConcurrencyInfo,
       hasAutoApplyAccess,
       jobToAutoApply,
       loadCoverLetterLibrary,
@@ -2559,6 +3009,22 @@ export const JobPage = (): JSX.Element => {
         return;
       }
 
+      if (!saveAsDraftOnly) {
+        setApplyingAll(true);
+        try {
+          const res = await fetchConcurrencyInfo();
+          if (res && res.availableSlots <= 0) {
+            setConcurrencyModalOpen(true);
+            setApplyingAll(false);
+            return;
+          }
+        } catch (concurrencyErr) {
+          console.warn("Failed to verify concurrency prior to launch:", concurrencyErr);
+        } finally {
+          setApplyingAll(false);
+        }
+      }
+
       const targetJobs = jobToAutoApply ? [jobToAutoApply] : jobs;
       if (!targetJobs.length) return;
 
@@ -2631,6 +3097,35 @@ export const JobPage = (): JSX.Element => {
               .eq("id", job.id);
 
             if (draftUpdateError) throw draftUpdateError;
+            if (
+              typeof (nextDraftPayload as any)?.resumeText === "string" ||
+              typeof (nextDraftPayload as any)?.coverLetterText === "string"
+            ) {
+              try {
+                await saveApplicationPackage({
+                  jobId: job.id,
+                  tailoredResume:
+                    typeof (nextDraftPayload as any)?.resumeText === "string"
+                      ? ((nextDraftPayload as any).resumeText as string)
+                      : null,
+                  coverLetter:
+                    typeof (nextDraftPayload as any)?.coverLetterText === "string"
+                      ? ((nextDraftPayload as any).coverLetterText as string)
+                      : null,
+                  fitBullets: [
+                    ...(job.evaluation_summary?.exact_fit_evidence ?? []),
+                    ...matchedKeywords.map((keyword) => `Keyword fit: ${keyword}`),
+                  ].slice(0, 8),
+                  metadata: {
+                    source: "auto_apply_draft",
+                    source_resume_id: (nextDraftPayload as any)?.sourceResumeId ?? null,
+                    saved_at: savedAt,
+                  },
+                });
+              } catch (packageError) {
+                console.warn("Failed to save application package", packageError);
+              }
+            }
             savedCount += 1;
           }
 
@@ -3233,6 +3728,7 @@ export const JobPage = (): JSX.Element => {
       draftData,
       trueAutonomyEnabled,
       gamificationHook,
+      fetchConcurrencyInfo,
     ],
   );
 
@@ -3275,6 +3771,20 @@ export const JobPage = (): JSX.Element => {
 
   const sortedJobs = useMemo(() => {
     const arr = [...visibleJobs];
+    const toRecentTs = (job: Job) => {
+      const value = job.discovered_at || job.posted_at || job.created_at;
+      if (!value) return 0;
+      const timestamp = Date.parse(value);
+      return Number.isNaN(timestamp) ? 0 : timestamp;
+    };
+    if (sortBy === "opportunity") {
+      return arr.sort(
+        (a, b) =>
+          (b.explainableOpportunity?.opportunityScore ?? -1) -
+            (a.explainableOpportunity?.opportunityScore ?? -1) ||
+          toRecentTs(b) - toRecentTs(a),
+      );
+    }
     if (sortBy === "company") {
       return arr.sort((a, b) =>
         (a.company || "").localeCompare(b.company || ""),
@@ -3288,12 +3798,6 @@ export const JobPage = (): JSX.Element => {
       };
       return arr.sort((a, b) => toTs(a.expires_at) - toTs(b.expires_at));
     }
-    const toRecentTs = (job: Job) => {
-      const value = job.discovered_at || job.posted_at || job.created_at;
-      if (!value) return 0;
-      const timestamp = Date.parse(value);
-      return Number.isNaN(timestamp) ? 0 : timestamp;
-    };
     return arr.sort((a, b) => toRecentTs(b) - toRecentTs(a));
   }, [visibleJobs, sortBy]);
 
@@ -3411,6 +3915,138 @@ export const JobPage = (): JSX.Element => {
     setSelectedResumeId((prev) => getPreferredResumeId(resumes, prev));
   }, [resumeDialogOpen, resumes]);
 
+  const exportVisibleJobsCSV = useCallback(() => {
+    if (!hasBulkPipelineAccess) {
+      toastError("Upgrade Required", "Bulk export is available on Basics and above.");
+      return;
+    }
+    if (!sortedJobs.length) return;
+    const headers = [
+      "title",
+      "company",
+      "location",
+      "apply_url",
+      "status",
+      "lead_quality_score",
+      "match_score",
+      "canonical_decision",
+    ];
+    const rows = sortedJobs.map((job) => [
+      job.title,
+      job.company,
+      job.location ?? "",
+      job.apply_url ?? "",
+      job.canonical_status ?? "",
+      job.lead_quality_score ?? "",
+      job.matchScore ?? "",
+      job.evaluation_summary?.canonical_decision ?? "",
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","),
+      )
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `jobraker-jobs-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    safeInfo("Export started", `${sortedJobs.length} visible jobs exported.`);
+  }, [hasBulkPipelineAccess, safeInfo, sortedJobs, toastError]);
+
+  const cleanLowQualityJobs = useCallback(async () => {
+    if (!hasPipelineCleanupAccess) {
+      toastError(
+        "Upgrade Required",
+        "Pipeline cleanup is available on Pro and above.",
+      );
+      return;
+    }
+
+    const lowQualityJobIds = jobs
+      .filter(
+        (job) =>
+          (job.lead_quality_score ?? 100) < 45 ||
+          (job.lead_quality_tags ?? []).some((tag) =>
+            ["spam_signal", "invalid_url", "missing_company"].includes(tag),
+          ),
+      )
+      .map((job) => job.id);
+
+    if (!lowQualityJobIds.length) {
+      safeInfo("Pipeline clean", "No low-quality jobs need cleanup right now.");
+      return;
+    }
+
+    try {
+      const task = await createTask({
+        type: "pipeline_cleanup",
+        title: "Clean low-quality jobs",
+        message: `Preparing to hide ${lowQualityJobIds.length} low-quality jobs.`,
+        progressTotal: lowQualityJobIds.length,
+        params: { job_ids: lowQualityJobIds },
+      });
+      activeTaskIdRef.current = task.id;
+    } catch (cleanupError) {
+      const message =
+        cleanupError instanceof Error ? cleanupError.message : "Cleanup failed.";
+      toastError("Cleanup failed", message);
+    }
+  }, [
+    createTask,
+    hasPipelineCleanupAccess,
+    jobs,
+    safeInfo,
+    toastError,
+  ]);
+
+  const handleStopJobTask = useCallback(
+    (task: JobIntelligenceTask) => {
+      canceledTaskIdsRef.current.add(task.id);
+      if (activeTaskIdRef.current === task.id) {
+        cancelPopulation();
+      }
+      void cancelTask(task.id).catch((error) => {
+        console.warn("Failed to cancel job task", error);
+        toastError("Cancel failed", error.message || "Could not stop task.");
+      });
+    },
+    [cancelPopulation, cancelTask, toastError],
+  );
+
+  const handleRetryJobTask = useCallback(
+    (task: JobIntelligenceTask) => {
+      canceledTaskIdsRef.current.delete(task.id);
+      const params = task.params ?? {};
+      if (task.type === "scout_search") {
+        const query =
+          typeof params.search_query === "string"
+            ? params.search_query
+            : searchQuery;
+        const location =
+          typeof params.location === "string" ? params.location : selectedLocation;
+        const limit =
+          typeof params.limit === "number" ? params.limit : undefined;
+        void populateQueue(query, location, limit);
+        return;
+      }
+      if (task.type === "pipeline_cleanup") {
+        void cleanLowQualityJobs();
+        return;
+      }
+    },
+    [
+      cleanLowQualityJobs,
+      populateQueue,
+      searchQuery,
+      selectedLocation,
+    ],
+  );
+
   // Small helper for relative timestamps
   const formatRelative = (iso?: string | null) => {
     if (!iso) return "";
@@ -3446,7 +4082,7 @@ export const JobPage = (): JSX.Element => {
   };
 
   return (
-    <div className='relative min-h-screen' role='main' aria-label='Job search'>
+    <div className='relative min-h-full' role='main' aria-label='Job search'>
       {/* Animated SVG Background */}
       <AnimatedSVGBackground />
 
@@ -3577,43 +4213,86 @@ export const JobPage = (): JSX.Element => {
                   </div>
                 )}
 
-                <div className='flex flex-row flex-wrap sm:flex-nowrap items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto'>
-                  <Button
-                    onClick={() => populateQueue(searchQuery, selectedLocation)}
-                    className={`group relative flex-1 sm:flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
-                      queueStatus === "populating" || queueStatus === "loading"
-                        ? "border-foreground/60 text-foreground bg-foreground/15"
-                        : "border-foreground/20 text-foreground bg-foreground/5 hover:text-brand hover:border-brand/60 hover:bg-brand/10"
-                    }`}
-                    title='Find a fresh batch of jobs'
-                    disabled={
-                      queueStatus === "populating" || queueStatus === "loading"
-                    }
-                  >
-                    <span className='relative inline-flex items-center justify-center gap-1.5 sm:gap-2'>
-                      {queueStatus === "populating" ? (
-                        <Loader2 className='w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin' />
-                      ) : (
-                        <Search className='w-3.5 h-3.5 sm:w-4 sm:h-4 ' />
-                      )}
-                      <span className='hidden sm:inline'>
-                        {queueStatus === "populating"
-                          ? "Building results…"
-                          : "Find Jobs Suite"}
-                      </span>
-                      <span className='sm:hidden'>
-                        {queueStatus === "populating"
-                          ? "Building…"
-                          : "Find Jobs"}
-                      </span>
-                    </span>
-                  </Button>
+                <div className='grid grid-cols-3 sm:flex sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto'>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        className={`group relative flex-1 sm:flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 sm:whitespace-nowrap ${
+                          queueStatus === "populating" || queueStatus === "loading"
+                            ? "border-foreground/60 text-foreground bg-foreground/15"
+                            : "border-foreground/20 text-foreground bg-foreground/5 hover:text-brand hover:border-brand/60 hover:bg-brand/10"
+                        }`}
+                        title='Find a fresh batch of jobs'
+                        disabled={
+                          queueStatus === "populating" || queueStatus === "loading"
+                        }
+                      >
+                        <span className='relative inline-flex items-center justify-center gap-1.5 sm:gap-2'>
+                          {queueStatus === "populating" ? (
+                            <Loader2 className='w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin' />
+                          ) : (
+                            <Search className='w-3.5 h-3.5 sm:w-4 sm:h-4 ' />
+                          )}
+                          <span className='hidden sm:inline'>
+                            {queueStatus === "populating"
+                              ? "Building results…"
+                              : "Find Jobs Suite"}
+                          </span>
+                          <span className='sm:hidden'>
+                            {queueStatus === "populating"
+                              ? "Building…"
+                              : "Find Jobs"}
+                          </span>
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 bg-background/95 backdrop-blur-md border border-foreground/10 text-foreground rounded-xl p-1.5 shadow-xl">
+                      {[
+                        { limit: 10, tier: "Free" as const, label: "10 Jobs (Free)" },
+                        { limit: 20, tier: "Basics" as const, label: "20 Jobs (Basics)" },
+                        { limit: 50, tier: "Pro" as const, label: "50 Jobs (Pro)" },
+                        { limit: 100, tier: "Ultimate" as const, label: "100 Jobs (Ultimate)" },
+                      ].map((opt) => {
+                        const isLocked = !hasSubscriptionAccess(subscriptionTier, opt.tier);
+                        return (
+                          <DropdownMenuItem
+                            key={opt.limit}
+                            onClick={() => {
+                              if (isLocked) {
+                                toastError(
+                                  "Upgrade Required",
+                                  `Searching ${opt.limit} jobs requires the ${opt.tier} plan.`
+                                );
+                              } else {
+                                populateQueue(searchQuery, selectedLocation, opt.limit);
+                              }
+                            }}
+                            className="flex items-center justify-between cursor-pointer px-3 py-2 rounded-lg text-left text-xs sm:text-sm font-medium transition-colors hover:bg-foreground/5 focus:bg-foreground/5"
+                          >
+                            <span className="flex items-center gap-2">
+                              {opt.tier === "Free" ? (
+                                <Search className="h-4 w-4 text-foreground/50" />
+                              ) : opt.tier === "Basics" ? (
+                                <Sparkles className="h-4 w-4 text-brand" />
+                              ) : opt.tier === "Pro" ? (
+                                <Zap className="h-4 w-4 text-cyan-400" />
+                              ) : (
+                                <Crown className="h-4 w-4 text-yellow-400" />
+                              )}
+                              <span>{opt.label}</span>
+                            </span>
+                            {isLocked && <Lock className="h-3.5 w-3.5 text-foreground/45" />}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button
                     variant='ghost'
                     onClick={() => {
                       openAutoApplyFlow(null);
                     }}
-                    className={`relative flex-1 sm:flex-none overflow-hidden border border-brand/40 text-foreground px-3 py-2 sm:px-4 sm:py-2 md:px-5 rounded-xl transition-all duration-300 text-xs sm:text-sm ${applyingAll ? "bg-brand/20 text-brand" : "bg-brand/5 text-brand"}`}
+                    className={`relative flex-1 sm:flex-none overflow-hidden border border-brand/40 text-foreground px-3 py-2 sm:px-4 sm:py-2 md:px-5 rounded-xl transition-all duration-300 text-xs sm:text-sm sm:whitespace-nowrap ${applyingAll ? "bg-brand/20 text-brand" : "bg-brand/5 text-brand"}`}
                     title='Auto apply all visible jobs'
                     disabled={
                       applyingAll ||
@@ -3645,8 +4324,26 @@ export const JobPage = (): JSX.Element => {
                   </Button>
                   <Button
                     variant='ghost'
+                    onClick={exportVisibleJobsCSV}
+                    className='relative flex-1 sm:flex-none overflow-hidden border border-foreground/20 text-foreground/75 bg-foreground/5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-sm sm:whitespace-nowrap hover:border-brand/40 hover:text-brand'
+                    title='Export visible jobs to CSV'
+                    disabled={jobs.length === 0}
+                  >
+                    Export
+                  </Button>
+                  <Button
+                    variant='ghost'
+                    onClick={cleanLowQualityJobs}
+                    className='relative flex-1 sm:flex-none overflow-hidden border border-foreground/20 text-foreground/75 bg-foreground/5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-300 text-xs sm:text-sm sm:whitespace-nowrap hover:border-brand/40 hover:text-brand'
+                    title='Hide jobs with poor quality-gate signals'
+                    disabled={jobs.length === 0}
+                  >
+                    Clean
+                  </Button>
+                  <Button
+                    variant='ghost'
                     onClick={() => setConfirmDeleteOpen(true)}
-                    className={`group relative flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md ${
+                    className={`group relative flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md sm:whitespace-nowrap ${
                       clearingJobs
                         ? "border-red-600/60 text-red-600 bg-red-600/15 cursor-not-allowed opacity-60"
                         : jobs.length === 0
@@ -3692,10 +4389,16 @@ export const JobPage = (): JSX.Element => {
             subtitle={`Streaming results… ${currentSource ? `Source: ${currentSource}` : ""}`}
             steps={steps}
             activeStep={stepIndex}
-            onCancel={cancelPopulation}
+            onCancel={handleCancelPopulation}
             foundCount={insertedThisRun}
           />
         )}
+
+        <JobTaskMonitor
+          tasks={jobTasks}
+          onStop={handleStopJobTask}
+          onRetry={handleRetryJobTask}
+        />
 
         {/* Patience Indicator: Show if results are very few (< 10) but we might be finding more, or if we are still in incremental mode */}
         {((total < 10 && queueStatus === "ready") ||
@@ -3711,23 +4414,20 @@ export const JobPage = (): JSX.Element => {
           id='jobs-search-filters'
           data-tour='jobs-search-filters'
         >
-          <div className='relative justify-between xl:items-center bg-slate-2 z-10 flex xl:flex-row flex-col gap-3 sm:gap-4 lg:items-stretch'>
-            <div className='relative group flex'>
-              {/* <Input
+          <div className='relative z-10 flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-stretch'>
+            <div className='relative min-w-0 flex-1'>
+              <div
                 id='jobs-search'
                 data-tour='jobs-search'
-                placeholder='Search jobs, companies, keywords...'
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    populateQueue(searchQuery, selectedLocation);
-                  }
-                }}
-                className='w-full pl-4 pr-[8.25rem] sm:pr-36 border-foreground/10 text-foreground placeholder:text-foreground/40 transition-all duration-100 rounded-xl  '
-              />*/}
-              <div className='pointer-events-none  flex  items-center justify-center gap-2'>
+                aria-label={`Search query ${searchQuery || "No query"}`}
+                role='status'
+                className='flex h-12 w-full items-center rounded-xl border border-foreground/10 pl-4 pr-[8.25rem] sm:pr-36 text-base font-medium text-foreground'
+              >
+                <span className={`min-w-0 truncate ${!searchQuery ? "text-foreground/40" : ""}`}>
+                  {searchQuery || "Search jobs, companies, keywords..."}
+                </span>
+              </div>
+              <div className='pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 h-10 items-center justify-center gap-2'>
                 <span className='text-[10px] font-medium text-brand/90 bg-gradient-to-br from-brand/15 to-brand/5 px-2.5 py-1 rounded-lg border border-brand/30 whitespace-nowrap shadow-sm'>
                   {subscriptionTier === "Ultimate"
                     ? "100"
@@ -3738,6 +4438,7 @@ export const JobPage = (): JSX.Element => {
                         : "10"}{" "}
                   results
                 </span>
+                <Search className='h-5 w-5 shrink-0 text-brand/70' />
               </div>
             </div>
             <div className='flex basis-full xl:basis-1/2 xl:justify-end xl:flex-row flex-col gap-2 lg:shrink-0 '>
@@ -3801,6 +4502,21 @@ export const JobPage = (): JSX.Element => {
                           AI Matched
                         </span>
                       )}
+                      {activeSearchScope && (
+                        <Button
+                          onClick={async () => {
+                            setActiveSearchScope(null);
+                            activeSearchScopeRef.current = null;
+                            await queryClient.invalidateQueries({ queryKey: jobsQueueKeys.all });
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          className="ml-2 h-7 px-2.5 rounded-lg text-xs font-semibold bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 flex items-center gap-1 transition-all duration-200"
+                        >
+                          <X className="h-3 w-3" />
+                          <span>Clear Search</span>
+                        </Button>
+                      )}
                     </>
                   )}
               </h2>
@@ -3814,6 +4530,7 @@ export const JobPage = (): JSX.Element => {
                       value={sortBy}
                       onValueChange={(v) => setSortBy(v as any)}
                       options={[
+                        { value: "opportunity", label: "Best opportunity" },
                         { value: "recent", label: "Most recent" },
                         { value: "company", label: "Company" },
                         { value: "deadline", label: "Deadline" },
@@ -4327,6 +5044,7 @@ export const JobPage = (): JSX.Element => {
 
                           {/* Badges */}
                           <div className='flex flex-wrap items-center gap-2 flex-shrink-0'>
+
                             {(() => {
                               if (!job.posted_at) return null;
                               const postedTs = Date.parse(job.posted_at);
@@ -4346,6 +5064,13 @@ export const JobPage = (): JSX.Element => {
                               <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-gradient-to-r from-brand/20 to-brand/5 text-brand border border-brand/20'>
                                 <Sparkles className='w-3 h-3' />
                                 {job.matchScore}% Match
+                              </span>
+                            )}
+                            {hasJobQualityAccess &&
+                              typeof job.lead_quality_score === "number" && (
+                              <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-foreground/5 text-foreground/55 border border-foreground/10'>
+                                <ShieldCheck className='w-3 h-3' />
+                                {job.lead_quality_score}% Quality
                               </span>
                             )}
                             {job.status && (
@@ -4750,105 +5475,106 @@ export const JobPage = (): JSX.Element => {
                           <Card
                             id='jobs-ai-match'
                             data-tour='jobs-ai-match'
-                            className='relative overflow-hidden border border-brand/20 bg-gradient-to-br from-background via-background to-background p-6'
+                            className='relative overflow-hidden border border-brand/20 bg-gradient-to-br from-background via-background to-background p-0 flex flex-row items-stretch'
                           >
                             <span className='pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-brand/20 blur-3xl opacity-60' />
-                            <div className='relative flex flex-col gap-5'>
-                              {/* Header row: logo + info + action buttons */}
-                              <div className='flex items-start gap-3 sm:gap-4'>
-                                {/* Logo */}
-                                {job.logoUrl && !logoError[job.id] ? (
-                                  <img
-                                    src={job.logoUrl}
-                                    alt={job.company}
-                                    className='w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-xl object-contain bg-foreground flex-shrink-0'
-                                    onError={() =>
-                                      setLogoError((e) => ({
-                                        ...e,
-                                        [job.id]: true,
-                                      }))
-                                    }
-                                  />
-                                ) : (
-                                  <div className='w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-gradient-to-r from-brand to-background rounded-xl flex items-center justify-center font-bold text-lg sm:text-xl md:text-2xl flex-shrink-0'>
-                                    {job.logo}
-                                  </div>
-                                )}
+                            
+                            {/* Logo: full height on the left, width proportional */}
+                            <div className='relative w-24 sm:w-auto sm:h-full sm:aspect-square flex-shrink-0 bg-foreground/5 flex items-center justify-center overflow-hidden border-r border-brand/10'>
+                              {job.logoUrl && !logoError[job.id] ? (
+                                <img
+                                  src={job.logoUrl}
+                                  alt={job.company}
+                                  className='w-full h-full object-cover'
+                                  onError={() =>
+                                    setLogoError((e) => ({
+                                      ...e,
+                                      [job.id]: true,
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                <div className='w-full h-full bg-gradient-to-r from-brand to-background flex items-center justify-center font-bold text-xl sm:text-2xl md:text-3xl'>
+                                  {job.logo}
+                                </div>
+                              )}
+                            </div>
 
-                                {/* Content + buttons */}
-                                <div className='flex-1 min-w-0'>
-                                  <div className='flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4'>
-                                    {/* Title & meta */}
-                                    <div className='flex-1 min-w-0 space-y-2'>
-                                      <div className='inline-flex items-center gap-2 flex-wrap text-[11px] uppercase tracking-[0.3em] text-brand/80'>
-                                        <Sparkles className='w-3 h-3' />
-                                        Featured Job
-                                      </div>
-                                      <h1
-                                        className='max-w-3xl text-lg sm:text-xl md:text-2xl font-semibold text-foreground leading-tight line-clamp-3'
-                                        title={job.title}
-                                      >
-                                        {job.title}
-                                      </h1>
-                                      <div className='flex flex-wrap items-center gap-2 text-sm text-foreground/70'>
-                                        <span className='font-medium text-foreground/90'>
-                                          {job.company}
-                                        </span>
-                                        {siteHost && (
-                                          <span
-                                            className='inline-flex max-w-full items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-foreground/10 bg-foreground/5 text-foreground/60'
-                                            title={primaryHref || undefined}
-                                          >
-                                            {ico && (
-                                              <img
-                                                src={ico}
-                                                alt=''
-                                                className='w-3 h-3 rounded flex-shrink-0'
-                                                onError={(e) =>
-                                                  ((
-                                                    e.target as HTMLImageElement
-                                                  ).style.display = "none")
-                                                }
-                                              />
-                                            )}
-                                            <span className='truncate'>
-                                              {siteHost}
-                                            </span>
-                                          </span>
-                                        )}
-                                        {job.posted_at && (
-                                          <span className='text-[11px] px-2 py-1 rounded-full border border-foreground/10 text-foreground/50 bg-foreground/5 whitespace-nowrap flex-shrink-0'>
-                                            Posted{" "}
-                                            {formatRelative(job.posted_at)}
-                                          </span>
-                                        )}
-                                      </div>
+                            {/* Content & tiles */}
+                            <div className='relative flex-1 min-w-0 p-5 sm:p-6 flex flex-col justify-between gap-5'>
+                              {/* Header row: title & details */}
+                              <div className='flex-1 min-w-0'>
+                                <div className='flex flex-col gap-4'>
+                                  {/* Title & meta */}
+                                  <div className='flex-1 min-w-0 space-y-2'>
+                                    <div className='inline-flex items-center gap-2 flex-wrap text-[11px] uppercase tracking-[0.3em] text-brand/80'>
+                                      <Sparkles className='w-3 h-3' />
+                                      Featured Job
                                     </div>
-
-                                    {/* Action buttons stay below the title until the card has enough width. */}
-                                    <div className='flex w-full flex-col sm:flex-row lg:w-auto lg:flex-shrink-0 items-stretch sm:items-center gap-2'>
-                                      {primaryHref && (
-                                        <a
-                                          href={primaryHref}
-                                          target='_blank'
-                                          rel='noopener noreferrer'
-                                          className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-foreground/10  px-4 py-2 text-sm font-medium text-foreground transition '
+                                    <h1
+                                      className='max-w-3xl text-lg sm:text-xl md:text-2xl font-semibold text-foreground leading-tight line-clamp-3'
+                                      title={job.title}
+                                    >
+                                      {job.title}
+                                    </h1>
+                                    <div className='flex flex-wrap items-center gap-2 text-sm text-foreground/70'>
+                                      <span className='font-medium text-foreground/90'>
+                                        {job.company}
+                                      </span>
+                                      {siteHost && (
+                                        <span
+                                          className='inline-flex max-w-full items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-foreground/10 bg-foreground/5 text-foreground/60'
+                                          title={primaryHref || undefined}
                                         >
-                                          View Posting
-                                        </a>
+                                          {ico && (
+                                            <img
+                                              src={ico}
+                                              alt=''
+                                              className='w-3 h-3 rounded flex-shrink-0'
+                                              onError={(e) =>
+                                                ((
+                                                  e.target as HTMLImageElement
+                                                ).style.display = "none")
+                                              }
+                                            />
+                                          )}
+                                          <span className='truncate'>
+                                            {siteHost}
+                                          </span>
+                                        </span>
                                       )}
-                                      <Button
-                                        onClick={() => openAutoApplyFlow(job)}
-                                        className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand/40 bg-brand/5 px-4 py-2 text-sm font-medium text-brand '
-                                        title='Launch auto apply suite for this job'
-                                      >
-                                        <Briefcase className='w-4 h-4' />
-                                        Auto Apply Suite
-                                        {!hasAutoApplyAccess && (
-                                          <Lock className='w-3 h-3 opacity-60' />
-                                        )}
-                                      </Button>
+                                      {job.posted_at && (
+                                        <span className='text-[11px] px-2 py-1 rounded-full border border-foreground/10 text-foreground/50 bg-foreground/5 whitespace-nowrap flex-shrink-0'>
+                                          Posted{" "}
+                                          {formatRelative(job.posted_at)}
+                                        </span>
+                                      )}
                                     </div>
+                                  </div>
+
+                                  {/* Action buttons stay below the title until the card has enough width. */}
+                                  <div className='flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2'>
+                                    {primaryHref && (
+                                      <a
+                                        href={primaryHref}
+                                        target='_blank'
+                                        rel='noopener noreferrer'
+                                        className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-foreground/10  px-4 py-2 text-sm font-medium text-foreground transition '
+                                      >
+                                        View Posting
+                                      </a>
+                                    )}
+                                    <Button
+                                      onClick={() => openAutoApplyFlow(job)}
+                                      className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand/40 bg-brand/5 px-4 py-2 text-sm font-medium text-brand '
+                                      title='Launch auto apply suite for this job'
+                                    >
+                                      <Briefcase className='w-4 h-4' />
+                                      Auto Apply Suite
+                                      {!hasAutoApplyAccess && (
+                                        <Lock className='w-3 h-3 opacity-60' />
+                                      )}
+                                    </Button>
                                   </div>
                                 </div>
                               </div>
@@ -4892,6 +5618,18 @@ export const JobPage = (): JSX.Element => {
                           className='max-h-[32rem] overflow-y-auto pr-2'
                         />
                       </Card>
+
+                      <OpportunityScoreSummary
+                        opportunity={job.explainableOpportunity}
+                        fullAccess={hasOpportunityBreakdownAccess}
+                        requiredTier='Pro'
+                      />
+
+                      <JobQualityAndFeedback
+                        job={job}
+                        onFeedback={handleJobFeedback}
+                        fullAccess={hasJobQualityAccess}
+                      />
 
                       {/* AI Match Score Card - Gated for Basics+ */}
                       {!hasMatchScoreAccess ? (
@@ -4943,9 +5681,12 @@ export const JobPage = (): JSX.Element => {
                         />
                       ) : (
                         <JobEvaluationTeaser
+                          requiredTier='Pro'
                           jobTitle={job.title || "Role"}
                           company={job.company}
                           descriptionPreview={job.description || undefined}
+                          title='Evaluation report'
+                          ctaLabel='Upgrade for full evaluation report'
                         />
                       )}
 
@@ -6226,24 +6967,30 @@ export const JobPage = (): JSX.Element => {
                   }[];
 
                   return (
-                    <Card className='relative overflow-hidden border border-brand/25 bg-gradient-to-br from-background via-background to-background p-5'>
+                    <Card className='relative overflow-hidden border border-brand/25 bg-gradient-to-br from-background via-background to-background p-0 flex flex-row items-stretch'>
                       <span className='pointer-events-none absolute -top-20 -right-10 h-40 w-40 rounded-full bg-brand/20 blur-3xl opacity-50' />
-                      <div className='relative space-y-4'>
-                        <div className='flex items-start gap-3'>
-                          {j.logoUrl && !logoError[j.id] ? (
-                            <img
-                              src={j.logoUrl}
-                              alt={j.company}
-                              className='w-12 h-12 rounded-xl object-contain bg-foreground flex-shrink-0'
-                              onError={() =>
-                                setLogoError((e) => ({ ...e, [j.id]: true }))
-                              }
-                            />
-                          ) : (
-                            <div className='w-12 h-12 bg-gradient-to-r from-brand to-background rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0'>
-                              {j.logo}
-                            </div>
-                          )}
+                      
+                      {/* Logo Column */}
+                      <div className='relative self-stretch w-24 sm:w-32 md:w-36 flex-shrink-0 bg-foreground/5 flex items-stretch justify-center overflow-hidden border-r border-brand/10'>
+                        {j.logoUrl && !logoError[j.id] ? (
+                          <img
+                            src={j.logoUrl}
+                            alt={j.company}
+                            className='w-full h-full object-cover'
+                            onError={() =>
+                              setLogoError((e) => ({ ...e, [j.id]: true }))
+                            }
+                          />
+                        ) : (
+                          <div className='w-full h-full bg-gradient-to-r from-brand to-background flex items-center justify-center font-bold text-lg sm:text-xl md:text-2xl'>
+                            {j.logo}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Content Column */}
+                      <div className='relative flex-1 min-w-0 p-4 sm:p-5 flex flex-col justify-between gap-4'>
+                        <div className='space-y-3'>
                           <div className='flex-1 min-w-0 space-y-1'>
                             <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-brand/70'>
                               <Sparkles className='w-3 h-3' />
@@ -6284,6 +7031,7 @@ export const JobPage = (): JSX.Element => {
                             </div>
                           </div>
                         </div>
+
                         {metaTiles.length > 0 && (
                           <div className='grid grid-cols-2 gap-2'>
                             {metaTiles.map((tile) => (
@@ -6303,6 +7051,7 @@ export const JobPage = (): JSX.Element => {
                             ))}
                           </div>
                         )}
+
                         <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-2'>
                           {primaryHref && (
                             <a
@@ -6347,6 +7096,20 @@ export const JobPage = (): JSX.Element => {
                     className='max-h-[45dvh] overflow-y-auto pr-1 text-[13px]'
                   />
                 </Card>
+
+                <OpportunityScoreSummary
+                  opportunity={j.explainableOpportunity}
+                  compact
+                  fullAccess={hasOpportunityBreakdownAccess}
+                  requiredTier='Pro'
+                />
+
+                <JobQualityAndFeedback
+                  job={j}
+                  compact
+                  onFeedback={handleJobFeedback}
+                  fullAccess={hasJobQualityAccess}
+                />
 
                 {/* AI Match Score Card - Mobile - Gated for Basics+ */}
                 {!hasMatchScoreAccess ? (
@@ -6394,9 +7157,12 @@ export const JobPage = (): JSX.Element => {
                 ) : (
                   <JobEvaluationTeaser
                     compact
+                    requiredTier='Pro'
                     jobTitle={j.title || "Role"}
                     company={j.company}
                     descriptionPreview={j.description || undefined}
+                    title='Evaluation report'
+                    ctaLabel='Upgrade for full evaluation report'
                   />
                 )}
 
@@ -6508,6 +7274,16 @@ export const JobPage = (): JSX.Element => {
             </Modal>
           );
         })()}
+      <ConcurrencyLimitModal
+        open={concurrencyModalOpen}
+        onOpenChange={setConcurrencyModalOpen}
+        activeRuns={concurrencyInfo.activeRuns}
+        totalLimit={concurrencyInfo.totalLimit}
+        currentTier={subscriptionTier}
+        onUpgrade={(tab) => {
+          navigate(`/dashboard/billing${tab ? `?tab=${tab}` : ""}`);
+        }}
+      />
       <ConfirmDialog
         open={confirmDeleteOpen}
         onCancel={() => setConfirmDeleteOpen(false)}

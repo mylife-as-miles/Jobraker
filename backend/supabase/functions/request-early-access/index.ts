@@ -1,6 +1,32 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/types.ts";
 
+const RATE_LIMIT_WINDOW_MS = 10 * 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 5;
+const publicRateLimitBuckets = new Map<string, number[]>();
+
+function getRequesterKey(req: Request): string {
+  const forwardedFor = String(req.headers.get("x-forwarded-for") || "")
+    .split(",")[0]
+    .trim();
+  const realIp = String(req.headers.get("x-real-ip") || "").trim();
+  return forwardedFor || realIp || "unknown";
+}
+
+function isRateLimited(key: string): boolean {
+  const now = Date.now();
+  const recent = (publicRateLimitBuckets.get(key) || []).filter(
+    (timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS,
+  );
+  if (recent.length >= RATE_LIMIT_MAX_REQUESTS) {
+    publicRateLimitBuckets.set(key, recent);
+    return true;
+  }
+  recent.push(now);
+  publicRateLimitBuckets.set(key, recent);
+  return false;
+}
+
 async function sendResendEmail(args: {
   to: string;
   subject: string;
@@ -54,6 +80,13 @@ serve(async (req) => {
   }
 
   try {
+    if (isRateLimited(getRequesterKey(req))) {
+      return new Response(
+        JSON.stringify({ error: "Too many requests. Please try again later." }),
+        { status: 429, headers: { ...getCorsHeaders(), "Content-Type": "application/json" } }
+      );
+    }
+
     const { firstName, lastName, companyEmail, interest, accomplish } = await req.json();
 
     if (!firstName || !lastName || !companyEmail) {

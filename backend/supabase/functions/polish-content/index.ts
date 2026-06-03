@@ -8,6 +8,7 @@ import {
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
   withGeminiRetry,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -16,6 +17,10 @@ import {
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 interface PolishContentRequest {
   content: string;
@@ -164,7 +169,13 @@ serve(async (req) => {
   }
 
   try {
-    await requireSubscriptionTier(req, "Basics", "AI writing tools");
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Basics", "AI writing tools");
+    await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "polish_content",
+      serviceClient,
+      subscriptionTier,
+    });
     const { content, instruction } = (await req.json()) as PolishContentRequest;
 
     const safeContent = sanitizeInput(content || "", 12000);
@@ -179,8 +190,8 @@ serve(async (req) => {
 
     try {
       const ai = createGeminiClient();
-      const result = await withGeminiRetry(() => ai.models.generateContent({
-        model: GEMINI_MODEL,
+      const { result } = await withModelFallback((model) => ai.models.generateContent({
+        model,
         config: createGeminiConfig({ 
             systemInstruction: "You are a resume polishing assistant. Return ONLY valid JSON matching the requested schema.",
             responseMimeType: "application/json"
@@ -200,6 +211,16 @@ serve(async (req) => {
     }
 
     const response = normalizePolishResponse(parsed, safeContent);
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "polish_content",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        content_length: safeContent.length,
+        has_instruction: Boolean(safeInstruction),
+      },
+    });
     return new Response(JSON.stringify(response), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error: any) {

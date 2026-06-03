@@ -3,7 +3,7 @@
     {
       "source": "/",
       "has": [{ "type": "host", "value": "admin.jobraker.io" }],
-      "destination": "/admin/overview",
+      "destination": "/admin",
       "permanent": false
     },
     {

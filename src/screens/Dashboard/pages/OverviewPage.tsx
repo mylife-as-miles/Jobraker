@@ -137,7 +137,7 @@ export const OverviewPage = (): JSX.Element => {
   }, [stacked, visibleSeries]);
 
   // Build real series based on selected period with status-specific keys
-  const { seriesData, seriesMeta, interviewCount, totals } = useMemo(() => {
+  const { seriesData, seriesMeta, interviewCount, offerRate, rejectionRate, totals } = useMemo(() => {
     const period = selectedPeriod;
 
     // Apply status filtering (search removed per request)
@@ -215,56 +215,67 @@ export const OverviewPage = (): JSX.Element => {
 
     let applied = 0;
     let interviews = 0;
+    let offers = 0;
+    let rejections = 0;
     let totalInWindow = 0;
+
+    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - 6);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(now);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
     for (const app of filtered) {
-      const d = new Date(app.applied_date);
+      const appDate = new Date(app.applied_date);
+      const intDate = app.interview_date ? new Date(app.interview_date) : null;
+
+      let appInWindow = false;
+      let intInWindow = false;
+
       if (period === "Today") {
-        const dayStart = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-        );
-        const dayEnd = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate() + 1,
-        );
-        if (d < dayStart || d >= dayEnd) continue;
+        appInWindow = appDate >= dayStart && appDate < dayEnd;
+        intInWindow = intDate ? (intDate >= dayStart && intDate < dayEnd) : false;
       } else if (period === "1 Week") {
-        const weekStart = new Date(now);
-        weekStart.setDate(weekStart.getDate() - 6);
-        weekStart.setHours(0, 0, 0, 0);
-        const weekEnd = new Date(now);
-        weekEnd.setHours(23, 59, 59, 999);
-        if (d < weekStart || d > weekEnd) continue;
+        appInWindow = appDate >= weekStart && appDate <= weekEnd;
+        intInWindow = intDate ? (intDate >= weekStart && intDate <= weekEnd) : false;
       } else {
-        const sixMonthsStart = new Date(
-          now.getFullYear(),
-          now.getMonth() - 5,
-          1,
-        );
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        if (d < sixMonthsStart || d >= monthEnd) continue;
+        appInWindow = appDate >= sixMonthsStart && appDate < monthEnd;
+        intInWindow = intDate ? (intDate >= sixMonthsStart && intDate < monthEnd) : false;
       }
 
-      // Aggregate bucket
-      const idx = buckets.findIndex((b) => d >= b.start && d < b.end);
-      if (idx >= 0) {
-        const s = (app.status as string) || "Applied";
-        if (s in data[idx]) data[idx][s] = (data[idx][s] as number) + 1;
-        else data[idx]["Applied"] = (data[idx]["Applied"] as number) + 1;
+      if (appInWindow) {
+        totalInWindow++;
+        if (app.status === "Applied") applied++;
+        else if (app.status === "Offer") offers++;
+        else if (app.status === "Rejected") rejections++;
+
+        // Aggregate bucket for chart (only for applications within the window)
+        const idx = buckets.findIndex((b) => appDate >= b.start && appDate < b.end);
+        if (idx >= 0) {
+          const s = (app.status as string) || "Applied";
+          if (s in data[idx]) data[idx][s] = (data[idx][s] as number) + 1;
+          else data[idx]["Applied"] = (data[idx]["Applied"] as number) + 1;
+        }
       }
 
-      if (app.status === "Applied") applied++;
-      if (app.status === "Interview") interviews++;
-      totalInWindow++;
+      // Count under interviews if status is "Interview" AND falls in window, OR if interview_date falls in the window
+      const countAsInterview = (app.status === "Interview" && appInWindow) || intInWindow;
+      if (countAsInterview) {
+        interviews++;
+      }
     }
 
     // Improved distinctive palette for accessibility / color meaning
     const palette: Record<string, string> = {
       Applied: "#1dff00",
       Interview: "#00b2ff",
-      Offer: "#1dff00",
+      Offer: "#10b981",
       Rejected: "#ef4444",
     };
     const series = statuses.map((s) => ({
@@ -273,11 +284,16 @@ export const OverviewPage = (): JSX.Element => {
       color: palette[s] || "#999999",
     }));
 
+    const offerRate = totalInWindow ? offers / totalInWindow : 0;
+    const rejectionRate = totalInWindow ? rejections / totalInWindow : 0;
+
     return {
       seriesData: data,
       seriesMeta: series,
       appliedCount: applied,
       interviewCount: interviews,
+      offerRate,
+      rejectionRate,
       totals: { totalInWindow },
     };
   }, [applications, now, selectedPeriod, statusFilter]);
@@ -386,7 +402,7 @@ export const OverviewPage = (): JSX.Element => {
   });
 
   return (
-    <div className='product-page-shell min-h-screen'>
+    <div className='product-page-shell min-h-full'>
       <div className='w-full max-w-7xl mx-auto p-3 sm:p-4 lg:p-6 xl:p-8'>
         {/* Responsive overview layout */}
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 items-start'>
@@ -522,7 +538,7 @@ export const OverviewPage = (): JSX.Element => {
                   </div>
                   <div className='p-4 rounded-xl bg-brand/10 border border-brand/30'>
                     <div className='text-2xl lg:text-3xl font-bold text-brand mb-1'>
-                      {Math.round(stats.offerRate * 100)}%
+                      {Math.round(offerRate * 100)}%
                     </div>
                     <div className='text-xs text-brand font-medium uppercase tracking-wider'>
                       Offer Rate
@@ -530,7 +546,7 @@ export const OverviewPage = (): JSX.Element => {
                   </div>
                   <div className='p-4 rounded-xl border bg-red-500/10 border-red-500/30'>
                     <div className='text-2xl lg:text-3xl font-bold text-red-500 mb-1'>
-                      {Math.round(stats.rejectionRate * 100)}%
+                      {Math.round(rejectionRate * 100)}%
                     </div>
                     <div className='text-xs text-red-500 font-medium uppercase tracking-wider'>
                       Rejection Rate
@@ -576,14 +592,15 @@ export const OverviewPage = (): JSX.Element => {
               <Card
                 id='overview-calendar'
                 data-tour='overview-calendar'
-                className='bg-card/50 border border-foreground/10 backdrop-blur-xl p-4 sm:p-6 rounded-2xl'
+                className='rounded-3xl border border-white/8 bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-3 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl'
               >
-                <div className='mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[10px] sm:text-xs text-muted-foreground'>
-                  <div>
+                <div className='mb-4 flex flex-col gap-3 text-[10px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:text-xs'>
+                  <div className='inline-flex w-fit items-center gap-2 rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
+                    <span className='h-2 w-2 rounded-full bg-brand shadow-[0_0_12px_rgba(29,255,0,0.45)]' />
                     Current time:{" "}
-                    <span className='text-brand font-medium'>{timeLabel}</span>
+                    <span className='font-semibold text-brand'>{timeLabel}</span>
                   </div>
-                  <div className='flex items-center gap-2'>
+                  <div className='flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.02] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
                     <span className='text-muted-foreground hidden sm:inline'>
                       View:
                     </span>
@@ -595,7 +612,7 @@ export const OverviewPage = (): JSX.Element => {
                           m === "month" ? "week" : "month",
                         )
                       }
-                      className='text-[10px] sm:text-xs px-2 py-1 border border-brand/20 hover:border-brand/50 hover:bg-brand/10 text-brand'
+                      className='rounded-full border border-brand/20 bg-brand/10 px-3 py-1.5 text-[10px] text-brand transition hover:border-brand/35 hover:bg-brand/15 sm:text-xs'
                     >
                       {calendarViewMode === "month"
                         ? "Switch to Week"

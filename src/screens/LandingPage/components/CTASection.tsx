@@ -2,6 +2,8 @@ import React from "react";
 import { Button } from "../../../components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { captureClientEvent } from "@/lib/analytics";
+import { ROUTES } from "@/routes";
 
 export const CTASection = () => {
   const navigate = useNavigate();
@@ -20,7 +22,14 @@ export const CTASection = () => {
           sharper materials, and keep your pipeline moving.
         </p>
         <Button
-          onClick={() => navigate("/signup")}
+          onClick={() => {
+            captureClientEvent("landing_cta_clicked", {
+              cta_id: "bottom_start_free",
+              destination: ROUTES.SIGNUP,
+              location: "bottom_cta",
+            });
+            navigate(ROUTES.SIGNUP);
+          }}
           className='bg-brand text-black hover:bg-brand/90 h-14 px-10 text-xl font-bold rounded-none border-2 border-transparent hover:border-black transition-all transform hover:scale-105'
         >
           START FREE

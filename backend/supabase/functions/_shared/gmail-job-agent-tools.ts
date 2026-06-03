@@ -100,10 +100,20 @@ async function refreshAccessToken(refreshToken: string) {
 
 type GmailConnectionRow = {
   email: string | null;
+  scope?: string[] | null;
   access_token_ciphertext: string | null;
   refresh_token_ciphertext: string | null;
   token_expires_at: string | null;
 };
+
+const GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify";
+
+function hasGmailModifyScope(connection: GmailConnectionRow) {
+  const scopes = Array.isArray(connection.scope) ? connection.scope : [];
+  return scopes.some((scope) =>
+    scope === GMAIL_MODIFY_SCOPE || scope === "https://mail.google.com/"
+  );
+}
 
 export async function getValidGmailAccessToken(
   serviceClient: SupabaseClient,
@@ -388,9 +398,7 @@ function looksBlocked(text: string) {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export async function agentSendJobRelatedEmail(
-  serviceClient: SupabaseClient,
-  userId: string,
+function validateJobEmailDraft(
   args: { to?: string; subject?: string; body?: string },
 ) {
   const to = typeof args.to === "string" ? args.to.trim() : "";
@@ -398,22 +406,364 @@ export async function agentSendJobRelatedEmail(
   const body = typeof args.body === "string" ? args.body.trim() : "";
 
   if (!to || !EMAIL_RE.test(to)) {
-    return { success: false, error: "Invalid recipient email.", code: "invalid_to" };
+    return {
+      ok: false as const,
+      error: "Invalid recipient email.",
+      code: "invalid_to",
+    };
   }
   if (!subject || subject.length > 200) {
     return {
-      success: false,
+      ok: false as const,
       error: "Subject is required (max 200 characters).",
       code: "invalid_subject",
     };
   }
   if (body.length < 30 || body.length > 12_000) {
     return {
-      success: false,
+      ok: false as const,
       error: "Body must be between 30 and 12000 characters.",
       code: "invalid_body",
     };
   }
+
+  const combined = `${subject}\n${body}`;
+  if (looksBlocked(combined)) {
+    return {
+      ok: false as const,
+      error:
+        "This message was blocked because it matched non-job safety rules. Only professional job-related email is allowed.",
+      code: "content_blocked",
+    };
+  }
+  if (countJobSignals(combined) < 2) {
+    return {
+      ok: false as const,
+      error:
+        "Email must clearly relate to your job search (e.g. mention role, company, interview, application, or recruiter).",
+      code: "not_job_related",
+    };
+  }
+
+  return { ok: true as const, to, subject, body };
+}
+
+function buildRawEmail(
+  fromEmail: string,
+  to: string,
+  subject: string,
+  body: string,
+) {
+  const rfc822 = [
+    `From: ${fromEmail}`,
+    `To: ${to}`,
+    `Subject: ${subject.replace(/\r?\n/g, " ")}`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=utf-8",
+    "",
+    body.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n"),
+  ].join("\r\n");
+
+  return btoa(unescape(encodeURIComponent(rfc822)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+async function getGmailConnection(
+  serviceClient: SupabaseClient,
+  userId: string,
+  select =
+    "email, scope, access_token_ciphertext, refresh_token_ciphertext, token_expires_at",
+) {
+  const { data: connection, error: connErr } = await serviceClient
+    .from("gmail_connections")
+    .select(select)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (connErr) throw connErr;
+  return connection as GmailConnectionRow | null;
+}
+
+function connectedEmailOrError(connection: GmailConnectionRow) {
+  const fromEmail =
+    typeof connection.email === "string" && connection.email.includes("@")
+      ? connection.email
+      : null;
+  if (!fromEmail) {
+    return {
+      ok: false as const,
+      error: "Connected Gmail address is missing. Reconnect Gmail in Settings.",
+      code: "gmail_missing_profile_email",
+    };
+  }
+  return { ok: true as const, fromEmail };
+}
+
+function gmailModifyScopeError() {
+  return {
+    success: false,
+    error:
+      "Gmail modify permission is missing. Disconnect and reconnect Gmail in Settings to enable draft creation and labeling.",
+    code: "gmail_modify_scope_required",
+  };
+}
+
+export async function agentCreateJobRelatedDraft(
+  serviceClient: SupabaseClient,
+  userId: string,
+  args: { to?: string; subject?: string; body?: string },
+) {
+  const validated = validateJobEmailDraft(args);
+  if (!validated.ok) {
+    return {
+      success: false,
+      error: validated.error,
+      code: validated.code,
+    };
+  }
+
+  const connection = await getGmailConnection(serviceClient, userId);
+  if (!connection) {
+    return {
+      success: false,
+      error:
+        "Gmail is not connected. Open Settings -> Integrations and connect Gmail.",
+      code: "gmail_not_connected",
+    };
+  }
+  if (!hasGmailModifyScope(connection)) return gmailModifyScopeError();
+
+  const from = connectedEmailOrError(connection);
+  if (!from.ok) return { success: false, error: from.error, code: from.code };
+
+  const accessToken = await getValidGmailAccessToken(
+    serviceClient,
+    userId,
+    connection,
+  );
+  const raw = buildRawEmail(
+    from.fromEmail,
+    validated.to,
+    validated.subject,
+    validated.body,
+  );
+
+  const draftRes = await fetch(
+    "https://gmail.googleapis.com/gmail/v1/users/me/drafts",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ message: { raw } }),
+    },
+  );
+
+  if (!draftRes.ok) {
+    const t = await draftRes.text();
+    return {
+      success: false,
+      error: `Gmail draft creation failed (${draftRes.status}): ${t.slice(0, 500)}`,
+      code: "gmail_draft_failed",
+    };
+  }
+
+  const draft = await draftRes.json() as {
+    id?: string;
+    message?: { id?: string; threadId?: string };
+  };
+
+  return {
+    success: true,
+    draftId: draft.id ?? null,
+    messageId: draft.message?.id ?? null,
+    threadId: draft.message?.threadId ?? null,
+    draftFrom: from.fromEmail,
+    to: validated.to,
+  };
+}
+
+function sanitizeLabelName(value: unknown) {
+  const name = typeof value === "string" ? value.trim() : "";
+  if (!name) return "JobRaker/Applications";
+  return name.replace(/[^\w\s/:-]/g, "").slice(0, 60) ||
+    "JobRaker/Applications";
+}
+
+export async function agentLabelJobRelatedEmails(
+  serviceClient: SupabaseClient,
+  userId: string,
+  args: {
+    message_ids?: string[];
+    refine_query?: string;
+    max_results?: number;
+    label_name?: string;
+  },
+) {
+  const connection = await getGmailConnection(serviceClient, userId);
+  if (!connection) {
+    return {
+      success: false,
+      error:
+        "Gmail is not connected. Open Settings -> Integrations and connect Gmail.",
+      code: "gmail_not_connected",
+    };
+  }
+  if (!hasGmailModifyScope(connection)) return gmailModifyScopeError();
+
+  const accessToken = await getValidGmailAccessToken(
+    serviceClient,
+    userId,
+    connection,
+  );
+  const labelName = sanitizeLabelName(args.label_name);
+  const labelListRes = await fetch(
+    "https://gmail.googleapis.com/gmail/v1/users/me/labels",
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!labelListRes.ok) {
+    return {
+      success: false,
+      error: `Gmail labels lookup failed (${labelListRes.status})`,
+      code: "gmail_label_lookup_failed",
+    };
+  }
+
+  const labelList = await labelListRes.json() as {
+    labels?: Array<{ id?: string; name?: string }>;
+  };
+  let labelId = labelList.labels?.find((label) => label.name === labelName)?.id;
+
+  if (!labelId) {
+    const createLabelRes = await fetch(
+      "https://gmail.googleapis.com/gmail/v1/users/me/labels",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: labelName,
+          labelListVisibility: "labelShow",
+          messageListVisibility: "show",
+        }),
+      },
+    );
+    if (!createLabelRes.ok) {
+      const t = await createLabelRes.text();
+      return {
+        success: false,
+        error: `Gmail label creation failed (${createLabelRes.status}): ${t.slice(0, 500)}`,
+        code: "gmail_label_create_failed",
+      };
+    }
+    const created = await createLabelRes.json() as { id?: string };
+    labelId = created.id;
+  }
+
+  if (!labelId) {
+    return {
+      success: false,
+      error: "Gmail label could not be resolved.",
+      code: "gmail_label_missing",
+    };
+  }
+
+  let ids = Array.isArray(args.message_ids)
+    ? args.message_ids.filter((id) => typeof id === "string" && id.trim())
+    : [];
+
+  if (!ids.length) {
+    const refine = sanitizeRefine(args.refine_query);
+    const q = refine
+      ? `(${JOB_EMAIL_GMAIL_QUERY_CORE}) (${refine})`
+      : JOB_EMAIL_GMAIL_QUERY_CORE;
+    const max = Math.max(
+      1,
+      Math.min(25, Math.floor(Number(args.max_results) || 10)),
+    );
+    const listUrl = new URL(
+      "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+    );
+    listUrl.searchParams.set("q", q);
+    listUrl.searchParams.set("maxResults", String(max));
+    const listRes = await fetch(listUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!listRes.ok) {
+      return {
+        success: false,
+        error: `Gmail search failed (${listRes.status})`,
+        code: "gmail_api_error",
+      };
+    }
+    const listJson = await listRes.json() as {
+      messages?: Array<{ id?: string }>;
+    };
+    ids = (listJson.messages || [])
+      .map((message) => message.id)
+      .filter((id): id is string => Boolean(id));
+  }
+
+  if (!ids.length) {
+    return {
+      success: true,
+      labelId,
+      labelName,
+      labeledCount: 0,
+      messageIds: [],
+    };
+  }
+
+  const modifyRes = await fetch(
+    "https://gmail.googleapis.com/gmail/v1/users/me/messages/batchModify",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ids,
+        addLabelIds: [labelId],
+      }),
+    },
+  );
+  if (!modifyRes.ok) {
+    const t = await modifyRes.text();
+    return {
+      success: false,
+      error: `Gmail label apply failed (${modifyRes.status}): ${t.slice(0, 500)}`,
+      code: "gmail_label_apply_failed",
+    };
+  }
+
+  return {
+    success: true,
+    labelId,
+    labelName,
+    labeledCount: ids.length,
+    messageIds: ids,
+  };
+}
+
+export async function agentSendJobRelatedEmail(
+  serviceClient: SupabaseClient,
+  userId: string,
+  args: { to?: string; subject?: string; body?: string },
+) {
+  const validated = validateJobEmailDraft(args);
+  if (!validated.ok) {
+    return {
+      success: false,
+      error: validated.error,
+      code: validated.code,
+    };
+  }
+  const { to, subject, body } = validated;
 
   const combined = `${subject}\n${body}`;
   if (looksBlocked(combined)) {

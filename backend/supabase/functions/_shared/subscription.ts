@@ -114,6 +114,7 @@ export async function resolveSubscriptionTier(
     .select("subscription_plans(name)")
     .eq("user_id", userId)
     .eq("status", "active")
+    .gt("current_period_end", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -123,13 +124,7 @@ export async function resolveSubscriptionTier(
     return normalizeSubscriptionTier(subscriptionTier);
   }
 
-  const { data: profileData } = await serviceClient
-    .from("profiles")
-    .select("subscription_tier")
-    .eq("id", userId)
-    .maybeSingle();
-
-  return normalizeSubscriptionTier(profileData?.subscription_tier);
+  return "Free";
 }
 
 export function getJobSearchResultCap(

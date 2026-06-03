@@ -6,6 +6,7 @@ import {
   extractGeminiText,
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import {
@@ -19,6 +20,14 @@ import {
   formatCandidateMemoryForPrompt,
   type CandidateMemory,
 } from "../_shared/candidate-memory.ts";
+import {
+  fetchAnswerBankEntries,
+  formatAnswerBankForPrompt,
+} from "../_shared/answer-bank.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 function sanitizeInput(text: string, maxLength: number): string {
   if (!text) return "";
@@ -41,6 +50,7 @@ function buildPrompt(
   jobDescription: string,
   resumeText: string,
   candidateMemory: string,
+  answerBank: string | null,
   instructions?: string,
 ): string {
   return `You are an expert career coach and professional copywriter writing a highly persuasive cover letter.
@@ -50,6 +60,10 @@ function buildPrompt(
   <CANDIDATE_MEMORY>
   ${candidateMemory}
   </CANDIDATE_MEMORY>
+
+  <ANSWER_BANK>
+  ${answerBank || "None"}
+  </ANSWER_BANK>
   
   <JOB_DESCRIPTION>
   ${jobDescription}
@@ -120,7 +134,13 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient } = await requireSubscriptionTier(req, "Basics", "AI cover letter generation");
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Basics", "AI cover letter generation");
+    await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "generate_cover_letter",
+      serviceClient,
+      subscriptionTier,
+    });
     const {
       jobDescription,
       resumeText,
@@ -150,25 +170,31 @@ serve(async (req) => {
         );
       }
     }
+    const answerBankEntries = await fetchAnswerBankEntries(serviceClient, user.id, {
+      limit: 10,
+    }).catch(() => []);
     const prompt = buildPrompt(
       safeJobDesc,
       safeResume,
       formatCandidateMemoryForPrompt(candidateMemory),
+      formatAnswerBankForPrompt(answerBankEntries, 10),
       safeInstructions,
     );
 
     let coverLetter = "";
     try {
       const ai = createGeminiClient();
-      const result = await ai.models.generateContent({
-        model: GEMINI_MODEL,
-        config: createGeminiConfig({
-          systemInstruction:
-            "You are an expert cover letter writer. Return ONLY the plain text of the cover letter.",
-          responseMimeType: "text/plain",
+      const { result } = await withModelFallback(
+        (model) => ai.models.generateContent({
+          model,
+          config: createGeminiConfig({
+            systemInstruction:
+              "You are an expert cover letter writer. Return ONLY the plain text of the cover letter.",
+            responseMimeType: "text/plain",
+          }),
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
         }),
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      });
+      );
 
       const text = extractGeminiText(result);
       if (!text) throw new Error("Empty response from AI");
@@ -184,6 +210,17 @@ serve(async (req) => {
         candidateMemory,
       );
     }
+
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "generate_cover_letter",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        job_description_length: safeJobDesc.length,
+        resume_length: safeResume.length,
+      },
+    });
 
     return new Response(JSON.stringify({ cover_letter: coverLetter }), { 
       status: 200, 

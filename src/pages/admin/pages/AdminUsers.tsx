@@ -29,8 +29,35 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent } from "@/components/ui/card";
 import type { CreditTransaction } from "../types";
+import { getCurrentUserAdminSubRole } from "../../../lib/adminUtils";
+import { Card, CardContent } from "../../../components/ui/card";
+
+function renderUserRoleBadges(user: any) {
+  const badges: React.ReactNode[] = [];
+  
+  const adminRole = user.user_roles?.find((r: any) => r.role === 'admin');
+  if (adminRole) {
+    badges.push(
+      <span key="admin" className='inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand/20 text-brand border border-brand/30 uppercase tracking-wider'>
+        <Shield className='w-3 h-3' />
+        Admin ({adminRole.admin_sub_role || 'reader'})
+      </span>
+    );
+  }
+  
+  const hasCreatorRole = user.roles?.includes('creator') || user.user_roles?.some((r: any) => r.role === 'creator');
+  if (hasCreatorRole) {
+    badges.push(
+      <span key="creator" className='inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#3b82f6]/20 text-[#3b82f6] border border-[#3b82f6]/30 uppercase tracking-wider'>
+        <Crown className='w-3 h-3' />
+        Creator
+      </span>
+    );
+  }
+  
+  return badges;
+}
 
 type SortField =
   | "email"
@@ -49,6 +76,9 @@ function UserDetailPanel({
   onTopUp,
   onChangePlan,
   onDelete,
+  onManageRole,
+  isOwner,
+  isReader,
   transactions,
   loadingTransactions,
 }: {
@@ -58,6 +88,9 @@ function UserDetailPanel({
   onTopUp: () => void;
   onChangePlan: () => void;
   onDelete: () => void;
+  onManageRole: () => void;
+  isOwner: boolean;
+  isReader: boolean;
   transactions: CreditTransaction[];
   loadingTransactions: boolean;
 }) {
@@ -109,12 +142,7 @@ function UserDetailPanel({
                     {user.email}
                   </p>
                   <div className='flex items-center gap-2 mt-1'>
-                    {user.roles?.includes("admin") && (
-                      <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium bg-brand/20 text-brand border-brand/30 uppercase tracking-wider'>
-                        <Shield className='w-3 h-3' />
-                        Admin
-                      </span>
-                    )}
+                    {renderUserRoleBadges(user)}
                     <span
                       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium ${getStatusBadgeClass(user.status)}`}
                     >
@@ -160,24 +188,41 @@ function UserDetailPanel({
                   Actions
                 </h4>
                 <div className='grid grid-cols-1 gap-2'>
-                  <ActionButton
-                    icon={<Plus className='w-4 h-4' />}
-                    label='Top Up Credits'
-                    onClick={onTopUp}
-                    color='green'
-                  />
-                  <ActionButton
-                    icon={<Crown className='w-4 h-4' />}
-                    label='Change Subscription'
-                    onClick={onChangePlan}
-                    color='accent'
-                  />
-                  <ActionButton
-                    icon={<Trash2 className='w-4 h-4' />}
-                    label='Delete User'
-                    onClick={onDelete}
-                    color='danger'
-                  />
+                  {!isReader && (
+                    <>
+                      <ActionButton
+                        icon={<Plus className='w-4 h-4' />}
+                        label='Top Up Credits'
+                        onClick={onTopUp}
+                        color='green'
+                      />
+                      <ActionButton
+                        icon={<Crown className='w-4 h-4' />}
+                        label='Change Subscription'
+                        onClick={onChangePlan}
+                        color='accent'
+                      />
+                    </>
+                  )}
+                  {isOwner && (
+                    <>
+                      <ActionButton
+                        icon={<Shield className='w-4 h-4' />}
+                        label='Manage Role'
+                        onClick={onManageRole}
+                        color='accent'
+                      />
+                      <ActionButton
+                        icon={<Trash2 className='w-4 h-4' />}
+                        label='Delete User'
+                        onClick={onDelete}
+                        color='danger'
+                      />
+                    </>
+                  )}
+                  {isReader && (
+                    <p className='text-xs text-gray-500 italic'>No actions available as Reader</p>
+                  )}
                 </div>
               </div>
 
@@ -735,21 +780,178 @@ function DeleteUserDialog({
   );
 }
 
+// ─── Manage Role Dialog ───────────────────────────────────────────────────
+function ManageRoleDialog({
+  user,
+  isOpen,
+  onClose,
+  onConfirm,
+  loading,
+}: {
+  user: any;
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (role: "admin" | "user" | "creator", subRole: "owner" | "editor" | "reader" | null) => void;
+  loading: boolean;
+}) {
+  const [role, setRole] = useState<"admin" | "user" | "creator">("user");
+  const [subRole, setSubRole] = useState<"owner" | "editor" | "reader">("reader");
+
+  useEffect(() => {
+    if (user) {
+      const adminRole = user.user_roles?.find((r: any) => r.role === 'admin');
+      const hasCreator = user.roles?.includes('creator') || user.user_roles?.some((r: any) => r.role === 'creator');
+      
+      if (adminRole) {
+        setRole("admin");
+        setSubRole(adminRole.admin_sub_role || "reader");
+      } else if (hasCreator) {
+        setRole("creator");
+        setSubRole("reader");
+      } else {
+        setRole("user");
+        setSubRole("reader");
+      }
+    }
+  }, [isOpen, user]);
+
+  if (!isOpen || !user) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className='fixed inset-0 bg-background/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4'
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          onClick={(e) => e.stopPropagation()}
+          className='bg-gradient-to-br from-background via-[#111111] to-background border border-brand/30 rounded-2xl w-full max-w-md shadow-2xl shadow-brand/10'
+        >
+          {/* Header */}
+          <div className='px-6 pt-6 pb-4 border-b border-brand/20'>
+            <div className='flex items-center gap-3 mb-2'>
+              <div className='w-10 h-10 rounded-xl bg-brand/20 flex items-center justify-center'>
+                <Shield className='w-5 h-5 text-brand' />
+              </div>
+              <div>
+                <h3 className='text-lg font-bold text-white'>Manage User Role</h3>
+                <p className='text-sm text-gray-400'>{user.email}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className='p-6 space-y-4'>
+            <div>
+              <label className='text-sm text-gray-400 block mb-2'>Select Role</label>
+              <div className='grid grid-cols-3 gap-2'>
+                {(['user', 'creator', 'admin'] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRole(r)}
+                    className={`px-3 py-2.5 rounded-xl text-xs font-semibold border uppercase tracking-wider transition-all ${
+                      role === r
+                        ? "bg-brand/20 border-brand text-brand font-bold"
+                        : "bg-gray-800 border-gray-700 text-gray-400 hover:border-brand/30"
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {role === "admin" && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-2 border-t border-brand/10 pt-4"
+              >
+                <label className='text-sm text-gray-400 block mb-2'>Select Admin Sub-Role</label>
+                <div className='grid grid-cols-3 gap-2'>
+                  {(['owner', 'editor', 'reader'] as const).map((sr) => (
+                    <button
+                      key={sr}
+                      type="button"
+                      onClick={() => setSubRole(sr)}
+                      className={`px-3 py-2.5 rounded-xl text-xs font-semibold border uppercase tracking-wider transition-all ${
+                        subRole === sr
+                          ? "bg-brand/20 border-brand text-brand font-bold"
+                          : "bg-gray-800 border-gray-700 text-gray-400 hover:border-brand/30"
+                      }`}
+                    >
+                      {sr}
+                    </button>
+                  ))}
+                </div>
+                <div className="bg-brand/5 border border-brand/20 rounded-xl p-3 text-xs text-gray-400 mt-2 space-y-1">
+                  {subRole === "owner" && (
+                    <p><strong>Owner:</strong> Full database query access, role management, maintenance mode toggles, and deletion authority.</p>
+                  )}
+                  {subRole === "editor" && (
+                    <p><strong>Editor:</strong> Manage user profiles, credits, subscriptions, and provider credit balances. Cannot manage roles, run DB scripts, toggle maintenance mode, or delete users.</p>
+                  )}
+                  {subRole === "reader" && (
+                    <p><strong>Reader:</strong> Read-only access to all dashboards and panels. No write or mutation privileges.</p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className='px-6 pb-6 flex gap-3'>
+            <button
+              onClick={onClose}
+              className='flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-gray-600 transition-all'
+            >
+              Cancel
+            </button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onConfirm(role, role === 'admin' ? subRole : null)}
+              disabled={loading}
+              className='flex-1 px-4 py-3 bg-gradient-to-r from-brand to-brand text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-brand/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2'
+            >
+              {loading ? (
+                <Loader2 className='w-4 h-4 animate-spin' />
+              ) : (
+                <CheckCircle2 className='w-4 h-4' />
+              )}
+              Save Changes
+            </motion.button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 // ─── Row Actions Dropdown ─────────────────────────────────────────────────
 function RowActions({
   onView,
   onTopUp,
   onChangePlan,
   onDelete,
-  onToggleAdmin,
-  isAdmin,
+  onManageRole,
+  isOwner,
+  isReader,
 }: {
   onView: () => void;
   onTopUp: () => void;
   onChangePlan: () => void;
   onDelete: () => void;
-  onToggleAdmin: () => void;
-  isAdmin: boolean;
+  onManageRole: () => void;
+  isOwner: boolean;
+  isReader: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -786,47 +988,53 @@ function RowActions({
               >
                 <Eye className='w-4 h-4 text-blue-400' /> View Details
               </button>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  onTopUp();
-                }}
-                className='w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all'
-              >
-                <Plus className='w-4 h-4 text-brand' /> Top Up Credits
-              </button>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  onChangePlan();
-                }}
-                className='w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all'
-              >
-                <Crown className='w-4 h-4 text-brand' /> Change Plan
-              </button>
 
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  onToggleAdmin();
-                }}
-                className='w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all'
-              >
-                <Shield
-                  className={`w-4 h-4 ${isAdmin ? "text-brand" : "text-gray-400"}`}
-                />
-                {isAdmin ? "Remove Admin" : "Make Admin"}
-              </button>
-              <div className='border-t border-gray-700/50' />
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  onDelete();
-                }}
-                className='w-full flex items-center gap-3 px-4 py-3 text-sm text-brand hover:text-brand hover:bg-brand/10 transition-all'
-              >
-                <Trash2 className='w-4 h-4' /> Delete User
-              </button>
+              {!isReader && (
+                <>
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      onTopUp();
+                    }}
+                    className='w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all'
+                  >
+                    <Plus className='w-4 h-4 text-brand' /> Top Up Credits
+                  </button>
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      onChangePlan();
+                    }}
+                    className='w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all'
+                  >
+                    <Crown className='w-4 h-4 text-brand' /> Change Plan
+                  </button>
+                </>
+              )}
+
+              {isOwner && (
+                <>
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      onManageRole();
+                    }}
+                    className='w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all'
+                  >
+                    <Shield className='w-4 h-4 text-blue-400' /> Manage Role
+                  </button>
+                  <div className='border-t border-gray-700/50' />
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      onDelete();
+                    }}
+                    className='w-full flex items-center gap-3 px-4 py-3 text-sm text-brand hover:text-brand hover:bg-brand/10 transition-all'
+                  >
+                    <Trash2 className='w-4 h-4' /> Delete User
+                  </button>
+                </>
+              )}
             </motion.div>
           </>
         )}
@@ -902,7 +1110,18 @@ export default function AdminUsers() {
   const [showTopUp, setShowTopUp] = useState(false);
   const [showChangePlan, setShowChangePlan] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showManageRole, setShowManageRole] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [callerSubRole, setCallerSubRole] = useState<'owner' | 'editor' | 'reader' | null>(null);
+
+  // Fetch current admin's subrole on mount
+  useEffect(() => {
+    const fetchCallerSubRole = async () => {
+      const subRole = await getCurrentUserAdminSubRole();
+      setCallerSubRole(subRole);
+    };
+    fetchCallerSubRole();
+  }, []);
 
   // Data for dialogs
   const [plans, setPlans] = useState<any[]>([]);
@@ -920,18 +1139,23 @@ export default function AdminUsers() {
     }
   };
 
-  const handleToggleAdmin = async (user: any) => {
+  const openManageRole = (user: any) => {
+    setSelectedUser(user);
+    setShowManageRole(true);
+  };
+
+  const handleManageRoleConfirm = async (
+    role: "admin" | "user" | "creator",
+    subRole: "owner" | "editor" | "reader" | null
+  ) => {
+    if (!selectedUser) return;
     setActionLoading(true);
-    const isAdmin = user.roles?.includes("admin");
-
-    if (isAdmin) {
-      await removeUserRole(user.id, "admin");
-    } else {
-      await updateUserRole(user.id, "admin");
-    }
-
-    await refetch();
+    const result = await updateUserRole(selectedUser.id, role, subRole);
     setActionLoading(false);
+    if (result.success) {
+      setShowManageRole(false);
+      refetch();
+    }
   };
 
   // Filter and sort data
@@ -1307,15 +1531,12 @@ export default function AdminUsers() {
                         <p className='text-white font-medium group-hover:text-brand transition-colors'>
                           {user.email}
                         </p>
-                        {user.roles?.includes("admin") && (
-                          <span className='inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand/20 text-brand border border-brand/30 uppercase tracking-wider'>
-                            <Shield className='w-3 h-3' />
-                            Admin
-                          </span>
-                        )}
+                      </div>
+                      <div className='flex flex-wrap gap-1 mt-1'>
+                        {renderUserRoleBadges(user)}
                       </div>
                       {user.full_name && (
-                        <p className='text-sm text-gray-400'>
+                        <p className='text-sm text-gray-400 mt-1'>
                           {user.full_name}
                         </p>
                       )}
@@ -1362,8 +1583,9 @@ export default function AdminUsers() {
                       onTopUp={() => openTopUp(user)}
                       onChangePlan={() => openChangePlan(user)}
                       onDelete={() => openDelete(user)}
-                      onToggleAdmin={() => handleToggleAdmin(user)}
-                      isAdmin={user.roles?.includes("admin") ?? false}
+                      onManageRole={() => openManageRole(user)}
+                      isOwner={callerSubRole === "owner"}
+                      isReader={callerSubRole === "reader"}
                     />
                   </td>
                 </motion.tr>
@@ -1398,6 +1620,12 @@ export default function AdminUsers() {
           setShowDetail(false);
           setTimeout(() => openDelete(selectedUser), 200);
         }}
+        onManageRole={() => {
+          setShowDetail(false);
+          setTimeout(() => openManageRole(selectedUser), 200);
+        }}
+        isOwner={callerSubRole === "owner"}
+        isReader={callerSubRole === "reader"}
         transactions={userTransactions}
         loadingTransactions={loadingTransactions}
       />
@@ -1424,6 +1652,14 @@ export default function AdminUsers() {
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDeleteConfirm}
+        loading={actionLoading}
+      />
+
+      <ManageRoleDialog
+        user={selectedUser}
+        isOpen={showManageRole}
+        onClose={() => setShowManageRole(false)}
+        onConfirm={handleManageRoleConfirm}
         loading={actionLoading}
       />
     </div>

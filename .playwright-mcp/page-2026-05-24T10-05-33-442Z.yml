@@ -1,0 +1,469 @@
+- generic [ref=e4]:
+  - navigation [ref=e5]:
+    - generic [ref=e7]:
+      - generic [ref=e8] [cursor=pointer]:
+        - img "logo" [ref=e10]
+        - generic [ref=e11]: JOBRAKER
+      - generic [ref=e12]:
+        - button "LOGIN" [ref=e13] [cursor=pointer]
+        - button "JOIN WAITLIST" [ref=e14] [cursor=pointer]
+  - generic [ref=e15]:
+    - main [ref=e16]:
+      - generic [ref=e19]:
+        - generic [ref=e24]: AI Career Agent Ready
+        - heading "Stop applying one job at a time" [level=1] [ref=e25]:
+          - text: Stop applying
+          - text: one job at a time
+        - paragraph [ref=e26]: "JobRaker turns your profile into an AI-powered job search system: it finds stronger-fit roles, tailors your materials, and moves applications forward with you in control."
+        - generic [ref=e27]:
+          - button "JOIN WAITLIST" [ref=e28] [cursor=pointer]:
+            - text: JOIN WAITLIST
+            - img [ref=e29]
+          - button "REQUEST EARLY ACCESS" [ref=e31] [cursor=pointer]
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - generic [ref=e34]: Review-first
+            - generic [ref=e35]: you stay in control
+          - generic [ref=e37]:
+            - generic [ref=e38]: Tailored
+            - generic [ref=e39]: resume and cover letter workflows
+    - generic [ref=e46]:
+      - paragraph [ref=e48]: Built for candidates across high-intent knowledge roles
+      - generic [ref=e50]:
+        - generic [ref=e52]: Product
+        - generic [ref=e54]: Growth
+        - generic [ref=e56]: Operations
+        - generic [ref=e58]: Software
+        - generic [ref=e60]: Design
+        - generic [ref=e62]: Data
+        - generic [ref=e64]: GTM
+        - generic [ref=e66]: Customer Success
+        - generic [ref=e68]: Product
+        - generic [ref=e70]: Growth
+        - generic [ref=e72]: Operations
+        - generic [ref=e74]: Software
+        - generic [ref=e76]: Design
+        - generic [ref=e78]: Data
+        - generic [ref=e80]: GTM
+        - generic [ref=e82]: Customer Success
+    - generic [ref=e85]:
+      - generic [ref=e86]:
+        - generic [ref=e87]:
+          - img [ref=e88]
+          - text: Search Automation Stack
+        - heading "Turn scattered searching into a pipeline that keeps moving." [level=2] [ref=e91]:
+          - text: Turn scattered searching into
+          - text: a pipeline that keeps moving.
+        - paragraph [ref=e92]: Manual applications drain your best hours. JobRaker helps you find the right roles, tailor the right materials, and move faster without losing control.
+      - generic [ref=e93]:
+        - generic [ref=e96]:
+          - generic [ref=e97]:
+            - img [ref=e99]
+            - heading "Apply without the repetition" [level=3] [ref=e101]
+            - paragraph [ref=e102]: Your agent finds relevant roles, prepares application details, and moves each opportunity through a reviewable pipeline.
+          - generic [ref=e104]:
+            - generic [ref=e106]: Queue
+            - generic [ref=e113]: Applying
+            - generic [ref=e118]: Applied
+        - generic [ref=e128]:
+          - img [ref=e131]
+          - heading "Role-ready resume drafts" [level=3] [ref=e134]
+          - paragraph [ref=e135]: Match each application with sharper, role-specific positioning.
+        - generic [ref=e148]:
+          - img [ref=e151]
+          - heading "Ask your agent anything" [level=3] [ref=e153]
+          - paragraph [ref=e154]: Review drafts, follow-ups, Gmail context, and next steps in one place.
+          - generic [ref=e156]:
+            - generic [ref=e157]:
+              - img [ref=e159]
+              - generic [ref=e162]: Check my emails for interview requests.
+            - generic [ref=e163]:
+              - img [ref=e165]
+              - generic [ref=e168]:
+                - generic [ref=e169]:
+                  - img [ref=e170]
+                  - generic [ref=e173]: Gmail Access Active
+                - text: Found 2 new invites from Google and Netflix.
+            - img [ref=e176]
+        - generic [ref=e183]:
+          - generic [ref=e185]:
+            - generic [ref=e186]:
+              - img [ref=e187]
+              - text: PRACTICE MODE
+            - heading "Interview prep from the real job description" [level=3] [ref=e190]
+            - paragraph [ref=e191]: Rehearse answers against the role you actually want. Get focused feedback before the recruiter call, not after it.
+            - button "Practice the pitch" [ref=e192] [cursor=pointer]:
+              - text: Practice the pitch
+              - img [ref=e193]
+          - generic [ref=e214]: Listening...
+    - generic [ref=e216]:
+      - generic [ref=e217]:
+        - heading "Control the pipeline, not the busywork" [level=2] [ref=e218]
+        - paragraph [ref=e219]: Approve, pause, refine, and track every move from one dashboard built for serious job search momentum.
+      - generic [ref=e222]:
+        - generic [ref=e227]: app.jobraker.io/dashboard
+        - generic [ref=e237]:
+          - generic [ref=e238]:
+            - heading "AGENT WORKFLOW LIVE" [level=3] [ref=e239]
+            - paragraph [ref=e240]: "ID: 8f92-a1b2-c3d4"
+          - generic [ref=e242]:
+            - generic [ref=e248]:
+              - img [ref=e249]
+              - generic [ref=e251]: AI_AGENT_ACTIVE
+            - generic [ref=e252]:
+              - generic [ref=e253]:
+                - generic [ref=e254]: "[11:05:31]"
+                - generic [ref=e256]: Starting JobRaker agent workflow...
+              - generic [ref=e258]: _
+            - generic [ref=e259]:
+              - generic [ref=e260]: "CPU: 12%"
+              - generic [ref=e261]: "MEM: 432MB"
+              - generic [ref=e262]: "NET: CONNECTED"
+    - generic [ref=e264]:
+      - generic [ref=e265]:
+        - heading "YOUR SEARCH, ONE COMMAND CENTER" [level=2] [ref=e266]
+        - paragraph [ref=e267]: Connect job boards, email, resumes, and company research so your next move does not get lost across tabs.
+      - generic [ref=e268]:
+        - img [ref=e273]
+        - generic [ref=e280]:
+          - generic [ref=e283]:
+            - img [ref=e285]
+            - generic [ref=e288]: Gmail
+          - generic [ref=e291]:
+            - img [ref=e293]
+            - generic [ref=e296]: Outlook
+          - generic [ref=e299]:
+            - img [ref=e301]
+            - generic [ref=e305]: Indeed
+          - generic [ref=e308]:
+            - img [ref=e310]
+            - generic [ref=e313]: Glassdoor
+        - generic [ref=e318]:
+          - generic [ref=e321]:
+            - img [ref=e323]
+            - generic [ref=e327]: LinkedIn
+          - generic [ref=e330]:
+            - img [ref=e332]
+            - generic [ref=e337]: Greenhouse
+          - generic [ref=e340]:
+            - img [ref=e342]
+            - generic [ref=e346]: Lever
+          - generic [ref=e349]:
+            - img [ref=e351]
+            - generic [ref=e354]: GitHub
+          - generic [ref=e357]:
+            - img [ref=e359]
+            - generic [ref=e365]: Workday
+    - generic [ref=e368]:
+      - img [ref=e369]
+      - heading "\"Your job search should not depend on how many repetitive forms you can survive. Let the agent handle the busywork so your energy goes into better interviews, smarter follow-ups, and stronger decisions.\"" [level=3] [ref=e372]
+      - generic [ref=e373]:
+        - generic [ref=e375]: JobRaker
+        - generic [ref=e376]: Autonomous job search platform
+    - generic [ref=e378]:
+      - generic [ref=e379]:
+        - generic [ref=e380]:
+          - heading "Pick the pace for your search" [level=2] [ref=e381]
+          - paragraph [ref=e382]: Start free, then scale into deeper AI evaluation, tailored materials, governed auto-apply runs, coaching, and integrations when your search needs more momentum.
+        - generic "Billing period" [ref=e384]:
+          - button "Monthly" [pressed] [ref=e385] [cursor=pointer]
+          - button "Annual Save up to 30%" [ref=e386] [cursor=pointer]
+        - generic [ref=e387]:
+          - generic [ref=e389]:
+            - paragraph [ref=e390]: Free
+            - generic [ref=e391]:
+              - generic [ref=e392]: $0
+              - generic [ref=e393]: / month
+            - paragraph [ref=e394]: billed monthly
+            - list [ref=e395]:
+              - listitem [ref=e396]:
+                - img [ref=e397]
+                - generic [ref=e399]: 10 search and AI credits each month
+              - listitem [ref=e400]:
+                - img [ref=e401]
+                - generic [ref=e403]: Basic match score and job saving
+              - listitem [ref=e404]:
+                - img [ref=e405]
+                - generic [ref=e407]: Manual job feedback labels
+              - listitem [ref=e408]:
+                - img [ref=e409]
+                - generic [ref=e411]: Resume builder, storage, import, and parsing
+              - listitem [ref=e412]:
+                - img [ref=e413]
+                - generic [ref=e415]: Application tracking for your active pipeline
+            - separator [ref=e416]
+            - button "Start Free" [ref=e417] [cursor=pointer]
+            - paragraph [ref=e418]: Explore the core workflow, build your profile, and test governed automation with light monthly usage.
+          - generic [ref=e420]:
+            - paragraph [ref=e421]: Basics
+            - generic [ref=e422]:
+              - generic [ref=e423]: $19
+              - generic [ref=e424]: / month
+            - paragraph [ref=e425]: billed monthly
+            - list [ref=e426]:
+              - listitem [ref=e427]:
+                - img [ref=e428]
+                - generic [ref=e430]: 250 search and AI credits each month
+              - listitem [ref=e431]:
+                - img [ref=e432]
+                - generic [ref=e434]: 15 governed auto-apply runs each month
+              - listitem [ref=e435]:
+                - img [ref=e436]
+                - generic [ref=e438]: Bulk pipeline tools and CSV export
+              - listitem [ref=e439]:
+                - img [ref=e440]
+                - generic [ref=e442]: Basic job quality filtering
+              - listitem [ref=e443]:
+                - img [ref=e444]
+                - generic [ref=e446]: Resume tailoring plus cover letter generation
+              - listitem [ref=e447]:
+                - img [ref=e448]
+                - generic [ref=e450]: Draft-first autopilot with candidate memory
+            - separator [ref=e451]
+            - button "Choose Basics" [ref=e452] [cursor=pointer]
+            - paragraph [ref=e453]: Turn an active search into a repeatable workflow with stronger drafts and governed automation.
+          - generic [ref=e454]:
+            - generic [ref=e455]:
+              - img [ref=e456]
+              - generic [ref=e458]: Popular
+            - generic [ref=e459]:
+              - paragraph [ref=e460]: Pro
+              - generic [ref=e461]:
+                - generic [ref=e462]: $59
+                - generic [ref=e463]: / month
+              - paragraph [ref=e464]: billed monthly
+              - list [ref=e465]:
+                - listitem [ref=e466]:
+                  - img [ref=e467]
+                  - generic [ref=e469]: 1,200 search and AI credits each month
+                - listitem [ref=e470]:
+                  - img [ref=e471]
+                  - generic [ref=e473]: 50 governed auto-apply runs each month
+                - listitem [ref=e474]:
+                  - img [ref=e475]
+                  - generic [ref=e477]: Explainable score breakdowns and interview stories
+                - listitem [ref=e478]:
+                  - img [ref=e479]
+                  - generic [ref=e481]: ATS keyword coverage for generated drafts
+                - listitem [ref=e482]:
+                  - img [ref=e483]
+                  - generic [ref=e485]: Generated application packages with outreach drafts
+                - listitem [ref=e486]:
+                  - img [ref=e487]
+                  - generic [ref=e489]: Feedback-learning job recommendations
+              - separator [ref=e490]
+              - button "Choose Pro" [ref=e491] [cursor=pointer]
+              - paragraph [ref=e492]: Move faster across more opportunities with deeper personalization and higher automation capacity.
+          - generic [ref=e494]:
+            - paragraph [ref=e495]: Ultimate
+            - generic [ref=e496]:
+              - generic [ref=e497]: $149
+              - generic [ref=e498]: / month
+            - paragraph [ref=e499]: billed monthly
+            - list [ref=e500]:
+              - listitem [ref=e501]:
+                - img [ref=e502]
+                - generic [ref=e504]: 3,500 search and AI credits each month
+              - listitem [ref=e505]:
+                - img [ref=e506]
+                - generic [ref=e508]: 150 governed auto-apply runs each month
+              - listitem [ref=e509]:
+                - img [ref=e510]
+                - generic [ref=e512]: Scout Mode background discovery summaries
+              - listitem [ref=e513]:
+                - img [ref=e514]
+                - generic [ref=e516]: Auto re-evaluation and ready-to-tailor queues
+              - listitem [ref=e517]:
+                - img [ref=e518]
+                - generic [ref=e520]: Tracked company intelligence and integrations
+              - listitem [ref=e521]:
+                - img [ref=e522]
+                - generic [ref=e524]: Priority support for complex searches
+              - listitem [ref=e525]:
+                - img [ref=e526]
+                - generic [ref=e528]: Highest throughput limits for scaled pipelines
+            - separator [ref=e529]
+            - button "Choose Ultimate" [ref=e530] [cursor=pointer]
+            - paragraph [ref=e531]: Run a high-volume search with the capacity, support, and intelligence serious pipelines need.
+      - generic [ref=e534]:
+        - generic [ref=e535]:
+          - generic [ref=e536]:
+            - img [ref=e537]
+            - text: Enterprise rollout
+          - generic [ref=e540]:
+            - heading "Need governed AI workflows for a larger hiring or career team?" [level=3] [ref=e541]
+            - paragraph [ref=e542]: JobRaker helps multi-seat teams run evaluation, drafting, review, and follow-up workflows with clearer controls, faster onboarding, and a rollout plan shaped to your operating model.
+          - generic [ref=e543]:
+            - generic [ref=e545]:
+              - img [ref=e546]
+              - generic [ref=e549]: Multi-seat recruiting or coaching workflows
+            - generic [ref=e551]:
+              - img [ref=e552]
+              - generic [ref=e555]: Governed AI drafting, review, and follow-up support
+            - generic [ref=e557]:
+              - img [ref=e558]
+              - generic [ref=e561]: Security review, onboarding, and rollout guidance
+            - generic [ref=e563]:
+              - img [ref=e564]
+              - generic [ref=e567]: Custom usage limits, reporting, and workspace controls
+          - generic [ref=e568]:
+            - paragraph [ref=e569]: Best fit for
+            - generic [ref=e570]:
+              - generic [ref=e571]: Career Services
+              - generic [ref=e572]: Recruiting Ops
+              - generic [ref=e573]: Talent Programs
+              - generic [ref=e574]: Bootcamps
+              - generic [ref=e575]: Staffing Teams
+        - generic [ref=e577]:
+          - generic [ref=e578]:
+            - img [ref=e580]
+            - generic [ref=e584]:
+              - heading "Contact enterprise sales" [level=4] [ref=e585]
+              - paragraph [ref=e586]: Tell us about your team and we’ll shape the right rollout, controls, and support plan.
+          - generic [ref=e587]:
+            - generic [ref=e588]:
+              - img [ref=e589]
+              - text: Multi-seat access and onboarding
+            - generic [ref=e594]:
+              - img [ref=e595]
+              - text: Workflow fit review for your operating model
+          - button "Talk to sales" [ref=e599] [cursor=pointer]
+    - generic [ref=e602]:
+      - generic [ref=e603]:
+        - paragraph [ref=e604]: Proof points
+        - heading "Why candidates stop doing it manually" [level=2] [ref=e605]
+        - paragraph [ref=e606]: "JobRaker is built around the moments that make a search slow down: repetition, weak fit signals, scattered tracking, and generic prep."
+      - generic [ref=e607]:
+        - generic [ref=e608]:
+          - generic [ref=e610]:
+            - generic [ref=e611]: Time sink
+            - generic [ref=e612]: "01"
+          - paragraph [ref=e613]: "\"Evenings should not disappear into the same form fields.\""
+          - generic [ref=e614]:
+            - img [ref=e615]
+            - paragraph [ref=e618]: JobRaker prepares application packages from your profile so your energy goes into interviews, follow-ups, and decisions.
+        - generic [ref=e619]:
+          - generic [ref=e621]:
+            - generic [ref=e622]: Blank page
+            - generic [ref=e623]: "02"
+          - paragraph [ref=e624]: "\"Every resume needs to feel built for the role.\""
+          - generic [ref=e625]:
+            - img [ref=e626]
+            - paragraph [ref=e629]: Resume tailoring starts from the job description, your profile, and the positioning that makes you relevant faster.
+        - generic [ref=e630]:
+          - generic [ref=e632]:
+            - generic [ref=e633]: Role quality
+            - generic [ref=e634]: "03"
+          - paragraph [ref=e635]: "\"Not every opening deserves your best hour.\""
+          - generic [ref=e636]:
+            - img [ref=e637]
+            - paragraph [ref=e640]: Fit signals help you prioritize stronger opportunities before you spend time on another low-signal application.
+        - generic [ref=e641]:
+          - generic [ref=e643]:
+            - generic [ref=e644]: Pipeline clarity
+            - generic [ref=e645]: "04"
+          - paragraph [ref=e646]: "\"Drafted, submitted, waiting, and follow-up should never blur together.\""
+          - generic [ref=e647]:
+            - img [ref=e648]
+            - paragraph [ref=e651]: Your dashboard keeps each opportunity visible, organized, and ready for the next action.
+        - generic [ref=e652]:
+          - generic [ref=e654]:
+            - generic [ref=e655]: Trust controls
+            - generic [ref=e656]: "05"
+          - paragraph [ref=e657]: "\"Automation only works when you can slow it down.\""
+          - generic [ref=e658]:
+            - img [ref=e659]
+            - paragraph [ref=e662]: Review Mode lets you approve, revise, or skip important applications before they go out.
+        - generic [ref=e663]:
+          - generic [ref=e665]:
+            - generic [ref=e666]: Interview prep
+            - generic [ref=e667]: "06"
+          - paragraph [ref=e668]: "\"Generic practice does not prepare you for a specific role.\""
+          - generic [ref=e669]:
+            - img [ref=e670]
+            - paragraph [ref=e673]: Practice starts from the job description, so your answers connect to the actual conversation ahead.
+    - generic [ref=e675]:
+      - heading "SYSTEM FAQ" [level=2] [ref=e676]
+      - generic [ref=e677]:
+        - button "How does the auto-apply feature work?" [ref=e679] [cursor=pointer]:
+          - generic [ref=e680]: How does the auto-apply feature work?
+          - img [ref=e681]
+        - button "Is my data secure?" [ref=e684] [cursor=pointer]:
+          - generic [ref=e685]: Is my data secure?
+          - img [ref=e686]
+        - button "Can I stay in control before applications are sent?" [ref=e689] [cursor=pointer]:
+          - generic [ref=e690]: Can I stay in control before applications are sent?
+          - img [ref=e691]
+        - button "What job boards do you support?" [ref=e694] [cursor=pointer]:
+          - generic [ref=e695]: What job boards do you support?
+          - img [ref=e696]
+        - button "Can I cancel my subscription anytime?" [ref=e699] [cursor=pointer]:
+          - generic [ref=e700]: Can I cancel my subscription anytime?
+          - img [ref=e701]
+        - button "What are search and AI credits?" [ref=e704] [cursor=pointer]:
+          - generic [ref=e705]: What are search and AI credits?
+          - img [ref=e706]
+        - button "Do you offer quarterly or annual billing?" [ref=e709] [cursor=pointer]:
+          - generic [ref=e710]: Do you offer quarterly or annual billing?
+          - img [ref=e711]
+        - button "Can I use JobRaker on mobile?" [ref=e714] [cursor=pointer]:
+          - generic [ref=e715]: Can I use JobRaker on mobile?
+          - img [ref=e716]
+        - button "How does match or ATS scoring work?" [ref=e719] [cursor=pointer]:
+          - generic [ref=e720]: How does match or ATS scoring work?
+          - img [ref=e721]
+        - button "Who do I contact for billing or account help?" [ref=e724] [cursor=pointer]:
+          - generic [ref=e725]: Who do I contact for billing or account help?
+          - img [ref=e726]
+    - generic [ref=e731]:
+      - heading "YOUR NEXT APPLICATION SHOULD NOT TAKE ALL NIGHT." [level=2] [ref=e732]:
+        - text: YOUR NEXT APPLICATION
+        - text: SHOULD NOT TAKE ALL NIGHT.
+      - paragraph [ref=e733]: Start with your profile. Let JobRaker find stronger-fit roles, prepare sharper materials, and keep your pipeline moving.
+      - button "START FREE" [ref=e734] [cursor=pointer]:
+        - text: START FREE
+        - img [ref=e735]
+    - contentinfo [ref=e738]:
+      - generic [ref=e739]:
+        - generic [ref=e740]:
+          - generic [ref=e741]:
+            - generic [ref=e742]:
+              - img "JobRaker logo" [ref=e744]
+              - generic [ref=e745]: JOBRAKER
+            - paragraph [ref=e746]: Autonomous job search tools for candidates who want fewer repetitive forms and a clearer path to better conversations.
+          - generic [ref=e747]:
+            - heading "Product" [level=4] [ref=e748]
+            - list [ref=e749]:
+              - listitem [ref=e750]:
+                - link "Features" [ref=e751] [cursor=pointer]:
+                  - /url: /#features-section
+              - listitem [ref=e752]:
+                - link "Pricing" [ref=e753] [cursor=pointer]:
+                  - /url: /pricing
+              - listitem [ref=e754]:
+                - link "Changelog" [ref=e755] [cursor=pointer]:
+                  - /url: https://github.com/mylife-as-miles/Jobraker/commits/main
+              - listitem [ref=e756]:
+                - link "Docs" [ref=e757] [cursor=pointer]:
+                  - /url: https://github.com/mylife-as-miles/Jobraker#readme
+          - generic [ref=e758]:
+            - heading "Legal" [level=4] [ref=e759]
+            - list [ref=e760]:
+              - listitem [ref=e761]:
+                - link "Privacy" [ref=e762] [cursor=pointer]:
+                  - /url: /privacy
+              - listitem [ref=e763]:
+                - link "Terms" [ref=e764] [cursor=pointer]:
+                  - /url: /terms
+              - listitem [ref=e765]:
+                - link "Security" [ref=e766] [cursor=pointer]:
+                  - /url: /security
+        - generic [ref=e767]:
+          - paragraph [ref=e768]: Copyright 2026 JobRaker. Built for serious job-search momentum.
+          - generic [ref=e769]:
+            - link [ref=e770] [cursor=pointer]:
+              - /url: mailto:support@jobraker.com
+              - img [ref=e771]
+            - link [ref=e774] [cursor=pointer]:
+              - /url: https://github.com/mylife-as-miles/Jobraker
+              - img [ref=e775]

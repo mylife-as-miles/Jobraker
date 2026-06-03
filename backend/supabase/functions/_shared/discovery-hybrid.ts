@@ -15,7 +15,27 @@ type SourceKind =
   | "ashby"
   | "workable"
   | "direct"
+  | "yc"
+  | "hackernews"
+  | "reddit"
+  | "x"
   | "firecrawl";
+
+export type PublicJobSource =
+  | "web"
+  | "ats"
+  | "yc"
+  | "x"
+  | "reddit"
+  | "hackernews"
+  | "community";
+
+interface SalarySignal {
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string | null;
+  salary_raw?: string | null;
+}
 
 export type VerificationStatus = "verified" | "stale" | "failed" | "unverified";
 
@@ -32,6 +52,9 @@ export interface DiscoveryJob {
   source_confidence: number;
   verification_status: VerificationStatus;
   is_tracked_company: boolean;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string | null;
   raw_data: Record<string, unknown>;
 }
 
@@ -48,6 +71,8 @@ interface FirecrawlDiscoveryArgs {
   searchQuery: string;
   location: string;
   limit: number;
+  sourceFocus?: PublicJobSource[];
+  targetDomains?: string[];
 }
 
 interface JobSourceSettings {
@@ -67,6 +92,12 @@ interface SearchSeed {
     | "allowed_domain"
     | "default_source"
     | "credential_domain"
+    | "ats_signal"
+    | "yc_signal"
+    | "x_signal"
+    | "reddit_signal"
+    | "hackernews_signal"
+    | "community_signal"
     | "remote_fallback";
   query: string;
   limit: number;
@@ -93,6 +124,9 @@ interface FirecrawlSearchCandidate {
   source_kind: SourceKind;
   source_confidence: number;
   is_tracked_company: boolean;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string | null;
   seed_matches: string[];
   firecrawl_queries: string[];
   priority: number;
@@ -110,6 +144,9 @@ interface NormalizedProviderJob {
   provider_job_id?: string;
   source_kind: SourceKind;
   source_confidence: number;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string | null;
   raw_data: Record<string, unknown>;
 }
 
@@ -164,18 +201,31 @@ const KNOWN_ATS_HINTS: Array<{ kind: SourceKind; match: RegExp }> = [
   { kind: "lever", match: /lever/i },
   { kind: "ashby", match: /ashby/i },
   { kind: "workable", match: /workable/i },
+  { kind: "yc", match: /ycombinator\.com\/jobs|workatastartup\.com/i },
+  { kind: "hackernews", match: /news\.ycombinator\.com/i },
+  { kind: "reddit", match: /reddit\.com/i },
+  { kind: "x", match: /(?:^|\.)x\.com|twitter\.com/i },
 ];
 
-const MAX_FIRECRAWL_SEEDS = 4;
+const MAX_FIRECRAWL_SEEDS = 8;
 const MAX_FIRECRAWL_RESULTS_PER_SEED = 12;
-const MAX_RAW_CANDIDATES = 36;
-const MAX_DIRECT_FETCHES = 8;
-const MAX_VERIFICATION_POOL = 16;
-const FIRECRAWL_SEARCH_TIMEOUT_MS = 60000;
+const MAX_RAW_CANDIDATES = 24;
+const MAX_DIRECT_FETCHES = 6;
+const MAX_VERIFICATION_POOL = 8;
+const FIRECRAWL_SEARCH_TIMEOUT_MS = 20000;
 const PROVIDER_LOOKUP_TIMEOUT_MS = 5000;
 const DIRECT_PAGE_FETCH_TIMEOUT_MS = 3500;
 const URL_VERIFY_TIMEOUT_MS = 2500;
 const URL_VERIFY_CONCURRENCY = 10;
+const PUBLIC_JOB_SOURCES = new Set<PublicJobSource>([
+  "web",
+  "ats",
+  "yc",
+  "x",
+  "reddit",
+  "hackernews",
+  "community",
+]);
 
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -190,6 +240,40 @@ const asStringArray = (value: unknown): string[] => {
     .filter((item): item is string => Boolean(item));
 };
 
+const normalizePublicJobSources = (value: unknown): PublicJobSource[] => {
+  const raw = Array.isArray(value) ? value : typeof value === "string" ? value.split(/[,;\s]+/) : [];
+  const aliases: Record<string, PublicJobSource> = {
+    twitter: "x",
+    "x.com": "x",
+    "twitter.com": "x",
+    yc: "yc",
+    "yc/jobs": "yc",
+    "yc jobs": "yc",
+    "ycombinator": "yc",
+    "ycombinator.com": "yc",
+    "workatastartup": "yc",
+    "work at a startup": "yc",
+    hn: "hackernews",
+    hackernews: "hackernews",
+    "hacker-news": "hackernews",
+    "news.ycombinator.com": "hackernews",
+    reddit: "reddit",
+    ats: "ats",
+    greenhouse: "ats",
+    lever: "ats",
+    ashby: "ats",
+    workable: "ats",
+    web: "web",
+    general: "web",
+    community: "community",
+  };
+  const normalized = raw
+    .map((item) => String(item || "").trim().toLowerCase())
+    .map((item) => aliases[item] || item)
+    .filter((item): item is PublicJobSource => PUBLIC_JOB_SOURCES.has(item as PublicJobSource));
+  return uniqueStrings(normalized);
+};
+
 const toRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -198,8 +282,103 @@ const toRecord = (value: unknown): Record<string, unknown> =>
 const trimText = (value: string, maxLength: number): string =>
   value.length > maxLength ? value.slice(0, maxLength).trim() : value.trim();
 
+const decodeHtmlEntities = (value: string): string =>
+  value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/gi, "'")
+    .replace(/&#x2F;/gi, "/")
+    .replace(/&#(\d+);/g, (_match, code) => {
+      const numeric = Number(code);
+      return Number.isFinite(numeric) ? String.fromCharCode(numeric) : " ";
+    });
+
 const stripHtmlTags = (value: string): string =>
-  value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  decodeHtmlEntities(value)
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|section|article|h[1-6])>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+
+const cleanJobDescription = (value: string | null | undefined, maxLength = 16000): string => {
+  const raw = asString(value);
+  if (!raw) return "";
+  const withoutHtml = /<\/?[a-z][\s\S]*>/i.test(raw) ? stripHtmlTags(raw) : decodeHtmlEntities(raw);
+  return trimText(
+    withoutHtml
+      .replace(/\[(.*?)\]\((.*?)\)/g, "$1 ($2)")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim(),
+    maxLength,
+  );
+};
+
+const parseSalaryText = (value: string | null | undefined): SalarySignal => {
+  const salaryRaw = asString(value);
+  if (!salaryRaw) return {};
+  const lower = salaryRaw.toLowerCase();
+  const currency =
+    /\bngn\b|naira|\u20a6/.test(lower)
+      ? "NGN"
+      : /\bgbp\b|pounds?|\u00a3/.test(lower)
+        ? "GBP"
+        : /\beur\b|euro|\u20ac/.test(lower)
+          ? "EUR"
+          : /\bcad\b/.test(lower)
+            ? "CAD"
+            : /\baud\b/.test(lower)
+              ? "AUD"
+              : /\busd\b|dollars?|\$/.test(lower)
+                ? "USD"
+                : null;
+
+  const numbers = Array.from(
+    salaryRaw.matchAll(/(?:[$\u00a3\u20ac\u20a6]\s*)?(\d[\d,]*(?:\.\d+)?)\s*(k|m)?/gi),
+  )
+    .map((match) => {
+      const amount = Number(match[1].replace(/,/g, ""));
+      if (!Number.isFinite(amount)) return null;
+      const suffix = (match[2] || "").toLowerCase();
+      if (suffix === "m") return Math.round(amount * 1_000_000);
+      if (suffix === "k") return Math.round(amount * 1_000);
+      return Math.round(amount);
+    })
+    .filter((amount): amount is number => Boolean(amount && amount > 0));
+
+  if (!numbers.length) {
+    return { salary_currency: currency, salary_raw: salaryRaw };
+  }
+
+  const [first, second] = numbers;
+  return {
+    salary_min: Math.min(first, second ?? first),
+    salary_max: second ? Math.max(first, second) : null,
+    salary_currency: currency,
+    salary_raw: salaryRaw,
+  };
+};
+
+const mergeSalarySignals = (...signals: SalarySignal[]): SalarySignal => {
+  const merged: SalarySignal = {};
+  for (const signal of signals) {
+    if (merged.salary_min == null && signal.salary_min != null) merged.salary_min = signal.salary_min;
+    if (merged.salary_max == null && signal.salary_max != null) merged.salary_max = signal.salary_max;
+    if (!merged.salary_currency && signal.salary_currency) merged.salary_currency = signal.salary_currency;
+    if (!merged.salary_raw && signal.salary_raw) merged.salary_raw = signal.salary_raw;
+  }
+  return merged;
+};
 
 const uniqueStrings = (values: Array<string | null | undefined>): string[] => {
   const seen = new Set<string>();
@@ -265,6 +444,80 @@ const normalizeDomain = (value: string | null | undefined): string | null => {
 const hostFromUrl = (value: string | null | undefined): string | null =>
   normalizeDomain(safeUrl(value)?.hostname ?? value);
 
+const extractTargetDomainsFromText = (value: string | null | undefined): string[] => {
+  const text = asString(value) || "";
+  const domains = new Set<string>();
+
+  for (const match of text.matchAll(/\bsite:([a-z0-9.-]+\.[a-z]{2,})(?:\/[^\s)"']*)?/gi)) {
+    const domain = normalizeDomain(match[1]);
+    if (domain) domains.add(domain);
+  }
+
+  for (const match of text.matchAll(/https?:\/\/[^\s<>"')]+/gi)) {
+    const domain = hostFromUrl(match[0]);
+    if (domain) domains.add(domain);
+  }
+
+  return Array.from(domains);
+};
+
+const normalizeTargetDomains = (value: unknown): string[] =>
+  uniqueStrings([
+    ...asStringArray(value).map((item) => normalizeDomain(item)).filter((item): item is string => Boolean(item)),
+    ...(typeof value === "string" ? extractTargetDomainsFromText(value) : []),
+  ]).slice(0, 12);
+
+const stripSourceTargetsFromQuery = (value: string): string =>
+  value
+    .replace(/\bsite:[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s)"']*)?/gi, " ")
+    .replace(/https?:\/\/[^\s<>"')]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const hostMatchesDomain = (
+  host: string | null | undefined,
+  domain: string | null | undefined,
+): boolean => {
+  const normalizedHost = normalizeDomain(host);
+  const normalizedDomain = normalizeDomain(domain);
+  if (!normalizedHost || !normalizedDomain) return false;
+  return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
+};
+
+const hostMatchesAnyDomain = (
+  host: string | null | undefined,
+  domains: string[],
+): boolean => domains.some((domain) => hostMatchesDomain(host, domain));
+
+const isKnownAtsHost = (host: string | null | undefined): boolean => {
+  const normalized = normalizeDomain(host) || "";
+  return /(?:^|\.)boards\.greenhouse\.io$|(?:^|\.)jobs\.lever\.co$|(?:^|\.)lever\.co$|(?:^|\.)jobs\.ashbyhq\.com$|(?:^|\.)apply\.workable\.com$|(?:^|\.)breezy\.hr$|(?:^|\.)recruitee\.com$|(?:^|\.)smartrecruiters\.com$/i.test(normalized);
+};
+
+const seedDomainMatchesTargets = (
+  value: unknown,
+  targetDomains: string[],
+): boolean =>
+  typeof value === "string" && targetDomains.some((domain) => hostMatchesDomain(value, domain));
+
+const candidateMatchesTargetDomains = (
+  candidate: { url: string; raw_data?: Record<string, unknown>; seed_matches?: string[] },
+  targetDomains: string[],
+): boolean => {
+  if (!targetDomains.length) return true;
+  const host = hostFromUrl(candidate.url);
+  if (hostMatchesAnyDomain(host, targetDomains)) return true;
+
+  const raw = toRecord(candidate.raw_data);
+  const firecrawlResult = toRecord(raw.firecrawl_result);
+  const seedDomain = asString(firecrawlResult.seed_domain);
+  const seedMatchedTarget =
+    seedDomainMatchesTargets(seedDomain, targetDomains) ||
+    (candidate.seed_matches || []).some((match) => seedDomainMatchesTargets(match, targetDomains));
+
+  return seedMatchedTarget && isKnownAtsHost(host);
+};
+
 const normalizeCanonicalJobUrl = (value: string | null | undefined): string | null => {
   const parsed = safeUrl(value);
   if (!parsed) return null;
@@ -307,6 +560,71 @@ const inferSourceKind = (
     if (known.match.test(haystack)) return known.kind;
   }
   return url ? "direct" : "firecrawl";
+};
+
+const SOCIAL_SIGNAL_HOSTS = /(reddit\.com|(?:^|\.)x\.com|twitter\.com|news\.ycombinator\.com)/i;
+
+const isKnownJobDetailUrl = (url: string): boolean => {
+  const parsed = safeUrl(url);
+  if (!parsed) return false;
+  const host = parsed.hostname.toLowerCase();
+  const path = parsed.pathname.toLowerCase();
+
+  if (/boards\.greenhouse\.io|job-boards\.greenhouse\.io/i.test(host) && /\/jobs?\//i.test(path)) return true;
+  if (/lever\.co$/i.test(host) && path.split("/").filter(Boolean).length >= 2) return true;
+  if (/ashbyhq\.com|jobs\.ashbyhq\.com/i.test(host) && path.split("/").filter(Boolean).length >= 2) return true;
+  if (/workable\.com/i.test(host) && /\/j\/|\/jobs?\//i.test(path)) return true;
+  if (/ycombinator\.com/i.test(host) && /\/companies\/[^/]+\/jobs?\//i.test(path)) return true;
+  if (/workatastartup\.com/i.test(host) && /\/jobs?\/\d+/i.test(path)) return true;
+  if (/jobs\.micro1\.ai/i.test(host) && path.split("/").filter(Boolean).length >= 1) return true;
+  if (/weworkremotely\.com|remoteok\.com|remotive\.com|jobicy\.com|workingnomads\.com/i.test(host) && /\/(remote-)?jobs?\//i.test(path)) return true;
+  if (/builtin\.com|startup\.jobs|cryptojobslist\.com|nodesk\.co|remote\.co/i.test(host) && /\/jobs?\//i.test(path) && path.split("/").filter(Boolean).length >= 2) return true;
+  if (/meetfrank\.com/i.test(host) && /\/job\//i.test(path)) return true;
+
+  return /\/(job|jobs|posting|openings?|careers?|positions?|vacancies?)\/[a-z0-9][a-z0-9-_%]+/i.test(path) &&
+    !/\/(jobs?|careers?|openings?|positions?|vacancies?)\/?$/i.test(path);
+};
+
+export const isLikelyAggregateJobPage = (
+  url: string,
+  title?: string | null,
+  description?: string | null,
+): boolean => {
+  const parsed = safeUrl(url);
+  const path = parsed?.pathname.toLowerCase() || "";
+  const text = `${title || ""} ${description || ""}`.toLowerCase();
+
+  if (isKnownJobDetailUrl(url)) return false;
+  if (/\/(search|job-search|jobs-search|find-jobs|browse|companies|categories|jobs?\/role)(\/|$)/i.test(path)) return true;
+  if (/\/(jobs?|careers?|openings?|positions?|vacancies?|remote-jobs)\/?$/i.test(path)) return true;
+  if (/\b\d+\s+(?:fully\s+remote\s+)?[\w\s()/-]{2,80}\s+jobs?\s+in\b/i.test(text)) return true;
+  if (/\b(jobs|vacancies|openings)\s+in\s+(the\s+best\s+)?companies\b/i.test(text)) return true;
+  if (/\b(show|find|browse|view)\s+\d+\+?\s+jobs?\b/i.test(text)) return true;
+  if (/\bnew offers\b.*\bstartups\b.*\bscaleups\b.*\bcorporate\b/i.test(text)) return true;
+  if (/\bjob board\b|\bsearch results\b|\ball jobs\b|\bmore jobs\b/i.test(text)) return true;
+
+  return false;
+};
+
+const isPotentialJobUrl = (url: string): boolean => {
+  const parsed = safeUrl(url);
+  if (!parsed) return false;
+  const lower = url.toLowerCase();
+  if (/\/login|\/signin|\/auth|\/pricing|\/blog|\/about|\/privacy|\/terms/i.test(lower)) return false;
+  if (isProfileUrl(lower)) return false;
+  if (isKnownJobDetailUrl(url)) return true;
+  if (SOCIAL_SIGNAL_HOSTS.test(parsed.hostname)) return /hiring|job|role|work/i.test(lower);
+  return /\/(job|jobs|posting|opening|position|career|apply|vacanc)/i.test(parsed.pathname);
+};
+
+const inferSignalSource = (url: string | null | undefined): string | null => {
+  const host = hostFromUrl(url);
+  if (!host) return null;
+  if (/reddit\.com$/i.test(host) || host.endsWith(".reddit.com")) return "reddit_public_post";
+  if (/x\.com$/i.test(host) || host.endsWith(".x.com") || /twitter\.com$/i.test(host)) return "x_public_post";
+  if (/news\.ycombinator\.com$/i.test(host)) return "hackernews_who_is_hiring";
+  if (/ycombinator\.com$/i.test(host) || /workatastartup\.com$/i.test(host)) return "yc_jobs";
+  return null;
 };
 
 const extractTerms = (query: string): string[] =>
@@ -541,6 +859,61 @@ const buildDomainQuery = (
     "-inurl:login",
   );
 
+const buildAtsSignalQuery = (query: string, location: string): string =>
+  buildQueryText(
+    query,
+    location,
+    "(site:boards.greenhouse.io OR site:jobs.lever.co OR site:lever.co OR site:jobs.ashbyhq.com OR site:apply.workable.com)",
+    "(hiring OR apply OR opening)",
+    "-inurl:search",
+    "-inurl:login",
+  );
+
+const buildYcSignalQuery = (query: string, location: string): string =>
+  buildQueryText(
+    query,
+    location,
+    "(site:ycombinator.com/jobs OR site:workatastartup.com)",
+    "(hiring OR apply OR startup)",
+    "-inurl:login",
+  );
+
+const buildXSignalQuery = (query: string, location: string): string =>
+  buildQueryText(
+    `"${query}"`,
+    location,
+    "(site:x.com OR site:twitter.com)",
+    "(hiring OR \"we're hiring\" OR \"is hiring\" OR \"join our team\" OR \"apply now\")",
+    "-inurl:login",
+    "-inurl:i/flow",
+  );
+
+const buildRedditSignalQuery = (query: string, location: string): string =>
+  buildQueryText(
+    `"${query}"`,
+    location,
+    "(site:reddit.com/r/forhire OR site:reddit.com/r/remotework OR site:reddit.com/r/jobs OR site:reddit.com/r/startups)",
+    "(hiring OR \"we're hiring\" OR \"job opening\" OR \"apply\")",
+    "-inurl:login",
+  );
+
+const buildHackerNewsSignalQuery = (query: string, location: string): string =>
+  buildQueryText(
+    `"${query}"`,
+    location,
+    "site:news.ycombinator.com",
+    "(\"Who is hiring\" OR hiring OR remote OR onsite)",
+  );
+
+const buildCommunitySignalQuery = (query: string, location: string): string =>
+  buildQueryText(
+    `"${query}"`,
+    location,
+    "(site:news.ycombinator.com OR site:reddit.com/r/forhire OR site:reddit.com/r/remotework OR site:reddit.com/r/jobs OR site:x.com OR site:twitter.com)",
+    "(hiring OR \"we're hiring\" OR \"who is hiring\" OR \"apply\")",
+    "-inurl:login",
+  );
+
 const extractCredentialDomains = (
   sourceCredentials: Record<string, unknown>,
 ): string[] => {
@@ -714,6 +1087,18 @@ function buildSearchSeeds(
 ): SearchSeed[] {
   const location = normalizeLocation(args.location || context.candidateMemory.location);
   const searchQuery = args.searchQuery.trim();
+  const sourceFocus = normalizePublicJobSources(args.sourceFocus);
+  const targetDomains = normalizeTargetDomains([
+    ...(args.targetDomains || []),
+    ...extractTargetDomainsFromText(searchQuery),
+  ]);
+  const roleQuery = targetDomains.length > 0
+    ? stripSourceTargetsFromQuery(searchQuery) || searchQuery
+    : searchQuery;
+  const wantsSource = (source: PublicJobSource) =>
+    sourceFocus.length === 0 ||
+    sourceFocus.includes(source) ||
+    (source !== "web" && source !== "ats" && sourceFocus.includes("community"));
   const profileTerms = uniqueStrings(
     context.candidateMemory.skillKeywords
       .slice(0, 4)
@@ -728,7 +1113,19 @@ function buildSearchSeeds(
 
   const seeds: Omit<SearchSeed, "limit">[] = [];
 
-  if (context.settings.include_search) {
+  if (targetDomains.length > 0) {
+    for (const domain of targetDomains) {
+      seeds.push({
+        type: "allowed_domain",
+        query: buildDomainQuery(roleQuery, location, domain),
+        priority: 0,
+        domain,
+        is_tracked_company: context.trackedCompanyDomains.some((trackedDomain) =>
+          hostMatchesDomain(domain, trackedDomain)
+        ),
+      });
+    }
+  } else if (context.settings.include_search && wantsSource("web")) {
     seeds.push({
       type: "general",
       query: buildGeneralQuery(searchQuery, location),
@@ -746,50 +1143,104 @@ function buildSearchSeeds(
     }
   }
 
-  for (const company of context.trackedCompanies.slice(0, 4)) {
-    const domain =
-      normalizeDomain(company.domain) || normalizeDomain(company.careers_url);
+  if (targetDomains.length === 0 && wantsSource("web")) {
+    for (const company of context.trackedCompanies.slice(0, 2)) {
+      const domain =
+        normalizeDomain(company.domain) || normalizeDomain(company.careers_url);
+      seeds.push({
+        type: "tracked_company",
+        query: buildTrackedCompanyQuery(searchQuery, location, company.name, domain || undefined),
+        priority: 0,
+        domain: domain || undefined,
+        company_name: company.name,
+        is_tracked_company: true,
+      });
+    }
+
+    for (const domain of context.settings.allowed_domains.slice(0, 1)) {
+      seeds.push({
+        type: "allowed_domain",
+        query: buildDomainQuery(searchQuery, location, domain),
+        priority: 3,
+        domain,
+        is_tracked_company: false,
+      });
+    }
+
+    for (const domain of context.settings.enabled_default_sources.slice(0, 1)) {
+      seeds.push({
+        type: "default_source",
+        query: buildDomainQuery(searchQuery, location, domain),
+        priority: 4,
+        domain,
+        is_tracked_company: false,
+      });
+    }
+
+    for (const domain of credentialDomains.slice(0, 1)) {
+      seeds.push({
+        type: "credential_domain",
+        query: buildDomainQuery(searchQuery, location, domain),
+        priority: 4,
+        domain,
+        is_tracked_company: false,
+      });
+    }
+  }
+
+  if (targetDomains.length === 0 && wantsSource("ats")) {
     seeds.push({
-      type: "tracked_company",
-      query: buildTrackedCompanyQuery(searchQuery, location, company.name, domain || undefined),
-      priority: 0,
-      domain: domain || undefined,
-      company_name: company.name,
-      is_tracked_company: true,
+      type: "ats_signal",
+      query: buildAtsSignalQuery(searchQuery, location),
+      priority: 2,
+      is_tracked_company: false,
     });
   }
 
-  for (const domain of context.settings.allowed_domains.slice(0, 3)) {
+  if (targetDomains.length === 0 && wantsSource("yc")) {
     seeds.push({
-      type: "allowed_domain",
-      query: buildDomainQuery(searchQuery, location, domain),
+      type: "yc_signal",
+      query: buildYcSignalQuery(searchQuery, location),
       priority: 3,
-      domain,
       is_tracked_company: false,
     });
   }
 
-  for (const domain of context.settings.enabled_default_sources.slice(0, 3)) {
+  if (targetDomains.length === 0 && (sourceFocus.length === 0 || sourceFocus.includes("community"))) {
     seeds.push({
-      type: "default_source",
-      query: buildDomainQuery(searchQuery, location, domain),
-      priority: 4,
-      domain,
+      type: "community_signal",
+      query: buildCommunitySignalQuery(searchQuery, location),
+      priority: 6,
       is_tracked_company: false,
     });
+  } else {
+    if (wantsSource("x")) {
+      seeds.push({
+        type: "x_signal",
+        query: buildXSignalQuery(searchQuery, location),
+        priority: 4,
+        is_tracked_company: false,
+      });
+    }
+    if (wantsSource("reddit")) {
+      seeds.push({
+        type: "reddit_signal",
+        query: buildRedditSignalQuery(searchQuery, location),
+        priority: 5,
+        is_tracked_company: false,
+      });
+    }
+    if (wantsSource("hackernews")) {
+      seeds.push({
+        type: "hackernews_signal",
+        query: buildHackerNewsSignalQuery(searchQuery, location),
+        priority: 5,
+        is_tracked_company: false,
+      });
+    }
   }
 
-  for (const domain of credentialDomains.slice(0, 2)) {
-    seeds.push({
-      type: "credential_domain",
-      query: buildDomainQuery(searchQuery, location, domain),
-      priority: 4,
-      domain,
-      is_tracked_company: false,
-    });
-  }
-
-  if (location.toLowerCase() === "remote") {
+  if (targetDomains.length === 0 && location.toLowerCase() === "remote" && wantsSource("web")) {
     seeds.push({
       type: "remote_fallback",
       query: buildGeneralQuery(searchQuery, "Remote"),
@@ -806,7 +1257,9 @@ function buildSearchSeeds(
     }
   }
 
-  const finalSeeds = Array.from(deduped.values()).slice(0, MAX_FIRECRAWL_SEEDS);
+  const finalSeeds = Array.from(deduped.values())
+    .sort((left, right) => left.priority - right.priority)
+    .slice(0, MAX_FIRECRAWL_SEEDS);
   const perSeedLimit = Math.min(
     MAX_FIRECRAWL_RESULTS_PER_SEED,
     Math.max(5, Math.ceil((args.limit * 1.2) / Math.max(1, finalSeeds.length))),
@@ -836,6 +1289,35 @@ function mapFirecrawlItems(response: Record<string, unknown>): Record<string, un
   return [];
 }
 
+function extractLinksFromFirecrawlItem(item: Record<string, unknown>): string[] {
+  const links = Array.isArray(item.links) ? item.links : [];
+  const fromLinks = links
+    .map((link) => {
+      if (typeof link === "string") return link;
+      const record = toRecord(link);
+      return asString(record.url) || asString(record.href);
+    })
+    .filter((link): link is string => Boolean(link));
+
+  const markdown = asString(item.markdown) || "";
+  const fromMarkdown = Array.from(markdown.matchAll(/\[[^\]]+\]\((https?:\/\/[^)\s]+)\)/g))
+    .map((match) => match[1])
+    .filter(Boolean);
+
+  return uniqueStrings([...fromLinks, ...fromMarkdown])
+    .map((link) => normalizeCanonicalJobUrl(link))
+    .filter((link): link is string => Boolean(link));
+}
+
+function sourceSignalBoost(seed: SearchSeed, url: string): string[] {
+  return uniqueStrings([
+    seed.type,
+    seed.domain,
+    seed.company_name,
+    inferSignalSource(url),
+  ]);
+}
+
 function mapFirecrawlItemToCandidate(
   item: Record<string, unknown>,
   seed: SearchSeed,
@@ -857,7 +1339,7 @@ function mapFirecrawlItemToCandidate(
 
   if (titleLooksLikeProfile(rawTitle)) return null;
 
-  const description = trimText(
+  const description = cleanJobDescription(
     asString(item.markdown) ||
       asString(item.description) ||
       asString(item.snippet) ||
@@ -866,18 +1348,29 @@ function mapFirecrawlItemToCandidate(
     16000,
   );
 
+  if (isLikelyAggregateJobPage(url, rawTitle, description)) return null;
+  if (!isPotentialJobUrl(url) && !/\b(job|hiring|career|opening|apply)\b/i.test(`${rawTitle} ${description}`)) {
+    return null;
+  }
+  if (SOCIAL_SIGNAL_HOSTS.test(url) && description.length < 280) {
+    return null;
+  }
+
   const company = deriveCompanyName(rawTitle, metadata, url, seed.company_name);
   const location = deriveLocation(metadata, description);
   const postedAt = parsePublishedAt(metadata);
   if (isStalePostedAt(postedAt)) return null;
 
   const sourceKind = inferSourceKind(url, rawTitle);
+  const salary = parseSalaryText(`${description}\n${asString(metadata.salary) || ""}`);
   const baseConfidence =
     seed.type === "tracked_company"
       ? 0.82
       : seed.domain
         ? 0.78
-        : 0.72;
+        : seed.type === "community_signal"
+          ? 0.58
+          : 0.72;
   const sourceConfidence =
     sourceKind === "firecrawl" ? baseConfidence : Math.min(0.86, baseConfidence + 0.06);
 
@@ -891,25 +1384,145 @@ function mapFirecrawlItemToCandidate(
     source_kind: sourceKind === "direct" ? "firecrawl" : sourceKind,
     source_confidence: sourceConfidence,
     is_tracked_company: seed.is_tracked_company,
-    seed_matches: uniqueStrings([
-      seed.type,
-      seed.domain,
-      seed.company_name,
-    ]),
+    salary_min: salary.salary_min ?? null,
+    salary_max: salary.salary_max ?? null,
+    salary_currency: salary.salary_currency ?? null,
+    seed_matches: sourceSignalBoost(seed, url),
     firecrawl_queries: [seed.query],
     priority: seed.priority,
     raw_data: {
       provider: "firecrawl",
       metadata,
+      salary: salary.salary_raw || null,
       firecrawl_result: {
         query: seed.query,
         seed_type: seed.type,
         seed_domain: seed.domain || null,
         seed_company: seed.company_name || null,
+        signal_source: inferSignalSource(url),
         priority: seed.priority,
       },
     },
   };
+}
+
+function mapLinkedJobUrlToCandidate(
+  linkedUrl: string,
+  parent: Record<string, unknown>,
+  seed: SearchSeed,
+  settings: JobSourceSettings,
+): FirecrawlSearchCandidate | null {
+  const url = normalizeCanonicalJobUrl(linkedUrl);
+  if (!url || isExcludedSourceUrl(url, settings)) return null;
+  if (!isPotentialJobUrl(url)) return null;
+  if (isLikelyAggregateJobPage(url)) return null;
+
+  const parentMetadata = toRecord(parent.metadata);
+  const parentUrl =
+    normalizeCanonicalJobUrl(asString(parent.url)) ||
+    normalizeCanonicalJobUrl(asString(parentMetadata.sourceURL));
+  const title = domainLabel(hostFromUrl(url));
+  const company = seed.company_name || domainLabel(hostFromUrl(url));
+  const sourceKind = inferSourceKind(url, title);
+  const sourceSignal = inferSignalSource(parentUrl || url);
+
+  return {
+    title: trimText(title === "Unknown" ? "Job opening" : `${title} job opening`, 300),
+    company: trimText(company, 200),
+    location: null,
+    url,
+    description: cleanJobDescription(
+      asString(parent.description) ||
+        asString(parent.snippet) ||
+        asString(parentMetadata.description) ||
+        seed.query,
+      2000,
+    ),
+    posted_at: parsePublishedAt(parentMetadata),
+    source_kind: sourceKind === "direct" ? "firecrawl" : sourceKind,
+    source_confidence: sourceSignal ? 0.62 : 0.7,
+    is_tracked_company: seed.is_tracked_company,
+    seed_matches: sourceSignalBoost(seed, url),
+    firecrawl_queries: [seed.query],
+    priority: seed.priority,
+    raw_data: {
+      provider: "firecrawl",
+      metadata: parentMetadata,
+      discovered_from: parentUrl,
+      signal_source: sourceSignal,
+      firecrawl_result: {
+        query: seed.query,
+        seed_type: seed.type,
+        linked_from: parentUrl,
+      },
+    },
+  };
+}
+
+async function expandAggregatePageWithMap(
+  item: Record<string, unknown>,
+  seed: SearchSeed,
+  apiKey: string,
+  settings: JobSourceSettings,
+): Promise<FirecrawlSearchCandidate[]> {
+  const metadata = toRecord(item.metadata);
+  const url =
+    normalizeCanonicalJobUrl(asString(item.url)) ||
+    normalizeCanonicalJobUrl(asString(metadata.sourceURL)) ||
+    normalizeCanonicalJobUrl(asString(metadata.url));
+  if (!url) return [];
+
+  try {
+    const response = await withRetry(
+      () =>
+        firecrawlFetch(
+          "/map",
+          apiKey,
+          {
+            url,
+            search: seed.query,
+            sitemap: "include",
+            includeSubdomains: true,
+            ignoreQueryParameters: true,
+            limit: 40,
+            timeout: 15000,
+          },
+          undefined,
+          20000,
+        ),
+      2,
+      1500,
+    );
+
+    const responseData = toRecord(response?.data);
+    const links = Array.isArray(response?.links)
+      ? response.links
+      : Array.isArray(responseData.links)
+        ? responseData.links
+        : [];
+    return links
+      .map((link: unknown) => {
+        const record = toRecord(link);
+        return mapLinkedJobUrlToCandidate(
+          asString(record.url) || "",
+          {
+            ...item,
+            title: asString(record.title) || asString(item.title),
+            description: asString(record.description) || asString(item.description),
+          },
+          seed,
+          settings,
+        );
+      })
+      .filter((candidate): candidate is FirecrawlSearchCandidate => Boolean(candidate))
+      .slice(0, 6);
+  } catch (error) {
+    console.warn("firecrawl.map_expand_failed", {
+      url,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  }
 }
 
 async function runSeedSearch(
@@ -921,6 +1534,14 @@ async function runSeedSearch(
     query: seed.query,
     limit: seed.limit,
     sources: ["web"],
+    scrapeOptions: {
+      formats: ["markdown", "links"],
+      onlyMainContent: true,
+      onlyCleanContent: true,
+      removeBase64Images: true,
+      blockAds: true,
+      timeout: 45000,
+    },
   };
 
   try {
@@ -936,9 +1557,50 @@ async function runSeedSearch(
       2,
       2000,
     );
-    return mapFirecrawlItems(toRecord(response))
-      .map((item) => mapFirecrawlItemToCandidate(item, seed, settings))
-      .filter((candidate): candidate is FirecrawlSearchCandidate => Boolean(candidate));
+    const items = mapFirecrawlItems(toRecord(response));
+    const candidates: FirecrawlSearchCandidate[] = [];
+    const aggregateItems: Record<string, unknown>[] = [];
+
+    for (const item of items) {
+      const metadata = toRecord(item.metadata);
+      const url =
+        normalizeCanonicalJobUrl(asString(item.url)) ||
+        normalizeCanonicalJobUrl(asString(metadata.sourceURL)) ||
+        normalizeCanonicalJobUrl(asString(metadata.url));
+      const title = asString(item.title) || asString(metadata.title);
+      const description = cleanJobDescription(
+        asString(item.markdown) || asString(item.description) || asString(metadata.description) || "",
+        4000,
+      );
+
+      if (url && isLikelyAggregateJobPage(url, title, description)) {
+        aggregateItems.push(item);
+      }
+
+      const primary = mapFirecrawlItemToCandidate(item, seed, settings);
+      if (primary) candidates.push(primary);
+
+      const linked = extractLinksFromFirecrawlItem(item)
+        .map((linkedUrl) => mapLinkedJobUrlToCandidate(linkedUrl, item, seed, settings))
+        .filter((candidate): candidate is FirecrawlSearchCandidate => Boolean(candidate))
+        .slice(0, 4);
+      candidates.push(...linked);
+    }
+
+    const mappedFromAggregates = (
+      await runWithConcurrency(aggregateItems.slice(0, 2), 2, (item) =>
+        expandAggregatePageWithMap(item, seed, apiKey, settings)
+      )
+    ).flat();
+
+    const byUrl = new Map<string, FirecrawlSearchCandidate>();
+    for (const candidate of [...candidates, ...mappedFromAggregates]) {
+      const key = normalizeCanonicalJobUrl(candidate.url) || candidate.url;
+      const existing = byUrl.get(key);
+      byUrl.set(key, existing ? chooseBetterCandidate(existing, candidate) : candidate);
+    }
+
+    return Array.from(byUrl.values());
   } catch (error) {
     console.error("firecrawl.seed_search_failed", {
       query: seed.query,
@@ -948,23 +1610,101 @@ async function runSeedSearch(
     return [];
   }
 }
-async function fetchFirecrawlMarkdown(
+async function fetchFirecrawlJobExtraction(
   url: string,
   apiKey: string,
-): Promise<string | null> {
+  candidate: FirecrawlSearchCandidate,
+): Promise<NormalizedProviderJob | null> {
   try {
     const response = await firecrawlFetch(
       "/scrape",
       apiKey,
       {
         url,
-        formats: ["markdown"],
+        formats: [
+          "markdown",
+          {
+            type: "json",
+            schema: {
+              type: "object",
+              properties: {
+                isJobPosting: { type: "boolean" },
+                title: { type: "string" },
+                company: { type: "string" },
+                location: { type: "string" },
+                posted_at: { type: "string" },
+                employment_type: { type: "string" },
+                experience_level: { type: "string" },
+                description: { type: "string" },
+                salary: { type: "string" },
+                salary_min: { type: "number" },
+                salary_max: { type: "number" },
+                salary_currency: { type: "string" },
+                apply_url: { type: "string" },
+                tags: { type: "array", items: { type: "string" } },
+              },
+            },
+            prompt:
+              "Extract exactly one real job posting from this page. If it is a job list, search results page, company directory, blog post, or generic careers page, set isJobPosting=false and do not invent a job. Return a plain text description with responsibilities, requirements, benefits, salary if stated, and no HTML.",
+          },
+        ],
         onlyMainContent: true,
+        onlyCleanContent: true,
+        removeBase64Images: true,
+        blockAds: true,
       },
       undefined,
-      15000,
+      12000,
     );
-    return asString(response.data?.markdown) || null;
+
+    const data = toRecord(response.data);
+    const extracted = toRecord(data.json);
+    const markdown = cleanJobDescription(asString(data.markdown) || "");
+    const extractedDescription = cleanJobDescription(asString(extracted.description) || "");
+    const finalDescription = extractedDescription.length >= 200 ? extractedDescription : markdown;
+    const isJobPosting = extracted.isJobPosting !== false;
+
+    if (!isJobPosting || isLikelyAggregateJobPage(url, asString(extracted.title), finalDescription)) {
+      return null;
+    }
+    if (finalDescription.length < 160 && !isKnownJobDetailUrl(url)) {
+      return null;
+    }
+
+    const salary = mergeSalarySignals(
+      {
+        salary_min:
+          typeof extracted.salary_min === "number" ? Math.round(extracted.salary_min) : null,
+        salary_max:
+          typeof extracted.salary_max === "number" ? Math.round(extracted.salary_max) : null,
+        salary_currency: asString(extracted.salary_currency),
+        salary_raw: asString(extracted.salary),
+      },
+      parseSalaryText(finalDescription),
+    );
+
+    const applyUrl = normalizeCanonicalJobUrl(asString(extracted.apply_url)) || url;
+
+    return {
+      title: asString(extracted.title) || candidate.title,
+      company: asString(extracted.company) || candidate.company,
+      location: asString(extracted.location) || candidate.location,
+      url: applyUrl,
+      description: finalDescription,
+      posted_at: asString(extracted.posted_at) || candidate.posted_at,
+      provider_source_id: `firecrawl_extract:${applyUrl}`,
+      source_kind: inferSourceKind(applyUrl, asString(extracted.title) || candidate.title),
+      source_confidence: isKnownJobDetailUrl(applyUrl) ? 0.88 : 0.76,
+      salary_min: salary.salary_min ?? null,
+      salary_max: salary.salary_max ?? null,
+      salary_currency: salary.salary_currency ?? null,
+      raw_data: {
+        provider: "firecrawl",
+        extraction_method: "scrape_json_markdown",
+        salary: salary.salary_raw || null,
+        tags: Array.isArray(extracted.tags) ? extracted.tags : [],
+      },
+    };
   } catch (error) {
     console.warn("firecrawl.scrape_failed", {
       url,
@@ -1300,6 +2040,31 @@ function extractJsonLdJobPosting(html: string): Record<string, unknown> | null {
   return null;
 }
 
+function parseJsonLdBaseSalary(baseSalary: unknown): SalarySignal {
+  const record = toRecord(baseSalary);
+  const value = toRecord(record.value);
+  const raw = uniqueStrings([
+    asString(record.currency),
+    asString(record.unitText),
+    asString(value.unitText),
+    asString(value.value),
+  ]).join(" ");
+
+  const minValue = Number(value.minValue ?? value.value);
+  const maxValue = Number(value.maxValue ?? value.value);
+  const currency = asString(record.currency) || asString(value.currency) || null;
+
+  return mergeSalarySignals(
+    {
+      salary_min: Number.isFinite(minValue) ? Math.round(minValue) : null,
+      salary_max: Number.isFinite(maxValue) ? Math.round(maxValue) : null,
+      salary_currency: currency,
+      salary_raw: raw || null,
+    },
+    parseSalaryText(raw),
+  );
+}
+
 async function fetchDirectJobPage(
   url: string,
   companyHint?: string,
@@ -1331,6 +2096,7 @@ async function fetchDirectJobPage(
       const hiringOrganization = toRecord(jobPosting.hiringOrganization);
       const jobLocation = toRecord(jobPosting.jobLocation);
       const address = toRecord(jobLocation.address);
+      const salary = parseJsonLdBaseSalary(jobPosting.baseSalary);
       return {
         title:
           asString(jobPosting.title) || metaTitle || pageTitle || "Job opening",
@@ -1344,25 +2110,30 @@ async function fetchDirectJobPage(
           deriveLocationFromText(metaDescription || "") ||
           null,
         url: canonicalUrl,
-        description: trimText(
-          stripHtmlTags(asString(jobPosting.description) || metaDescription || ""),
-          16000,
-        ),
+        description: cleanJobDescription(asString(jobPosting.description) || metaDescription || ""),
         posted_at: asString(jobPosting.datePosted),
         provider_source_id: `direct:${canonicalUrl}`,
         source_kind: "direct",
         source_confidence: 0.9,
+        salary_min: salary.salary_min ?? null,
+        salary_max: salary.salary_max ?? null,
+        salary_currency: salary.salary_currency ?? null,
         raw_data: {
           provider: "direct",
           schema_type: "JobPosting",
+          salary: salary.salary_raw || null,
         },
       };
     }
 
-    const bodyPreview = trimText(stripHtmlTags(html), 16000);
+    const bodyPreview = cleanJobDescription(html);
     if (!/job|career|responsibilit|qualif|apply/i.test(bodyPreview)) {
       return null;
     }
+    if (isLikelyAggregateJobPage(canonicalUrl, metaTitle || pageTitle, bodyPreview)) {
+      return null;
+    }
+    const salary = parseSalaryText(bodyPreview);
 
     return {
       title: metaTitle || pageTitle || "Job opening",
@@ -1374,9 +2145,13 @@ async function fetchDirectJobPage(
       provider_source_id: `direct:${canonicalUrl}`,
       source_kind: "direct",
       source_confidence: 0.82,
+      salary_min: salary.salary_min ?? null,
+      salary_max: salary.salary_max ?? null,
+      salary_currency: salary.salary_currency ?? null,
       raw_data: {
         provider: "direct",
         schema_type: "html_fallback",
+        salary: salary.salary_raw || null,
       },
     };
   } catch {
@@ -1477,6 +2252,24 @@ async function normalizeCandidate(
     }
   }
 
+  if (!normalized && candidate.description && candidate.description.length >= 250) {
+    normalized = {
+      title: candidate.title,
+      company: candidate.company,
+      location: candidate.location,
+      url: candidate.url,
+      description: candidate.description,
+      posted_at: candidate.posted_at,
+      source_kind: candidate.source_kind,
+      source_confidence: candidate.source_confidence,
+      salary_min: candidate.salary_min ?? null,
+      salary_max: candidate.salary_max ?? null,
+      salary_currency: candidate.salary_currency ?? null,
+      raw_data: candidate.raw_data,
+    };
+    normalizationSource = "search_seed_markdown";
+  }
+
   if (!normalized && options?.allowDirectPageFetch !== false) {
     const direct = await fetchDirectJobPage(canonicalUrl, candidate.company);
     if (direct) {
@@ -1487,37 +2280,43 @@ async function normalizeCandidate(
     }
   }
 
-  // Final fallback or enrichment: If description is still missing or we specifically want markdown
-  if ((!normalized?.description || normalized.description.length < 300) && options?.apiKey) {
-    const markdown = await fetchFirecrawlMarkdown(canonicalUrl, options.apiKey);
-    if (markdown) {
+  // Final fallback/enrichment: use Firecrawl scrape JSON + clean markdown.
+  // This is deliberately "detail page first": if Firecrawl says the page is a
+  // list/search page, we do not invent or persist it as a job.
+  if ((!normalized?.description || normalized.description.length < 500) && options?.apiKey) {
+    const extracted = await fetchFirecrawlJobExtraction(canonicalUrl, options.apiKey, candidate);
+    if (extracted) {
       if (normalized) {
-        normalized.description = markdown;
-        normalizationSource = `${normalizationSource}_with_markdown`;
-      } else {
         normalized = {
-          title: candidate.title,
-          company: candidate.company,
-          location: candidate.location,
-          url: canonicalUrl,
-          description: markdown,
-          posted_at: candidate.posted_at,
-          provider_source_id: `firecrawl_scrape:${canonicalUrl}`,
-          source_kind: "firecrawl",
-          source_confidence: 0.85,
-          raw_data: { firecrawl_scrape: true },
+          ...normalized,
+          title: extracted.title || normalized.title,
+          company: extracted.company || normalized.company,
+          location: extracted.location || normalized.location,
+          url: extracted.url || normalized.url,
+          description: extracted.description || normalized.description,
+          posted_at: extracted.posted_at || normalized.posted_at,
+          salary_min: extracted.salary_min ?? normalized.salary_min ?? null,
+          salary_max: extracted.salary_max ?? normalized.salary_max ?? null,
+          salary_currency: extracted.salary_currency ?? normalized.salary_currency ?? null,
+          raw_data: {
+            ...normalized.raw_data,
+            firecrawl_extraction: extracted.raw_data,
+          },
         };
-        normalizationSource = "firecrawl_scrape_primary";
+        normalizationSource = `${normalizationSource}_with_firecrawl_extract`;
+      } else {
+        normalized = extracted;
+        normalizationSource = "firecrawl_extract_primary";
       }
     }
   }
 
   providerSourceId = normalized?.provider_source_id || null;
 
+  const finalUrl = normalizeCanonicalJobUrl(normalized?.url) || canonicalUrl;
   const finalSourceKind =
-    classifiedAs === "firecrawl"
-      ? normalized?.source_kind || "firecrawl"
-      : classifiedAs;
+    normalized?.source_kind ||
+    (classifiedAs === "firecrawl" ? inferSourceKind(finalUrl, candidate.title) : classifiedAs);
 
   const finalTitle = trimText(normalized?.title || candidate.title || "Job opening", 300);
   const finalCompany = trimText(
@@ -1526,10 +2325,23 @@ async function normalizeCandidate(
   );
   const finalLocation = normalized?.location || candidate.location || null;
   const finalDescription = trimText(
-    normalized?.description || candidate.description || "",
+    cleanJobDescription(normalized?.description || candidate.description || ""),
     16000,
   );
   const finalPostedAt = normalized?.posted_at || candidate.posted_at || null;
+  const salary = mergeSalarySignals(
+    {
+      salary_min: normalized?.salary_min ?? null,
+      salary_max: normalized?.salary_max ?? null,
+      salary_currency: normalized?.salary_currency ?? null,
+    },
+    {
+      salary_min: candidate.salary_min ?? null,
+      salary_max: candidate.salary_max ?? null,
+      salary_currency: candidate.salary_currency ?? null,
+    },
+    parseSalaryText(finalDescription),
+  );
 
   let confidence = candidate.source_confidence;
   if (normalized && normalizationSource.endsWith("_lookup")) {
@@ -1550,24 +2362,29 @@ async function normalizeCandidate(
     normalization_source: normalizationSource,
     provider_source_id: providerSourceId,
     canonical_url: canonicalUrl,
+    final_url: finalUrl,
   };
 
   return {
     title: finalTitle,
     company: finalCompany,
     location: finalLocation,
-    url: canonicalUrl,
+    url: finalUrl,
     description: finalDescription,
     posted_at: finalPostedAt,
-    source_id: `job:${canonicalUrl}`,
+    source_id: `job:${finalUrl}`,
     source_type: "web_search",
     source_kind: finalSourceKind,
     source_confidence: Math.max(0.5, Math.min(0.99, confidence)),
     verification_status: "unverified",
     is_tracked_company: candidate.is_tracked_company,
+    salary_min: salary.salary_min ?? null,
+    salary_max: salary.salary_max ?? null,
+    salary_currency: salary.salary_currency ?? null,
     raw_data: {
       ...candidate.raw_data,
       provider_source_id: providerSourceId,
+      salary: salary.salary_raw || toRecord(normalized?.raw_data).salary || toRecord(candidate.raw_data).salary || null,
       normalization: {
         classified_as: classifiedAs,
         normalization_source: normalizationSource,
@@ -1979,6 +2796,13 @@ async function unrestrictedWebSearch(
     query: `${searchQuery} ${loc} job posting (hiring OR careers OR apply) -inurl:search -inurl:login`,
     limit: Math.min(limit * 2, 30),
     sources: ["web"],
+    scrapeOptions: {
+      formats: ["markdown", "links"],
+      onlyMainContent: true,
+      onlyCleanContent: true,
+      removeBase64Images: true,
+      blockAds: true,
+    },
   };
   if (loc.toLowerCase() !== "remote") {
     payload.location = loc;
@@ -2025,10 +2849,11 @@ async function unrestrictedWebSearch(
       "Job opening";
     if (titleLooksLikeProfile(rawTitle)) continue;
 
-    const description = trimText(
+    const description = cleanJobDescription(
       asString(item.markdown) || asString(item.description) || asString(metadata.description) || "",
       16000,
     );
+    if (isLikelyAggregateJobPage(url, rawTitle, description)) continue;
 
     const company =
       rawTitle.split(/[|:\-–]| at /i).slice(-1)[0]?.trim() ||
@@ -2038,6 +2863,7 @@ async function unrestrictedWebSearch(
     const sourceKind = inferSourceKind(url, rawTitle);
     const postedAt = parsePublishedAt(metadata);
     if (isStalePostedAt(postedAt)) continue;
+    const salary = parseSalaryText(description);
 
     results.push({
       title: trimText(rawTitle, 300),
@@ -2053,10 +2879,14 @@ async function unrestrictedWebSearch(
       source_confidence: sourceKind === "direct" ? 0.55 : 0.65,
       verification_status: "unverified" as const,
       is_tracked_company: false,
+      salary_min: salary.salary_min ?? null,
+      salary_max: salary.salary_max ?? null,
+      salary_currency: salary.salary_currency ?? null,
       raw_data: {
         provider: "firecrawl",
         discovery_mode: "unrestricted_fallback",
         metadata,
+        salary: salary.salary_raw || null,
       },
     });
   }
@@ -2071,10 +2901,34 @@ export async function discoverJobsFirecrawl(
   const warnings: string[] = [];
   const apiKey = await resolveFirecrawlApiKey();
   const context = await buildSearchContext(args.serviceClient, args.userId);
+  const requestedSources = normalizePublicJobSources(args.sourceFocus);
+  const targetDomains = normalizeTargetDomains([
+    ...(args.targetDomains || []),
+    ...extractTargetDomainsFromText(args.searchQuery),
+  ]);
+  const roleQuery = targetDomains.length > 0
+    ? stripSourceTargetsFromQuery(args.searchQuery) || args.searchQuery
+    : args.searchQuery;
+  if (requestedSources.includes("x")) {
+    warnings.push(
+      "X/Twitter discovery uses public/indexed pages only. JobRaker will not bypass logins, CAPTCHAs, or private profile access.",
+    );
+  }
+  if (requestedSources.some((source) => ["reddit", "hackernews", "x", "community"].includes(source))) {
+    warnings.push(
+      "Community-source results are treated as leads until verified against an official company careers page or application channel.",
+    );
+  }
+  if (targetDomains.length > 0) {
+    warnings.push(
+      `Restricted search to requested career-source domain${targetDomains.length === 1 ? "" : "s"}: ${targetDomains.join(", ")}.`,
+    );
+  }
   const seeds = buildSearchSeeds(args, context);
   console.info("firecrawl.discovery.stage", {
     stage: "seed_build",
     seedCount: seeds.length,
+    sourceFocus: requestedSources,
     limit: args.limit,
     elapsed_ms: Date.now() - startedAt,
   });
@@ -2093,6 +2947,7 @@ export async function discoverJobsFirecrawl(
 
   const rawByUrl = new Map<string, FirecrawlSearchCandidate>();
   for (const candidate of seedResults) {
+    if (!candidateMatchesTargetDomains(candidate, targetDomains)) continue;
     const trackedDomainHit = matchesTrackedDomain(
       hostFromUrl(candidate.url),
       context.trackedCompanyDomains,
@@ -2109,7 +2964,7 @@ export async function discoverJobsFirecrawl(
         }
       : candidate;
 
-    if (!roleMatches(enrichedCandidate, args.searchQuery)) continue;
+    if (!roleMatches(enrichedCandidate, roleQuery)) continue;
     const key = normalizeCanonicalJobUrl(enrichedCandidate.url) || enrichedCandidate.url;
     const existing = rawByUrl.get(key);
     rawByUrl.set(
@@ -2162,14 +3017,17 @@ export async function discoverJobsFirecrawl(
     );
 
     const ranked = normalized
-      .filter((job) => roleMatches(job, args.searchQuery))
+      .filter((job) => !isLikelyAggregateJobPage(job.url, job.title, job.description))
+      .filter((job) => job.description.length >= 120 || isKnownJobDetailUrl(job.url))
+      .filter((job) => roleMatches(job, roleQuery))
+      .filter((job) => candidateMatchesTargetDomains(job, targetDomains))
       .filter((job) => !isStalePostedAt(job.posted_at))
       .map((job) =>
         attachRankingSignals(
           job,
           computeRankingSignals(
             job,
-            args.searchQuery,
+            roleQuery,
             args.location || context.candidateMemory.location || "Remote",
             context.candidateMemory,
           ),
@@ -2208,7 +3066,7 @@ export async function discoverJobsFirecrawl(
   // -----------------------------------------------------------------------
   // Fallback 1: Location broadening — try country-level then Remote
   // -----------------------------------------------------------------------
-  if (finalJobs.length === 0) {
+  if (targetDomains.length === 0 && finalJobs.length === 0) {
     const broadened = broadenLocation(args.location);
     if (broadened && broadened.toLowerCase() !== args.location.toLowerCase()) {
       console.info("firecrawl.discovery.broadening_location", {
@@ -2251,6 +3109,8 @@ export async function discoverJobsFirecrawl(
 
         finalJobs = dedupeDiscoveredJobs(
           broadenedNormalized
+            .filter((job) => !isLikelyAggregateJobPage(job.url, job.title, job.description))
+            .filter((job) => job.description.length >= 120 || isKnownJobDetailUrl(job.url))
             .filter((job) => roleMatches(job, args.searchQuery, true))
             .filter((job) => !isStalePostedAt(job.posted_at)),
         )
@@ -2270,7 +3130,7 @@ export async function discoverJobsFirecrawl(
   // -----------------------------------------------------------------------
   // Fallback 2: Unrestricted web search — search beyond configured sources
   // -----------------------------------------------------------------------
-  if (finalJobs.length === 0) {
+  if (targetDomains.length === 0 && finalJobs.length === 0) {
     console.info("firecrawl.discovery.unrestricted_fallback", {
       searchQuery: args.searchQuery,
       location: args.location,
@@ -2285,7 +3145,10 @@ export async function discoverJobsFirecrawl(
 
     // Apply relaxed role matching
     const matched = onlyFreshOrUndatedJobs(
-      unrestrictedJobs.filter((job) => roleMatches(job, args.searchQuery, true)),
+      unrestrictedJobs
+        .filter((job) => !isLikelyAggregateJobPage(job.url, job.title, job.description))
+        .filter((job) => job.description.length >= 120 || isKnownJobDetailUrl(job.url))
+        .filter((job) => roleMatches(job, args.searchQuery, true)),
     );
 
     finalJobs = dedupeDiscoveredJobs(matched)
@@ -2302,6 +3165,20 @@ export async function discoverJobsFirecrawl(
         `Your search "${args.searchQuery}" in "${args.location}" is very specific and returned no results. Try broadening your job title or changing the location.`,
       );
     }
+  }
+
+  const socialLeadsAllowed = requestedSources.some((source) =>
+    ["x", "reddit", "hackernews", "community"].includes(source)
+  );
+  finalJobs = finalJobs
+    .filter((job) => candidateMatchesTargetDomains(job, targetDomains))
+    .filter((job) => socialLeadsAllowed || !SOCIAL_SIGNAL_HOSTS.test(job.url))
+    .slice(0, args.limit);
+
+  if (targetDomains.length > 0 && finalJobs.length === 0) {
+    warnings.push(
+      "No matching jobs were found on the requested official career-source domains. I did not include off-domain social posts or broad web matches.",
+    );
   }
 
   console.info("firecrawl.discovery.complete", {

@@ -41,6 +41,19 @@ export interface ResumeRecord {
 
 type UploadInput = File | { file: File; template?: string };
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.split(",")[1] || result;
+      resolve(base64);
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
+
 async function parseAndPersistResumeSnapshot({
   file,
   ext,
@@ -82,7 +95,8 @@ async function parseAndPersistResumeSnapshot({
 
     let aiParsedData: Awaited<ReturnType<typeof parseResumeWithAI>> | null = null;
     try {
-      aiParsedData = await parseResumeWithAI({ resumeText: parsed.text });
+      const pdfBase64 = await fileToBase64(file);
+      aiParsedData = await parseResumeWithAI({ resumeText: parsed.text, pdfBase64 });
     } catch (aiError) {
       console.warn("AI resume parsing failed during import. Using fallback snapshot.", aiError);
     }

@@ -381,6 +381,12 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/proxy-image/index.ts"
 
+[functions.public-profile-site]
+enabled = true
+# Public recruiter-facing profile payload. The function itself filters to enabled sites.
+verify_jwt = false
+entrypoint = "./functions/public-profile-site/index.ts"
+
 [functions.referrals-agent]
 enabled = true
 # Must be false so browser OPTIONS preflight reaches the handler; auth is enforced in requireSubscriptionTier.
@@ -453,6 +459,23 @@ entrypoint = "./functions/generate-cover-letter/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/generate-cover-letter/*.html" ]
 
+[functions.generate-outreach]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; auth is enforced in requireSubscriptionTier.
+verify_jwt = false
+import_map = "./functions/generate-outreach/deno.json"
+entrypoint = "./functions/generate-outreach/index.ts"
+
+[functions.scout-company]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/scout-company/index.ts"
+
+[functions.send-email]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/send-email/index.ts"
+
 [functions.tailor-resume]
 enabled = true
 # Browser OPTIONS preflight must reach the handler; auth is enforced in requireSubscriptionTier.
@@ -482,3 +505,159 @@ enabled = true
 # Browser OPTIONS preflight must reach the handler; auth is enforced in requireAuthenticatedUser.
 verify_jwt = false
 entrypoint = "./functions/jobs-search/index.ts"
+
+[functions.track-posthog]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; auth is enforced in requireAuthenticatedUser.
+verify_jwt = false
+entrypoint = "./functions/track-posthog/index.ts"
+
+[functions.generate-embeddings]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; auth is enforced in requireAuthenticatedUser.
+verify_jwt = false
+entrypoint = "./functions/generate-embeddings/index.ts"
+
+[functions.generate-answer-bank]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; auth is enforced in requireAuthenticatedUser.
+verify_jwt = false
+entrypoint = "./functions/generate-answer-bank/index.ts"
+
+[functions.customer-support-chat]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; auth is enforced in requireAuthenticatedUser.
+verify_jwt = false
+entrypoint = "./functions/customer-support-chat/index.ts"
+
+[functions.ai-generate-resume]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/ai-generate-resume/index.ts"
+
+[functions.analyze-resume]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/analyze-resume/index.ts"
+
+[functions.composio-gmail-auth]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/composio-gmail-auth/index.ts"
+
+[functions.enrich-jobs]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/enrich-jobs/index.ts"
+
+[functions.firecrawl-health]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/firecrawl-health/index.ts"
+
+[functions.generate-chat-starters]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/generate-chat-starters/index.ts"
+
+[functions.generate-title]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/generate-title/index.ts"
+
+[functions.get-extract-status]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/get-extract-status/index.ts"
+
+[functions.get-jobs]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/get-jobs/index.ts"
+
+[functions.get-run]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/get-run/index.ts"
+
+[functions.init-payment]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/init-payment/index.ts"
+
+[functions.intake-job-url]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/intake-job-url/index.ts"
+
+[functions.interview-session]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/interview-session/index.ts"
+
+[functions.jobs-cron]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/jobs-cron/index.ts"
+
+[functions.paystack-webhook]
+enabled = true
+# Paystack webhooks cannot include a Supabase JWT; signature validation happens in the function.
+verify_jwt = false
+entrypoint = "./functions/paystack-webhook/index.ts"
+
+[functions.polish-content]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/polish-content/index.ts"
+
+[functions.process-and-match]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/process-and-match/index.ts"
+
+[functions.process-auto-apply-queue]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/process-auto-apply-queue/index.ts"
+
+[functions.process-job-search]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/process-job-search/index.ts"
+
+[functions.process-task]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/process-task/index.ts"
+
+[functions.repair-payment]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/repair-payment/index.ts"
+
+[functions.request-early-access]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/request-early-access/index.ts"
+
+[functions.request-enterprise-sales]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/request-enterprise-sales/index.ts"
+
+[functions.schedule-interview]
+enabled = true
+verify_jwt = true
+import_map = "./functions/schedule-interview/deno.json"
+entrypoint = "./functions/schedule-interview/index.ts"
+
+[functions.sync-provider-status]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/sync-provider-status/index.ts"
+
+[functions.verify-payment]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/verify-payment/index.ts"

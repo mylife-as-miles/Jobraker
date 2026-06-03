@@ -33,6 +33,40 @@ export type ReferralStats = {
   funnel: Partial<Record<ReferralFunnelStage, number>>;
 };
 
+export type ReferralSuggestion = {
+  id: string;
+  fit_score: number;
+  rationale: string;
+  created_at: string;
+  connection: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    company: string | null;
+    position: string | null;
+    profile_url: string | null;
+  } | null;
+  job: {
+    id: string;
+    title: string | null;
+    company: string | null;
+    location: string | null;
+  } | null;
+};
+
+export type LinkedInConnection = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  company: string | null;
+  position: string | null;
+  connected_on: string | null;
+  profile_url: string | null;
+  agent_scan_status: "pending" | "running" | "complete" | "error";
+  created_at: string;
+};
+
 const FUNNEL_ORDER: ReferralFunnelStage[] = [
   "signed_up",
   "application_started",
@@ -53,6 +87,8 @@ export function useReferrals() {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [agentRunning, setAgentRunning] = useState(false);
+  const [suggestions, setSuggestions] = useState<ReferralSuggestion[]>([]);
+  const [connections, setConnections] = useState<LinkedInConnection[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -136,15 +172,62 @@ export function useReferrals() {
     setSuggestionCount(sc ?? 0);
   }, [supabase, userId]);
 
+  const refreshSuggestionsList = useCallback(async () => {
+    if (!userId) return;
+    const { data, error } = await supabase
+      .from("referral_match_suggestions")
+      .select(`
+        id,
+        fit_score,
+        rationale,
+        created_at,
+        connection:linkedin_connections (
+          id, first_name, last_name, company, position, profile_url
+        ),
+        job:jobs (
+          id, title, company, location
+        )
+      `)
+      .eq("user_id", userId)
+      .order("fit_score", { ascending: false });
+
+    if (!error && data) {
+      setSuggestions(data as unknown as ReferralSuggestion[]);
+    } else if (error) {
+      console.warn("fetch suggestions list failed", error);
+    }
+  }, [supabase, userId]);
+
+  const refreshConnectionsList = useCallback(async () => {
+    if (!userId) return;
+    const { data, error } = await supabase
+      .from("linkedin_connections")
+      .select("id, first_name, last_name, email, company, position, connected_on, profile_url, agent_scan_status, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setConnections(data as LinkedInConnection[]);
+    } else if (error) {
+      console.warn("fetch connections list failed", error);
+    }
+  }, [supabase, userId]);
+
   const refreshAll = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     try {
-      await Promise.all([refreshStats(), refreshReferrals(), refreshConnectionsMeta()]);
+      await Promise.all([
+        refreshStats(),
+        refreshReferrals(),
+        refreshConnectionsMeta(),
+        refreshSuggestionsList(),
+        refreshConnectionsList()
+      ]);
     } finally {
       setLoading(false);
     }
-  }, [userId, refreshStats, refreshReferrals, refreshConnectionsMeta]);
+  }, [userId, refreshStats, refreshReferrals, refreshConnectionsMeta, refreshSuggestionsList, refreshConnectionsList]);
 
   useEffect(() => {
     if (userId) void refreshAll();
@@ -206,12 +289,15 @@ export function useReferrals() {
         }
 
         success("Connections imported", `${parsed.length} contacts saved. Run AI match to find roles.`);
-        await refreshConnectionsMeta();
+        await Promise.all([
+          refreshConnectionsMeta(),
+          refreshConnectionsList()
+        ]);
       } finally {
         setImporting(false);
       }
     },
-    [supabase, userId, success, refreshConnectionsMeta],
+    [supabase, userId, success, refreshConnectionsMeta, refreshConnectionsList],
   );
 
   const runAgentScan = useCallback(async () => {
@@ -227,14 +313,18 @@ export function useReferrals() {
       }
       const n = (result as { suggestions_created?: number }).suggestions_created ?? 0;
       success("AI match complete", n ? `${n} suggestions saved.` : "No strong matches this run—add more jobs or connections.");
-      await refreshConnectionsMeta();
+      await Promise.all([
+        refreshConnectionsMeta(),
+        refreshSuggestionsList(),
+        refreshConnectionsList()
+      ]);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Agent failed";
       toastError("Referral agent", msg);
     } finally {
       setAgentRunning(false);
     }
-  }, [success, toastError, refreshConnectionsMeta]);
+  }, [success, toastError, refreshConnectionsMeta, refreshSuggestionsList, refreshConnectionsList]);
 
   const updateReferralStage = useCallback(
     async (referredUserId: string, stage: "hired" | "paid") => {
@@ -274,6 +364,8 @@ export function useReferrals() {
     suggestionCount,
     referralShareUrl,
     funnelCounts,
+    suggestions,
+    connections,
     refreshAll,
     importLinkedInCsv,
     runAgentScan,

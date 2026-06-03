@@ -69,6 +69,15 @@ export const APP_PAGES: AppPageDefinition[] = [
     notes: ["Requires a concrete public resume id to open a specific resume."],
   },
   {
+    id: "public-profile",
+    title: "Public Profile Portfolio",
+    route: "/u/:slug",
+    area: "public",
+    description: "Publicly shareable recruiter-facing portfolio page generated from the user's JobRaker profile.",
+    aliases: ["public profile", "portfolio link", "profile share page", "shared profile"],
+    notes: ["Requires a concrete public profile slug to open a specific portfolio."],
+  },
+  {
     id: "gmail-callback",
     title: "Gmail Callback",
     route: "/auth/callback/gmail",

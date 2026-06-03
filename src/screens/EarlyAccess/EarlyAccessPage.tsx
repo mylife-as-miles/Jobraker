@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { Seo } from "@/components/seo/Seo";
+import { captureClientEvent } from "@/lib/analytics";
 
 export const EarlyAccessPage = () => {
   const navigate = useNavigate();
+  const hasTrackedFormStart = useRef(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,10 +20,22 @@ export const EarlyAccessPage = () => {
     accomplish: "",
   });
 
+  useEffect(() => {
+    captureClientEvent("early_access_viewed", {
+      location: "early_access_page",
+    });
+  }, []);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+    if (!hasTrackedFormStart.current && value.trim().length > 0) {
+      hasTrackedFormStart.current = true;
+      captureClientEvent("early_access_started", {
+        location: "early_access_page",
+      });
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -35,9 +50,16 @@ export const EarlyAccessPage = () => {
       });
 
       if (error) throw error;
+      captureClientEvent("early_access_requested", {
+        location: "early_access_page",
+        interest: formData.interest,
+      });
       setSuccess(true);
     } catch (err: any) {
       console.error("Error submitting early access request:", err);
+      captureClientEvent("early_access_request_failed", {
+        location: "early_access_page",
+      });
       setError(err.message || "Failed to submit request. Please try again.");
     } finally {
       setLoading(false);
@@ -46,9 +68,21 @@ export const EarlyAccessPage = () => {
 
   return (
     <div className='min-h-screen bg-background text-foreground relative flex flex-col items-center pt-24 px-4 sm:px-6 lg:px-8'>
+      <Seo
+        title="Talk to JobRaker Sales"
+        description="Request early access to JobRaker enterprise workflows for guided hiring operations, AI drafting, and scalable job-search support."
+        path="/early-access"
+      />
       {/* Back button */}
       <button
-        onClick={() => navigate("/")}
+        onClick={() => {
+          captureClientEvent("landing_cta_clicked", {
+            cta_id: "early_access_back_home",
+            destination: "/",
+            location: "early_access_page",
+          });
+          navigate("/");
+        }}
         className='fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 text-sm font-mono text-neutral-400 hover:text-brand transition-colors bg-background/80 backdrop-blur-md rounded border border-brand/20'
       >
         <ArrowLeft className='w-4 h-4' />
@@ -61,7 +95,7 @@ export const EarlyAccessPage = () => {
           <span className="text-brand">Sales Team</span>
         </h1>
         <p className="text-neutral-400 text-center max-w-lg mb-10 font-mono text-sm sm:text-base">
-          Book a demo and set up a trial Enterprise account to see how JobRaker's scalable features can accelerate your business growth and app development.
+          See whether JobRaker fits your team before rollout. We will help you review workflow fit, plan shape, and rollout needs for guided hiring support.
         </p>
 
         <div className="w-full bg-[#111] border border-neutral-800 rounded-xl p-6 sm:p-8 shadow-2xl">
@@ -74,7 +108,7 @@ export const EarlyAccessPage = () => {
               </div>
               <h2 className="text-2xl font-bold text-white">Request Received!</h2>
               <p className="text-neutral-400">
-                Thank you for your interest. Our team will get back to you shortly.
+                Thank you for your interest. Our team will review your request and follow up shortly.
               </p>
               <button
                 onClick={() => navigate("/")}

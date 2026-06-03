@@ -33,12 +33,8 @@ function hasMetadataAdminAccess(user: { app_metadata?: Record<string, unknown>; 
   );
 }
 
-async function isAdminUser(serviceClient: ReturnType<typeof createClient>, user: { id: string; app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> }): Promise<boolean> {
-  if (hasMetadataAdminAccess(user)) {
-    return true;
-  }
-
-  const { data: rpcAdmin, error: rpcError } = await serviceClient.rpc("is_admin", {
+async function isAdminOwnerUser(serviceClient: ReturnType<typeof createClient>, user: { id: string }): Promise<boolean> {
+  const { data: rpcAdmin, error: rpcError } = await serviceClient.rpc("is_admin_owner", {
     user_id: user.id,
   });
 
@@ -47,14 +43,15 @@ async function isAdminUser(serviceClient: ReturnType<typeof createClient>, user:
   }
 
   if (rpcError) {
-    console.warn("admin-delete-user.is_admin_rpc_failed", rpcError);
+    console.warn("admin-delete-user.is_admin_owner_rpc_failed", rpcError);
   }
 
   const { data: roleRow, error: roleError } = await serviceClient
     .from("user_roles")
-    .select("role")
+    .select("role, admin_sub_role")
     .eq("user_id", user.id)
     .eq("role", "admin")
+    .eq("admin_sub_role", "owner")
     .maybeSingle();
 
   if (roleError) {
@@ -128,9 +125,9 @@ serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    const isAdmin = await isAdminUser(serviceClient, user);
-    if (!isAdmin) {
-      return jsonResponse(req, { error: "Admin access required" }, 403);
+    const isOwner = await isAdminOwnerUser(serviceClient, user);
+    if (!isOwner) {
+      return jsonResponse(req, { error: "Owner admin access required" }, 403);
     }
 
     const { error: deleteError } = await serviceClient.auth.admin.deleteUser(targetUserId);

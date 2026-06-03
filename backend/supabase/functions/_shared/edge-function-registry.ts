@@ -221,6 +221,13 @@ export const EDGE_FUNCTIONS: EdgeFunctionDefinition[] = [
         searchQuery: { type: "string" },
         location: { type: "string" },
         limit: { type: "number" },
+        sources: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Optional source focus: web, ats, yc, x, reddit, hackernews, community. X/Twitter uses public/indexed pages only.",
+        },
+        locationScope: { type: "string", enum: ["city", "country", "global"] },
       },
       additionalProperties: true,
     },
@@ -348,10 +355,10 @@ export const EDGE_FUNCTIONS: EdgeFunctionDefinition[] = [
     },
   },
   {
-    name: "sync-skyvern-status",
+    name: "sync-provider-status",
     category: "applications",
-    description: "Refreshes the latest Skyvern provider status for a given automation run.",
-    path: "/functions/v1/sync-skyvern-status",
+    description: "Refreshes the latest provider status for a given automation run.",
+    path: "/functions/v1/sync-provider-status",
     parameterSchema: {
       type: "object",
       properties: {

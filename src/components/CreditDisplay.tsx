@@ -42,6 +42,7 @@ export const CreditDisplay = () => {
           .select("subscription_plans(name)")
           .eq("user_id", userId)
           .eq("status", "active")
+          .gt("current_period_end", new Date().toISOString())
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -65,31 +66,7 @@ export const CreditDisplay = () => {
             planName as "Free" | "Basics" | "Pro" | "Ultimate",
           );
         } else {
-          // Fallback to profiles table
-          const { data: profileData, error: profileError } = await supabase
-            .from("profiles")
-            .select("subscription_tier")
-            .eq("id", userId)
-            .maybeSingle();
-
-          if (profileError) {
-            console.error(
-              "CreditDisplay: Failed to fetch fallback profile tier",
-              profileError,
-            );
-          }
-
-          if (
-            profileData?.subscription_tier &&
-            (profileData.subscription_tier === "Free" ||
-              profileData.subscription_tier === "Basics" ||
-              profileData.subscription_tier === "Pro" ||
-              profileData.subscription_tier === "Ultimate")
-          ) {
-            setSubscriptionTier(profileData.subscription_tier);
-          } else {
-            setSubscriptionTier("Free");
-          }
+          setSubscriptionTier("Free");
         }
       } catch (error) {
         console.error("Error fetching credits and tier:", error);
@@ -106,23 +83,31 @@ export const CreditDisplay = () => {
     window.addEventListener("jobraker:credits-updated", handleCreditRefresh);
     window.addEventListener("focus", handleCreditRefresh);
 
-    // Set up real-time subscription for credits
-    const channel = supabase
-      .channel("user-credits-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "user_credits",
-        },
-        (payload) => {
-          if (payload.new && typeof (payload.new as any).balance === "number") {
-            setCredits((payload.new as any).balance);
-          }
-        },
-      )
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    
+    // We set up the channel after getting userId to ensure we only listen to our own changes
+    supabase.auth.getUser().then(({ data }) => {
+      const currentUserId = data?.user?.id;
+      if (currentUserId) {
+        channel = supabase
+          .channel("user-credits-changes")
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "user_credits",
+              filter: `user_id=eq.${currentUserId}`
+            },
+            (payload) => {
+              if (payload.new && typeof (payload.new as any).balance === "number") {
+                setCredits((payload.new as any).balance);
+              }
+            },
+          )
+          .subscribe();
+      }
+    });
 
     return () => {
       window.removeEventListener(
@@ -130,7 +115,9 @@ export const CreditDisplay = () => {
         handleCreditRefresh,
       );
       window.removeEventListener("focus", handleCreditRefresh);
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [supabase]);
 

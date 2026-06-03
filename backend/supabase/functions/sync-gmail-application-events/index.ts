@@ -7,6 +7,10 @@ import {
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 import { createNotificationRecord } from "../_shared/notification-center.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 const DEFAULT_QUERY = [
   "newer_than:180d",
@@ -26,6 +30,36 @@ const DEFAULT_QUERY = [
   '"offer letter"',
   "OR",
   '"employment offer"',
+  "OR",
+  '"job offer"',
+  "OR",
+  '"offer of employment"',
+  "OR",
+  '"pleased to offer"',
+  "OR",
+  '"extend an offer"',
+  "OR",
+  '"extend you an offer"',
+  "OR",
+  "congratulations",
+  "OR",
+  '"pleased to inform"',
+  "OR",
+  '"selected for"',
+  "OR",
+  '"letter of appointment"',
+  "OR",
+  '"appointment letter"',
+  "OR",
+  '"contract of employment"',
+  "OR",
+  '"employment contract"',
+  "OR",
+  '"compensation package"',
+  "OR",
+  '"start date"',
+  "OR",
+  '"joining date"',
   "OR",
   '"not selected"',
   "OR",
@@ -449,6 +483,8 @@ function firstRegexGroup(text: string, patterns: RegExp[]) {
 function inferCompany(text: string, subject: string, from: ParsedAddress) {
   const fromName = cleanCompany(from.name);
   const explicit = firstRegexGroup(`${subject}\n${text}`, [
+    /offer (?:from|with|at)\s+([A-Z][A-Za-z0-9&.,' -]{2,80})/i,
+    /(?:selected|chosen) (?:to join|for)\s+([A-Z][A-Za-z0-9&.,' -]{2,80})/i,
     /thank you for applying to\s+([^\n.!?]+)/i,
     /thank you for your interest in\s+([^\n.!?]+)/i,
     /application (?:with|at)\s+([A-Z][A-Za-z0-9&.,' -]{2,80})/i,
@@ -460,6 +496,9 @@ function inferCompany(text: string, subject: string, from: ParsedAddress) {
 function inferJobTitle(text: string, subject: string) {
   const source = `${subject}\n${text}`;
   const title = firstRegexGroup(source, [
+    /offer (?:for|of employment as)\s+(?:the\s+)?([A-Za-z0-9,/'&+ -]{3,100})(?:\s+position|\s+role| at |\n|\.|,)/i,
+    /selected for\s+(?:the\s+)?([A-Za-z0-9,/'&+ -]{3,100})(?:\s+position|\s+role| at |\n|\.|,)/i,
+    /join (?:us|our team) as\s+(?:a\s+|an\s+|the\s+)?([A-Za-z0-9,/'&+ -]{3,100})(?:\n|\.|,)/i,
     /position of\s+([^\n.]+)/i,
     /for the position of\s+([^\n.]+)/i,
     /for the\s+([A-Za-z0-9,/'&+ -]{3,100})\s+(?:position|role)/i,
@@ -477,6 +516,11 @@ function normalizeForPhraseMatch(text: string) {
     .replace(/[\u201C\u201D\u201E\u201F]/g, '"');
 }
 
+function looksLikeMarketingOffer(text: string) {
+  return /\b(discount|promo|coupon|sale|black friday|limited time offer|subscription offer|special offer|renewal offer|upgrade offer)\b/i
+    .test(text);
+}
+
 function classifyMessage(
   subject: string,
   snippet: string,
@@ -490,7 +534,16 @@ function classifyMessage(
   const company = inferCompany(bodyText, subject, from);
   const jobTitle = inferJobTitle(bodyText, subject);
 
-  if (/\b(pleased to offer|offer letter|employment offer|job offer|extend (you )?an offer|offer of employment)\b/i.test(combined)) {
+  const strongOffer =
+    /\b(pleased to offer|offer letter|employment offer|job offer|offer of employment|extend(?:ing)? (?:you )?an offer|we are delighted to offer|we are happy to offer|we would like to offer|letter of appointment|appointment letter|contract of employment|employment contract|compensation package)\b/i
+      .test(combined);
+  const contextualOffer =
+    /\b(congratulations[,\s]+(?:you have been|we are|on your|from)|pleased to inform you[\s\S]{0,160}(?:selected|offer)|selected (?:for|to join)|start date|joining date)\b/i
+      .test(combined) &&
+    /\b(role|position|job|employment|candidate|hiring|recruitment|interview|salary|compensation|joining|start date)\b/i
+      .test(combined);
+
+  if ((strongOffer || contextualOffer) && !looksLikeMarketingOffer(combined)) {
     return {
       eventType: "offer",
       status: "Offer",
@@ -971,11 +1024,17 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient } = await requireSubscriptionTier(
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(
       req,
       "Pro",
       "Gmail application checks",
     );
+    await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "sync_gmail_application_events",
+      serviceClient,
+      subscriptionTier,
+    });
     const body = await req.json().catch(() => ({})) as RequestBody;
     const maxResults = Math.max(1, Math.min(100, Number(body.maxResults || 30)));
     const query = typeof body.query === "string" && body.query.trim()
@@ -1072,44 +1131,96 @@ serve(async (req) => {
       const company = classified.company || "Unknown company";
       const jobTitle = fallbackJobTitle(classified);
       const emailMatchText = `${subject}\n${message.snippet || ""}\n${bodyText}`;
-      const matched = findMatchingApplication(
+      let matched = findMatchingApplication(
         applications,
         classified,
         emailMatchText,
       );
 
       if (!matched) {
-        skippedNoMatchCount += 1;
-        const { error: orphanEventError } = await serviceClient
-          .from("gmail_application_events")
-          .upsert(
-            {
-              user_id: user.id,
-              application_id: null,
-              gmail_message_id: message.id,
-              gmail_thread_id: message.threadId || listed.threadId || null,
-              event_type: classified.eventType,
-              status: classified.status,
-              confidence: classified.confidence,
-              company,
-              job_title: jobTitle,
-              sender_name: from.name,
-              sender_email: from.email,
-              subject,
-              snippet: message.snippet || null,
-              received_at: receivedAt,
-              processed_at: new Date().toISOString(),
-              raw: {
-                labelIds: message.labelIds || [],
-                query,
-                bodyPreview: bodyText.slice(0, 2000),
-                skippedReason: "no_matched_application",
+        if (classified.eventType === "offer" && classified.confidence >= 0.8) {
+          const offerNotes = [
+            "Offer detected from Gmail.",
+            `Subject: ${subject || "No subject"}`,
+            from.email ? `From: ${from.name ? `${from.name} <${from.email}>` : from.email}` : null,
+            message.snippet ? `Snippet: ${message.snippet}` : null,
+          ].filter(Boolean).join("\n");
+
+          const { data: createdApplication, error: createApplicationError } =
+            await serviceClient
+              .from("applications")
+              .insert({
+                user_id: user.id,
+                job_title: jobTitle,
+                company,
+                location: "",
+                applied_date: receivedAt,
+                status: "Offer",
+                canonical_stage: "offer",
+                notes: offerNotes,
+                next_step: classified.nextStep,
+                provider_status: "gmail:offer",
+                provider_run_output: {
+                  source: "gmail_offer_detection",
+                  gmail_message_id: message.id,
+                  gmail_thread_id: message.threadId || listed.threadId || null,
+                  sender_name: from.name,
+                  sender_email: from.email,
+                  subject,
+                  snippet: message.snippet || null,
+                  received_at: receivedAt,
+                  bodyPreview: bodyText.slice(0, 2000),
+                },
+                updated_at: new Date().toISOString(),
+              })
+              .select("id, job_id, job_title, company, status, canonical_stage, notes, app_url")
+              .single();
+
+          if (createApplicationError) throw createApplicationError;
+          if (!createdApplication?.id) {
+            throw new Error("Failed to create application tracker entry for Gmail offer");
+          }
+
+          matched = {
+            ...(createdApplication as ApplicationRow),
+            app_url: (createdApplication?.app_url as string | null) ?? null,
+            jobs: null,
+          };
+          applications.push(matched);
+          createdCount += 1;
+        } else {
+          skippedNoMatchCount += 1;
+          const { error: orphanEventError } = await serviceClient
+            .from("gmail_application_events")
+            .upsert(
+              {
+                user_id: user.id,
+                application_id: null,
+                gmail_message_id: message.id,
+                gmail_thread_id: message.threadId || listed.threadId || null,
+                event_type: classified.eventType,
+                status: classified.status,
+                confidence: classified.confidence,
+                company,
+                job_title: jobTitle,
+                sender_name: from.name,
+                sender_email: from.email,
+                subject,
+                snippet: message.snippet || null,
+                received_at: receivedAt,
+                processed_at: new Date().toISOString(),
+                raw: {
+                  labelIds: message.labelIds || [],
+                  query,
+                  bodyPreview: bodyText.slice(0, 2000),
+                  skippedReason: "no_matched_application",
+                },
               },
-            },
-            { onConflict: "user_id,gmail_message_id" },
-          );
-        if (orphanEventError) throw orphanEventError;
-        continue;
+              { onConflict: "user_id,gmail_message_id" },
+            );
+          if (orphanEventError) throw orphanEventError;
+          continue;
+        }
       }
 
       classifiedCount += 1;
@@ -1176,8 +1287,8 @@ serve(async (req) => {
               query,
               bodyPreview: bodyText.slice(0, 2000),
             },
-            },
-            { onConflict: "user_id,gmail_message_id" },
+          },
+          { onConflict: "user_id,gmail_message_id" },
         )
         .select("id")
         .single();
@@ -1223,6 +1334,18 @@ serve(async (req) => {
       })
       .eq("user_id", user.id);
     if (syncUpdateError) throw syncUpdateError;
+
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "sync_gmail_application_events",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        scanned: list.length,
+        classified: classifiedCount,
+        updated: updatedCount,
+      },
+    });
 
     return jsonResponse(
       {

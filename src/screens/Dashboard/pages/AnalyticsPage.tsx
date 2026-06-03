@@ -79,7 +79,7 @@ export function AnalyticsPage() {
   });
 
   return (
-    <div className='relative min-h-screen bg-background'>
+    <div className='relative min-h-full bg-background'>
       {/* Ambient Background Glow */}
       <div className='fixed top-20 right-0 h-96 w-96 bg-foreground/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10'></div>
       <div className='fixed bottom-0 left-0 h-96 w-96 bg-foreground/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10'></div>

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -10,6 +10,8 @@ import {
   Edit2,
   Trash2,
   Download,
+  History,
+  MessageSquare,
 } from "lucide-react";
 import { useArtboardStore } from "../../../store/artboard";
 import { Button } from "../../../components/ui/button";
@@ -19,9 +21,12 @@ import { ResumePreviewCard } from "../components/ResumePreviewCard";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { getResumeDisplayName } from "@/lib/resumeDisplay";
 import { useResumes, type ResumeRecord } from "@/hooks/useResumes";
+import { useToast } from "@/components/ui/toast";
+import { downloadResumePDF } from "@/utils/resume-download";
 
 export const ResumeHomePage = () => {
   const navigate = useNavigate();
+  const { error: toastError } = useToast();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -31,6 +36,16 @@ export const ResumeHomePage = () => {
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { resumes, loading, importResume, remove: removeResume } = useResumes();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const setResumeId = useArtboardStore((state) => state.setResumeId);
   const setResumeTitle = useArtboardStore((state) => state.setResumeTitle);
@@ -92,7 +107,7 @@ export const ResumeHomePage = () => {
       navigate(`/dashboard/resume/edit/${importedResume.id}`);
     } catch (error: any) {
       console.error("Import failed:", error);
-      alert(`Import failed: ${error.message}`);
+      toastError("Import failed", error?.message || "Could not import resume.");
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -100,7 +115,7 @@ export const ResumeHomePage = () => {
   };
 
   return (
-    <div className='product-page-shell flex flex-col h-full bg-background text-foreground p-8 overflow-y-auto'>
+    <div className={`product-page-shell flex flex-col h-full bg-background text-foreground overflow-y-auto ${isMobile ? "p-4 pb-20" : "p-8"}`}>
       <input
         type='file'
         ref={fileInputRef}
@@ -145,7 +160,7 @@ export const ResumeHomePage = () => {
 
           <Button
             onClick={handleCreateNew}
-            className='bg-brand text-foreground hover:bg-brand/90 gap-2 font-semibold'
+            className='bg-brand text-black hover:bg-brand/90 gap-2 font-semibold'
           >
             <Plus className='w-4 h-4' />
             Create New
@@ -242,12 +257,12 @@ export const ResumeHomePage = () => {
             <motion.div
               key={resume.id}
               whileHover={{ y: -5 }}
-              className='aspect-[3/4] rounded-xl bg-foreground/5 border overflow-hidden group transition-all relative flex flex-col'
+              className='rounded-xl bg-foreground/5 border overflow-hidden group transition-all relative flex flex-col'
             >
               {/* Preview Area (Top 2/3) */}
               <div
                 onClick={() => handleEdit(resume, displayName)}
-                className='flex-1 relative cursor-pointer overflow-hidden'
+                className='relative cursor-pointer overflow-hidden aspect-[794/1123]'
               >
                 {/* Mini Resume Preview */}
                 <ResumePreviewCard
@@ -349,7 +364,7 @@ export const ResumeHomePage = () => {
               <div className='col-span-3 product-helper-text text-sm'>
                 {new Date(resume.updated_at).toLocaleDateString()}
               </div>
-              <div className='col-span-3 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
+              <div className='col-span-3 flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity'>
                 <button
                   onClick={() => handleEdit(resume, displayName)}
                   className='p-2 product-helper-text hover:text-foreground hover:bg-brand/10 rounded-lg transition-colors'
@@ -358,6 +373,8 @@ export const ResumeHomePage = () => {
                   <Edit2 className='w-4 h-4' />
                 </button>
                 <button
+                  type='button'
+                  onClick={() => void downloadResumePDF(resume.data)}
                   className='p-2 product-helper-text hover:text-foreground hover:bg-brand/10 rounded-lg transition-colors'
                   title='Download'
                 >
@@ -428,6 +445,7 @@ export const ResumeHomePage = () => {
         confirmText='Delete'
         cancelText='Cancel'
       />
+
     </div>
   );
 };

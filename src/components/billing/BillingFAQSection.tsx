@@ -65,6 +65,16 @@ const BILLING_FAQ_ITEMS: { question: string; answer: string }[] = [
       "They are monthly allowances for automation that fills and submits applications under guardrails you set (e.g., review-first modes). Runs are separate from search/AI credits; each tier lists how many runs you get per month.",
   },
   {
+    question: "What does a concurrency boost change?",
+    answer:
+      "A concurrency boost raises how many auto-apply workflows can be active at the same time. It does not replace your monthly auto-apply run allowance or search/AI credits; it only increases the parallel cap so you can launch more automation at once.",
+  },
+  {
+    question: "How long do purchased concurrency boosts last?",
+    answer:
+      "Concurrency boosts are applied to the current billing period tied to your subscription window. If you buy one while on Free or without an active paid term, the boost is applied for a monthly window starting at purchase verification.",
+  },
+  {
     question: "Do credit packs expire?",
     answer:
       "Purchased credits are added to your balance and used as you consume features. We do not advertise a separate expiry for pack top-ups in-product; if you have compliance or accounting questions, contact support for your account’s policy.",

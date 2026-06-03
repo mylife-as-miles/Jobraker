@@ -1,4 +1,4 @@
-﻿import SortDropdown from "@/components/SortDropdown";
+import SortDropdown from "@/components/SortDropdown";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -16,10 +16,20 @@ import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 import { scheduleInterviewViaEdge, type ScheduleInterviewResponse } from "../../../services/ai/scheduleInterview";
 import { useGamification } from "../../../hooks/useGamification";
+import {
+  fetchJobEvaluationReport,
+  type JobEvaluationReport as JobEvaluationReportData,
+} from "../../../services/jobs/jobEvaluation";
 
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../../../components/ui/tooltip";
 import { useToast } from "../../../components/ui/toast";
 import { createClient } from "../../../lib/supabaseClient";
 
@@ -38,6 +48,9 @@ import {
   Lock,
   Mail,
   Zap,
+  Trash2,
+  Info,
+  Clock,
 } from "lucide-react";
 import {
   KanbanProvider,
@@ -98,6 +111,49 @@ function resolveCompanyLogo(logo?: string | null) {
   const value = logo?.trim();
   if (!value) return null;
   return getProxiedLogoUrl(value) || null;
+}
+
+function compactText(value?: string | null) {
+  return value?.trim().replace(/\s+/g, " ") || "";
+}
+
+function formatAiEvaluationNotes(
+  evaluation: JobEvaluationReportData | null,
+): string {
+  if (!evaluation) return "";
+
+  const fitLine = [
+    `Match score: ${evaluation.confidence_score}%`,
+    evaluation.exact_fit_evidence.length
+      ? `Strengths: ${evaluation.exact_fit_evidence.slice(0, 2).join("; ")}`
+      : "",
+    evaluation.blockers.length
+      ? `Needs attention: ${evaluation.blockers.slice(0, 2).join("; ")}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(". ");
+
+  const tailoringLine = evaluation.tailoring_suggestions.length
+    ? `Tailoring: ${evaluation.tailoring_suggestions.slice(0, 2).join("; ")}`
+    : "";
+
+  return [fitLine, tailoringLine].filter(Boolean).join("\n\n").trim();
+}
+
+function getAiCompensationSummary(
+  evaluation: JobEvaluationReportData | null,
+): string {
+  if (!evaluation) return "";
+
+  const summary = compactText(evaluation.compensation.summary);
+  const notes = evaluation.compensation.notes.slice(0, 2).join("; ");
+  const signals = evaluation.compensation.signals.slice(0, 2).join("; ");
+
+  return [summary, notes, signals]
+    .map((item) => compactText(item))
+    .filter((item) => item && item !== "Compensation not evaluated")
+    .join(" ");
 }
 
 function CompanyMark({
@@ -172,9 +228,33 @@ function getApplicationStatusColor(status: ApplicationStatus) {
   return "#6B7280";
 }
 
-function StatusBadge({ status }: { status: ApplicationStatus }) {
-  const dc = getApplicationStatusColor(status);
-  return (
+function isQueuedApplication(status: ApplicationStatus, providerStatus?: string | null) {
+  return status === "Pending" && providerStatus === "waiting";
+}
+
+function getApplicationStatusDisplay(status: ApplicationStatus, providerStatus?: string | null) {
+  return isQueuedApplication(status, providerStatus) ? "Queued" : status;
+}
+
+function getApplicationStatusDisplayColor(
+  status: ApplicationStatus,
+  providerStatus?: string | null,
+) {
+  return isQueuedApplication(status, providerStatus)
+    ? "#38bdf8"
+    : getApplicationStatusColor(status);
+}
+
+function StatusBadge({
+  status,
+  providerStatus,
+}: {
+  status: ApplicationStatus;
+  providerStatus?: string | null;
+}) {
+  const label = getApplicationStatusDisplay(status, providerStatus);
+  const dc = getApplicationStatusDisplayColor(status, providerStatus);
+  const badge = (
     <span
       className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border'
       style={{
@@ -187,8 +267,24 @@ function StatusBadge({ status }: { status: ApplicationStatus }) {
         className='h-1.5 w-1.5 rounded-full shadow-[0_0_4px_currentColor]'
         style={{ backgroundColor: dc }}
       />
-      {status}
+      {label}
     </span>
+  );
+
+  if (!isQueuedApplication(status, providerStatus)) {
+    return badge;
+  }
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>{badge}</TooltipTrigger>
+        <TooltipContent side='bottom' className='max-w-64 leading-relaxed'>
+          This application is waiting for an automation slot. Higher tiers and
+          concurrency boosts get more parallel runs.
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -315,7 +411,7 @@ function ApplicationsListView({
                                 >
                                   {a.job_title}
                                 </h3>
-                                <MatchScoreBadge score={a.match_score ?? 0} />
+                                <MatchScoreBadge score={a.match_score} />
                               </div>
                               <div className='mt-1 truncate text-sm font-medium text-foreground/60'>
                                 {a.company}
@@ -448,6 +544,7 @@ function ApplicationPage() {
     applications,
     exportCSV,
     update,
+    remove,
     refresh,
     loading: appsLoading,
   } = useApplications();
@@ -478,6 +575,11 @@ function ApplicationPage() {
   const [notesText, setNotesText] = useState("");
   const [editingSalary, setEditingSalary] = useState(false);
   const [salaryText, setSalaryText] = useState("");
+  const [detailEvaluation, setDetailEvaluation] =
+    useState<JobEvaluationReportData | null>(null);
+  const [detailEvaluationLoading, setDetailEvaluationLoading] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingApplication, setDeletingApplication] = useState(false);
   const [interviewAgentOpen, setInterviewAgentOpen] = useState(false);
   const [interviewEmailText, setInterviewEmailText] = useState("");
   const [interviewAgentLoading, setInterviewAgentLoading] = useState(false);
@@ -494,6 +596,18 @@ function ApplicationPage() {
     () => applications.find((a) => a.id === detailId) || null,
     [detailId, applications],
   );
+  const aiNotesText = useMemo(
+    () => formatAiEvaluationNotes(detailEvaluation),
+    [detailEvaluation],
+  );
+  const displayedNotesText = useMemo(
+    () => compactText(detailApp?.notes) || aiNotesText,
+    [detailApp?.notes, aiNotesText],
+  );
+  const aiCompensationSummary = useMemo(
+    () => getAiCompensationSummary(detailEvaluation),
+    [detailEvaluation],
+  );
 
   // Update notes text when detailApp changes
   useEffect(() => {
@@ -504,6 +618,46 @@ function ApplicationPage() {
       setEditingSalary(false);
     }
   }, [detailApp]);
+
+  useEffect(() => {
+    if (!detailApp || editingNotes) return;
+    if (compactText(detailApp.notes)) return;
+    if (!aiNotesText) return;
+    setNotesText(aiNotesText);
+  }, [detailApp, editingNotes, aiNotesText]);
+
+  useEffect(() => {
+    if (!detailApp?.job_id) {
+      setDetailEvaluation(null);
+      setDetailEvaluationLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setDetailEvaluationLoading(true);
+
+    void fetchJobEvaluationReport(detailApp.job_id)
+      .then((report) => {
+        if (!cancelled) {
+          setDetailEvaluation(report);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load application evaluation", error);
+        if (!cancelled) {
+          setDetailEvaluation(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setDetailEvaluationLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [detailApp?.job_id]);
 
   // Restore preferences on mount
   useEffect(() => {
@@ -765,11 +919,9 @@ function ApplicationPage() {
         selectedStatus === "All" || a.status === selectedStatus;
       return matchesQ && matchesStatus;
     });
-    const extractScore = (rec: any) => {
+    const extractScore = (rec: any): number | null => {
       if (typeof rec.match_score === "number") return rec.match_score;
-      if (rec.notes && /match[:=]\s*(\d{1,3})/i.test(rec.notes))
-        return Number(RegExp.$1);
-      return 0;
+      return null;
     };
     switch (sortBy) {
       case "recent":
@@ -788,7 +940,18 @@ function ApplicationPage() {
         break;
       case "score":
       default:
-        list = list.sort((a, b) => extractScore(b) - extractScore(a));
+        list = list.sort((a, b) => {
+          const scoreA = extractScore(a);
+          const scoreB = extractScore(b);
+          if (scoreA == null && scoreB == null) {
+            return (
+              new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+            );
+          }
+          if (scoreA == null) return 1;
+          if (scoreB == null) return -1;
+          return scoreB - scoreA;
+        });
     }
     return list;
   }, [applications, searchQuery, selectedStatus, sortBy]);
@@ -972,19 +1135,20 @@ function ApplicationPage() {
                 className='pl-12 h-12 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#1dff00]/20 text-foreground placeholder:text-foreground/80 focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all duration-200 rounded-xl'
               />
             </div>
-            <div className='flex items-center gap-3'>
+            <div className='flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto'>
               <SortDropdown
                 value={sortBy}
                 onChange={(newSortBy) => setSortBy(newSortBy as SortOption)}
+                className="flex-1 sm:flex-initial sm:w-[180px]"
               />
 
               <div
                 id='application-view-toggle'
-                className='inline-flex rounded-xl border border-[#1dff00]/30 overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  backdrop-blur-sm shadow-lg'
+                className='inline-flex rounded-xl border border-[#1dff00]/30 overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  backdrop-blur-sm shadow-lg flex-shrink-0'
                 data-tour='application-view-toggle'
               >
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 relative ${viewMode === "gantt" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`group px-3 py-2 sm:px-4 sm:py-3 text-sm transition-all duration-200 relative ${viewMode === "gantt" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Gantt view'
                   onClick={() => setViewMode("gantt")}
                 >
@@ -994,7 +1158,7 @@ function ApplicationPage() {
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "kanban" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`group px-3 py-2 sm:px-4 sm:py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "kanban" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Kanban view'
                   onClick={() => setViewMode("kanban")}
                 >
@@ -1004,7 +1168,7 @@ function ApplicationPage() {
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "calendar" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`group px-3 py-2 sm:px-4 sm:py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "calendar" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Calendar view'
                   onClick={() => setViewMode("calendar")}
                 >
@@ -1014,7 +1178,7 @@ function ApplicationPage() {
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "table" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`group px-3 py-2 sm:px-4 sm:py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === "table" ? "bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Table view'
                   onClick={() => setViewMode("table")}
                 >
@@ -1247,7 +1411,7 @@ function ApplicationPage() {
             )}
 
             {viewMode === "calendar" && (
-              <div className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background p-6 shadow-[0_0_30px_rgba(29,255,0,0.1)] overflow-hidden'>
+              <div className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background p-3 sm:p-6 shadow-[0_0_30px_rgba(29,255,0,0.1)] overflow-hidden'>
                 {/* Ambient Glow Effect */}
                 <div className='absolute -top-20 -left-20 h-64 w-64 bg-[#1dff00]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
 
@@ -1370,7 +1534,7 @@ function ApplicationPage() {
                                   </div>
                                 </div>
                                 <div className='mt-0.5 shrink-0'>
-                                  <MatchScoreBadge score={a.match_score ?? 0} />
+                                  <MatchScoreBadge score={a.match_score} />
                                 </div>
                               </div>
                               <div className='mt-3 flex flex-wrap items-center gap-2 border-t border-foreground/5 pt-3 text-[11px] text-foreground/50'>
@@ -1416,7 +1580,10 @@ function ApplicationPage() {
             {/* Header Section with Status Badge */}
             <div className='relative pb-6 border-b border-[#1dff00]/10'>
               <div className='absolute top-0 right-0'>
-                <StatusBadge status={detailApp.status} />
+                <StatusBadge
+                  status={detailApp.status}
+                  providerStatus={detailApp.provider_status}
+                />
               </div>
               <div className='space-y-2 pr-32'>
                 <h2 className='text-2xl font-bold text-foreground'>
@@ -1440,6 +1607,38 @@ function ApplicationPage() {
                 </div>
               </div>
             </div>
+
+            {isQueuedApplication(detailApp.status, detailApp.provider_status) && (
+              <div className='rounded-xl border border-sky-400/25 bg-sky-400/10 p-4'>
+                <div className='flex items-start gap-3'>
+                  <div className='mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-sky-300/25 bg-sky-300/10 text-sky-300'>
+                    <Clock className='h-4 w-4' />
+                  </div>
+                  <div className='min-w-0 space-y-2'>
+                    <div className='flex items-center gap-2 text-sm font-semibold text-sky-200'>
+                      Waiting for an auto-apply slot
+                      <TooltipProvider delayDuration={150}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className='h-3.5 w-3.5 cursor-help text-sky-200/75' />
+                          </TooltipTrigger>
+                          <TooltipContent side='bottom' className='max-w-72 leading-relaxed'>
+                            JobRaker starts queued applications by subscription tier,
+                            then rotates between users in the same tier so one account
+                            cannot consume every platform slot.
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <p className='text-sm leading-relaxed text-foreground/75'>
+                      This run has been charged and reserved, and will launch
+                      automatically when capacity opens. Pro, Ultimate, and
+                      concurrency boosts move more applications in parallel.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Draft Status & AI Confidence Badges */}
             {(detailApp.draft_status || detailApp.ai_confidence_score != null) && (
@@ -1700,9 +1899,19 @@ function ApplicationPage() {
                     {detailApp.salary ? (
                       <span className='text-lg font-bold text-[#1dff00] leading-snug'>{detailApp.salary}</span>
                     ) : (
-                      <span className='text-sm text-foreground/45 italic'>
-                        Click to add listing or offer comp (used in Analytics pipeline estimates)
-                      </span>
+                      <div className='space-y-2'>
+                        <span className='block text-sm text-foreground/45 italic'>
+                          Click to add listing or offer comp (used in Analytics pipeline estimates)
+                        </span>
+                        {aiCompensationSummary ? (
+                          <p className='text-sm text-foreground/70 leading-relaxed'>
+                            <span className='font-medium text-[#1dff00]'>
+                              AI read:
+                            </span>{" "}
+                            {aiCompensationSummary}
+                          </p>
+                        ) : null}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1746,13 +1955,18 @@ function ApplicationPage() {
                     className='w-full min-h-[140px] rounded-xl bg-foreground/5 border border-[#1dff00]/30 text-foreground placeholder:text-foreground/40 p-4 outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all resize-y'
                     autoFocus
                   />
+                  {!compactText(detailApp?.notes) && aiNotesText ? (
+                    <p className='text-xs text-foreground/50'>
+                      AI drafted these notes from the evaluation report. Edit before saving if needed.
+                    </p>
+                  ) : null}
                   <div className='flex justify-end gap-2'>
                     <Button
                       size='sm'
                       variant='outline'
                       className='border-foreground/20 hover:border-foreground/30 hover:bg-foreground/5 text-foreground/70 hover:text-foreground'
                       onClick={() => {
-                        setNotesText(detailApp?.notes || "");
+                        setNotesText(detailApp?.notes || aiNotesText || "");
                         setEditingNotes(false);
                       }}
                     >
@@ -1779,20 +1993,29 @@ function ApplicationPage() {
                   </div>
                 </div>
               ) : (
-                <div
-                  className='p-4 rounded-xl bg-foreground/[0.02] border border-foreground/10 max-h-60 overflow-auto scrollbar-thin scrollbar-thumb-[#1dff00]/30 scrollbar-track-transparent cursor-text hover:border-foreground/20 transition-colors'
-                  onClick={() => setEditingNotes(true)}
-                >
-                  {detailApp.notes ? (
-                    <p className='text-sm text-foreground/70 leading-relaxed foregroundspace-pre-wrap'>
-                      {detailApp.notes}
+                <>
+                  <div
+                    className='p-4 rounded-xl bg-foreground/[0.02] border border-foreground/10 max-h-60 overflow-auto scrollbar-thin scrollbar-thumb-[#1dff00]/30 scrollbar-track-transparent cursor-text hover:border-foreground/20 transition-colors'
+                    onClick={() => setEditingNotes(true)}
+                  >
+                    {displayedNotesText ? (
+                      <p className='text-sm text-foreground/70 leading-relaxed foregroundspace-pre-wrap'>
+                        {displayedNotesText}
+                      </p>
+                    ) : (
+                      <p className='text-sm text-foreground/40 italic'>
+                        {detailEvaluationLoading
+                          ? "Generating AI notes..."
+                          : "Click to add notes..."}
+                      </p>
+                    )}
+                  </div>
+                  {!compactText(detailApp.notes) && displayedNotesText ? (
+                    <p className='text-xs text-foreground/45'>
+                      Showing AI-generated notes until you save your own version.
                     </p>
-                  ) : (
-                    <p className='text-sm text-foreground/40 italic'>
-                      Click to add notes...
-                    </p>
-                  )}
-                </div>
+                  ) : null}
+                </>
               )}
             </div>
 
@@ -2042,6 +2265,15 @@ function ApplicationPage() {
               <Button
                 size='sm'
                 variant='outline'
+                className='border-rose-400/25 text-rose-300 hover:bg-rose-400/10 hover:border-rose-400/40'
+                onClick={() => setDeleteConfirmOpen(true)}
+              >
+                <Trash2 className='mr-2 h-4 w-4' />
+                Delete
+              </Button>
+              <Button
+                size='sm'
+                variant='outline'
                 className='flex-1 border-foreground/20 hover:border-foreground/30 hover:bg-foreground/5 text-foreground/70 hover:text-foreground transition-all'
                 onClick={() => setDetailId(null)}
               >
@@ -2051,8 +2283,8 @@ function ApplicationPage() {
                 size='sm'
                 className='flex-1 bg-gradient-to-r from-[#1dff00] to-background hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] text-foreground font-semibold transition-all'
                 onClick={() => {
-                  // Edit functionality can be added here
-                  console.log("Edit application:", detailApp.id);
+                  setEditingNotes(true);
+                  setEditingSalary(true);
                 }}
               >
                 Edit Details
@@ -2060,6 +2292,53 @@ function ApplicationPage() {
             </div>
           </div>
         ) : null}
+      </Modal>
+
+      <Modal
+        open={deleteConfirmOpen}
+        onClose={() => {
+          if (!deletingApplication) setDeleteConfirmOpen(false);
+        }}
+        title='Delete application'
+        size='md'
+        side='center'
+      >
+        <div className='space-y-4'>
+          <p className='text-sm text-foreground/75'>
+            Delete{" "}
+            <span className='font-medium text-foreground'>
+              {detailApp?.job_title}
+            </span>
+            {detailApp?.company ? ` at ${detailApp.company}` : ""}? This removes it from your tracker.
+          </p>
+          <div className='flex justify-end gap-2'>
+            <Button
+              variant='outline'
+              className='border-foreground/20 hover:border-foreground/30 hover:bg-foreground/5 text-foreground/70 hover:text-foreground'
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={deletingApplication}
+            >
+              Cancel
+            </Button>
+            <Button
+              className='bg-rose-500 hover:bg-rose-500/90 text-white'
+              disabled={deletingApplication || !detailApp}
+              onClick={async () => {
+                if (!detailApp) return;
+                setDeletingApplication(true);
+                try {
+                  await remove(detailApp.id);
+                  setDeleteConfirmOpen(false);
+                  setDetailId(null);
+                } finally {
+                  setDeletingApplication(false);
+                }
+              }}
+            >
+              {deletingApplication ? "Deleting..." : "Delete application"}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Next Step Note Modal */}
@@ -2534,7 +2813,14 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           const value = info.getValue() as string;
           const isEditing = editingStatusId === row.id;
           const selectableStatuses = APPLICATION_STATUS_OPTIONS;
-          const color = getApplicationStatusColor(value as ApplicationStatus);
+          const displayValue = getApplicationStatusDisplay(
+            value as ApplicationStatus,
+            row.provider_status,
+          );
+          const color = getApplicationStatusDisplayColor(
+            value as ApplicationStatus,
+            row.provider_status,
+          );
           return (
             <div
               className='relative'
@@ -2563,7 +2849,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
                     className='w-1.5 h-1.5 rounded-full'
                     style={{ backgroundColor: color }}
                   ></span>
-                  {value}
+                  {displayValue}
                 </button>
               )}
               {isEditing && (
@@ -2696,10 +2982,16 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
             <TableColumnHeader column={column} title='Score' />
           </div>
         ),
-        accessorFn: (row) => row.match_score ?? 0,
-        cell: (info) => <MatchScoreBadge score={info.getValue<number>()} />,
-        sortingFn: (a, b, columnId) =>
-          a.getValue<number>(columnId) - b.getValue<number>(columnId),
+        accessorFn: (row) => row.match_score ?? null,
+        cell: (info) => <MatchScoreBadge score={info.getValue<number | null>()} />,
+        sortingFn: (a, b, columnId) => {
+          const scoreA = a.getValue<number | null>(columnId);
+          const scoreB = b.getValue<number | null>(columnId);
+          if (scoreA == null && scoreB == null) return 0;
+          if (scoreA == null) return -1;
+          if (scoreB == null) return 1;
+          return scoreA - scoreB;
+        },
       },
     ],
     [busyId, editingStatusId],

@@ -1,8 +1,14 @@
 import React from "react";
+import Seo from "@/components/seo/Seo";
 
 export const PrivacyPolicy: React.FC = () => {
   return (
     <main className="min-h-screen bg-background text-foreground px-6 py-10">
+      <Seo
+        title='JobRaker Privacy Policy'
+        description='Learn what information JobRaker collects, how it is used, and the choices you have around your data.'
+        path='/privacy'
+      />
       <div className="max-w-3xl mx-auto">
         <h1 className="text-3xl font-semibold mb-6">Privacy Policy</h1>
         <p className="opacity-80 mb-8">Last updated: {new Date().toISOString().slice(0, 10)}</p>
@@ -82,7 +88,7 @@ export const PrivacyPolicy: React.FC = () => {
 
           <h2 className="text-xl font-semibold mt-8">11. Contact</h2>
           <p className="opacity-90">
-            Questions or requests: <a className="underline" href="mailto:privacy@jobraker.com">privacy@jobraker.com</a>
+            Questions or requests: <a className="underline" href="mailto:privacy@jobraker.io">privacy@jobraker.io</a>
           </p>
         </section>
       </div>

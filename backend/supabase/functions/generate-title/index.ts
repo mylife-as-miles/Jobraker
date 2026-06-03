@@ -5,8 +5,18 @@ import {
   createGeminiConfig,
   extractGeminiText,
   GEMINI_MODEL,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import {
+  requireAuthenticatedUser,
+  SubscriptionAccessError,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 console.log("Hello from generate-title!");
 
@@ -46,6 +56,12 @@ serve(async (req) => {
   }
 
   try {
+    const { user, serviceClient } = await requireAuthenticatedUser(req);
+    const subscriptionTier = await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "generate_title",
+      serviceClient,
+    });
     const { message } = await req.json();
 
     if (!message) {
@@ -70,14 +86,16 @@ serve(async (req) => {
         Do not include quotes in the output. Just the title text.
       `;
 
-      const response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
-        config: createGeminiConfig({
-          systemInstruction: systemPrompt,
-          responseMimeType: "text/plain",
-        }),
-        contents: [{ role: "user", parts: [{ text: message }] }],
-      });
+      const { result: response } = await withModelFallback((model) =>
+        ai.models.generateContent({
+          model,
+          config: createGeminiConfig({
+            systemInstruction: systemPrompt,
+            responseMimeType: "text/plain",
+          }),
+          contents: [{ role: "user", parts: [{ text: message }] }],
+        })
+      );
 
       title = extractGeminiText(response)?.trim() || title;
     } catch (error) {
@@ -87,11 +105,21 @@ serve(async (req) => {
     // Ensure title isn't too long
     const cleanTitle = title.length > 50 ? title.substring(0, 47) + "..." : title;
 
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "generate_title",
+      serviceClient,
+      subscriptionTier,
+    });
+
     return new Response(JSON.stringify({ title: cleanTitle }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (error) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
     console.error("Error generating title:", error);
     return new Response(JSON.stringify({ title: "New Chat" }), {
       status: 200,

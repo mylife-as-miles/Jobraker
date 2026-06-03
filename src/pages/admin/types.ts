@@ -15,6 +15,21 @@ export interface AdminStats {
   churnRate: number;
 }
 
+export interface ExperienceFeedbackStats {
+  responses: number;
+  averageRating: number;
+  fiveStarShare: number;
+  distribution: Array<{
+    rating: number;
+    count: number;
+  }>;
+  trend: Array<{
+    date: string;
+    responses: number;
+    averageRating: number;
+  }>;
+}
+
 export interface UserActivity {
   id: string;
   email: string;

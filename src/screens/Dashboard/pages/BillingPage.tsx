@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { createClient } from "@/lib/supabaseClient";
+import { captureClientEvent, captureServerEvent } from "@/lib/analytics";
 import {
   Coins,
   Crown,
@@ -22,6 +23,7 @@ import {
   Check,
   Star,
   ArrowUpRight,
+  ArrowDownLeft,
   Download,
   Shield,
   Infinity,
@@ -29,14 +31,28 @@ import {
   Loader2,
   Receipt,
   Percent,
+  Rocket,
+  Gauge,
+  Layers3,
+  Clock3,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/toast";
 import {
+  BILLING_CONCURRENCY_PACK_DEFINITIONS,
   BILLING_CREDIT_PACK_DEFINITIONS,
   BILLING_PLAN_DEFINITIONS,
 } from "@/lib/billingCatalog";
 import { BillingFAQSection } from "@/components/billing/BillingFAQSection";
+import {
+  LOW_CREDIT_RESCUE_CODE,
+  LOW_CREDIT_RESCUE_DISCOUNT_PCT,
+  LOW_CREDIT_RESCUE_MULTIPLIER,
+  ensureLowCreditRescueExpiry,
+  isLowCreditRescueCode,
+} from "@/lib/lowCreditRescuePromo";
 
 interface SubscriptionPlan {
   id: string;
@@ -44,6 +60,7 @@ interface SubscriptionPlan {
   price: number;
   credits_per_month: number;
   auto_apply_monthly_limit?: number;
+  auto_apply_concurrency?: number;
   description: string;
   features: Array<
     | string
@@ -63,6 +80,7 @@ interface CreditTransaction {
   balance_after: number;
   description: string;
   created_at: string;
+  agent_run_id?: string | null;
 }
 
 interface CreditPack {
@@ -72,6 +90,15 @@ interface CreditPack {
   credits: number;
   price_usd: number;
   bonus_credits: number;
+  is_popular?: boolean;
+}
+
+interface ConcurrencyPack {
+  sku: string;
+  name: string;
+  description: string;
+  parallel_slots: number;
+  price_usd: number;
   is_popular?: boolean;
 }
 
@@ -94,10 +121,21 @@ const defaultPlans: SubscriptionPlan[] = BILLING_PLAN_DEFINITIONS.map(
     price: plan.monthlyPriceUsd,
     credits_per_month: plan.creditsPerMonth,
     auto_apply_monthly_limit: plan.autoApplyRunsPerMonth,
+    auto_apply_concurrency: plan.autoApplyConcurrency,
     description: plan.description,
     features: plan.marketingFeatures,
   }),
 );
+
+const defaultConcurrencyPacks: ConcurrencyPack[] =
+  BILLING_CONCURRENCY_PACK_DEFINITIONS.map((pack) => ({
+    sku: pack.sku,
+    name: pack.name,
+    description: pack.description,
+    parallel_slots: pack.parallelSlots,
+    price_usd: pack.priceUsd,
+    is_popular: pack.isPopular,
+  }));
 
 type BillingInterval = "monthly" | "quarterly" | "yearly";
 
@@ -106,7 +144,9 @@ function normalizeCreditTransaction(
 ): CreditTransaction {
   return {
     ...transaction,
-    transaction_type: transaction.transaction_type ?? transaction.type ?? "refill",
+    transaction_type:
+      transaction.transaction_type ?? transaction.type ?? "refill",
+    agent_run_id: transaction.agent_run_id ?? null,
   };
 }
 
@@ -246,11 +286,15 @@ function getPlanPricingDisplay(
   planName: string,
   interval: BillingInterval,
   fallbackMonthlyFromDb: number,
+  promoApplied = false,
 ): PlanPricingDisplay {
   const def = BILLING_PLAN_DEFINITIONS.find((p) => p.name === planName);
-  const monthly = def?.monthlyPriceUsd ?? fallbackMonthlyFromDb;
+  const originalMonthly = def?.monthlyPriceUsd ?? fallbackMonthlyFromDb;
+  const monthly = promoApplied
+    ? originalMonthly * LOW_CREDIT_RESCUE_MULTIPLIER
+    : originalMonthly;
 
-  if (!def || monthly <= 0) {
+  if (!def || originalMonthly <= 0) {
     return {
       headline: "0",
       suffix: "",
@@ -261,36 +305,53 @@ function getPlanPricingDisplay(
     };
   }
 
-  const quarterlyUsd = def.quarterlyPriceUsd ?? 0;
-  if (interval === "quarterly" && quarterlyUsd > 0) {
+  const originalQuarterly = def.quarterlyPriceUsd ?? 0;
+  const quarterlyUsd = promoApplied
+    ? originalQuarterly * LOW_CREDIT_RESCUE_MULTIPLIER
+    : originalQuarterly;
+  const originalYearly = def.yearlyPriceUsd ?? 0;
+  const yearly = promoApplied
+    ? originalYearly * LOW_CREDIT_RESCUE_MULTIPLIER
+    : originalYearly;
+
+  if (interval === "quarterly" && originalQuarterly > 0) {
     const stacked = monthly * 3;
     const saved = stacked - quarterlyUsd;
     const pct = stacked > 0 ? Math.round((saved / stacked) * 100) : 40;
     const eqMo = quarterlyUsd / 3;
+    const origStacked = originalMonthly * 3;
     return {
       headline: quarterlyUsd.toLocaleString("en-US", {
         maximumFractionDigits: 0,
       }),
       suffix: "/qtr",
-      compareAt: `3 × $${monthly}/mo → $${stacked.toLocaleString("en-US")}`,
-      subline: `≈ $${Math.round(eqMo)}/mo equivalent · billed every 3 months`,
-      savingsBadge: `Save $${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
+      compareAt: promoApplied
+        ? `Original: ${origStacked.toLocaleString("en-US")} (${originalQuarterly.toLocaleString("en-US")}/qtr)`
+        : `3 x ${monthly}/mo -> ${stacked.toLocaleString("en-US")}`,
+      subline: `Approx. ${Math.round(eqMo)}/mo equivalent, billed every 3 months`,
+      savingsBadge: promoApplied
+        ? `Rescue offer: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
+        : `Save ${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
   }
 
-  if (interval === "yearly" && def.yearlyPriceUsd > 0) {
-    const yearly = def.yearlyPriceUsd;
+  if (interval === "yearly" && originalYearly > 0) {
     const stacked = monthly * 12;
     const saved = stacked - yearly;
     const pct = Math.round((saved / stacked) * 100);
     const eqMo = yearly / 12;
+    const origStacked = originalMonthly * 12;
     return {
       headline: yearly.toLocaleString("en-US", { maximumFractionDigits: 0 }),
       suffix: "/yr",
-      compareAt: `12 × $${monthly}/mo → $${stacked.toLocaleString("en-US")}`,
-      subline: `≈ $${Math.round(eqMo)}/mo when paid annually`,
-      savingsBadge: `Save $${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
+      compareAt: promoApplied
+        ? `Original: ${origStacked.toLocaleString("en-US")} (${originalYearly.toLocaleString("en-US")}/yr)`
+        : `12 x ${monthly}/mo -> ${stacked.toLocaleString("en-US")}`,
+      subline: `Approx. ${Math.round(eqMo)}/mo when paid annually`,
+      savingsBadge: promoApplied
+        ? `Rescue offer: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
+        : `Save ${saved.toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
   }
@@ -298,56 +359,87 @@ function getPlanPricingDisplay(
   return {
     headline: monthly.toLocaleString("en-US", { maximumFractionDigits: 0 }),
     suffix: "/mo",
-    compareAt: null,
-    subline: "Billed monthly · cancel anytime",
-    savingsBadge: null,
+    compareAt: promoApplied ? `Original: ${originalMonthly}/mo` : null,
+    subline: promoApplied
+      ? `Low-credit rescue: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
+      : "Billed monthly, cancel anytime",
+    savingsBadge: promoApplied ? "One-time rescue offer active" : null,
     effectiveMonthly: monthly,
   };
 }
-
 const ULTIMATE_CREDITS_SLIDER = { min: 3500, max: 10500, step: 500 } as const;
 
 function getUltimatePricingDisplay(
   interval: BillingInterval,
   selectedCredits: number,
   fallbackMonthlyFromDb: number,
+  promoApplied = false,
 ): PlanPricingDisplay {
   const def = BILLING_PLAN_DEFINITIONS.find((p) => p.name === "Ultimate");
   if (!def) {
-    return getPlanPricingDisplay("Ultimate", interval, fallbackMonthlyFromDb);
+    return getPlanPricingDisplay(
+      "Ultimate",
+      interval,
+      fallbackMonthlyFromDb,
+      promoApplied,
+    );
   }
   const ratio = selectedCredits / def.creditsPerMonth;
-  const monthlyUsd = (def.monthlyPriceUsd ?? fallbackMonthlyFromDb) * ratio;
-  const quarterlyBase = def.quarterlyPriceUsd ?? 0;
+  const originalMonthly = (def.monthlyPriceUsd ?? fallbackMonthlyFromDb) * ratio;
+  const monthlyUsd = promoApplied
+    ? originalMonthly * LOW_CREDIT_RESCUE_MULTIPLIER
+    : originalMonthly;
+  const originalQuarterlyBase = def.quarterlyPriceUsd ?? 0;
+  const quarterlyBase = promoApplied
+    ? originalQuarterlyBase * LOW_CREDIT_RESCUE_MULTIPLIER
+    : originalQuarterlyBase;
+  const originalYearlyBase = def.yearlyPriceUsd ?? 0;
+  const yearlyBase = promoApplied
+    ? originalYearlyBase * LOW_CREDIT_RESCUE_MULTIPLIER
+    : originalYearlyBase;
 
-  if (interval === "quarterly" && quarterlyBase > 0) {
+  if (interval === "quarterly" && originalQuarterlyBase > 0) {
     const quarterly = Math.round(quarterlyBase * ratio * 100) / 100;
     const stacked = monthlyUsd * 3;
     const saved = stacked - quarterly;
     const pct = stacked > 0 ? Math.round((saved / stacked) * 100) : 40;
     const eqMo = quarterly / 3;
+
+    const origQuarterly = Math.round(originalQuarterlyBase * ratio * 100) / 100;
+    const origStacked = originalMonthly * 3;
     return {
       headline: quarterly.toLocaleString("en-US", { maximumFractionDigits: 0 }),
       suffix: "/qtr",
-      compareAt: `3 × $${Math.round(monthlyUsd)}/mo → $${Math.round(stacked).toLocaleString("en-US")}`,
-      subline: `≈ $${Math.round(eqMo)}/mo equivalent · billed every 3 months`,
-      savingsBadge: `Save $${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
+      compareAt: promoApplied
+        ? `Original: ${Math.round(origStacked).toLocaleString("en-US")} (${Math.round(origQuarterly).toLocaleString("en-US")}/qtr)`
+        : `3 x ${Math.round(monthlyUsd)}/mo -> ${Math.round(stacked).toLocaleString("en-US")}`,
+      subline: `Approx. ${Math.round(eqMo)}/mo equivalent, billed every 3 months`,
+      savingsBadge: promoApplied
+        ? `Rescue offer: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
+        : `Save ${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
   }
 
-  if (interval === "yearly" && def.yearlyPriceUsd > 0) {
-    const yearly = Math.round(def.yearlyPriceUsd * ratio);
+  if (interval === "yearly" && originalYearlyBase > 0) {
+    const yearly = Math.round(yearlyBase * ratio);
     const stacked = monthlyUsd * 12;
     const saved = stacked - yearly;
     const pct = stacked > 0 ? Math.round((saved / stacked) * 100) : 0;
     const eqMo = yearly / 12;
+
+    const origYearly = Math.round(originalYearlyBase * ratio);
+    const origStacked = originalMonthly * 12;
     return {
       headline: yearly.toLocaleString("en-US", { maximumFractionDigits: 0 }),
       suffix: "/yr",
-      compareAt: `12 × $${Math.round(monthlyUsd)}/mo → $${Math.round(stacked).toLocaleString("en-US")}`,
-      subline: `≈ $${Math.round(eqMo)}/mo when paid annually`,
-      savingsBadge: `Save $${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
+      compareAt: promoApplied
+        ? `Original: ${Math.round(origStacked).toLocaleString("en-US")} (${Math.round(origYearly).toLocaleString("en-US")}/yr)`
+        : `12 x ${Math.round(monthlyUsd)}/mo -> ${Math.round(stacked).toLocaleString("en-US")}`,
+      subline: `Approx. ${Math.round(eqMo)}/mo when paid annually`,
+      savingsBadge: promoApplied
+        ? `Rescue offer: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
+        : `Save ${Math.round(saved).toLocaleString("en-US")} (${pct}% vs monthly)`,
       effectiveMonthly: eqMo,
     };
   }
@@ -357,13 +449,14 @@ function getUltimatePricingDisplay(
       maximumFractionDigits: 0,
     }),
     suffix: "/mo",
-    compareAt: null,
-    subline: "Billed monthly · cancel anytime",
-    savingsBadge: null,
+    compareAt: promoApplied ? `Original: ${Math.round(originalMonthly)}/mo` : null,
+    subline: promoApplied
+      ? `Low-credit rescue: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
+      : "Billed monthly, cancel anytime",
+    savingsBadge: promoApplied ? "One-time rescue offer active" : null,
     effectiveMonthly: monthlyUsd,
   };
 }
-
 export const BillingPage = () => {
   const [currentCredits, setCurrentCredits] = useState(0);
   const [subscriptionTier, setSubscriptionTier] = useState<
@@ -374,6 +467,9 @@ export const BillingPage = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [creditPacks, setCreditPacks] =
     useState<CreditPack[]>(defaultCreditPacks);
+  const [concurrencyPacks, setConcurrencyPacks] = useState<ConcurrencyPack[]>(
+    defaultConcurrencyPacks,
+  );
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [creditCosts, setCreditCosts] = useState<
     Array<{
@@ -385,9 +481,14 @@ export const BillingPage = () => {
   >([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "subscription" | "packs" | "costs" | "history"
+    "subscription" | "packs" | "boosts" | "costs" | "history"
   >("subscription");
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [activeAutoApplyRuns, setActiveAutoApplyRuns] = useState(0);
+  const [boostedConcurrencySlots, setBoostedConcurrencySlots] = useState(0);
+  const [selectedConcurrencyPackSku, setSelectedConcurrencyPackSku] = useState<
+    string | null
+  >(defaultConcurrencyPacks.find((pack) => pack.is_popular)?.sku ?? defaultConcurrencyPacks[0]?.sku ?? null);
   /** Billing cadence toggle (quarterly applies to Pro & Ultimate only at checkout). */
   const [billingInterval, setBillingInterval] =
     useState<BillingInterval>("monthly");
@@ -400,6 +501,41 @@ export const BillingPage = () => {
     useState<"monthly" | "quarterly" | "yearly" | null>(null);
   const supabase = useMemo(() => createClient(), []);
   const { notify, error: toastError } = useToast();
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [expandedRuns, setExpandedRuns] = useState<Record<string, boolean>>({});
+
+  const toggleRunExpansion = (runId: string) => {
+    setExpandedRuns((prev) => ({
+      ...prev,
+      [runId]: !prev[runId],
+    }));
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const searchParams = new URLSearchParams(window.location.search);
+    const promo = searchParams.get("promo");
+    if (promo && isLowCreditRescueCode(promo)) {
+      try {
+        const expiryTime = ensureLowCreditRescueExpiry();
+        if (Date.now() < expiryTime) {
+          setPromoApplied(true);
+        }
+      } catch (error) {
+        console.error("Failed to initialize low-credit rescue promo", error);
+      }
+    }
+    const tabParam = searchParams.get("tab");
+    if (
+      tabParam === "subscription" ||
+      tabParam === "packs" ||
+      tabParam === "boosts" ||
+      tabParam === "costs" ||
+      tabParam === "history"
+    ) {
+      setActiveTab(tabParam);
+    }
+  }, []);
 
   /** Single headline discount % (Basics tier) so the toggle badge stays honest if catalog prices change. */
   const annualSavingsPctApprox = useMemo(() => {
@@ -408,6 +544,23 @@ export const BillingPage = () => {
     const stacked = b.monthlyPriceUsd * 12;
     return Math.round(((stacked - b.yearlyPriceUsd) / stacked) * 100);
   }, []);
+
+  const baseConcurrencySlots = useMemo(() => {
+    return (
+      BILLING_PLAN_DEFINITIONS.find((plan) => plan.name === subscriptionTier)
+        ?.autoApplyConcurrency ?? 1
+    );
+  }, [subscriptionTier]);
+
+  const totalConcurrencySlots = baseConcurrencySlots + boostedConcurrencySlots;
+
+  const selectedConcurrencyPack = useMemo(
+    () =>
+      concurrencyPacks.find((pack) => pack.sku === selectedConcurrencyPackSku) ??
+      concurrencyPacks[0] ??
+      null,
+    [concurrencyPacks, selectedConcurrencyPackSku],
+  );
 
   useEffect(() => {
     fetchBillingData();
@@ -445,10 +598,14 @@ export const BillingPage = () => {
           return;
         }
 
-        if (result.status === "fulfilled") {
+        if (
+          result.status === "fulfilled" ||
+          result.status === "already_fulfilled"
+        ) {
           notify({
             title: "Payment applied",
-            description: "Your credits have been added to your balance.",
+            description:
+              "Your billing update has been applied to your account.",
             variant: "success",
           });
         }
@@ -495,6 +652,9 @@ export const BillingPage = () => {
       if (!userId) {
         setPlans(defaultPlans);
         setCreditPacks(defaultCreditPacks);
+        setConcurrencyPacks(defaultConcurrencyPacks);
+        setBoostedConcurrencySlots(0);
+        setActiveAutoApplyRuns(0);
         setBillingInterval("monthly");
         setCancelAtPeriodEnd(false);
         setActiveSubscriptionBillingCycle(null);
@@ -530,6 +690,7 @@ export const BillingPage = () => {
         )
         .eq("user_id", userId)
         .eq("status", "active")
+        .gt("current_period_end", new Date().toISOString())
         .maybeSingle();
 
       let resolvedCycle: "monthly" | "quarterly" | "yearly" | null = null;
@@ -549,30 +710,54 @@ export const BillingPage = () => {
           | undefined;
         resolvedCycle = inferBillingCycleFromSubscriptionPeriod(start, end);
       } else {
+        setSubscriptionTier("Free");
+        setCurrentPeriodEnd(null);
         setCancelAtPeriodEnd(false);
       }
 
+      const { data: recentSubscriptionOrders } = await supabase
+        .from("orders")
+        .select("payment_cycle, metadata")
+        .eq("user_id", userId)
+        .eq("plan_type", "subscription")
+        .eq("is_success", true)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
       if (!resolvedCycle) {
-        const { data: lastSubOrder } = await supabase
-          .from("orders")
-          .select("payment_cycle, metadata")
-          .eq("user_id", userId)
-          .eq("plan_type", "subscription")
-          .eq("is_success", true)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const pc = (lastSubOrder as { payment_cycle?: string } | null)
-          ?.payment_cycle;
-        const meta = (
-          lastSubOrder as { metadata?: { billing_cycle?: string } } | null
-        )?.metadata;
+        const lastSubOrder = (
+          recentSubscriptionOrders as
+            | Array<{
+                payment_cycle?: string;
+                metadata?: { billing_cycle?: string };
+              }>
+            | null
+        )?.[0];
+        const pc = lastSubOrder?.payment_cycle;
+        const meta = lastSubOrder?.metadata;
         if (pc === "yearly" || meta?.billing_cycle === "yearly")
           resolvedCycle = "yearly";
         else if (pc === "quarterly" || meta?.billing_cycle === "quarterly") {
           resolvedCycle = "quarterly";
         } else if (pc === "monthly" || meta?.billing_cycle === "monthly") {
           resolvedCycle = "monthly";
+        }
+      }
+
+      if (typeof window !== "undefined") {
+        const requestedPromo = new URLSearchParams(window.location.search).get(
+          "promo",
+        );
+        const redeemedLowCreditRescue = (
+          recentSubscriptionOrders as Array<{
+            metadata?: { promo_code?: string };
+          }> | null
+        )?.some((order) =>
+          isLowCreditRescueCode(order?.metadata?.promo_code ?? null),
+        );
+
+        if (isLowCreditRescueCode(requestedPromo) && redeemedLowCreditRescue) {
+          setPromoApplied(false);
         }
       }
 
@@ -620,6 +805,58 @@ export const BillingPage = () => {
         setCreditPacks(defaultCreditPacks);
       }
 
+      const { data: concurrencyPackData } = await supabase
+        .from("concurrency_pack_catalog")
+        .select("sku, name, description, parallel_slots, price_usd, is_popular")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
+
+      if (concurrencyPackData && concurrencyPackData.length > 0) {
+        setConcurrencyPacks(concurrencyPackData as ConcurrencyPack[]);
+        setSelectedConcurrencyPackSku((current) => {
+          if (
+            current &&
+            concurrencyPackData.some((pack) => pack.sku === current)
+          ) {
+            return current;
+          }
+          const popular = concurrencyPackData.find((pack) => pack.is_popular);
+          return popular?.sku ?? concurrencyPackData[0]?.sku ?? null;
+        });
+      } else {
+        setConcurrencyPacks(defaultConcurrencyPacks);
+      }
+
+      const nowIso = new Date().toISOString();
+      const threeHoursAgoIso = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+      const [{ data: concurrencyQuotaRows }, { count: queuedRunsCount }] =
+        await Promise.all([
+          supabase
+            .from("user_feature_quotas")
+            .select("included_quantity")
+            .eq("user_id", userId)
+            .eq("feature_key", "auto_apply_concurrency")
+            .eq("source", "addon")
+            .lte("period_start", nowIso)
+            .gt("period_end", nowIso),
+          supabase
+            .from("applications")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId)
+            .eq("canonical_stage", "queued")
+            .neq("provider_status", "waiting")
+            .gt("updated_at", threeHoursAgoIso),
+        ]);
+
+      const boostSlots = Array.isArray(concurrencyQuotaRows)
+        ? concurrencyQuotaRows.reduce(
+            (sum, row) => sum + Math.max(0, Number(row.included_quantity || 0)),
+            0,
+          )
+        : 0;
+      setBoostedConcurrencySlots(boostSlots);
+      setActiveAutoApplyRuns(typeof queuedRunsCount === "number" ? queuedRunsCount : 0);
+
       // Fetch credit costs
       const { data: costsData } = await supabase
         .from("credit_costs")
@@ -651,13 +888,98 @@ export const BillingPage = () => {
       // Fallback to defaults on error
       setPlans(defaultPlans);
       setCreditPacks(defaultCreditPacks);
+      setConcurrencyPacks(defaultConcurrencyPacks);
     } finally {
       setLoading(false);
     }
   };
 
+  const exportTransactionsCSV = useCallback(async () => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (!userId) {
+        notify({
+          title: "Authentication Required",
+          description: "Please sign in to export your transaction history.",
+          variant: "error",
+        });
+        return;
+      }
+
+      notify({
+        title: "Preparing export",
+        description: "Fetching your full transaction history...",
+      });
+
+      const { data: allTransactions, error: fetchErr } = await supabase
+        .from("credit_transactions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (fetchErr) throw fetchErr;
+
+      const txList = (allTransactions || []).map(normalizeCreditTransaction);
+
+      if (txList.length === 0) {
+        notify({
+          title: "No transactions",
+          description: "There are no transactions to export.",
+          variant: "error",
+        });
+        return;
+      }
+
+      const headers = [
+        "date",
+        "description",
+        "amount",
+        "balance_after",
+        "transaction_type",
+        "agent_run_id"
+      ];
+      const rows = txList.map((t) => [
+        t.created_at ? new Date(t.created_at).toLocaleString() : "",
+        t.description || "",
+        t.amount || 0,
+        t.balance_after || 0,
+        t.transaction_type || t.type || "",
+        t.agent_run_id || ""
+      ]);
+
+      const csv = [
+        headers.join(","),
+        ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")),
+      ].join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `transactions-all-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      notify({
+        title: "Export complete",
+        description: `Successfully exported ${txList.length} transactions.`,
+        variant: "success",
+      });
+    } catch (err: any) {
+      console.error("Failed to export transactions:", err);
+      notify({
+        title: "Export failed",
+        description: err.message || "Could not retrieve transaction history.",
+        variant: "error",
+      });
+    }
+  }, [supabase, notify]);
+
   const handlePayment = async (
-    type: "subscription" | "credit_pack",
+    type: "subscription" | "credit_pack" | "concurrency_pack",
     item: any,
   ) => {
     try {
@@ -676,8 +998,17 @@ export const BillingPage = () => {
       }
 
       let payload: Record<string, unknown>;
-      if (type === "credit_pack") {
+      let analyticsProperties: Record<string, unknown>;
+      if (type === "credit_pack" || type === "concurrency_pack") {
         payload = { purchaseType: type, packSku: item.sku };
+        analyticsProperties = {
+          purchase_type: type,
+          pack_sku: item.sku,
+          pack_name: item.name,
+          ...(type === "concurrency_pack"
+            ? { parallel_slots: item.parallel_slots }
+            : {}),
+        };
       } else {
         const planId = await resolveSubscriptionPlanUuidForCheckout(supabase, {
           id: String(item.id ?? ""),
@@ -700,6 +1031,18 @@ export const BillingPage = () => {
           typeof item.ultimateCreditsPerMonth === "number"
             ? { ultimateCreditsPerMonth: item.ultimateCreditsPerMonth }
             : {}),
+          ...(promoApplied ? { promoCode: LOW_CREDIT_RESCUE_CODE } : {}),
+        };
+        analyticsProperties = {
+          purchase_type: type,
+          plan_id: planId,
+          plan_name: item.name,
+          billing_cycle: item.billingCycle as BillingInterval,
+          ...(item.name === "Ultimate" &&
+          typeof item.ultimateCreditsPerMonth === "number"
+            ? { ultimate_credits_per_month: item.ultimateCreditsPerMonth }
+            : {}),
+          ...(promoApplied ? { promo_code: LOW_CREDIT_RESCUE_CODE } : {}),
         };
       }
 
@@ -719,6 +1062,17 @@ export const BillingPage = () => {
         throw new Error(body.error);
       }
       if (body?.url) {
+        if (type === "subscription") {
+          captureClientEvent("subscription_started", analyticsProperties);
+          void captureServerEvent("subscription_started", analyticsProperties);
+        } else if (type === "concurrency_pack") {
+          captureClientEvent(
+            "auto_apply_concurrency_checkout_started",
+            analyticsProperties,
+          );
+        } else {
+          captureClientEvent("credit_pack_checkout_started", analyticsProperties);
+        }
         window.location.href = body.url;
         return;
       }
@@ -779,8 +1133,21 @@ export const BillingPage = () => {
           color: "text-brand bg-brand/10 border-brand/20",
         };
       case "spend":
+      case "deduction":
         return {
           icon: <ArrowUpRight className='w-4 h-4' />,
+          color: "text-brand bg-brand/10 border-brand/20",
+        };
+      case "refund":
+      case "refunded":
+        return {
+          icon: <ArrowDownLeft className='w-4 h-4' />,
+          color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+        };
+      case "auto_apply":
+      case "job_search":
+        return {
+          icon: <Rocket className='w-4 h-4' />,
           color: "text-brand bg-brand/10 border-brand/20",
         };
       default:
@@ -801,9 +1168,76 @@ export const BillingPage = () => {
     });
   };
 
+  const groupedTransactions = useMemo(() => {
+    const runsMap = new Map<string, CreditTransaction[]>();
+    const ungrouped: CreditTransaction[] = [];
+
+    transactions.forEach((tx) => {
+      if (tx.agent_run_id) {
+        if (!runsMap.has(tx.agent_run_id)) {
+          runsMap.set(tx.agent_run_id, []);
+        }
+        runsMap.get(tx.agent_run_id)!.push(tx);
+      } else {
+        ungrouped.push(tx);
+      }
+    });
+
+    interface GroupedRunItem {
+      isGroupedRun: true;
+      agent_run_id: string;
+      transactions: CreditTransaction[];
+      amount: number;
+      description: string;
+      created_at: string;
+      balance_after: number;
+    }
+
+    const groupedRuns: GroupedRunItem[] = [];
+
+    runsMap.forEach((txs, runId) => {
+      const sortedTxs = [...txs].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      const netAmount = sortedTxs.reduce((sum, t) => sum + t.amount, 0);
+      const reservationTx = sortedTxs.find(t => t.amount < 0) || sortedTxs[0];
+      const refundTx = sortedTxs.find(t => t.amount > 0 && t !== reservationTx);
+      const latestTx = sortedTxs[sortedTxs.length - 1];
+      const balanceAfter = latestTx.balance_after;
+
+      let desc = reservationTx.description || `Agent Run (${runId.slice(0, 8)})`;
+      if (refundTx) {
+        desc = desc.replace("Reservation for ", "") + " (Completed & Settled)";
+      } else if (sortedTxs.some(t => t.description?.includes("Refund"))) {
+        desc = "Agent Run - Refunded";
+      }
+
+      groupedRuns.push({
+        isGroupedRun: true,
+        agent_run_id: runId,
+        transactions: sortedTxs,
+        amount: netAmount,
+        description: desc,
+        created_at: reservationTx.created_at,
+        balance_after: balanceAfter,
+      });
+    });
+
+    type DisplayItem = 
+      | (CreditTransaction & { isGroupedRun?: false }) 
+      | (GroupedRunItem & { id: string });
+
+    const combined: DisplayItem[] = [
+      ...ungrouped.map((tx) => ({ ...tx, isGroupedRun: false as const })),
+      ...groupedRuns.map((run) => ({ ...run, id: run.agent_run_id })),
+    ];
+
+    return combined.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [transactions]);
+
   if (loading) {
     return (
-      <div className='min-h-screen bg-background p-6 space-y-6'>
+      <div className='min-h-full bg-background p-6 space-y-6'>
         <div className='h-8 w-48 bg-foreground/10 rounded-lg animate-pulse' />
         <div className='grid gap-6 md:grid-cols-3'>
           {[1, 2, 3].map((i) => (
@@ -818,7 +1252,7 @@ export const BillingPage = () => {
   }
 
   return (
-    <div className='min-h-screen bg-background selection:bg-brand/30'>
+    <div className='min-h-full bg-background selection:bg-brand/30'>
       {/* Hero Section */}
       <div className='relative overflow-hidden border-b border-foreground/10 bg-gradient-to-br from-background to-background'>
         {/* Animated background elements */}
@@ -874,7 +1308,7 @@ export const BillingPage = () => {
                   </div>
                   <div className='space-y-1'>
                     <p className='text-sm text-gray-400 font-medium'>
-                      Available Credits
+                      Available workflow fuel
                     </p>
                     <p className='text-4xl font-bold text-foreground tracking-tight'>
                       {currentCredits.toLocaleString()}
@@ -953,10 +1387,9 @@ export const BillingPage = () => {
                     </span>
                   </div>
                   {(() => {
-                    const next = projectNextRenewalDate(
-                      currentPeriodEnd,
-                      activeSubscriptionBillingCycle,
-                    );
+                    const next = currentPeriodEnd
+                      ? new Date(currentPeriodEnd)
+                      : null;
                     const { primary, secondary } = getPaymentRenewalCaption(
                       cancelAtPeriodEnd,
                       activeSubscriptionBillingCycle,
@@ -993,9 +1426,33 @@ export const BillingPage = () => {
 
       {/* Main Content Area */}
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
+        {promoApplied && (
+          <div className='mb-8'>
+            <div className='relative overflow-hidden rounded-2xl border border-brand/20 bg-brand/5 px-6 py-4 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_0_30px_rgba(29,255,0,0.05)]'>
+              <div className='flex items-center gap-3 min-w-0'>
+                <div className='p-2 rounded-xl bg-brand/10 border border-brand/20 text-brand shrink-0 animate-pulse'>
+                  <Percent className='w-5 h-5' />
+                </div>
+                <div className='text-left'>
+                  <h3 className='font-bold text-foreground text-sm sm:text-base'>
+                    Low-credit rescue offer active
+                  </h3>
+                  <p className='text-xs text-muted-foreground mt-0.5'>
+                    Your one-time 15% rescue offer is active for the next hour on Basics, Pro, and Ultimate.
+                  </p>
+                </div>
+              </div>
+              <div className='flex items-center gap-2 font-mono text-xs text-brand font-semibold border border-brand/30 bg-brand/10 px-3 py-1 rounded-lg shrink-0'>
+                <Check className='w-4 h-4 shrink-0' strokeWidth={3} />
+                OFFER ACTIVE
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Custom Tab Navigation */}
-        <div className='flex justify-center mb-12'>
-          <div className='flex items-center p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md'>
+        <div className='flex justify-center mb-12 max-w-full px-4'>
+          <div className='flex items-center p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md overflow-x-auto max-w-full no-scrollbar flex-nowrap sm:flex-wrap'>
             {[
               {
                 id: "subscription",
@@ -1006,6 +1463,11 @@ export const BillingPage = () => {
                 id: "packs",
                 label: "Credit Packs",
                 icon: <Package className='w-4 h-4' />,
+              },
+              {
+                id: "boosts",
+                label: "Parallel Boosts",
+                icon: <Rocket className='w-4 h-4' />,
               },
               {
                 id: "costs",
@@ -1020,8 +1482,17 @@ export const BillingPage = () => {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`relative flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full transition-all duration-300 ${
+                onClick={() =>
+                  setActiveTab(
+                    tab.id as
+                      | "subscription"
+                      | "packs"
+                      | "boosts"
+                      | "costs"
+                      | "history",
+                  )
+                }
+                className={`relative flex items-center gap-1.5 px-3 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-full transition-all duration-300 shrink-0 ${
                   activeTab === tab.id
                     ? "text-background shadow-lg"
                     : "text-gray-400 hover:text-foreground hover:bg-foreground/5"
@@ -1135,11 +1606,13 @@ export const BillingPage = () => {
                         pricingInterval,
                         ultimateCreditsMonthly,
                         plan.price,
+                        promoApplied,
                       )
                     : getPlanPricingDisplay(
                         plan.name,
                         pricingInterval,
                         plan.price,
+                        promoApplied,
                       );
 
                   return (
@@ -1305,7 +1778,8 @@ export const BillingPage = () => {
                                   ) : null}
                                   {pricing.savingsBadge &&
                                   (billingInterval === "yearly" ||
-                                    billingInterval === "quarterly") ? (
+                                    billingInterval === "quarterly" ||
+                                    promoApplied) ? (
                                     <div className='inline-flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand/10 border border-brand/25 rounded-full px-2.5 py-1 mt-1'>
                                       <Percent className='w-3.5 h-3.5 shrink-0' />
                                       {pricing.savingsBadge}
@@ -1431,11 +1905,11 @@ export const BillingPage = () => {
                                         if (isUltimate) {
                                           if (
                                             typeof feature === "string" &&
-                                            /search and AI credits|3,?500/i.test(
+                                            /search and AI credits|career workflow credits|3,?500/i.test(
                                               feature,
                                             )
                                           ) {
-                                            featureName = `${ultimateCreditsMonthly.toLocaleString()} search and AI credits per month`;
+                                            featureName = `${ultimateCreditsMonthly.toLocaleString()} career workflow credits per month`;
                                           } else if (
                                             typeof feature === "string" &&
                                             /governed auto-apply|150.*runs/i.test(
@@ -1567,6 +2041,209 @@ export const BillingPage = () => {
             </motion.div>
           )}
 
+          {/* Parallel Boosts Tab */}
+          {activeTab === "boosts" && (
+            <motion.div
+              key='boosts'
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+              className='space-y-12'
+            >
+              <section className='relative overflow-hidden rounded-[2rem] border border-brand/20 bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.14),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] p-6 sm:p-8 lg:p-10'>
+                <div className='absolute inset-0 bg-[linear-gradient(135deg,rgba(29,255,0,0.05),transparent_36%,rgba(255,255,255,0.04))]' />
+                <div className='relative space-y-8'>
+                  <div className='max-w-3xl'>
+                    <div className='mb-4 inline-flex items-center gap-2 rounded-full border border-brand/25 bg-brand/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-brand'>
+                      <Rocket className='h-3.5 w-3.5' />
+                      Parallel Auto-Apply Boost
+                    </div>
+                    <h2 className='text-3xl font-black uppercase leading-[0.95] text-foreground sm:text-4xl lg:text-5xl'>
+                      Clear your ready queue faster without changing your main plan
+                    </h2>
+                    <p className='mt-4 max-w-2xl text-sm leading-7 text-gray-300 sm:text-base'>
+                      Your subscription sets the baseline automation speed.
+                      Boost packs stack on top for the current billing period so
+                      queued opportunities can keep moving when search volume spikes.
+                    </p>
+                  </div>
+
+                  <div className='grid gap-4 lg:grid-cols-[1.2fr_0.8fr]'>
+                    <div className='rounded-[1.75rem] border border-white/8 bg-black/35 p-5 sm:p-6'>
+                      <p className='text-sm font-semibold text-gray-300'>
+                        Current parallel capacity
+                      </p>
+                      <div className='mt-5 grid gap-3 sm:grid-cols-3'>
+                        <div className='rounded-2xl border border-white/6 bg-white/[0.04] p-4'>
+                          <p className='text-xs uppercase tracking-[0.22em] text-gray-500'>
+                            Active now
+                          </p>
+                          <p className='mt-3 text-3xl font-bold text-foreground'>
+                            {activeAutoApplyRuns}/{totalConcurrencySlots}
+                          </p>
+                          <p className='mt-1 text-sm text-gray-400'>
+                            queued auto-apply workflows
+                          </p>
+                        </div>
+                        <div className='rounded-2xl border border-white/6 bg-white/[0.04] p-4'>
+                          <p className='text-xs uppercase tracking-[0.22em] text-gray-500'>
+                            From {subscriptionTier}
+                          </p>
+                          <p className='mt-3 text-3xl font-bold text-foreground'>
+                            {baseConcurrencySlots}
+                          </p>
+                          <p className='mt-1 text-sm text-gray-400'>
+                            included parallel slots
+                          </p>
+                        </div>
+                        <div className='rounded-2xl border border-brand/20 bg-brand/10 p-4'>
+                          <p className='text-xs uppercase tracking-[0.22em] text-brand/80'>
+                            Purchased boost
+                          </p>
+                          <p className='mt-3 text-3xl font-bold text-brand'>
+                            +{boostedConcurrencySlots}
+                          </p>
+                          <p className='mt-1 text-sm text-brand/80'>
+                            active this billing period
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className='mt-5 flex flex-wrap gap-3 text-sm text-gray-300'>
+                        <span className='inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.04] px-3 py-2'>
+                          <Gauge className='h-4 w-4 text-brand' />
+                          Faster automation bursts
+                        </span>
+                        <span className='inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.04] px-3 py-2'>
+                          <Layers3 className='h-4 w-4 text-brand' />
+                          Stacks with paid plans
+                        </span>
+                        <span className='inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.04] px-3 py-2'>
+                          <Clock3 className='h-4 w-4 text-brand' />
+                          Valid through your current billing window
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className='rounded-[1.75rem] border border-white/8 bg-black/35 p-5 sm:p-6'>
+                      <p className='text-sm font-semibold text-gray-300'>
+                        How it works
+                      </p>
+                      <div className='mt-4 space-y-3'>
+                        {[
+                          "Your plan includes a base number of parallel auto-apply runs.",
+                          "Buying a boost increases that cap immediately after payment is verified.",
+                          "Boosted slots are applied only to the current billing period, keeping limits tied to subscription value.",
+                        ].map((item) => (
+                          <div
+                            key={item}
+                            className='flex gap-3 rounded-2xl border border-white/6 bg-white/[0.04] p-3.5'
+                          >
+                            <div className='mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand/15 text-brand'>
+                              <Check className='h-3.5 w-3.5' />
+                            </div>
+                            <p className='text-sm leading-6 text-gray-300'>{item}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
+                    {concurrencyPacks.map((pack) => {
+                      const isSelected = selectedConcurrencyPack?.sku === pack.sku;
+                      return (
+                        <button
+                          key={pack.sku}
+                          type='button'
+                          onClick={() => setSelectedConcurrencyPackSku(pack.sku)}
+                          className={`group rounded-[1.6rem] border p-5 text-left transition-all duration-300 ${
+                            isSelected
+                              ? "border-brand bg-brand/10 shadow-[0_0_28px_rgba(29,255,0,0.18)]"
+                              : "border-white/8 bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.05]"
+                          }`}
+                        >
+                          <div className='flex items-start justify-between gap-3'>
+                            <div>
+                              <p className='text-lg font-bold text-foreground'>
+                                +{pack.parallel_slots} parallel
+                              </p>
+                              <p className='mt-1 text-sm text-gray-400'>{pack.name}</p>
+                            </div>
+                            {pack.is_popular ? (
+                              <span className='rounded-full border border-brand/25 bg-brand/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-brand'>
+                                Popular
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className='mt-4 min-h-[48px] text-sm leading-6 text-gray-400'>
+                            {pack.description}
+                          </p>
+                          <div className='mt-5 flex items-end justify-between gap-3'>
+                            <div>
+                              <p className='text-3xl font-bold text-foreground'>
+                                ${pack.price_usd}
+                              </p>
+                              <p className='text-xs uppercase tracking-[0.18em] text-gray-500'>
+                                current billing period
+                              </p>
+                            </div>
+                            <div
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                isSelected
+                                  ? "bg-brand text-background"
+                                  : "bg-white/[0.08] text-gray-300"
+                              }`}
+                            >
+                              {isSelected ? "Selected" : "Select"}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedConcurrencyPack ? (
+                    <div className='flex flex-col gap-4 rounded-[1.75rem] border border-brand/20 bg-black/35 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6'>
+                      <div>
+                        <p className='text-sm uppercase tracking-[0.22em] text-brand/80'>
+                          Selected boost
+                        </p>
+                        <p className='mt-2 text-2xl font-bold text-foreground'>
+                          {selectedConcurrencyPack.name} adds +
+                          {selectedConcurrencyPack.parallel_slots} parallel auto-apply
+                          slot
+                          {selectedConcurrencyPack.parallel_slots === 1 ? "" : "s"}
+                        </p>
+                        <p className='mt-2 text-sm leading-6 text-gray-400'>
+                          Your live capacity would move from {baseConcurrencySlots}
+                          {" "}to{" "}
+                          {baseConcurrencySlots +
+                            boostedConcurrencySlots +
+                            selectedConcurrencyPack.parallel_slots}{" "}
+                          total parallel runs after payment is applied.
+                        </p>
+                      </div>
+                      <Button
+                        className='h-14 min-w-[220px] rounded-full bg-brand px-8 text-base font-bold text-background shadow-[0_0_32px_rgba(29,255,0,0.28)] hover:bg-brand hover:brightness-110'
+                        disabled={processingPayment}
+                        onClick={() =>
+                          handlePayment("concurrency_pack", selectedConcurrencyPack)
+                        }
+                      >
+                        {processingPayment ? (
+                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                        ) : null}
+                        Buy for ${selectedConcurrencyPack.price_usd}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+            </motion.div>
+          )}
+
           {/* Credit Packs Tab */}
           {activeTab === "packs" && (
             <motion.div
@@ -1579,11 +2256,11 @@ export const BillingPage = () => {
             >
               <div className='text-center'>
                 <h2 className='text-3xl font-bold text-foreground mb-3'>
-                  One-Time Credit Packs
+                  One-Time Momentum Packs
                 </h2>
                 <p className='text-gray-400'>
-                  These packs top up search, evaluation, and drafting.
-                  Auto-apply capacity comes from your subscription plan.
+                  Credit packs are emergency fuel for active opportunities. Plans
+                  are still the better deal when you want JobRaker running every week.
                 </p>
               </div>
 
@@ -1777,9 +2454,9 @@ export const BillingPage = () => {
                               note: "Pro: 50 free/mo, Ultimate: 200 free/mo, then 1 credit each (Ask uses this only)",
                             },
                             {
-                              label: "Agent mode — tool round",
+                              label: "Agent mode - tool use",
                               cost: chatAgent?.cost ?? 1,
-                              note: "+1 credit each time the agent runs a batch of tools (after the base message credit)",
+                              note: "+1 credit per tool the agent runs after the base message credit",
                             },
                           ];
                           return rows;
@@ -1806,7 +2483,7 @@ export const BillingPage = () => {
                       ].map((item, idx) => (
                         <div
                           key={idx}
-                          className='flex items-center justify-between p-4 hover:bg-foreground/[0.02] transition-colors'
+                          className='flex items-start justify-between p-4 hover:bg-foreground/[0.02] transition-colors gap-3'
                         >
                           <div className='flex-1 min-w-0'>
                             <p className='text-sm font-medium text-foreground'>
@@ -1816,7 +2493,7 @@ export const BillingPage = () => {
                               {item.note}
                             </p>
                           </div>
-                          <div className='flex items-center gap-1.5 pl-4 flex-shrink-0'>
+                          <div className='flex items-center gap-1.5 pl-4 flex-shrink-0 pt-0.5'>
                             <span
                               className={`text-lg font-bold font-mono ${item.cost === 0 ? "text-brand" : "text-foreground"}`}
                             >
@@ -1889,7 +2566,7 @@ export const BillingPage = () => {
                       ].map((item, idx) => (
                         <div
                           key={idx}
-                          className='flex items-center justify-between p-4 hover:bg-foreground/[0.02] transition-colors'
+                          className='flex items-start justify-between p-4 hover:bg-foreground/[0.02] transition-colors gap-3'
                         >
                           <div className='flex-1 min-w-0'>
                             <p className='text-sm font-medium text-foreground'>
@@ -1899,7 +2576,7 @@ export const BillingPage = () => {
                               {item.note}
                             </p>
                           </div>
-                          <div className='flex items-center gap-1.5 pl-4 flex-shrink-0'>
+                          <div className='flex items-center gap-1.5 pl-4 flex-shrink-0 pt-0.5'>
                             <span
                               className={`text-lg font-bold font-mono ${item.cost === 0 ? "text-brand" : "text-foreground"}`}
                             >
@@ -2277,6 +2954,7 @@ export const BillingPage = () => {
                                   tier,
                                   tablePricingInterval,
                                   def?.monthlyPriceUsd ?? 0,
+                                  promoApplied,
                                 );
                                 const isCurrent = subscriptionTier === tier;
                                 const colors = tierColors[tier];
@@ -2416,7 +3094,7 @@ export const BillingPage = () => {
             >
               <Card className='border-foreground/10 bg-foreground/[0.02] backdrop-blur-md overflow-hidden'>
                 <CardHeader className='border-b border-foreground/10 bg-foreground/[0.02]'>
-                  <div className='flex items-center justify-between'>
+                  <div className='flex flex-col gap-4 sm:flex-row sm:items-center justify-between'>
                     <div>
                       <CardTitle className='text-xl font-bold text-foreground flex items-center gap-2'>
                         Transaction History
@@ -2428,7 +3106,8 @@ export const BillingPage = () => {
                     <Button
                       variant='outline'
                       size='sm'
-                      className='gap-2 border-foreground/10 bg-foreground/5 hover:bg-foreground/10 text-gray-300 hover:text-foreground'
+                      className='gap-2 border-foreground/10 bg-foreground/5 hover:bg-foreground/10 text-gray-300 hover:text-foreground shrink-0'
+                      onClick={exportTransactionsCSV}
                     >
                       <Download className='w-4 h-4' />
                       Export CSV
@@ -2436,7 +3115,7 @@ export const BillingPage = () => {
                   </div>
                 </CardHeader>
                 <CardContent className='p-0'>
-                  {transactions.length === 0 ? (
+                  {groupedTransactions.length === 0 ? (
                     <div className='flex flex-col items-center justify-center py-24 text-center'>
                       <div className='p-4 rounded-full bg-foreground/5 mb-4 border border-foreground/10'>
                         <History className='w-8 h-8 text-gray-400' />
@@ -2451,50 +3130,201 @@ export const BillingPage = () => {
                     </div>
                   ) : (
                     <div className='divide-y divide-foreground/5'>
-                      {transactions.map((transaction, index) => {
-                        const iconData = getTransactionIcon(
-                          transaction.transaction_type ?? transaction.type ?? "refill",
-                        );
-                        return (
-                          <motion.div
-                            key={transaction.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className='p-4 sm:p-6 hover:bg-foreground/[0.02] transition-colors duration-200 flex items-center justify-between gap-4 group'
-                          >
-                            <div className='flex items-center gap-4 flex-1 min-w-0'>
+                      {groupedTransactions.map((item, index) => {
+                        if (item.isGroupedRun) {
+                          const isExpanded = !!expandedRuns[item.agent_run_id];
+                          const netAmount = item.amount;
+                          const balanceAfter = item.balance_after;
+                          const createdAt = item.created_at;
+                          const description = item.description;
+                          const runId = item.agent_run_id;
+
+                          // Use Receipt icon for grouped agent run
+                          const iconData = {
+                            icon: <Receipt className="w-4 h-4" />,
+                            color: "text-brand bg-brand/10 border-brand/20",
+                          };
+
+                          return (
+                            <div key={runId} className="border-b border-foreground/5 last:border-0">
                               <div
-                                className={`p-2.5 rounded-xl border ${iconData.color} group-hover:scale-110 transition-transform`}
+                                onClick={() => toggleRunExpansion(runId)}
+                                className="p-4 sm:p-6 hover:bg-foreground/[0.02] transition-colors duration-200 flex items-center justify-between gap-4 cursor-pointer group"
                               >
-                                {iconData.icon}
+                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                  <div
+                                    className={`p-2.5 rounded-xl border ${iconData.color} group-hover:scale-110 transition-transform`}
+                                  >
+                                    {iconData.icon}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-foreground font-medium truncate">
+                                        {description}
+                                      </p>
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-foreground/5 text-gray-400 font-medium">
+                                        Run Receipt
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 font-mono mt-0.5">
+                                      {formatDate(createdAt)}
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-4">
+                                  <div className="text-right flex-shrink-0">
+                                    <p
+                                      className={`text-lg font-bold font-mono ${
+                                        netAmount > 0
+                                          ? "text-brand"
+                                          : netAmount < 0
+                                            ? "text-foreground"
+                                            : "text-gray-400"
+                                      }`}
+                                    >
+                                      {netAmount > 0 ? "+" : ""}
+                                      {netAmount}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      Balance: {balanceAfter}
+                                    </p>
+                                  </div>
+                                  <div className="text-gray-500 group-hover:text-foreground transition-colors">
+                                    {isExpanded ? (
+                                      <ChevronDown className="w-5 h-5" />
+                                    ) : (
+                                      <ChevronRight className="w-5 h-5" />
+                                    )}
+                                  </div>
+                                </div>
                               </div>
-                              <div className='flex-1 min-w-0'>
-                                <p className='text-foreground font-medium truncate mb-0.5'>
-                                  {transaction.description}
+
+                              <AnimatePresence initial={false}>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="overflow-hidden bg-foreground/[0.01] border-t border-foreground/5"
+                                  >
+                                    <div className="p-4 sm:p-6 pl-12 sm:pl-16 space-y-4">
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border border-foreground/5 rounded-xl p-4 bg-background/50">
+                                        <div>
+                                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Reserved Amount</p>
+                                          <p className="text-base font-bold font-mono text-foreground mt-1">
+                                            {(() => {
+                                              const resTx = item.transactions.find(t => t.amount < 0);
+                                              return resTx ? `${resTx.amount} credits` : "0 credits";
+                                            })()}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Refunded Amount</p>
+                                          <p className="text-base font-bold font-mono text-brand mt-1">
+                                            {(() => {
+                                              const refTx = item.transactions.find(t => t.amount > 0);
+                                              return refTx ? `+${refTx.amount} credits` : "0 credits";
+                                            })()}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Net Charged</p>
+                                          <p className="text-base font-bold font-mono text-foreground mt-1">
+                                            {netAmount} credits
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Ledger Breakdown</h4>
+                                        <div className="border border-foreground/5 rounded-xl overflow-hidden divide-y divide-foreground/5 bg-background/20">
+                                          {item.transactions.map((tx) => {
+                                            const subIconData = getTransactionIcon(tx.transaction_type ?? tx.type ?? "refill");
+                                            return (
+                                              <div key={tx.id} className="p-3 flex items-center justify-between text-sm">
+                                                <div className="flex items-center gap-3">
+                                                  <div className={`p-1.5 rounded-lg border ${subIconData.color}`}>
+                                                    {subIconData.icon}
+                                                  </div>
+                                                  <div>
+                                                    <p className="text-foreground font-medium text-xs sm:text-sm">
+                                                      {tx.description}
+                                                    </p>
+                                                    <p className="text-[10px] text-gray-500 font-mono mt-0.5">
+                                                      {formatDate(tx.created_at)}
+                                                    </p>
+                                                  </div>
+                                                </div>
+                                                <div className="text-right">
+                                                  <p className={`font-semibold font-mono text-xs sm:text-sm ${
+                                                    tx.amount > 0 ? "text-brand" : "text-foreground"
+                                                  }`}>
+                                                    {tx.amount > 0 ? "+" : ""}{tx.amount}
+                                                  </p>
+                                                  <p className="text-[10px] text-gray-500">
+                                                    After: {tx.balance_after}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          );
+                        } else {
+                          const iconData = getTransactionIcon(
+                            item.transaction_type ??
+                              item.type ??
+                              "refill",
+                          );
+                          return (
+                            <motion.div
+                              key={item.id}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: index * 0.05 }}
+                              className='p-4 sm:p-6 hover:bg-foreground/[0.02] transition-colors duration-200 flex items-center justify-between gap-4 group'
+                            >
+                              <div className='flex items-center gap-4 flex-1 min-w-0'>
+                                <div
+                                  className={`p-2.5 rounded-xl border ${iconData.color} group-hover:scale-110 transition-transform`}
+                                >
+                                  {iconData.icon}
+                                </div>
+                                <div className='flex-1 min-w-0'>
+                                  <p className='text-foreground font-medium truncate mb-0.5'>
+                                    {item.description}
+                                  </p>
+                                  <p className='text-xs text-gray-500 font-mono'>
+                                    {formatDate(item.created_at)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className='text-right flex-shrink-0'>
+                                <p
+                                  className={`text-lg font-bold font-mono ${
+                                    item.amount > 0
+                                      ? "text-brand"
+                                      : "text-foreground"
+                                  }`}
+                                >
+                                  {item.amount > 0 ? "+" : ""}
+                                  {item.amount}
                                 </p>
-                                <p className='text-xs text-gray-500 font-mono'>
-                                  {formatDate(transaction.created_at)}
+                                <p className='text-xs text-gray-500'>
+                                  Balance: {item.balance_after}
                                 </p>
                               </div>
-                            </div>
-                            <div className='text-right flex-shrink-0'>
-                              <p
-                                className={`text-lg font-bold font-mono ${
-                                  transaction.amount > 0
-                                    ? "text-brand"
-                                    : "text-foreground"
-                                }`}
-                              >
-                                {transaction.amount > 0 ? "+" : ""}
-                                {transaction.amount}
-                              </p>
-                              <p className='text-xs text-gray-500'>
-                                Balance: {transaction.balance_after}
-                              </p>
-                            </div>
-                          </motion.div>
-                        );
+                            </motion.div>
+                          );
+                        }
                       })}
                     </div>
                   )}
@@ -2509,3 +3339,5 @@ export const BillingPage = () => {
     </div>
   );
 };
+
+

@@ -421,7 +421,7 @@ CREATE TABLE IF NOT EXISTS "public"."jobs" (
 ALTER TABLE "public"."jobs" OWNER TO "postgres";
 
 
-CREATE OR REPLACE VIEW "public"."user_job_stats" AS
+CREATE OR REPLACE VIEW "public"."user_job_stats" WITH (security_invoker = true) AS
  SELECT "user_id",
     "count"(*) AS "total_jobs",
     "count"(*) FILTER (WHERE ("status" = 'active'::"text")) AS "active_jobs",

@@ -38,7 +38,7 @@ export function KanbanProvider({
         <div className='pointer-events-none absolute -top-20 left-1/4 h-64 w-64 rounded-full bg-brand/10 blur-3xl opacity-30' />
         <div className='pointer-events-none absolute -bottom-20 right-1/4 h-64 w-64 rounded-full bg-brand/10 blur-3xl opacity-30' />
 
-        <div className='flex gap-4 md:gap-5 lg:gap-6 overflow-x-auto pb-3 -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory md:snap-none md:overflow-visible flex-nowrap md:flex-wrap md:flex-auto md:grid md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'>
+        <div className='custom-scrollbar -mx-4 flex gap-4 overflow-x-auto px-4 pb-5 snap-x snap-mandatory md:mx-0 md:px-0 md:pb-4'>
           {columns.map((c) => (
             <React.Fragment key={c.id}>{children(c)}</React.Fragment>
           ))}
@@ -65,7 +65,7 @@ export function KanbanBoard({
   return (
     <div
       data-column-id={id}
-      className='relative rounded-xl border border-foreground/10 bg-gradient-to-br from-background via-background to-background backdrop-blur-xl p-4 md:p-5 min-w-[85vw] sm:min-w-[420px] md:min-w-0 snap-start shadow-lg hover:shadow-xl hover:border-foreground/15 transition-all duration-300'
+      className='relative min-w-[85vw] snap-start rounded-xl border border-foreground/10 bg-gradient-to-br from-background via-background to-background p-4 shadow-lg transition-all duration-300 hover:border-foreground/15 hover:shadow-xl sm:min-w-[420px] xl:min-w-[360px] 2xl:min-w-[380px]'
       role='list'
       aria-roledescription='Kanban column'
     >

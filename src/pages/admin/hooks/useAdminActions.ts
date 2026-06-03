@@ -133,18 +133,28 @@ export function useAdminActions() {
   /**
    * Update a user's role (admin/user).
    */
-  const updateUserRole = useCallback(async (userId: string, role: 'admin' | 'user') => {
+  const updateUserRole = useCallback(async (userId: string, role: 'admin' | 'user' | 'creator', subRole?: 'owner' | 'editor' | 'reader' | null) => {
     try {
+      // Reset roles for this user first to keep clean state
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      // Insert new role
       const { error } = await supabase
         .from('user_roles')
-        .upsert(
-          { user_id: userId, role, updated_at: new Date().toISOString() },
-          { onConflict: 'user_id,role' }
-        );
+        .insert({
+          user_id: userId,
+          role,
+          admin_sub_role: role === 'admin' ? subRole : null,
+          updated_at: new Date().toISOString()
+        });
 
       if (error) throw error;
 
-      success(`User role set to ${role}`);
+      const roleText = role === 'admin' ? `Admin (${subRole})` : role;
+      success(`User role updated to ${roleText}`);
       return { success: true };
     } catch (err: any) {
       console.error('Error updating role:', err);

@@ -21,13 +21,32 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { motion } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
+import { captureClientEvent } from "../../lib/analytics";
+import { Seo } from "@/components/seo/Seo";
 import { ROUTES } from "../../routes";
 import { AUTH_REDIRECTS } from "../../lib/authRedirects";
 import { capturePendingReferralCodeFromSearch } from "../../lib/referralAttribution";
+import { persistAttributionFromSearch } from "../../lib/utmAttribution";
 import { validatePassword } from "../../utils/password";
 import { useToast } from "../../components/ui/toast-provider";
 import Modal from "../../components/ui/modal";
 import { SelfSolvingCube } from "./components/SelfSolvingCube";
+import { sanitizeTextValue } from "@/lib/inputSecurity";
+import { logSecurityEvent } from "../../utils/sessionManagement";
+
+function isAdminHost() {
+  return window.location.hostname.startsWith("admin.");
+}
+
+function getPostSignInPath() {
+  return isAdminHost() ? "/admin" : ROUTES.DASHBOARD;
+}
+
+function getOAuthRedirectUrl() {
+  return isAdminHost()
+    ? `${window.location.origin}/admin`
+    : AUTH_REDIRECTS.dashboard();
+}
 
 export const JobrackerSignup = (): JSX.Element => {
   const navigate = useNavigate();
@@ -45,6 +64,22 @@ export const JobrackerSignup = (): JSX.Element => {
   const [_lastUsedProvider, setLastUsedProvider] = useState<string | null>(
     null,
   );
+  const searchParams = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search],
+  );
+  const selectedPlan = searchParams.get("plan")?.trim().toLowerCase() || null;
+  const selectedBilling =
+    searchParams.get("billing")?.trim().toLowerCase() || null;
+
+  useEffect(() => {
+    if (selectedPlan) {
+      localStorage.setItem("selectedPlan", selectedPlan);
+    }
+    if (selectedBilling) {
+      localStorage.setItem("selectedBilling", selectedBilling);
+    }
+  }, [selectedPlan, selectedBilling]);
 
   useEffect(() => {
     const savedProvider = localStorage.getItem("lastUsedProvider");
@@ -61,7 +96,17 @@ export const JobrackerSignup = (): JSX.Element => {
 
   useEffect(() => {
     capturePendingReferralCodeFromSearch(location.search || "");
-  }, [location.search]);
+    persistAttributionFromSearch(location.search || "", location.pathname);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    captureClientEvent("signup_viewed", {
+      auth_mode: isSignUp ? "signup" : "signin",
+      signup_surface: "jobracker_signup",
+      selected_plan: selectedPlan,
+      billing_interval: selectedBilling,
+    });
+  }, [isSignUp, selectedBilling, selectedPlan]);
 
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -116,13 +161,16 @@ export const JobrackerSignup = (): JSX.Element => {
 
       try {
         setSubmitting(true);
+        if (isSignUp) {
+          captureClientEvent("signup_started", { auth_method: provider });
+        }
         localStorage.setItem("lastUsedProvider", provider);
         setLastUsedProvider(provider);
         const authApi = (supabase as any).auth;
         const { error } = await authApi.signInWithOAuth({
           provider,
           options: {
-            redirectTo: AUTH_REDIRECTS.dashboard(),
+            redirectTo: getOAuthRedirectUrl(),
             captchaToken,
           },
         });
@@ -145,6 +193,8 @@ export const JobrackerSignup = (): JSX.Element => {
     e.preventDefault();
 
     try {
+      const sanitizedEmail = sanitizeTextValue(formData.email).value.trim();
+
       if (showForgotPassword) {
         if (!ensureCaptchaToken()) {
           return;
@@ -152,7 +202,7 @@ export const JobrackerSignup = (): JSX.Element => {
 
         setSubmitting(true);
         const { error } = await supabase.auth.resetPasswordForEmail(
-          formData.email,
+          sanitizedEmail,
           {
             redirectTo: AUTH_REDIRECTS.resetPassword(),
             captchaToken: captchaToken ?? undefined,
@@ -186,8 +236,14 @@ export const JobrackerSignup = (): JSX.Element => {
         }
 
         setSubmitting(true);
+        captureClientEvent("signup_started", {
+          auth_method: "email",
+          signup_surface: "jobracker_signup",
+          selected_plan: selectedPlan,
+          billing_interval: selectedBilling,
+        });
         const { error } = await supabase.auth.signUp({
-          email: formData.email,
+          email: sanitizedEmail,
           password: formData.password,
           options: {
             emailRedirectTo: AUTH_REDIRECTS.signIn(),
@@ -195,6 +251,12 @@ export const JobrackerSignup = (): JSX.Element => {
           },
         });
         if (error) throw error;
+        captureClientEvent("user_signed_up", {
+          auth_method: "email",
+          signup_surface: "jobracker_signup",
+          selected_plan: selectedPlan,
+          billing_interval: selectedBilling,
+        });
         // Always require email verification; route to login
         // Show centered success modal with actions
         success(
@@ -210,13 +272,17 @@ export const JobrackerSignup = (): JSX.Element => {
         setSubmitting(true);
         const { data: signInData, error } =
           await supabase.auth.signInWithPassword({
-            email: formData.email,
+            email: sanitizedEmail,
             password: formData.password,
             options: {
               captchaToken: captchaToken ?? undefined,
             },
           });
         if (error) throw error;
+        captureClientEvent("user_signed_in", {
+          auth_method: "email",
+          signup_surface: "jobracker_signup",
+        });
 
         // Track session and enforce security settings
         if (signInData.session && signInData.user) {
@@ -230,6 +296,12 @@ export const JobrackerSignup = (): JSX.Element => {
           // Check security settings
           const securityCheck = await checkSecuritySettings(signInData.user.id);
           if (!securityCheck.allowed) {
+            await logSecurityEvent(
+              signInData.user.id,
+              "login_blocked",
+              `Login blocked: ${securityCheck.reason || "Security policy violation"}`,
+              "medium"
+            );
             await supabase.auth.signOut();
             toastError(
               "Login blocked",
@@ -266,13 +338,30 @@ export const JobrackerSignup = (): JSX.Element => {
           );
         }
 
-        navigate(ROUTES.DASHBOARD);
+        navigate(getPostSignInPath());
       }
     } catch (error: any) {
       console.error("Supabase auth error:", error);
+      const rawMessage = error?.message || String(error);
+      let userFriendlyMessage = "An unexpected error occurred. Please try again.";
+
+      if (rawMessage.includes("User already registered") || rawMessage.includes("already exists")) {
+        userFriendlyMessage = "This email is already registered. Please sign in instead.";
+      } else if (rawMessage.includes("Invalid login credentials") || rawMessage.includes("invalid claim") || rawMessage.includes("Invalid credentials")) {
+        userFriendlyMessage = "Incorrect email or password. Please verify your credentials.";
+      } else if (rawMessage.includes("Email not confirmed") || rawMessage.includes("Email verification required")) {
+        userFriendlyMessage = "Please verify your email address before signing in. Check your inbox for the link.";
+      } else if (rawMessage.includes("rate limit") || rawMessage.includes("too many requests")) {
+        userFriendlyMessage = "Too many attempts. Please wait a few minutes before trying again.";
+      } else if (rawMessage.includes("CAPTCHA") || rawMessage.includes("captcha")) {
+        userFriendlyMessage = "Security verification failed. Please complete the CAPTCHA again.";
+      } else if (rawMessage.length < 80) {
+        userFriendlyMessage = rawMessage;
+      }
+
       toastError(
-        "Authentication failed",
-        error?.message || "Please try again.",
+        showForgotPassword ? "Reset failed" : "Authentication failed",
+        userFriendlyMessage,
       );
     } finally {
       setSubmitting(false);
@@ -285,18 +374,26 @@ export const JobrackerSignup = (): JSX.Element => {
   const handleResendVerification = async () => {
     try {
       setResending(true);
+      const sanitizedEmail = sanitizeTextValue(formData.email).value.trim();
       const authAny = (supabase as any).auth;
       if (authAny && typeof authAny.resend === "function") {
         const { error } = await authAny.resend({
           type: "signup",
-          email: formData.email,
+          email: sanitizedEmail,
           options: { emailRedirectTo: AUTH_REDIRECTS.signIn() },
         });
         if (error) throw error;
       }
       success("Verification email resent");
     } catch (e: any) {
-      toastError("Resend failed", e?.message || "Please try again later.");
+      const rawMessage = e?.message || String(e);
+      let userFriendlyMessage = "Failed to resend verification link. Please try again.";
+      if (rawMessage.includes("rate limit") || rawMessage.includes("too many requests")) {
+        userFriendlyMessage = "Too many requests. Please wait a few minutes before requesting another link.";
+      } else if (rawMessage.length < 80) {
+        userFriendlyMessage = rawMessage;
+      }
+      toastError("Resend failed", userFriendlyMessage);
     } finally {
       setResending(false);
     }
@@ -334,6 +431,16 @@ export const JobrackerSignup = (): JSX.Element => {
 
   return (
     <div className='h-screen w-full flex bg-background overflow-hidden relative'>
+      <Seo
+        title={isSignUp ? "Create Your JobRaker Account" : "Sign In to JobRaker"}
+        description={
+          isSignUp
+            ? "Create your JobRaker account to organize your search, draft tailored applications, and unlock guided scouting."
+            : "Sign in to JobRaker to manage your search workflow, applications, and AI-assisted job materials."
+        }
+        path={isSignUp ? "/signup" : "/signIn"}
+        noindex
+      />
       {/* LEFT SIDE: Login Form */}
       <div className='w-full lg:w-1/2 flex flex-col relative z-20 bg-background/80 backdrop-blur-sm lg:backdrop-blur-none border-r border-foreground/5 h-full'>
         <div className='flex-1 flex flex-col justify-center overflow-y-auto py-6 px-4 sm:px-8 no-scrollbar'>
@@ -373,6 +480,45 @@ export const JobrackerSignup = (): JSX.Element => {
                     : "Login to manage your AI agent."}
               </p>
             </motion.div>
+
+            {isSignUp && selectedPlan && !showForgotPassword && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-brand/10 border border-brand/20 rounded-xl p-3 text-xs space-y-1 relative overflow-hidden"
+              >
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-foreground uppercase tracking-wider text-[10px]">Selected Plan:</span>
+                  <span className="text-brand font-mono font-bold capitalize">{selectedPlan}</span>
+                </div>
+                <div className="text-foreground/75 text-[11px]">
+                  {selectedPlan === "pro" && "1,200 credits/mo • Full AI Tailoring • On Autopilot"}
+                  {selectedPlan === "basics" && "250 credits/mo • Tailoring & Drafts • 15 Auto-Applies"}
+                  {selectedPlan === "ultimate" && "3,500 credits/mo • Scout Mode • Infinite Power"}
+                  {selectedPlan === "free" && "10 credits/mo • Track Active Pipeline"}
+                </div>
+                <div className="text-[10px] text-foreground/50 border-t border-foreground/5 pt-1.5 mt-1">
+                  14-day free trial • Cancel anytime • Zero risk
+                </div>
+              </motion.div>
+            )}
+
+            {isSignUp && !selectedPlan && !showForgotPassword && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-foreground/[0.02] border border-foreground/5 rounded-xl p-3 text-[11px] text-foreground/70 flex items-center justify-between"
+              >
+                <span>Recommended tier: <strong className="text-brand">Pro Plan</strong> (1,200 credits)</span>
+                <button
+                  type="button"
+                  onClick={() => navigate("/pricing")}
+                  className="text-brand hover:underline font-medium text-[10px]"
+                >
+                  View Plans
+                </button>
+              </motion.div>
+            )}
 
             {turnstileEnabled && (
               <motion.div
@@ -430,7 +576,7 @@ export const JobrackerSignup = (): JSX.Element => {
                   onClick={() => handleOAuth("google")}
                 >
                   <img
-                    className='w-3.5 h-3.5 mr-2 invert dark:invert-0'
+                    className='w-3.5 h-3.5 mr-2  dark:invert-0'
                     alt='Google'
                     src='/flat-color-icons-google.svg'
                   />
@@ -447,7 +593,7 @@ export const JobrackerSignup = (): JSX.Element => {
                   onClick={() => handleOAuth("linkedin_oidc")}
                 >
                   <img
-                    className='w-3.5 h-3.5 mr-2 invert dark:invert-0'
+                    className='w-3.5 h-3.5 mr-2 dark:invert-0'
                     alt='LinkedIn'
                     src='/logos-linkedin-icon.svg'
                   />
@@ -567,21 +713,35 @@ export const JobrackerSignup = (): JSX.Element => {
                       )}
                     </button>
                   </div>
-                  {/* Minimal Password Strength Indicator for Sign Up */}
+                  {/* Upgraded Password Strength & Requirement Checklist */}
                   {formData.password.length > 0 && (
-                    <div className='pt-1.5 flex items-center gap-1.5 text-[10px]'>
-                      <div
-                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 1 ? "bg-brand/100" : "bg-foreground/10"}`}
-                      />
-                      <div
-                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 3 ? "bg-brand/100" : "bg-foreground/10"}`}
-                      />
-                      <div
-                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 4 ? "bg-brand" : "bg-foreground/10"}`}
-                      />
-                      <span className='text-gray-400 ml-1'>
-                        {passwordCheck.strength}
-                      </span>
+                    <div className="pt-2 space-y-1 bg-foreground/[0.02] border border-foreground/5 rounded-lg p-2.5">
+                      <div className='flex items-center justify-between text-[10px] text-gray-400'>
+                        <span>Password Strength: <strong>{passwordCheck.strength}</strong></span>
+                        <span>{passwordCheck.score}/5</span>
+                      </div>
+                      <div className='flex items-center gap-1'>
+                        <div className={`flex-1 h-1 rounded-full ${passwordCheck.score >= 1 ? "bg-brand" : "bg-foreground/10"}`} />
+                        <div className={`flex-1 h-1 rounded-full ${passwordCheck.score >= 3 ? "bg-brand" : "bg-foreground/10"}`} />
+                        <div className={`flex-1 h-1 rounded-full ${passwordCheck.score >= 4 ? "bg-brand" : "bg-foreground/10"}`} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px] pt-1.5 border-t border-foreground/5 mt-1.5">
+                        <div className={`flex items-center gap-1 ${passwordCheck.lengthOk ? "text-brand" : "text-foreground/45"}`}>
+                          <span>{passwordCheck.lengthOk ? "✓" : "○"}</span> 8+ characters
+                        </div>
+                        <div className={`flex items-center gap-1 ${passwordCheck.hasUpper ? "text-brand" : "text-foreground/45"}`}>
+                          <span>{passwordCheck.hasUpper ? "✓" : "○"}</span> Uppercase letter
+                        </div>
+                        <div className={`flex items-center gap-1 ${passwordCheck.hasNumber ? "text-brand" : "text-foreground/45"}`}>
+                          <span>{passwordCheck.hasNumber ? "✓" : "○"}</span> One number
+                        </div>
+                        <div className={`flex items-center gap-1 ${passwordCheck.hasSymbol ? "text-brand" : "text-foreground/45"}`}>
+                          <span>{passwordCheck.hasSymbol ? "✓" : "○"}</span> One symbol
+                        </div>
+                        <div className={`flex items-center gap-1 ${formData.password === formData.confirmPassword && formData.confirmPassword ? "text-brand" : "text-foreground/45"}`}>
+                          <span>{formData.password === formData.confirmPassword && formData.confirmPassword ? "✓" : "○"}</span> Passwords match
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

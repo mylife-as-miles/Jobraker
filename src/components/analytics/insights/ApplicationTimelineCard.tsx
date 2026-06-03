@@ -34,7 +34,7 @@ export function ApplicationTimelineCard({
       transition={{ duration: 0.45, delay: 0.2 }}
       className='h-full'
     >
-      <Card className='relative h-full overflow-hidden border border-border/40 bg-card/40 backdrop-blur-xl shadow-2xl transition-all duration-300'>
+      <Card className='relative h-full overflow-hidden border border-foreground/10 bg-card/40 backdrop-blur-xl  transition-all duration-300'>
         {/* Decorative gradient background */}
         <div className='absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[#a78bfa]/5 blur-3xl' />
         <div className='absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-[#a78bfa]/5 blur-3xl' />

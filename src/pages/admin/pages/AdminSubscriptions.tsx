@@ -33,6 +33,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast-provider";
+import { getCurrentUserAdminSubRole } from "../../../lib/adminUtils";
 
 interface SubscriptionPlan {
   id: string;
@@ -95,8 +96,14 @@ export default function AdminSubscriptions() {
   const [showChangePlanDialog, setShowChangePlanDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [subscriberActionLoading, setSubscriberActionLoading] = useState(false);
+  const [callerSubRole, setCallerSubRole] = useState<'owner' | 'editor' | 'reader' | null>(null);
 
   useEffect(() => {
+    const fetchCallerSubRole = async () => {
+      const subRole = await getCurrentUserAdminSubRole();
+      setCallerSubRole(subRole);
+    };
+    fetchCallerSubRole();
     fetchPlans();
     fetchSubscribers();
   }, []);
@@ -257,28 +264,14 @@ export default function AdminSubscriptions() {
               .from("user_subscriptions")
               .select("*", { count: "exact", head: false })
               .eq("subscription_plan_id", plan.id)
-              .eq("status", "active");
+              .eq("status", "active")
+              .gt("current_period_end", new Date().toISOString());
 
             if (!subsError && activeCount) {
               subscriberCount = activeCount;
             }
           } catch (err) {
             console.warn("Could not fetch user_subscriptions:", err);
-          }
-
-          try {
-            // Get count of users with this tier in profiles (fallback)
-            const { count: profileCount, error: profileError } = await supabase
-              .from("profiles")
-              .select("*", { count: "exact", head: false })
-              .eq("subscription_tier", plan.name);
-
-            if (!profileError && profileCount) {
-              // Use the higher count (active subscriptions or profile tier)
-              subscriberCount = Math.max(subscriberCount, profileCount);
-            }
-          } catch (err) {
-            console.warn("Could not fetch profiles count:", err);
           }
 
           // Ensure features is always an array of strings
@@ -476,18 +469,20 @@ export default function AdminSubscriptions() {
             Manage pricing tiers and subscription offerings
           </p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => {
-            resetForm();
-            setIsCreateDialogOpen(true);
-          }}
-          className='flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-brand to-background text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-brand/20 transition-all'
-        >
-          <Plus className='w-5 h-5' />
-          Create Plan
-        </motion.button>
+        {callerSubRole !== "reader" && (
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              resetForm();
+              setIsCreateDialogOpen(true);
+            }}
+            className='flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-brand to-background text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-brand/20 transition-all'
+          >
+            <Plus className='w-5 h-5' />
+            Create Plan
+          </motion.button>
+        )}
       </div>
 
       {/* Stats Overview */}
@@ -667,43 +662,47 @@ export default function AdminSubscriptions() {
                 </div>
 
                 {/* Actions */}
-                <div className='grid grid-cols-4 gap-2'>
+                <div className={`${callerSubRole === "reader" ? "flex justify-center" : "grid grid-cols-4"} gap-2`}>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => openViewDialog(plan)}
-                    className='p-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors flex items-center justify-center'
+                    className={`p-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors flex items-center justify-center ${callerSubRole === "reader" ? "w-full max-w-[120px]" : ""}`}
                     title='View Details'
                   >
                     <Eye className='w-4 h-4' />
                   </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => openEditDialog(plan)}
-                    className='p-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors flex items-center justify-center'
-                    title='Edit'
-                  >
-                    <Edit className='w-4 h-4' />
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleDuplicate(plan)}
-                    className='p-2 bg-brand/20 hover:bg-brand/30 text-brand rounded-lg transition-colors flex items-center justify-center'
-                    title='Duplicate'
-                  >
-                    <Copy className='w-4 h-4' />
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => openDeleteDialog(plan)}
-                    className='p-2 bg-brand/20 hover:bg-brand/30 text-brand rounded-lg transition-colors flex items-center justify-center'
-                    title='Delete'
-                  >
-                    <Trash2 className='w-4 h-4' />
-                  </motion.button>
+                  {callerSubRole !== "reader" && (
+                    <>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => openEditDialog(plan)}
+                        className='p-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors flex items-center justify-center'
+                        title='Edit'
+                      >
+                        <Edit className='w-4 h-4' />
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleDuplicate(plan)}
+                        className='p-2 bg-brand/20 hover:bg-brand/30 text-brand rounded-lg transition-colors flex items-center justify-center'
+                        title='Duplicate'
+                      >
+                        <Copy className='w-4 h-4' />
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => openDeleteDialog(plan)}
+                        className='p-2 bg-brand/20 hover:bg-brand/30 text-brand rounded-lg transition-colors flex items-center justify-center'
+                        title='Delete'
+                      >
+                        <Trash2 className='w-4 h-4' />
+                      </motion.button>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -883,17 +882,21 @@ export default function AdminSubscriptions() {
                           : "—"}
                       </td>
                       <td className='px-4 py-4 text-center'>
-                        <SubscriberRowActions
-                          onChangePlan={() => {
-                            setSelectedSubscriber(sub);
-                            setShowChangePlanDialog(true);
-                          }}
-                          onCancel={() => {
-                            setSelectedSubscriber(sub);
-                            setShowCancelDialog(true);
-                          }}
-                          isActive={sub.status === "active"}
-                        />
+                        {callerSubRole === "reader" ? (
+                          <span className='text-xs text-gray-500 italic'>No actions</span>
+                        ) : (
+                          <SubscriberRowActions
+                            onChangePlan={() => {
+                              setSelectedSubscriber(sub);
+                              setShowChangePlanDialog(true);
+                            }}
+                            onCancel={() => {
+                              setSelectedSubscriber(sub);
+                              setShowCancelDialog(true);
+                            }}
+                            isActive={sub.status === "active"}
+                          />
+                        )}
                       </td>
                     </motion.tr>
                   ))}

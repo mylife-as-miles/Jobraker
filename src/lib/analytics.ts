@@ -1,9 +1,12 @@
+import posthog from "@/lib/posthog";
+import { supabase } from "@/lib/supabaseClient";
+import { getStoredAttributionProperties } from "@/lib/utmAttribution";
+
 // Lightweight analytics abstraction. Falls back to console if no provider configured.
-// Extend by wiring to a real destination (PostHog, Segment, self-host) later.
 
 export type AnalyticsEvent = {
   name: string;
-  props?: Record<string, any>;
+  props?: Record<string, unknown>;
   ts?: number; // epoch ms
 };
 
@@ -18,6 +21,16 @@ class ConsoleSink implements AnalyticsSink {
     console.debug("[analytics]", evt.name, evt.props || {});
   }
   // no-op flush
+}
+
+class PostHogSink implements AnalyticsSink {
+  track(evt: AnalyticsEvent) {
+    posthog.capture(evt.name, evt.props);
+  }
+
+  flush() {
+    posthog.flush();
+  }
 }
 
 let sink: AnalyticsSink = new ConsoleSink();
@@ -46,11 +59,59 @@ export function setAnalyticsSink(custom: AnalyticsSink) {
   sink = custom;
 }
 
-export function track(name: string, props?: Record<string, any>) {
-  const evt: AnalyticsEvent = { name, props, ts: Date.now() };
+export function enablePostHogAnalytics() {
+  sink = new PostHogSink();
+  void flushBuffer();
+}
+
+export function captureClientEvent(
+  event: string,
+  properties?: Record<string, unknown>,
+) {
+  posthog.capture(event, {
+    ...getStoredAttributionProperties(),
+    ...properties,
+  });
+}
+
+export async function captureServerEvent(
+  event: string,
+  properties?: Record<string, unknown>,
+) {
+  try {
+    const { error } = await supabase.functions.invoke("track-posthog", {
+      body: {
+        event,
+        properties: {
+          ...getStoredAttributionProperties(),
+          ...properties,
+        },
+      },
+    });
+
+    if (error) {
+      console.error("PostHog server event failed", { event, error });
+    }
+  } catch (error) {
+    console.error("PostHog server event threw", { event, error });
+  }
+}
+
+export function track(name: string, props?: Record<string, unknown>) {
+  const cleanedProps = Object.fromEntries(
+    Object.entries({
+      ...getStoredAttributionProperties(),
+      ...props,
+    }).filter(([, value]) => value !== undefined),
+  );
+  const evt: AnalyticsEvent = {
+    name,
+    props: cleanedProps,
+    ts: Date.now(),
+  };
   try {
     sink.track(evt);
-  } catch (e) {
+  } catch {
     buffer.push(evt);
     try { localStorage.setItem(LS_KEY, JSON.stringify(buffer)); } catch {}
   }

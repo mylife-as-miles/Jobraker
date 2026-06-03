@@ -6,6 +6,7 @@ import {
   createGeminiConfig,
   extractGeminiText,
   withGeminiRetry,
+  withModelFallback,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -14,9 +15,14 @@ import {
   requireAuthenticatedUser,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import {
+  enforceFeatureRateLimit,
+  recordFeatureUsage,
+} from "../_shared/feature-limits.ts";
 
 interface ParseResumeRequest {
-  resumeText: string;
+  resumeText?: string;
+  pdfBase64?: string;
 }
 
 const PARSING_SCHEMA = {
@@ -151,20 +157,94 @@ ${JSON.stringify(PARSING_SCHEMA, null, 2)}
 Malformed JSON:
 ${text.slice(0, 14000)}`;
 
-  const repaired = await ai.models.generateContent({
-    model: GEMINI_MODEL,
-    config: createGeminiConfig({
-      systemInstruction:
-        "You repair malformed JSON. Return only valid JSON with no commentary.",
-      includeTools: false,
-      thinkingLevel: "LOW",
+  const { result: repaired } = await withModelFallback(
+    (model) => ai.models.generateContent({
+      model,
+      config: createGeminiConfig({
+        systemInstruction:
+          "You repair malformed JSON. Return only valid JSON with no commentary.",
+        includeTools: false,
+        thinkingLevel: "LOW",
+      }, model),
+      contents: [{ role: "user", parts: [{ text: repairPrompt }] }],
     }),
-    contents: [{ role: "user", parts: [{ text: repairPrompt }] }],
-  });
+  );
 
   const repairedText = extractGeminiText(repaired);
   if (!repairedText) throw new Error("Empty response while repairing JSON.");
   return repairedText;
+}
+
+async function extractTextFromPdf(pdfBytes: Uint8Array): Promise<string> {
+  let extractedText = "";
+  
+  // Try unpdf first (very fast, modern, and edge-compatible)
+  try {
+    console.log("Attempting PDF extraction using unpdf...");
+    const { getDocumentProxy, extractText } = await import("npm:unpdf");
+    const pdf = await getDocumentProxy(pdfBytes);
+    const result = await extractText(pdf);
+    extractedText = result.text;
+    console.log(`unpdf extraction successful, extracted ${extractedText.length} characters`);
+  } catch (unpdfError) {
+    console.warn("unpdf extraction failed:", unpdfError);
+  }
+  
+  // If unpdf failed or returned empty, try pdf.js-extract
+  if (!extractedText || !extractedText.trim()) {
+    try {
+      console.log("Attempting PDF extraction using pdf.js-extract...");
+      const { PDFExtract } = await import("npm:pdf.js-extract");
+      const { Buffer } = await import("node:buffer");
+      const nodeBuffer = Buffer.from(pdfBytes);
+      const pdfExtract = new PDFExtract();
+      
+      const resultText = await new Promise<string>((resolve, reject) => {
+        pdfExtract.extractBuffer(nodeBuffer, {}, (err: any, data: any) => {
+          if (err) return reject(err);
+          if (!data || !data.pages) return reject(new Error("No pages found"));
+          
+          let fullText = "";
+          for (const page of data.pages) {
+            const content = page.content || [];
+            const linesMap: Record<number, typeof content> = {};
+            for (const item of content) {
+              const y = Math.round(item.y);
+              let foundKey = Object.keys(linesMap).find(k => Math.abs(Number(k) - y) <= 4);
+              if (foundKey) {
+                linesMap[Number(foundKey)].push(item);
+              } else {
+                linesMap[y] = [item];
+              }
+            }
+            
+            const sortedY = Object.keys(linesMap).map(Number).sort((a, b) => a - b);
+            let pageText = "";
+            for (const y of sortedY) {
+              const items = linesMap[y];
+              items.sort((a, b) => a.x - b.x);
+              const lineText = items.map(it => it.str).join(" ");
+              if (lineText.trim()) {
+                pageText += lineText + "\n";
+              }
+            }
+            fullText += pageText + "\n";
+          }
+          resolve(fullText.trim());
+        });
+      });
+      extractedText = resultText;
+      console.log(`pdf.js-extract extraction successful, extracted ${extractedText.length} characters`);
+    } catch (pdfExtractError) {
+      console.warn("pdf.js-extract extraction failed:", pdfExtractError);
+    }
+  }
+  
+  if (!extractedText || !extractedText.trim()) {
+    throw new Error("Could not extract text from PDF using unpdf or pdf.js-extract.");
+  }
+  
+  return extractedText;
 }
 
 serve(async (req) => {
@@ -175,26 +255,53 @@ serve(async (req) => {
   }
 
   try {
-    await requireAuthenticatedUser(req);
+    const { user, serviceClient } = await requireAuthenticatedUser(req);
+    const subscriptionTier = await enforceFeatureRateLimit({
+      userId: user.id,
+      featureKey: "parse_resume",
+      serviceClient,
+    });
 
-    const { resumeText } = (await req.json()) as ParseResumeRequest;
-    if (!resumeText) {
-      return new Response(JSON.stringify({ error: "resumeText is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const requestBody = (await req.json()) as ParseResumeRequest;
+    const pdfBase64 = requestBody.pdfBase64;
+    let resumeText = "";
+    
+    if (pdfBase64) {
+      try {
+        const cleanBase64 = pdfBase64.replace(/^data:application\/pdf;base64,/, "").trim();
+        const pdfBytes = Uint8Array.from(atob(cleanBase64), c => c.charCodeAt(0));
+        resumeText = await extractTextFromPdf(pdfBytes);
+      } catch (extractError: any) {
+        console.error("Server-side PDF text extraction failed:", extractError);
+        if (requestBody.resumeText) {
+          resumeText = requestBody.resumeText;
+        } else {
+          return new Response(JSON.stringify({ error: `Failed to extract text from PDF: ${extractError.message}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
+    } else {
+      resumeText = requestBody.resumeText || "";
+    }
+
+    if (!resumeText || !resumeText.trim()) {
+      return new Response(JSON.stringify({ error: "resumeText or pdfBase64 is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const ai = createGeminiClient();
     const prompt = buildPrompt(resumeText.slice(0, 60000));
 
-    const result = await withGeminiRetry(() => ai.models.generateContent({
-        model: GEMINI_MODEL,
-        config: createGeminiConfig({
-          systemInstruction: "You are a lossless resume parser. Extract, preserve detail, and return only valid JSON.",
-          responseMimeType: "application/json",
-          includeTools: false,
-          thinkingLevel: "LOW",
-        }),
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
-    }));
+    const { result } = await withModelFallback(
+      (model) => withGeminiRetry(() => ai.models.generateContent({
+          model,
+          config: createGeminiConfig({
+            systemInstruction: "You are a lossless resume parser. Extract, preserve detail, and return only valid JSON.",
+            responseMimeType: "application/json",
+            includeTools: false,
+            thinkingLevel: "LOW",
+          }, model),
+          contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      })),
+    );
 
     const text = extractGeminiText(result);
     if (!text) throw new Error("Empty response from AI");
@@ -207,6 +314,16 @@ serve(async (req) => {
       const repairedText = await repairMalformedJson(ai, text);
       parsed = parseGeminiJson(repairedText);
     }
+
+    await recordFeatureUsage({
+      userId: user.id,
+      featureKey: "parse_resume",
+      serviceClient,
+      subscriptionTier,
+      metadata: {
+        resume_length: resumeText.length,
+      },
+    });
 
     return new Response(JSON.stringify(parsed), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 

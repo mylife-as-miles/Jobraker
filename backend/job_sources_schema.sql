@@ -109,7 +109,7 @@ CREATE TRIGGER update_jobs_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Create view for job statistics
-CREATE VIEW job_stats AS
+CREATE VIEW job_stats WITH (security_invoker = true) AS
 SELECT 
   user_id,
   COUNT(*) as total_jobs,

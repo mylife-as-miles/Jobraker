@@ -115,12 +115,11 @@ export function useAppearanceSettings() {
       if (error) throw error;
       const s = (data as any) || null;
       setSettings(s);
-      if (s)
-        applyAppearanceToDOM({
-          theme: s.theme,
-          accent_color: s.accent_color,
-          reduce_motion: s.reduce_motion,
-        });
+      applyAppearanceToDOM({
+        theme: s?.theme || "dark",
+        accent_color: s?.accent_color || "#1dff00",
+        reduce_motion: s?.reduce_motion || false,
+      });
     } catch (e: any) {
       setError(e.message || "Failed to load appearance settings");
       setSettings(null);
@@ -140,13 +139,11 @@ export function useAppearanceSettings() {
       const t = localStorage.getItem("appearance_theme") as any;
       const a = localStorage.getItem("appearance_accent");
       const r = localStorage.getItem("appearance_reduce_motion") === "1";
-      if (t) {
-        applyAppearanceToDOM({
-          theme: t,
-          accent_color: a || "#1dff00",
-          reduce_motion: r,
-        });
-      }
+      applyAppearanceToDOM({
+        theme: t || "dark",
+        accent_color: a || "#1dff00",
+        reduce_motion: r,
+      });
     } catch {}
   }, []);
 
@@ -207,7 +204,7 @@ export function useAppearanceSettings() {
         .from("appearance_settings")
         .insert({
           id: userId,
-          theme: "auto",
+          theme: "dark",
           accent_color: "#1dff00",
           reduce_motion: false,
           ...payload,

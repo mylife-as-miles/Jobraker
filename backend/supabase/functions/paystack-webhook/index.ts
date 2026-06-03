@@ -4,6 +4,7 @@ import {
   fulfillVerifiedPaystackPayment,
   verifyPaystackReference,
 } from "../_shared/paystack-fulfillment.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 console.log("Hello from paystack-webhook!");
 
@@ -14,20 +15,25 @@ function hex(buffer: ArrayBuffer): string {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
   try {
     const paystackSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
     if (!paystackSecret) {
       console.error("PAYSTACK_SECRET_KEY is not set");
-      return new Response("Configuration error", { status: 500 });
+      return new Response("Configuration error", { status: 500, headers: corsHeaders });
     }
 
     const signature = req.headers.get("x-paystack-signature");
     if (!signature) {
-      return new Response("No signature", { status: 400 });
+      return new Response("No signature", { status: 400, headers: corsHeaders });
     }
 
     const bodyText = await req.text();
@@ -47,23 +53,23 @@ serve(async (req) => {
     );
 
     if (hex(signatureBuffer) !== signature) {
-      return new Response("Invalid signature", { status: 400 });
+      return new Response("Invalid signature", { status: 400, headers: corsHeaders });
     }
 
     const event = JSON.parse(bodyText);
     if (event.event !== "charge.success") {
-      return new Response("ok", { status: 200 });
+      return new Response("ok", { status: 200, headers: corsHeaders });
     }
 
     const reference = String(event?.data?.reference || "");
     if (!reference) {
-      return new Response("Missing reference", { status: 400 });
+      return new Response("Missing reference", { status: 400, headers: corsHeaders });
     }
 
     const verified = await verifyPaystackReference(reference, paystackSecret);
     if (!verified.ok) {
       console.warn("Paystack charge.success did not verify as paid", verified);
-      return new Response("ok", { status: 200 });
+      return new Response("ok", { status: 200, headers: corsHeaders });
     }
 
     const supabaseAdmin = createClient(
@@ -84,14 +90,14 @@ serve(async (req) => {
         result.status === "user_mismatch" ||
         result.status === "invalid_order"
       ) {
-        return new Response("ok", { status: 200 });
+        return new Response("ok", { status: 200, headers: corsHeaders });
       }
-      return new Response(result.message || "Fulfillment failed", { status: 500 });
+      return new Response(result.message || "Fulfillment failed", { status: 500, headers: corsHeaders });
     }
 
-    return new Response("ok", { status: 200 });
+    return new Response("ok", { status: 200, headers: corsHeaders });
   } catch (error: any) {
     console.error("Webhook error:", error);
-    return new Response(error.message, { status: 500 });
+    return new Response(error.message, { status: 500, headers: corsHeaders });
   }
 });

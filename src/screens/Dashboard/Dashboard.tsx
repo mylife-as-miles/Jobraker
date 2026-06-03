@@ -35,6 +35,9 @@ import {
   FileText,
   PenTool,
   Gift,
+  Folder,
+  Crown,
+  Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
@@ -65,8 +68,9 @@ import InterviewStudioPage from "./pages/InterviewStudioPage";
 import { ResumePage } from "./pages/ResumePage";
 import { CoverLetterPage } from "./pages/CoverLetterPage";
 import { ReferralsPage } from "./pages/ReferralsPage";
-;
-import { TooltipArrow } from "@radix-ui/react-tooltip";
+import { AccountLibraryPage } from "./pages/AccountLibraryPage";
+import { ExperienceFeedbackPrompt } from "./components/ExperienceFeedbackPrompt";
+import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
 
 type DashboardPage =
   | "overview"
@@ -82,7 +86,8 @@ type DashboardPage =
   | "interview-studio"
   | "resume"
   | "cover-letter"
-  | "referrals";
+  | "referrals"
+  | "account";
 
 interface PageLink {
   id: DashboardPage;
@@ -90,6 +95,8 @@ interface PageLink {
   icon: React.ReactNode;
   path: string;
 }
+
+type SubscriptionTier = "Free" | "Basics" | "Pro" | "Ultimate";
 
 const SidebarItem = ({
   item,
@@ -143,6 +150,7 @@ export const Dashboard = (): JSX.Element => {
   const { profile } = useProfileSettings();
   const { success } = useToast();
   const supabase = useMemo(() => createClient(), []);
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -241,6 +249,7 @@ export const Dashboard = (): JSX.Element => {
       "resume",
       "cover-letter",
       "referrals",
+      "account",
     ];
     if (isAdmin) {
       basePages.push("interview-studio");
@@ -250,7 +259,19 @@ export const Dashboard = (): JSX.Element => {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const [showCareerPopup, setShowCareerPopup] = useState(false);
+
+  useEffect(() => {
+    const handleOutsideClick = () => {
+      setShowCareerPopup(false);
+    };
+    if (showCareerPopup) {
+      window.addEventListener("click", handleOutsideClick);
+    }
+    return () => {
+      window.removeEventListener("click", handleOutsideClick);
+    };
+  }, [showCareerPopup]);
 
   const currentPage = useMemo(() => {
     const segment = (location.pathname.split("/")[2] || "").toLowerCase();
@@ -259,8 +280,18 @@ export const Dashboard = (): JSX.Element => {
       : "overview";
   }, [location.pathname]);
 
+
+
+  useEffect(() => {
+    if (isDesktop && currentPage === "account") {
+      navigate("/dashboard/resume", { replace: true });
+    }
+  }, [isDesktop, currentPage, navigate]);
+
   const { balance: creditBalance, loading: creditsLoading } = useCredits();
   const [lowCreditModalOpen, setLowCreditModalOpen] = useState(false);
+  const [sidebarSubscriptionTier, setSidebarSubscriptionTier] =
+    useState<SubscriptionTier>("Free");
 
   useEffect(() => {
     if (creditsLoading) return;
@@ -300,6 +331,88 @@ export const Dashboard = (): JSX.Element => {
       setEmail(em);
     })();
   }, [supabase]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadSidebarSubscriptionTier = async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        if (!userId || !active) return;
+
+        const { data: subscription } = await supabase
+          .from("user_subscriptions")
+          .select("subscription_plans(name)")
+          .eq("user_id", userId)
+          .eq("status", "active")
+          .gt("current_period_end", new Date().toISOString())
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const planName = (subscription as any)?.subscription_plans?.name;
+        if (
+          planName === "Free" ||
+          planName === "Basics" ||
+          planName === "Pro" ||
+          planName === "Ultimate"
+        ) {
+          if (active) setSidebarSubscriptionTier(planName);
+          return;
+        }
+
+        if (active) setSidebarSubscriptionTier("Free");
+      } catch {
+        if (active) setSidebarSubscriptionTier("Free");
+      }
+    };
+
+    void loadSidebarSubscriptionTier();
+    window.addEventListener("focus", loadSidebarSubscriptionTier);
+    window.addEventListener(
+      "jobraker:credits-updated",
+      loadSidebarSubscriptionTier,
+    );
+
+    return () => {
+      active = false;
+      window.removeEventListener("focus", loadSidebarSubscriptionTier);
+      window.removeEventListener(
+        "jobraker:credits-updated",
+        loadSidebarSubscriptionTier,
+      );
+    };
+  }, [supabase]);
+
+  const sidebarPlanCard = useMemo(() => {
+    switch (sidebarSubscriptionTier) {
+      case "Ultimate":
+        return {
+          title: "Ultimate Plan",
+          subtitle: "Your highest tier is active",
+          cta: "Manage billing",
+        };
+      case "Pro":
+        return {
+          title: "Pro Plan",
+          subtitle: "Advanced AI unlocked",
+          cta: "View billing",
+        };
+      case "Basics":
+        return {
+          title: "Basics Plan",
+          subtitle: "Pipeline tools are active",
+          cta: "Upgrade plan",
+        };
+      default:
+        return {
+          title: "Upgrade your plan",
+          subtitle: "Unlock advanced AI and automation",
+          cta: "See plans",
+        };
+    }
+  }, [sidebarSubscriptionTier]);
 
   useEffect(() => {
     let active = true;
@@ -401,6 +514,12 @@ export const Dashboard = (): JSX.Element => {
         icon: <Plus className='w-5 h-5' />,
         path: "Dashboard / Pricing",
       },
+      {
+        id: "account",
+        label: "Account",
+        icon: <Folder className='w-5 h-5' />,
+        path: "Dashboard / Account",
+      },
     ];
 
     if (isAdmin) {
@@ -420,15 +539,17 @@ export const Dashboard = (): JSX.Element => {
   const navigationItems = useMemo(() => {
     return allDashboardPages.filter(
       (page) =>
-        !["profile", "settings", "notifications", "pricing"].includes(page.id),
+        !["profile", "settings", "notifications", "pricing"].includes(page.id) &&
+        !(isDesktop && page.id === "account"),
     );
-  }, [allDashboardPages]);
+  }, [allDashboardPages, isDesktop]);
+
+  const currentItem = useMemo(
+    () => allDashboardPages.find((item) => item.id === currentPage),
+    [allDashboardPages, currentPage],
+  );
 
   const getCurrentBreadcrumb = () => {
-    const currentItem = allDashboardPages.find(
-      (item) => item.id === currentPage,
-    );
-
     if (currentPage === "settings") {
       const tab = location.pathname.split("/")[3];
       if (tab) {
@@ -445,9 +566,6 @@ export const Dashboard = (): JSX.Element => {
   };
 
   const getBreadcrumbItems = () => {
-    const currentItem = allDashboardPages.find(
-      (item) => item.id === currentPage,
-    );
     const items: Array<{ label: string; to?: string }> = [
       { label: "Dashboard", to: "/dashboard/overview" },
     ];
@@ -505,14 +623,17 @@ export const Dashboard = (): JSX.Element => {
         return <ProfilePage />;
       case "referrals":
         return <ReferralsPage />;
+      case "account":
+        return <AccountLibraryPage />;
       default:
         return <OverviewPage />;
     }
   };
 
+
   return (
     <TooltipProvider delayDuration={150}>
-      <div className='min-h-screen bg-background flex'>
+      <div className='h-screen max-h-screen w-screen overflow-hidden bg-background flex'>
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -553,9 +674,6 @@ export const Dashboard = (): JSX.Element => {
                 <span className='font-bold text-lg leading-none tracking-tight text-foreground truncate'>
                   JobRaker
                 </span>
-                <span className='text-[10px] uppercase tracking-widest text-muted-foreground font-medium mt-1 truncate'>
-                  Enterprise AI
-                </span>
               </motion.div>
             )}
 
@@ -571,7 +689,7 @@ export const Dashboard = (): JSX.Element => {
         </div>
 
         {/* Navigation - Categorized */}
-        <div className='flex-1 overflow-y-auto py-6 px-3 space-y-6 [scrollbar-width:thin]  [scrollbar-color:grey_transparent]  '>
+        <div className='custom-scrollbar flex-1 overflow-y-auto px-3 py-6 space-y-6'>
           {/* Section 1: Main */}
           <div className='space-y-1'>
             {!isCollapsed && (
@@ -703,10 +821,10 @@ export const Dashboard = (): JSX.Element => {
               {!isCollapsed && (
                 <div>
                   <h3 className='text-sm font-bold text-foreground group-hover:text-brand transition-colors'>
-                    Pro Plan
+                    {sidebarPlanCard.title}
                   </h3>
                   <p className='text-[10px] text-muted-foreground mt-1'>
-                    Unlock advanced AI
+                    {sidebarPlanCard.subtitle}
                   </p>
                 </div>
               )}
@@ -717,7 +835,7 @@ export const Dashboard = (): JSX.Element => {
 
             {!isCollapsed && (
               <div className='mt-3 flex items-center gap-2 text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors'>
-                <span>Upgrade now</span>
+                <span>{sidebarPlanCard.cta}</span>
                 <BreadcrumbChevron size={12} />
               </div>
             )}
@@ -748,7 +866,7 @@ export const Dashboard = (): JSX.Element => {
               <Button
                 variant='ghost'
                 size='sm'
-                className='lg:hidden text-brand hover:bg-brand/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2'
+                className='hidden text-brand hover:bg-brand/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2'
                 onClick={() => setSidebarOpen(true)}
                 title='Open sidebar navigation'
                 aria-label='Open sidebar'
@@ -756,10 +874,25 @@ export const Dashboard = (): JSX.Element => {
                 <Menu className='w-4 h-4 sm:w-5 sm:h-5' />
               </Button>
 
-              {/* Current page (xs) */}
-              <span className='sm:hidden text-foreground font-medium text-sm truncate'>
-                {getCurrentBreadcrumb().split(" / ").slice(-1)[0]}
-              </span>
+              {/* Logo and Brand on mobile */}
+              {currentPage === "overview" ? (
+                <div className='flex sm:hidden items-center gap-2 shrink-0'>
+                  <div className='w-7 h-7 rounded-lg flex items-center justify-center shrink-0 overflow-clip'>
+                    <img
+                      src='/logo/logo.jpeg'
+                      className='object-cover w-full h-full'
+                      alt='JobRaker logo'
+                    />
+                  </div>
+                  <span className='text-foreground font-bold text-lg leading-none tracking-tight'>
+                    JobRaker
+                  </span>
+                </div>
+              ) : (
+                <span className='sm:hidden text-foreground font-bold text-lg leading-none tracking-tight truncate max-w-[14rem]'>
+                  {getCurrentBreadcrumb().split(" / ").slice(-1)[0]}
+                </span>
+              )}
 
               {/* Breadcrumb Navigation (sm+) */}
               <div className='hidden sm:flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm lg:text-base min-w-0 whitespace-nowrap overflow-hidden'>
@@ -918,7 +1051,7 @@ export const Dashboard = (): JSX.Element => {
             ["chat", "interview-studio"].includes(currentPage)
               ? "overflow-hidden"
               : "overflow-auto"
-          }`}
+          } ${!isDesktop ? "pb-20" : ""}`}
         >
           <AnimatePresence mode='wait'>
             <motion.div
@@ -935,15 +1068,134 @@ export const Dashboard = (): JSX.Element => {
         </div>
       </div>
 
+      {/* Mobile Bottom Tab Bar */}
+      {!isDesktop && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border/40 px-2 grid grid-cols-5 h-16 select-none shadow-[0_-8px_32px_rgba(0,0,0,0.4)]">
+          {/* Home Tab */}
+          <button
+            onClick={() => navigate("/dashboard/overview")}
+            className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
+              currentPage === "overview"
+                ? "text-brand scale-105"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Home className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-semibold">Home</span>
+          </button>
+
+          {/* Account Tab */}
+          <button
+            onClick={() => navigate("/dashboard/account")}
+            className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
+              currentPage === "account"
+                ? "text-brand scale-105"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Folder className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-semibold">Account</span>
+          </button>
+
+          {/* Career Tab (Center highlighted squircle button) */}
+          <div className="relative flex justify-center items-center -mt-6">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowCareerPopup(!showCareerPopup);
+              }}
+              className={`w-12 h-12 rounded-[14px] bg-gradient-to-br from-brand via-brand/90 to-brand/75 flex items-center justify-center text-black shadow-[0_0_20px_rgba(29,255,0,0.45)] active:scale-95 transition-all duration-300 hover:shadow-[0_0_25px_rgba(29,255,0,0.6)] z-50 ${
+                showCareerPopup ? "rotate-45" : ""
+              }`}
+              title="Career actions"
+              aria-label="Open Career menu"
+            >
+              <Sparkles className={`w-5 h-5 transition-transform duration-300 ${showCareerPopup ? "-rotate-45" : ""}`} />
+            </button>
+
+            {/* Popup Menu */}
+            <AnimatePresence>
+              {showCareerPopup && (
+                <motion.div
+                  initial={{ opacity: 0, y: 15, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 15, scale: 0.9 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  className="absolute bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center pointer-events-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Jobs Pill */}
+                  <button
+                    onClick={() => {
+                      navigate("/dashboard/jobs");
+                      setShowCareerPopup(false);
+                    }}
+                    className="absolute right-2 flex w-32 translate-x-[-18px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(29,255,0,0.1)] shrink-0 text-foreground text-sm font-semibold"
+                  >
+                    <Briefcase className="w-4 h-4 text-brand" />
+                    <span>Jobs</span>
+                  </button>
+
+                  {/* Application Pill */}
+                  <button
+                    onClick={() => {
+                      navigate("/dashboard/application");
+                      setShowCareerPopup(false);
+                    }}
+                    className="absolute left-2 flex w-40 translate-x-[18px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(29,255,0,0.1)] shrink-0 text-foreground text-sm font-semibold"
+                  >
+                    <Users className="w-4 h-4 text-brand" />
+                    <span>Applications</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Chat Tab */}
+          <button
+            onClick={() => navigate("/dashboard/chat")}
+            className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
+              currentPage === "chat"
+                ? "text-brand scale-105"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Crown className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-semibold">Chat</span>
+          </button>
+
+          {/* Analytics Tab */}
+          <button
+            onClick={() => navigate("/dashboard/analytics")}
+            className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
+              currentPage === "analytics"
+                ? "text-brand scale-105"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <User className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-semibold">Analytics</span>
+          </button>
+        </div>
+      )}
+
         <LowCreditsPromoModal
           open={lowCreditModalOpen}
           onOpenChange={setLowCreditModalOpen}
           balance={creditBalance}
           loading={creditsLoading}
           onUpgrade={() =>
-            navigate("/dashboard/billing?promo=JOBRAKER_PERSONAL")
+            navigate("/dashboard/billing?promo=LOWCREDIT_RESCUE")
           }
         />
+        {currentPage !== "chat" && (
+          <SupportFloatingWidget
+            currentPageId={currentPage}
+            currentPageLabel={currentItem?.label || "Dashboard"}
+          />
+        )}
+        <ExperienceFeedbackPrompt />
       </div>
     </TooltipProvider>
   );
