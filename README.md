@@ -104,6 +104,8 @@ The following improvements were recently added during active development:
 - **Run Status Polling Hook**: `useSkyvernRun` React hook for lightweight polling until a workflow run reaches a terminal state.
 - **Application UX Upgrades**: Readiness badges (Profile / Resume), disabled state + progress label for Apply button, and retry toast events.
 - **Resume Import & Multi-Upload**: Drag & drop and multi-file import (PDF / DOC / TXT / JSON) with automatic favorite assignment for the first resume and optional JSON metadata extraction.
+- **Billing Engine Upgrade**: `jobs-search` and `process-auto-apply-queue` now utilize dynamic credit deduction reflecting actual processed volumes instead of flat rates.
+- **Quota Refunds**: `skyvern-webhook` edge function automatically restores monthly auto-apply quotas when jobs are marked as failed or terminated by the provider.
 - **Toast Event Bridge**: Event-based toast system lets utilities surface user feedback without prop drilling.
 
 Related docs:

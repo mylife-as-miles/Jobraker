@@ -339,7 +339,7 @@ Deno.serve(async (req) => {
     const jobsInserted = totalInserted;
 
     // Settle the run
-    const actualCredits = searchFailed ? 0 : JOB_SEARCH_RUN_COST;
+    const actualCredits = searchFailed ? 0 : Math.min(discoveredJobs.length, JOB_SEARCH_RUN_COST);
     const { data: settleRaw, error: settleError } = await serviceClient.rpc("settle_run_credits", {
       p_agent_run_id: agentRunId,
       p_actual_credits: actualCredits,
@@ -378,7 +378,7 @@ Deno.serve(async (req) => {
         requestedLimit,
         effectiveLimit,
         jobsInserted,
-        jobsBilled: JOB_SEARCH_RUN_COST,
+        jobsBilled: actualCredits,
       });
       providerCreditSync = {
         remainingCredits: syncResult.usage.remainingCredits,
@@ -397,7 +397,7 @@ Deno.serve(async (req) => {
       effectiveLimit,
       discoveredCount: discoveredJobs.length,
       jobsInserted,
-      jobsBilled: JOB_SEARCH_RUN_COST,
+      jobsBilled: actualCredits,
       creditsDeducted,
       remainingBalance,
       warningCount: warnings.length,
@@ -414,7 +414,7 @@ Deno.serve(async (req) => {
         creditsBalance,
         subscriptionTier,
         jobsInserted,
-        jobsBilled: JOB_SEARCH_RUN_COST,
+        jobsBilled: actualCredits,
         creditsDeducted,
         remainingBalance,
         providerCreditSync,
