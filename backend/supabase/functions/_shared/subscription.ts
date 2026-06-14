@@ -160,7 +160,7 @@ export async function resolveJobSearchExecutionLimits(
     : planCap;
   const effectiveLimit = Math.max(
     0,
-    Math.min(normalizedRequestedLimit, planCap, creditsBalance),
+    Math.min(normalizedRequestedLimit, planCap),
   );
 
   return {
