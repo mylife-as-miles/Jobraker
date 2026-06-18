@@ -74,7 +74,7 @@ import {
 import { encryptSymmetric } from "../../../utils/crypto";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
-import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
+import { useEmailIntegrationAccess } from "@/hooks/useEmailIntegrationAccess";
 import { getProxiedLogoUrl } from "../../../lib/utils";
 import useMediaQuery from "@/hooks/use-media-query";
 import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
@@ -161,9 +161,12 @@ export const SettingsPage = (): JSX.Element => {
   const { availablePages, isRunning, page: runningTourPage, start: startTour } =
     useProductTour();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
-  const hasGmailIntegrationAccess = hasSubscriptionAccess(
+  const {
+    hasEmailIntegrationAccess: hasGmailIntegrationAccess,
+    loadingEmailIntegrationAccess,
+  } = useEmailIntegrationAccess(
     subscriptionTier,
-    "Pro",
+    loadingTier,
   );
   const [isAdmin, setIsAdmin] = useState(false);
   const tabs = useMemo(() => {
@@ -202,12 +205,14 @@ export const SettingsPage = (): JSX.Element => {
       },
     ];
 
-    const billingIndex = baseTabs.findIndex((t) => t.id === "billing");
-    baseTabs.splice(billingIndex, 0, {
-      id: "integrations",
-      label: "Integrations",
-      icon: <Link className='w-4 h-4' />,
-    });
+    if (hasGmailIntegrationAccess) {
+      const billingIndex = baseTabs.findIndex((t) => t.id === "billing");
+      baseTabs.splice(billingIndex, 0, {
+        id: "integrations",
+        label: "Integrations",
+        icon: <Link className='w-4 h-4' />,
+      });
+    }
 
     if (isAdmin) {
       const guidedToursIndex = baseTabs.findIndex((t) => t.id === "billing");
@@ -227,7 +232,7 @@ export const SettingsPage = (): JSX.Element => {
     }
 
     return baseTabs;
-  }, [isAdmin, isDesktop]);
+  }, [hasGmailIntegrationAccess, isAdmin, isDesktop]);
 
   const activeTab = useMemo(() => {
     const segment = location.pathname.split("/")[3];
@@ -497,7 +502,7 @@ export const SettingsPage = (): JSX.Element => {
 
   const checkGmailConnection = useCallback(async () => {
     try {
-      if (loadingTier || !hasGmailIntegrationAccess) {
+      if (loadingEmailIntegrationAccess || !hasGmailIntegrationAccess) {
         setIsGmailConnected(false);
         setGmailConnectedEmail(null);
         return;
@@ -542,7 +547,7 @@ export const SettingsPage = (): JSX.Element => {
       setIsGmailConnected(false);
       setGmailConnectedEmail(null);
     }
-  }, [hasGmailIntegrationAccess, loadingTier, supabase]);
+  }, [hasGmailIntegrationAccess, loadingEmailIntegrationAccess, supabase]);
 
   const handleDisconnectGmail = useCallback(async () => {
     if (!hasGmailIntegrationAccess) {
@@ -591,7 +596,11 @@ export const SettingsPage = (): JSX.Element => {
   }, [activeTab, checkGmailConnection]);
 
   useEffect(() => {
-    if (activeTab !== "integrations" || !hasGmailIntegrationAccess) {
+    if (
+      activeTab !== "integrations" ||
+      loadingEmailIntegrationAccess ||
+      !hasGmailIntegrationAccess
+    ) {
       return;
     }
     let debounce: ReturnType<typeof setTimeout>;
@@ -604,7 +613,7 @@ export const SettingsPage = (): JSX.Element => {
       clearTimeout(debounce);
       window.removeEventListener("focus", onFocus);
     };
-  }, [activeTab, hasGmailIntegrationAccess, checkGmailConnection]);
+  }, [activeTab, hasGmailIntegrationAccess, loadingEmailIntegrationAccess, checkGmailConnection]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -1865,7 +1874,7 @@ export const SettingsPage = (): JSX.Element => {
                       variant='outline'
                       className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#1dff00]/10 hover:border-[#1dff00]/30 transition-all'
                       onClick={handleConnectGmail}
-                      disabled={loadingTier || !hasGmailIntegrationAccess}
+                      disabled={loadingEmailIntegrationAccess || !hasGmailIntegrationAccess}
                     >
                       <Link className='w-4 h-4 mr-2' />
                       Connect Gmail
@@ -4517,7 +4526,7 @@ export const SettingsPage = (): JSX.Element => {
                         variant='outline'
                         className='border-rose-500/35 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-400/50'
                         onClick={handleDisconnectGmail}
-                        disabled={loadingTier || gmailDisconnecting}
+                        disabled={loadingEmailIntegrationAccess || gmailDisconnecting}
                       >
                         {gmailDisconnecting ? (
                           <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
@@ -4530,7 +4539,7 @@ export const SettingsPage = (): JSX.Element => {
                       variant='outline'
                       className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#]/10 hover:border-[#]/30 transition-all'
                       onClick={handleConnectGmail}
-                      disabled={loadingTier}
+                      disabled={loadingEmailIntegrationAccess}
                     >
                       <Link className='w-4 h-4 mr-2' />
                       Connect
@@ -4539,7 +4548,7 @@ export const SettingsPage = (): JSX.Element => {
                 </div>
               </div>
             </div>
-            {!loadingTier && !hasGmailIntegrationAccess && (
+            {!loadingEmailIntegrationAccess && !hasGmailIntegrationAccess && (
               <UpgradePrompt
                 compact
                 requiredTier='Pro'

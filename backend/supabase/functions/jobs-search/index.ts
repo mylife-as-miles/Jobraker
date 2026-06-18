@@ -223,6 +223,7 @@ Deno.serve(async (req) => {
           params: {
             search_query: searchQuery,
             location,
+            locationScope,
             limit: requestedLimit,
             sources: sourceFocus,
             targetDomains,

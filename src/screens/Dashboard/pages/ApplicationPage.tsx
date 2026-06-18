@@ -87,6 +87,7 @@ import Modal from "../../../components/ui/modal";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
+import { useEmailIntegrationAccess } from "@/hooks/useEmailIntegrationAccess";
 import { getProxiedLogoUrl } from "../../../lib/utils";
 
 type SortOption = "score" | "recent" | "company" | "status";
@@ -591,7 +592,10 @@ function ApplicationPage() {
   );
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasInterviewAssistantAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
-  const hasGmailIntegrationAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
+  const {
+    hasEmailIntegrationAccess: hasGmailIntegrationAccess,
+    loadingEmailIntegrationAccess,
+  } = useEmailIntegrationAccess(subscriptionTier, loadingTier);
   const detailApp = useMemo(
     () => applications.find((a) => a.id === detailId) || null,
     [detailId, applications],
@@ -741,7 +745,7 @@ function ApplicationPage() {
     let cancelled = false;
     const checkGmailConnection = async () => {
       try {
-        if (loadingTier || !hasGmailIntegrationAccess) {
+        if (loadingEmailIntegrationAccess || !hasGmailIntegrationAccess) {
           if (!cancelled) {
             setIsGmailConnected(false);
             setGmailConnectedEmail(null);
@@ -789,7 +793,7 @@ function ApplicationPage() {
     return () => {
       cancelled = true;
     };
-  }, [hasGmailIntegrationAccess, loadingTier, supabase]);
+  }, [hasGmailIntegrationAccess, loadingEmailIntegrationAccess, supabase]);
 
   const handleSyncGmail = useCallback(async () => {
     if (!hasGmailIntegrationAccess) {
@@ -1066,30 +1070,28 @@ function ApplicationPage() {
           </p>
         </div>
         <div className='flex flex-wrap items-center gap-3'>
-          <Button
-            variant='outline'
-            className='border-[#1dff00]/30 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 text-foreground hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
-            onClick={handleSyncGmail}
-            disabled={gmailSyncing || loadingTier}
-            title={
-              !hasGmailIntegrationAccess
-                ? "Available on Pro plan"
-                : !isGmailConnected
+          {hasGmailIntegrationAccess ? (
+            <Button
+              variant='outline'
+              className='border-[#1dff00]/30 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 text-foreground hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
+              onClick={handleSyncGmail}
+              disabled={gmailSyncing || loadingEmailIntegrationAccess}
+              title={
+                !isGmailConnected
                   ? "Connect Gmail in Settings (Integrations) first, then scan your inbox"
                   : gmailConnectedEmail
                     ? `Scan ${gmailConnectedEmail} for application confirmations, interviews, offers, and rejections`
                     : "Check Gmail for application confirmations, interviews, offers, and rejections"
-            }
-          >
-            {gmailSyncing ? (
-              <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
-            ) : hasGmailIntegrationAccess ? (
-              <Mail className='w-4 h-4 mr-2' />
-            ) : (
-              <Lock className='w-4 h-4 mr-2' />
-            )}
-            Check Gmail
-          </Button>
+              }
+            >
+              {gmailSyncing ? (
+                <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
+              ) : (
+                <Mail className='w-4 h-4 mr-2' />
+              )}
+              Check Gmail
+            </Button>
+          ) : null}
           <Button
             variant='outline'
             className='product-outline-button transition-all duration-200 hover:border-[#1dff00]/60 hover:bg-[#1dff00]/15'

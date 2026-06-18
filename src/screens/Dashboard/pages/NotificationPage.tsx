@@ -24,8 +24,8 @@ import { Input } from "../../../components/ui/input";
 import { useToast } from "../../../components/ui/toast";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { createClient } from "../../../lib/supabaseClient";
-import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
+import { useEmailIntegrationAccess } from "@/hooks/useEmailIntegrationAccess";
 import {
   useNotifications,
   type NotificationRow,
@@ -208,7 +208,10 @@ export const NotificationPage = (): JSX.Element => {
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError, info } = useToast();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
-  const hasGmailIntegrationAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
+  const {
+    hasEmailIntegrationAccess: hasGmailIntegrationAccess,
+    loadingEmailIntegrationAccess,
+  } = useEmailIntegrationAccess(subscriptionTier, loadingTier);
   const { settings: notificationSettings } = useNotificationSettings();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -361,7 +364,7 @@ export const NotificationPage = (): JSX.Element => {
   useEffect(() => {
     let active = true;
     const loadGmailStatus = async () => {
-      if (loadingTier || !hasGmailIntegrationAccess) {
+      if (loadingEmailIntegrationAccess || !hasGmailIntegrationAccess) {
         if (active) setGmailStatus(DEFAULT_GMAIL_STATUS);
         return;
       }
@@ -386,7 +389,7 @@ export const NotificationPage = (): JSX.Element => {
     return () => {
       active = false;
     };
-  }, [hasGmailIntegrationAccess, loadingTier, supabase]);
+  }, [hasGmailIntegrationAccess, loadingEmailIntegrationAccess, supabase]);
 
   useEffect(() => {
     if (!autoMarkSeen) {
@@ -717,6 +720,7 @@ export const NotificationPage = (): JSX.Element => {
             ))}
           </div>
 
+          {hasGmailIntegrationAccess ? (
           <div className="rounded-2xl border border-border/40 bg-card/80 px-4 py-4 shadow-sm ring-1 ring-foreground/5">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="min-w-0">
@@ -775,6 +779,7 @@ export const NotificationPage = (): JSX.Element => {
               </div>
             </div>
           </div>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">

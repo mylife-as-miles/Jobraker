@@ -208,6 +208,54 @@ const matchInsightInFlight = new Map<string, Promise<Job[]>>();
 const sleep = (ms: number) =>
   new Promise((resolve) => window.setTimeout(resolve, ms));
 
+const normalizeSearchDomain = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = new URL(
+      /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`,
+    );
+    return parsed.hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return (
+      trimmed
+        .toLowerCase()
+        .replace(/^https?:\/\//, "")
+        .replace(/^www\./, "")
+        .replace(/\/.*$/, "")
+        .trim() || null
+    );
+  }
+};
+
+const extractSearchTargetDomains = (value: unknown): string[] => {
+  const inputs = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? [value]
+      : [];
+  const seen = new Set<string>();
+
+  for (const item of inputs) {
+    const text = String(item || "");
+    for (const match of text.matchAll(/\bsite:([a-z0-9.-]+\.[a-z]{2,})(?:\/[^\s)"']*)?/gi)) {
+      const domain = normalizeSearchDomain(match[1]);
+      if (domain) seen.add(domain);
+    }
+    for (const match of text.matchAll(/https?:\/\/[^\s<>"')]+/gi)) {
+      const domain = normalizeSearchDomain(match[0]);
+      if (domain) seen.add(domain);
+    }
+    const direct = normalizeSearchDomain(text);
+    if (direct && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(direct)) {
+      seen.add(direct);
+    }
+  }
+
+  return Array.from(seen).slice(0, 12);
+};
+
 const isApplyRateLimitError = (error: unknown): boolean => {
   if (!(error instanceof Error)) return false;
   return /rate limit exceeded/i.test(error.message);
@@ -2424,7 +2472,16 @@ export const JobPage = (): JSX.Element => {
   }, [queryClient, safeInfo, setErrorDedup, supabase]);
 
   const populateQueue = useCallback(
-    async (query: string, _location?: string, customLimit?: number) => {
+    async (
+      query: string,
+      _location?: string,
+      customLimit?: number,
+      options?: {
+        sources?: unknown;
+        targetDomains?: unknown;
+        locationScope?: unknown;
+      },
+    ) => {
       // Prevent re-entry if a run is active
       if (incrementalMode) return;
       if (!query || !query.trim()) {
@@ -2465,18 +2522,42 @@ export const JobPage = (): JSX.Element => {
           return;
         }
 
+        const trimmedQuery = query.trim();
+        const effectiveLocation = (_location || selectedLocation || "Remote").trim() || "Remote";
+        const optionSources = Array.isArray(options?.sources)
+          ? options.sources.filter((source): source is string => typeof source === "string" && source.trim().length > 0)
+          : [];
+        const explicitTargetDomains = Array.isArray(options?.targetDomains)
+          ? options.targetDomains
+          : [];
+        const targetDomains = extractSearchTargetDomains([
+          trimmedQuery,
+          ...explicitTargetDomains,
+        ]);
+        const effectiveLocationScope =
+          options?.locationScope === "city" ||
+          options?.locationScope === "country" ||
+          options?.locationScope === "global"
+            ? options.locationScope
+            : effectiveLocation.toLowerCase() === "remote"
+              ? "global"
+              : locationScope;
+        const sources = optionSources.length > 0 ? optionSources : undefined;
+
         const currentSearchScope: JobsQueueScope = {
-          searchQuery: query.trim(),
-          location: (_location || selectedLocation || "Remote").trim() || "Remote",
+          searchQuery: trimmedQuery,
+          location: effectiveLocationScope === "global" ? "Remote" : effectiveLocation,
           limit: maxResultsPerSearch,
           startedAt: new Date(Date.now() - 30 * 1000).toISOString(),
         };
 
         const searchPayload = {
-          searchQuery: query.trim(),
+          searchQuery: trimmedQuery,
           location: currentSearchScope.location,
-          locationScope,
+          locationScope: effectiveLocationScope,
           limit: maxResultsPerSearch,
+          ...(sources ? { sources } : {}),
+          ...(targetDomains.length > 0 ? { targetDomains } : {}),
           async: true,
         };
 
@@ -4041,7 +4122,11 @@ export const JobPage = (): JSX.Element => {
           typeof params.location === "string" ? params.location : selectedLocation;
         const limit =
           typeof params.limit === "number" ? params.limit : undefined;
-        void populateQueue(query, location, limit);
+        void populateQueue(query, location, limit, {
+          sources: params.sources,
+          targetDomains: params.targetDomains,
+          locationScope: params.locationScope ?? params.location_scope,
+        });
         return;
       }
       if (task.type === "pipeline_cleanup") {

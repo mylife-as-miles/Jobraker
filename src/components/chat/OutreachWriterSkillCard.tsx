@@ -9,6 +9,8 @@ import {
   FileCheck2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { useEmailIntegrationAccess } from "@/hooks/useEmailIntegrationAccess";
+import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 
 interface OutreachWriterResult {
   companyName: string;
@@ -34,9 +36,14 @@ type Props = {
 };
 
 export const OutreachWriterSkillCard = ({ output, onRunPrompt }: Props) => {
+  const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const { hasEmailIntegrationAccess } = useEmailIntegrationAccess(
+    subscriptionTier,
+    loadingTier,
+  );
   const [activeIndex, setActiveIndex] = useState(0);
   const [notice, setNotice] = useState<string>(
-    "Outreach drafts created. You can select a company, copy its message, save it as a Gmail draft, or set a follow-up reminder."
+    "Outreach drafts created. You can select a company, copy its message, or set a follow-up reminder."
   );
   const [remindersSet, setRemindersSet] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
@@ -63,6 +70,11 @@ export const OutreachWriterSkillCard = ({ output, onRunPrompt }: Props) => {
   };
 
   const createGmailDraft = () => {
+    if (!hasEmailIntegrationAccess) {
+      setNotice("Email integrations are not enabled for this account.");
+      return;
+    }
+
     if (onRunPrompt) {
       const cmd = `Create a connected Gmail draft for my outreach message to ${result.companyName}. Use create_gmail_job_draft with To: recruitment@${result.companyName.toLowerCase().replace(/\s+/g, "")}.com, Subject: ${result.subject}, Body:\n${result.body}`;
       onRunPrompt(cmd);
@@ -205,14 +217,16 @@ export const OutreachWriterSkillCard = ({ output, onRunPrompt }: Props) => {
             <Copy className="h-3.5 w-3.5" />
             Copy message
           </button>
-          <button
-            type="button"
-            onClick={createGmailDraft}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40"
-          >
-            <Mail className="h-3.5 w-3.5" />
-            Create Gmail draft
-          </button>
+          {hasEmailIntegrationAccess ? (
+            <button
+              type="button"
+              onClick={createGmailDraft}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              Create Gmail draft
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={isReminderSet || loading}

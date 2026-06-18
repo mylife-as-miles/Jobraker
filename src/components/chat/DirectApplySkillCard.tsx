@@ -17,6 +17,8 @@ import type {
   DirectApplyResult,
   SkillConfidence,
 } from "@/lib/chatSkills/types";
+import { useEmailIntegrationAccess } from "@/hooks/useEmailIntegrationAccess";
+import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 
 type Props = {
   output: DirectApplyOutput;
@@ -56,8 +58,13 @@ const resultToExportLine = (result: DirectApplyResult) =>
   ].join(",");
 
 export const DirectApplySkillCard = ({ output, onRunPrompt }: Props) => {
+  const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const { hasEmailIntegrationAccess } = useEmailIntegrationAccess(
+    subscriptionTier,
+    loadingTier,
+  );
   const [notice, setNotice] = useState(
-    "Connected inbox actions are ready. JobRaker can create drafts, send approved emails, track replies, remind follow-ups, and label job emails when Gmail is connected.",
+    "Review official application channels, copy drafts, and keep follow-ups organized.",
   );
   const emailResults = useMemo(
     () =>
@@ -236,66 +243,70 @@ export const DirectApplySkillCard = ({ output, onRunPrompt }: Props) => {
             <FileCheck2 className='h-3.5 w-3.5' />
             Review drafts
           </button>
-          <button
-            type='button'
-            onClick={() =>
-              draftPrompt
-                ? void runOrCopyPrompt(
-                    draftPrompt,
-                    "Gmail draft command copied. Paste it into chat to create the drafts.",
+          {hasEmailIntegrationAccess ? (
+            <>
+              <button
+                type='button'
+                onClick={() =>
+                  draftPrompt
+                    ? void runOrCopyPrompt(
+                        draftPrompt,
+                        "Gmail draft command copied. Paste it into chat to create the drafts.",
+                      )
+                    : setNotice(
+                        "No verified recruitment-email channels are ready for Gmail draft creation yet.",
+                      )
+                }
+                className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
+              >
+                <Mail className='h-3.5 w-3.5' />
+                Create Gmail drafts
+              </button>
+              <button
+                type='button'
+                onClick={() =>
+                  sendPrompt
+                    ? void runOrCopyPrompt(
+                        sendPrompt,
+                        "Approved Gmail send command copied. Paste it into chat to send.",
+                      )
+                    : setNotice(
+                        "No approved recruitment-email drafts are ready to send yet.",
+                      )
+                }
+                className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
+              >
+                <Send className='h-3.5 w-3.5' />
+                Send approved
+              </button>
+              <button
+                type='button'
+                onClick={() =>
+                  void runOrCopyPrompt(
+                    `Label job-related Gmail messages connected to this Direct Apply search with "JobRaker/Applications". Use label_gmail_job_emails with refine_query: ${refineQuery || "applications"}.`,
+                    "Gmail labeling command copied. Paste it into chat to label job emails.",
                   )
-                : setNotice(
-                    "No verified recruitment-email channels are ready for Gmail draft creation yet.",
+                }
+                className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
+              >
+                <Tags className='h-3.5 w-3.5' />
+                Label job emails
+              </button>
+              <button
+                type='button'
+                onClick={() =>
+                  void runOrCopyPrompt(
+                    "Refresh my application processes including Gmail reply tracking, then remind me which Direct Apply items need follow-up.",
+                    "Reply tracking and follow-up command copied. Paste it into chat to run it.",
                   )
-            }
-            className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
-          >
-            <Mail className='h-3.5 w-3.5' />
-            Create Gmail drafts
-          </button>
-          <button
-            type='button'
-            onClick={() =>
-              sendPrompt
-                ? void runOrCopyPrompt(
-                    sendPrompt,
-                    "Approved Gmail send command copied. Paste it into chat to send.",
-                  )
-                : setNotice(
-                    "No approved recruitment-email drafts are ready to send yet.",
-                  )
-            }
-            className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
-          >
-            <Send className='h-3.5 w-3.5' />
-            Send approved
-          </button>
-          <button
-            type='button'
-            onClick={() =>
-              void runOrCopyPrompt(
-                `Label job-related Gmail messages connected to this Direct Apply search with "JobRaker/Applications". Use label_gmail_job_emails with refine_query: ${refineQuery || "applications"}.`,
-                "Gmail labeling command copied. Paste it into chat to label job emails.",
-              )
-            }
-            className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
-          >
-            <Tags className='h-3.5 w-3.5' />
-            Label job emails
-          </button>
-          <button
-            type='button'
-            onClick={() =>
-              void runOrCopyPrompt(
-                "Refresh my application processes including Gmail reply tracking, then remind me which Direct Apply items need follow-up.",
-                "Reply tracking and follow-up command copied. Paste it into chat to run it.",
-              )
-            }
-            className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
-          >
-            <Bell className='h-3.5 w-3.5' />
-            Track + remind
-          </button>
+                }
+                className='inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-accent/40'
+              >
+                <Bell className='h-3.5 w-3.5' />
+                Track + remind
+              </button>
+            </>
+          ) : null}
         </div>
 
         <div className='mt-2 flex flex-wrap gap-2'>
@@ -343,7 +354,7 @@ export const DirectApplySkillCard = ({ output, onRunPrompt }: Props) => {
             Draft previews
           </h4>
           <span className='text-[11px] text-muted-foreground'>
-            Connected inbox can draft or send after approval
+            Review before sending outside JobRaker
           </span>
         </div>
         <div className='space-y-3'>
@@ -374,7 +385,7 @@ export const DirectApplySkillCard = ({ output, onRunPrompt }: Props) => {
                   Open official channel
                   <ExternalLink className='h-3 w-3' />
                 </a>
-                {result.draftCommand || result.approvalCommand ? (
+                {hasEmailIntegrationAccess && (result.draftCommand || result.approvalCommand) ? (
                   <div className='flex flex-wrap gap-2 pt-1'>
                     {result.draftCommand ? (
                       <button
