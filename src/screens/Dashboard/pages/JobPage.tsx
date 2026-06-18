@@ -4593,8 +4593,8 @@ export const JobPage = (): JSX.Element => {
 
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8'>
           <div className='space-y-4'>
-            <div className='flex items-center justify-between mb-3 sticky top-0 z-10 backdrop-blur-xl rounded-xl px-4 py-3 border-foreground/10 lg:static  lg:bg-transparent lg:border-0 lg:backdrop-blur-none'>
-              <h2 className='text-lg sm:text-xl font-bold text-foreground flex items-center gap-2'>
+            <div className='flex flex-col gap-3 mb-3 sticky top-0 z-10 backdrop-blur-xl rounded-xl px-4 py-3 border-foreground/10 sm:flex-row sm:items-center sm:justify-between lg:static lg:bg-transparent lg:border-0 lg:backdrop-blur-none'>
+              <h2 className='min-w-0 text-lg sm:text-xl font-bold text-foreground flex flex-wrap items-center gap-2'>
                 {queueStatus === "loading" &&
                   !incrementalMode &&
                   "Loading results..."}
@@ -4603,13 +4603,12 @@ export const JobPage = (): JSX.Element => {
                 {(queueStatus === "ready" || queueStatus === "empty") &&
                   !incrementalMode && (
                     <>
-                      <span className='flex items-center gap-2'>
-                        {" "}
-                        <Briefcase className='h-4 w-4' />
+                      <span className='flex min-w-fit items-center gap-2 whitespace-nowrap'>
+                        <Briefcase className='h-4 w-4 shrink-0' />
                         {total} Jobs Found
                       </span>
                       {total > 0 && (
-                        <span className='ml-2 text-xs font-normal px-2 py-1 rounded-lg bg-brand/10 text-brand border border-brand/30'>
+                        <span className='whitespace-nowrap text-xs font-normal px-2.5 py-1 rounded-lg bg-brand/10 text-brand border border-brand/30'>
                           AI Matched
                         </span>
                       )}
@@ -4622,9 +4621,9 @@ export const JobPage = (): JSX.Element => {
                           }}
                           variant="ghost"
                           size="sm"
-                          className="ml-2 h-7 px-2.5 rounded-lg text-xs font-semibold bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 flex items-center gap-1 transition-all duration-200"
+                          className="h-7 px-2.5 rounded-lg text-xs font-semibold bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 flex items-center gap-1.5 transition-all duration-200 whitespace-nowrap"
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-3 w-3 shrink-0" />
                           <span>Clear Search</span>
                         </Button>
                       )}
@@ -4633,8 +4632,8 @@ export const JobPage = (): JSX.Element => {
               </h2>
               {(queueStatus === "ready" || queueStatus === "empty") &&
                 !incrementalMode && (
-                  <div className='hidden sm:flex items-center gap-2'>
-                    <span className='text-xs text-foreground/50 font-medium'>
+                  <div className='hidden sm:flex shrink-0 items-center gap-2'>
+                    <span className='text-xs text-foreground/50 font-medium whitespace-nowrap'>
                       Sort
                     </span>
                     <SimpleDropdown
@@ -4647,7 +4646,7 @@ export const JobPage = (): JSX.Element => {
                         { value: "deadline", label: "Deadline" },
                       ]}
                       placeholder='Sort by'
-                      triggerClassName='h-8 w-[160px] text-sm '
+                      triggerClassName='h-9 w-[200px] text-sm '
                     />
                   </div>
                 )}
