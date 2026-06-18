@@ -256,6 +256,22 @@ const extractSearchTargetDomains = (value: unknown): string[] => {
   return Array.from(seen).slice(0, 12);
 };
 
+const scoutProgressToStepIndex = (progressCurrent: unknown): number => {
+  const current = typeof progressCurrent === "number" ? progressCurrent : 0;
+  if (current <= 1) return 0;
+  if (current === 2) return 1;
+  return 2;
+};
+
+const extractSavedJobCount = (task: JobIntelligenceTask): number | null => {
+  const resultCount = task.result?.count;
+  if (typeof resultCount === "number") return resultCount;
+
+  const message = typeof task.message === "string" ? task.message : "";
+  const match = message.match(/Found and saved\s+(\d+)\s+jobs?/i);
+  return match ? Number(match[1]) : null;
+};
+
 const isApplyRateLimitError = (error: unknown): boolean => {
   if (!(error instanceof Error)) return false;
   return /rate limit exceeded/i.test(error.message);
@@ -2631,11 +2647,11 @@ export const JobPage = (): JSX.Element => {
       if (activeTask.status === "running") {
         setIncrementalMode(true);
         setQueueStatus("populating");
-        setStepIndex(activeTask.progress_current);
-        const currentCount = typeof activeTask.result?.count === "number"
-          ? activeTask.result.count
-          : activeTask.progress_current;
-        setInsertedThisRun(currentCount);
+        setStepIndex(scoutProgressToStepIndex(activeTask.progress_current));
+        const currentCount = extractSavedJobCount(activeTask);
+        if (typeof currentCount === "number") {
+          setInsertedThisRun(currentCount);
+        }
         if (activeTask.message) {
           setCurrentSource(activeTask.message);
         }
