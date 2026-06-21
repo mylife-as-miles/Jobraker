@@ -275,3 +275,121 @@ export async function persistDiscoveredJobs(
     rows: rowsWithIds,
   };
 }
+
+/** Matches the job queue filters used by the dashboard (useJobsQueue / JobPage). */
+export const DISPLAYABLE_JOB_QUEUE_STATES = ["discovered", "evaluated"] as const;
+
+export interface DisplayableJobSearchScope {
+  userId: string;
+  searchQuery: string;
+  location?: string;
+  searchStartedAt?: string;
+}
+
+/**
+ * Count jobs the user will actually see for a search run.
+ * Billing must use this count — not in-flight discovery totals.
+ */
+export async function countDisplayableJobsForSearch(
+  serviceClient: any,
+  scope: DisplayableJobSearchScope,
+): Promise<number> {
+  const searchQuery = scope.searchQuery?.trim();
+  if (!searchQuery) {
+    return 0;
+  }
+
+  let queryBuilder = serviceClient
+    .from("jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", scope.userId)
+    .eq("hidden", false)
+    .in("canonical_status", DISPLAYABLE_JOB_QUEUE_STATES);
+
+  const discoveryScope: Record<string, string> = {
+    search_query: searchQuery,
+  };
+  const location = scope.location?.trim();
+  if (location) {
+    discoveryScope.location = location;
+  }
+
+  queryBuilder = queryBuilder.contains("raw_data", { discovery: discoveryScope });
+
+  if (scope.searchStartedAt) {
+    queryBuilder = queryBuilder.gte("discovered_at", scope.searchStartedAt);
+  }
+
+  const { count, error } = await queryBuilder;
+  if (error) {
+    console.error("[countDisplayableJobsForSearch] count query failed", error);
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
+export function resolveJobSearchCreditsToCharge(
+  displayableJobCount: number,
+  maxCredits: number,
+): number {
+  return Math.min(Math.max(0, displayableJobCount), Math.max(0, maxCredits));
+}
+
+export async function settleJobSearchRunCredits(
+  serviceClient: any,
+  options: {
+    agentRunId: string;
+    userId: string;
+    searchQuery: string;
+    location: string;
+    searchStartedAt?: string;
+    maxCredits: number;
+    searchFailed?: boolean;
+    failureReason?: string;
+    jobsInserted?: number;
+    jobsDiscovered?: number;
+  },
+): Promise<{ displayableJobCount: number; creditsCharged: number; currentBalance?: number }> {
+  const displayableJobCount = options.searchFailed
+    ? 0
+    : await countDisplayableJobsForSearch(serviceClient, {
+      userId: options.userId,
+      searchQuery: options.searchQuery,
+      location: options.location,
+      searchStartedAt: options.searchStartedAt,
+    });
+
+  const creditsCharged = options.searchFailed
+    ? 0
+    : resolveJobSearchCreditsToCharge(displayableJobCount, options.maxCredits);
+
+  const { data: settleRaw, error: settleError } = await serviceClient.rpc("settle_run_credits", {
+    p_agent_run_id: options.agentRunId,
+    p_actual_credits: creditsCharged,
+    p_status: options.searchFailed ? "failed" : "completed",
+    p_failure_reason: options.failureReason,
+    p_receipt: {
+      jobs_displayable: displayableJobCount,
+      jobs_inserted: options.jobsInserted ?? null,
+      jobs_discovered: options.jobsDiscovered ?? null,
+      search_query: options.searchQuery,
+      location: options.location,
+      search_started_at: options.searchStartedAt ?? null,
+    },
+  });
+
+  if (settleError) {
+    console.error("[settleJobSearchRunCredits] settlement failed", settleError);
+  }
+
+  const settleData = settleRaw as Record<string, unknown> | null;
+
+  return {
+    displayableJobCount,
+    creditsCharged,
+    currentBalance: typeof settleData?.current_balance === "number"
+      ? settleData.current_balance
+      : undefined,
+  };
+}

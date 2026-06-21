@@ -1,7 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/types.ts";
 import { discoverJobsFirecrawl } from "../_shared/discovery-hybrid.ts";
-import { persistDiscoveredJobs } from "../_shared/jobs.ts";
+import {
+  countDisplayableJobsForSearch,
+  persistDiscoveredJobs,
+} from "../_shared/jobs.ts";
 import { syncFirecrawlCreditUsage } from "../_shared/provider-credits.ts";
 import {
   requireAuthenticatedUser,
@@ -91,6 +94,7 @@ async function runDiscoveryForUser(
     };
   }
 
+  const searchStartedAt = new Date().toISOString();
   let totalInserted = 0;
   const { jobs: discoveredJobs } = await discoverJobsFirecrawl(
     {
@@ -119,10 +123,17 @@ async function runDiscoveryForUser(
   );
 
   let creditDeduction: unknown = null;
-  if (discoveredJobs.length > 0) {
+  const displayableJobCount = await countDisplayableJobsForSearch(serviceClient, {
+    userId,
+    searchQuery,
+    location,
+    searchStartedAt,
+  });
+
+  if (displayableJobCount > 0) {
     const { data } = await serviceClient.rpc("deduct_job_search_credits", {
       p_user_id: userId,
-      p_jobs_count: discoveredJobs.length,
+      p_jobs_count: displayableJobCount,
     });
     creditDeduction = data ?? null;
   }
@@ -137,6 +148,7 @@ async function runDiscoveryForUser(
       effectiveLimit,
       jobsInserted: totalInserted,
       jobsFound: discoveredJobs.length,
+      jobsDisplayable: displayableJobCount,
     });
     providerCreditSync = {
       remainingCredits: syncResult.usage.remainingCredits,
@@ -153,8 +165,9 @@ async function runDiscoveryForUser(
     ok: true,
     searchQuery,
     location,
-    count: discoveredJobs.length,
+    count: displayableJobCount,
     jobsInserted: totalInserted,
+    jobsDisplayable: displayableJobCount,
     requestedLimit,
     effectiveLimit,
     planCap,

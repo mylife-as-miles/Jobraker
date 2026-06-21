@@ -1,7 +1,12 @@
 // backend/supabase/functions/process-task/index.ts
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { discoverJobsFirecrawl } from "../_shared/discovery-hybrid.ts";
-import { persistDiscoveredJobs } from "../_shared/jobs.ts";
+import {
+  countDisplayableJobsForSearch,
+  persistDiscoveredJobs,
+  resolveJobSearchCreditsToCharge,
+  settleJobSearchRunCredits,
+} from "../_shared/jobs.ts";
 import { resolveJobSearchExecutionLimits } from "../_shared/subscription.ts";
 import { evaluateAndPersistJobFit } from "../_shared/job-evaluation.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -153,41 +158,57 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
   );
 
   const agentRunId = params.agent_run_id;
+  const searchStartedAt = typeof params.search_started_at === "string"
+    ? params.search_started_at
+    : undefined;
+  const JOB_SEARCH_RUN_COST = 10;
 
-  // Bill credits
+  let displayableJobCount = 0;
+  let creditsCharged = 0;
+
   if (agentRunId) {
-    const { error: settleError } = await supabase.rpc(
-      "settle_run_credits",
-      { 
-        p_agent_run_id: agentRunId, 
-        p_actual_credits: 10,
-        p_status: "completed",
-        p_receipt: { jobs_inserted: totalInserted, jobs_discovered: discoveredJobs.length }
-      },
-    );
-    if (settleError) {
-      console.error("Settle run credits failed in background task", settleError);
-    }
-  } else {
-    const jobsBilled = Math.min(
+    const settlement = await settleJobSearchRunCredits(supabase, {
+      agentRunId,
+      userId,
+      searchQuery,
+      location,
+      searchStartedAt,
+      maxCredits: JOB_SEARCH_RUN_COST,
+      jobsInserted: totalInserted,
+      jobsDiscovered: discoveredJobs.length,
+    });
+    displayableJobCount = settlement.displayableJobCount;
+    creditsCharged = settlement.creditsCharged;
+  } else if (totalInserted > 0) {
+    displayableJobCount = await countDisplayableJobsForSearch(supabase, {
+      userId,
+      searchQuery,
+      location,
+      searchStartedAt,
+    });
+    creditsCharged = resolveJobSearchCreditsToCharge(
+      displayableJobCount,
       effectiveLimit,
-      Math.max(1, totalInserted),
-    );
-    const { error: deductError } = await supabase.rpc(
-      "deduct_job_search_credits",
-      { p_user_id: userId, p_jobs_count: jobsBilled },
     );
 
-    if (deductError) {
-      console.error("Deduct credits failed in background task", deductError);
+    if (creditsCharged > 0) {
+      const { error: deductError } = await supabase.rpc(
+        "deduct_job_search_credits",
+        { p_user_id: userId, p_jobs_count: creditsCharged },
+      );
+
+      if (deductError) {
+        console.error("Deduct credits failed in background task", deductError);
+      }
     }
   }
 
-  await progress.updateProgress(3, 3, `Scout search completed. Found ${totalInserted} jobs.`);
+  await progress.updateProgress(3, 3, `Scout search completed. Found ${displayableJobCount} jobs.`);
 
   return {
-    count: totalInserted,
-    jobsBilled: agentRunId ? 10 : Math.min(effectiveLimit, Math.max(1, totalInserted)),
+    count: displayableJobCount,
+    jobsInserted: totalInserted,
+    jobsBilled: creditsCharged,
     warnings,
     jobs: discoveredJobs.map((job: any) => ({
       title: job.title,

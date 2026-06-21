@@ -1,6 +1,6 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { discoverJobsFirecrawl, type PublicJobSource } from "../_shared/discovery-hybrid.ts";
-import { persistDiscoveredJobs } from "../_shared/jobs.ts";
+import { persistDiscoveredJobs, settleJobSearchRunCredits } from "../_shared/jobs.ts";
 import { syncFirecrawlCreditUsage } from "../_shared/provider-credits.ts";
 import {
   requireAuthenticatedUser,
@@ -208,6 +208,7 @@ Deno.serve(async (req) => {
     }
 
     const agentRunId = reserve.agent_run_id as string;
+    const searchStartedAt = new Date().toISOString();
 
     const isAsync = body?.async === true;
 
@@ -228,12 +229,23 @@ Deno.serve(async (req) => {
             sources: sourceFocus,
             targetDomains,
             agent_run_id: agentRunId,
+            search_started_at: searchStartedAt,
           },
         })
         .select("id")
         .single();
 
       if (enqueueError) {
+        await settleJobSearchRunCredits(serviceClient, {
+          agentRunId,
+          userId: user.id,
+          searchQuery,
+          location,
+          searchStartedAt,
+          maxCredits: JOB_SEARCH_RUN_COST,
+          searchFailed: true,
+          failureReason: "Failed to enqueue background search task",
+        });
         throw enqueueError;
       }
 
@@ -274,6 +286,7 @@ Deno.serve(async (req) => {
           status: "queued",
           taskId: task.id,
           agent_run_id: agentRunId,
+          searchStartedAt,
         }),
         {
           status: 202,
@@ -339,19 +352,21 @@ Deno.serve(async (req) => {
 
     const jobsInserted = totalInserted;
 
-    // Settle the run
-    const actualCredits = searchFailed ? 0 : Math.min(discoveredJobs.length, JOB_SEARCH_RUN_COST);
-    const { data: settleRaw, error: settleError } = await serviceClient.rpc("settle_run_credits", {
-      p_agent_run_id: agentRunId,
-      p_actual_credits: actualCredits,
-      p_status: searchFailed ? "failed" : "completed",
-      p_failure_reason: failureReason,
-      p_receipt: { jobs_inserted: jobsInserted, jobs_discovered: discoveredJobs.length }
-    });
-    
-    if (settleError) {
-      console.error("[jobs-search] Failed to settle run credits", settleError);
-    }
+    const { displayableJobCount, creditsCharged, currentBalance } = await settleJobSearchRunCredits(
+      serviceClient,
+      {
+        agentRunId,
+        userId: user.id,
+        searchQuery,
+        location,
+        searchStartedAt,
+        maxCredits: JOB_SEARCH_RUN_COST,
+        searchFailed,
+        failureReason,
+        jobsInserted,
+        jobsDiscovered: discoveredJobs.length,
+      },
+    );
 
     if (searchFailed) {
       return new Response(
@@ -367,9 +382,9 @@ Deno.serve(async (req) => {
       );
     }
     
-    const settleData = settleRaw as Record<string, unknown> | null;
-    const creditsDeducted = typeof settleData?.credits_used === 'number' ? settleData.credits_used : actualCredits;
-    const remainingBalance = typeof settleData?.current_balance === 'number' ? settleData.current_balance : undefined;
+    const actualCredits = creditsCharged;
+    const creditsDeducted = actualCredits;
+    const remainingBalance = currentBalance;
     let providerCreditSync: Record<string, unknown> | null = null;
 
     try {
@@ -398,6 +413,7 @@ Deno.serve(async (req) => {
       effectiveLimit,
       discoveredCount: discoveredJobs.length,
       jobsInserted,
+      displayableJobCount,
       jobsBilled: actualCredits,
       creditsDeducted,
       remainingBalance,
@@ -415,6 +431,7 @@ Deno.serve(async (req) => {
         creditsBalance,
         subscriptionTier,
         jobsInserted,
+        displayableJobCount,
         jobsBilled: actualCredits,
         creditsDeducted,
         remainingBalance,

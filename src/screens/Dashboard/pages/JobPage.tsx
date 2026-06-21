@@ -2591,8 +2591,16 @@ export const JobPage = (): JSX.Element => {
 
         if (searchData?.taskId) {
           activeTaskIdRef.current = searchData.taskId;
-          activeSearchScopeRef.current = currentSearchScope;
-          setActiveSearchScope(currentSearchScope);
+          const scopedSearch: JobsQueueScope = {
+            ...currentSearchScope,
+            startedAt:
+              typeof searchData.searchStartedAt === "string" &&
+              searchData.searchStartedAt.trim()
+                ? searchData.searchStartedAt
+                : currentSearchScope.startedAt,
+          };
+          activeSearchScopeRef.current = scopedSearch;
+          setActiveSearchScope(scopedSearch);
 
           safeInfo(
             "Search started",
