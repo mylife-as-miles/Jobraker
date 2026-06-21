@@ -49,7 +49,7 @@ export const HeroSection = () => {
               }}
               className='bg-brand text-black hover:bg-brand/90 h-12 px-6 text-base font-bold rounded-none border border-brand transition-all hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] w-full sm:w-auto'
             >
-              Sign In
+              Sign Up
               <ArrowRight className='w-5 h-5 ml-2' />
             </Button>
           </div>

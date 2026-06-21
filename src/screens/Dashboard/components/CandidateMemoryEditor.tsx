@@ -217,7 +217,7 @@ export function CandidateMemoryEditor({
   };
 
   return (
-    <Card className='product-section-card p-6 hover:border-brand/60 hover:shadow-lg transition-all duration-300'>
+    <Card className='product-section-card p-6 hover:border-brand/60 hover:shadow-lg transition-all duration-300 mb-20'>
       <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
         <div className='space-y-2'>
           <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-brand/80'>
@@ -599,7 +599,7 @@ export function CandidateMemoryEditor({
         </p>
         <Button
           type='button'
-          className='bg-brand text-black hover:bg-brand/90'
+          className='bg-brand text-black flex items-center hover:bg-brand/90'
           onClick={() => void handleSave()}
           disabled={loading || saving}
         >

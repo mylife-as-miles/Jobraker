@@ -79,15 +79,7 @@ export const LandingPage = () => {
               >
                 LOGIN
               </Button>
-              <Button
-                onClick={() => {
-                  trackLandingCta("nav_join_waitlist", ROUTES.WAITLIST, "nav");
-                  navigate(ROUTES.WAITLIST);
-                }}
-                className='bg-brand text-black hover:bg-brand/90 font-bold rounded-none'
-              >
-                JOIN WAITLIST
-              </Button>
+             
             </div>
           </div>
         </div>

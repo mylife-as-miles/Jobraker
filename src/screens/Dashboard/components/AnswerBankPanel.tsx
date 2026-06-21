@@ -170,45 +170,49 @@ export function AnswerBankPanel() {
   };
 
   return (
-    <Card className="product-section-card p-4 sm:p-6 hover:border-brand/30 hover:shadow-lg transition-all duration-300">
+    <Card className='product-section-card p-4 mb-20 sm:p-6 hover:border-brand/30 hover:shadow-lg transition-all duration-300'>
       {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between border-b border-foreground/10 pb-6">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-brand/80 font-medium">
-            <Database className="h-3.5 w-3.5" />
+      <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between border-b border-foreground/10 pb-6'>
+        <div className='space-y-2'>
+          <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-brand/80 font-medium'>
+            <Database className='h-3.5 w-3.5' />
             Answer Bank Library
           </div>
-          <h3 className="text-xl font-semibold text-foreground">
+          <h3 className='text-xl font-semibold text-foreground'>
             Personal Knowledge Repository
           </h3>
-          <p className="product-helper-text max-w-2xl text-sm">
-            Configure reusable snippets, beliefs, and project experiences. Future auto-apply runs will pull from these records to dynamically generate finished application answers in your own voice.
+          <p className='product-helper-text max-w-2xl text-sm'>
+            Configure reusable snippets, beliefs, and project experiences.
+            Future auto-apply runs will pull from these records to dynamically
+            generate finished application answers in your own voice.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className='flex flex-wrap items-center gap-2'>
           <Button
-            type="button"
-            variant="outline"
+            type='button'
+            variant='outline'
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="border-brand/25 text-brand hover:bg-brand/10 font-medium rounded-xl inline-flex items-center gap-2"
+            className='border-brand/25 text-brand hover:bg-brand/10 font-medium rounded-xl inline-flex items-center gap-2'
           >
-            <Sparkles className={`h-4 w-4 ${isGenerating ? "animate-pulse" : ""}`} />
+            <Sparkles
+              className={`h-4 w-4 ${isGenerating ? "animate-pulse" : ""}`}
+            />
             {isGenerating ? "Generating..." : "Generate from profile"}
           </Button>
           <Button
-            type="button"
+            type='button'
             onClick={openAddModal}
-            className="bg-brand text-black hover:bg-brand/90 font-medium rounded-xl inline-flex items-center gap-2"
+            className='bg-brand text-black hover:bg-brand/90 font-medium rounded-xl inline-flex items-center gap-2'
           >
-            <Plus className="h-4 w-4" />
+            <Plus className='h-4 w-4' />
             Add Entry
           </Button>
         </div>
       </div>
 
       {/* Theme selector Tabs */}
-      <div className="mt-6 flex flex-wrap gap-2 border-b border-foreground/10 pb-4">
+      <div className='mt-6 flex flex-wrap gap-2 border-b border-foreground/10 pb-4'>
         {(Object.keys(THEME_CONFIGS) as AnswerTheme[]).map((theme) => {
           const cfg = THEME_CONFIGS[theme];
           const isActive = theme === activeTheme;
@@ -224,7 +228,9 @@ export function AnswerBankPanel() {
             >
               {cfg.icon}
               {cfg.label}
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${isActive ? 'bg-brand/20 text-brand' : 'bg-foreground/5 text-foreground/50'}`}>
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-md ${isActive ? "bg-brand/20 text-brand" : "bg-foreground/5 text-foreground/50"}`}
+              >
                 {countsByTheme[theme]}
               </span>
             </button>
@@ -233,10 +239,10 @@ export function AnswerBankPanel() {
       </div>
 
       {/* Theme Info Panel */}
-      <div className="mt-4 bg-foreground/[0.02] border border-foreground/5 rounded-xl p-4 flex gap-3 items-start text-xs text-foreground/60">
-        <Info className="h-4 w-4 text-brand/80 mt-0.5 flex-shrink-0" />
+      <div className='mt-4 bg-foreground/[0.02] border border-foreground/5 rounded-xl p-4 flex gap-3 items-start text-xs text-foreground/60'>
+        <Info className='h-4 w-4 text-brand/80 mt-0.5 flex-shrink-0' />
         <div>
-          <span className="font-semibold text-foreground/80 block mb-0.5">
+          <span className='font-semibold text-foreground/80 block mb-0.5'>
             {THEME_CONFIGS[activeTheme].label} Category
           </span>
           {THEME_CONFIGS[activeTheme].desc}
@@ -244,76 +250,78 @@ export function AnswerBankPanel() {
       </div>
 
       {/* Grid of cards */}
-      <div className="mt-6">
+      <div className='mt-6'>
         {answers.loading ? (
-          <div className="flex flex-col items-center justify-center py-12 text-sm text-foreground/50 gap-3">
-            <div className="h-6 w-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+          <div className='flex flex-col items-center justify-center py-12 text-sm text-foreground/50 gap-3'>
+            <div className='h-6 w-6 border-2 border-brand border-t-transparent rounded-full animate-spin' />
             Loading entries...
           </div>
         ) : filteredEntries.length === 0 ? (
-          <div className="border border-dashed border-foreground/10 rounded-2xl p-12 text-center flex flex-col items-center justify-center bg-foreground/[0.01]">
-            <FolderOpen className="h-10 w-10 text-foreground/30 mb-3" />
-            <h4 className="text-sm font-medium text-foreground mb-1">
+          <div className='border border-dashed border-foreground/10 rounded-2xl p-12 text-center flex flex-col items-center justify-center bg-foreground/[0.01]'>
+            <FolderOpen className='h-10 w-10 text-foreground/30 mb-3' />
+            <h4 className='text-sm font-medium text-foreground mb-1'>
               No entries in {THEME_CONFIGS[activeTheme].label}
             </h4>
-            <p className="text-xs text-foreground/45 max-w-sm mb-4">
-              Add your first reusable {THEME_CONFIGS[activeTheme].label.toLowerCase()} text snippet or story to build your automation context.
+            <p className='text-xs text-foreground/45 max-w-sm mb-4'>
+              Add your first reusable{" "}
+              {THEME_CONFIGS[activeTheme].label.toLowerCase()} text snippet or
+              story to build your automation context.
             </p>
             <Button
-              variant="outline"
-              size="sm"
+              variant='outline'
+              size='sm'
               onClick={openAddModal}
-              className="border-brand/30 text-brand hover:bg-brand/10"
+              className='border-brand/30 text-brand hover:bg-brand/10'
             >
               Add first entry
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className='grid gap-4 md:grid-cols-2'>
             {filteredEntries.map((entry) => (
               <div
                 key={entry.id}
                 onClick={() => openEditModal(entry)}
-                className="group relative cursor-pointer border border-foreground/10 hover:border-brand/40 bg-card rounded-xl p-4 sm:p-5 transition-all duration-200 hover:shadow-md flex flex-col justify-between"
+                className='group relative cursor-pointer border border-foreground/10 hover:border-brand/40 bg-card rounded-xl p-4 sm:p-5 transition-all duration-200 hover:shadow-md flex flex-col justify-between'
               >
                 <div>
-                  <div className="flex justify-between items-start gap-2">
-                    <h4 className="text-sm font-semibold text-foreground group-hover:text-brand transition-colors line-clamp-1">
+                  <div className='flex justify-between items-start gap-2'>
+                    <h4 className='text-sm font-semibold text-foreground group-hover:text-brand transition-colors line-clamp-1'>
                       {entry.question}
                     </h4>
-                    <span className="text-[10px] text-foreground/35 font-mono select-all">
+                    <span className='text-[10px] text-foreground/35 font-mono select-all'>
                       {entry.slug}
                     </span>
                   </div>
-                  <p className="mt-2 text-xs text-foreground/55 line-clamp-3 leading-relaxed whitespace-pre-line">
+                  <p className='mt-2 text-xs text-foreground/55 line-clamp-3 leading-relaxed whitespace-pre-line'>
                     {entry.body}
                   </p>
                 </div>
-                <div className="mt-4 pt-3 border-t border-foreground/5 flex flex-wrap gap-1.5 items-center">
-                  <Tag className="h-3 w-3 text-foreground/35" />
+                <div className='mt-4 pt-3 border-t border-foreground/5 flex flex-wrap gap-1.5 items-center'>
+                  <Tag className='h-3 w-3 text-foreground/35' />
                   {(entry.tags || []).length > 0 ? (
                     (entry.tags || []).map((t) => (
                       <span
                         key={t}
-                        className="text-[10px] px-2 py-0.5 bg-foreground/5 border border-foreground/5 text-foreground/60 rounded-md font-medium"
+                        className='text-[10px] px-2 py-0.5 bg-foreground/5 border border-foreground/5 text-foreground/60 rounded-md font-medium'
                       >
                         {t}
                       </span>
                     ))
                   ) : (
-                    <span className="text-[10px] text-foreground/35 italic">
+                    <span className='text-[10px] text-foreground/35 italic'>
                       no tags
                     </span>
                   )}
                   <button
-                    type="button"
-                    className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-foreground/40 hover:text-brand"
+                    type='button'
+                    className='absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-foreground/40 hover:text-brand'
                     onClick={(e) => {
                       e.stopPropagation();
                       openEditModal(entry);
                     }}
                   >
-                    <Edit2 className="h-3.5 w-3.5" />
+                    <Edit2 className='h-3.5 w-3.5' />
                   </button>
                 </div>
               </div>
@@ -327,22 +335,22 @@ export function AnswerBankPanel() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingEntry ? "Edit Answer Entry" : "Create Answer Entry"}
-        size="lg"
+        size='lg'
       >
-        <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+        <form onSubmit={handleSave} className='space-y-4'>
+          <div className='grid gap-4 md:grid-cols-2'>
             {/* Theme Selector */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-foreground/75">
+            <div className='flex flex-col gap-1.5'>
+              <label className='text-xs font-semibold text-foreground/75'>
                 Category / Theme
               </label>
               <select
                 value={formTheme}
                 onChange={(e) => setFormTheme(e.target.value as AnswerTheme)}
-                className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-brand/40"
+                className='w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-brand/40'
               >
                 {(Object.keys(THEME_CONFIGS) as AnswerTheme[]).map((theme) => (
-                  <option key={theme} value={theme} className="bg-card">
+                  <option key={theme} value={theme} className='bg-card'>
                     {THEME_CONFIGS[theme].label}
                   </option>
                 ))}
@@ -350,54 +358,57 @@ export function AnswerBankPanel() {
             </div>
 
             {/* Slug input */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-foreground/75">
+            <div className='flex flex-col gap-1.5'>
+              <label className='text-xs font-semibold text-foreground/75'>
                 Unique Slug (kebab-case)
               </label>
               <input
-                type="text"
+                type='text'
                 value={formSlug}
                 onChange={(e) => setFormSlug(e.target.value)}
-                placeholder="e.g. visa-status"
+                placeholder='e.g. visa-status'
                 disabled={!!editingEntry}
                 required
-                className="w-full bg-foreground/[0.04] disabled:opacity-50 border border-foreground/10 rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-brand/40"
+                className='w-full bg-foreground/[0.04] disabled:opacity-50 border border-foreground/10 rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-brand/40'
               />
             </div>
           </div>
 
           {/* Question / Title input */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-foreground/75">
+          <div className='flex flex-col gap-1.5'>
+            <label className='text-xs font-semibold text-foreground/75'>
               Question or short title
             </label>
             <input
-              type="text"
+              type='text'
               value={formQuestion}
               onChange={(e) => setFormQuestion(e.target.value)}
-              placeholder="e.g. What are your sponsorship requirements?"
+              placeholder='e.g. What are your sponsorship requirements?'
               required
-              className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-brand/40"
+              className='w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-brand/40'
             />
           </div>
 
           {/* Tags input */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-foreground/75 flex items-center gap-1">
-              Tags <span className="text-[10px] text-foreground/45">(comma separated)</span>
+          <div className='flex flex-col gap-1.5'>
+            <label className='text-xs font-semibold text-foreground/75 flex items-center gap-1'>
+              Tags{" "}
+              <span className='text-[10px] text-foreground/45'>
+                (comma separated)
+              </span>
             </label>
             <input
-              type="text"
+              type='text'
               value={formTags}
               onChange={(e) => setFormTags(e.target.value)}
-              placeholder="e.g. sponsorship, visa, legal"
-              className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-brand/40"
+              placeholder='e.g. sponsorship, visa, legal'
+              className='w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-brand/40'
             />
           </div>
 
           {/* Markdown Content / Body input */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-foreground/75">
+          <div className='flex flex-col gap-1.5'>
+            <label className='text-xs font-semibold text-foreground/75'>
               Entry content / Body
             </label>
             <textarea
@@ -406,36 +417,36 @@ export function AnswerBankPanel() {
               rows={8}
               required
               placeholder={THEME_CONFIGS[formTheme].placeholder}
-              className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:border-brand/40 font-sans min-h-[160px] whitespace-pre-wrap"
+              className='w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:border-brand/40 font-sans min-h-[160px] whitespace-pre-wrap'
             />
           </div>
 
           {/* Footer controls */}
-          <div className="flex items-center justify-between border-t border-foreground/10 pt-4 mt-6">
+          <div className='flex items-center justify-between border-t border-foreground/10 pt-4 mt-6'>
             <div>
               {editingEntry && (
                 <Button
-                  type="button"
+                  type='button'
                   onClick={handleDelete}
-                  className="bg-red-600/10 text-red-500 hover:bg-red-600/20 border border-red-500/20 rounded-xl px-4 py-2 font-medium"
+                  className='bg-red-600/10 text-red-500 hover:bg-red-600/20 border border-red-500/20 rounded-xl px-4 py-2 font-medium'
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className='h-4 w-4 mr-2' />
                   Delete
                 </Button>
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className='flex items-center gap-3'>
               <Button
-                type="button"
-                variant="outline"
+                type='button'
+                variant='outline'
                 onClick={() => setModalOpen(false)}
-                className="border-foreground/10 text-foreground/70 hover:bg-foreground/[0.05] rounded-xl px-4 py-2"
+                className='border-foreground/10 text-foreground/70 hover:bg-foreground/[0.05] rounded-xl px-4 py-2'
               >
                 Cancel
               </Button>
               <Button
-                type="submit"
-                className="bg-brand text-black hover:bg-brand/90 rounded-xl px-5 py-2 font-medium"
+                type='submit'
+                className='bg-brand text-black hover:bg-brand/90 rounded-xl px-5 py-2 font-medium'
               >
                 {editingEntry ? "Save Changes" : "Create Entry"}
               </Button>

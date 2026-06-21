@@ -1557,7 +1557,7 @@ export const SettingsPage = (): JSX.Element => {
           <div
             id='settings-tab-profile'
             data-tour='settings-tab-profile'
-            className='space-y-6 bg-background'
+            className='space-y-6 mb-20'
           >
             {/* Avatar Section */}
             <div className='bg-card border border-border/40 rounded-xl p-4 sm:p-6 shadow-sm ring-1 ring-foreground/5'>
@@ -1723,7 +1723,7 @@ export const SettingsPage = (): JSX.Element => {
           <div
             id='settings-tab-notifications'
             data-tour='settings-tab-notifications'
-            className='space-y-6'
+            className='space-y-6 mb-20'
           >
             {/* General Notification Settings */}
             {/* General Notification Settings */}
@@ -1854,7 +1854,8 @@ export const SettingsPage = (): JSX.Element => {
                     Gmail-Connected Notifications
                   </h3>
                   <p className='text-xs text-muted-foreground'>
-                    Bring inbox-derived application updates directly into your notification center.
+                    Bring inbox-derived application updates directly into your
+                    notification center.
                   </p>
                 </div>
                 <div className='flex flex-wrap items-center gap-2'>
@@ -1874,7 +1875,10 @@ export const SettingsPage = (): JSX.Element => {
                       variant='outline'
                       className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#1dff00]/10 hover:border-[#1dff00]/30 transition-all'
                       onClick={handleConnectGmail}
-                      disabled={loadingEmailIntegrationAccess || !hasGmailIntegrationAccess}
+                      disabled={
+                        loadingEmailIntegrationAccess ||
+                        !hasGmailIntegrationAccess
+                      }
                     >
                       <Link className='w-4 h-4 mr-2' />
                       Connect Gmail
@@ -1908,13 +1912,15 @@ export const SettingsPage = (): JSX.Element => {
                   {
                     key: "notify_gmail_updates",
                     label: "Show Gmail Updates",
-                    description: "Turn inbox-derived application updates into in-app notifications",
+                    description:
+                      "Turn inbox-derived application updates into in-app notifications",
                     fallback: true,
                   },
                   {
                     key: "gmail_auto_sync_enabled",
                     label: "Auto-Sync Gmail In Inbox",
-                    description: "Refresh Gmail-derived notifications automatically when you open Notifications",
+                    description:
+                      "Refresh Gmail-derived notifications automatically when you open Notifications",
                     fallback: true,
                   },
                 ].map((setting) => (
@@ -2046,7 +2052,7 @@ export const SettingsPage = (): JSX.Element => {
           <div
             id='settings-tab-security'
             data-tour='settings-tab-security'
-            className='space-y-6'
+            className='space-y-6 mb-20'
           >
             {/* Change Password */}
             <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
@@ -3170,7 +3176,7 @@ export const SettingsPage = (): JSX.Element => {
           <div
             id='settings-tab-appearance'
             data-tour='settings-tab-appearance'
-            className='space-y-6'
+            className='space-y-6 mb-20'
           >
             {/* Theme Selection */}
             <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
@@ -3323,7 +3329,7 @@ export const SettingsPage = (): JSX.Element => {
           <div
             id='settings-tab-privacy'
             data-tour='settings-tab-privacy'
-            className='space-y-6'
+            className='space-y-6 mb-20'
           >
             {/* Profile Visibility */}
             <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
@@ -4188,7 +4194,7 @@ export const SettingsPage = (): JSX.Element => {
           <div
             id='settings-tab-job-sources'
             data-tour='settings-tab-job-sources'
-            className='space-y-6'
+            className='space-y-6 mb-20'
           >
             {/* Header */}
             <div>
@@ -4485,7 +4491,7 @@ export const SettingsPage = (): JSX.Element => {
           <div
             id='settings-tab-integrations'
             data-tour='settings-tab-integrations'
-            className='space-y-6'
+            className='space-y-6 mb-20'
           >
             <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-[#]/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>
               <div className='flex items-center justify-between'>
@@ -4526,7 +4532,9 @@ export const SettingsPage = (): JSX.Element => {
                         variant='outline'
                         className='border-rose-500/35 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-400/50'
                         onClick={handleDisconnectGmail}
-                        disabled={loadingEmailIntegrationAccess || gmailDisconnecting}
+                        disabled={
+                          loadingEmailIntegrationAccess || gmailDisconnecting
+                        }
                       >
                         {gmailDisconnecting ? (
                           <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
@@ -4613,7 +4621,7 @@ export const SettingsPage = (): JSX.Element => {
           <div
             id='settings-tab-billing'
             data-tour='settings-tab-billing'
-            className='space-y-6'
+            className='space-y-6 mb-20'
           >
             {/* Current Stats */}
             <div className='grid gap-4 md:grid-cols-3'>
@@ -4895,7 +4903,7 @@ export const SettingsPage = (): JSX.Element => {
 
       case "guided-tours":
         return (
-          <div className='space-y-6'>
+          <div className='space-y-6 mb-20'>
             <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
               <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
                 <div>
@@ -4904,8 +4912,8 @@ export const SettingsPage = (): JSX.Element => {
                   </h3>
                   <p className='text-sm text-muted-foreground mt-0.5 max-w-2xl'>
                     Restart any product walkthrough from Settings instead of
-                    using the floating launcher. Tours resume from saved progress
-                    when available.
+                    using the floating launcher. Tours resume from saved
+                    progress when available.
                   </p>
                 </div>
                 <div className='inline-flex items-center gap-2 rounded-lg border border-brand/20 bg-brand/10 px-3 py-2 text-sm font-medium text-brand'>
@@ -4995,15 +5003,15 @@ export const SettingsPage = (): JSX.Element => {
           <div
             id='settings-tab-support'
             data-tour='settings-tab-support'
-            className='space-y-6'
+            className='space-y-6 mb-20'
           >
             <div className='bg-card border border-border/40 rounded-xl p-4 sm:p-6 shadow-sm ring-1 ring-foreground/5'>
               <h3 className='text-base font-medium text-foreground mb-4'>
                 AI & App Support
               </h3>
               <SupportFloatingWidget
-                currentPageId="settings"
-                currentPageLabel="Settings"
+                currentPageId='settings'
+                currentPageLabel='Settings'
                 inline={true}
               />
             </div>
@@ -5018,9 +5026,9 @@ export const SettingsPage = (): JSX.Element => {
   return (
     <>
       <div className='min-h-full bg-background'>
-        <div className='w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-6'>
+        <div className='w-full max-w-[1800px mx-auto px-4 sm:px-6 lg:px-12 py-6'>
           {/* Modern Header */}
-          <div className='mb-8 border-b border-foreground/10 pb-6'>
+          <div className='mb-20 border-b border-foreground/10 pb-6'>
             <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
               <div>
                 <h1 className='text-3xl font-medium tracking-tight text-foreground/95 mb-1'>

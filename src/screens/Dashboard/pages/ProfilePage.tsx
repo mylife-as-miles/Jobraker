@@ -421,7 +421,11 @@ const ProfilePage = (): JSX.Element => {
                         asChild
                       >
                         <a
-                          href={profile.linkedin_url.startsWith('http') ? profile.linkedin_url : `https://${profile.linkedin_url}`}
+                          href={
+                            profile.linkedin_url.startsWith("http")
+                              ? profile.linkedin_url
+                              : `https://${profile.linkedin_url}`
+                          }
                           target='_blank'
                           rel='noopener noreferrer'
                         >
@@ -436,7 +440,10 @@ const ProfilePage = (): JSX.Element => {
                         className='product-outline-button border-dashed border-foreground/20 text-muted-foreground/60 hover:text-foreground hover:scale-105 transition-all duration-300'
                         asChild
                       >
-                        <Link to='/dashboard/settings/profile'>
+                        <Link
+                          to='/dashboard/settings/profile'
+                          className='flex items-center'
+                        >
                           <Plus className='w-4 h-4 mr-1' />
                           Add LinkedIn
                         </Link>
@@ -450,7 +457,11 @@ const ProfilePage = (): JSX.Element => {
                         asChild
                       >
                         <a
-                          href={profile.github_url.startsWith('http') ? profile.github_url : `https://${profile.github_url}`}
+                          href={
+                            profile.github_url.startsWith("http")
+                              ? profile.github_url
+                              : `https://${profile.github_url}`
+                          }
                           target='_blank'
                           rel='noopener noreferrer'
                         >
@@ -465,7 +476,10 @@ const ProfilePage = (): JSX.Element => {
                         className='product-outline-button border-dashed border-foreground/20 text-muted-foreground/60 hover:text-foreground hover:scale-105 transition-all duration-300'
                         asChild
                       >
-                        <Link to='/dashboard/settings/profile'>
+                        <Link
+                          to='/dashboard/settings/profile'
+                          className='flex items-center'
+                        >
                           <Plus className='w-4 h-4 mr-1' />
                           Add GitHub
                         </Link>
