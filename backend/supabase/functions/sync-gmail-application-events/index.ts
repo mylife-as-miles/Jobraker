@@ -74,6 +74,7 @@ const DEFAULT_QUERY = [
 ].join(" ");
 
 const MAX_MESSAGE_BODY_CHARS = 14_000;
+const EMAIL_INTEGRATION_ALLOWED_EMAIL = "siscostarters@gmail.com";
 
 type RequestBody = {
   query?: string;
@@ -1029,6 +1030,18 @@ serve(async (req) => {
       "Pro",
       "Gmail application checks",
     );
+    const canUseEmailIntegrations =
+      typeof user.email === "string" &&
+      user.email.trim().toLowerCase() === EMAIL_INTEGRATION_ALLOWED_EMAIL;
+
+    if (!canUseEmailIntegrations) {
+      return jsonResponse(
+        { error: "Email integrations are not enabled for this account." },
+        403,
+        corsHeaders,
+      );
+    }
+
     await enforceFeatureRateLimit({
       userId: user.id,
       featureKey: "sync_gmail_application_events",

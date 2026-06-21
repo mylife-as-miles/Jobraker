@@ -8,6 +8,8 @@ import {
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 
+const JOB_SEARCH_RUN_COST = 10;
+
 const PUBLIC_JOB_SOURCE_ALIASES: Record<string, PublicJobSource> = {
   web: "web",
   general: "web",
@@ -160,11 +162,43 @@ Deno.serve(async (req) => {
     if (effectiveLimit <= 0) {
       return new Response(
         JSON.stringify({
-          error: "Insufficient credits for job search.",
-          code: "insufficient_credits",
+          error: "Your subscription limit for job search has been reached.",
+          code: "limit_reached",
           requestedLimit,
           planCap,
-          creditsBalance,
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        },
+      );
+    }
+
+    const idempotencyKey = crypto.randomUUID();
+    const { data: reserveRaw, error: reserveError } = await serviceClient.rpc(
+      "reserve_credits_for_run",
+      {
+        p_user_id: user.id,
+        p_run_type: "job_search",
+        p_estimated_credits: JOB_SEARCH_RUN_COST,
+        p_idempotency_key: idempotencyKey,
+        p_metadata: {
+          searchQuery,
+          location,
+          requestedLimit,
+          effectiveLimit
+        }
+      }
+    );
+
+    const reserve = reserveRaw as Record<string, unknown> | null;
+    if (reserveError || !reserve || reserve.success !== true) {
+      return new Response(
+        JSON.stringify({
+          error: (reserve?.message as string) || "Insufficient credits for job search run.",
+          code: "insufficient_credits",
+          current_balance: reserve?.current_balance || creditsBalance,
+          required_credits: JOB_SEARCH_RUN_COST,
         }),
         {
           status: 402,
@@ -172,6 +206,8 @@ Deno.serve(async (req) => {
         },
       );
     }
+
+    const agentRunId = reserve.agent_run_id as string;
 
     const isAsync = body?.async === true;
 
@@ -187,9 +223,11 @@ Deno.serve(async (req) => {
           params: {
             search_query: searchQuery,
             location,
+            locationScope,
             limit: requestedLimit,
             sources: sourceFocus,
             targetDomains,
+            agent_run_id: agentRunId,
           },
         })
         .select("id")
@@ -235,6 +273,7 @@ Deno.serve(async (req) => {
           success: true,
           status: "queued",
           taskId: task.id,
+          agent_run_id: agentRunId,
         }),
         {
           status: 202,
@@ -243,94 +282,94 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log("[jobs-search] Firecrawl-led discovery", {
-      userId: user.id,
-      searchQuery,
-      location,
-      sourceFocus,
-      targetDomains,
-      requestedLimit,
-      effectiveLimit,
-      subscriptionTier,
-    });
-
+    let searchFailed = false;
+    let failureReason: string | undefined;
+    let discoveredJobs: any[] = [];
+    let warnings: any[] = [];
     let totalInserted = 0;
-    const { jobs: discoveredJobs, warnings } = await discoverJobsFirecrawl(
-      {
-        serviceClient,
+
+    try {
+      console.log("[jobs-search] Firecrawl-led discovery", {
         userId: user.id,
         searchQuery,
         location,
-        limit: effectiveLimit,
         sourceFocus,
         targetDomains,
-      },
-      async (batch) => {
-        const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
+        requestedLimit,
+        effectiveLimit,
+        subscriptionTier,
+      });
+
+      const result = await discoverJobsFirecrawl(
+        {
           serviceClient,
-          batch,
-          {
-            userId: user.id,
-            searchQuery,
-            location,
-            trigger: "live_search",
-            requestedLimit,
-            effectiveLimit,
-            subscriptionTier,
-          },
-        );
-        totalInserted += batchInserted;
-      },
-    );
+          userId: user.id,
+          searchQuery,
+          location,
+          limit: effectiveLimit,
+          sourceFocus,
+          targetDomains,
+        },
+        async (batch) => {
+          const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
+            serviceClient,
+            batch,
+            {
+              userId: user.id,
+              searchQuery,
+              location,
+              trigger: "live_search",
+              requestedLimit,
+              effectiveLimit,
+              subscriptionTier,
+            },
+          );
+          totalInserted += batchInserted;
+        },
+      );
+      
+      discoveredJobs = result.jobs;
+      warnings = result.warnings;
+
+    } catch (err: any) {
+      console.error("[jobs-search] Search failed", err);
+      searchFailed = true;
+      failureReason = err.message || "Unknown error during search";
+    }
 
     const jobsInserted = totalInserted;
 
-    // Bill search credits server-side (1 per job persisted, minimum 1 per completed search).
-    const jobsBilled = Math.min(
-      effectiveLimit,
-      Math.max(1, jobsInserted),
-    );
-    const { data: deductRaw, error: deductError } = await serviceClient.rpc(
-      "deduct_job_search_credits",
-      { p_user_id: user.id, p_jobs_count: jobsBilled },
-    );
-    if (deductError) {
-      console.error("[jobs-search] deduct_job_search_credits RPC error:", deductError);
-      return new Response(
-        JSON.stringify({
-          error: "Could not record search credits. Please try again.",
-          code: "billing_error",
-        }),
-        {
-          status: 503,
-          headers: { ...corsHeaders, "content-type": "application/json" },
-        },
-      );
-    }
-    const deduct = deductRaw as Record<string, unknown> | null;
-    if (!deduct || deduct.success !== true) {
-      return new Response(
-        JSON.stringify({
-          error: (deduct?.message as string) || "Insufficient credits for this search.",
-          code: "insufficient_credits",
-          current_balance: deduct?.current_balance,
-          required_credits: deduct?.required_credits,
-        }),
-        {
-          status: 402,
-          headers: { ...corsHeaders, "content-type": "application/json" },
-        },
-      );
+    // Settle the run
+    const actualCredits = searchFailed ? 0 : Math.min(discoveredJobs.length, JOB_SEARCH_RUN_COST);
+    const { data: settleRaw, error: settleError } = await serviceClient.rpc("settle_run_credits", {
+      p_agent_run_id: agentRunId,
+      p_actual_credits: actualCredits,
+      p_status: searchFailed ? "failed" : "completed",
+      p_failure_reason: failureReason,
+      p_receipt: { jobs_inserted: jobsInserted, jobs_discovered: discoveredJobs.length }
+    });
+    
+    if (settleError) {
+      console.error("[jobs-search] Failed to settle run credits", settleError);
     }
 
-    const remainingBalance =
-      typeof deduct.remaining_balance === "number"
-        ? deduct.remaining_balance
-        : undefined;
-    const creditsDeducted =
-      typeof deduct.credits_deducted === "number"
-        ? deduct.credits_deducted
-        : jobsBilled;
+    if (searchFailed) {
+      return new Response(
+        JSON.stringify({
+          error: "Search failed. Your credits have been refunded.",
+          code: "search_failed",
+          details: failureReason
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        }
+      );
+    }
+    
+    const settleData = settleRaw as Record<string, unknown> | null;
+    const creditsDeducted = typeof settleData?.credits_used === 'number' ? settleData.credits_used : actualCredits;
+    const remainingBalance = typeof settleData?.current_balance === 'number' ? settleData.current_balance : undefined;
     let providerCreditSync: Record<string, unknown> | null = null;
 
     try {
@@ -340,7 +379,7 @@ Deno.serve(async (req) => {
         requestedLimit,
         effectiveLimit,
         jobsInserted,
-        jobsBilled,
+        jobsBilled: actualCredits,
       });
       providerCreditSync = {
         remainingCredits: syncResult.usage.remainingCredits,
@@ -359,7 +398,7 @@ Deno.serve(async (req) => {
       effectiveLimit,
       discoveredCount: discoveredJobs.length,
       jobsInserted,
-      jobsBilled,
+      jobsBilled: actualCredits,
       creditsDeducted,
       remainingBalance,
       warningCount: warnings.length,
@@ -376,7 +415,7 @@ Deno.serve(async (req) => {
         creditsBalance,
         subscriptionTier,
         jobsInserted,
-        jobsBilled,
+        jobsBilled: actualCredits,
         creditsDeducted,
         remainingBalance,
         providerCreditSync,

@@ -46,6 +46,7 @@ console.log("JobRaker AI Chat Starting...");
 
 const MAX_CHAT_IMAGES = 3;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const EMAIL_INTEGRATION_ALLOWED_EMAIL = "siscostarters@gmail.com";
 const DEFAULT_APPLICATION_SYNC_LIMIT = 5;
 const MAX_APPLICATION_SYNC_LIMIT = 12;
 const DEFAULT_APPLICATION_LIST_LIMIT = 12;
@@ -61,6 +62,12 @@ const SKYVERN_TERMINAL_PROVIDER_STATUSES = new Set([
   "terminated",
 ]);
 const ACTIVE_APPLICATION_STATUSES = new Set(["Pending", "Applied", "Interview"]);
+const GMAIL_AGENT_TOOL_NAMES = new Set([
+  "search_gmail_job_emails",
+  "create_gmail_job_draft",
+  "send_gmail_job_email",
+  "label_gmail_job_emails",
+]);
 const APPLICATION_STATUSES = new Set([
   "Draft",
   "Pending",
@@ -2916,6 +2923,14 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
+    const canUseEmailIntegrations =
+      typeof user.email === "string" &&
+      user.email.trim().toLowerCase() === EMAIL_INTEGRATION_ALLOWED_EMAIL;
+    const agentFunctionDeclarations = canUseEmailIntegrations
+      ? AGENT_FUNCTION_DECLARATIONS
+      : AGENT_FUNCTION_DECLARATIONS.filter(
+          (declaration) => !GMAIL_AGENT_TOOL_NAMES.has(declaration.name),
+        );
     const serviceClient = createServiceSupabaseClient();
     const turnRefundKey = `ai-chat:${userId}:${crypto.randomUUID()}`;
 
@@ -3041,13 +3056,13 @@ Deno.serve(async (req) => {
     }
 
     if (mode === "agent") {
-      const gmailJobRules = `
+      const gmailJobRules = canUseEmailIntegrations ? `
 Job-related Gmail (only when tools are available):
 - search_gmail_job_emails searches using a fixed job-search filter on the server; it is not a full inbox search.
 - create_gmail_job_draft creates Gmail drafts only for clearly job-related messages after showing the exact draft to the user.
 - send_gmail_job_email sends only if the message clearly relates to the user's job search; the server may reject other content. Always show the user the exact To, Subject, and body and obtain explicit confirmation before sending.
 - label_gmail_job_emails labels only job-search correspondence using explicit message IDs or the fixed job-related server query.
-Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.`;
+Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.` : "";
       const agentCapabilityRules = `
 Profile, resume, and in-app data (execute directly — do not ask the user to copy-paste):
 - update_profile, list_profile_records, add_skill, remove_skill, add_experience, update_experience, delete_experience, add_education, update_education, delete_education, save_cover_letter, update_resume, create_application_tracker_entry, update_application_status, update_application, delete_application, bookmark_job, hide_job, delete_job, clear_all_jobs, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
@@ -3096,10 +3111,10 @@ Edge functions:
     if (mode === "agent") {
       chatConfig.tools = webSearch
         ? [
-            { functionDeclarations: AGENT_FUNCTION_DECLARATIONS },
+            { functionDeclarations: agentFunctionDeclarations },
             { googleSearch: {} },
           ]
-        : [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }];
+        : [{ functionDeclarations: agentFunctionDeclarations }];
       /** Required when mixing built-in tools (e.g. googleSearch) with functionDeclarations. */
       if (webSearch) {
         chatConfig.toolConfig = {
@@ -3857,7 +3872,7 @@ Edge functions:
                       serviceClient,
                       userId,
                       applicationId: asString(args.application_id),
-                      includeGmail: args.include_gmail !== false,
+                      includeGmail: canUseEmailIntegrations && args.include_gmail !== false,
                       includeSkyvern: args.include_skyvern !== false,
                       gmailMaxResults: asNumber(args.gmail_max_results) || undefined,
                       force: args.force === true,
@@ -3941,45 +3956,53 @@ Edge functions:
                       includeColumns: args.include_columns !== false,
                     });
                   } else if (fn.name === "search_gmail_job_emails") {
-                    result = await agentSearchJobRelatedEmails(
-                      serviceClient,
-                      userId,
-                      (args || {}) as {
-                        max_results?: number;
-                        refine_query?: string;
-                      },
-                    );
+                    result = canUseEmailIntegrations
+                      ? await agentSearchJobRelatedEmails(
+                          serviceClient,
+                          userId,
+                          (args || {}) as {
+                            max_results?: number;
+                            refine_query?: string;
+                          },
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
                   } else if (fn.name === "create_gmail_job_draft") {
-                    result = await agentCreateJobRelatedDraft(
-                      serviceClient,
-                      userId,
-                      (args || {}) as {
-                        to?: string;
-                        subject?: string;
-                        body?: string;
-                      },
-                    );
+                    result = canUseEmailIntegrations
+                      ? await agentCreateJobRelatedDraft(
+                          serviceClient,
+                          userId,
+                          (args || {}) as {
+                            to?: string;
+                            subject?: string;
+                            body?: string;
+                          },
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
                   } else if (fn.name === "send_gmail_job_email") {
-                    result = await agentSendJobRelatedEmail(
-                      serviceClient,
-                      userId,
-                      (args || {}) as {
-                        to?: string;
-                        subject?: string;
-                        body?: string;
-                      },
-                    );
+                    result = canUseEmailIntegrations
+                      ? await agentSendJobRelatedEmail(
+                          serviceClient,
+                          userId,
+                          (args || {}) as {
+                            to?: string;
+                            subject?: string;
+                            body?: string;
+                          },
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
                   } else if (fn.name === "label_gmail_job_emails") {
-                    result = await agentLabelJobRelatedEmails(
-                      serviceClient,
-                      userId,
-                      (args || {}) as {
-                        message_ids?: string[];
-                        refine_query?: string;
-                        max_results?: number;
-                        label_name?: string;
-                      },
-                    );
+                    result = canUseEmailIntegrations
+                      ? await agentLabelJobRelatedEmails(
+                          serviceClient,
+                          userId,
+                          (args || {}) as {
+                            message_ids?: string[];
+                            refine_query?: string;
+                            max_results?: number;
+                            label_name?: string;
+                          },
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
                   } else if (fn.name === "semantic_search") {
                     const queryStr = asString(args.query);
                     const limitVal = clampNumber(args.limit, 5, 1, 20);

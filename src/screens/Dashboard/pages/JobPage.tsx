@@ -208,6 +208,70 @@ const matchInsightInFlight = new Map<string, Promise<Job[]>>();
 const sleep = (ms: number) =>
   new Promise((resolve) => window.setTimeout(resolve, ms));
 
+const normalizeSearchDomain = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = new URL(
+      /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`,
+    );
+    return parsed.hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return (
+      trimmed
+        .toLowerCase()
+        .replace(/^https?:\/\//, "")
+        .replace(/^www\./, "")
+        .replace(/\/.*$/, "")
+        .trim() || null
+    );
+  }
+};
+
+const extractSearchTargetDomains = (value: unknown): string[] => {
+  const inputs = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? [value]
+      : [];
+  const seen = new Set<string>();
+
+  for (const item of inputs) {
+    const text = String(item || "");
+    for (const match of text.matchAll(/\bsite:([a-z0-9.-]+\.[a-z]{2,})(?:\/[^\s)"']*)?/gi)) {
+      const domain = normalizeSearchDomain(match[1]);
+      if (domain) seen.add(domain);
+    }
+    for (const match of text.matchAll(/https?:\/\/[^\s<>"')]+/gi)) {
+      const domain = normalizeSearchDomain(match[0]);
+      if (domain) seen.add(domain);
+    }
+    const direct = normalizeSearchDomain(text);
+    if (direct && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(direct)) {
+      seen.add(direct);
+    }
+  }
+
+  return Array.from(seen).slice(0, 12);
+};
+
+const scoutProgressToStepIndex = (progressCurrent: unknown): number => {
+  const current = typeof progressCurrent === "number" ? progressCurrent : 0;
+  if (current <= 1) return 0;
+  if (current === 2) return 1;
+  return 2;
+};
+
+const extractSavedJobCount = (task: JobIntelligenceTask): number | null => {
+  const resultCount = task.result?.count;
+  if (typeof resultCount === "number") return resultCount;
+
+  const message = typeof task.message === "string" ? task.message : "";
+  const match = message.match(/Found and saved\s+(\d+)\s+jobs?/i);
+  return match ? Number(match[1]) : null;
+};
+
 const isApplyRateLimitError = (error: unknown): boolean => {
   if (!(error instanceof Error)) return false;
   return /rate limit exceeded/i.test(error.message);
@@ -2414,7 +2478,16 @@ export const JobPage = (): JSX.Element => {
   }, [queryClient, safeInfo, setErrorDedup, supabase]);
 
   const populateQueue = useCallback(
-    async (query: string, _location?: string, customLimit?: number) => {
+    async (
+      query: string,
+      _location?: string,
+      customLimit?: number,
+      options?: {
+        sources?: unknown;
+        targetDomains?: unknown;
+        locationScope?: unknown;
+      },
+    ) => {
       // Prevent re-entry if a run is active
       if (incrementalMode) return;
       if (!query || !query.trim()) {
@@ -2455,18 +2528,42 @@ export const JobPage = (): JSX.Element => {
           return;
         }
 
+        const trimmedQuery = query.trim();
+        const effectiveLocation = (_location || selectedLocation || "Remote").trim() || "Remote";
+        const optionSources = Array.isArray(options?.sources)
+          ? options.sources.filter((source): source is string => typeof source === "string" && source.trim().length > 0)
+          : [];
+        const explicitTargetDomains = Array.isArray(options?.targetDomains)
+          ? options.targetDomains
+          : [];
+        const targetDomains = extractSearchTargetDomains([
+          trimmedQuery,
+          ...explicitTargetDomains,
+        ]);
+        const effectiveLocationScope =
+          options?.locationScope === "city" ||
+          options?.locationScope === "country" ||
+          options?.locationScope === "global"
+            ? options.locationScope
+            : effectiveLocation.toLowerCase() === "remote"
+              ? "global"
+              : locationScope;
+        const sources = optionSources.length > 0 ? optionSources : undefined;
+
         const currentSearchScope: JobsQueueScope = {
-          searchQuery: query.trim(),
-          location: (_location || selectedLocation || "Remote").trim() || "Remote",
+          searchQuery: trimmedQuery,
+          location: effectiveLocationScope === "global" ? "Remote" : effectiveLocation,
           limit: maxResultsPerSearch,
           startedAt: new Date(Date.now() - 30 * 1000).toISOString(),
         };
 
         const searchPayload = {
-          searchQuery: query.trim(),
+          searchQuery: trimmedQuery,
           location: currentSearchScope.location,
-          locationScope,
+          locationScope: effectiveLocationScope,
           limit: maxResultsPerSearch,
+          ...(sources ? { sources } : {}),
+          ...(targetDomains.length > 0 ? { targetDomains } : {}),
           async: true,
         };
 
@@ -2540,11 +2637,11 @@ export const JobPage = (): JSX.Element => {
       if (activeTask.status === "running") {
         setIncrementalMode(true);
         setQueueStatus("populating");
-        setStepIndex(activeTask.progress_current);
-        const currentCount = typeof activeTask.result?.count === "number"
-          ? activeTask.result.count
-          : activeTask.progress_current;
-        setInsertedThisRun(currentCount);
+        setStepIndex(scoutProgressToStepIndex(activeTask.progress_current));
+        const currentCount = extractSavedJobCount(activeTask);
+        if (typeof currentCount === "number") {
+          setInsertedThisRun(currentCount);
+        }
         if (activeTask.message) {
           setCurrentSource(activeTask.message);
         }
@@ -4031,7 +4128,11 @@ export const JobPage = (): JSX.Element => {
           typeof params.location === "string" ? params.location : selectedLocation;
         const limit =
           typeof params.limit === "number" ? params.limit : undefined;
-        void populateQueue(query, location, limit);
+        void populateQueue(query, location, limit, {
+          sources: params.sources,
+          targetDomains: params.targetDomains,
+          locationScope: params.locationScope ?? params.location_scope,
+        });
         return;
       }
       if (task.type === "pipeline_cleanup") {
@@ -4482,8 +4583,8 @@ export const JobPage = (): JSX.Element => {
 
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8'>
           <div className='space-y-4'>
-            <div className='flex items-center justify-between mb-3 sticky top-0 z-10 backdrop-blur-xl rounded-xl px-4 py-3 border-foreground/10 lg:static  lg:bg-transparent lg:border-0 lg:backdrop-blur-none'>
-              <h2 className='text-lg sm:text-xl font-bold text-foreground flex items-center gap-2'>
+            <div className='flex flex-col gap-3 mb-3 sticky top-0 z-10 backdrop-blur-xl rounded-xl px-4 py-3 border-foreground/10 sm:flex-row sm:items-center sm:justify-between lg:static lg:bg-transparent lg:border-0 lg:backdrop-blur-none'>
+              <h2 className='min-w-0 text-lg sm:text-xl font-bold text-foreground flex flex-wrap items-center gap-2'>
                 {queueStatus === "loading" &&
                   !incrementalMode &&
                   "Loading results..."}
@@ -4492,13 +4593,12 @@ export const JobPage = (): JSX.Element => {
                 {(queueStatus === "ready" || queueStatus === "empty") &&
                   !incrementalMode && (
                     <>
-                      <span className='flex items-center gap-2'>
-                        {" "}
-                        <Briefcase className='h-4 w-4' />
+                      <span className='flex min-w-fit items-center gap-2 whitespace-nowrap'>
+                        <Briefcase className='h-4 w-4 shrink-0' />
                         {total} Jobs Found
                       </span>
                       {total > 0 && (
-                        <span className='ml-2 text-xs font-normal px-2 py-1 rounded-lg bg-brand/10 text-brand border border-brand/30'>
+                        <span className='whitespace-nowrap text-xs font-normal px-2.5 py-1 rounded-lg bg-brand/10 text-brand border border-brand/30'>
                           AI Matched
                         </span>
                       )}
@@ -4511,9 +4611,9 @@ export const JobPage = (): JSX.Element => {
                           }}
                           variant="ghost"
                           size="sm"
-                          className="ml-2 h-7 px-2.5 rounded-lg text-xs font-semibold bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 flex items-center gap-1 transition-all duration-200"
+                          className="h-7 px-2.5 rounded-lg text-xs font-semibold bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 flex items-center gap-1.5 transition-all duration-200 whitespace-nowrap"
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-3 w-3 shrink-0" />
                           <span>Clear Search</span>
                         </Button>
                       )}
@@ -4522,8 +4622,8 @@ export const JobPage = (): JSX.Element => {
               </h2>
               {(queueStatus === "ready" || queueStatus === "empty") &&
                 !incrementalMode && (
-                  <div className='hidden sm:flex items-center gap-2'>
-                    <span className='text-xs text-foreground/50 font-medium'>
+                  <div className='hidden sm:flex shrink-0 items-center gap-2'>
+                    <span className='text-xs text-foreground/50 font-medium whitespace-nowrap'>
                       Sort
                     </span>
                     <SimpleDropdown
@@ -4536,7 +4636,7 @@ export const JobPage = (): JSX.Element => {
                         { value: "deadline", label: "Deadline" },
                       ]}
                       placeholder='Sort by'
-                      triggerClassName='h-8 w-[160px] text-sm '
+                      triggerClassName='h-9 w-[200px] text-sm '
                     />
                   </div>
                 )}

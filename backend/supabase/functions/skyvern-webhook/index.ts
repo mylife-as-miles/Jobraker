@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { recordSkyvernUsageFromOutput } from "../_shared/provider-credits.ts";
+import { refundCurrentAutoApplyQuota } from "../_shared/feature-limits.ts";
 import { createNotificationRecord } from "../_shared/notification-center.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
@@ -539,6 +540,15 @@ serve(async (req) => {
 
       if (jobUpdateError) {
         console.error("Failed to update related job state", jobUpdateError);
+      }
+    }
+
+    if (isFailed) {
+      try {
+        await refundCurrentAutoApplyQuota(supabase, applicationRow.user_id, 1);
+        console.log(`[skyvern-webhook] Refunded auto-apply quota for user ${applicationRow.user_id} due to failure.`);
+      } catch (refundError) {
+        console.error("Failed to refund auto-apply quota in webhook", refundError);
       }
     }
 

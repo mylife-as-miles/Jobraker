@@ -152,25 +152,42 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
     },
   );
 
-  // Bill credits
-  const jobsBilled = Math.min(
-    effectiveLimit,
-    Math.max(1, totalInserted),
-  );
-  const { data: deductRaw, error: deductError } = await supabase.rpc(
-    "deduct_job_search_credits",
-    { p_user_id: userId, p_jobs_count: jobsBilled },
-  );
+  const agentRunId = params.agent_run_id;
 
-  if (deductError) {
-    console.error("Deduct credits failed in background task", deductError);
+  // Bill credits
+  if (agentRunId) {
+    const { error: settleError } = await supabase.rpc(
+      "settle_run_credits",
+      { 
+        p_agent_run_id: agentRunId, 
+        p_actual_credits: 10,
+        p_status: "completed",
+        p_receipt: { jobs_inserted: totalInserted, jobs_discovered: discoveredJobs.length }
+      },
+    );
+    if (settleError) {
+      console.error("Settle run credits failed in background task", settleError);
+    }
+  } else {
+    const jobsBilled = Math.min(
+      effectiveLimit,
+      Math.max(1, totalInserted),
+    );
+    const { error: deductError } = await supabase.rpc(
+      "deduct_job_search_credits",
+      { p_user_id: userId, p_jobs_count: jobsBilled },
+    );
+
+    if (deductError) {
+      console.error("Deduct credits failed in background task", deductError);
+    }
   }
 
   await progress.updateProgress(3, 3, `Scout search completed. Found ${totalInserted} jobs.`);
 
   return {
     count: totalInserted,
-    jobsBilled,
+    jobsBilled: agentRunId ? 10 : Math.min(effectiveLimit, Math.max(1, totalInserted)),
     warnings,
     jobs: discoveredJobs.map((job: any) => ({
       title: job.title,
@@ -458,6 +475,15 @@ Deno.serve(async (req) => {
               message: "Canceled by user.",
             })
             .eq("id", taskId);
+            
+          if (task.params?.agent_run_id) {
+            await supabase.rpc("settle_run_credits", {
+              p_agent_run_id: task.params.agent_run_id,
+              p_actual_credits: 0,
+              p_status: "cancelled",
+              p_failure_reason: "Task canceled by user"
+            });
+          }
         } else {
           const errorMsg = err instanceof Error ? err.message : String(err);
           console.error(`[process-task] Task ${taskId} failed`, err);
@@ -494,6 +520,15 @@ Deno.serve(async (req) => {
 
             // Trigger failure notifications and emails
             await notifyTaskFailure(supabase, task.user_id, task, errorMsg);
+
+            if (task.params?.agent_run_id) {
+              await supabase.rpc("settle_run_credits", {
+                p_agent_run_id: task.params.agent_run_id,
+                p_actual_credits: 0,
+                p_status: "failed",
+                p_failure_reason: `Task failed permanently: ${errorMsg}`
+              });
+            }
           }
         }
       }

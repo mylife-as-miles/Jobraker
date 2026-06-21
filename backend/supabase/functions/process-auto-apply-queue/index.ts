@@ -71,18 +71,17 @@ async function refundQueuedAutoApplyLaunch(
     await restoreAutoApplyRunQuota(supabase, appRow.user_id, periodStart, periodEnd, 1);
 
     if (appRow.agent_run_id) {
-      await supabase.rpc("settle_run_credits", {
-        p_agent_run_id: appRow.agent_run_id,
-        p_actual_credits: 0,
-        p_status: "failed",
-        p_failure_reason: `Failed during launch: ${reason}`,
-        p_receipt: {
-          application_id: appId,
-          job_id: appRow.job_id,
-          reason: reason,
-          source: "process-auto-apply-queue"
+      try {
+        const { error: settleError } = await supabase.rpc(
+          "check_and_settle_agent_run",
+          { p_agent_run_id: appRow.agent_run_id }
+        );
+        if (settleError) {
+          console.error("Failed to check and settle agent run:", settleError);
         }
-      });
+      } catch (err) {
+        console.error("Error invoking check_and_settle_agent_run:", err);
+      }
     } else {
       await refundUserCredits({
         serviceClient: supabase,
