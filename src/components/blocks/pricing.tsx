@@ -143,7 +143,7 @@ export function Pricing({
                   ${isMonthly ? plan.price : plan.yearlyPrice}
                 </span>
                 <span className='text-sm font-semibold leading-6 tracking-wide text-neutral-400'>
-                  / {plan.period}
+                    / {isMonthly ? plan.period : "year"}
                 </span>
               </div>
 

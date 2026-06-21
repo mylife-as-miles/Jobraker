@@ -42,29 +42,15 @@ export const HeroSection = () => {
               onClick={() => {
                 captureClientEvent("landing_cta_clicked", {
                   cta_id: "hero_join_waitlist",
-                  destination: ROUTES.WAITLIST,
+                  destination: ROUTES.SIGNIN,
                   location: "hero",
                 });
-                navigate(ROUTES.WAITLIST);
+                navigate(ROUTES.SIGNIN);
               }}
               className='bg-brand text-black hover:bg-brand/90 h-12 px-6 text-base font-bold rounded-none border border-brand transition-all hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] w-full sm:w-auto'
             >
-              JOIN WAITLIST
+              Sign In
               <ArrowRight className='w-5 h-5 ml-2' />
-            </Button>
-            <Button
-              onClick={() => {
-                captureClientEvent("landing_cta_clicked", {
-                  cta_id: "hero_request_early_access",
-                  destination: ROUTES.EARLY_ACCESS,
-                  location: "hero",
-                });
-                navigate(ROUTES.EARLY_ACCESS);
-              }}
-              variant='outline'
-              className='border-brand text-brand bg-transparent hover:bg-brand/10 h-12 px-6 text-base font-mono rounded-none w-full sm:w-auto'
-            >
-              REQUEST EARLY ACCESS
             </Button>
           </div>
 
