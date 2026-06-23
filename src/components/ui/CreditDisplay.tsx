@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Coins, History, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { formatCreditEntry } from "@/lib/creditFormatting";
 
 interface CreditDisplayProps {
   showHistory?: boolean;
@@ -222,37 +223,31 @@ const CreditHistoryModal: React.FC<CreditHistoryModalProps> = ({
             </div>
           ) : (
             <div className='space-y-3'>
-              {transactions.map((transaction: any) => (
-                <div
-                  key={transaction.id}
-                  className='flex justify-between items-center py-2 border-b border-gray-100'
-                >
-                  <div>
-                    <p className='text-sm font-medium'>
-                      {transaction.description || transaction.type}
-                    </p>
-                    <p className='text-xs text-gray-500'>
-                      {new Date(transaction.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
+              {transactions.map((transaction: any) => {
+                const formatted = formatCreditEntry(transaction);
+                return (
                   <div
-                    className={`text-sm font-medium ${
-                      transaction.type === "earned" ||
-                      transaction.type === "bonus" ||
-                      transaction.type === "refunded"
-                        ? "text-brand"
-                        : "text-brand"
-                    }`}
+                    key={transaction.id}
+                    className='flex justify-between items-center py-2 border-b border-gray-100'
                   >
-                    {transaction.type === "earned" ||
-                    transaction.type === "bonus" ||
-                    transaction.type === "refunded"
-                      ? "+"
-                      : "-"}
-                    {transaction.amount}
+                    <div>
+                      <p className='text-sm font-medium'>
+                        {transaction.description || formatted.label}
+                      </p>
+                      <p className='text-xs text-gray-500'>
+                        {new Date(transaction.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div
+                      className={`text-sm font-medium ${
+                        formatted.semanticColor === "neutral" ? "text-gray-500" : "text-brand"
+                      }`}
+                    >
+                      {formatted.formattedAmount}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

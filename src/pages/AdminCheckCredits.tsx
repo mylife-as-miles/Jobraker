@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createClient } from "@/lib/supabaseClient";
 import { ShieldAlert } from "lucide-react";
+import { formatCreditEntry } from "@/lib/creditFormatting";
 
 /**
  * Admin utility to check user credits by email
@@ -303,40 +304,42 @@ export default function AdminCheckCredits() {
                       </tr>
                     </thead>
                     <tbody className='text-gray-300'>
-                      {result.transactions.map((tx: any) => (
-                        <tr key={tx.id} className='border-b border-gray-700'>
-                          <td className='py-2'>
-                            {new Date(tx.created_at).toLocaleString()}
-                          </td>
-                          <td className='py-2'>
-                            <span
-                              className={`px-2 py-1 rounded text-xs font-medium ${
-                                tx.type === "earned" || tx.type === "bonus"
-                                  ? "bg-green-900/30 text-green-400"
-                                  : tx.type === "refund"
-                                    ? "bg-blue-900/30 text-blue-400"
-                                    : "bg-brand/30 text-brand"
+                      {result.transactions.map((tx: any) => {
+                        const formatted = formatCreditEntry(tx);
+                        return (
+                          <tr key={tx.id} className='border-b border-gray-700'>
+                            <td className='py-2'>
+                              {new Date(tx.created_at).toLocaleString()}
+                            </td>
+                            <td className='py-2'>
+                              <span
+                                className={`px-2 py-1 rounded text-xs font-medium ${
+                                  formatted.semanticColor === "positive"
+                                    ? "bg-green-900/30 text-green-400"
+                                    : formatted.direction === "hold"
+                                      ? "bg-yellow-900/30 text-yellow-400"
+                                      : "bg-brand/30 text-brand"
+                                }`}
+                              >
+                                {tx.type || tx.transaction_type}
+                              </span>
+                            </td>
+                            <td
+                              className={`py-2 text-right font-medium ${
+                                formatted.semanticColor === "negative" || formatted.direction === "hold"
+                                  ? "text-brand"
+                                  : "text-green-400"
                               }`}
                             >
-                              {tx.type}
-                            </span>
-                          </td>
-                          <td
-                            className={`py-2 text-right font-medium ${
-                              tx.type === "consumed"
-                                ? "text-brand"
-                                : "text-green-400"
-                            }`}
-                          >
-                            {tx.type === "consumed" ? "-" : "+"}
-                            {tx.amount}
-                          </td>
-                          <td className='py-2'>{tx.description}</td>
-                          <td className='py-2 text-right font-bold'>
-                            {tx.balance_after}
-                          </td>
-                        </tr>
-                      ))}
+                              {formatted.formattedAmount}
+                            </td>
+                            <td className='py-2'>{tx.description}</td>
+                            <td className='py-2 text-right font-bold'>
+                              {tx.balance_after}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
