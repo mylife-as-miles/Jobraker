@@ -31,6 +31,7 @@ import {
 } from "recharts";
 import { useRecentTransactions } from "../hooks/useAdminStats";
 import type { AdminTransaction } from "../types";
+import { formatCreditEntry } from "@/lib/creditFormatting";
 
 // ─── Transaction Detail Slide-Over Panel ──────────────────────────────────
 function TransactionDetailPanel({
@@ -44,12 +45,8 @@ function TransactionDetailPanel({
 }) {
   if (!isOpen || !transaction) return null;
 
-  const isPositive =
-    transaction.amount > 0 &&
-    (transaction.transaction_type === "earned" ||
-      transaction.transaction_type === "bonus" ||
-      transaction.transaction_type === "refund" ||
-      transaction.transaction_type === "refill");
+  const entry = formatCreditEntry(transaction);
+  const isPositive = entry.direction === "credit";
 
   return (
     <AnimatePresence>
@@ -90,15 +87,19 @@ function TransactionDetailPanel({
             {/* Amount Badge */}
             <div
               className={`flex flex-col items-center justify-center p-8 rounded-2xl border ${
-                isPositive
-                  ? "bg-brand/5 border-brand/20"
+                entry.semanticColor === "positive"
+                  ? "bg-green-500/5 border-green-500/20"
+                  : entry.semanticColor === "neutral"
+                  ? "bg-yellow-500/5 border-yellow-500/20"
                   : "bg-brand/5 border-brand/20"
               }`}
             >
               <div
                 className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
-                  isPositive
-                    ? "bg-brand/10 text-brand"
+                  entry.semanticColor === "positive"
+                    ? "bg-green-500/10 text-green-400"
+                    : entry.semanticColor === "neutral"
+                    ? "bg-yellow-500/10 text-yellow-400"
                     : "bg-brand/10 text-brand"
                 }`}
               >
@@ -109,13 +110,18 @@ function TransactionDetailPanel({
                 )}
               </div>
               <h3
-                className={`text-4xl font-bold ${isPositive ? "text-brand" : "text-brand"}`}
+                className={`text-4xl font-bold ${
+                  entry.semanticColor === "positive"
+                    ? "text-green-400"
+                    : entry.semanticColor === "neutral"
+                    ? "text-yellow-400"
+                    : "text-brand"
+                }`}
               >
-                {isPositive ? "+" : "-"}
-                {Math.abs(transaction.amount)}
+                {entry.formattedAmount}
               </h3>
               <p className='text-gray-400 mt-2 uppercase text-xs font-medium tracking-wider'>
-                {transaction.transaction_type || transaction.type}
+                {entry.label}
               </p>
             </div>
 
@@ -226,7 +232,7 @@ export default function AdminCredits() {
   // Filter state
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<
-    "all" | "earned" | "consumed" | "bonus" | "refill" | "spent"
+    "all" | "earned" | "consumed" | "deduction" | "bonus" | "refill" | "spent" | "refunded"
   >("all");
   const [sortField, setSortField] = useState<"created_at" | "amount">(
     "created_at",
@@ -621,10 +627,12 @@ export default function AdminCredits() {
               >
                 <option value='all'>All Types</option>
                 <option value='earned'>Earned</option>
-                <option value='consumed'>Consumed</option>
+                <option value='deduction'>Deduction</option>
                 <option value='bonus'>Bonus</option>
                 <option value='refill'>Refill</option>
-                <option value='spent'>Spent</option>
+                <option value='refunded'>Refunded</option>
+                <option value='consumed'>Consumed (legacy)</option>
+                <option value='spent'>Spent (legacy)</option>
               </select>
               <ChevronDown className='absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none' />
             </div>
@@ -680,10 +688,7 @@ export default function AdminCredits() {
               ) : (
                 filteredTransactions.slice(0, 50).map((tx, index) => {
                   const txType = tx.transaction_type || tx.type;
-                  const isNegative =
-                    txType === "consumed" ||
-                    txType === "spent" ||
-                    txType === "deduction";
+                  const entry = formatCreditEntry(tx);
 
                   return (
                     <motion.tr
@@ -746,11 +751,14 @@ export default function AdminCredits() {
                       </td>
                       <td
                         className={`px-6 py-4 text-right font-bold font-mono ${
-                          isNegative ? "text-brand" : "text-brand"
+                          entry.semanticColor === "positive"
+                            ? "text-green-400"
+                            : entry.semanticColor === "neutral"
+                            ? "text-yellow-400"
+                            : "text-brand"
                         }`}
                       >
-                        {isNegative ? "-" : "+"}
-                        {Math.abs(tx.amount)}
+                        {entry.formattedAmount}
                       </td>
                       <td className='px-6 py-4 text-right'>
                         <button className='p-2 rounded-lg text-gray-500 hover:text-white hover:bg-foreground/10 opacity-0 group-hover:opacity-100 transition-all'>

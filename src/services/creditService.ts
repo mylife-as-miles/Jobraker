@@ -157,7 +157,9 @@ export class CreditService {
           credit_costs!inner(feature_name, feature_type)
         `)
         .eq('user_id', userId)
-        .eq('type', 'consumed')
+        // Match all canonical debit types — 'consumed' is legacy, 'spent' is legacy,
+        // 'deduction' is the current canonical value written by all RPCs post-hotfix.
+        .in('type', ['consumed', 'spent', 'deduction'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -266,13 +268,14 @@ export class CreditService {
   ): Promise<boolean> {
     try {
       const supabase = createClient();
-      // Get original transaction
+      // Accept any of the three canonical debit types so the lookup works against
+      // both legacy rows ('consumed', 'spent') and current rows ('deduction').
       const { data: transaction, error } = await supabase
         .from('credit_transactions')
         .select('amount, type')
         .eq('id', originalTransactionId)
         .eq('user_id', userId)
-        .eq('type', 'consumed')
+        .in('type', ['consumed', 'spent', 'deduction'])
         .single();
 
       if (error || !transaction) throw new Error('Transaction not found');

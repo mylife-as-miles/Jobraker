@@ -261,17 +261,109 @@ export async function persistDiscoveredJobs(
     rows,
   );
 
-  const { data, error } = await serviceClient
-    .from("jobs")
-    .upsert(rowsWithIds, { onConflict: "user_id,source_type,source_id" })
-    .select("id");
+  // ── Protected upsert: never overwrite a terminal application status ──────
+  // Statuses set by user actions (or sourced from Gmail/auto-apply) must not
+  // be clobbered when a discovery run re-encounters the same job.
+  const PROTECTED_STATUSES = new Set([
+    "applied",
+    "submitted",
+    "interview",
+    "rejected",
+    "offer",
+    "archived",
+  ]);
 
-  if (error) {
-    throw error;
+  // Split rows: new jobs (no pre-existing id in DB) vs existing jobs
+  const existingSourceIds = new Set(
+    rowsWithIds
+      .filter((r) => r.source_id != null)
+      .map((r) => r.source_id as string),
+  );
+
+  // We already have the existing DB rows from attachExistingJobIdsBySourceId —
+  // re-fetch canonical_status for those rows so we can gate the update.
+  const { data: existingStatuses, error: statusFetchError } =
+    await serviceClient
+      .from("jobs")
+      .select("id, source_id, canonical_status")
+      .eq("user_id", options.userId)
+      .in("source_id", Array.from(existingSourceIds));
+
+  if (statusFetchError) {
+    throw statusFetchError;
+  }
+
+  const statusBySourceId = new Map<string, string>(
+    (existingStatuses ?? []).map((r: { source_id: string; canonical_status: string }) => [
+      r.source_id,
+      r.canonical_status,
+    ]),
+  );
+
+  // Partition
+  const newRows = rowsWithIds.filter(
+    (r) =>
+      !r.source_id || !statusBySourceId.has(r.source_id as string),
+  );
+  const existingRows = rowsWithIds.filter(
+    (r) =>
+      r.source_id && statusBySourceId.has(r.source_id as string),
+  );
+
+  const insertedIds: string[] = [];
+
+  // 1. Insert brand-new rows (no conflict risk — they don't exist yet)
+  if (newRows.length > 0) {
+    const { data: insertData, error: insertError } = await serviceClient
+      .from("jobs")
+      .upsert(newRows, { onConflict: "user_id,source_type,source_id" })
+      .select("id");
+
+    if (insertError) throw insertError;
+    insertedIds.push(...(insertData ?? []).map((r: { id: string }) => r.id));
+  }
+
+  // 2. Update existing rows — only overwrite safe fields; never touch canonical_status
+  //    when the current status is a protected terminal state.
+  for (const row of existingRows) {
+    const currentStatus = statusBySourceId.get(row.source_id as string) ?? "";
+    const isProtected = PROTECTED_STATUSES.has(currentStatus.toLowerCase());
+
+    // Fields safe to refresh from discovery data regardless of status
+    const safeUpdate: Record<string, unknown> = {
+      title: row.title,
+      company: row.company,
+      location: row.location,
+      description: row.description,
+      apply_url: row.apply_url,
+      salary_min: row.salary_min,
+      salary_max: row.salary_max,
+      salary_currency: row.salary_currency,
+      lead_quality_score: row.lead_quality_score,
+      lead_quality_reason: row.lead_quality_reason,
+      lead_quality_tags: row.lead_quality_tags,
+      last_verified_at: row.last_verified_at,
+      raw_data: row.raw_data,
+    };
+
+    // Only update canonical_status when the existing status is NOT protected
+    if (!isProtected) {
+      safeUpdate.canonical_status = row.canonical_status;
+      safeUpdate.status = row.status;
+    }
+
+    const { data: updateData, error: updateError } = await serviceClient
+      .from("jobs")
+      .update(safeUpdate)
+      .eq("id", row.id)
+      .select("id");
+
+    if (updateError) throw updateError;
+    insertedIds.push(...(updateData ?? []).map((r: { id: string }) => r.id));
   }
 
   return {
-    jobsInserted: data?.length ?? jobs.length,
+    jobsInserted: insertedIds.length,
     rows: rowsWithIds,
   };
 }

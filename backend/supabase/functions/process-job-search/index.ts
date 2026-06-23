@@ -427,7 +427,19 @@ Deno.serve(async (req) => {
         salary_max,
         salary_currency,
         status: 'active',
+        // canonical_status must be 'discovered' so the frontend VISIBLE_JOB_QUEUE_STATES
+        // filter (which requires 'discovered' | 'evaluated') picks these jobs up.
+        canonical_status: 'discovered',
         raw_data: {
+            // ── Discovery scope sub-object ─────────────────────────────────────────
+            // useJobsQueue filters via .contains('raw_data', { discovery: { search_query } })
+            // This wrapper MUST be present or the frontend scope filter returns 0 results.
+            discovery: {
+                search_query: rawQuery,
+                ...(location ? { location } : {}),
+                mode: 'firecrawl_kafka',
+            },
+            // ── Preserved legacy top-level fields ─────────────────────────────────
             search_query: rawQuery,
             search_location: location,
             category: item.category,
