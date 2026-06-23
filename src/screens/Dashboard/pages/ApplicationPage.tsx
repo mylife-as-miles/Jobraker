@@ -1199,7 +1199,7 @@ function ApplicationPage() {
           >
             {APPLICATION_STATUS_FILTERS.map((s) => {
               const color =
-                s === "All" ? "#ffffff" : getApplicationStatusColor(s);
+                s === "All" ? "#558eff" : getApplicationStatusColor(s);
               const isActive = selectedStatus === s;
 
               return (
@@ -1246,7 +1246,7 @@ function ApplicationPage() {
         {initialLoading ? (
           <ApplicationPageSkeleton viewMode={viewMode} />
         ) : applications.length === 0 ? (
-          <div className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(29,255,0,0.1)]'>
+          <div className='relative mb-20 overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(29,255,0,0.1)]'>
             {/* Ambient glow */}
             <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 bg-[#1dff00]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
 
@@ -1276,7 +1276,7 @@ function ApplicationPage() {
             </div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-background to-background rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(29,255,0,0.1)]'>
+          <div className='relative mb-20 overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-background to-background rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(29,255,0,0.1)]'>
             {/* Ambient glow */}
             <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 bg-[#1dff00]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
 

@@ -198,10 +198,10 @@ export const CoverLetterHomePage = () => {
 
           <Button
             onClick={handleCreateNew}
-            className='bg-brand text-black hover:bg-brand/90 gap-2 font-semibold'
+            className='bg-brand text-black hover:bg-brand/90 gap-2'
           >
             <Plus className='w-4 h-4' />
-            Create New
+            Create
           </Button>
         </div>
       </div>
