@@ -2,6 +2,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { discoverJobsFirecrawl, type PublicJobSource } from "../_shared/discovery-hybrid.ts";
 import { persistDiscoveredJobs, settleJobSearchRunCredits } from "../_shared/jobs.ts";
 import { syncFirecrawlCreditUsage } from "../_shared/provider-credits.ts";
+import { normalizeSearchScope } from "../_shared/search-normalization.ts";
 import {
   requireAuthenticatedUser,
   resolveJobSearchExecutionLimits,
@@ -103,9 +104,9 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const searchQuery = String(body?.searchQuery || body?.query || "").trim();
-    const rawLocation = String(body?.location || "Remote").trim() || "Remote";
-    const locationScope = (["city", "country", "global"] as const).includes(body?.locationScope)
-      ? (body.locationScope as "city" | "country" | "global")
+    const rawLocation = String(body?.location || "").trim();
+    const locationScope = (["city", "country", "global", "remote"] as const).includes(body?.locationScope)
+      ? (body.locationScope as "city" | "country" | "global" | "remote")
       : "city";
     const sourceFocus = parsePublicSources(
       body?.sources ?? body?.sourceFocus ?? body?.publicSources,
@@ -116,25 +117,17 @@ Deno.serve(async (req) => {
       ...(Array.isArray(body?.careerSourceUrls) ? body.careerSourceUrls : []),
     ]);
 
-    // Resolve effective location based on scope
-    let location = rawLocation;
-    if (locationScope === "global") {
-      location = "Remote";
-    } else if (locationScope === "country") {
-      // Extract country from the location string
-      const lower = rawLocation.toLowerCase();
-      const countryMap: Record<string, string> = {
-        nigeria: "Nigeria", "united states": "United States", usa: "United States",
-        "united kingdom": "United Kingdom", uk: "United Kingdom", canada: "Canada",
-        germany: "Germany", india: "India", australia: "Australia",
-      };
-      let resolved: string | null = null;
-      for (const [key, name] of Object.entries(countryMap)) {
-        if (lower.includes(key)) { resolved = name; break; }
-      }
-      if (resolved) location = resolved;
-      // If no country detected, keep the original location (best effort)
-    }
+    // ── Canonical search scope normalization ──────────────────────────────────
+    // Replace inline ad-hoc country resolution with the shared normalizer.
+    // This produces a stable fingerprint and structured location metadata.
+    const canonicalScope = await normalizeSearchScope(
+      searchQuery,
+      rawLocation,
+      locationScope,
+    );
+
+    // The effective search location string sent to discovery tools
+    const location = canonicalScope.location.displayName ?? rawLocation || "Remote";
 
     const requestedLimit = Number.isFinite(Number(body?.limit))
       ? Math.max(1, Math.floor(Number(body.limit)))
@@ -184,10 +177,14 @@ Deno.serve(async (req) => {
         p_idempotency_key: idempotencyKey,
         p_metadata: {
           searchQuery,
+          normalizedQuery: canonicalScope.normalizedQuery,
+          locationScope: canonicalScope.location.scope,
+          locationKey: canonicalScope.location.locationKey,
           location,
+          fingerprint: canonicalScope.fingerprint,
           requestedLimit,
-          effectiveLimit
-        }
+          effectiveLimit,
+        },
       }
     );
 
@@ -208,6 +205,34 @@ Deno.serve(async (req) => {
     }
 
     const agentRunId = reserve.agent_run_id as string;
+    const holdId = (reserve.hold_id as string | undefined) ?? null;
+
+    // ── Persist canonical search run record ───────────────────────────────────
+    // Written immediately after successful reservation so the run is always
+    // visible — even if the background task dispatch fails.
+    try {
+      await serviceClient.rpc("insert_job_search_run", {
+        p_agent_run_id:       agentRunId,
+        p_user_id:            user.id,
+        p_original_query:     searchQuery,
+        p_raw_location:       rawLocation,
+        p_normalized_query:   canonicalScope.normalizedQuery,
+        p_location_scope:     canonicalScope.location.scope,
+        p_location_key:       canonicalScope.location.locationKey,
+        p_country_code:       canonicalScope.location.countryCode,
+        p_city:               canonicalScope.location.city,
+        p_display_location:   canonicalScope.location.displayName,
+        p_search_fingerprint: canonicalScope.fingerprint,
+        p_hold_id:            holdId,
+        p_estimated_credits:  JOB_SEARCH_RUN_COST,
+      });
+    } catch (runInsertError) {
+      // Non-fatal: log and continue — settlement will still work via legacy path.
+      console.warn("[jobs-search] Failed to insert job_search_run record", {
+        agentRunId,
+        error: runInsertError,
+      });
+    }
     const searchStartedAt = new Date().toISOString();
 
     const isAsync = body?.async === true;
@@ -287,6 +312,19 @@ Deno.serve(async (req) => {
           taskId: task.id,
           agent_run_id: agentRunId,
           searchStartedAt,
+          // V2: canonical search scope for frontend to save — used to fetch
+          // results by agentRunId instead of re-matching raw query strings.
+          canonicalSearch: {
+            normalizedQuery:  canonicalScope.normalizedQuery,
+            locationScope:    canonicalScope.location.scope,
+            locationKey:      canonicalScope.location.locationKey,
+            locationName:     canonicalScope.location.displayName,
+            fingerprint:      canonicalScope.fingerprint,
+          },
+          creditReservation: {
+            holdId,
+            reservedCredits: JOB_SEARCH_RUN_COST,
+          },
         }),
         {
           status: 202,
@@ -335,6 +373,8 @@ Deno.serve(async (req) => {
               requestedLimit,
               effectiveLimit,
               subscriptionTier,
+              // V2: link discovered jobs to this agent run
+              agentRunId,
             },
           );
           totalInserted += batchInserted;
@@ -352,6 +392,9 @@ Deno.serve(async (req) => {
 
     const jobsInserted = totalInserted;
 
+    // V2: unique key for idempotent settlement via settle_search_run_v2
+    const settlementIdempotencyKey = `settle:${agentRunId}:${Date.now()}`;
+
     const { displayableJobCount, creditsCharged, currentBalance } = await settleJobSearchRunCredits(
       serviceClient,
       {
@@ -365,6 +408,7 @@ Deno.serve(async (req) => {
         failureReason,
         jobsInserted,
         jobsDiscovered: discoveredJobs.length,
+        settlementIdempotencyKey,
       },
     );
 

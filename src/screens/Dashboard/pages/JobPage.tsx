@@ -44,6 +44,8 @@ import {
   jobsQueueKeys,
   useJobsQueue,
   type JobsQueueScope,
+  type RunResultRow,
+  runResultRowToJobsRow,
 } from "../../../hooks/useJobsQueue";
 import { useResumes } from "../../../hooks/useResumes";
 import { Card } from "../../../components/ui/card";
@@ -2368,42 +2370,62 @@ export const JobPage = (): JSX.Element => {
           return [];
         }
 
-        let queryBuilder = supabase
-          .from("jobs")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("hidden", false)
-          .in("canonical_status", VISIBLE_JOB_QUEUE_STATES);
+        const fetchLegacy = async () => {
+          let queryBuilder = supabase
+            .from("jobs")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("hidden", false)
+            .in("canonical_status", VISIBLE_JOB_QUEUE_STATES);
 
-        const scopedSearchQuery = scope?.searchQuery?.trim();
-        const scopedLocation = scope?.location?.trim();
-        if (scopedSearchQuery) {
-          const discoveryScope: Record<string, string> = {
-            search_query: scopedSearchQuery,
-          };
-          if (scopedLocation) {
-            discoveryScope.location = scopedLocation;
+          const scopedSearchQuery = scope?.searchQuery?.trim();
+          const scopedLocation = scope?.location?.trim();
+          if (scopedSearchQuery) {
+            const discoveryScope: Record<string, string> = {
+              search_query: scopedSearchQuery,
+            };
+            if (scopedLocation) {
+              discoveryScope.location = scopedLocation;
+            }
+
+            queryBuilder = queryBuilder
+              .contains("raw_data", { discovery: discoveryScope })
+              .order("discovered_at", { ascending: false })
+              .order("created_at", { ascending: false });
+
+            if (scope?.startedAt) {
+              queryBuilder = queryBuilder.gte("discovered_at", scope.startedAt);
+            }
+          } else {
+            queryBuilder = queryBuilder.order("created_at", { ascending: false });
           }
 
-          queryBuilder = queryBuilder
-            .contains("raw_data", { discovery: discoveryScope })
-            .order("discovered_at", { ascending: false })
-            .order("created_at", { ascending: false });
+          const { data, error: fetchError } = await queryBuilder;
+          if (fetchError) throw fetchError;
+          return data || [];
+        };
 
-          if (scope?.startedAt) {
-            queryBuilder = queryBuilder.gte("discovered_at", scope.startedAt);
+        let rawRows: any[];
+        if (scope?.agentRunId) {
+          try {
+            const { data: runResults, error: rpcError } = await supabase.rpc(
+              "get_job_search_results_for_run",
+              { p_agent_run_id: scope.agentRunId },
+            );
+            if (rpcError) throw rpcError;
+            rawRows = ((runResults as RunResultRow[] | null) ?? []).map(runResultRowToJobsRow);
+          } catch (rpcErr) {
+            console.warn(
+              "[fetchJobQueue] V2 RPC failed, falling back to legacy query",
+              { agentRunId: scope.agentRunId, error: rpcErr },
+            );
+            rawRows = await fetchLegacy();
           }
-
-
         } else {
-          queryBuilder = queryBuilder.order("created_at", { ascending: false });
+          rawRows = await fetchLegacy();
         }
 
-        const { data, error: fetchError } = await queryBuilder;
-
-        if (fetchError) throw fetchError;
-
-        const jobList = (data || []).map(mapDbJobToUiJob);
+        const jobList = rawRows.map(mapDbJobToUiJob);
         const decorated = await decorateJobsRef.current(jobList);
         setJobs(decorated);
 
@@ -2598,6 +2620,7 @@ export const JobPage = (): JSX.Element => {
               searchData.searchStartedAt.trim()
                 ? searchData.searchStartedAt
                 : currentSearchScope.startedAt,
+            agentRunId: searchData?.agent_run_id ?? null,
           };
           activeSearchScopeRef.current = scopedSearch;
           setActiveSearchScope(scopedSearch);

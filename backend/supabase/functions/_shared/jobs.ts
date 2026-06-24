@@ -153,6 +153,8 @@ interface PersistDiscoveryOptions {
   requestedLimit?: number | null;
   effectiveLimit?: number | null;
   subscriptionTier?: string | null;
+  /** V2: agent run ID to link results to job_search_results table */
+  agentRunId?: string | null;
 }
 
 const toRecord = (value: unknown): Record<string, unknown> =>
@@ -189,49 +191,23 @@ export async function persistDiscoveredJobs(
     })
   );
 
-  const rows = formattedJobs.map((job) => {
-    const rawData = toRecord(job.raw_data);
-    const discovery = toRecord(rawData.discovery);
-    const baseLeadQuality = scoreDiscoveredJobQuality(job, {
-      searchQuery: options.searchQuery,
-    });
-    const feedbackLearningAdjustment = scoreFeedbackLearningAdjustment(
-      job,
-      feedbackLearningProfile,
-    );
-    const leadQuality = applyFeedbackLearningToQuality(
-      baseLeadQuality,
-      feedbackLearningAdjustment,
-    );
+  const results = await Promise.all(
+    formattedJobs.map(async (job) => {
+      const rawData = toRecord(job.raw_data);
+      const discovery = toRecord(rawData.discovery);
+      const baseLeadQuality = scoreDiscoveredJobQuality(job, {
+        searchQuery: options.searchQuery,
+      });
+      const feedbackLearningAdjustment = scoreFeedbackLearningAdjustment(
+        job,
+        feedbackLearningProfile,
+      );
+      const leadQuality = applyFeedbackLearningToQuality(
+        baseLeadQuality,
+        feedbackLearningAdjustment,
+      );
 
-    return {
-      user_id: options.userId,
-      source_type: job.source_type,
-      source_id: job.source_id,
-      title: job.title,
-      company: job.company,
-      location: job.location,
-      apply_url: job.url,
-      status: "active",
-      canonical_status: "discovered",
-      verification_status: job.verification_status,
-      source_kind: job.source_kind,
-      source_confidence: job.source_confidence,
-      lead_quality_score: leadQuality.score,
-      lead_quality_reason: leadQuality.reason,
-      lead_quality_tags: leadQuality.tags,
-      is_tracked_company: job.is_tracked_company,
-      discovered_at: nowIso,
-      last_verified_at: nowIso,
-      description: job.description,
-      posted_at: job.posted_at,
-      salary_min: asNumberOrNull(job.salary_min),
-      salary_max: asNumberOrNull(job.salary_max),
-      salary_currency:
-        typeof job.salary_currency === "string" && job.salary_currency.trim()
-          ? job.salary_currency.trim().toUpperCase()
-          : null,
-      raw_data: {
+      const computedRawData = {
         ...rawData,
         discovery: {
           ...discovery,
@@ -251,120 +227,142 @@ export async function persistDiscoveredJobs(
           effective_limit: options.effectiveLimit ?? null,
           subscription_tier: options.subscriptionTier ?? null,
         },
-      },
+      };
+
+      const experienceLevel = typeof job.raw_data?.experience_level === "string"
+        ? job.raw_data.experience_level
+        : null;
+
+      const tags = Array.isArray(job.raw_data?.tags)
+        ? job.raw_data.tags.filter((t): t is string => typeof t === "string")
+        : null;
+
+      const { data, error } = await serviceClient.rpc("upsert_job_from_discovery", {
+        p_user_id: options.userId,
+        p_source_type: job.source_type,
+        p_source_id: job.source_id,
+        p_title: job.title,
+        p_company: job.company,
+        p_description: job.description,
+        p_location: job.location,
+        p_apply_url: job.url,
+        p_salary_min: asNumberOrNull(job.salary_min),
+        p_salary_max: asNumberOrNull(job.salary_max),
+        p_salary_currency:
+          typeof job.salary_currency === "string" && job.salary_currency.trim()
+            ? job.salary_currency.trim().toUpperCase()
+            : null,
+        p_experience_level: experienceLevel,
+        p_tags: tags,
+        p_raw_data: computedRawData,
+        p_lead_quality_score: leadQuality.score,
+        p_lead_quality_reason: leadQuality.reason,
+        p_lead_quality_tags: leadQuality.tags,
+        p_source_kind: job.source_kind,
+        p_source_confidence: job.source_confidence,
+        p_verification_status: job.verification_status,
+        p_is_tracked_company: job.is_tracked_company,
+      });
+
+      if (error) {
+        console.error("[persistDiscoveredJobs] upsert rpc failed", error);
+        throw error;
+      }
+
+      const rpcResult = (data as Array<{ job_id: string; is_new_to_user: boolean }> | null)?.[0];
+      if (!rpcResult) {
+        throw new Error("[persistDiscoveredJobs] upsert rpc returned no data");
+      }
+
+      return {
+        job_id: rpcResult.job_id,
+        is_new_to_user: rpcResult.is_new_to_user,
+        job,
+      };
+    })
+  );
+
+  const insertedIds = results.map(r => r.job_id);
+
+  // ── V2: Insert job_search_results rows ─────────────────────────────────────
+  // Link each job to the agent run with billing eligibility flags.
+  if (options.agentRunId) {
+    const agentRunId = options.agentRunId;
+
+    const resultInserts = results.map((res, idx) => ({
+      p_agent_run_id:    agentRunId,
+      p_user_id:         options.userId,
+      p_job_id:          res.job_id,
+      p_rank:            idx + 1,
+      p_displayable:     true,
+      // Only charge for jobs that are genuinely new to this user
+      p_is_new_to_user:  res.is_new_to_user,
+      // Billable = displayable AND new AND has an apply URL
+      p_billable:        res.is_new_to_user && Boolean(res.job.url),
+      p_duplicate_reason: res.is_new_to_user
+        ? null
+        : "previously_seen_by_user",
+    }));
+
+    // Insert in batches of 25 to avoid RPC payload limits
+    for (let i = 0; i < resultInserts.length; i += 25) {
+      const batch = resultInserts.slice(i, i + 25);
+      await Promise.all(
+        batch.map((params) =>
+          serviceClient.rpc("insert_job_search_result", params).then(
+            ({ error }: { error: unknown }) => {
+              if (error) {
+                // Non-fatal: log and continue so billing settlement still works
+                console.warn("[persistDiscoveredJobs] Failed to insert job_search_result", {
+                  jobId: params.p_job_id,
+                  agentRunId,
+                  error,
+                });
+              }
+            }
+          )
+        )
+      );
+    }
+  }
+
+  // Map to the format expected by the caller (JobRowInput[])
+  const rows = results.map((res) => {
+    return {
+      id: res.job_id,
+      user_id: options.userId,
+      source_type: res.job.source_type,
+      source_id: res.job.source_id,
+      title: res.job.title,
+      company: res.job.company,
+      location: res.job.location,
+      apply_url: res.job.url,
+      status: "active",
+      canonical_status: "discovered",
+      verification_status: res.job.verification_status,
+      source_kind: res.job.source_kind,
+      source_confidence: res.job.source_confidence,
+      lead_quality_score: res.job.raw_data?.discovery?.lead_quality_score,
+      lead_quality_reason: res.job.raw_data?.discovery?.lead_quality_reason,
+      lead_quality_tags: res.job.raw_data?.discovery?.lead_quality_tags,
+      is_tracked_company: res.job.is_tracked_company,
+      discovered_at: nowIso,
+      last_verified_at: nowIso,
+      description: res.job.description,
+      posted_at: res.job.posted_at,
+      salary_min: asNumberOrNull(res.job.salary_min),
+      salary_max: asNumberOrNull(res.job.salary_max),
+      salary_currency:
+        typeof res.job.salary_currency === "string" && res.job.salary_currency.trim()
+          ? res.job.salary_currency.trim().toUpperCase()
+          : null,
+      raw_data: res.job.raw_data,
     } satisfies JobRowInput;
   });
 
-  const rowsWithIds = await attachExistingJobIdsBySourceId(
-    serviceClient,
-    options.userId,
-    rows,
-  );
-
-  // ── Protected upsert: never overwrite a terminal application status ──────
-  // Statuses set by user actions (or sourced from Gmail/auto-apply) must not
-  // be clobbered when a discovery run re-encounters the same job.
-  const PROTECTED_STATUSES = new Set([
-    "applied",
-    "submitted",
-    "interview",
-    "rejected",
-    "offer",
-    "archived",
-  ]);
-
-  // Split rows: new jobs (no pre-existing id in DB) vs existing jobs
-  const existingSourceIds = new Set(
-    rowsWithIds
-      .filter((r) => r.source_id != null)
-      .map((r) => r.source_id as string),
-  );
-
-  // We already have the existing DB rows from attachExistingJobIdsBySourceId —
-  // re-fetch canonical_status for those rows so we can gate the update.
-  const { data: existingStatuses, error: statusFetchError } =
-    await serviceClient
-      .from("jobs")
-      .select("id, source_id, canonical_status")
-      .eq("user_id", options.userId)
-      .in("source_id", Array.from(existingSourceIds));
-
-  if (statusFetchError) {
-    throw statusFetchError;
-  }
-
-  const statusBySourceId = new Map<string, string>(
-    (existingStatuses ?? []).map((r: { source_id: string; canonical_status: string }) => [
-      r.source_id,
-      r.canonical_status,
-    ]),
-  );
-
-  // Partition
-  const newRows = rowsWithIds.filter(
-    (r) =>
-      !r.source_id || !statusBySourceId.has(r.source_id as string),
-  );
-  const existingRows = rowsWithIds.filter(
-    (r) =>
-      r.source_id && statusBySourceId.has(r.source_id as string),
-  );
-
-  const insertedIds: string[] = [];
-
-  // 1. Insert brand-new rows (no conflict risk — they don't exist yet)
-  if (newRows.length > 0) {
-    const { data: insertData, error: insertError } = await serviceClient
-      .from("jobs")
-      .upsert(newRows, { onConflict: "user_id,source_type,source_id" })
-      .select("id");
-
-    if (insertError) throw insertError;
-    insertedIds.push(...(insertData ?? []).map((r: { id: string }) => r.id));
-  }
-
-  // 2. Update existing rows — only overwrite safe fields; never touch canonical_status
-  //    when the current status is a protected terminal state.
-  for (const row of existingRows) {
-    const currentStatus = statusBySourceId.get(row.source_id as string) ?? "";
-    const isProtected = PROTECTED_STATUSES.has(currentStatus.toLowerCase());
-
-    // Fields safe to refresh from discovery data regardless of status
-    const safeUpdate: Record<string, unknown> = {
-      title: row.title,
-      company: row.company,
-      location: row.location,
-      description: row.description,
-      apply_url: row.apply_url,
-      salary_min: row.salary_min,
-      salary_max: row.salary_max,
-      salary_currency: row.salary_currency,
-      lead_quality_score: row.lead_quality_score,
-      lead_quality_reason: row.lead_quality_reason,
-      lead_quality_tags: row.lead_quality_tags,
-      last_verified_at: row.last_verified_at,
-      raw_data: row.raw_data,
-    };
-
-    // Only update canonical_status when the existing status is NOT protected
-    if (!isProtected) {
-      safeUpdate.canonical_status = row.canonical_status;
-      safeUpdate.status = row.status;
-    }
-
-    const { data: updateData, error: updateError } = await serviceClient
-      .from("jobs")
-      .update(safeUpdate)
-      .eq("id", row.id)
-      .select("id");
-
-    if (updateError) throw updateError;
-    insertedIds.push(...(updateData ?? []).map((r: { id: string }) => r.id));
-  }
-
   return {
     jobsInserted: insertedIds.length,
-    rows: rowsWithIds,
+    rows,
   };
 }
 
@@ -441,6 +439,8 @@ export async function settleJobSearchRunCredits(
     failureReason?: string;
     jobsInserted?: number;
     jobsDiscovered?: number;
+    /** V2: settlement idempotency key — when provided, calls settle_search_run_v2 */
+    settlementIdempotencyKey?: string;
   },
 ): Promise<{ displayableJobCount: number; creditsCharged: number; currentBalance?: number }> {
   const displayableJobCount = options.searchFailed
@@ -456,6 +456,43 @@ export async function settleJobSearchRunCredits(
     ? 0
     : resolveJobSearchCreditsToCharge(displayableJobCount, options.maxCredits);
 
+  // ── V2 settlement path ────────────────────────────────────────────────────
+  // When a settlementIdempotencyKey is provided the database RPC
+  // settle_search_run_v2 calculates the actual cost itself by counting rows
+  // from job_search_results. This is more accurate than countDisplayableJobsForSearch.
+  if (options.settlementIdempotencyKey) {
+    const { data: v2Raw, error: v2Error } = await serviceClient.rpc(
+      "settle_search_run_v2",
+      {
+        p_agent_run_id:               options.agentRunId,
+        p_settlement_idempotency_key: options.settlementIdempotencyKey,
+        p_status:                     options.searchFailed ? "failed" : "completed",
+        p_metadata: {
+          jobs_inserted:   options.jobsInserted ?? null,
+          jobs_discovered: options.jobsDiscovered ?? null,
+          failure_reason:  options.failureReason ?? null,
+        },
+      }
+    );
+
+    if (v2Error) {
+      console.error("[settleJobSearchRunCredits] V2 settlement failed", v2Error);
+      // Fall through to legacy path below
+    } else {
+      const v2Data = v2Raw as Record<string, unknown> | null;
+      const v2Cost = typeof v2Data?.actual_cost === "number" ? v2Data.actual_cost : creditsCharged;
+      const v2Count = typeof v2Data?.billable_results === "number"
+        ? v2Data.billable_results
+        : displayableJobCount;
+      return {
+        displayableJobCount: v2Count,
+        creditsCharged: v2Cost,
+        currentBalance: undefined,
+      };
+    }
+  }
+
+  // ── Legacy settlement path (fallback) ────────────────────────────────────
   const { data: settleRaw, error: settleError } = await serviceClient.rpc("settle_run_credits", {
     p_agent_run_id: options.agentRunId,
     p_actual_credits: creditsCharged,
