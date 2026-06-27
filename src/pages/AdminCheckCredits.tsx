@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { createClient } from "@/lib/supabaseClient";
 import { ShieldAlert } from "lucide-react";
 import { formatCreditEntry } from "@/lib/creditFormatting";
+import { CreditService } from "@/services/creditService";
 
 /**
  * Admin utility to check user credits by email
@@ -64,12 +65,9 @@ export default function AdminCheckCredits() {
 
       const userId = profileData.id;
 
-      // Get credits
-      const { data: creditsData, error: creditsError } = await supabase
-        .from("user_credits")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
+      // Get V2-first credits
+      const balance = await CreditService.getCreditBalance(userId);
+      const v2Balance = balance?.v2;
 
       // Get subscription
       const { data: subData, error: subError } = await supabase
@@ -87,23 +85,19 @@ export default function AdminCheckCredits() {
         .limit(1)
         .maybeSingle();
 
-      // Get recent transactions
-      const { data: transactions, error: txError } = await supabase
-        .from("credit_transactions")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(10);
+      // Get recent transactions via V2-first service
+      const transactions = await CreditService.getCreditHistory(userId, 10);
 
       setResult({
         user: profileData,
-        credits: creditsData,
+        credits: balance,
+        v2Credits: v2Balance,
         subscription: subData,
         transactions: transactions || [],
         errors: {
-          creditsError: creditsError?.message,
+          creditsError: balance ? null : "Failed to fetch credit balance",
           subError: subError?.message,
-          txError: txError?.message,
+          txError: transactions ? null : "Failed to fetch transaction history",
         },
       });
     } catch (err: any) {
@@ -210,41 +204,52 @@ export default function AdminCheckCredits() {
 
             {/* Credits */}
             <div className='bg-gray-800 rounded-lg p-6'>
-              <h2 className='text-xl font-bold text-white mb-4'>
-                Credit Balance
-              </h2>
+              <div className='flex items-center justify-between mb-4'>
+                <h2 className='text-xl font-bold text-white'>
+                  Credit Balance
+                </h2>
+                {result.v2Credits && (
+                  <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                    result.v2Credits.source === 'v2' 
+                      ? 'bg-blue-900/40 text-blue-400 border border-blue-500/30' 
+                      : 'bg-yellow-900/40 text-yellow-400 border border-yellow-500/30'
+                  }`}>
+                    Source: {result.v2Credits.source.toUpperCase()}
+                  </span>
+                )}
+              </div>
               {result.credits ? (
-                <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+                <div className={`grid grid-cols-2 ${result.v2Credits ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4`}>
                   <div className='bg-gray-700 rounded p-4'>
-                    <p className='text-gray-400 text-sm'>Current Balance</p>
+                    <p className='text-gray-400 text-sm'>Available (Spendable)</p>
                     <p className='text-3xl font-bold text-green-400'>
-                      {result.credits.balance}
+                      {result.v2Credits ? result.v2Credits.available : result.credits.balance}
+                    </p>
+                  </div>
+                  {result.v2Credits && (
+                    <div className='bg-gray-700 rounded p-4'>
+                      <p className='text-gray-400 text-sm'>Reserved (Holds)</p>
+                      <p className='text-3xl font-bold text-yellow-400'>
+                        {result.v2Credits.reserved}
+                      </p>
+                    </div>
+                  )}
+                  <div className='bg-gray-700 rounded p-4'>
+                    <p className='text-gray-400 text-sm'>Total Balance</p>
+                    <p className='text-3xl font-bold text-blue-400'>
+                      {result.v2Credits ? result.v2Credits.total : result.credits.balance}
                     </p>
                   </div>
                   <div className='bg-gray-700 rounded p-4'>
                     <p className='text-gray-400 text-sm'>Total Earned</p>
-                    <p className='text-2xl font-bold text-blue-400'>
-                      {result.credits.lifetime_earned ??
-                        result.credits.total_earned ??
-                        0}
+                    <p className='text-2xl font-bold text-gray-300'>
+                      {result.credits.totalEarned ?? 0}
                     </p>
                   </div>
                   <div className='bg-gray-700 rounded p-4'>
                     <p className='text-gray-400 text-sm'>Total Consumed</p>
                     <p className='text-2xl font-bold text-brand'>
-                      {result.credits.lifetime_spent ??
-                        result.credits.total_consumed ??
-                        0}
-                    </p>
-                  </div>
-                  <div className='bg-gray-700 rounded p-4'>
-                    <p className='text-gray-400 text-sm'>Last Updated</p>
-                    <p className='text-sm text-gray-300'>
-                      {result.credits.updated_at
-                        ? new Date(
-                            result.credits.updated_at,
-                          ).toLocaleDateString()
-                        : "—"}
+                      {result.credits.totalConsumed ?? 0}
                     </p>
                   </div>
                 </div>
@@ -309,7 +314,7 @@ export default function AdminCheckCredits() {
                         return (
                           <tr key={tx.id} className='border-b border-gray-700'>
                             <td className='py-2'>
-                              {new Date(tx.created_at).toLocaleString()}
+                              {new Date(tx.createdAt || tx.created_at).toLocaleString()}
                             </td>
                             <td className='py-2'>
                               <span
@@ -335,7 +340,7 @@ export default function AdminCheckCredits() {
                             </td>
                             <td className='py-2'>{tx.description}</td>
                             <td className='py-2 text-right font-bold'>
-                              {tx.balance_after}
+                              {tx.balanceAfter ?? tx.balance_after}
                             </td>
                           </tr>
                         );

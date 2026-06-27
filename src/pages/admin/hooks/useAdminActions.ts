@@ -52,6 +52,39 @@ export function useAdminActions() {
         console.warn('Transaction log failed (credits still updated):', txError);
       }
 
+      // Best-effort V2 dual-write to credit_balances
+      try {
+        const { data: v2Bal } = await supabase
+          .from('credit_balances')
+          .select('available, lifetime_earned')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (v2Bal) {
+          await supabase
+            .from('credit_balances')
+            .update({
+              available: (v2Bal.available ?? 0) + amount,
+              lifetime_earned: (v2Bal.lifetime_earned ?? 0) + amount,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', userId);
+        } else {
+          await supabase
+            .from('credit_balances')
+            .insert({
+              user_id: userId,
+              available: amount,
+              reserved: 0,
+              lifetime_earned: amount,
+              lifetime_spent: 0,
+              updated_at: new Date().toISOString()
+            });
+        }
+      } catch (v2Err) {
+        console.warn('V2 dual-write for top-up failed (non-fatal):', v2Err);
+      }
+
       success(`Successfully added ${amount} credits. New balance: ${newBalance}`);
       return { success: true, newBalance };
     } catch (err: any) {

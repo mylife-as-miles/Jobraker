@@ -351,52 +351,129 @@ GRANT SELECT ON public.v_credit_balance TO authenticated, service_role;
 -- Unified transaction history view that merges V2 ledger entries with legacy
 -- credit_transactions, ordered by time, deduplicating via legacy_tx_id.
 -- Frontend credit history pages query this view.
+-- Dynamically checks if public.credit_transactions has "type", "transaction_type",
+-- "balance_before", "reference_type", "reference_id", "agent_run_id", or "metadata"
+-- columns to prevent database schema mismatch errors.
 
-CREATE OR REPLACE VIEW public.v_credit_history AS
--- V2 ledger entries (authoritative when present)
-SELECT
-    le.id,
-    le.user_id,
-    le.entry_type                                   AS tx_type,
-    le.amount,
-    le.available_before                             AS balance_before,
-    le.available_after                              AS balance_after,
-    le.description,
-    le.reference_type,
-    le.reference_id,
-    le.agent_run_id,
-    le.hold_id,
-    le.metadata,
-    le.created_at,
-    'v2'                                            AS source,
-    le.legacy_tx_id                                 AS linked_legacy_id
-FROM public.credit_ledger_entries le
+DO $$
+DECLARE
+    v_type_col text;
+    v_bal_before_col text;
+    v_ref_type_col text;
+    v_ref_id_col text;
+    v_agent_run_id_col text;
+    v_metadata_col text;
+BEGIN
+    -- Check type vs transaction_type
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'type'
+    ) THEN
+        v_type_col := 'ct.type';
+    ELSE
+        v_type_col := 'ct.transaction_type';
+    END IF;
 
-UNION ALL
+    -- Check balance_before
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'balance_before'
+    ) THEN
+        v_bal_before_col := 'ct.balance_before';
+    ELSE
+        v_bal_before_col := 'NULL::integer';
+    END IF;
 
--- Legacy transactions NOT already covered by a V2 entry
-SELECT
-    ct.id,
-    ct.user_id,
-    COALESCE(ct.type, 'unknown')                    AS tx_type,
-    ABS(ct.amount)                                  AS amount,
-    ct.balance_before,
-    ct.balance_after,
-    ct.description,
-    ct.reference_type,
-    ct.reference_id,
-    ct.agent_run_id,
-    NULL::uuid                                      AS hold_id,
-    COALESCE(ct.metadata, '{}'::jsonb)              AS metadata,
-    ct.created_at,
-    'legacy'                                        AS source,
-    NULL::uuid                                      AS linked_legacy_id
-FROM public.credit_transactions ct
-WHERE NOT EXISTS (
-    -- Exclude any legacy row that is already linked to a V2 ledger entry
-    SELECT 1 FROM public.credit_ledger_entries le2
-    WHERE le2.legacy_tx_id = ct.id
-);
+    -- Check reference_type
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'reference_type'
+    ) THEN
+        v_ref_type_col := 'ct.reference_type';
+    ELSE
+        v_ref_type_col := 'NULL::text';
+    END IF;
+
+    -- Check reference_id
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'reference_id'
+    ) THEN
+        v_ref_id_col := 'ct.reference_id';
+    ELSE
+        v_ref_id_col := 'NULL::uuid';
+    END IF;
+
+    -- Check agent_run_id
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'agent_run_id'
+    ) THEN
+        v_agent_run_id_col := 'ct.agent_run_id';
+    ELSE
+        v_agent_run_id_col := 'NULL::uuid';
+    END IF;
+
+    -- Check metadata
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'metadata'
+    ) THEN
+        v_metadata_col := 'COALESCE(ct.metadata, ''{}''::jsonb)';
+    ELSE
+        v_metadata_col := '''{}''::jsonb';
+    END IF;
+
+    -- Create or replace the view using dynamic SQL
+    EXECUTE format('
+        CREATE OR REPLACE VIEW public.v_credit_history AS
+        -- V2 ledger entries (authoritative when present)
+        SELECT
+            le.id,
+            le.user_id,
+            le.entry_type                                   AS tx_type,
+            le.amount,
+            le.available_before                             AS balance_before,
+            le.available_after                              AS balance_after,
+            le.description,
+            le.reference_type,
+            le.reference_id,
+            le.agent_run_id,
+            le.hold_id,
+            le.metadata,
+            le.created_at,
+            ''v2''                                            AS source,
+            le.legacy_tx_id                                 AS linked_legacy_id
+        FROM public.credit_ledger_entries le
+
+        UNION ALL
+
+        -- Legacy transactions NOT already covered by a V2 entry
+        SELECT
+            ct.id,
+            ct.user_id,
+            COALESCE(%s, ''unknown'')                    AS tx_type,
+            ABS(ct.amount)                                  AS amount,
+            %s                                              AS balance_before,
+            ct.balance_after,
+            ct.description,
+            %s                                              AS reference_type,
+            %s                                              AS reference_id,
+            %s                                              AS agent_run_id,
+            NULL::uuid                                      AS hold_id,
+            %s                                              AS metadata,
+            ct.created_at,
+            ''legacy''                                        AS source,
+            NULL::uuid                                      AS linked_legacy_id
+        FROM public.credit_transactions ct
+        WHERE NOT EXISTS (
+            -- Exclude any legacy row that is already linked to a V2 ledger entry
+            SELECT 1 FROM public.credit_ledger_entries le2
+            WHERE le2.legacy_tx_id = ct.id
+        );
+    ', v_type_col, v_bal_before_col, v_ref_type_col, v_ref_id_col, v_agent_run_id_col, v_metadata_col);
+END $$;
+
 
 COMMENT ON VIEW public.v_credit_history IS
     'Merged credit history: V2 ledger entries unioned with legacy credit_transactions '
@@ -430,7 +507,9 @@ BEGIN
         COALESCE(uc.updated_at, now())                 AS created_at,
         now()                                          AS updated_at
     FROM public.user_credits uc
-    WHERE NOT EXISTS (
+    WHERE EXISTS (
+        SELECT 1 FROM auth.users u WHERE u.id = uc.user_id
+    ) AND NOT EXISTS (
         SELECT 1 FROM public.credit_balances cb
         WHERE cb.user_id = uc.user_id
     );
@@ -569,38 +648,4 @@ COMMENT ON FUNCTION public.get_v2_credit_history(uuid, integer, integer) IS
 GRANT EXECUTE ON FUNCTION public.get_v2_credit_history(uuid, integer, integer)
     TO authenticated, service_role;
 
--- ─── 13. Post-migration snapshot (idempotent) ─────────────────────────────────
--- Capture a post-backfill balance snapshot so we can verify zero drift later.
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM public.credit_balance_snapshots
-        WHERE snapshot_label = 'post_v2_seed_20260623'
-        LIMIT 1
-    ) THEN
-        INSERT INTO public.credit_balance_snapshots (
-            snapshot_label,
-            user_id,
-            balance,
-            lifetime_earned,
-            lifetime_spent,
-            metadata
-        )
-        SELECT
-            'post_v2_seed_20260623',
-            cb.user_id,
-            cb.available,
-            cb.lifetime_earned,
-            cb.lifetime_spent,
-            jsonb_build_object('note', 'Captured after V2 credit_balances backfill')
-        FROM public.credit_balances cb;
-
-        RAISE NOTICE '[Phase 2] Post-seed snapshot written: % rows.',
-            (SELECT COUNT(*) FROM public.credit_balance_snapshots
-             WHERE snapshot_label = 'post_v2_seed_20260623');
-    ELSE
-        RAISE NOTICE '[Phase 2] Post-seed snapshot already exists — skipping.';
-    END IF;
-END;
-$$;

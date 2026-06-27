@@ -228,6 +228,7 @@ export default function AdminCredits() {
   });
   const [statsLoading, setStatsLoading] = useState(true);
   const [timeRange, setTimeRange] = useState(7);
+  const [isV2, setIsV2] = useState<boolean>(false);
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState("");
@@ -252,22 +253,39 @@ export default function AdminCredits() {
     try {
       setStatsLoading(true);
 
-      const { data: credits, error: creditsError } = await supabase
-        .from("user_credits")
-        .select("balance, lifetime_earned, lifetime_spent");
+      // Try V2 table first
+      let { data: credits, error: creditsError } = await supabase
+        .from("credit_balances")
+        .select("available, reserved, lifetime_earned, lifetime_spent");
 
-      if (creditsError) throw creditsError;
+      const hasV2Data = !creditsError && credits && credits.length > 0;
+      setIsV2(hasV2Data);
+
+      if (!hasV2Data) {
+        // Fallback to legacy user_credits
+        const { data: legacyCredits, error: legacyError } = await supabase
+          .from("user_credits")
+          .select("balance, lifetime_earned, lifetime_spent");
+
+        if (legacyError) throw legacyError;
+        credits = (legacyCredits || []).map((c: any) => ({
+          available: c.balance ?? 0,
+          reserved: 0,
+          lifetime_earned: c.lifetime_earned ?? 0,
+          lifetime_spent: c.lifetime_spent ?? 0,
+        }));
+      }
 
       const totalIssued = (credits || []).reduce(
-        (sum, c) => sum + (c.lifetime_earned || 0),
+        (sum, c) => sum + ((c as any).lifetime_earned || 0),
         0,
       );
       const totalConsumed = (credits || []).reduce(
-        (sum, c) => sum + (c.lifetime_spent || 0),
+        (sum, c) => sum + ((c as any).lifetime_spent || 0),
         0,
       );
       const totalAvailable = (credits || []).reduce(
-        (sum, c) => sum + (c.balance || 0),
+        (sum, c) => sum + (((c as any).available || 0) + ((c as any).reserved || 0)),
         0,
       );
       const avgPerUser =
@@ -389,11 +407,20 @@ export default function AdminCredits() {
   return (
     <div className='space-y-6'>
       {/* Header */}
-      <div>
-        <h1 className='text-3xl font-bold text-white mb-2'>
-          Credit Management
-        </h1>
-        <p className='text-gray-400'>Monitor credit issuance and consumption</p>
+      <div className='flex items-center justify-between'>
+        <div>
+          <h1 className='text-3xl font-bold text-white mb-2 flex items-center gap-3'>
+            Credit Management
+            <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
+              isV2 
+                ? 'bg-blue-900/40 text-blue-400 border border-blue-500/30' 
+                : 'bg-yellow-900/40 text-yellow-400 border border-yellow-500/30'
+            }`}>
+              {isV2 ? 'V2 LEDGER' : 'LEGACY SYSTEM'}
+            </span>
+          </h1>
+          <p className='text-gray-400'>Monitor credit issuance and consumption</p>
+        </div>
       </div>
 
       {/* Stats Cards */}

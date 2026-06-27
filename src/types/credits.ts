@@ -1,4 +1,7 @@
 // Credit system types for TypeScript
+
+// ─── Subscription ────────────────────────────────────────────────────────────
+
 export interface SubscriptionPlan {
   id: string;
   name: string;
@@ -38,6 +41,8 @@ export interface UserSubscription {
   plan?: SubscriptionPlan;
 }
 
+// ─── Legacy credit row (user_credits table) ───────────────────────────────────
+
 export interface UserCredits {
   id: string;
   userId: string;
@@ -49,10 +54,39 @@ export interface UserCredits {
   updatedAt: string;
 }
 
+// ─── Transaction types ────────────────────────────────────────────────────────
+
+/**
+ * All valid entry_type values across both V2 credit_ledger_entries and
+ * legacy credit_transactions.  The narrow legacy set is preserved as a
+ * subset so existing code that checks `type === 'earned'` etc. still compiles.
+ */
+export type CreditEntryType =
+  // V2 ledger entry types
+  | 'hold'
+  | 'capture'
+  | 'charge'
+  | 'grant'
+  | 'refund'
+  | 'expired_hold'
+  | 'reservation'
+  | 'adjustment'
+  | 'refill'
+  // Legacy / hotfix canonical types
+  | 'deduction'
+  | 'bonus'
+  | 'spent'
+  // Legacy original types (kept for read compatibility)
+  | 'earned'
+  | 'consumed'
+  | 'refunded'
+  | 'expired';
+
 export interface CreditTransaction {
   id: string;
   userId: string;
-  type: 'earned' | 'consumed' | 'refunded' | 'expired' | 'bonus';
+  /** Merged type field: covers both V2 entry_type and legacy transaction_type. */
+  type: CreditEntryType;
   amount: number;
   balanceBefore: number;
   balanceAfter: number;
@@ -63,6 +97,48 @@ export interface CreditTransaction {
   createdAt: string;
   agent_run_id?: string | null;
   agentRunId?: string | null;
+  /** 'v2' when row came from credit_ledger_entries; 'legacy' from credit_transactions */
+  source?: 'v2' | 'legacy';
+}
+
+// ─── V2 balance (credit_balances table / get_v2_credit_balance RPC) ───────────
+
+/**
+ * Authoritative V2 credit balance returned by get_v2_credit_balance().
+ * `source` indicates which table the data came from.
+ */
+export interface V2CreditBalance {
+  available: number;
+  reserved: number;
+  total: number;
+  lifetimeEarned: number;
+  lifetimeSpent: number;
+  /** 'v2' = data from credit_balances; 'legacy' = fallback from user_credits */
+  source: 'v2' | 'legacy' | 'none';
+  updatedAt: string | null;
+}
+
+// ─── Legacy balance shape (kept for backward compatibility) ───────────────────
+
+export interface CreditBalance {
+  /** Spendable credits (maps to V2 `available`). */
+  balance: number;
+  totalEarned: number;
+  totalConsumed: number;
+  lastResetAt: string | null;
+  /** Present when the balance was resolved from V2; absent when legacy-only. */
+  v2?: V2CreditBalance;
+}
+
+// ─── Feature usage / access ───────────────────────────────────────────────────
+
+export interface FeatureUsage {
+  featureType: string;
+  featureName: string;
+  cost: number;
+  usageCount: number;
+  totalCredits: number;
+  lastUsed: string | null;
 }
 
 export interface CreditCost {
@@ -76,7 +152,8 @@ export interface CreditCost {
   updatedAt: string;
 }
 
-// Credit consumption request
+// ─── Request shapes ───────────────────────────────────────────────────────────
+
 export interface ConsumeCreditsRequest {
   featureType: string;
   featureName: string;
@@ -84,13 +161,13 @@ export interface ConsumeCreditsRequest {
   metadata?: Record<string, any>;
 }
 
-// Credit allocation request
 export interface AllocateCreditsRequest {
   userId: string;
   planId: string;
 }
 
-// Credit system statistics
+// ─── Statistics ───────────────────────────────────────────────────────────────
+
 export interface CreditStats {
   totalUsers: number;
   totalCreditsAllocated: number;
@@ -104,30 +181,16 @@ export interface CreditStats {
   }>;
 }
 
-// API response types
+// ─── API wrappers ─────────────────────────────────────────────────────────────
+
 export interface ApiResponse<T> {
   data: T;
   error?: string;
   success: boolean;
 }
 
-export interface CreditBalance {
-  balance: number;
-  totalEarned: number;
-  totalConsumed: number;
-  lastResetAt: string | null;
-}
+// ─── Component props ──────────────────────────────────────────────────────────
 
-export interface FeatureUsage {
-  featureType: string;
-  featureName: string;
-  cost: number;
-  usageCount: number;
-  totalCredits: number;
-  lastUsed: string | null;
-}
-
-// Frontend component props
 export interface CreditDisplayProps {
   userId: string;
   showHistory?: boolean;
@@ -146,7 +209,8 @@ export interface CreditUsageChartProps {
   timeRange?: '7d' | '30d' | '90d' | '1y';
 }
 
-// Feature flags for credit-gated functionality
+// ─── Feature gate ─────────────────────────────────────────────────────────────
+
 export interface FeatureAccess {
   hasAccess: boolean;
   creditsRequired: number;
@@ -155,7 +219,8 @@ export interface FeatureAccess {
   description?: string;
 }
 
-// Subscription management types
+// ─── Subscription management ──────────────────────────────────────────────────
+
 export interface SubscriptionChange {
   fromPlanId: string;
   toPlanId: string;

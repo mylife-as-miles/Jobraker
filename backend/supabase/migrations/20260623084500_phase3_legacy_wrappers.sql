@@ -32,8 +32,6 @@ DECLARE
     v_current_balance integer;
     v_user_tier text;
     v_tier_check boolean;
-    v_has_type_col boolean;
-    v_has_balance_before boolean;
 BEGIN
     IF public.get_flag('billing.v2.enabled') THEN
         RAISE WARNING '[billing.v2] consume_credits legacy wrapper invoked for user %, feature: %.%', p_user_id, p_feature_type, p_feature_name;
@@ -136,60 +134,25 @@ BEGIN
             updated_at = timezone('utc'::text, now())
         WHERE user_id = p_user_id;
 
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'type'
-        ) INTO v_has_type_col;
-
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'balance_before'
-        ) INTO v_has_balance_before;
-
-        IF v_has_type_col THEN
-            IF v_has_balance_before THEN
-                INSERT INTO public.credit_transactions (
-                    user_id, type, amount, balance_before, balance_after,
-                    description, reference_type, reference_id, metadata
-                ) VALUES (
-                    p_user_id, 'deduction', v_cost, v_current_balance, v_current_balance - v_cost,
-                    v_feature_description, p_feature_type, p_reference_id, jsonb_build_object('tier', v_user_tier) || p_metadata
-                );
-            ELSE
-                INSERT INTO public.credit_transactions (
-                    user_id, type, amount, balance_after,
-                    description, reference_type, reference_id, metadata
-                ) VALUES (
-                    p_user_id, 'deduction', v_cost, v_current_balance - v_cost,
-                    v_feature_description, p_feature_type, p_reference_id, jsonb_build_object('tier', v_user_tier) || p_metadata
-                );
-            END IF;
-        ELSE
-            IF v_has_balance_before THEN
-                INSERT INTO public.credit_transactions (
-                    user_id, transaction_type, amount, balance_before, balance_after,
-                    description, reference_type, reference_id, metadata
-                ) VALUES (
-                    p_user_id, 'deduction', v_cost, v_current_balance, v_current_balance - v_cost,
-                    v_feature_description, p_feature_type, p_reference_id, jsonb_build_object('tier', v_user_tier) || p_metadata
-                );
-            ELSE
-                INSERT INTO public.credit_transactions (
-                    user_id, transaction_type, amount, balance_after,
-                    description, reference_type, reference_id, metadata
-                ) VALUES (
-                    p_user_id, 'deduction', v_cost, v_current_balance - v_cost,
-                    v_feature_description, p_feature_type, p_reference_id, jsonb_build_object('tier', v_user_tier) || p_metadata
-                );
-            END IF;
-        END IF;
+        PERFORM public.internal_write_legacy_transaction(
+            p_user_id        := p_user_id,
+            p_tx_type        := 'deduction',
+            p_amount         := v_cost,
+            p_balance_before := v_current_balance,
+            p_balance_after  := v_current_balance - v_cost,
+            p_description    := v_feature_description,
+            p_reference_type := p_feature_type,
+            p_reference_id   := p_reference_id,
+            p_agent_run_id   := NULL,
+            p_metadata       := jsonb_build_object('tier', v_user_tier) || p_metadata
+        );
 
         RETURN true;
     END IF;
 END;
 $$;
 
-COMMENT ON FUNCTION public.consume_credits IS
+COMMENT ON FUNCTION public.consume_credits(uuid, text, text, uuid, jsonb) IS
     '[DEPRECATED] Consume credits legacy RPC. Delegates to V2 billing gateway when billing.v2.enabled = true.';
 
 -- ─── 2. deduct_job_search_credits ───────────────────────────────────────────
@@ -211,8 +174,6 @@ DECLARE
     -- Legacy path variables
     v_current_balance INTEGER;
     v_new_balance INTEGER;
-    v_has_type_col BOOLEAN;
-    v_has_balance_before BOOLEAN;
 BEGIN
     IF public.get_flag('billing.v2.enabled') THEN
         RAISE WARNING '[billing.v2] deduct_job_search_credits legacy wrapper invoked for user %, jobs: %', p_user_id, p_jobs_count;
@@ -271,38 +232,25 @@ BEGIN
         WHERE user_id = p_user_id 
         RETURNING balance INTO v_new_balance;
         
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns WHERE table_name = 'credit_transactions' AND column_name = 'type'
-        ) INTO v_has_type_col;
-        
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns WHERE table_name = 'credit_transactions' AND column_name = 'balance_before'
-        ) INTO v_has_balance_before;
-        
-        IF v_has_type_col THEN
-            IF v_has_balance_before THEN
-                INSERT INTO public.credit_transactions (user_id, type, amount, balance_before, balance_after, description, reference_type)
-                VALUES (p_user_id, 'deduction', v_credits_to_deduct, v_current_balance, v_new_balance, 'Job search', 'job_search');
-            ELSE
-                INSERT INTO public.credit_transactions (user_id, type, amount, balance_after, description, reference_type)
-                VALUES (p_user_id, 'deduction', v_credits_to_deduct, v_new_balance, 'Job search', 'job_search');
-            END IF;
-        ELSE
-            IF v_has_balance_before THEN
-                INSERT INTO public.credit_transactions (user_id, transaction_type, amount, balance_before, balance_after, description, reference_type)
-                VALUES (p_user_id, 'deduction', v_credits_to_deduct, v_current_balance, v_new_balance, 'Job search', 'job_search');
-            ELSE
-                INSERT INTO public.credit_transactions (user_id, transaction_type, amount, balance_after, description, reference_type)
-                VALUES (p_user_id, 'deduction', v_credits_to_deduct, v_new_balance, 'Job search', 'job_search');
-            END IF;
-        END IF;
+        PERFORM public.internal_write_legacy_transaction(
+            p_user_id        := p_user_id,
+            p_tx_type        := 'deduction',
+            p_amount         := v_credits_to_deduct,
+            p_balance_before := v_current_balance,
+            p_balance_after  := v_new_balance,
+            p_description    := 'Job search',
+            p_reference_type := 'job_search',
+            p_reference_id   := NULL,
+            p_agent_run_id   := NULL,
+            p_metadata       := '{}'::jsonb
+        );
         
         RETURN json_build_object('success', true, 'credits_deducted', v_credits_to_deduct, 'remaining_balance', v_new_balance);
     END IF;
 END;
 $$;
 
-COMMENT ON FUNCTION public.deduct_job_search_credits IS
+COMMENT ON FUNCTION public.deduct_job_search_credits(uuid, integer) IS
     '[DEPRECATED] Deduct job search credits legacy RPC. Delegates to V2 billing gateway when billing.v2.enabled = true.';
 
 -- ─── 3. deduct_auto_apply_credits ───────────────────────────────────────────
@@ -323,8 +271,6 @@ DECLARE
     -- Legacy path variables
     v_current_balance INTEGER;
     v_new_balance INTEGER;
-    v_has_type_col BOOLEAN;
-    v_has_balance_before BOOLEAN;
     v_has_total_consumed BOOLEAN;
 BEGIN
     IF public.get_flag('billing.v2.enabled') THEN
@@ -407,31 +353,18 @@ BEGIN
             RETURNING balance INTO v_new_balance;
         END IF;
 
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'type'
-        ) INTO v_has_type_col;
-
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'balance_before'
-        ) INTO v_has_balance_before;
-
-        IF v_has_type_col THEN
-            IF v_has_balance_before THEN
-                INSERT INTO public.credit_transactions (user_id, type, amount, balance_before, balance_after, description, reference_type)
-                VALUES (p_user_id, 'deduction', v_credits_to_deduct, v_current_balance, v_new_balance, 'Auto apply', 'auto_apply');
-            ELSE
-                INSERT INTO public.credit_transactions (user_id, type, amount, balance_after, description, reference_type)
-                VALUES (p_user_id, 'deduction', v_credits_to_deduct, v_new_balance, 'Auto apply', 'auto_apply');
-            END IF;
-        ELSE
-            IF v_has_balance_before THEN
-                INSERT INTO public.credit_transactions (user_id, transaction_type, amount, balance_before, balance_after, description, reference_type)
-                VALUES (p_user_id, 'deduction', v_credits_to_deduct, v_current_balance, v_new_balance, 'Auto apply', 'auto_apply');
-            ELSE
-                INSERT INTO public.credit_transactions (user_id, transaction_type, amount, balance_after, description, reference_type)
-                VALUES (p_user_id, 'deduction', v_credits_to_deduct, v_new_balance, 'Auto apply', 'auto_apply');
-            END IF;
-        END IF;
+        PERFORM public.internal_write_legacy_transaction(
+            p_user_id        := p_user_id,
+            p_tx_type        := 'deduction',
+            p_amount         := v_credits_to_deduct,
+            p_balance_before := v_current_balance,
+            p_balance_after  := v_new_balance,
+            p_description    := 'Auto apply',
+            p_reference_type := 'auto_apply',
+            p_reference_id   := NULL,
+            p_agent_run_id   := NULL,
+            p_metadata       := '{}'::jsonb
+        );
 
         RETURN json_build_object(
             'success', true,
@@ -443,7 +376,7 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.deduct_auto_apply_credits IS
+COMMENT ON FUNCTION public.deduct_auto_apply_credits(uuid, integer) IS
     '[DEPRECATED] Deduct auto apply credits legacy RPC. Delegates to V2 billing gateway when billing.v2.enabled = true.';
 
 -- ─── 4. reserve_credits_for_run ──────────────────────────────────────────────
@@ -468,10 +401,6 @@ DECLARE
 
     -- Legacy path variables
     v_new_balance INTEGER;
-    v_has_type_col BOOLEAN;
-    v_has_transaction_type BOOLEAN;
-    v_has_balance_before BOOLEAN;
-    v_has_metadata BOOLEAN;
 BEGIN
     IF public.get_flag('billing.v2.enabled') THEN
         RAISE WARNING '[billing.v2] reserve_credits_for_run legacy wrapper invoked. User: %, Run type: %', p_user_id, p_run_type;
@@ -600,104 +529,18 @@ BEGIN
         ) VALUES (
             p_user_id, p_run_type, 'reserved', p_estimated_credits, p_estimated_credits, p_idempotency_key, p_metadata
         ) RETURNING id INTO v_agent_run_id;
-
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'type'
-        ) INTO v_has_type_col;
-
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'transaction_type'
-        ) INTO v_has_transaction_type;
-
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'balance_before'
-        ) INTO v_has_balance_before;
-
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'metadata'
-        ) INTO v_has_metadata;
-
-        IF v_has_type_col THEN
-            IF v_has_balance_before THEN
-                IF v_has_metadata THEN
-                    INSERT INTO public.credit_transactions (
-                        user_id, type, amount, balance_before, balance_after,
-                        description, reference_type, reference_id, agent_run_id, metadata
-                    ) VALUES (
-                        p_user_id, 'deduction', -p_estimated_credits, v_new_balance + p_estimated_credits, v_new_balance,
-                        'Reservation for agent run ' || p_run_type, p_run_type, v_agent_run_id, v_agent_run_id, p_metadata
-                    );
-                ELSE
-                    INSERT INTO public.credit_transactions (
-                        user_id, type, amount, balance_before, balance_after,
-                        description, reference_type, reference_id, agent_run_id
-                    ) VALUES (
-                        p_user_id, 'deduction', -p_estimated_credits, v_new_balance + p_estimated_credits, v_new_balance,
-                        'Reservation for agent run ' || p_run_type, p_run_type, v_agent_run_id, v_agent_run_id
-                    );
-                END IF;
-            ELSE
-                IF v_has_metadata THEN
-                    INSERT INTO public.credit_transactions (
-                        user_id, type, amount, balance_after,
-                        description, reference_type, reference_id, agent_run_id, metadata
-                    ) VALUES (
-                        p_user_id, 'deduction', -p_estimated_credits, v_new_balance,
-                        'Reservation for agent run ' || p_run_type, p_run_type, v_agent_run_id, v_agent_run_id, p_metadata
-                    );
-                ELSE
-                    INSERT INTO public.credit_transactions (
-                        user_id, type, amount, balance_after,
-                        description, reference_type, reference_id, agent_run_id
-                    ) VALUES (
-                        p_user_id, 'deduction', -p_estimated_credits, v_new_balance,
-                        'Reservation for agent run ' || p_run_type, p_run_type, v_agent_run_id, v_agent_run_id
-                    );
-                END IF;
-            END IF;
-        ELSIF v_has_transaction_type THEN
-            IF v_has_balance_before THEN
-                IF v_has_metadata THEN
-                    INSERT INTO public.credit_transactions (
-                        user_id, transaction_type, amount, balance_before, balance_after,
-                        description, reference_type, reference_id, agent_run_id, metadata
-                    ) VALUES (
-                        p_user_id, 'deduction', -p_estimated_credits, v_new_balance + p_estimated_credits, v_new_balance,
-                        'Reservation for agent run ' || p_run_type, p_run_type, v_agent_run_id, v_agent_run_id, p_metadata
-                    );
-                ELSE
-                    INSERT INTO public.credit_transactions (
-                        user_id, transaction_type, amount, balance_before, balance_after,
-                        description, reference_type, reference_id, agent_run_id
-                    ) VALUES (
-                        p_user_id, 'deduction', -p_estimated_credits, v_new_balance + p_estimated_credits, v_new_balance,
-                        'Reservation for agent run ' || p_run_type, p_run_type, v_agent_run_id, v_agent_run_id
-                    );
-                END IF;
-            ELSE
-                IF v_has_metadata THEN
-                    INSERT INTO public.credit_transactions (
-                        user_id, transaction_type, amount, balance_after,
-                        description, reference_type, reference_id, agent_run_id, metadata
-                    ) VALUES (
-                        p_user_id, 'deduction', -p_estimated_credits, v_new_balance,
-                        'Reservation for agent run ' || p_run_type, p_run_type, v_agent_run_id, v_agent_run_id, p_metadata
-                    );
-                ELSE
-                    INSERT INTO public.credit_transactions (
-                        user_id, transaction_type, amount, balance_after,
-                        description, reference_type, reference_id, agent_run_id
-                    ) VALUES (
-                        p_user_id, 'deduction', -p_estimated_credits, v_new_balance,
-                        'Reservation for agent run ' || p_run_type, p_run_type, v_agent_run_id, v_agent_run_id
-                    );
-                END IF;
-            END IF;
-        END IF;
+        PERFORM public.internal_write_legacy_transaction(
+            p_user_id        := p_user_id,
+            p_tx_type        := 'deduction',
+            p_amount         := -p_estimated_credits,
+            p_balance_before := v_new_balance + p_estimated_credits,
+            p_balance_after  := v_new_balance,
+            p_description    := 'Reservation for agent run ' || p_run_type,
+            p_reference_type := p_run_type,
+            p_reference_id   := v_agent_run_id,
+            p_agent_run_id   := v_agent_run_id,
+            p_metadata       := p_metadata
+        );
 
         PERFORM public.log_agent_run_event(v_agent_run_id, 'reservation_created', 'Reserved ' || p_estimated_credits || ' credits');
 
@@ -711,7 +554,7 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.reserve_credits_for_run IS
+COMMENT ON FUNCTION public.reserve_credits_for_run(uuid, text, integer, text, jsonb) IS
     '[DEPRECATED] Reserve credits for agent run legacy RPC. Delegates to V2 billing gateway when billing.v2.enabled = true.';
 
 -- ─── 5. settle_run_credits ───────────────────────────────────────────────────
@@ -738,10 +581,6 @@ DECLARE
     v_capped_actual_cost INTEGER;
     v_overflow_credits INTEGER;
     v_refund_amount INTEGER;
-    v_has_type_col BOOLEAN;
-    v_has_transaction_type BOOLEAN;
-    v_has_balance_before BOOLEAN;
-    v_has_metadata BOOLEAN;
 BEGIN
     IF public.get_flag('billing.v2.enabled') THEN
         RAISE WARNING '[billing.v2] settle_run_credits legacy wrapper invoked. Run: %, actual: %', p_agent_run_id, p_actual_credits;
@@ -867,104 +706,19 @@ BEGIN
             updated_at = NOW()
         WHERE id = p_agent_run_id;
 
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'type'
-        ) INTO v_has_type_col;
-
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'transaction_type'
-        ) INTO v_has_transaction_type;
-
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'balance_before'
-        ) INTO v_has_balance_before;
-
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'metadata'
-        ) INTO v_has_metadata;
-
         IF v_refund_amount > 0 THEN
-            IF v_has_type_col THEN
-                IF v_has_balance_before THEN
-                    IF v_has_metadata THEN
-                        INSERT INTO public.credit_transactions (
-                            user_id, type, amount, balance_before, balance_after,
-                            description, reference_type, reference_id, agent_run_id, metadata
-                        ) VALUES (
-                            v_run.user_id, 'refunded', v_refund_amount, v_new_balance - v_refund_amount, v_new_balance,
-                            'Refund for agent run ' || v_run.run_type, v_run.run_type, p_agent_run_id, p_agent_run_id, p_receipt
-                        );
-                    ELSE
-                        INSERT INTO public.credit_transactions (
-                            user_id, type, amount, balance_before, balance_after,
-                            description, reference_type, reference_id, agent_run_id
-                        ) VALUES (
-                            v_run.user_id, 'refunded', v_refund_amount, v_new_balance - v_refund_amount, v_new_balance,
-                            'Refund for agent run ' || v_run.run_type, v_run.run_type, p_agent_run_id, p_agent_run_id
-                        );
-                    END IF;
-                ELSE
-                    IF v_has_metadata THEN
-                        INSERT INTO public.credit_transactions (
-                            user_id, type, amount, balance_after,
-                            description, reference_type, reference_id, agent_run_id, metadata
-                        ) VALUES (
-                            v_run.user_id, 'refunded', v_refund_amount, v_new_balance,
-                            'Refund for agent run ' || v_run.run_type, v_run.run_type, p_agent_run_id, p_agent_run_id, p_receipt
-                        );
-                    ELSE
-                        INSERT INTO public.credit_transactions (
-                            user_id, type, amount, balance_after,
-                            description, reference_type, reference_id, agent_run_id
-                        ) VALUES (
-                            v_run.user_id, 'refunded', v_refund_amount, v_new_balance,
-                            'Refund for agent run ' || v_run.run_type, v_run.run_type, p_agent_run_id, p_agent_run_id
-                        );
-                    END IF;
-                END IF;
-            ELSIF v_has_transaction_type THEN
-                IF v_has_balance_before THEN
-                    IF v_has_metadata THEN
-                        INSERT INTO public.credit_transactions (
-                            user_id, transaction_type, amount, balance_before, balance_after,
-                            description, reference_type, reference_id, agent_run_id, metadata
-                        ) VALUES (
-                            v_run.user_id, 'refund', v_refund_amount, v_new_balance - v_refund_amount, v_new_balance,
-                            'Refund for agent run ' || v_run.run_type, v_run.run_type, p_agent_run_id, p_agent_run_id, p_receipt
-                        );
-                    ELSE
-                        INSERT INTO public.credit_transactions (
-                            user_id, transaction_type, amount, balance_before, balance_after,
-                            description, reference_type, reference_id, agent_run_id
-                        ) VALUES (
-                            v_run.user_id, 'refund', v_refund_amount, v_new_balance - v_refund_amount, v_new_balance,
-                            'Refund for agent run ' || v_run.run_type, v_run.run_type, p_agent_run_id, p_agent_run_id
-                        );
-                    END IF;
-                ELSE
-                    IF v_has_metadata THEN
-                        INSERT INTO public.credit_transactions (
-                            user_id, transaction_type, amount, balance_after,
-                            description, reference_type, reference_id, agent_run_id, metadata
-                        ) VALUES (
-                            v_run.user_id, 'refund', v_refund_amount, v_new_balance,
-                            'Refund for agent run ' || v_run.run_type, v_run.run_type, p_agent_run_id, p_agent_run_id, p_receipt
-                        );
-                    ELSE
-                        INSERT INTO public.credit_transactions (
-                            user_id, transaction_type, amount, balance_after,
-                            description, reference_type, reference_id, agent_run_id
-                        ) VALUES (
-                            v_run.user_id, 'refund', v_refund_amount, v_new_balance,
-                            'Refund for agent run ' || v_run.run_type, v_run.run_type, p_agent_run_id, p_agent_run_id
-                        );
-                    END IF;
-                END IF;
-            END IF;
+            PERFORM public.internal_write_legacy_transaction(
+                p_user_id        := v_run.user_id,
+                p_tx_type        := 'refunded',
+                p_amount         := v_refund_amount,
+                p_balance_before := v_new_balance - v_refund_amount,
+                p_balance_after  := v_new_balance,
+                p_description    := 'Refund for agent run ' || v_run.run_type,
+                p_reference_type := v_run.run_type,
+                p_reference_id   := p_agent_run_id,
+                p_agent_run_id   := p_agent_run_id,
+                p_metadata       := p_receipt
+            );
         END IF;
 
         PERFORM public.log_agent_run_event(
@@ -986,5 +740,5 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.settle_run_credits IS
+COMMENT ON FUNCTION public.settle_run_credits(uuid, integer, text, text, jsonb, text) IS
     '[DEPRECATED] Settle agent run credits legacy RPC. Delegates to V2 billing gateway when billing.v2.enabled = true.';

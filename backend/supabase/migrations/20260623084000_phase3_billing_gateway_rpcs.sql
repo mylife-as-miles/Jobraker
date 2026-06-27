@@ -22,6 +22,12 @@
 -- Naming: all V2 functions are suffixed _v2 to avoid shadowing legacy names.
 -- =============================================================================
 
+-- Ensure private schema exists
+DO $$ BEGIN
+    CREATE SCHEMA IF NOT EXISTS private;
+EXCEPTION WHEN duplicate_schema THEN NULL; END;
+$$;
+
 -- ─── Helper: internal_write_ledger_entry ─────────────────────────────────────
 -- Shared internal helper used by all four gateway RPCs.
 -- NOT exposed to callers (no GRANT).
@@ -80,11 +86,6 @@ BEGIN
 END;
 $$;
 
--- Ensure private schema exists
-DO $$ BEGIN
-    CREATE SCHEMA IF NOT EXISTS private;
-EXCEPTION WHEN duplicate_schema THEN NULL; END;
-$$;
 
 -- Recreate using public schema since Supabase doesn't expose private schema via RPC
 CREATE OR REPLACE FUNCTION public.internal_write_ledger_entry(
@@ -140,6 +141,109 @@ BEGIN
     RETURN v_entry_id;
 END;
 $$;
+
+-- ─── Helper: internal_write_legacy_transaction ──────────────────────────────
+-- Dynamically inserts a transaction into legacy public.credit_transactions
+-- mapping columns to what is actually present on the database schema.
+CREATE OR REPLACE FUNCTION public.internal_write_legacy_transaction(
+    p_user_id          uuid,
+    p_tx_type          text,
+    p_amount           integer,
+    p_balance_before   integer,
+    p_balance_after    integer,
+    p_description      text,
+    p_reference_type   text,
+    p_reference_id     uuid,
+    p_agent_run_id     uuid,
+    p_metadata         jsonb
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_cols text[] := ARRAY['user_id', 'amount', 'balance_after', 'description'];
+    v_vals text[] := ARRAY['$1', '$2', '$3', '$4'];
+    v_query text;
+    v_tx_id uuid;
+BEGIN
+    -- Check type vs transaction_type
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'type'
+    ) THEN
+        v_cols := array_append(v_cols, 'type');
+        v_vals := array_append(v_vals, '$5');
+    ELSIF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'transaction_type'
+    ) THEN
+        v_cols := array_append(v_cols, 'transaction_type');
+        v_vals := array_append(v_vals, '$5');
+    END IF;
+
+    -- Check balance_before
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'balance_before'
+    ) THEN
+        v_cols := array_append(v_cols, 'balance_before');
+        v_vals := array_append(v_vals, '$6');
+    END IF;
+
+    -- Check reference_type
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'reference_type'
+    ) THEN
+        v_cols := array_append(v_cols, 'reference_type');
+        v_vals := array_append(v_vals, '$7');
+    END IF;
+
+    -- Check reference_id
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'reference_id'
+    ) THEN
+        v_cols := array_append(v_cols, 'reference_id');
+        v_vals := array_append(v_vals, '$8');
+    END IF;
+
+    -- Check agent_run_id
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'agent_run_id'
+    ) THEN
+        v_cols := array_append(v_cols, 'agent_run_id');
+        v_vals := array_append(v_vals, '$9');
+    END IF;
+
+    -- Check metadata
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'metadata'
+    ) THEN
+        v_cols := array_append(v_cols, 'metadata');
+        v_vals := array_append(v_vals, '$10');
+    END IF;
+
+    v_query := format(
+        'INSERT INTO public.credit_transactions (%s) VALUES (%s) RETURNING id',
+        array_to_string(v_cols, ', '),
+        array_to_string(v_vals, ', ')
+    );
+
+    EXECUTE v_query
+    USING p_user_id, p_amount, p_balance_after, p_description, p_tx_type, p_balance_before, p_reference_type, p_reference_id, p_agent_run_id, p_metadata
+    INTO v_tx_id;
+
+    RETURN v_tx_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.internal_write_legacy_transaction TO service_role;
+
 
 -- ─── 1. reserve_credits_v2 ───────────────────────────────────────────────────
 -- Places a credit hold: moves `amount` from available → reserved.
@@ -245,14 +349,18 @@ BEGIN
     WHERE user_id = p_user_id;
 
     -- ── Dual-write: legacy credit_transactions ────────────────────────────────
-    INSERT INTO public.credit_transactions (
-        user_id, type, amount, balance_before, balance_after,
-        description, reference_type, reference_id, agent_run_id, metadata
-    ) VALUES (
-        p_user_id, 'deduction', -p_amount, v_bal.available, v_new_available,
-        v_desc, p_run_type, v_hold_id, p_agent_run_id, p_metadata
-    )
-    RETURNING id INTO v_legacy_tx_id;
+    v_legacy_tx_id := public.internal_write_legacy_transaction(
+        p_user_id        := p_user_id,
+        p_tx_type        := 'deduction',
+        p_amount         := -p_amount,
+        p_balance_before := v_bal.available,
+        p_balance_after  := v_new_available,
+        p_description    := v_desc,
+        p_reference_type := p_run_type,
+        p_reference_id   := v_hold_id,
+        p_agent_run_id   := p_agent_run_id,
+        p_metadata       := p_metadata
+    );
 
     -- ── Write ledger entry ─────────────────────────────────────────────────────
     PERFORM public.internal_write_ledger_entry(
@@ -411,16 +519,18 @@ BEGIN
 
     -- ── Dual-write capture transaction ────────────────────────────────────────
     -- Capture = the credits actually consumed (reserved → spent)
-    INSERT INTO public.credit_transactions (
-        user_id, type, amount, balance_before, balance_after,
-        description, reference_type, reference_id, agent_run_id, metadata
-    ) VALUES (
-        v_hold.user_id, 'deduction', -v_charged,
-        v_bal.available, v_new_available,
-        v_capture_desc, COALESCE(v_hold.reference_type, 'settle'),
-        p_hold_id, v_hold.agent_run_id, p_receipt
-    )
-    RETURNING id INTO v_capture_tx_id;
+    v_capture_tx_id := public.internal_write_legacy_transaction(
+        p_user_id        := v_hold.user_id,
+        p_tx_type        := 'deduction',
+        p_amount         := -v_charged,
+        p_balance_before := v_bal.available,
+        p_balance_after  := v_new_available,
+        p_description    := v_capture_desc,
+        p_reference_type := COALESCE(v_hold.reference_type, 'settle'),
+        p_reference_id   := p_hold_id,
+        p_agent_run_id   := v_hold.agent_run_id,
+        p_metadata       := p_receipt
+    );
 
     -- ── Ledger: capture entry ─────────────────────────────────────────────────
     IF v_charged > 0 THEN
@@ -445,16 +555,18 @@ BEGIN
     -- ── Ledger: release / refund entry (if any) ───────────────────────────────
     IF v_refunded > 0 THEN
         -- Dual-write legacy refund transaction
-        INSERT INTO public.credit_transactions (
-            user_id, type, amount, balance_before, balance_after,
-            description, reference_type, reference_id, agent_run_id, metadata
-        ) VALUES (
-            v_hold.user_id, 'refunded', v_refunded,
-            v_new_available - v_refunded, v_new_available,
-            v_refund_desc, COALESCE(v_hold.reference_type, 'settle_refund'),
-            p_hold_id, v_hold.agent_run_id, p_metadata
-        )
-        RETURNING id INTO v_refund_tx_id;
+        v_refund_tx_id := public.internal_write_legacy_transaction(
+            p_user_id        := v_hold.user_id,
+            p_tx_type        := 'refunded',
+            p_amount         := v_refunded,
+            p_balance_before := v_new_available - v_refunded,
+            p_balance_after  := v_new_available,
+            p_description    := v_refund_desc,
+            p_reference_type := COALESCE(v_hold.reference_type, 'settle_refund'),
+            p_reference_id   := p_hold_id,
+            p_agent_run_id   := v_hold.agent_run_id,
+            p_metadata       := p_metadata
+        );
 
         PERFORM public.internal_write_ledger_entry(
             p_user_id          := v_hold.user_id,
@@ -589,14 +701,18 @@ BEGIN
     WHERE user_id = p_user_id;
 
     -- ── Dual-write legacy transaction ─────────────────────────────────────────
-    INSERT INTO public.credit_transactions (
-        user_id, type, amount, balance_before, balance_after,
-        description, reference_type, reference_id, agent_run_id, metadata
-    ) VALUES (
-        p_user_id, 'deduction', -p_amount, v_bal.available, v_new_available,
-        v_desc, p_reference_type, p_reference_id, p_agent_run_id, p_metadata
-    )
-    RETURNING id INTO v_legacy_tx_id;
+    v_legacy_tx_id := public.internal_write_legacy_transaction(
+        p_user_id        := p_user_id,
+        p_tx_type        := 'deduction',
+        p_amount         := -p_amount,
+        p_balance_before := v_bal.available,
+        p_balance_after  := v_new_available,
+        p_description    := v_desc,
+        p_reference_type := p_reference_type,
+        p_reference_id   := p_reference_id,
+        p_agent_run_id   := p_agent_run_id,
+        p_metadata       := p_metadata
+    );
 
     -- ── Write ledger entry ─────────────────────────────────────────────────────
     PERFORM public.internal_write_ledger_entry(
@@ -710,16 +826,18 @@ BEGIN
             v_desc := 'Expired hold released: ' || v_hold.amount_reserved || ' credits returned';
 
             -- Dual-write legacy refund transaction
-            INSERT INTO public.credit_transactions (
-                user_id, type, amount, balance_before, balance_after,
-                description, reference_type, reference_id, agent_run_id, metadata
-            ) VALUES (
-                v_hold.user_id, 'refunded', v_hold.amount_reserved,
-                v_bal.available, v_new_available,
-                v_desc, 'hold_expiry', v_hold.id, v_hold.agent_run_id,
-                jsonb_build_object('hold_id', v_hold.id, 'expired_at', now())
-            )
-            RETURNING id INTO v_legacy_tx_id;
+            v_legacy_tx_id := public.internal_write_legacy_transaction(
+                p_user_id        := v_hold.user_id,
+                p_tx_type        := 'refunded',
+                p_amount         := v_hold.amount_reserved,
+                p_balance_before := v_bal.available,
+                p_balance_after  := v_new_available,
+                p_description    := v_desc,
+                p_reference_type := 'hold_expiry',
+                p_reference_id   := v_hold.id,
+                p_agent_run_id   := v_hold.agent_run_id,
+                p_metadata       := jsonb_build_object('hold_id', v_hold.id, 'expired_at', now())
+            );
 
             -- Write ledger entry
             PERFORM public.internal_write_ledger_entry(

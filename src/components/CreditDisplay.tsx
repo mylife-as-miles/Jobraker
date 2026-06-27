@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Coins, Zap, Crown } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
 import { useNavigate } from "react-router-dom";
+import { CreditService } from "@/services/creditService";
 
 export const CreditDisplay = () => {
   const [credits, setCredits] = useState<number>(0);
@@ -23,17 +24,10 @@ export const CreditDisplay = () => {
           return;
         }
 
-        // Fetch credits
-        const { data: creditsData, error: creditsError } = await supabase
-          .from("user_credits")
-          .select("balance")
-          .eq("user_id", userId)
-          .maybeSingle();
-
-        if (creditsError) {
-          console.error("CreditDisplay: Failed to fetch credits", creditsError);
-        } else if (creditsData) {
-          setCredits(creditsData.balance);
+        // Fetch credits via CreditService (V2-first)
+        const balanceData = await CreditService.getCreditBalance(userId);
+        if (balanceData) {
+          setCredits(balanceData.balance);
         }
 
         // Fetch subscription tier
@@ -83,29 +77,17 @@ export const CreditDisplay = () => {
     window.addEventListener("jobraker:credits-updated", handleCreditRefresh);
     window.addEventListener("focus", handleCreditRefresh);
 
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let channels: ReturnType<typeof CreditService.subscribeToCredits> | null = null;
     
-    // We set up the channel after getting userId to ensure we only listen to our own changes
+    // We set up the channels after getting userId to ensure we only listen to our own changes
     supabase.auth.getUser().then(({ data }) => {
       const currentUserId = data?.user?.id;
       if (currentUserId) {
-        channel = supabase
-          .channel("user-credits-changes")
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "user_credits",
-              filter: `user_id=eq.${currentUserId}`
-            },
-            (payload) => {
-              if (payload.new && typeof (payload.new as any).balance === "number") {
-                setCredits((payload.new as any).balance);
-              }
-            },
-          )
-          .subscribe();
+        channels = CreditService.subscribeToCredits(currentUserId, (updatedCredits) => {
+          if (updatedCredits && typeof updatedCredits.balance === "number") {
+            setCredits(updatedCredits.balance);
+          }
+        });
       }
     });
 
@@ -115,8 +97,9 @@ export const CreditDisplay = () => {
         handleCreditRefresh,
       );
       window.removeEventListener("focus", handleCreditRefresh);
-      if (channel) {
-        supabase.removeChannel(channel);
+      if (channels) {
+        if (channels.legacyChannel) supabase.removeChannel(channels.legacyChannel);
+        if (channels.v2Channel) supabase.removeChannel(channels.v2Channel);
       }
     };
   }, [supabase]);
