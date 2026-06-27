@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
     );
 
     // The effective search location string sent to discovery tools
-    const location = canonicalScope.location.displayName ?? rawLocation || "Remote";
+    const location = (canonicalScope.location.displayName ?? rawLocation) || "Remote";
 
     const requestedLimit = Number.isFinite(Number(body?.limit))
       ? Math.max(1, Math.floor(Number(body.limit)))
