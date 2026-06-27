@@ -5,7 +5,7 @@
  * Calls release_expired_credit_holds() on a schedule to return credits from
  * timed-out holds back to users' available balances.
  *
- * Recommended schedule: every 5 minutes (*/5 * * * *)
+ * Recommended schedule: every 5 minutes (every 5 minutes)
  * Configure in Supabase Dashboard → Edge Functions → Schedules,
  * or via the Supabase CLI cron job.
  *
