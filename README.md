@@ -29,7 +29,7 @@
 
 ## 🎯 Overview
 
-JobRaker is an enterprise-grade autonomous job application platform that revolutionizes the job search process. Built with modern web technologies, it provides a comprehensive suite of tools for job seekers to automate their application process, track progress, and optimize their career growth strategy.
+JobRaker is an enterprise-grade autonomous job application platform that revolutionizes the job search process. Built with modern web technologies, it provides a comprehensive suite of tools for job seekers to automate their application process, track progress, and optimize their career growth strategy
 
 ### Key Value Propositions
 
