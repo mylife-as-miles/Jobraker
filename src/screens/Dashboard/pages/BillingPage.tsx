@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { createClient } from "@/lib/supabaseClient";
 import { captureClientEvent, captureServerEvent } from "@/lib/analytics";
+import { CreditService } from "@/services/creditService";
 import {
   Coins,
   Crown,
@@ -671,16 +672,9 @@ export const BillingPage = () => {
         return;
       }
 
-      // Fetch current credits
-      const { data: creditsData } = await supabase
-        .from("user_credits")
-        .select("balance")
-        .eq("user_id", userId)
-        .single();
-
-      if (creditsData) {
-        setCurrentCredits(creditsData.balance);
-      }
+      // Fetch the same V2-first balance shown in the app header.
+      const creditBalance = await CreditService.getCreditBalance(userId);
+      setCurrentCredits(creditBalance?.balance ?? 0);
 
       // Fetch subscription (period length reveals monthly vs yearly billing)
       const { data: subscription } = await supabase
@@ -3339,5 +3333,4 @@ export const BillingPage = () => {
     </div>
   );
 };
-
 

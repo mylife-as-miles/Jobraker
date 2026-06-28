@@ -75,6 +75,7 @@ import { encryptSymmetric } from "../../../utils/crypto";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { useEmailIntegrationAccess } from "@/hooks/useEmailIntegrationAccess";
+import { CreditService } from "@/services/creditService";
 import { getProxiedLogoUrl } from "../../../lib/utils";
 import useMediaQuery from "@/hooks/use-media-query";
 import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
@@ -826,16 +827,8 @@ export const SettingsPage = (): JSX.Element => {
         const userId = userData?.user?.id;
         if (!userId) return;
 
-        // Fetch current credits
-        const { data: creditsData } = await supabase
-          .from("user_credits")
-          .select("balance")
-          .eq("user_id", userId)
-          .maybeSingle();
-
-        if (creditsData) {
-          setCurrentCredits(creditsData.balance);
-        }
+        const creditBalance = await CreditService.getCreditBalance(userId);
+        setCurrentCredits(creditBalance?.balance ?? 0);
 
         // Fetch subscription
         const { data: subscription } = await supabase

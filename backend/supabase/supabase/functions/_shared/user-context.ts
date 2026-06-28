@@ -137,7 +137,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
       { data: [] } as any,
     ),
     safeQuery(
-      supabase.from("user_credits").select("balance").eq("user_id", userId).maybeSingle(),
+      supabase.rpc("get_v2_credit_balance", { p_user_id: userId }),
       { data: null } as any,
     ),
     safeQuery(
@@ -192,7 +192,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     candidateMemorySummary: candidateMemory?.summaryText || null,
     recentChatTitles: chatsRes.data?.map((c: any) => c.title) || [],
     subscriptionTier: "Free",
-    credits: creditsRes.data?.balance || 0,
+    credits: creditsRes.data?.available ?? creditsRes.data?.total ?? 0,
     applicationCount: applicationCountRes.count || 0,
     jobCount: jobCountRes.count || 0,
     resumeCount: resumeCountRes.count || 0,

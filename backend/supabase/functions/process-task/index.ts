@@ -111,6 +111,7 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
   const requestedLimit = params.limit || 10;
   const sourceFocus = params.sources || [];
   const targetDomains = params.targetDomains || [];
+  const agentRunId = params.agent_run_id;
 
   await progress.updateProgress(0, 3, "Resolving search limits...");
 
@@ -149,6 +150,7 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
           requestedLimit,
           effectiveLimit,
           subscriptionTier,
+          agentRunId,
         },
       );
       totalInserted += batchInserted;
@@ -157,11 +159,9 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
     },
   );
 
-  const agentRunId = params.agent_run_id;
   const searchStartedAt = typeof params.search_started_at === "string"
     ? params.search_started_at
     : undefined;
-  const JOB_SEARCH_RUN_COST = 10;
 
   let displayableJobCount = 0;
   let creditsCharged = 0;
@@ -173,9 +173,10 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
       searchQuery,
       location,
       searchStartedAt,
-      maxCredits: JOB_SEARCH_RUN_COST,
+      maxCredits: Math.max(1, effectiveLimit),
       jobsInserted: totalInserted,
       jobsDiscovered: discoveredJobs.length,
+      settlementIdempotencyKey: `settle:${agentRunId}:${Date.now()}`,
     });
     displayableJobCount = settlement.displayableJobCount;
     creditsCharged = settlement.creditsCharged;

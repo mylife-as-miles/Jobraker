@@ -421,9 +421,9 @@ export async function countDisplayableJobsForSearch(
 
 export function resolveJobSearchCreditsToCharge(
   displayableJobCount: number,
-  maxCredits: number,
+  _maxCredits: number,
 ): number {
-  return Math.min(Math.max(0, displayableJobCount), Math.max(0, maxCredits));
+  return Math.max(0, displayableJobCount);
 }
 
 export async function settleJobSearchRunCredits(

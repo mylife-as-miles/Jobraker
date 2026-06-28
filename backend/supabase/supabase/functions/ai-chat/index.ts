@@ -386,12 +386,13 @@ async function executeTool(
     }
 
     case "get_credits_balance": {
-      const { data } = await sb
-        .from("user_credits")
-        .select("balance")
-        .eq("user_id", userId)
-        .maybeSingle();
-      return { success: true, balance: data?.balance || 0 };
+      const { data } = await sb.rpc("get_v2_credit_balance", {
+        p_user_id: userId,
+      });
+      return {
+        success: true,
+        balance: data?.available ?? data?.total ?? 0,
+      };
     }
 
     case "list_recent_jobs": {

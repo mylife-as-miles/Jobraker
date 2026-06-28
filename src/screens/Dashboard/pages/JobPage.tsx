@@ -274,6 +274,9 @@ const extractSavedJobCount = (task: JobIntelligenceTask): number | null => {
   return match ? Number(match[1]) : null;
 };
 
+const wait = (ms: number) =>
+  new Promise((resolve) => window.setTimeout(resolve, ms));
+
 const isApplyRateLimitError = (error: unknown): boolean => {
   if (!(error instanceof Error)) return false;
   return /rate limit exceeded/i.test(error.message);
@@ -2683,17 +2686,75 @@ export const JobPage = (): JSX.Element => {
         setInsertedThisRun(finalCount);
         setStepIndex(2);
 
-        void fetchJobQueue().then((currentJobs) => {
+        const taskAgentRunId =
+          typeof activeTask.params?.agent_run_id === "string"
+            ? activeTask.params.agent_run_id
+            : null;
+        const taskSearchQuery =
+          typeof activeTask.params?.search_query === "string"
+            ? activeTask.params.search_query
+            : activeSearchScopeRef.current?.searchQuery ?? "";
+        const taskLocation =
+          typeof activeTask.params?.location === "string"
+            ? activeTask.params.location
+            : activeSearchScopeRef.current?.location ?? "Remote";
+        const taskLimit =
+          typeof activeTask.params?.limit === "number"
+            ? activeTask.params.limit
+            : activeSearchScopeRef.current?.limit;
+        const taskStartedAt =
+          typeof activeTask.params?.search_started_at === "string"
+            ? activeTask.params.search_started_at
+            : activeSearchScopeRef.current?.startedAt;
+        const completedScope: JobsQueueScope =
+          taskSearchQuery || taskAgentRunId
+            ? {
+                searchQuery: taskSearchQuery,
+                location: taskLocation,
+                limit: taskLimit,
+                startedAt: taskStartedAt,
+                agentRunId:
+                  taskAgentRunId ?? activeSearchScopeRef.current?.agentRunId ?? null,
+              }
+            : activeSearchScopeRef.current;
+
+        const loadCompletedResults = async () => {
+          let currentJobs: Job[] = [];
+          const maxAttempts = finalCount > 0 ? 4 : 1;
+
+          for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+            currentJobs = await fetchJobQueue(completedScope);
+            if (currentJobs.length > 0 || finalCount === 0) {
+              break;
+            }
+            setQueueStatus("populating");
+            setCurrentSource("Finalizing saved jobs...");
+            await wait(600 * (attempt + 1));
+          }
+
           if (currentJobs.length > 0) {
             setQueueStatus("ready");
             setSelectedJob((prev) => {
               if (prev && currentJobs.some((j) => j.id === prev)) return prev;
               return isMobile ? null : currentJobs[0].id;
             });
+          } else if (finalCount > 0) {
+            setQueueStatus("loading");
+            setCurrentSource("Saved jobs are still syncing...");
+            void fetchJobQueue(completedScope);
           } else {
             setQueueStatus("empty");
           }
-        });
+
+          await wait(800);
+          setIncrementalMode(false);
+          setCurrentSource(null);
+          if (activeTaskIdRef.current === activeTaskId) {
+            activeTaskIdRef.current = null;
+          }
+        };
+
+        void loadCompletedResults();
 
         safeInfo(
           "Job search complete!",
@@ -2702,13 +2763,6 @@ export const JobPage = (): JSX.Element => {
             : "No jobs found for this search.",
         );
 
-        setTimeout(() => {
-          setIncrementalMode(false);
-          setCurrentSource(null);
-          if (activeTaskIdRef.current === activeTaskId) {
-            activeTaskIdRef.current = null;
-          }
-        }, 800);
       } else if (["failed", "canceled"].includes(activeTask.status)) {
         setIncrementalMode(false);
         setQueueStatus(jobs.length > 0 ? "ready" : "empty");
@@ -2768,7 +2822,7 @@ export const JobPage = (): JSX.Element => {
         }
       }
     }
-  }, [jobTasks, fetchJobQueue, insertedThisRun, safeInfo, toastError, queryClient, jobs.length]);
+  }, [jobTasks, fetchJobQueue, insertedThisRun, isMobile, safeInfo, toastError, queryClient, jobs.length]);
 
   // Removed old process-and-match and polling logic - jobs are now saved directly
 

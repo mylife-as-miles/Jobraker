@@ -40,7 +40,7 @@ export interface UserContext {
   subscriptionNextRenewalOrEndIso: string | null;
   /** Whole days until subscriptionNextRenewalOrEnd (can be negative if the date is in the past). */
   subscriptionDaysRemaining: number | null;
-  /** Paid AI credit balance from user_credits. Does not include subscription chat quota. */
+  /** Paid AI credit balance from the V2 credit ledger. Does not include subscription chat quota. */
   credits: number;
   chatFreeRemaining: number;
   chatFreeTotal: number;
@@ -307,11 +307,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
       { data: [] } as any,
     ),
     safeQuery(
-      supabase
-        .from("user_credits")
-        .select("balance")
-        .eq("user_id", userId)
-        .maybeSingle(),
+      supabase.rpc("get_v2_credit_balance", { p_user_id: userId }),
       { data: null } as any,
     ),
     safeQuery(
@@ -459,7 +455,8 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
   const chatQuota = isRecord(chatQuotaRes.data) ? chatQuotaRes.data : {};
   const chatPaidCreditBalance =
     asNumber(chatQuota.credit_balance) ??
-    asNumber(creditsRes.data?.balance) ??
+    asNumber(creditsRes.data?.available) ??
+    asNumber(creditsRes.data?.total) ??
     0;
   const chatFreeRemaining = asNumber(chatQuota.free_remaining) ?? 0;
   const chatFreeTotal = asNumber(chatQuota.free_total) ?? 0;

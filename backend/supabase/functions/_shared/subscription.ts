@@ -137,13 +137,28 @@ export async function getUserCreditsBalance(
   userId: string,
   serviceClient = createServiceClient(),
 ): Promise<number> {
-  const { data } = await serviceClient
-    .from("user_credits")
-    .select("balance")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const { data, error } = await serviceClient.rpc("get_v2_credit_balance", {
+    p_user_id: userId,
+  });
 
-  const balance = Number(data?.balance ?? 0);
+  if (error) {
+    console.warn(
+      "[subscription] get_v2_credit_balance unavailable, falling back to user_credits",
+      error,
+    );
+    const { data: legacyData } = await serviceClient
+      .from("user_credits")
+      .select("balance")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const legacyBalance = Number(legacyData?.balance ?? 0);
+    return Number.isFinite(legacyBalance) && legacyBalance > 0
+      ? Math.floor(legacyBalance)
+      : 0;
+  }
+
+  const balance = Number(data?.available ?? data?.total ?? 0);
   return Number.isFinite(balance) && balance > 0 ? Math.floor(balance) : 0;
 }
 

@@ -9,8 +9,6 @@ import {
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 
-const JOB_SEARCH_RUN_COST = 10;
-
 const PUBLIC_JOB_SOURCE_ALIASES: Record<string, PublicJobSource> = {
   web: "web",
   general: "web",
@@ -127,7 +125,7 @@ Deno.serve(async (req) => {
     );
 
     // The effective search location string sent to discovery tools
-    const location = canonicalScope.location.displayName ?? rawLocation || "Remote";
+    const location = canonicalScope.location.displayName ?? (rawLocation || "Remote");
 
     const requestedLimit = Number.isFinite(Number(body?.limit))
       ? Math.max(1, Math.floor(Number(body.limit)))
@@ -167,13 +165,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    const creditsToReserve = Math.max(1, effectiveLimit);
     const idempotencyKey = crypto.randomUUID();
     const { data: reserveRaw, error: reserveError } = await serviceClient.rpc(
       "reserve_credits_for_run",
       {
         p_user_id: user.id,
         p_run_type: "job_search",
-        p_estimated_credits: JOB_SEARCH_RUN_COST,
+        p_estimated_credits: creditsToReserve,
         p_idempotency_key: idempotencyKey,
         p_metadata: {
           searchQuery,
@@ -195,7 +194,7 @@ Deno.serve(async (req) => {
           error: (reserve?.message as string) || "Insufficient credits for job search run.",
           code: "insufficient_credits",
           current_balance: reserve?.current_balance || creditsBalance,
-          required_credits: JOB_SEARCH_RUN_COST,
+          required_credits: creditsToReserve,
         }),
         {
           status: 402,
@@ -224,7 +223,7 @@ Deno.serve(async (req) => {
         p_display_location:   canonicalScope.location.displayName,
         p_search_fingerprint: canonicalScope.fingerprint,
         p_hold_id:            holdId,
-        p_estimated_credits:  JOB_SEARCH_RUN_COST,
+        p_estimated_credits:  creditsToReserve,
       });
     } catch (runInsertError) {
       // Non-fatal: log and continue — settlement will still work via legacy path.
@@ -267,7 +266,7 @@ Deno.serve(async (req) => {
           searchQuery,
           location,
           searchStartedAt,
-          maxCredits: JOB_SEARCH_RUN_COST,
+          maxCredits: creditsToReserve,
           searchFailed: true,
           failureReason: "Failed to enqueue background search task",
         });
@@ -323,7 +322,7 @@ Deno.serve(async (req) => {
           },
           creditReservation: {
             holdId,
-            reservedCredits: JOB_SEARCH_RUN_COST,
+            reservedCredits: creditsToReserve,
           },
         }),
         {
@@ -403,7 +402,7 @@ Deno.serve(async (req) => {
         searchQuery,
         location,
         searchStartedAt,
-        maxCredits: JOB_SEARCH_RUN_COST,
+        maxCredits: creditsToReserve,
         searchFailed,
         failureReason,
         jobsInserted,
