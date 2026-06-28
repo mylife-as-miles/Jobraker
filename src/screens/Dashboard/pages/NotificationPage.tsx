@@ -793,7 +793,7 @@ export const NotificationPage = (): JSX.Element => {
                   placeholder="Search messages, senders, subjects"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  className="product-input-surface border-none outline-none focus:outline-none focus:ring-0 text-sm pl-10 transition-all duration-300"
+                  className="bord w-full border-none outline-none bg-transparent focus:outline-none focus:ring-0 text-sm px-5 transition-all duration-300"
                 />
               </div>
 

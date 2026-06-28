@@ -115,7 +115,9 @@ export const ResumeHomePage = () => {
   };
 
   return (
-    <div className={`product-page-shell flex flex-col h-full bg-background text-foreground overflow-y-auto ${isMobile ? "p-4 pb-20" : "p-8"}`}>
+    <div
+      className={`product-page-shell flex flex-col h-full bg-background text-foreground overflow-y-auto ${isMobile ? "p-4 pb-20" : "p-8"}`}
+    >
       <input
         type='file'
         ref={fileInputRef}
@@ -163,7 +165,7 @@ export const ResumeHomePage = () => {
             className='bg-brand text-black hover:bg-brand/90 gap-2 font-semibold'
           >
             <Plus className='w-4 h-4' />
-            Create New
+            <span>Create</span>
           </Button>
         </div>
       </div>
@@ -445,7 +447,6 @@ export const ResumeHomePage = () => {
         confirmText='Delete'
         cancelText='Cancel'
       />
-
     </div>
   );
 };

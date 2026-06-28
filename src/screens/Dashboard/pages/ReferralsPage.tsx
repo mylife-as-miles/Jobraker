@@ -1519,7 +1519,7 @@ export const ReferralsPage = (): JSX.Element => {
         </Card>
 
         {tab === "connections" ? (
-          <div className='space-y-6'>
+          <div className='space-y-6 pb-20'>
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}

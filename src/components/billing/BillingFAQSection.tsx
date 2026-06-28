@@ -107,7 +107,7 @@ export function BillingFAQSection() {
       className='mt-16 border-t border-foreground/10 pt-14'
       aria-labelledby='billing-faq-heading'
     >
-      <Card className='border-foreground/10 bg-foreground/[0.02] backdrop-blur-md overflow-hidden'>
+      <Card className='border-foreground/10 bg-foreground/[0.02] backdrop-blur-md overflow-hidden mb-20'>
         <CardHeader className='border-b border-foreground/10 bg-foreground/[0.02] pb-6'>
           <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
             <div className='flex gap-3'>
