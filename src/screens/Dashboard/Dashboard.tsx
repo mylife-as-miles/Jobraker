@@ -841,37 +841,41 @@ export const Dashboard = (): JSX.Element => {
 
         {/* Premium Upgrade - Sleek Banner */}
         <div className='p-4 border-t border-border/40 bg-card/40 shrink-0'>
-          <div
-            onClick={() => navigate("/dashboard/billing")}
-            className={`group relative overflow-hidden rounded-xl bg-gradient-to-b from-card to-background border border-border/60 cursor-pointer hover:border-brand/30 transition-all duration-300 ${isCollapsed ? "p-2 flex justify-center" : "p-4"}`}
-          >
-            <div className='absolute inset-0 bg-brand/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500' />
-
+          {sidebarSubscriptionTier === null ? (
+            <SidebarPlanCardSkeleton isCollapsed={isCollapsed} />
+          ) : (
             <div
-              className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} relative z-10`}
+              onClick={() => navigate("/dashboard/billing")}
+              className={`group relative overflow-hidden rounded-xl bg-gradient-to-b from-card to-background border border-border/60 cursor-pointer hover:border-brand/30 transition-all duration-300 ${isCollapsed ? "p-2 flex justify-center" : "p-4"}`}
             >
+              <div className='absolute inset-0 bg-brand/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500' />
+
+              <div
+                className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} relative z-10`}
+              >
+                {!isCollapsed && (
+                  <div>
+                    <h3 className='text-sm font-bold text-foreground group-hover:text-brand transition-colors'>
+                      {sidebarPlanCard.title}
+                    </h3>
+                    <p className='text-[10px] text-muted-foreground mt-1'>
+                      {sidebarPlanCard.subtitle}
+                    </p>
+                  </div>
+                )}
+                <div className='w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand'>
+                  <TrendingUp size={16} />
+                </div>
+              </div>
+
               {!isCollapsed && (
-                <div>
-                  <h3 className='text-sm font-bold text-foreground group-hover:text-brand transition-colors'>
-                    {sidebarPlanCard.title}
-                  </h3>
-                  <p className='text-[10px] text-muted-foreground mt-1'>
-                    {sidebarPlanCard.subtitle}
-                  </p>
+                <div className='mt-3 flex items-center gap-2 text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors'>
+                  <span>{sidebarPlanCard.cta}</span>
+                  <BreadcrumbChevron size={12} />
                 </div>
               )}
-              <div className='w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand'>
-                <TrendingUp size={16} />
-              </div>
             </div>
-
-            {!isCollapsed && (
-              <div className='mt-3 flex items-center gap-2 text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors'>
-                <span>{sidebarPlanCard.cta}</span>
-                <BreadcrumbChevron size={12} />
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
