@@ -98,6 +98,38 @@ interface PageLink {
 
 type SubscriptionTier = "Free" | "Basics" | "Pro" | "Ultimate";
 
+function SidebarPlanCardSkeleton({ isCollapsed }: { isCollapsed?: boolean }) {
+  return (
+    <div
+      className={`group relative overflow-hidden rounded-xl border border-border/60 bg-gradient-to-b from-card to-background ${
+        isCollapsed ? "p-2 flex justify-center" : "p-4"
+      }`}
+      aria-hidden='true'
+    >
+      <div
+        className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} relative z-10`}
+      >
+        {!isCollapsed && (
+          <div className='space-y-2'>
+            <Skeleton className='h-5 w-28 rounded-md bg-foreground/[0.06]' />
+            <Skeleton className='h-3 w-36 rounded-md bg-foreground/[0.04]' />
+          </div>
+        )}
+        <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-[#0b2508] ring-1 ring-[#123f10]'>
+          <Skeleton className='h-4 w-4 rounded-sm border-0 bg-[#2aff00]/50' />
+        </div>
+      </div>
+
+      {!isCollapsed && (
+        <div className='mt-4 flex items-center gap-2'>
+          <Skeleton className='h-3 w-20 rounded-md bg-foreground/[0.04]' />
+          <Skeleton className='h-3 w-3 rounded-sm bg-foreground/[0.04]' />
+        </div>
+      )}
+    </div>
+  );
+}
+
 const SidebarItem = ({
   item,
   isActive,
@@ -291,7 +323,7 @@ export const Dashboard = (): JSX.Element => {
   const { balance: creditBalance, loading: creditsLoading } = useCredits();
   const [lowCreditModalOpen, setLowCreditModalOpen] = useState(false);
   const [sidebarSubscriptionTier, setSidebarSubscriptionTier] =
-    useState<SubscriptionTier>("Free");
+    useState<SubscriptionTier | null>(null);
 
   useEffect(() => {
     if (creditsLoading) return;
