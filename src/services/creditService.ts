@@ -593,7 +593,14 @@ export class CreditService {
       )
       .subscribe();
 
-    // Return both channels so the caller can clean up both
-    return { legacyChannel, v2Channel };
+    // Return both channels and an unsubscribe function so different callers can clean up correctly
+    return {
+      legacyChannel,
+      v2Channel,
+      unsubscribe: () => {
+        legacyChannel.unsubscribe();
+        v2Channel.unsubscribe();
+      }
+    };
   }
 }
