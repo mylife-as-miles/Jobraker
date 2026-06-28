@@ -42,11 +42,16 @@ function mapV2BalanceResponse(raw: Record<string, any>): V2CreditBalance {
  * the CreditTransaction shape expected by callers.
  */
 function mapHistoryRow(row: Record<string, any>): CreditTransaction {
+  const type = row.entry_type ?? row.tx_type ?? row.type ?? row.transaction_type ?? 'adjustment';
+  const rawAmount = row.amount ?? 0;
+  const debitTypes = new Set(['capture', 'charge', 'consume', 'consumed', 'deduction', 'reserve', 'spent']);
+  const amount = debitTypes.has(type) && rawAmount > 0 ? -rawAmount : rawAmount;
+
   return {
     id:            row.id,
     userId:        row.user_id,
-    type:          row.entry_type ?? row.type ?? row.transaction_type ?? 'adjustment',
-    amount:        row.amount ?? 0,
+    type,
+    amount,
     balanceBefore: row.available_before ?? row.balance_before ?? 0,
     balanceAfter:  row.available_after  ?? row.balance_after  ?? 0,
     description:   row.description ?? null,
@@ -528,6 +533,23 @@ export class CreditService {
     callback: (credits: UserCredits | null) => void
   ) {
     const supabase = createClient();
+    const emitAuthoritativeBalance = async () => {
+      const balance = await CreditService.getCreditBalance(userId);
+      if (!balance) {
+        callback(null);
+        return;
+      }
+      callback({
+        id:           userId,
+        userId,
+        balance:      balance.balance,
+        totalEarned:  balance.totalEarned,
+        totalConsumed: balance.totalConsumed,
+        lastResetAt:  balance.lastResetAt,
+        createdAt:    balance.lastResetAt ?? new Date().toISOString(),
+        updatedAt:    balance.lastResetAt ?? new Date().toISOString(),
+      } as UserCredits);
+    };
 
     // ── Channel 1: legacy user_credits ────────────────────────────────────────
     const legacyChannel = supabase
@@ -545,17 +567,7 @@ export class CreditService {
             callback(null);
             return;
           }
-          const rawRow = payload.new;
-          callback({
-            id:           rawRow.id,
-            userId:       rawRow.user_id,
-            balance:      rawRow.balance,
-            totalEarned:  rawRow.lifetime_earned,
-            totalConsumed: rawRow.lifetime_spent,
-            lastResetAt:  rawRow.updated_at,
-            createdAt:    rawRow.created_at,
-            updatedAt:    rawRow.updated_at,
-          } as UserCredits);
+          void emitAuthoritativeBalance();
         }
       )
       .subscribe();
@@ -576,19 +588,7 @@ export class CreditService {
         },
         (payload: any) => {
           if (!payload.new) return;
-          const raw = payload.new;
-          // Map V2 balance row back to the UserCredits shape so existing
-          // subscribers receive a consistent payload.
-          callback({
-            id:           raw.user_id,
-            userId:       raw.user_id,
-            balance:      raw.available ?? 0,
-            totalEarned:  raw.lifetime_earned ?? 0,
-            totalConsumed: raw.lifetime_spent ?? 0,
-            lastResetAt:  raw.updated_at,
-            createdAt:    raw.created_at,
-            updatedAt:    raw.updated_at,
-          } as UserCredits);
+          void emitAuthoritativeBalance();
         }
       )
       .subscribe();

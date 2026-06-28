@@ -2374,20 +2374,37 @@ export const JobPage = (): JSX.Element => {
         }
 
         const fetchLegacy = async () => {
-          let queryBuilder = supabase
-            .from("jobs")
-            .select("*")
-            .eq("user_id", user.id)
-            .eq("hidden", false)
-            .in("canonical_status", VISIBLE_JOB_QUEUE_STATES);
-
           const scopedSearchQuery = scope?.searchQuery?.trim();
           const scopedLocation = scope?.location?.trim();
-          if (scopedSearchQuery) {
+
+          const runQuery = async (
+            includeLocation: boolean,
+            includeStartedAt: boolean,
+            visibleQueueOnly = true,
+          ) => {
+            let queryBuilder = supabase
+              .from("jobs")
+              .select("*")
+              .eq("user_id", user.id)
+              .eq("hidden", false);
+
+            if (visibleQueueOnly) {
+              queryBuilder = queryBuilder.in(
+                "canonical_status",
+                VISIBLE_JOB_QUEUE_STATES,
+              );
+            }
+
+            if (!scopedSearchQuery) {
+              const { data, error: fetchError } = await queryBuilder.order("created_at", { ascending: false });
+              if (fetchError) throw fetchError;
+              return data || [];
+            }
+
             const discoveryScope: Record<string, string> = {
               search_query: scopedSearchQuery,
             };
-            if (scopedLocation) {
+            if (includeLocation && scopedLocation) {
               discoveryScope.location = scopedLocation;
             }
 
@@ -2396,16 +2413,27 @@ export const JobPage = (): JSX.Element => {
               .order("discovered_at", { ascending: false })
               .order("created_at", { ascending: false });
 
-            if (scope?.startedAt) {
+            if (includeStartedAt && scope?.startedAt) {
               queryBuilder = queryBuilder.gte("discovered_at", scope.startedAt);
             }
-          } else {
-            queryBuilder = queryBuilder.order("created_at", { ascending: false });
+
+            const { data, error: fetchError } = await queryBuilder;
+            if (fetchError) throw fetchError;
+            return data || [];
+          };
+
+          let rows = await runQuery(Boolean(scopedLocation), true);
+          if (rows.length === 0 && scopedSearchQuery && scopedLocation) {
+            rows = await runQuery(false, true);
+          }
+          if (rows.length === 0 && scopedSearchQuery && scope?.startedAt) {
+            rows = await runQuery(false, false);
+          }
+          if (rows.length === 0 && scopedSearchQuery) {
+            rows = await runQuery(false, false, false);
           }
 
-          const { data, error: fetchError } = await queryBuilder;
-          if (fetchError) throw fetchError;
-          return data || [];
+          return rows;
         };
 
         let rawRows: any[];
@@ -2417,6 +2445,13 @@ export const JobPage = (): JSX.Element => {
             );
             if (rpcError) throw rpcError;
             rawRows = ((runResults as RunResultRow[] | null) ?? []).map(runResultRowToJobsRow);
+            if (rawRows.length === 0 && scope.searchQuery?.trim()) {
+              console.warn(
+                "[fetchJobQueue] V2 RPC returned zero rows, falling back to legacy query",
+                { agentRunId: scope.agentRunId },
+              );
+              rawRows = await fetchLegacy();
+            }
           } catch (rpcErr) {
             console.warn(
               "[fetchJobQueue] V2 RPC failed, falling back to legacy query",

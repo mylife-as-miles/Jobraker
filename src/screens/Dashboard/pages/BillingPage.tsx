@@ -79,9 +79,11 @@ interface CreditTransaction {
   type?: string;
   amount: number;
   balance_after: number;
+  balance_before?: number;
   description: string;
   created_at: string;
   agent_run_id?: string | null;
+  source?: "v2" | "legacy";
 }
 
 interface CreditPack {
@@ -141,13 +143,38 @@ const defaultConcurrencyPacks: ConcurrencyPack[] =
 type BillingInterval = "monthly" | "quarterly" | "yearly";
 
 function normalizeCreditTransaction(
-  transaction: CreditTransaction,
+  transaction: CreditTransaction | any,
 ): CreditTransaction {
+  const transactionType =
+    transaction.transaction_type ??
+    transaction.type ??
+    transaction.tx_type ??
+    "refill";
+  const rawAmount = Number(transaction.amount ?? 0);
+  const debitTypes = new Set([
+    "capture",
+    "charge",
+    "consume",
+    "consumed",
+    "deduction",
+    "reserve",
+    "spent",
+  ]);
   return {
     ...transaction,
-    transaction_type:
-      transaction.transaction_type ?? transaction.type ?? "refill",
-    agent_run_id: transaction.agent_run_id ?? null,
+    transaction_type: transactionType,
+    amount: debitTypes.has(transactionType) && rawAmount > 0 ? -rawAmount : rawAmount,
+    balance_before:
+      transaction.balance_before ?? transaction.balanceBefore ?? 0,
+    balance_after: transaction.balance_after ?? transaction.balanceAfter ?? 0,
+    description: transaction.description ?? "",
+    created_at: transaction.created_at ?? transaction.createdAt,
+    agent_run_id:
+      transaction.agent_run_id ??
+      transaction.agentRunId ??
+      transaction.reference_id ??
+      null,
+    source: transaction.source ?? "legacy",
   };
 }
 
@@ -862,21 +889,9 @@ export const BillingPage = () => {
         setCreditCosts(costsData);
       }
 
-      // Fetch recent transactions
-      const { data: transactionsData } = await supabase
-        .from("credit_transactions")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      if (transactionsData) {
-        setTransactions(
-          (transactionsData as CreditTransaction[]).map(
-            normalizeCreditTransaction,
-          ),
-        );
-      }
+      // Fetch the same V2-first history used by the rest of the credit UI.
+      const transactionsData = await CreditService.getCreditHistory(userId, 20);
+      setTransactions(transactionsData.map(normalizeCreditTransaction));
     } catch (error) {
       console.error("Error fetching billing data:", error);
       // Fallback to defaults on error
@@ -906,15 +921,8 @@ export const BillingPage = () => {
         description: "Fetching your full transaction history...",
       });
 
-      const { data: allTransactions, error: fetchErr } = await supabase
-        .from("credit_transactions")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
-
-      if (fetchErr) throw fetchErr;
-
-      const txList = (allTransactions || []).map(normalizeCreditTransaction);
+      const allTransactions = await CreditService.getCreditHistory(userId, 1000);
+      const txList = allTransactions.map(normalizeCreditTransaction);
 
       if (txList.length === 0) {
         notify({
@@ -931,15 +939,17 @@ export const BillingPage = () => {
         "amount",
         "balance_after",
         "transaction_type",
-        "agent_run_id"
+        "agent_run_id",
+        "source",
       ];
       const rows = txList.map((t) => [
         t.created_at ? new Date(t.created_at).toLocaleString() : "",
         t.description || "",
         t.amount || 0,
-        t.balance_after || 0,
+        t.source === "v2" ? t.balance_after || 0 : "",
         t.transaction_type || t.type || "",
-        t.agent_run_id || ""
+        t.agent_run_id || "",
+        t.source || "",
       ]);
 
       const csv = [
@@ -3132,6 +3142,9 @@ export const BillingPage = () => {
                           const createdAt = item.created_at;
                           const description = item.description;
                           const runId = item.agent_run_id;
+                          const hasAuthoritativeBalance = item.transactions.some(
+                            (tx) => tx.source === "v2",
+                          );
 
                           // Use Receipt icon for grouped agent run
                           const iconData = {
@@ -3181,7 +3194,9 @@ export const BillingPage = () => {
                                       {netAmount}
                                     </p>
                                     <p className="text-xs text-gray-500">
-                                      Balance: {balanceAfter}
+                                      {hasAuthoritativeBalance
+                                        ? `Balance: ${balanceAfter}`
+                                        : "Legacy receipt"}
                                     </p>
                                   </div>
                                   <div className="text-gray-500 group-hover:text-foreground transition-colors">
@@ -3258,7 +3273,9 @@ export const BillingPage = () => {
                                                     {tx.amount > 0 ? "+" : ""}{tx.amount}
                                                   </p>
                                                   <p className="text-[10px] text-gray-500">
-                                                    After: {tx.balance_after}
+                                                    {tx.source === "v2"
+                                                      ? `After: ${tx.balance_after}`
+                                                      : "Legacy receipt"}
                                                   </p>
                                                 </div>
                                               </div>
@@ -3313,7 +3330,9 @@ export const BillingPage = () => {
                                   {item.amount}
                                 </p>
                                 <p className='text-xs text-gray-500'>
-                                  Balance: {item.balance_after}
+                                  {item.source === "v2"
+                                    ? `Balance: ${item.balance_after}`
+                                    : "Legacy receipt"}
                                 </p>
                               </div>
                             </motion.div>
@@ -3333,4 +3352,3 @@ export const BillingPage = () => {
     </div>
   );
 };
-

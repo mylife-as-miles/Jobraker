@@ -68,9 +68,9 @@ export const jobsQueueKeys = {
       ...jobsQueueKeys.all,
       // V2: key on agentRunId when present — this is unique and stable
       scope?.agentRunId ?? scope?.searchQuery?.trim() ?? null,
-      scope?.agentRunId ? null : scope?.location?.trim() ?? null,
+      scope?.agentRunId ? null : (scope?.location?.trim() ?? null),
       typeof scope?.limit === "number" ? scope.limit : null,
-      scope?.agentRunId ? null : scope?.startedAt ?? null,
+      scope?.agentRunId ? null : (scope?.startedAt ?? null),
     ] as const,
 };
 
@@ -82,10 +82,9 @@ async function fetchResultsByRunId(
   supabase: ReturnType<typeof createClient>,
   agentRunId: string,
 ): Promise<RunResultRow[]> {
-  const { data, error } = await supabase.rpc(
-    "get_job_search_results_for_run",
-    { p_agent_run_id: agentRunId },
-  );
+  const { data, error } = await supabase.rpc("get_job_search_results_for_run", {
+    p_agent_run_id: agentRunId,
+  });
 
   if (error) {
     console.error("[useJobsQueue] V2 RPC failed, falling back", {
@@ -105,7 +104,9 @@ async function fetchResultsByRunId(
  * The returned object sets the fields that mapDbJobToUiJob reads from a
  * `jobs` table row, so no changes are needed to the mapper.
  */
-export function runResultRowToJobsRow(row: RunResultRow): Record<string, unknown> {
+export function runResultRowToJobsRow(
+  row: RunResultRow,
+): Record<string, unknown> {
   return {
     id: row.job_id,
     title: row.title,
@@ -142,21 +143,39 @@ async function fetchResultsLegacy(
   userId: string,
   scope: NonNullable<JobsQueueScope>,
 ): Promise<Record<string, unknown>[]> {
-  let queryBuilder = supabase
-    .from("jobs")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("hidden", false)
-    .in("canonical_status", VISIBLE_JOB_QUEUE_STATES);
-
   const scopedSearchQuery = scope.searchQuery?.trim();
   const scopedLocation = scope.location?.trim();
 
-  if (scopedSearchQuery) {
+  const runQuery = async (
+    includeLocation: boolean,
+    includeStartedAt: boolean,
+    visibleQueueOnly = true,
+  ): Promise<Record<string, unknown>[]> => {
+    let queryBuilder = supabase
+      .from("jobs")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("hidden", false);
+
+    if (visibleQueueOnly) {
+      queryBuilder = queryBuilder.in(
+        "canonical_status",
+        VISIBLE_JOB_QUEUE_STATES,
+      );
+    }
+
+    if (!scopedSearchQuery) {
+      const { data, error } = await queryBuilder.order("created_at", {
+        ascending: false,
+      });
+      if (error) throw error;
+      return (data ?? []) as Record<string, unknown>[];
+    }
+
     const discoveryScope: Record<string, string> = {
       search_query: scopedSearchQuery,
     };
-    if (scopedLocation) {
+    if (includeLocation && scopedLocation) {
       discoveryScope.location = scopedLocation;
     }
 
@@ -165,16 +184,27 @@ async function fetchResultsLegacy(
       .order("discovered_at", { ascending: false })
       .order("created_at", { ascending: false });
 
-    if (scope.startedAt) {
+    if (includeStartedAt && scope.startedAt) {
       queryBuilder = queryBuilder.gte("discovered_at", scope.startedAt);
     }
-  } else {
-    queryBuilder = queryBuilder.order("created_at", { ascending: false });
+
+    const { data, error } = await queryBuilder;
+    if (error) throw error;
+    return (data ?? []) as Record<string, unknown>[];
+  };
+
+  let rows = await runQuery(Boolean(scopedLocation), true);
+  if (rows.length === 0 && scopedSearchQuery && scopedLocation) {
+    rows = await runQuery(false, true);
+  }
+  if (rows.length === 0 && scopedSearchQuery && scope.startedAt) {
+    rows = await runQuery(false, false);
+  }
+  if (rows.length === 0 && scopedSearchQuery) {
+    rows = await runQuery(false, false, false);
   }
 
-  const { data, error } = await queryBuilder;
-  if (error) throw error;
-  return (data ?? []) as Record<string, unknown>[];
+  return rows;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -207,8 +237,18 @@ export function getJobsQueueQueryOptions<TJob>({
       // queries and returns only verified, displayable results for the run.
       if (scope?.agentRunId) {
         try {
-          const runResults = await fetchResultsByRunId(supabase, scope.agentRunId);
+          const runResults = await fetchResultsByRunId(
+            supabase,
+            scope.agentRunId,
+          );
           rawRows = runResults.map(runResultRowToJobsRow);
+          if (rawRows.length === 0 && scope.searchQuery?.trim()) {
+            console.warn(
+              "[useJobsQueue] V2 path returned zero rows; falling back to legacy query",
+              { agentRunId: scope.agentRunId },
+            );
+            rawRows = await fetchResultsLegacy(supabase, user.id, scope);
+          }
         } catch {
           // V2 RPC failed — fall through to legacy query with same scope params.
           console.warn(
