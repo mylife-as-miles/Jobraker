@@ -94,6 +94,7 @@ const COMPOSIO_AGENT_INTEGRATIONS = [
   { slug: "linkedin", label: "LinkedIn", toolkitSlug: "linkedin" },
   { slug: "text_to_pdf", label: "Text to PDF", toolkitSlug: "text_to_pdf", noAuth: true },
   { slug: "browser_tool", label: "Browser Tool", toolkitSlug: "browser_tool", noAuth: true },
+  { slug: "entelligence", label: "Entelligence", toolkitSlug: "entelligence", noAuth: true },
 ];
 
 type SupabaseLikeClient = ReturnType<typeof createClient>;
@@ -3137,7 +3138,7 @@ Public job-source discovery:
 - Only use intake_job_url if the URL represents a single specific job posting. For index career pages, use run_job_search with a combined site query.
 
 Composio app integrations:
-- Use list_composio_integrations before relying on GitHub, Google Drive, Google Docs, Calendly, Cal.com, Reddit, X/Twitter, Hacker News, Notion, Google Calendar, LinkedIn connected accounts, or no-auth Composio utilities such as Text to PDF and Browser Tool.
+- Use list_composio_integrations before relying on GitHub, Google Drive, Google Docs, Calendly, Cal.com, Reddit, X/Twitter, Hacker News, Notion, Google Calendar, LinkedIn connected accounts, or no-auth Composio utilities such as Text to PDF, Browser Tool, and Entelligence.
 - Use invoke_composio_tool only when you know the exact Composio tool slug and arguments. If the task can be handled by JobRaker's native tools, prefer the native JobRaker tool.
 - Confirm before invoking any Composio tool that posts, sends, comments, creates calendar events, edits documents, applies to jobs, or changes external account data.
 
@@ -3225,6 +3226,17 @@ Browser Tool via Composio (no-auth cloud browser automation, confirm-before-acti
 - If WatchTask shows the browser going in the wrong direction, looping, hitting an unexpected login/paywall/CAPTCHA, or taking too long, call BROWSER_TOOL_STOP_TASK and explain what happened before restarting with a narrower task.
 - Use BROWSER_TOOL_GET_OUTPUT_FILE only for file IDs returned in WatchTask outputFiles, and tell the user that download URLs are temporary. Keep taskId, sessionId, fileId, current_url, status, and final output together in the summary.
 - Summarize browser results into JobRaker-native outcomes: extracted leads, verified page facts, screenshots/status notes when available, source URL, confidence/risk notes, whether an action was only simulated or actually submitted, and the next safe action. Never claim a browser task succeeded until WatchTask reports a finished successful result.
+
+Entelligence via Composio (no-auth repository analysis):
+- Use Entelligence when the user asks for AI-powered codebase understanding, repository architecture summaries, dependency/functionality explanations, project insight for resume bullets, portfolio storytelling, technical interview prep, or codebase Q&A for a GitHub repository.
+- First call list_composio_integrations and confirm Entelligence is available. It is a NO_AUTH utility, so do not ask the user to connect it in Settings.
+- Prefer native JobRaker/GitHub/local-code context first when it already answers the question. Use Entelligence when a repository-level external analyzer is useful, especially for public GitHub repositories or when the user explicitly wants a repo agent.
+- Before ENTELLIGENCE_ADD_A_NEW_REPOSITORY, confirm the GitHub repository URL, display name, branch if non-default, whether the repo is public, and whether to ingest PRs, docs, or issues. For public repositories, set IsPublic true and do not ask for an AccessToken.
+- For private repositories, ask for explicit confirmation before sending the repository URL or AccessToken to Entelligence. Never invent, request unnecessarily, echo, store, or expose GitHub access tokens. If the user has connected GitHub through JobRaker, prefer GitHub Composio read tools for private data unless they explicitly approve Entelligence ingestion.
+- Treat ENTELLIGENCE_ADD_A_NEW_REPOSITORY as an asynchronous ingestion step. Capture the returned repo_uuid/vectorDBUrl and explain that analysis may need time before detailed questions work reliably.
+- Use ENTELLIGENCE_INTERACT_WITH_THE_REPOSITORY_AGENT only after a repository has been added and a repo_uuid/vectorDBUrl is available. Pass history as [] for the first question, include the exact question, and use advancedAgent true for deeper architecture/code reasoning unless the user wants a faster lightweight answer.
+- Do not use Entelligence to apply code changes, run tests, create commits, inspect secrets, or claim live repository state beyond what the ingestion has analyzed. For code edits in this workspace, use the local codebase and normal JobRaker development workflow instead.
+- Summarize Entelligence results into JobRaker-native outcomes: project purpose, architecture, notable technologies, candidate contribution bullets, interview talking points, portfolio descriptions, risk/unknown notes, repo_uuid when useful, and next suggested action.
 
 Google Drive via Composio (career files, read-first):
 - Use Google Drive when the user asks to find/import resumes, cover letters, portfolios, job trackers, interview prep files, PDFs, screenshots, recruiter notes, application artifacts, or any file stored in Drive.
