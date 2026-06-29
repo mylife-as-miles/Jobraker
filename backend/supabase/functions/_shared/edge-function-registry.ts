@@ -94,9 +94,29 @@ export const EDGE_FUNCTIONS: EdgeFunctionDefinition[] = [
   {
     name: "composio-gmail-auth",
     category: "integrations",
-    description: "Gmail integration auth helper.",
+    description: "Composio connected-account auth, status, and tool execution helper for JobRaker integrations.",
     path: "/functions/v1/composio-gmail-auth",
-    parameterSchema: OPEN_OBJECT_SCHEMA,
+    parameterSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["initiate", "verify", "status", "execute"],
+        },
+        integrationSlug: { type: "string" },
+        toolkitSlug: { type: "string" },
+        authConfigId: { type: "string" },
+        connectionId: { type: "string" },
+        integrations: { type: "array" },
+        toolSlug: { type: "string" },
+        arguments: { type: "object" },
+      },
+      additionalProperties: true,
+    },
+    notes: [
+      "Used by Settings > Integrations and Agent Mode for Composio-backed apps.",
+      "External side effects should be confirmed before execution.",
+    ],
   },
   {
     name: "evaluate-job-fit",

@@ -16,6 +16,17 @@ interface ImportMetaEnv {
   readonly VITE_ENABLE_NOTIFICATIONS?: string
   readonly VITE_ENABLE_REAL_TIME?: string
   readonly VITE_COMPOSIO_GMAIL_CONFIG_ID?: string
+  readonly VITE_COMPOSIO_GITHUB_CONFIG_ID?: string
+  readonly VITE_COMPOSIO_GOOGLEDRIVE_CONFIG_ID?: string
+  readonly VITE_COMPOSIO_GOOGLEDOCS_CONFIG_ID?: string
+  readonly VITE_COMPOSIO_CALENDLY_CONFIG_ID?: string
+  readonly VITE_COMPOSIO_CAL_CONFIG_ID?: string
+  readonly VITE_COMPOSIO_REDDIT_CONFIG_ID?: string
+  readonly VITE_COMPOSIO_TWITTER_CONFIG_ID?: string
+  readonly VITE_COMPOSIO_HACKERNEWS_CONFIG_ID?: string
+  readonly VITE_COMPOSIO_NOTION_CONFIG_ID?: string
+  readonly VITE_COMPOSIO_GOOGLECALENDAR_CONFIG_ID?: string
+  readonly VITE_COMPOSIO_LINKEDIN_CONFIG_ID?: string
 }
 
 interface ImportMeta {

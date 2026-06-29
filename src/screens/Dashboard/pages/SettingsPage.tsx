@@ -47,6 +47,8 @@ import {
   History,
   X,
   LifeBuoy,
+  Calendar,
+  Code,
 } from "lucide-react";
 import remoteCoLogo from "../../../assets/job-sources/remote-co.svg";
 import remotiveLogo from "../../../assets/job-sources/remotive.svg";
@@ -72,7 +74,6 @@ import {
   Lock,
 } from "lucide-react";
 import { encryptSymmetric } from "../../../utils/crypto";
-import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { useEmailIntegrationAccess } from "@/hooks/useEmailIntegrationAccess";
 import { CreditService } from "@/services/creditService";
@@ -153,6 +154,137 @@ async function getQRCode() {
   return QRCodeLib;
 }
 
+type ComposioIntegrationSlug =
+  | "github"
+  | "googledrive"
+  | "googledocs"
+  | "calendly"
+  | "cal"
+  | "reddit"
+  | "twitter"
+  | "hackernews"
+  | "notion"
+  | "googlecalendar"
+  | "linkedin";
+
+type ComposioConnectionStatus = {
+  configured: boolean;
+  isConnected: boolean;
+  connectionId?: string | null;
+};
+
+type ComposioIntegration = {
+  slug: ComposioIntegrationSlug;
+  toolkitSlug: string;
+  name: string;
+  description: string;
+  authConfigId?: string;
+  icon: JSX.Element;
+  accentClass: string;
+};
+
+const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
+  {
+    slug: "github",
+    toolkitSlug: "github",
+    name: "GitHub",
+    description: "Pull project evidence, repos, languages, and portfolio signals into Agent Mode.",
+    authConfigId: import.meta.env.VITE_COMPOSIO_GITHUB_CONFIG_ID,
+    icon: <Github className='w-6 h-6 text-zinc-200' />,
+    accentClass: "from-zinc-500/20 to-zinc-500/10 border-zinc-500/30",
+  },
+  {
+    slug: "googledrive",
+    toolkitSlug: "googledrive",
+    name: "Google Drive",
+    description: "Import resumes, portfolios, certificates, and career documents.",
+    authConfigId: import.meta.env.VITE_COMPOSIO_GOOGLEDRIVE_CONFIG_ID,
+    icon: <Database className='w-6 h-6 text-emerald-300' />,
+    accentClass: "from-emerald-500/20 to-emerald-500/10 border-emerald-500/30",
+  },
+  {
+    slug: "googledocs",
+    toolkitSlug: "googledocs",
+    name: "Google Docs",
+    description: "Let Agent Mode draft, revise, and update resume and cover-letter documents.",
+    authConfigId: import.meta.env.VITE_COMPOSIO_GOOGLEDOCS_CONFIG_ID,
+    icon: <FileText className='w-6 h-6 text-sky-300' />,
+    accentClass: "from-sky-500/20 to-sky-500/10 border-sky-500/30",
+  },
+  {
+    slug: "calendly",
+    toolkitSlug: "calendly",
+    name: "Calendly",
+    description: "Share booking links and coordinate recruiter interview scheduling.",
+    authConfigId: import.meta.env.VITE_COMPOSIO_CALENDLY_CONFIG_ID,
+    icon: <Calendar className='w-6 h-6 text-cyan-300' />,
+    accentClass: "from-cyan-500/20 to-cyan-500/10 border-cyan-500/30",
+  },
+  {
+    slug: "cal",
+    toolkitSlug: "cal",
+    name: "Cal.com",
+    description: "Create scheduling workflows for interview booking and rescheduling.",
+    authConfigId: import.meta.env.VITE_COMPOSIO_CAL_CONFIG_ID,
+    icon: <Calendar className='w-6 h-6 text-teal-300' />,
+    accentClass: "from-teal-500/20 to-teal-500/10 border-teal-500/30",
+  },
+  {
+    slug: "reddit",
+    toolkitSlug: "reddit",
+    name: "Reddit",
+    description: "Find community hiring leads and niche job-search conversations.",
+    authConfigId: import.meta.env.VITE_COMPOSIO_REDDIT_CONFIG_ID,
+    icon: <Globe className='w-6 h-6 text-orange-300' />,
+    accentClass: "from-orange-500/20 to-orange-500/10 border-orange-500/30",
+  },
+  {
+    slug: "twitter",
+    toolkitSlug: "twitter",
+    name: "X / Twitter",
+    description: "Track founder hiring posts, recruiter signals, and public job leads.",
+    authConfigId: import.meta.env.VITE_COMPOSIO_TWITTER_CONFIG_ID,
+    icon: <Share2 className='w-6 h-6 text-neutral-200' />,
+    accentClass: "from-neutral-500/20 to-neutral-500/10 border-neutral-500/30",
+  },
+  {
+    slug: "hackernews",
+    toolkitSlug: "hackernews",
+    name: "Hacker News",
+    description: "Search startup and engineering hiring threads from Agent Mode.",
+    authConfigId: import.meta.env.VITE_COMPOSIO_HACKERNEWS_CONFIG_ID,
+    icon: <Code className='w-6 h-6 text-amber-300' />,
+    accentClass: "from-amber-500/20 to-amber-500/10 border-amber-500/30",
+  },
+  {
+    slug: "notion",
+    toolkitSlug: "notion",
+    name: "Notion",
+    description: "Use brag docs, case studies, notes, and project writeups as candidate context.",
+    authConfigId: import.meta.env.VITE_COMPOSIO_NOTION_CONFIG_ID,
+    icon: <Database className='w-6 h-6 text-stone-200' />,
+    accentClass: "from-stone-500/20 to-stone-500/10 border-stone-500/30",
+  },
+  {
+    slug: "googlecalendar",
+    toolkitSlug: "googlecalendar",
+    name: "Google Calendar",
+    description: "Schedule interviews, prep reminders, and follow-up events from chat.",
+    authConfigId: import.meta.env.VITE_COMPOSIO_GOOGLECALENDAR_CONFIG_ID,
+    icon: <Calendar className='w-6 h-6 text-blue-300' />,
+    accentClass: "from-blue-500/20 to-blue-500/10 border-blue-500/30",
+  },
+  {
+    slug: "linkedin",
+    toolkitSlug: "linkedin",
+    name: "LinkedIn",
+    description: "Enrich profile context, recruiter signals, and job-search identity.",
+    authConfigId: import.meta.env.VITE_COMPOSIO_LINKEDIN_CONFIG_ID,
+    icon: <Linkedin className='w-6 h-6 text-blue-400' />,
+    accentClass: "from-blue-500/20 to-blue-500/10 border-blue-500/30",
+  },
+];
+
 export const SettingsPage = (): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -206,14 +338,12 @@ export const SettingsPage = (): JSX.Element => {
       },
     ];
 
-    if (hasGmailIntegrationAccess) {
-      const billingIndex = baseTabs.findIndex((t) => t.id === "billing");
-      baseTabs.splice(billingIndex, 0, {
-        id: "integrations",
-        label: "Integrations",
-        icon: <Link className='w-4 h-4' />,
-      });
-    }
+    const billingIndex = baseTabs.findIndex((t) => t.id === "billing");
+    baseTabs.splice(billingIndex, 0, {
+      id: "integrations",
+      label: "Integrations",
+      icon: <Link className='w-4 h-4' />,
+    });
 
     if (isAdmin) {
       const guidedToursIndex = baseTabs.findIndex((t) => t.id === "billing");
@@ -233,7 +363,7 @@ export const SettingsPage = (): JSX.Element => {
     }
 
     return baseTabs;
-  }, [hasGmailIntegrationAccess, isAdmin, isDesktop]);
+  }, [isAdmin, isDesktop]);
 
   const activeTab = useMemo(() => {
     const segment = location.pathname.split("/")[3];
@@ -352,6 +482,12 @@ export const SettingsPage = (): JSX.Element => {
     null,
   );
   const [gmailDisconnecting, setGmailDisconnecting] = useState(false);
+  const [composioConnectionStatuses, setComposioConnectionStatuses] = useState<
+    Partial<Record<ComposioIntegrationSlug, ComposioConnectionStatus>>
+  >({});
+  const [composioStatusesLoading, setComposioStatusesLoading] = useState(false);
+  const [connectingComposioSlug, setConnectingComposioSlug] =
+    useState<ComposioIntegrationSlug | null>(null);
   // API Key state
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [newApiKeyName, setNewApiKeyName] = useState("");
@@ -462,14 +598,6 @@ export const SettingsPage = (): JSX.Element => {
 
   const handleConnectGmail = async () => {
     try {
-      if (!hasGmailIntegrationAccess) {
-        toastError(
-          "Upgrade required",
-          "Gmail integration is available on the Pro plan.",
-        );
-        return;
-      }
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -503,12 +631,6 @@ export const SettingsPage = (): JSX.Element => {
 
   const checkGmailConnection = useCallback(async () => {
     try {
-      if (loadingEmailIntegrationAccess || !hasGmailIntegrationAccess) {
-        setIsGmailConnected(false);
-        setGmailConnectedEmail(null);
-        return;
-      }
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -548,16 +670,9 @@ export const SettingsPage = (): JSX.Element => {
       setIsGmailConnected(false);
       setGmailConnectedEmail(null);
     }
-  }, [hasGmailIntegrationAccess, loadingEmailIntegrationAccess, supabase]);
+  }, [supabase]);
 
   const handleDisconnectGmail = useCallback(async () => {
-    if (!hasGmailIntegrationAccess) {
-      toastError(
-        "Upgrade required",
-        "Gmail integration is available on the Pro plan.",
-      );
-      return;
-    }
     setGmailDisconnecting(true);
     try {
       const { error } = await supabase.functions.invoke("gmail-auth", {
@@ -579,12 +694,120 @@ export const SettingsPage = (): JSX.Element => {
       setGmailDisconnecting(false);
     }
   }, [
-    hasGmailIntegrationAccess,
     supabase,
     checkGmailConnection,
     success,
     toastError,
   ]);
+
+  const configuredComposioIntegrations = useMemo(
+    () =>
+      COMPOSIO_INTEGRATIONS.filter(
+        (integration) => !!integration.authConfigId,
+      ),
+    [],
+  );
+
+  const refreshComposioConnectionStatuses = useCallback(async () => {
+    if (configuredComposioIntegrations.length === 0) {
+      setComposioConnectionStatuses({});
+      return;
+    }
+
+    setComposioStatusesLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "composio-gmail-auth",
+        {
+          body: {
+            action: "status",
+            integrations: configuredComposioIntegrations.map((integration) => ({
+              slug: integration.slug,
+              label: integration.name,
+              toolkitSlug: integration.toolkitSlug,
+              authConfigId: integration.authConfigId,
+            })),
+          },
+        },
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      const statuses = Array.isArray((data as any)?.statuses)
+        ? ((data as any).statuses as Array<{
+            slug: ComposioIntegrationSlug;
+            configured?: boolean;
+            isConnected?: boolean;
+            connectionId?: string | null;
+          }>)
+        : [];
+
+      setComposioConnectionStatuses(() => {
+        const next: Partial<Record<ComposioIntegrationSlug, ComposioConnectionStatus>> = {};
+        for (const integration of COMPOSIO_INTEGRATIONS) {
+          const status = statuses.find((item) => item.slug === integration.slug);
+          next[integration.slug] = {
+            configured: !!integration.authConfigId,
+            isConnected: !!status?.isConnected,
+            connectionId: status?.connectionId ?? null,
+          };
+        }
+        return next;
+      });
+    } catch (error) {
+      console.error("Failed to check Composio connections:", error);
+    } finally {
+      setComposioStatusesLoading(false);
+    }
+  }, [configuredComposioIntegrations, supabase]);
+
+  const handleConnectComposioIntegration = useCallback(
+    async (integration: ComposioIntegration) => {
+      if (!integration.authConfigId) {
+        toastError(
+          "Composio config missing",
+          `Set VITE_COMPOSIO_${integration.slug.toUpperCase()}_CONFIG_ID before connecting ${integration.name}.`,
+        );
+        return;
+      }
+
+      setConnectingComposioSlug(integration.slug);
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "composio-gmail-auth",
+          {
+            body: {
+              action: "initiate",
+              integrationSlug: integration.slug,
+              toolkitSlug: integration.toolkitSlug,
+              authConfigId: integration.authConfigId,
+            },
+          },
+        );
+
+        if (error) {
+          throw error;
+        }
+
+        const redirectUrl = (data as any)?.redirectUrl;
+        if (typeof redirectUrl !== "string" || !redirectUrl) {
+          throw new Error("Composio did not return a redirect URL.");
+        }
+
+        window.open(redirectUrl, "_blank", "width=560,height=760");
+        window.setTimeout(() => void refreshComposioConnectionStatuses(), 1500);
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error ? error.message : "Could not start connection.";
+        toastError(`Failed to connect ${integration.name}`, message);
+      } finally {
+        setConnectingComposioSlug(null);
+      }
+    },
+    [refreshComposioConnectionStatuses, supabase, toastError],
+  );
 
   useEffect(() => {
     void checkGmailConnection();
@@ -593,28 +816,28 @@ export const SettingsPage = (): JSX.Element => {
   useEffect(() => {
     if (activeTab === "integrations") {
       void checkGmailConnection();
+      void refreshComposioConnectionStatuses();
     }
-  }, [activeTab, checkGmailConnection]);
+  }, [activeTab, checkGmailConnection, refreshComposioConnectionStatuses]);
 
   useEffect(() => {
-    if (
-      activeTab !== "integrations" ||
-      loadingEmailIntegrationAccess ||
-      !hasGmailIntegrationAccess
-    ) {
+    if (activeTab !== "integrations") {
       return;
     }
     let debounce: ReturnType<typeof setTimeout>;
     const onFocus = () => {
       clearTimeout(debounce);
-      debounce = setTimeout(() => void checkGmailConnection(), 300);
+      debounce = setTimeout(() => {
+        void checkGmailConnection();
+        void refreshComposioConnectionStatuses();
+      }, 300);
     };
     window.addEventListener("focus", onFocus);
     return () => {
       clearTimeout(debounce);
       window.removeEventListener("focus", onFocus);
     };
-  }, [activeTab, hasGmailIntegrationAccess, loadingEmailIntegrationAccess, checkGmailConnection]);
+  }, [activeTab, checkGmailConnection, refreshComposioConnectionStatuses]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -659,14 +882,6 @@ export const SettingsPage = (): JSX.Element => {
       }
 
       if (messageType === "gmail-auth-success") {
-        if (!hasGmailIntegrationAccess) {
-          toastError(
-            "Upgrade required",
-            "Gmail integration is available on the Pro plan.",
-          );
-          return;
-        }
-
         await checkGmailConnection();
         success("Gmail connected successfully!");
       }
@@ -677,7 +892,7 @@ export const SettingsPage = (): JSX.Element => {
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [hasGmailIntegrationAccess, checkGmailConnection, success, toastError]);
+  }, [checkGmailConnection, success, toastError]);
 
   const initials = useMemo(() => {
     const a = (formData.firstName || "").trim();
@@ -4486,19 +4701,19 @@ export const SettingsPage = (): JSX.Element => {
             data-tour='settings-tab-integrations'
             className='space-y-6 mb-20'
           >
-            <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-[#]/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>
+            <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-brand/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>
               <div className='flex items-center justify-between'>
                 <div className='flex items-center gap-4'>
-                  <div className='w-12 h-12 rounded-xl bg-gradient-to-br from-[#]/20 to-[#]/10 border border-[#]/30 flex items-center justify-center'>
-                    <Mail className='w-6 h-6 text-[#]' />
+                  <div className='w-12 h-12 rounded-xl bg-gradient-to-br from-brand/20 to-brand/10 border border-brand/30 flex items-center justify-center'>
+                    <Mail className='w-6 h-6 text-brand' />
                   </div>
                   <div className='min-w-0'>
                     <h3 className='text-sm font-medium text-foreground/95'>
-                      Gmail
+                      Gmail Pipeline
                     </h3>
                     {isGmailConnected && gmailConnectedEmail ? (
                       <p
-                        className='text-xs font-medium text-[#]/90 mt-0.5 truncate'
+                        className='text-xs font-medium text-brand/90 mt-0.5 truncate'
                         title={gmailConnectedEmail}
                       >
                         {gmailConnectedEmail}
@@ -4514,7 +4729,7 @@ export const SettingsPage = (): JSX.Element => {
                   {isGmailConnected ? (
                     <>
                       <span
-                        className='inline-flex items-center gap-2 rounded-lg border border-[#]/30 bg-[#]/10 px-3 py-2 text-sm font-medium text-[#]'
+                        className='inline-flex items-center gap-2 rounded-lg border border-brand/30 bg-brand/10 px-3 py-2 text-sm font-medium text-brand'
                         aria-live='polite'
                       >
                         <Link className='w-4 h-4 shrink-0' aria-hidden />
@@ -4538,7 +4753,7 @@ export const SettingsPage = (): JSX.Element => {
                   ) : (
                     <Button
                       variant='outline'
-                      className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#]/10 hover:border-[#]/30 transition-all'
+                      className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-brand/10 hover:border-brand/30 transition-all'
                       onClick={handleConnectGmail}
                       disabled={loadingEmailIntegrationAccess}
                     >
@@ -4549,62 +4764,111 @@ export const SettingsPage = (): JSX.Element => {
                 </div>
               </div>
             </div>
-            {!loadingEmailIntegrationAccess && !hasGmailIntegrationAccess && (
-              <UpgradePrompt
-                compact
-                requiredTier='Pro'
-                showPricing={false}
-                title='Gmail Integration'
-                description='Connect Gmail, sync application emails, and keep your pipeline updated with the Pro plan.'
-              />
-            )}
-            <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-[#]/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between'>
-                <div className='flex items-center gap-4'>
-                  <div className='w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 border border-blue-500/30 flex items-center justify-center'>
-                    <Linkedin className='w-6 h-6 text-blue-400' />
-                  </div>
-                  <div>
-                    <h3 className='text-sm font-medium text-foreground/95'>
-                      LinkedIn
-                    </h3>
-                    <p className='text-xs text-muted-foreground mt-0.5'>
-                      Connect to sync your profile and apply to jobs
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant='outline'
-                  className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#]/10 hover:border-[#]/30 transition-all'
-                >
-                  <Link className='w-4 h-4 mr-2' />
-                  Connect
-                </Button>
+
+            <div className='flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between'>
+              <div>
+                <h3 className='text-base font-semibold text-foreground'>
+                  Composio App Connections
+                </h3>
+                <p className='text-sm text-muted-foreground mt-1 max-w-2xl'>
+                  Connect the apps JobRaker Agent can use for candidate context,
+                  hidden-job discovery, and interview workflow.
+                </p>
               </div>
+              <Button
+                type='button'
+                variant='outline'
+                onClick={() => void refreshComposioConnectionStatuses()}
+                disabled={composioStatusesLoading}
+                className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-brand/10 hover:border-brand/30'
+              >
+                <RefreshCw
+                  className={`w-4 h-4 mr-2 ${composioStatusesLoading ? "animate-spin" : ""}`}
+                />
+                Refresh
+              </Button>
             </div>
-            <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-[#]/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between'>
-                <div className='flex items-center gap-4'>
-                  <div className='w-12 h-12 rounded-xl bg-gradient-to-br from-zinc-700/20 to-zinc-700/10 border border-zinc-700/30 flex items-center justify-center'>
-                    <Github className='w-6 h-6 text-zinc-300' />
+
+            <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+              {COMPOSIO_INTEGRATIONS.map((integration) => {
+                const status = composioConnectionStatuses[integration.slug] ?? {
+                  configured: !!integration.authConfigId,
+                  isConnected: false,
+                  connectionId: null,
+                };
+                const isConnecting = connectingComposioSlug === integration.slug;
+                return (
+                  <div
+                    key={integration.slug}
+                    className='bg-card border border-border/40 rounded-xl p-5 hover:border-brand/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'
+                  >
+                    <div className='flex items-start justify-between gap-4'>
+                      <div className='flex min-w-0 items-start gap-4'>
+                        <div
+                          className={`w-12 h-12 rounded-xl bg-gradient-to-br border flex items-center justify-center shrink-0 ${integration.accentClass}`}
+                        >
+                          {integration.icon}
+                        </div>
+                        <div className='min-w-0'>
+                          <h3 className='text-sm font-medium text-foreground/95'>
+                            {integration.name}
+                          </h3>
+                          <p className='text-xs text-muted-foreground mt-1 leading-relaxed'>
+                            {integration.description}
+                          </p>
+                        </div>
+                      </div>
+                      <span
+                        className={`inline-flex shrink-0 items-center rounded-lg border px-2.5 py-1 text-xs font-medium ${
+                          status.isConnected
+                            ? "border-brand/30 bg-brand/10 text-brand"
+                            : status.configured
+                              ? "border-border/40 bg-muted/50 text-muted-foreground"
+                              : "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                        }`}
+                      >
+                        {status.isConnected
+                          ? "Connected"
+                          : status.configured
+                            ? "Ready"
+                            : "Config needed"}
+                      </span>
+                    </div>
+                    <div className='mt-5 flex items-center justify-between gap-3'>
+                      <p className='truncate text-[11px] text-muted-foreground'>
+                        {status.connectionId
+                          ? `Connection: ${status.connectionId}`
+                          : status.configured
+                            ? `Toolkit: ${integration.toolkitSlug}`
+                            : `Missing VITE_COMPOSIO_${integration.slug.toUpperCase()}_CONFIG_ID`}
+                      </p>
+                      <Button
+                        type='button'
+                        variant='outline'
+                        className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-brand/10 hover:border-brand/30 transition-all'
+                        onClick={() =>
+                          void handleConnectComposioIntegration(integration)
+                        }
+                        disabled={isConnecting || !status.configured}
+                      >
+                        {isConnecting ? (
+                          <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
+                        ) : (
+                          <Link className='w-4 h-4 mr-2' />
+                        )}
+                        {status.isConnected ? "Reconnect" : "Connect"}
+                      </Button>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className='text-sm font-medium text-foreground/95'>
-                      GitHub
-                    </h3>
-                    <p className='text-xs text-muted-foreground mt-0.5'>
-                      Connect to showcase your projects
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant='outline'
-                  className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#]/10 hover:border-[#]/30 transition-all'
-                >
-                  <Link className='w-4 h-4 mr-2' />
-                  Connect
-                </Button>
-              </div>
+                );
+              })}
+            </div>
+
+            <div className='rounded-xl border border-border/40 bg-muted/30 p-4 text-xs text-muted-foreground'>
+              Agent Mode can read connection status immediately. Tool execution
+              uses the connected user account and still requires explicit
+              confirmation for posting, sending, applying, or other external
+              side effects.
             </div>
           </div>
         );

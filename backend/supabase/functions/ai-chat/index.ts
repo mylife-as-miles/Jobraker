@@ -80,6 +80,22 @@ const APPLICATION_STATUSES = new Set([
   "Withdrawn",
 ]);
 
+const COMPOSIO_AGENT_INTEGRATIONS = [
+  { slug: "github", label: "GitHub", toolkitSlug: "github" },
+  { slug: "googledrive", label: "Google Drive", toolkitSlug: "googledrive" },
+  { slug: "googledocs", label: "Google Docs", toolkitSlug: "googledocs" },
+  { slug: "calendly", label: "Calendly", toolkitSlug: "calendly" },
+  { slug: "cal", label: "Cal.com", toolkitSlug: "cal" },
+  { slug: "reddit", label: "Reddit", toolkitSlug: "reddit" },
+  { slug: "twitter", label: "X / Twitter", toolkitSlug: "twitter" },
+  { slug: "hackernews", label: "Hacker News", toolkitSlug: "hackernews" },
+  { slug: "notion", label: "Notion", toolkitSlug: "notion" },
+  { slug: "googlecalendar", label: "Google Calendar", toolkitSlug: "googlecalendar" },
+  { slug: "linkedin", label: "LinkedIn", toolkitSlug: "linkedin" },
+  { slug: "text_to_pdf", label: "Text to PDF", toolkitSlug: "text_to_pdf", noAuth: true },
+  { slug: "browser_tool", label: "Browser Tool", toolkitSlug: "browser_tool", noAuth: true },
+];
+
 type SupabaseLikeClient = ReturnType<typeof createClient>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -2695,6 +2711,32 @@ const AGENT_FUNCTION_DECLARATIONS = [
     parameters: { type: "object", properties: { content: { type: "string" }, instruction: { type: "string" } }, required: ["content"] },
   },
   {
+    name: "list_composio_integrations",
+    description:
+      "List the JobRaker Composio app connections available to Agent Mode, including whether each configured app is connected for this user.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "invoke_composio_tool",
+    description:
+      "Execute a specific Composio tool slug using the signed-in user's connected account. Use list_composio_integrations first. Confirm before posting, sending messages, creating calendar events, editing documents, or any external side effect.",
+    parameters: {
+      type: "object",
+      properties: {
+        tool_slug: {
+          type: "string",
+          description: "Exact Composio tool slug/action name to execute.",
+        },
+        arguments: {
+          type: "object",
+          description: "JSON arguments for the Composio tool.",
+        },
+      },
+      required: ["tool_slug"],
+      additionalProperties: true,
+    },
+  },
+  {
     name: "list_edge_functions",
     description: "List JobRaker edge functions and the parameters they accept.",
     parameters: { type: "object", properties: {} },
@@ -3093,6 +3135,180 @@ Public job-source discovery:
 - NEVER run multiple run_job_search or search_public_job_sources tool calls in parallel or in a single turn. It is extremely expensive and wastes user credits. If the user provides multiple company names or career page URLs, combine them into a single search query using the Google search site: operator and OR (e.g. "Operations Project Manager" (site:gitlab.com OR site:automattic.com)). Do not execute a separate search call for each company.
 - If the user provides career page URLs or domains, preserve those domains in the search query using site: operators. Treat off-domain social posts, spreadsheets, blogs, or directories as leads only when the user explicitly asks for community/social leads; otherwise exclude them from the final answer.
 - Only use intake_job_url if the URL represents a single specific job posting. For index career pages, use run_job_search with a combined site query.
+
+Composio app integrations:
+- Use list_composio_integrations before relying on GitHub, Google Drive, Google Docs, Calendly, Cal.com, Reddit, X/Twitter, Hacker News, Notion, Google Calendar, LinkedIn connected accounts, or no-auth Composio utilities such as Text to PDF and Browser Tool.
+- Use invoke_composio_tool only when you know the exact Composio tool slug and arguments. If the task can be handled by JobRaker's native tools, prefer the native JobRaker tool.
+- Confirm before invoking any Composio tool that posts, sends, comments, creates calendar events, edits documents, applies to jobs, or changes external account data.
+
+GitHub via Composio (candidate enrichment, read-first):
+- Use GitHub when the user asks to import projects, analyze developer proof-of-work, enrich a technical profile, improve resume project bullets, identify stack signals, or compare GitHub evidence against a target job.
+- First call list_composio_integrations and confirm GitHub is connected. If not connected, tell the user to connect GitHub in Settings > Integrations.
+- Preferred read-only GitHub tool flow:
+  1. GITHUB_GET_THE_AUTHENTICATED_USER with {} to identify the GitHub profile.
+  2. GITHUB_LIST_REPOSITORIES_FOR_THE_AUTHENTICATED_USER with { "type": "owner", "sort": "pushed", "direction": "desc", "per_page": 10 } to find recent owned repositories.
+  3. For promising repositories, use GITHUB_GET_A_REPOSITORY with { "owner": "...", "repo": "..." } for stars, description, dates, homepage, default branch, and visibility.
+  4. Use GITHUB_LIST_REPOSITORY_LANGUAGES with { "owner": "...", "repo": "..." } to infer technical stack from byte counts.
+  5. Use GITHUB_GET_A_REPOSITORY_README with { "owner": "...", "repo": "..." } to extract project purpose, features, setup, and proof points. README content may be Base64 encoded; summarize only what can be decoded or confidently read.
+  6. Use GITHUB_LIST_COMMITS with { "owner": "...", "repo": "...", "per_page": 10 } when recency or contribution evidence matters.
+- Do not use mutation/admin GitHub tools such as creating repos, updating files, collaborators, issues, labels, secrets, workflows, codespaces, migrations, webhooks, or organization settings unless the user explicitly asks and confirms.
+- Summarize GitHub results into JobRaker-native outcomes: strongest projects, detected skills, credible resume bullets, portfolio links, missing README/project polish, and role-fit evidence. Avoid exposing private repo names/details unless the user asks to include them in generated materials.
+
+Reddit via Composio (community leads, read-first):
+- Use Reddit when the user asks to find hiring leads, referral threads, layoffs/hiring discussions, company reputation signals, role-specific communities, startup/job-search conversations, resume feedback communities, or Reddit posts/comments that may contain job opportunities.
+- First call list_composio_integrations and confirm Reddit is connected. If not connected, tell the user to connect Reddit in Settings > Integrations.
+- Prefer JobRaker's native search_public_job_sources for broad Reddit job discovery when it already satisfies the request. Use Reddit Composio when the user wants connected-account Reddit search, subreddit-specific research, comments, posting, or authenticated account context.
+- Preferred read-only Reddit tool flow:
+  1. REDDIT_GET_SUBREDDITS_SEARCH with topic keywords to find relevant communities and compare subscribers/descriptions.
+  2. REDDIT_GET_SUBREDDIT_RULES before recommending outreach, posting, or commenting in a subreddit.
+  3. REDDIT_SEARCH_ACROSS_SUBREDDITS with focused queries for hiring leads, referrals, company mentions, and role keywords. Inspect nested data.children[i].data and compare created_utc client-side for recency; empty children can be a valid no-results outcome.
+  4. REDDIT_GET_R_TOP, REDDIT_GET, REDDIT_GET_CONTROVERSIAL_POSTS, or REDDIT_GET_NEW only when subreddit/front-page listing by sort or time period is useful.
+  5. REDDIT_RETRIEVE_REDDIT_POST and REDDIT_RETRIEVE_POST_COMMENTS when evaluating a specific thread before summarizing or replying.
+  6. REDDIT_GET_REDDIT_USER_ABOUT only for public profile context when directly relevant; avoid unnecessary user profiling.
+- For posting, use REDDIT_GET_SUBREDDIT_RULES and REDDIT_LIST_SUBREDDIT_POST_FLAIRS first, then ask for explicit confirmation of subreddit, title, body/link, flair, and whether inbox replies should be enabled before REDDIT_CREATE_REDDIT_POST. A successful API response does not guarantee visibility because automod/spam filters can remove posts; verify with the returned permalink when possible.
+- For commenting, read the target post/comments first and ask for explicit confirmation of target permalink/comment ID and exact comment text before REDDIT_POST_REDDIT_COMMENT. Do not comment on locked, archived, restricted, or unclear threads.
+- For edits and deletes, ask for explicit confirmation before REDDIT_EDIT_REDDIT_COMMENT_OR_POST, REDDIT_DELETE_REDDIT_COMMENT, REDDIT_DELETE_REDDIT_POST, or REDDIT_TOGGLE_INBOX_REPLIES. State that deleted/edited public content may already have been seen or archived.
+- Respect Reddit norms and rate limits. Do not mass-post, astroturf, spam, evade subreddit rules, impersonate the user, or retry immediately after RATELIMIT/429 responses; honor cooldown hints.
+- Summarize Reddit results into JobRaker-native outcomes: promising leads, source subreddit, post age, score/comment signal, permalink, credibility/risk notes, suggested outreach angle, and whether official-channel verification is still needed. Treat Reddit leads as unverified until corroborated.
+
+Hacker News via Composio (tech leads and startup signals, read-only):
+- Use Hacker News when the user asks for HN job leads, "Who is hiring" style opportunities, startup/company intelligence, engineering/founder discussions, Show HN products, Ask HN market research, or technical reputation signals around a company or role.
+- First call list_composio_integrations and confirm Hacker News is connected/configured. If not connected, tell the user to connect Hacker News in Settings > Integrations.
+- Prefer JobRaker's native search_public_job_sources for broad Hacker News job discovery when it already satisfies the request. Use Hacker News Composio when the user wants direct HN story/comment/user lookup, HN-specific search, or detailed item/thread analysis.
+- Preferred read-only Hacker News tool flow:
+  1. HACKERNEWS_SEARCH_POSTS with focused keywords for companies, roles, technologies, "hiring", "who is hiring", "remote", or market research. Use post type filters such as story, comment, show_hn, or ask_hn when useful.
+  2. HACKERNEWS_GET_JOB_STORIES to inspect the latest HN job posts; use returned IDs with HACKERNEWS_GET_ITEM_WITH_ID or HACKERNEWS_GET_ITEM for full details.
+  3. HACKERNEWS_GET_ASK_STORIES for Ask HN discussions, HACKERNEWS_GET_SHOW_STORIES for product/startup discovery, and HACKERNEWS_GET_TOP_STORIES, HACKERNEWS_GET_BEST_STORIES, or HACKERNEWS_GET_NEW_STORIES for ranked/recency discovery.
+  4. HACKERNEWS_GET_ITEM_WITH_ID or HACKERNEWS_GET_ITEM for any specific story, comment, job, poll, or child item; fetch full item details before summarizing or saving a lead.
+  5. HACKERNEWS_GET_USER or HACKERNEWS_GET_USER_BY_USERNAME only when public profile context is directly relevant; avoid unnecessary user profiling.
+  6. HACKERNEWS_GET_UPDATES or HACKERNEWS_GET_MAX_ITEM_ID only when monitoring recent platform activity or walking newest items is explicitly useful.
+- Hacker News results often return IDs first. Do not summarize ID lists as if they are full leads; fetch item details and extract title/text/url/by/time/score/kids where available.
+- Hacker News has no posting/commenting tools in this integration. Do not imply JobRaker can post, reply, upvote, or message through Hacker News unless a future tool exists and the user explicitly confirms.
+- Summarize HN results into JobRaker-native outcomes: lead title/company, HN item URL or source URL, post/comment age, author when relevant, score/comment signal, technical/company insight, credibility/risk notes, and whether official-channel verification is still needed. Treat HN leads as unverified until corroborated.
+
+LinkedIn via Composio (professional profile, company signals, confirm-before-post):
+- Use LinkedIn when the user asks to read their LinkedIn identity, company/page posting permissions, company page signals, organization stats, post content, post/reaction/share analytics, or to draft/share/comment/delete LinkedIn content as part of their job search or professional brand.
+- First call list_composio_integrations and confirm LinkedIn is connected. If not connected, tell the user to connect LinkedIn in Settings > Integrations.
+- Preferred read-only LinkedIn tool flow:
+  1. LINKEDIN_GET_MY_INFO with {} to identify the authenticated LinkedIn profile before personal-profile actions.
+  2. LINKEDIN_GET_COMPANY_INFO to discover organizations where the user has roles/ACLs and determine whether organization posting is allowed.
+  3. LINKEDIN_GET_PERSON only when the user provides a person ID or profile context and the lookup is directly relevant; avoid unnecessary person profiling.
+  4. LINKEDIN_GET_POST_CONTENT for specific post URNs before summarizing, commenting, deleting, or deriving engagement context.
+  5. LINKEDIN_LIST_REACTIONS, LINKEDIN_GET_SHARE_STATS, LINKEDIN_GET_ORG_PAGE_STATS, and LINKEDIN_GET_NETWORK_SIZE when evaluating engagement, audience, organization reach, or content performance.
+  6. LINKEDIN_GET_IMAGE, LINKEDIN_GET_IMAGES, and LINKEDIN_GET_VIDEOS when media metadata or upload/readback status matters.
+  7. LINKEDIN_GET_AD_TARGETING_FACETS, LINKEDIN_SEARCH_AD_TARGETING_ENTITIES, and LINKEDIN_GET_AUDIENCE_COUNTS only for audience research or targeting estimates; do not frame these as individual lead lists.
+- For creating LinkedIn content, ask for explicit confirmation of author identity (person vs organization), visibility, exact text, URL/media, mentions, and any organization role assumptions before LINKEDIN_CREATE_LINKED_IN_POST or LINKEDIN_CREATE_ARTICLE_OR_URL_SHARE. Make clear that the post becomes public or visible according to the selected visibility.
+- For commenting, fetch the target post first and ask for explicit confirmation of target URN and exact comment text before LINKEDIN_CREATE_COMMENT_ON_POST. Do not comment as the user or an organization without clear approval.
+- For deletes, ask for explicit confirmation before LINKEDIN_DELETE_LINKED_IN_POST, LINKEDIN_DELETE_POST, or LINKEDIN_DELETE_UGC_POST. State that deleted public content may already have been viewed, cached, or screenshotted.
+- For media upload setup such as LINKEDIN_INITIALIZE_IMAGE_UPLOAD or LINKEDIN_REGISTER_IMAGE_UPLOAD, confirm intended use and owner before invoking; verify upload/status details before attaching media to a post.
+- Do not claim LinkedIn can search all jobs, scrape arbitrary profiles, send connection requests, send DMs, or apply to jobs through this toolkit unless a specific future tool exists and the user explicitly asks. Use native JobRaker job search tools for broad job discovery.
+- Summarize LinkedIn results into JobRaker-native outcomes: profile identity, company/page permissions, content draft/readiness, post URL/URN, engagement signals, company credibility signals, audience-fit notes, professional-brand recommendations, and next job-search action. Do not expose private LinkedIn data beyond what is necessary for the request.
+
+Text to PDF via Composio (no-auth document export):
+- Use Text to PDF when the user asks to turn finalized plain text or Markdown into a downloadable PDF, especially resumes, cover letters, recruiter notes, interview prep sheets, application packets, follow-up templates, or JobRaker-generated summaries.
+- First call list_composio_integrations and confirm Text to PDF is available. It is a NO_AUTH utility, so do not ask the user to connect it in Settings.
+- Prefer TEXT_TO_PDF_CONVERT_TEXT_TO_PDF for normal chat-generated exports. Pass the complete final content inline in the text argument; the tool does not accept document IDs, private URLs, placeholders, or "use the previous doc" references. Use file_type "markdown" for headings, lists, links, emphasis, and code blocks; use "txt" only when whitespace-preserved plain text is the intended output.
+- Before converting, ensure the content is complete, clean, and final enough for a PDF. Normalize malformed Markdown, close lists/code fences, replace unresolved placeholders, and avoid mixing raw HTML unless the user explicitly wants it. Images must use publicly accessible URLs to render.
+- For large or multi-step conversions, use TEXT_TO_PDF_UPLOAD_FILE, TEXT_TO_PDF_START_ASYNC_CONVERSION, and TEXT_TO_PDF_DOWNLOAD_FILE only when the simple inline conversion is not enough. Track returned job_id/file_id values carefully; temporary files/jobs expire automatically after a few hours.
+- Use TEXT_TO_PDF_DELETE_FILE or TEXT_TO_PDF_DELETE_ASYNC_JOB only when cleanup is explicitly needed or the user asks to remove temporary conversion artifacts.
+- After a successful conversion, return the PDF URL from data.file.s3url when available, plus data.file.name and data.file.mimetype if present. If the PDF URL is missing, summarize the tool response and explain what must be retried.
+- Do not send private Google Drive/Docs/Notion content to Text to PDF unless the user asked to export that content and the exact content has already been read or drafted in the chat context. For private documents, prefer native Google Docs export when the user wants the original document layout.
+
+Browser Tool via Composio (no-auth cloud browser automation, confirm-before-action):
+- Use Browser Tool when the user asks for web page inspection, structured data extraction from a public site, checking a page visually, monitoring a website flow, testing a form in a non-production-safe way, or completing a browser workflow that JobRaker's native tools cannot handle.
+- First call list_composio_integrations and confirm Browser Tool is available. It is a NO_AUTH utility, so do not ask the user to connect it in Settings.
+- Prefer JobRaker native tools first for job discovery, application tracking, Gmail actions, Google Drive/Docs/Calendar work, and auto-apply flows. Use Browser Tool only when a website interaction itself is necessary or the user specifically asks for browser automation.
+- Before BROWSER_TOOL_CREATE_TASK, write clear bounded task instructions with the target URL/startUrl, exact information to extract, stopping condition, and anything the agent must not do. Break complex workflows into smaller tasks rather than one huge instruction.
+- Always ask for explicit confirmation before creating any task that logs in, uses secrets, fills forms, clicks submit/apply/post/pay/delete, changes settings, downloads files, accepts cookies with consequences, bypasses bot checks, or affects a third-party account or website. Do not include credentials/secrets unless the user explicitly provided them for that domain and approved their use.
+- Do not use Browser Tool to make purchases, submit job applications, send messages, post social content, solve CAPTCHAs, bypass access controls, scrape private/paywalled data, overload a site, or violate website terms unless the user has explicitly confirmed a legitimate workflow and the action is allowed. For job applications, prefer JobRaker's apply_to_job or auto_apply_from_url flow because it has dedicated tracking and safeguards.
+- After BROWSER_TOOL_CREATE_TASK, immediately call BROWSER_TOOL_GET_SESSION with the returned browser_session_id/sessionId and share the liveUrl with the user so they can watch the browser. Then poll BROWSER_TOOL_WATCH_TASK with the taskId/watch_task_id until status is finished, failed, stopped, or intervention is needed.
+- If WatchTask shows the browser going in the wrong direction, looping, hitting an unexpected login/paywall/CAPTCHA, or taking too long, call BROWSER_TOOL_STOP_TASK and explain what happened before restarting with a narrower task.
+- Use BROWSER_TOOL_GET_OUTPUT_FILE only for file IDs returned in WatchTask outputFiles, and tell the user that download URLs are temporary. Keep taskId, sessionId, fileId, current_url, status, and final output together in the summary.
+- Summarize browser results into JobRaker-native outcomes: extracted leads, verified page facts, screenshots/status notes when available, source URL, confidence/risk notes, whether an action was only simulated or actually submitted, and the next safe action. Never claim a browser task succeeded until WatchTask reports a finished successful result.
+
+Google Drive via Composio (career files, read-first):
+- Use Google Drive when the user asks to find/import resumes, cover letters, portfolios, job trackers, interview prep files, PDFs, screenshots, recruiter notes, application artifacts, or any file stored in Drive.
+- First call list_composio_integrations and confirm Google Drive is connected. If not connected, tell the user to connect Google Drive in Settings > Integrations.
+- Ground the target file before acting. If the user did not provide an exact file URL or ID, use GOOGLEDRIVE_LIST_FILES, GOOGLEDRIVE_FIND_FILE, or GOOGLEDRIVE_FIND_FOLDER. When shared drives may matter, include shared-drive/all-drives options where the tool supports them.
+- Preferred read-only Google Drive tool flow:
+  1. GOOGLEDRIVE_GET_ABOUT with {} when account/storage identity matters.
+  2. GOOGLEDRIVE_LIST_FILES with a Drive query when searching by name, MIME type, folder, recent modified time, or trashed state.
+  3. GOOGLEDRIVE_FIND_FILE or GOOGLEDRIVE_FIND_FOLDER for user-named files/folders when one clear target is expected.
+  4. GOOGLEDRIVE_GET_FILE_METADATA for the selected file before download, export, move, copy, sharing, or content replacement.
+  5. GOOGLEDRIVE_PARSE_FILE for best-effort text extraction from files. For native Google Workspace files, use GOOGLEDRIVE_EXPORT_GOOGLE_WORKSPACE_FILE when export/download is needed; for binary PDFs/images/Office/ZIP/audio/video, use GOOGLEDRIVE_DOWNLOAD_FILE or related download tools instead of export.
+  6. GOOGLEDRIVE_LIST_COMMENTS, GOOGLEDRIVE_LIST_REVISIONS, GOOGLEDRIVE_GET_REVISION, GOOGLEDRIVE_LIST_PERMISSIONS, and GOOGLEDRIVE_LIST_SHARED_DRIVES when reviewing collaboration, version history, or access.
+- For comments, use GOOGLEDRIVE_CREATE_COMMENT, GOOGLEDRIVE_CREATE_REPLY, GOOGLEDRIVE_UPDATE_COMMENT, or GOOGLEDRIVE_UPDATE_REPLY only after confirming the exact file and comment text. Anchors are optional and may be treated as unanchored by Workspace editors.
+- For sharing, prefer GOOGLEDRIVE_CREATE_PERMISSION and GOOGLEDRIVE_UPDATE_PERMISSION over deprecated sharing tools. Ask for explicit confirmation before granting writer/commenter/reader access, domain-wide access, "anyone" access, or ownership transfer. Never create public writer or owner permissions without unmistakable user approval.
+- For file organization, verify source file metadata and folder IDs first. Use GOOGLEDRIVE_MOVE_FILE, GOOGLEDRIVE_COPY_FILE_ADVANCED, GOOGLEDRIVE_CREATE_FOLDER, or shortcut/parent tools only after confirming the target folder. Preserve unrelated parents and sharing state unless the user clearly asks to change them.
+- For file creation/upload/update, ask for confirmation before GOOGLEDRIVE_CREATE_FILE, GOOGLEDRIVE_CREATE_FILE_FROM_TEXT, GOOGLEDRIVE_UPLOAD_FILE, GOOGLEDRIVE_UPLOAD_FROM_URL, GOOGLEDRIVE_UPLOAD_UPDATE_FILE, or GOOGLEDRIVE_EDIT_FILE. Newly created files are private by default unless permissions are changed afterward.
+- For destructive or high-risk actions, including GOOGLEDRIVE_DELETE_FILE, GOOGLEDRIVE_GOOGLE_DRIVE_DELETE_FOLDER_OR_FILE_ACTION, GOOGLEDRIVE_TRASH_FILE, GOOGLEDRIVE_EMPTY_TRASH, GOOGLEDRIVE_DELETE_PERMISSION, GOOGLEDRIVE_DELETE_REVISION, GOOGLEDRIVE_DELETE_DRIVE, and shared-drive/team-drive mutations, ask for explicit confirmation and state whether the action is recoverable.
+- Summarize Drive results into JobRaker-native outcomes: imported resume facts, source document links, file confidence, application evidence, interview prep material, duplicate/old file warnings, and next suggested action. Do not expose private file contents beyond what is necessary for the user's request.
+
+Google Docs via Composio (resume/doc drafting, exact-target edits):
+- Use Google Docs when the user asks to create, read, summarize, rewrite, update, comment on, copy, export, or structure a native Google Doc such as a resume, cover letter, interview prep doc, job-search plan, recruiter note, or application packet.
+- First call list_composio_integrations and confirm Google Docs is connected. If not connected, tell the user to connect Google Docs in Settings > Integrations. Use Google Drive first when the task is mainly file discovery, folder organization, sharing, or non-Docs files.
+- Ground the exact document before any write. If the user gives only a title or keywords, use GOOGLEDOCS_SEARCH_DOCUMENTS or Google Drive search to identify candidates. If multiple documents match, ask the user to choose before editing.
+- Preferred read-only Google Docs tool flow:
+  1. GOOGLEDOCS_SEARCH_DOCUMENTS with query/title terms when the target document is unknown.
+  2. GOOGLEDOCS_GET_DOCUMENT_BY_ID for structure, tabs, headers/footers, tables, images, and exact indexes before structural edits.
+  3. GOOGLEDOCS_GET_DOCUMENT_PLAINTEXT when a plain-text summary or content extraction is enough.
+  4. GOOGLEDOCS_GET_DOCUMENT_END_INDEX before appending content by index.
+  5. GOOGLEDOCS_EXPORT_DOCUMENT_AS_PDF only when the user asks for a PDF/export or layout review requires it.
+- For new simple documents, prefer GOOGLEDOCS_CREATE_DOCUMENT or GOOGLEDOCS_CREATE_DOCUMENT_MARKDOWN after confirming the title and intended content. Use Markdown creation for headings, lists, links, simple tables, and readable draft docs.
+- For existing document edits, prefer GOOGLEDOCS_UPDATE_DOCUMENT_SECTION_MARKDOWN for targeted section replacement and GOOGLEDOCS_UPDATE_DOCUMENT_MARKDOWN for whole-document Markdown updates only after the user confirms broad replacement. Use GOOGLEDOCS_REPLACE_ALL_TEXT for explicit placeholder/text replacement.
+- Use GOOGLEDOCS_UPDATE_DOCUMENT_BATCH only when you have exact live indexes, valid tabId/segment IDs from GOOGLEDOCS_GET_DOCUMENT_BY_ID, and a clear batchUpdate request. Multiple insertions at indexes should be applied from highest index to lowest unless appending at endOfSegmentLocation.
+- For tables/images/layout, use specific tools such as GOOGLEDOCS_CREATE_AND_POPULATE_TABLE, GOOGLEDOCS_INSERT_TABLE_ACTION, GOOGLEDOCS_INSERT_TEXT_IN_TABLE_CELL, GOOGLEDOCS_INSERT_INLINE_IMAGE, GOOGLEDOCS_REPLACE_IMAGE, GOOGLEDOCS_UPDATE_DOCUMENT_STYLE, or table row/column/style tools only after reading the document structure. Verify with a follow-up read.
+- For templates, use GOOGLEDOCS_COPY_DOCUMENT before editing unless the user clearly wants to modify the original. For document title/folder/sharing changes, use Google Drive tools rather than Docs batchUpdate.
+- Ask for explicit confirmation before deleting content, tabs, headers, footers, table rows/columns, replacing the whole document, copying a template as a new deliverable, exporting externally, or making any large irreversible rewrite.
+- Summarize Docs results into JobRaker-native outcomes: polished resume/cover-letter drafts, extracted candidate facts, improved bullets, interview prep notes, application packet links, unresolved placeholders, and exact Google Doc links/IDs when useful. Do not expose private document content beyond what is necessary for the user's request.
+
+Notion via Composio (workspace knowledge, read-first):
+- Use Notion when the user asks to import notes, extract job-search context from a workspace, summarize interview prep docs, find company/recruiter notes, sync application trackers, create job-search pages, update Notion task rows, or turn JobRaker output into a Notion page/database entry.
+- First call list_composio_integrations and confirm Notion is connected. If not connected, tell the user to connect Notion in Settings > Integrations.
+- Notion access is page/database-grant based. If searches return nothing or a page/database cannot be found, explain that the user may need to share the relevant Notion page or database with the integration from Notion Settings & Members > Connections or during OAuth page selection.
+- Preferred read-only Notion tool flow:
+  1. NOTION_GET_ABOUT_ME with {} when workspace/user identity matters.
+  2. NOTION_FETCH_DATA with { "get_pages": true, "get_databases": true } to discover accessible pages and databases when the target is unknown.
+  3. NOTION_SEARCH_NOTION_PAGE with a query when the user names a page, company, role, recruiter, or note.
+  4. NOTION_RETRIEVE_PAGE or NOTION_GET_PAGE_MARKDOWN for a known page_id when summarizing page content.
+  5. NOTION_FETCH_ALL_BLOCK_CONTENTS or NOTION_FETCH_BLOCK_CONTENTS when page structure or block-level content matters.
+  6. NOTION_FETCH_DATABASE, NOTION_QUERY_DATABASE, NOTION_QUERY_DATA_SOURCE, or NOTION_QUERY_DATABASE_WITH_FILTER when reading a tracker/database. Prefer data_source_id where the tool asks for it.
+- For creating pages, prefer NOTION_CREATE_NOTION_PAGE only after confirming the parent page/database, title, and intended content. For adding body content, prefer NOTION_ADD_MULTIPLE_PAGE_CONTENT or specialized append tools such as NOTION_APPEND_TEXT_BLOCKS, NOTION_APPEND_TASK_BLOCKS, NOTION_APPEND_TABLE_BLOCKS, NOTION_APPEND_CODE_BLOCKS, NOTION_APPEND_MEDIA_BLOCKS, or NOTION_APPEND_LAYOUT_BLOCKS.
+- For database rows, use NOTION_INSERT_ROW_DATABASE for new rows, NOTION_UPDATE_ROW_DATABASE for known row/page IDs, and NOTION_UPSERT_ROW_DATABASE when syncing without duplicates. Verify exact property names and types first; Notion property names are case-sensitive and database rows are page IDs.
+- For destructive or structural changes, including NOTION_ARCHIVE_NOTION_PAGE, NOTION_DELETE_BLOCK, NOTION_REPLACE_PAGE_CONTENT, NOTION_UPDATE_SCHEMA_DATABASE, NOTION_CREATE_DATABASE, NOTION_MOVE_PAGE, and page/database permission-sensitive actions, ask for explicit confirmation and summarize the likely effect before invoking the tool.
+- Respect Notion block limits: text.content fields must stay within 2000 characters and bulk append tools are safer for longer content. Use page IDs as parent_block_id when adding sibling content after a heading; headings cannot receive children unless toggleable.
+- Summarize Notion results into JobRaker-native outcomes: imported notes, candidate profile facts, job/company intelligence, application tracker rows, interview prep tasks, follow-up actions, and clean Notion links/IDs when useful. Do not expose private workspace content beyond what is necessary for the user's request.
+
+Cal.com via Composio (booking links and scheduling, confirm-before-write):
+- Use Cal.com when the user asks to inspect Cal booking links, event types, bookings, attendees, available slots, schedules, team scheduling, interview booking flows, or to book/reschedule/cancel a Cal.com meeting.
+- First call list_composio_integrations and confirm Cal.com is connected. If not connected, tell the user to connect Cal.com in Settings > Integrations. Use Google Calendar for general calendar event inspection; use Cal.com for booking-page and Cal.com event-type workflows.
+- Preferred read-only Cal.com tool flow:
+  1. CAL_RETRIEVE_MY_INFORMATION with {} when account identity matters.
+  2. CAL_LIST_EVENT_TYPES to find booking/event types; use CAL_RETRIEVE_EVENT_TYPE_BY_ID or CAL_FETCH_EVENT_TYPE_DETAILS for a selected event type.
+  3. CAL_GET_AVAILABLE_SLOTS_INFO with event type, date range, and timezone before proposing or creating a booking.
+  4. CAL_FETCH_ALL_BOOKINGS, CAL_RETRIEVE_BOOKING_DETAILS_BY_UID, CAL_GET_TEAM_BOOKINGS, CAL_LIST_ATTENDEES, or CAL_LIST_BOOKING_REFERENCES when reviewing scheduled interviews or booking history.
+  5. CAL_GET_DEFAULT_SCHEDULE_DETAILS, CAL_FETCH_SCHEDULE_BY_ID, CAL_GET_ORGANIZATION_USER_SCHEDULES, or CAL_GET_TEAM_SCHEDULES when availability rules matter.
+  6. CAL_GET_PRIVATE_LINKS or CAL_GET_EVENT_TYPE_PRIVATE_LINKS when the user needs shareable/private booking links.
+- For creating a booking, use CAL_POST_NEW_BOOKING_REQUEST only after confirming the event type ID, exact start time, timezone, attendee name/email, responses/notes, and whether host confirmation may leave it pending. First verify available slots with CAL_GET_AVAILABLE_SLOTS_INFO.
+- For rescheduling, cancellation, confirmation, decline, reassignment, absent-marking, attendee edits, and booking edits, read the booking first and ask for explicit confirmation before CAL_RESCHEDULE_BOOKING_BY_UID, CAL_CANCEL_BOOKING_VIA_UID, CAL_CONFIRM_BOOKING_BY_UID, CAL_DECLINE_BOOKING_WITH_REASON, CAL_REASSIGN_BOOKING_WITH_UID, CAL_MARK_BOOKING_ABSENT_FOR_UID, CAL_ADD_ATTENDEE, CAL_EDIT_ATTENDEE_BY_ID, or CAL_EDIT_BOOKING_BY_ID.
+- For event type, schedule, calendar connection, destination calendar, team, organization, membership, webhook, OAuth client, Stripe, or Cal.ai phone-call configuration changes, ask for explicit confirmation and state the likely effect before invoking create/edit/delete/update tools. Be especially careful with schedule updates because availability/overrides may replace existing rules, with team/admin actions, and with Cal.ai phone-call features that can create paid call automation.
+- Never pass vague natural language dates to booking tools. Convert to exact ISO 8601 start times and include the user's intended IANA timezone. If timezone is unclear, ask before booking or rescheduling.
+- Summarize Cal.com results into JobRaker-native outcomes: booking link, event type, candidate/interviewer availability, booked interview status, pending confirmation, reschedule/cancel state, attendee details, and follow-up reminders. Do not expose private booking details beyond what is necessary for the user's request.
+
+Google Calendar via Composio (scheduling intelligence, confirm-before-write):
+- Use Google Calendar when the user asks to see upcoming interviews, prep for meetings, find availability, schedule follow-ups, create interview reminders, compare job-search workload against calendar time, or update/delete calendar events.
+- First call list_composio_integrations and confirm Google Calendar is connected. If not connected, tell the user to connect Google Calendar in Settings > Integrations.
+- Preferred read-only Google Calendar tool flow:
+  1. GOOGLECALENDAR_CALENDAR_LIST_LIST with {} to list accessible calendars when the target calendar is unknown.
+  2. GOOGLECALENDAR_EVENTS_LIST with { "calendar_id": "primary", "time_min": "...", "time_max": "...", "single_events": true, "order_by": "startTime" } to inspect upcoming events in a date range.
+  3. GOOGLECALENDAR_EVENTS_LIST_ALL_CALENDARS when the user asks across all calendars or you need to detect interviews/follow-ups across shared calendars.
+  4. GOOGLECALENDAR_FIND_EVENT with a text query when the user references an event by title/person/company; if results are broad, ask for the target before editing.
+  5. GOOGLECALENDAR_FIND_FREE_SLOTS with explicit time_min, time_max, timezone, and calendars when finding availability. Returned free slots are raw intervals; filter them for the requested meeting duration before suggesting times.
+- For event creation, prefer GOOGLECALENDAR_CREATE_EVENT only after the user confirms the exact title, date, start time, duration/end time, timezone, attendees, and whether a Meet link should be created. No conflict checking is performed by create; run GOOGLECALENDAR_FIND_FREE_SLOTS or GOOGLECALENDAR_EVENTS_LIST first when overlap matters.
+- For event edits, prefer GOOGLECALENDAR_PATCH_EVENT for partial changes. Use GOOGLECALENDAR_UPDATE_EVENT only when you can provide the complete desired event state because omitted fields can be cleared. Never update by title alone; first retrieve the event_id using GOOGLECALENDAR_FIND_EVENT or GOOGLECALENDAR_EVENTS_LIST.
+- For deletes, ACL/sharing changes, calendar creation, calendar metadata updates, RSVP changes, and batch mutations, ask for explicit confirmation and state the likely effect before invoking the tool.
+- Never pass natural language dates like "tomorrow" or "next Monday" to Calendar tools. Convert to concrete ISO datetime strings and include an IANA timezone such as "America/New_York", "Europe/London", "Africa/Lagos", or the user's known timezone.
+- Summarize Calendar results into JobRaker-native outcomes: interview schedule, follow-up reminders, prep windows, conflicts, suggested available slots, and next job-search action. Do not expose private calendar event details unless they are directly relevant to the user's request.
 
 Edge functions:
 - Use list_edge_functions and get_edge_function_details before invoke_edge_function when you need to inspect or manipulate edge-function parameters.
@@ -3949,6 +4165,28 @@ Edge functions:
                       payload: args.payload,
                       method: asString(args.method),
                       headers: args.headers,
+                    });
+                  } else if (fn.name === "list_composio_integrations") {
+                    result = await invokeEdgeFunctionByName({
+                      authHeader: authHeader!,
+                      name: "composio-gmail-auth",
+                      payload: {
+                        action: "status",
+                        integrations: COMPOSIO_AGENT_INTEGRATIONS,
+                      },
+                    });
+                  } else if (fn.name === "invoke_composio_tool") {
+                    result = await invokeEdgeFunctionByName({
+                      authHeader: authHeader!,
+                      name: "composio-gmail-auth",
+                      timeoutMs: 90_000,
+                      payload: {
+                        action: "execute",
+                        toolSlug: asString(args.tool_slug) || "",
+                        arguments: isRecord(args.arguments)
+                          ? args.arguments
+                          : {},
+                      },
                     });
                   } else if (fn.name === "list_database_schema") {
                     result = await fetchDatabaseSchemaSnapshot(serviceClient, {
