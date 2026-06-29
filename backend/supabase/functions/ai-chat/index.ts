@@ -200,6 +200,31 @@ type AgentToolResultEntry = {
   result: unknown;
 };
 
+type AgentToolCharge = {
+  toolName: string;
+  toolSlug?: string | null;
+  credits: number;
+};
+
+function calculateAgentToolCreditCharge(
+  toolName: string,
+  args: Record<string, unknown>,
+): AgentToolCharge {
+  if (toolName === "list_composio_integrations") {
+    return { toolName, credits: 0 };
+  }
+
+  const toolSlug = toolName === "invoke_composio_tool"
+    ? asString(args.tool_slug)?.toUpperCase() || null
+    : null;
+
+  if (toolSlug === "BROWSER_TOOL_CREATE_TASK") {
+    return { toolName, toolSlug, credits: 10 };
+  }
+
+  return { toolName, toolSlug, credits: 2 };
+}
+
 function summarizeCount(value: unknown, fallback = 0) {
   const parsed = asNumber(value);
   return parsed == null ? fallback : parsed;
@@ -3476,47 +3501,68 @@ Edge functions:
                 tool_count: functionCalls.length,
               });
 
-              const creditsToCharge = Math.max(1, functionCalls.length);
-              // Agent mode charges extra credits only when tools run.
-              const { data: surchargeResult, error: surchargeError } = await serviceClient.rpc(
-                "consume_ai_chat_tool_surcharge",
-                { p_user_id: userId, p_credits: creditsToCharge },
-              );
-              const sur = surchargeResult as Record<string, unknown> | null;
-              const surchargeOk =
-                sur &&
-                (sur.success === true || sur.success === "true" || sur.success === "t");
-              if (surchargeError || !surchargeOk) {
-                if (surchargeError) {
-                  console.error("consume_ai_chat_tool_surcharge RPC error:", surchargeError);
-                }
-                const rpcMsg =
-                  typeof sur?.message === "string" ? sur.message : null;
-                await enqueueEvent("error", {
-                  error: surchargeError
-                    ? `Could not charge credits for agent tools. ${(surchargeError as { message?: string }).message || "Please try again."}`
-                    : rpcMsg ||
-                      "Not enough credits to run agent tools this step. Add credits or switch to Ask mode.",
-                  code: surchargeError ? "billing_error" : "agent_tool_surcharge",
-                  balance: sur?.balance,
-                  reason: sur?.reason,
-                });
-                agentStoppedForBilling = true;
-                break;
-              }
-              await enqueueEvent("agent_surcharge", {
-                credits_charged: sur.credits_charged,
-                balance: sur.balance,
-                round: toolRounds,
-                tool_count: functionCalls.length,
+              const toolCharges = functionCalls.map((fc) => {
+                const fn = fc.functionCall;
+                const args = isRecord(fn.args) ? fn.args : {};
+                return calculateAgentToolCreditCharge(fn.name, args);
               });
+              const creditsToCharge = toolCharges.reduce(
+                (total, charge) => total + charge.credits,
+                0,
+              );
+              // Agent mode charges extra credits only when tools run.
+              if (creditsToCharge > 0) {
+                const { data: surchargeResult, error: surchargeError } = await serviceClient.rpc(
+                  "consume_ai_chat_tool_surcharge",
+                  { p_user_id: userId, p_credits: creditsToCharge },
+                );
+                const sur = surchargeResult as Record<string, unknown> | null;
+                const surchargeOk =
+                  sur &&
+                  (sur.success === true || sur.success === "true" || sur.success === "t");
+                if (surchargeError || !surchargeOk) {
+                  if (surchargeError) {
+                    console.error("consume_ai_chat_tool_surcharge RPC error:", surchargeError);
+                  }
+                  const rpcMsg =
+                    typeof sur?.message === "string" ? sur.message : null;
+                  await enqueueEvent("error", {
+                    error: surchargeError
+                      ? `Could not charge credits for agent tools. ${(surchargeError as { message?: string }).message || "Please try again."}`
+                      : rpcMsg ||
+                        "Not enough credits to run agent tools this step. Add credits or switch to Ask mode.",
+                    code: surchargeError ? "billing_error" : "agent_tool_surcharge",
+                    balance: sur?.balance,
+                    reason: sur?.reason,
+                    credits_required: creditsToCharge,
+                  });
+                  agentStoppedForBilling = true;
+                  break;
+                }
+                await enqueueEvent("agent_surcharge", {
+                  credits_charged: sur.credits_charged,
+                  balance: sur.balance,
+                  round: toolRounds,
+                  tool_count: functionCalls.length,
+                  tool_charges: toolCharges,
+                });
+              } else {
+                await enqueueEvent("agent_surcharge", {
+                  credits_charged: 0,
+                  round: toolRounds,
+                  tool_count: functionCalls.length,
+                  tool_charges: toolCharges,
+                });
+              }
 
               const toolResults = [];
+              let failedToolCredits = 0;
               let failedToolCount = 0;
               for (let toolIndex = 0; toolIndex < functionCalls.length; toolIndex += 1) {
                 const fc = functionCalls[toolIndex];
                 const fn = fc.functionCall;
                 const args = isRecord(fn.args) ? fn.args : {};
+                const toolCharge = toolCharges[toolIndex]?.credits ?? 0;
                 const toolCallId = `${toolRounds}-${toolIndex}-${fn.name}-${Date.now()}`;
                 const startedAt = Date.now();
                 await enqueueEvent("tool_start", {
@@ -4996,6 +5042,7 @@ Edge functions:
 
                 if (isRecord(result) && result.success === false) {
                   failedToolCount += 1;
+                  failedToolCredits += toolCharge;
                 }
 
                 completedToolResults.push({ name: fn.name, args, result });
@@ -5010,12 +5057,12 @@ Edge functions:
                   finished_at: Date.now(),
                 });
               }
-              if (failedToolCount > 0) {
+              if (failedToolCredits > 0) {
                 try {
                   await refundUserCredits({
                     serviceClient,
                     userId,
-                    amount: failedToolCount,
+                    amount: failedToolCredits,
                     description: `Refund: ${failedToolCount} AI agent tool${failedToolCount === 1 ? "" : "s"} did not complete`,
                     referenceType: "refund",
                     metadata: {
@@ -5024,11 +5071,14 @@ Edge functions:
                       reason: "tool_result_failed",
                       round: toolRounds,
                       failed_tool_count: failedToolCount,
+                      failed_tool_credits: failedToolCredits,
                       charged_tool_count: functionCalls.length,
+                      charged_credits: creditsToCharge,
+                      tool_charges: toolCharges,
                     },
                   });
                   await enqueueEvent("agent_surcharge_refund", {
-                    credits_refunded: failedToolCount,
+                    credits_refunded: failedToolCredits,
                     round: toolRounds,
                     reason: "tool_result_failed",
                   });
