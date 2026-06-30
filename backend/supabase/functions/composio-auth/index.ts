@@ -124,7 +124,7 @@ serve(async (req) => {
       }
 
       const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-      const response = await fetch("https://backend.composio.dev/api/v3/connected_accounts/link", {
+      let response = await fetch("https://backend.composio.dev/api/v3/connected_accounts/link", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -138,7 +138,36 @@ serve(async (req) => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Composio API error (${response.status}): ${errorText}`);
+        const isConfigNotFound =
+          response.status === 400 &&
+          (errorText.includes("Auth_Config_NotFound") ||
+           errorText.includes("Auth config not found") ||
+           errorText.includes("config not found"));
+
+        if (isConfigNotFound) {
+          const fallbackAppName = String(body.toolkitSlug || body.integrationSlug || body.slug || "");
+          console.warn(`[composio-auth] Auth config ID ${authConfigId} not found/invalid. Retrying connection with default managed app for: ${fallbackAppName}`);
+          response = await fetch("https://backend.composio.dev/api/v3/connected_accounts/link", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": apiKey,
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              app_name: fallbackAppName,
+              appName: fallbackAppName,
+              app: fallbackAppName,
+              toolkit: fallbackAppName,
+              toolkitSlug: fallbackAppName,
+            }),
+          });
+        }
+
+        if (!response.ok) {
+          const finalErrorText = isConfigNotFound ? await response.text() : errorText;
+          throw new Error(`Composio API error (${response.status}): ${finalErrorText}`);
+        }
       }
 
       const connectionRequest = await response.json();
