@@ -14,7 +14,6 @@ const GMAIL_SCOPES = [
   /** Needed for approved draft creation and job-search mailbox labels. Existing users may need to reconnect. */
   "https://www.googleapis.com/auth/gmail.modify",
 ];
-const EMAIL_INTEGRATION_ALLOWED_EMAIL = "siscostarters@gmail.com";
 
 type Action = "initiate" | "callback" | "status" | "disconnect";
 
@@ -178,17 +177,6 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({})) as RequestBody;
     const action = body.action || "status";
-    const canUseEmailIntegrations =
-      typeof user.email === "string" &&
-      user.email.trim().toLowerCase() === EMAIL_INTEGRATION_ALLOWED_EMAIL;
-
-    if (!canUseEmailIntegrations) {
-      return jsonResponse(
-        { error: "Email integrations are not enabled for this account." },
-        403,
-        corsHeaders,
-      );
-    }
 
     if (action === "initiate") {
       const redirectUri = validateRedirectUri(

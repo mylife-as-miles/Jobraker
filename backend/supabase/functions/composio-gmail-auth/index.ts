@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Composio } from "npm:@composio/core@0.2.2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import {
   SubscriptionAccessError,
   requireAuthenticatedUser,
@@ -57,6 +57,8 @@ function connectedAccountMatches(account: Record<string, unknown>, authConfigId:
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined, req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

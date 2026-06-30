@@ -101,14 +101,14 @@ const SignOutDialog = ({
       side='center'
     >
       <div className='space-y-4'>
-        <div className='bg-[#]/10 border border-[#]/20 rounded-lg p-4'>
+        <div className='bg-brand/10 border border-brand/20 rounded-lg p-4'>
           <div className='flex items-start gap-3'>
-            <LogOut className='w-5 h-5 text-[#] mt-0.5 flex-shrink-0' />
+            <LogOut className='w-5 h-5 text-brand mt-0.5 flex-shrink-0' />
             <div className='flex-1'>
-              <p className='text-sm font-medium text-[#] mb-2'>
+              <p className='text-sm font-medium text-brand mb-2'>
                 Are you sure you want to sign out?
               </p>
-              <p className='text-xs text-[#]/80'>
+              <p className='text-xs text-brand/80'>
                 You will need to sign in again to access your account.
               </p>
             </div>
@@ -1748,13 +1748,13 @@ export const SettingsPage = (): JSX.Element => {
   const getTierGradient = (tier: string) => {
     switch (tier) {
       case "Basics":
-        return "from-[#] via-[#5fff4a] to-[#b8ffb0]";
+        return "from-brand via-[#5fff4a] to-[#b8ffb0]";
       case "Pro":
         return "from-blue-500 via-blue-600 to-blue-700";
       case "Ultimate":
         return "from-purple-500 via-purple-600 to-purple-700";
       default:
-        return "from-[#] via-background to-background";
+        return "from-brand via-background to-background";
     }
   };
 
@@ -1788,7 +1788,7 @@ export const SettingsPage = (): JSX.Element => {
                   <Button
                     variant='outline'
                     onClick={handleUploadAvatar}
-                    className='w-full border-border/40 text-muted-foreground hover:text-[#] hover:bg-[#]/10 hover:border-[#]/30 transition-all shadow-sm sm:w-auto'
+                    className='w-full border-border/40 text-muted-foreground hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm sm:w-auto'
                   >
                     <Upload className='w-4 h-4 mr-2' />
                     Upload
@@ -1797,7 +1797,7 @@ export const SettingsPage = (): JSX.Element => {
                     <Button
                       variant='outline'
                       onClick={handleRemoveAvatar}
-                      className='w-full border-border/40 text-[#] hover:text-[#] hover:bg-[#]/10 hover:border-[#]/30 transition-all shadow-sm sm:w-auto'
+                      className='w-full border-border/40 text-brand hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm sm:w-auto'
                     >
                       <Trash2 className='w-4 h-4 mr-2' />
                       Remove
@@ -1823,7 +1823,7 @@ export const SettingsPage = (): JSX.Element => {
                       handleInputChange("firstName", e.target.value)
                     }
                     autoComplete='given-name'
-                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
+                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-brand/50 focus:ring-1 focus:ring-brand/30 transition-all shadow-inner'
                   />
                 </div>
                 <div>
@@ -1836,7 +1836,7 @@ export const SettingsPage = (): JSX.Element => {
                       handleInputChange("lastName", e.target.value)
                     }
                     autoComplete='family-name'
-                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
+                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-brand/50 focus:ring-1 focus:ring-brand/30 transition-all shadow-inner'
                   />
                 </div>
                 <div>
@@ -1848,7 +1848,7 @@ export const SettingsPage = (): JSX.Element => {
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
                     autoComplete='email'
-                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
+                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-brand/50 focus:ring-1 focus:ring-brand/30 transition-all shadow-inner'
                   />
                 </div>
                 <div>
@@ -1860,7 +1860,7 @@ export const SettingsPage = (): JSX.Element => {
                     onChange={(e) => handleInputChange("phone", e.target.value)}
                     autoComplete='tel'
                     inputMode='tel'
-                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
+                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-brand/50 focus:ring-1 focus:ring-brand/30 transition-all shadow-inner'
                   />
                 </div>
                 <div className='md:col-span-2'>
@@ -1873,7 +1873,7 @@ export const SettingsPage = (): JSX.Element => {
                       handleInputChange("location", e.target.value)
                     }
                     autoComplete='address-level2'
-                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
+                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-brand/50 focus:ring-1 focus:ring-brand/30 transition-all shadow-inner'
                     placeholder='City, Country'
                   />
                 </div>
@@ -1886,7 +1886,7 @@ export const SettingsPage = (): JSX.Element => {
                     onChange={(e) =>
                       handleInputChange("linkedin_url", e.target.value)
                     }
-                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
+                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-brand/50 focus:ring-1 focus:ring-brand/30 transition-all shadow-inner'
                     placeholder='https://linkedin.com/in/username'
                   />
                 </div>
@@ -1899,7 +1899,7 @@ export const SettingsPage = (): JSX.Element => {
                     onChange={(e) =>
                       handleInputChange("github_url", e.target.value)
                     }
-                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
+                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-brand/50 focus:ring-1 focus:ring-brand/30 transition-all shadow-inner'
                     placeholder='https://github.com/username'
                   />
                 </div>
@@ -1908,7 +1908,7 @@ export const SettingsPage = (): JSX.Element => {
               <div className='flex flex-col gap-3 pt-6 mt-6 border-t border-border/30 sm:flex-row sm:items-center'>
                 <Button
                   onClick={handleSaveProfile}
-                  className='w-full bg-[#] hover:bg-[#e6c200] text-black font-semibold tracking-wide shadow-lg shadow-[#]/20 transition-all border border-[#]/50 sm:w-auto'
+                  className='w-full bg-brand hover:bg-[#e6c200] text-black font-semibold tracking-wide shadow-lg shadow-brand/20 transition-all border border-brand/50 sm:w-auto'
                 >
                   <Save className='w-4 h-4 mr-2' />
                   Save Changes
@@ -1949,7 +1949,7 @@ export const SettingsPage = (): JSX.Element => {
                 ].map((setting) => (
                   <div
                     key={setting.key}
-                    className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-[#]/30 hover:bg-muted/50 transition-all'
+                    className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'
                   >
                     <div className='flex-1'>
                       <h4 className='text-sm font-medium text-foreground'>
@@ -2018,7 +2018,7 @@ export const SettingsPage = (): JSX.Element => {
                 ].map((setting) => (
                   <div
                     key={setting.key}
-                    className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-[#]/30 hover:bg-muted/50 transition-all'
+                    className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'
                   >
                     <div className='flex-1'>
                       <h4 className='text-sm font-medium text-foreground'>
@@ -2228,7 +2228,7 @@ export const SettingsPage = (): JSX.Element => {
                           )
                         }
                         disabled={notifLoading}
-                        className='bg-muted/50 border-border/40 text-foreground focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 shadow-inner'
+                        className='bg-muted/50 border-border/40 text-foreground focus:border-brand/50 focus:ring-1 focus:ring-brand/30 shadow-inner'
                       />
                     </div>
                     <div>
@@ -2245,7 +2245,7 @@ export const SettingsPage = (): JSX.Element => {
                           )
                         }
                         disabled={notifLoading}
-                        className='bg-muted/50 border-border/40 text-foreground focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 shadow-inner'
+                        className='bg-muted/50 border-border/40 text-foreground focus:border-brand/50 focus:ring-1 focus:ring-brand/30 shadow-inner'
                       />
                     </div>
                   </div>
@@ -2279,14 +2279,14 @@ export const SettingsPage = (): JSX.Element => {
                       onChange={(e) =>
                         handleInputChange("currentPassword", e.target.value)
                       }
-                      className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 pr-10 transition-all shadow-inner'
+                      className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-brand/50 focus:ring-1 focus:ring-brand/30 pr-10 transition-all shadow-inner'
                     />
                     <Button
                       type='button'
                       variant='ghost'
                       size='sm'
                       onClick={() => setShowPassword(!showPassword)}
-                      className='absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-[#] hover:bg-transparent transition-all'
+                      className='absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-brand hover:bg-transparent transition-all'
                     >
                       {showPassword ? (
                         <EyeOff className='w-4 h-4' />
@@ -2309,7 +2309,7 @@ export const SettingsPage = (): JSX.Element => {
                     aria-invalid={
                       !!formData.newPassword && !passwordCheck.valid
                     }
-                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
+                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-brand/50 focus:ring-1 focus:ring-brand/30 transition-all shadow-inner'
                   />
                 </div>
                 <div>
@@ -2322,7 +2322,7 @@ export const SettingsPage = (): JSX.Element => {
                     onChange={(e) =>
                       handleInputChange("confirmPassword", e.target.value)
                     }
-                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#]/50 focus:ring-1 focus:ring-[#]/30 transition-all shadow-inner'
+                    className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-brand/50 focus:ring-1 focus:ring-brand/30 transition-all shadow-inner'
                   />
                 </div>
                 {/* Password rules & strength */}
@@ -2354,7 +2354,7 @@ export const SettingsPage = (): JSX.Element => {
                     ].map((r, i) => (
                       <div key={i} className='flex items-center gap-2'>
                         {r.ok ? (
-                          <CheckCircle2 className='w-4 h-4 text-[#]' />
+                          <CheckCircle2 className='w-4 h-4 text-brand' />
                         ) : (
                           <XCircle className='w-4 h-4 text-muted-foreground/40' />
                         )}
@@ -2380,7 +2380,7 @@ export const SettingsPage = (): JSX.Element => {
                       !passwordCheck.valid ||
                       formData.newPassword !== formData.confirmPassword
                     }
-                    className='bg-[#] hover:bg-[#e6c200] text-black font-semibold tracking-wide shadow-lg shadow-[#]/20 transition-all border border-[#]/50 disabled:opacity-50 disabled:shadow-none'
+                    className='bg-brand hover:bg-[#e6c200] text-black font-semibold tracking-wide shadow-lg shadow-brand/20 transition-all border border-brand/50 disabled:opacity-50 disabled:shadow-none'
                   >
                     Update Password
                   </Button>
@@ -2401,7 +2401,7 @@ export const SettingsPage = (): JSX.Element => {
                 </div>
                 <div className='flex items-center gap-3'>
                   <span
-                    className={`text-sm px-3 py-1 rounded ${sec?.two_factor_enabled ? "bg-[#]/20 text-brand" : "bg-muted/50 text-muted-foreground"}`}
+                    className={`text-sm px-3 py-1 rounded ${sec?.two_factor_enabled ? "bg-brand/20 text-brand" : "bg-muted/50 text-muted-foreground"}`}
                   >
                     {sec?.two_factor_enabled ? "Enabled" : "Disabled"}
                   </span>
@@ -2439,7 +2439,7 @@ export const SettingsPage = (): JSX.Element => {
                     className={
                       sec?.two_factor_enabled
                         ? "border-border/40 text-muted-foreground hover:bg-muted/50"
-                        : "bg-[#] text-black hover:bg-[#e6c200] shadow-lg shadow-[#]/20"
+                        : "bg-brand text-black hover:bg-[#e6c200] shadow-lg shadow-brand/20"
                     }
                   >
                     {sec?.two_factor_enabled ? "Disable 2FA" : "Enable 2FA"}
@@ -2448,7 +2448,7 @@ export const SettingsPage = (): JSX.Element => {
               </div>
               {sec?.two_factor_enabled && (
                 <div className='space-y-3 pt-4 border-t border-border/40 mt-4'>
-                  <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-[#]/30 hover:bg-muted/50 transition-all'>
+                  <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'>
                     <div className='flex-1'>
                       <p className='text-sm font-medium text-foreground/90'>
                         Require 2FA for Login
@@ -2488,7 +2488,7 @@ export const SettingsPage = (): JSX.Element => {
                       />
                     </button>
                   </div>
-                  <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-[#]/30 hover:bg-muted/50 transition-all'>
+                  <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'>
                     <div className='flex-1'>
                       <p className='text-sm font-medium text-foreground/90'>
                         Require Backup Codes
@@ -2538,7 +2538,7 @@ export const SettingsPage = (): JSX.Element => {
                 Security Alerts
               </h3>
               <div className='space-y-3'>
-                <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-[#]/30 hover:bg-muted/50 transition-all'>
+                <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'>
                   <div className='flex-1'>
                     <p className='text-sm font-medium text-foreground/90'>
                       Login Alerts
@@ -2578,7 +2578,7 @@ export const SettingsPage = (): JSX.Element => {
                     />
                   </button>
                 </div>
-                <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-[#]/30 hover:bg-muted/50 transition-all'>
+                <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'>
                   <div className='flex-1'>
                     <p className='text-sm font-medium text-foreground/90'>
                       Suspicious Login Alerts
@@ -2618,7 +2618,7 @@ export const SettingsPage = (): JSX.Element => {
                     />
                   </button>
                 </div>
-                <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-[#]/30 hover:bg-muted/50 transition-all'>
+                <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'>
                   <div className='flex-1'>
                     <p className='text-sm font-medium text-foreground/90'>
                       Password Change Alerts
@@ -2675,7 +2675,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Button
                   variant='outline'
                   size='sm'
-                  className='border-border/40 text-muted-foreground hover:text-[#] hover:bg-[#]/10 hover:border-[#]/30 transition-all shadow-sm'
+                  className='border-border/40 text-muted-foreground hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm'
                   onClick={async () => {
                     try {
                       const codes = await generateBackupCodes(10);
@@ -2725,8 +2725,8 @@ export const SettingsPage = (): JSX.Element => {
                             <span
                               className={`text-xs px-2 py-1 rounded font-medium tracking-wide ${
                                 bc.used
-                                  ? "bg-[#]/20 text-brand"
-                                  : "bg-[#]/20 text-brand"
+                                  ? "bg-brand/20 text-brand"
+                                  : "bg-brand/20 text-brand"
                               }`}
                             >
                               {bc.used ? "Used" : "Unused"}
@@ -2759,7 +2759,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Button
                   variant='outline'
                   size='sm'
-                  className='border-border/40 text-muted-foreground hover:text-[#] hover:bg-[#]/10 hover:border-[#]/30 transition-all shadow-sm'
+                  className='border-border/40 text-muted-foreground hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm'
                   onClick={async () => {
                     try {
                       const deviceId = crypto
@@ -2812,7 +2812,7 @@ export const SettingsPage = (): JSX.Element => {
                           <Button
                             variant='ghost'
                             size='sm'
-                            className='text-[#] hover:text-[#] hover:bg-[#]/10 h-7 px-2 text-xs'
+                            className='text-brand hover:text-brand hover:bg-brand/10 h-7 px-2 text-xs'
                             onClick={async () => {
                               if (!confirm("Revoke this device?")) return;
                               try {
@@ -2864,7 +2864,7 @@ export const SettingsPage = (): JSX.Element => {
                         toastError("Failed to revoke sessions", e.message);
                       }
                     }}
-                    className='border-border/40 text-muted-foreground hover:text-[#] hover:bg-[#]/10 hover:border-[#]/30 transition-all shadow-sm'
+                    className='border-border/40 text-muted-foreground hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm'
                   >
                     Revoke All Others
                   </Button>
@@ -2875,7 +2875,7 @@ export const SettingsPage = (): JSX.Element => {
                   activeSessions.map((session: any) => (
                     <div
                       key={session.id}
-                      className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-[#]/30 hover:bg-muted/50 transition-all'
+                      className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'
                     >
                       <div className='flex-1'>
                         <div className='flex items-center gap-2 mb-1'>
@@ -2885,7 +2885,7 @@ export const SettingsPage = (): JSX.Element => {
                               "Unknown Device"}
                           </p>
                           {session.is_current && (
-                            <span className='text-xs px-2 py-0.5 rounded bg-[#]/20 text-[#]'>
+                            <span className='text-xs px-2 py-0.5 rounded bg-brand/20 text-brand'>
                               Current
                             </span>
                           )}
@@ -2919,7 +2919,7 @@ export const SettingsPage = (): JSX.Element => {
                               toastError("Failed to revoke session", e.message);
                             }
                           }}
-                          className='text-[#] hover:text-[#] hover:bg-[#]/10'
+                          className='text-brand hover:text-brand hover:bg-brand/10'
                         >
                           Revoke
                         </Button>
@@ -2949,7 +2949,7 @@ export const SettingsPage = (): JSX.Element => {
                   variant='outline'
                   size='sm'
                   onClick={() => listAuditLogs(100)}
-                  className='border-border/40 text-muted-foreground hover:text-[#] hover:bg-[#]/10 hover:border-[#]/30 transition-all shadow-sm'
+                  className='border-border/40 text-muted-foreground hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm'
                 >
                   <RefreshCw className='w-4 h-4 mr-2' />
                   Refresh
@@ -2970,7 +2970,7 @@ export const SettingsPage = (): JSX.Element => {
                           <span
                             className={`text-xs px-2 py-0.5 rounded ${
                               log.risk_level === "critical"
-                                ? "bg-[#]/20 text-brand"
+                                ? "bg-brand/20 text-brand"
                                 : log.risk_level === "high"
                                   ? "bg-brand/20 text-brand"
                                   : log.risk_level === "medium"
@@ -4883,12 +4883,12 @@ export const SettingsPage = (): JSX.Element => {
             {/* Current Stats */}
             <div className='grid gap-4 md:grid-cols-3'>
               {/* Credits Balance */}
-              <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-[#]/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>
+              <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-brand/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>
                 <div className='flex items-start justify-between mb-4'>
-                  <div className='p-3 rounded-xl bg-[#]/10 border border-[#]/20'>
-                    <Sparkles className='w-5 h-5 text-[#]' />
+                  <div className='p-3 rounded-xl bg-brand/10 border border-brand/20'>
+                    <Sparkles className='w-5 h-5 text-brand' />
                   </div>
-                  <span className='text-xs font-semibold text-[#] bg-[#]/10 px-2 py-1 rounded-full'>
+                  <span className='text-xs font-semibold text-brand bg-brand/10 px-2 py-1 rounded-full'>
                     BALANCE
                   </span>
                 </div>
@@ -4903,7 +4903,7 @@ export const SettingsPage = (): JSX.Element => {
               </div>
 
               {/* Active Plan */}
-              <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-[#]/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>
+              <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-brand/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>
                 <div className='flex items-start justify-between mb-4'>
                   <div
                     className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(billingSubscriptionTier)}/10 border border-border/40`}
@@ -4915,10 +4915,10 @@ export const SettingsPage = (): JSX.Element => {
                       billingSubscriptionTier === "Pro"
                         ? "bg-blue-500/20 text-blue-400"
                         : billingSubscriptionTier === "Basics"
-                          ? "bg-[#]/20 text-brand"
+                          ? "bg-brand/20 text-brand"
                           : billingSubscriptionTier === "Ultimate"
                             ? "bg-purple-500/20 text-purple-400"
-                            : "bg-[#]/20 text-brand"
+                            : "bg-brand/20 text-brand"
                     }`}
                   >
                     {billingSubscriptionTier.toUpperCase()}
@@ -4941,7 +4941,7 @@ export const SettingsPage = (): JSX.Element => {
               </div>
 
               {/* Next Refill */}
-              <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-[#]/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>
+              <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-brand/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>
                 <div className='flex items-start justify-between mb-4'>
                   <div className='p-3 rounded-xl bg-blue-500/10 border border-blue-500/20'>
                     <CreditCard className='w-5 h-5 text-blue-400' />
@@ -4983,7 +4983,7 @@ export const SettingsPage = (): JSX.Element => {
                   </p>
                 </div>
                 <Button
-                  className='bg-[#] text-black hover:bg-[#]/90 font-medium transition-all'
+                  className='bg-brand text-black hover:bg-brand/90 font-medium transition-all'
                   onClick={() => {
                     window.location.href = "/dashboard/billing";
                   }}
@@ -5000,10 +5000,10 @@ export const SettingsPage = (): JSX.Element => {
                   return (
                     <div
                       key={plan.id}
-                      className={`group relative p-5 rounded-xl border transition-all hover:shadow-lg hover:shadow-[#]/5 hover:-translate-y-0.5 ${
+                      className={`group relative p-5 rounded-xl border transition-all hover:shadow-lg hover:shadow-brand/5 hover:-translate-y-0.5 ${
                         isCurrentPlan
-                          ? "border-[#]/40 bg-[#]/5 shadow-[0_0_20px_rgba(29,255,0,0.1)]"
-                          : "border-border/40 bg-background/50 hover:border-[#]/30 hover:bg-muted/50"
+                          ? "border-brand/40 bg-brand/5 shadow-[0_0_20px_rgba(29,255,0,0.1)]"
+                          : "border-border/40 bg-background/50 hover:border-brand/30 hover:bg-muted/50"
                       }`}
                     >
                       {/* Header */}
@@ -5022,7 +5022,7 @@ export const SettingsPage = (): JSX.Element => {
                           </div>
                         </div>
                         {isCurrentPlan && (
-                          <span className='px-1.5 py-0.5 text-xs font-medium bg-[#] text-black border border-[#] rounded-md flex items-center gap-1'>
+                          <span className='px-1.5 py-0.5 text-xs font-medium bg-brand text-black border border-brand rounded-md flex items-center gap-1'>
                             <Check className='w-2.5 h-2.5' />
                             ACTIVE
                           </span>
@@ -5048,7 +5048,7 @@ export const SettingsPage = (): JSX.Element => {
 
                       {/* Credits */}
                       <div className='flex items-center gap-2 p-2.5 bg-background border border-border/40 rounded-lg mb-3'>
-                        <Zap className='w-3.5 h-3.5 text-[#]' />
+                        <Zap className='w-3.5 h-3.5 text-brand' />
                         <span className='text-xs text-foreground font-medium'>
                           {plan.credits_per_month} credits
                         </span>
@@ -5080,7 +5080,7 @@ export const SettingsPage = (): JSX.Element => {
                                   key={idx}
                                   className='flex items-start gap-2'
                                 >
-                                  <Check className='w-3.5 h-3.5 text-[#] mt-0.5 flex-shrink-0' />
+                                  <Check className='w-3.5 h-3.5 text-brand mt-0.5 flex-shrink-0' />
                                   <span className='text-xs text-muted-foreground line-clamp-1'>
                                     {featureName}
                                   </span>
@@ -5102,7 +5102,7 @@ export const SettingsPage = (): JSX.Element => {
                               ? "bg-blue-600 hover:bg-blue-700 text-foreground hover:scale-105"
                               : plan.name === "Ultimate"
                                 ? "bg-purple-600 hover:bg-purple-700 text-foreground hover:scale-105"
-                                : "bg-[#] text-black hover:bg-[#]/90 hover:scale-105"
+                                : "bg-brand text-black hover:bg-brand/90 hover:scale-105"
                           }`}
                           onClick={() => {
                             window.location.href = "/dashboard/billing";
@@ -5125,7 +5125,7 @@ export const SettingsPage = (): JSX.Element => {
               <div className='grid gap-3 sm:grid-cols-2'>
                 <Button
                   variant='outline'
-                  className='justify-start border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#]/10 hover:border-[#]/30 transition-all h-auto py-3'
+                  className='justify-start border-border/40 text-muted-foreground hover:text-foreground hover:bg-brand/10 hover:border-brand/30 transition-all h-auto py-3'
                   onClick={() => {
                     window.location.href = "/dashboard/billing";
                   }}
@@ -5140,7 +5140,7 @@ export const SettingsPage = (): JSX.Element => {
                 </Button>
                 <Button
                   variant='outline'
-                  className='justify-start border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#]/10 hover:border-[#]/30 transition-all h-auto py-3'
+                  className='justify-start border-border/40 text-muted-foreground hover:text-foreground hover:bg-brand/10 hover:border-brand/30 transition-all h-auto py-3'
                   onClick={() => {
                     window.location.href = "/dashboard/billing";
                   }}
@@ -5400,11 +5400,11 @@ export const SettingsPage = (): JSX.Element => {
       >
         {generatedBackupCodes && generatedBackupCodes.length > 0 ? (
           <div className='space-y-4'>
-            <div className='bg-[#]/10 border border-[#]/20 rounded-lg p-4'>
-              <p className='text-sm text-[#] font-medium mb-2'>
+            <div className='bg-brand/10 border border-brand/20 rounded-lg p-4'>
+              <p className='text-sm text-brand font-medium mb-2'>
                 ⚠️ Important: Save these codes now
               </p>
-              <p className='text-xs text-[#]/80'>
+              <p className='text-xs text-brand/80'>
                 These codes are shown only once. Store them in a safe place.
                 Each code can only be used once. A file has been automatically
                 downloaded to your device.
@@ -5440,7 +5440,7 @@ export const SettingsPage = (): JSX.Element => {
                   navigator.clipboard.writeText(allCodes);
                   success("All codes copied to clipboard");
                 }}
-                className='flex-1 bg-[#] text-black hover:bg-[#]/90'
+                className='flex-1 bg-brand text-black hover:bg-brand/90'
               >
                 Copy All Codes
               </Button>
@@ -5476,11 +5476,11 @@ export const SettingsPage = (): JSX.Element => {
         side='center'
       >
         <div className='space-y-4'>
-          <div className='bg-[#]/10 border border-[#]/20 rounded-lg p-4'>
-            <p className='text-sm text-[#] font-medium mb-2'>
+          <div className='bg-brand/10 border border-brand/20 rounded-lg p-4'>
+            <p className='text-sm text-brand font-medium mb-2'>
               ⚠️ Important Information
             </p>
-            <p className='text-xs text-[#]/80'>
+            <p className='text-xs text-brand/80'>
               Data deletion requests are processed within 30 days. Once deleted,
               data cannot be recovered. You can cancel a pending request at any
               time before processing begins.
@@ -5512,7 +5512,7 @@ export const SettingsPage = (): JSX.Element => {
                   key={type.value}
                   className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors border ${
                     deletionRequestType === type.value
-                      ? "bg-[#]/5 border-[#]/30 shadow-[0_0_15px_rgba(29,255,0,0.05)]"
+                      ? "bg-brand/5 border-brand/30 shadow-[0_0_15px_rgba(29,255,0,0.05)]"
                       : "bg-card border-border/40 hover:bg-muted/50 hover:border-border/60"
                   }`}
                 >
@@ -5524,7 +5524,7 @@ export const SettingsPage = (): JSX.Element => {
                     onChange={(e) =>
                       setDeletionRequestType(e.target.value as any)
                     }
-                    className='mt-1 accent-[#]'
+                    className='mt-1 accent-brand'
                   />
                   <div className='flex-1'>
                     <p className='text-sm font-medium text-foreground/90'>
@@ -5569,7 +5569,7 @@ export const SettingsPage = (): JSX.Element => {
                           );
                         }
                       }}
-                      className='accent-[#]'
+                      className='accent-brand'
                     />
                     <span className='text-sm text-foreground/90 capitalize'>
                       {type.replace(/_/g, " ")}
@@ -5587,7 +5587,7 @@ export const SettingsPage = (): JSX.Element => {
               value={deletionRequestReason}
               onChange={(e) => setDeletionRequestReason(e.target.value)}
               placeholder="Tell us why you're requesting data deletion..."
-              className='w-full p-3 bg-card border border-border/40 rounded-lg text-foreground focus:border-[#]/50 focus:ring-1 focus:ring-[#]/50 outline-none transition-all placeholder:text-muted-foreground text-sm resize-none'
+              className='w-full p-3 bg-card border border-border/40 rounded-lg text-foreground focus:border-brand/50 focus:ring-1 focus:ring-brand/50 outline-none transition-all placeholder:text-muted-foreground text-sm resize-none'
               rows={3}
             />
           </div>
@@ -5621,7 +5621,7 @@ export const SettingsPage = (): JSX.Element => {
                   toastError("Failed to submit request", e.message);
                 }
               }}
-              className='flex-1 bg-[#]/100 text-foreground hover:bg-[#]'
+              className='flex-1 bg-brand/100 text-foreground hover:bg-brand'
             >
               Submit Request
             </Button>
@@ -5654,18 +5654,18 @@ export const SettingsPage = (): JSX.Element => {
         side='center'
       >
         <div className='space-y-4'>
-          <div className='bg-[#]/10 border border-[#]/30 rounded-lg p-4'>
+          <div className='bg-brand/10 border border-brand/30 rounded-lg p-4'>
             <div className='flex items-start gap-3'>
-              <AlertTriangle className='w-5 h-5 text-[#] mt-0.5 flex-shrink-0' />
+              <AlertTriangle className='w-5 h-5 text-brand mt-0.5 flex-shrink-0' />
               <div className='flex-1'>
-                <p className='text-sm font-medium text-[#] mb-2'>
+                <p className='text-sm font-medium text-brand mb-2'>
                   ⚠️ This action cannot be undone
                 </p>
-                <p className='text-xs text-[#]/80 leading-relaxed'>
+                <p className='text-xs text-brand/80 leading-relaxed'>
                   Deleting your account will permanently remove all your data
                   including:
                 </p>
-                <ul className='text-xs text-[#]/80 mt-2 space-y-1 list-disc list-inside'>
+                <ul className='text-xs text-brand/80 mt-2 space-y-1 list-disc list-inside'>
                   <li>Your profile and personal information</li>
                   <li>All job applications and saved jobs</li>
                   <li>Resumes, cover letters, and documents</li>
@@ -5674,7 +5674,7 @@ export const SettingsPage = (): JSX.Element => {
                   <li>Credit balance and transaction history</li>
                   <li>All other account-related data</li>
                 </ul>
-                <p className='text-xs text-[#]/80 mt-3 font-medium'>
+                <p className='text-xs text-brand/80 mt-3 font-medium'>
                   This process is irreversible. Please ensure you have exported
                   any data you wish to keep.
                 </p>
@@ -5682,14 +5682,14 @@ export const SettingsPage = (): JSX.Element => {
             </div>
           </div>
 
-          <div className='bg-[#]/10 border border-[#]/20 rounded-lg p-4'>
-            <p className='text-sm text-[#] font-medium mb-2'>
+          <div className='bg-brand/10 border border-brand/20 rounded-lg p-4'>
+            <p className='text-sm text-brand font-medium mb-2'>
               🔒 Security Confirmation Required
             </p>
-            <p className='text-xs text-[#]/80'>
+            <p className='text-xs text-brand/80'>
               To confirm account deletion, please type your email address below:
             </p>
-            <p className='text-xs text-[#]/60 mt-1 font-mono'>{userEmail}</p>
+            <p className='text-xs text-brand/60 mt-1 font-mono'>{userEmail}</p>
           </div>
 
           <div>
@@ -5702,13 +5702,13 @@ export const SettingsPage = (): JSX.Element => {
               onChange={(e) => setAccountDeletionEmail(e.target.value)}
               placeholder={userEmail || "your@email.com"}
               disabled={isDeleting}
-              className='bg-card border-border/40 text-foreground placeholder:text-muted-foreground focus:border-[#]/50 focus:ring-[#]/50'
+              className='bg-card border-border/40 text-foreground placeholder:text-muted-foreground focus:border-brand/50 focus:ring-brand/50'
               autoComplete='off'
             />
             {accountDeletionEmail &&
               accountDeletionEmail.toLowerCase().trim() !==
                 userEmail.toLowerCase().trim() && (
-                <p className='text-xs text-[#] mt-1 flex items-center gap-1'>
+                <p className='text-xs text-brand mt-1 flex items-center gap-1'>
                   <X className='w-3 h-3' />
                   Email does not match
                 </p>
@@ -5719,7 +5719,7 @@ export const SettingsPage = (): JSX.Element => {
             <input
               type='checkbox'
               id='confirm-deletion'
-              className='mt-1 accent-[#]'
+              className='mt-1 accent-brand'
               disabled={isDeleting}
             />
             <label
@@ -5891,7 +5891,7 @@ export const SettingsPage = (): JSX.Element => {
                 accountDeletionEmail.toLowerCase().trim() !==
                   userEmail.toLowerCase().trim()
               }
-              className='flex-1 bg-[#] text-foreground hover:bg-[#] disabled:opacity-50 disabled:cursor-not-allowed'
+              className='flex-1 bg-brand text-foreground hover:bg-brand disabled:opacity-50 disabled:cursor-not-allowed'
             >
               {isDeleting ? (
                 <>
@@ -5935,11 +5935,11 @@ export const SettingsPage = (): JSX.Element => {
       >
         {createdApiKey ? (
           <div className='space-y-4'>
-            <div className='bg-[#]/10 border border-[#]/20 rounded-lg p-4'>
-              <p className='text-sm text-[#] font-medium mb-2'>
+            <div className='bg-brand/10 border border-brand/20 rounded-lg p-4'>
+              <p className='text-sm text-brand font-medium mb-2'>
                 ⚠️ Important: Save this key now
               </p>
-              <p className='text-xs text-[#]/80'>
+              <p className='text-xs text-brand/80'>
                 You won't be able to see this key again. Copy it to a secure
                 location.
               </p>
@@ -5958,7 +5958,7 @@ export const SettingsPage = (): JSX.Element => {
                     navigator.clipboard.writeText(createdApiKey);
                     success("API key copied to clipboard");
                   }}
-                  className='bg-[#] text-black hover:bg-[#]/90 font-medium'
+                  className='bg-brand text-black hover:bg-brand/90 font-medium'
                 >
                   Copy
                 </Button>
@@ -5972,7 +5972,7 @@ export const SettingsPage = (): JSX.Element => {
                 setNewApiKeyExpiry(undefined);
                 setNewApiKeyIpRestrictions("");
               }}
-              className='w-full bg-[#] text-black hover:bg-[#]/90 font-medium hover:scale-105 transition-all'
+              className='w-full bg-brand text-black hover:bg-brand/90 font-medium hover:scale-105 transition-all'
             >
               Done
             </Button>
@@ -5988,7 +5988,7 @@ export const SettingsPage = (): JSX.Element => {
                 placeholder='e.g., Production API, Development'
                 value={newApiKeyName}
                 onChange={(e) => setNewApiKeyName(e.target.value)}
-                className='bg-card border-border/40 text-foreground focus:border-[#]/50 focus:ring-[#]/50'
+                className='bg-card border-border/40 text-foreground focus:border-brand/50 focus:ring-brand/50'
               />
             </div>
             <div>
@@ -6004,7 +6004,7 @@ export const SettingsPage = (): JSX.Element => {
                     e.target.value ? parseInt(e.target.value) : undefined,
                   )
                 }
-                className='bg-card border-border/40 text-foreground focus:border-[#]/50 focus:ring-[#]/50'
+                className='bg-card border-border/40 text-foreground focus:border-brand/50 focus:ring-brand/50'
                 min='1'
               />
             </div>
@@ -6017,7 +6017,7 @@ export const SettingsPage = (): JSX.Element => {
                 placeholder='e.g., 192.168.1.1, 10.0.0.1'
                 value={newApiKeyIpRestrictions}
                 onChange={(e) => setNewApiKeyIpRestrictions(e.target.value)}
-                className='bg-card border-border/40 text-foreground focus:border-[#]/50 focus:ring-[#]/50'
+                className='bg-card border-border/40 text-foreground focus:border-brand/50 focus:ring-brand/50'
               />
               <p className='text-xs text-muted-foreground mt-1'>
                 Leave empty to allow from any IP
@@ -6048,7 +6048,7 @@ export const SettingsPage = (): JSX.Element => {
                   }
                 }}
                 disabled={!newApiKeyName.trim()}
-                className='flex-1 bg-[#] text-black hover:bg-[#]/90 font-medium disabled:opacity-50 disabled:hover:scale-100 transition-all hover:scale-105'
+                className='flex-1 bg-brand text-black hover:bg-brand/90 font-medium disabled:opacity-50 disabled:hover:scale-100 transition-all hover:scale-105'
               >
                 Create Key
               </Button>
@@ -6126,7 +6126,7 @@ export const SettingsPage = (): JSX.Element => {
               placeholder='123456'
               value={totpCode}
               onChange={(e) => setTotpCode(e.target.value)}
-              className='bg-card border-border/40 text-foreground focus:border-[#]/50 hover:border-border/60 transition-all duration-300'
+              className='bg-card border-border/40 text-foreground focus:border-brand/50 hover:border-border/60 transition-all duration-300'
             />
           </div>
           <div className='flex justify-end gap-2'>
@@ -6150,7 +6150,7 @@ export const SettingsPage = (): JSX.Element => {
                   setVerifyBusy(false);
                 }
               }}
-              className='bg-[#] text-black font-medium hover:bg-[#]/90 transition-all hover:scale-105'
+              className='bg-brand text-black font-medium hover:bg-brand/90 transition-all hover:scale-105'
             >
               Verify & Enable
             </Button>
