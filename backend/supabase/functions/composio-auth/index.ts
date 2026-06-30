@@ -131,7 +131,39 @@ Deno.serve(async (req) => {
          return new Response(JSON.stringify({ error: "Missing integration slug" }), { status: 400, headers: corsHeaders });
       }
 
+      const linkConnection = async (configId: string) => {
+        const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+        return await fetch("https://backend.composio.dev/api/v3/connected_accounts/link", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            auth_config_id: configId,
+          }),
+        });
+      };
+
       let finalAuthConfigId = authConfigId;
+      let response: Response | null = null;
+
+      if (finalAuthConfigId) {
+        const res = await linkConnection(finalAuthConfigId);
+        if (res.ok) {
+          response = res;
+        } else {
+          const errorText = await res.text();
+          if (res.status === 400 && (errorText.includes("Auth_Config_NotFound") || errorText.includes("Auth config not found"))) {
+            console.warn(`Custom AuthConfig ID ${finalAuthConfigId} not found on Composio. Falling back to default...`);
+            finalAuthConfigId = null;
+          } else {
+            throw new Error(`Composio API error (${res.status}): ${errorText}`);
+          }
+        }
+      }
+
       if (!finalAuthConfigId) {
         try {
           const authConfigs = await composio.authConfigs.list({
@@ -144,28 +176,20 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.warn(`Failed to fetch default auth config for ${slug}:`, e);
         }
-      }
 
-      if (!finalAuthConfigId) {
-         return new Response(JSON.stringify({ error: `Could not resolve AuthConfigId for ${slug}` }), { status: 400, headers: corsHeaders });
-      }
+        if (!finalAuthConfigId) {
+          return new Response(
+            JSON.stringify({ error: `Could not resolve default AuthConfigId for ${slug}` }), 
+            { status: 400, headers: corsHeaders }
+          );
+        }
 
-      const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-      let response = await fetch("https://backend.composio.dev/api/v3/connected_accounts/link", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          auth_config_id: finalAuthConfigId,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Composio API error (${response.status}): ${errorText}`);
+        const res = await linkConnection(finalAuthConfigId);
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`Composio API error (${res.status}): ${errorText}`);
+        }
+        response = res;
       }
 
       const connectionRequest = await response.json();
