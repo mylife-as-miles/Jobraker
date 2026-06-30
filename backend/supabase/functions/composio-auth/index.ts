@@ -201,24 +201,40 @@ Deno.serve(async (req) => {
 
       // Use raw API instead of SDK to ensure user_id matching with initiate flow
       const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+
+      // First: try with user_id filter
       const accountsResponse = await fetch(
         `https://backend.composio.dev/api/v1/connected_accounts?user_id=${encodeURIComponent(userId)}`,
         {
           method: "GET",
-          headers: {
-            "x-api-key": apiKey,
-          },
+          headers: { "x-api-key": apiKey },
         }
       );
       let accounts: Record<string, unknown>[] = [];
+      let rawApiResponse: unknown = null;
       if (accountsResponse.ok) {
         const accountsData = await accountsResponse.json();
-        // The API may return { items: [...] } or a direct array
+        rawApiResponse = accountsData;
         const rawItems = accountsData?.items || accountsData?.data || accountsData;
         accounts = Array.isArray(rawItems) ? rawItems : [];
       }
 
-      console.log(`[Status API] userId=${userId} retrieved ${accounts.length} accounts:`, JSON.stringify(accounts));
+      // Second: fetch ALL accounts (no user_id filter) to see if any exist at all
+      const allAccountsResponse = await fetch(
+        `https://backend.composio.dev/api/v1/connected_accounts`,
+        {
+          method: "GET",
+          headers: { "x-api-key": apiKey },
+        }
+      );
+      let allAccounts: Record<string, unknown>[] = [];
+      if (allAccountsResponse.ok) {
+        const allData = await allAccountsResponse.json();
+        const allItems = allData?.items || allData?.data || allData;
+        allAccounts = Array.isArray(allItems) ? allItems : [];
+      }
+
+      console.log(`[Status API] userId=${userId} filtered=${accounts.length} all=${allAccounts.length}`);
 
       if (requested.length > 0) {
         const statuses = requested.map((item) => {
@@ -253,7 +269,22 @@ Deno.serve(async (req) => {
         });
 
         return new Response(
-          JSON.stringify({ statuses, rawAccounts: accounts }),
+          JSON.stringify({
+            statuses,
+            _debug: {
+              userId,
+              filteredCount: accounts.length,
+              allCount: allAccounts.length,
+              allAccounts: allAccounts.slice(0, 10).map((a: Record<string, unknown>) => ({
+                id: a.id,
+                status: a.status,
+                appUniqueId: a.appUniqueId,
+                appName: a.appName,
+                userId: a.userId || a.user_id || a.memberId,
+              })),
+              rawApiResponse,
+            },
+          }),
           {
             status: 200,
             headers: { "Content-Type": "application/json", ...corsHeaders },
