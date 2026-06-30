@@ -60,6 +60,10 @@ function connectedAccountMatches(
     normalizeSlug(appUniqueId) === slug
   );
 
+  console.log(
+    `[Matching] Account ID=${account.id} Status=${account.status} Provider=${provider} AppUniqueId=${appUniqueId} TargetSlug=${slug} isIdMatch=${isIdMatch} isSlugMatch=${isSlugMatch}`
+  );
+
   return (isIdMatch || isSlugMatch) && account.status === "ACTIVE";
 }
 
@@ -202,6 +206,8 @@ Deno.serve(async (req) => {
         ? connectedAccounts as Record<string, unknown>[]
         : [];
 
+      console.log(`[Status API] userId=${userId} retrieved ${accounts.length} accounts:`, JSON.stringify(accounts));
+
       if (requested.length > 0) {
         const statuses = requested.map((item) => {
           const itemSlug = normalizeSlug(item.slug) || "unknown";
@@ -235,7 +241,7 @@ Deno.serve(async (req) => {
         });
 
         return new Response(
-          JSON.stringify({ statuses }),
+          JSON.stringify({ statuses, rawAccounts: accounts }),
           {
             status: 200,
             headers: { "Content-Type": "application/json", ...corsHeaders },
