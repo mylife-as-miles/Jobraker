@@ -4790,29 +4790,6 @@ export const SettingsPage = (): JSX.Element => {
               </div>
             </div>
 
-            <div className='flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between'>
-              <div>
-                <h3 className='text-base font-semibold text-foreground'>
-                  Composio App Connections
-                </h3>
-                <p className='text-sm text-muted-foreground mt-1 max-w-2xl'>
-                  Connect the apps JobRaker Agent can use for candidate context,
-                  hidden-job discovery, and interview workflow.
-                </p>
-              </div>
-              <Button
-                type='button'
-                variant='outline'
-                onClick={() => void refreshComposioConnectionStatuses()}
-                disabled={composioStatusesLoading}
-                className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-brand/10 hover:border-brand/30'
-              >
-                <RefreshCw
-                  className={`w-4 h-4 mr-2 ${composioStatusesLoading ? "animate-spin" : ""}`}
-                />
-                Refresh
-              </Button>
-            </div>
 
             <div className='flex flex-col gap-4'>
               {COMPOSIO_INTEGRATIONS.map((integration) => {
