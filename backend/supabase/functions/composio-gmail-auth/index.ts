@@ -104,16 +104,30 @@ serve(async (req) => {
         });
       }
 
-      const connectionRequest = await composio.connectedAccounts.initiate(
-        userId,
-        authConfigId,
-        { allowMultiple: true }
-      );
+      const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+      const response = await fetch("https://backend.composio.dev/api/v3/connected_accounts/link", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          auth_config_id: authConfigId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Composio API error (${response.status}): ${errorText}`);
+      }
+
+      const connectionRequest = await response.json();
 
       return new Response(
         JSON.stringify({
-          connectionId: connectionRequest.id,
-          redirectUrl: connectionRequest.redirectUrl,
+          connectionId: connectionRequest.id || connectionRequest.connectionId,
+          redirectUrl: connectionRequest.redirectUrl || connectionRequest.redirect_url,
         }),
         {
           status: 200,
@@ -248,8 +262,10 @@ serve(async (req) => {
     console.error("Error during Composio authentication:", error);
     return new Response(
       JSON.stringify({
-        error: "Authentication failed",
-        details: error.message,
+        error: "Internal server error during Composio operation",
+        details: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : "UnknownError",
+        stack: error instanceof Error ? error.stack : undefined,
       }),
       {
         status: 500,
