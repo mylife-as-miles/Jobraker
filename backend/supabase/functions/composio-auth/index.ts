@@ -285,22 +285,7 @@ Deno.serve(async (req) => {
         });
 
         return new Response(
-          JSON.stringify({
-            statuses,
-            _debug: {
-              userId,
-              apiStatus: accountsResponse.status,
-              accountsFound: accounts.length,
-              accounts: accounts.slice(0, 10).map((a: Record<string, unknown>) => ({
-                id: a.id,
-                status: a.status,
-                appUniqueId: a.appUniqueId,
-                appName: a.appName,
-                userId: a.userId || a.user_id || a.memberId,
-              })),
-              rawApiResponse,
-            },
-          }),
+          JSON.stringify({ statuses }),
           {
             status: 200,
             headers: { "Content-Type": "application/json", ...corsHeaders },
