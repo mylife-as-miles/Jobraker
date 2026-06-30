@@ -53,14 +53,14 @@ function connectedAccountMatches(
     authConfig?.id === authConfigId
   ) : false;
 
-  const provider = asString(authConfig?.provider) || asString(account.appSlug);
+  const provider = asString(authConfig?.provider) || asString(account.appSlug) || asString(account.appName);
   const appUniqueId = asString(account.appUniqueId);
   const isSlugMatch = slug && (
     normalizeSlug(provider) === slug ||
     normalizeSlug(appUniqueId) === slug
   );
 
-  return (authConfigId ? isIdMatch : isSlugMatch) && account.status === "ACTIVE";
+  return (isIdMatch || isSlugMatch) && account.status === "ACTIVE";
 }
 
 interface RequestedIntegration {
@@ -207,11 +207,9 @@ Deno.serve(async (req) => {
           const itemSlug = normalizeSlug(item.slug) || "unknown";
           const isNoAuth = item.noAuth === true;
           const itemAuthConfigId = resolveAuthConfigId(body as Record<string, unknown>, item);
-          const account = itemAuthConfigId
-            ? accounts.find((candidate) =>
-                connectedAccountMatches(candidate, itemAuthConfigId, itemSlug)
-              )
-            : null;
+          const account = accounts.find((candidate) =>
+            connectedAccountMatches(candidate, itemAuthConfigId, itemSlug)
+          );
           const connectionParams = isRecord(account?.connectionParams) ? account.connectionParams : {};
           const metadata = isRecord(account?.metadata) ? account.metadata : {};
           const identifier =
@@ -228,7 +226,7 @@ Deno.serve(async (req) => {
             slug: itemSlug,
             label: item.label || itemSlug,
             toolkitSlug: item.toolkitSlug || itemSlug,
-            configured: isNoAuth || Boolean(itemAuthConfigId),
+            configured: true,
             isConnected: isNoAuth || Boolean(account),
             connectionId: account?.id || null,
             identifier,
