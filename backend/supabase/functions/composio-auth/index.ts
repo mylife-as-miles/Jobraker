@@ -199,12 +199,24 @@ Deno.serve(async (req) => {
           )
         : [];
 
-      const { data: connectedAccounts } = await composio.connectedAccounts.list({
-        userIds: [userId],
-      });
-      const accounts = Array.isArray(connectedAccounts)
-        ? connectedAccounts as Record<string, unknown>[]
-        : [];
+      // Use raw API instead of SDK to ensure user_id matching with initiate flow
+      const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+      const accountsResponse = await fetch(
+        `https://backend.composio.dev/api/v1/connected_accounts?user_id=${encodeURIComponent(userId)}`,
+        {
+          method: "GET",
+          headers: {
+            "x-api-key": apiKey,
+          },
+        }
+      );
+      let accounts: Record<string, unknown>[] = [];
+      if (accountsResponse.ok) {
+        const accountsData = await accountsResponse.json();
+        // The API may return { items: [...] } or a direct array
+        const rawItems = accountsData?.items || accountsData?.data || accountsData;
+        accounts = Array.isArray(rawItems) ? rawItems : [];
+      }
 
       console.log(`[Status API] userId=${userId} retrieved ${accounts.length} accounts:`, JSON.stringify(accounts));
 
