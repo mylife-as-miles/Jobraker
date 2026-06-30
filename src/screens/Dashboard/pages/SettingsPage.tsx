@@ -675,11 +675,8 @@ export const SettingsPage = (): JSX.Element => {
   ]);
 
   const configuredComposioIntegrations = useMemo(
-    () =>
-      COMPOSIO_INTEGRATIONS.filter(
-        (integration) => !!integration.authConfigId,
-      ),
-    [],
+    () => composioIntegrations,
+    [composioIntegrations],
   );
 
   const refreshComposioConnectionStatuses = useCallback(async () => {
@@ -699,7 +696,6 @@ export const SettingsPage = (): JSX.Element => {
               slug: integration.slug,
               label: integration.name,
               toolkitSlug: integration.toolkitSlug,
-              authConfigId: integration.authConfigId,
             })),
           },
         },
@@ -724,7 +720,7 @@ export const SettingsPage = (): JSX.Element => {
         for (const integration of COMPOSIO_INTEGRATIONS) {
           const status = statuses.find((item) => item.slug === integration.slug);
           next[integration.slug] = {
-            configured: !!integration.authConfigId,
+            configured: true,
             isConnected: !!status?.isConnected,
             connectionId: status?.connectionId ?? null,
             identifier: status?.identifier ?? null,
@@ -741,14 +737,6 @@ export const SettingsPage = (): JSX.Element => {
 
   const handleConnectComposioIntegration = useCallback(
     async (integration: ComposioIntegration) => {
-      if (!integration.authConfigId) {
-        toastError(
-          "Composio config missing",
-          `Set VITE_COMPOSIO_${integration.slug.toUpperCase()}_CONFIG_ID before connecting ${integration.name}.`,
-        );
-        return;
-      }
-
       // Open popup synchronously to prevent popup blockers
       const popup = window.open("about:blank", "_blank", "width=560,height=760");
 
@@ -764,7 +752,6 @@ export const SettingsPage = (): JSX.Element => {
               action: "initiate",
               integrationSlug: integration.slug,
               toolkitSlug: integration.toolkitSlug,
-              authConfigId: integration.authConfigId,
             },
           },
         );
@@ -1051,7 +1038,7 @@ export const SettingsPage = (): JSX.Element => {
         firstName: profile?.first_name || "",
         lastName: profile?.last_name || "",
         phone: (profile as any)?.phone || "",
-        location: profile?.location || "",
+        location: (profile as any)?.location || "",
         avatar_url: (profile as any)?.avatar_url || "",
         linkedin_url: (profile as any)?.linkedin_url || "",
         github_url: (profile as any)?.github_url || "",
@@ -1558,7 +1545,7 @@ export const SettingsPage = (): JSX.Element => {
         jobsP,
         bookmarksP,
         creditTxP,
-        creditsP,
+        creditsRes,
         subsP,
         notifsP,
         eduP,
@@ -1958,7 +1945,6 @@ export const SettingsPage = (): JSX.Element => {
             data-tour='settings-tab-notifications'
             className='space-y-6 mb-20'
           >
-            {/* General Notification Settings */}
             {/* General Notification Settings */}
             <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
               <h3 className='text-base font-medium text-foreground mb-6'>
@@ -4794,7 +4780,7 @@ export const SettingsPage = (): JSX.Element => {
             <div className='flex flex-col gap-4'>
               {COMPOSIO_INTEGRATIONS.map((integration) => {
                 const status = composioConnectionStatuses[integration.slug] ?? {
-                  configured: !!integration.authConfigId,
+                  configured: true,
                   isConnected: false,
                   connectionId: null,
                   identifier: null,
