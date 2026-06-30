@@ -47,13 +47,32 @@ function resolveAuthConfigId(body: Record<string, unknown>, item?: RequestedInte
   );
 }
 
-function connectedAccountMatches(account: Record<string, unknown>, authConfigId: string) {
+function connectedAccountMatches(
+  account: Record<string, unknown>,
+  authConfigId: string,
+  slug?: string | null,
+) {
   const authConfig = isRecord(account.authConfig) ? account.authConfig : null;
-  return (
+  const isIdMatch =
     account.authConfigId === authConfigId ||
     account.auth_config_id === authConfigId ||
-    authConfig?.id === authConfigId
+    authConfig?.id === authConfigId;
+
+  const accSlug = normalizeSlug(
+    account.appSlug ||
+    account.appName ||
+    account.app ||
+    account.toolkitSlug ||
+    account.toolkit
   );
+
+  const isSlugMatch = slug ? accSlug === normalizeSlug(slug) : false;
+  const isActive =
+    !account.status ||
+    account.status === "ACTIVE" ||
+    account.status === "active";
+
+  return (isIdMatch || isSlugMatch) && isActive;
 }
 
 serve(async (req) => {
@@ -223,7 +242,7 @@ serve(async (req) => {
           const itemAuthConfigId = resolveAuthConfigId(body as Record<string, unknown>, item);
           const account = itemAuthConfigId
             ? accounts.find((candidate) =>
-                connectedAccountMatches(candidate, itemAuthConfigId)
+                connectedAccountMatches(candidate, itemAuthConfigId, itemSlug)
               )
             : null;
           const connectionParams = isRecord(account?.connectionParams) ? account.connectionParams : {};
@@ -259,8 +278,9 @@ serve(async (req) => {
         );
       }
 
+      const singleSlug = normalizeSlug(body.integrationSlug ?? body.slug);
       const account = authConfigId
-        ? accounts.find((candidate) => connectedAccountMatches(candidate, authConfigId))
+        ? accounts.find((candidate) => connectedAccountMatches(candidate, authConfigId, singleSlug))
         : null;
 
       return new Response(
