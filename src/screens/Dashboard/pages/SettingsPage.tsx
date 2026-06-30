@@ -160,7 +160,6 @@ type ComposioIntegrationSlug =
   | "googledocs"
   | "cal"
   | "reddit"
-  | "hackernews"
   | "notion"
   | "googlecalendar"
   | "linkedin";
@@ -228,16 +227,6 @@ const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     authConfigId: import.meta.env.VITE_COMPOSIO_REDDIT_CONFIG_ID,
     icon: <Globe className='w-6 h-6 text-orange-300' />,
     accentClass: "from-orange-500/20 to-orange-500/10 border-orange-500/30",
-  },
-
-  {
-    slug: "hackernews",
-    toolkitSlug: "hackernews",
-    name: "Hacker News",
-    description: "Search startup and engineering hiring threads from Agent Mode.",
-    authConfigId: import.meta.env.VITE_COMPOSIO_HACKERNEWS_CONFIG_ID,
-    icon: <Code className='w-6 h-6 text-amber-300' />,
-    accentClass: "from-amber-500/20 to-amber-500/10 border-amber-500/30",
   },
   {
     slug: "notion",
