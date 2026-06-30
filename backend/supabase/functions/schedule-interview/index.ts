@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
   try {
     await requireSubscriptionTier(
       req,
-      "Pro",
+      "Basics",
       "Interview scheduling assistant",
     );
 

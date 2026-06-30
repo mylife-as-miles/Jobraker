@@ -1027,7 +1027,7 @@ serve(async (req) => {
   try {
     const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(
       req,
-      "Pro",
+      "Basics",
       "Gmail application checks",
     );
     const canUseEmailIntegrations =
