@@ -92,10 +92,10 @@ export const EDGE_FUNCTIONS: EdgeFunctionDefinition[] = [
     },
   },
   {
-    name: "composio-gmail-auth",
+    name: "composio-auth",
     category: "integrations",
     description: "Composio connected-account auth, status, and tool execution helper for JobRaker integrations.",
-    path: "/functions/v1/composio-gmail-auth",
+    path: "/functions/v1/composio-auth",
     parameterSchema: {
       type: "object",
       properties: {

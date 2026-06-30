@@ -4227,7 +4227,7 @@ Edge functions:
                   } else if (fn.name === "list_composio_integrations") {
                     result = await invokeEdgeFunctionByName({
                       authHeader: authHeader!,
-                      name: "composio-gmail-auth",
+                      name: "composio-auth",
                       payload: {
                         action: "status",
                         integrations: COMPOSIO_AGENT_INTEGRATIONS,
@@ -4236,7 +4236,7 @@ Edge functions:
                   } else if (fn.name === "invoke_composio_tool") {
                     result = await invokeEdgeFunctionByName({
                       authHeader: authHeader!,
-                      name: "composio-gmail-auth",
+                      name: "composio-auth",
                       timeoutMs: 90_000,
                       payload: {
                         action: "execute",

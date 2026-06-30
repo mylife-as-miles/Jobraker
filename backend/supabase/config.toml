@@ -540,10 +540,10 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/analyze-resume/index.ts"
 
-[functions.composio-gmail-auth]
+[functions.composio-auth]
 enabled = true
-verify_jwt = true
-entrypoint = "./functions/composio-gmail-auth/index.ts"
+verify_jwt = false
+entrypoint = "./functions/composio-auth/index.ts"
 
 [functions.enrich-jobs]
 enabled = true
