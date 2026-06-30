@@ -61,6 +61,9 @@ COMMENT ON TABLE public.job_search_results IS
 -- A single run cannot contain the same job twice.
 
 ALTER TABLE public.job_search_results
+  DROP CONSTRAINT IF EXISTS job_search_results_run_job_unique;
+
+ALTER TABLE public.job_search_results
   ADD CONSTRAINT job_search_results_run_job_unique
   UNIQUE (agent_run_id, job_id);
 
@@ -84,12 +87,14 @@ CREATE INDEX IF NOT EXISTS job_search_results_billing_idx
 ALTER TABLE public.job_search_results ENABLE ROW LEVEL SECURITY;
 
 -- Users can only read their own results
+DROP POLICY IF EXISTS job_search_results_user_select ON public.job_search_results;
 CREATE POLICY job_search_results_user_select
   ON public.job_search_results
   FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Service role has full access (used by process-task Edge Function)
+DROP POLICY IF EXISTS job_search_results_service_all ON public.job_search_results;
 CREATE POLICY job_search_results_service_all
   ON public.job_search_results
   FOR ALL
@@ -98,6 +103,7 @@ CREATE POLICY job_search_results_service_all
   WITH CHECK (true);
 
 -- Admins can read all results for support/debugging
+DROP POLICY IF EXISTS job_search_results_admin_select ON public.job_search_results;
 CREATE POLICY job_search_results_admin_select
   ON public.job_search_results
   FOR SELECT

@@ -133,13 +133,13 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.credit_balance_drift IS
+COMMENT ON FUNCTION public.credit_balance_drift(uuid, integer, integer) IS
     'Admin-only: returns users whose V2 credit_balances.available differs from '
     'legacy user_credits.balance. Result is sourced from v_credit_balance_drift. '
     'Pass p_user_id to inspect a single user. '
     'A zero drift_count after reconciliation confirms the V2 ledger is authoritative.';
 
-GRANT EXECUTE ON FUNCTION public.credit_balance_drift TO service_role;
+GRANT EXECUTE ON FUNCTION public.credit_balance_drift(uuid, integer, integer) TO service_role;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- B. RECONCILIATION QUEUE
@@ -187,6 +187,7 @@ CREATE INDEX IF NOT EXISTS crq_status_idx
 
 ALTER TABLE public.credit_reconciliation_queue ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS crq_admin_all ON public.credit_reconciliation_queue;
 CREATE POLICY crq_admin_all
     ON public.credit_reconciliation_queue
     FOR ALL
@@ -206,6 +207,7 @@ CREATE POLICY crq_admin_all
         )
     );
 
+DROP POLICY IF EXISTS crq_service_all ON public.credit_reconciliation_queue;
 CREATE POLICY crq_service_all
     ON public.credit_reconciliation_queue
     FOR ALL

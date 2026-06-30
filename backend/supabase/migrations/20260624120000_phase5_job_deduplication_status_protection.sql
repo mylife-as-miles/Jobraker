@@ -3,7 +3,12 @@
 -- =============================================================================
 
 -- Ensure pgcrypto exists for digest() function
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA public;
+SET search_path TO public, extensions;
+
+-- Drop unique indexes if they exist to prevent duplicate key errors during backfill/deduplication
+DROP INDEX IF EXISTS public.jobs_user_fingerprint_idx;
+DROP INDEX IF EXISTS public.jobs_user_canonical_url_hash_idx;
 
 -- ── 1. Add Columns to jobs ───────────────────────────────────────────────────
 

@@ -21,7 +21,16 @@ import {
   Zap,
   Trophy,
   Lock as LockIcon,
+  Github,
+  Linkedin,
+  GitBranch,
+  Star,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle2,
+  User,
 } from "lucide-react";
+import { useToast } from "../../../components/ui/toast";
 import { EmptyState } from "../../../components/ui/empty-state";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
@@ -45,8 +54,127 @@ const ProfilePage = (): JSX.Element => {
     profile,
     updateProfile,
     loading: profileLoading,
+    refresh: refreshProfile,
   } = useProfileSettings();
+  const { success: toastSuccess, error: toastError } = useToast();
   const supabase = useMemo(() => createClient(), []);
+  const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
+  const [syncingProviders, setSyncingProviders] = useState<string[]>([]);
+
+  const handleSync = async (providers: string[]) => {
+    setSyncingProviders((prev) => [...prev, ...providers]);
+    toastSuccess("Portfolio Sync", `Starting sync for ${providers.join(", ")}...`);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-portfolio-integrations", {
+        body: { providers },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toastSuccess("Portfolio Sync", `Successfully synced ${providers.join(" & ")}`);
+        await refreshProfile();
+      } else {
+        const errors = [];
+        if (providers.includes("github") && data?.github?.status === "failed") {
+          errors.push(`GitHub: ${data.github.error}`);
+        }
+        if (providers.includes("linkedin") && data?.linkedin?.status === "failed") {
+          errors.push(`LinkedIn: ${data.linkedin.error}`);
+        }
+        
+        if (errors.length > 0) {
+          toastError("Sync Partial Failure", errors.join("\n"));
+        } else {
+          toastError("Sync Failed", "Verification of connected accounts failed. Ensure they are connected first.");
+        }
+      }
+    } catch (err: any) {
+      toastError("Sync Error", err.message || String(err));
+    } finally {
+      setSyncingProviders((prev) => prev.filter((p) => !providers.includes(p)));
+    }
+  };
+
+  const handleConnect = async (provider: "github" | "linkedin") => {
+    const configId = provider === "github" 
+      ? import.meta.env.VITE_COMPOSIO_GITHUB_CONFIG_ID 
+      : import.meta.env.VITE_COMPOSIO_LINKEDIN_CONFIG_ID;
+
+    if (!configId) {
+      toastError(
+        "Configuration missing",
+        `Please set VITE_COMPOSIO_${provider.toUpperCase()}_CONFIG_ID environment variable.`
+      );
+      return;
+    }
+
+    const popup = window.open("about:blank", "_blank", "width=560,height=760");
+    setConnectingProvider(provider);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("composio-auth", {
+        body: {
+          action: "initiate",
+          integrationSlug: provider,
+          toolkitSlug: provider,
+          authConfigId: configId,
+        },
+      });
+
+      if (error) throw error;
+
+      const redirectUrl = (data as any)?.redirectUrl;
+      if (!redirectUrl) throw new Error("No redirect URL returned.");
+
+      if (popup) {
+        popup.location.href = redirectUrl;
+      } else {
+        window.open(redirectUrl, "_blank", "width=560,height=760");
+      }
+
+      // Check for connection status after a short delay
+      setTimeout(async () => {
+        await handleSync([provider]);
+      }, 5000);
+    } catch (err: any) {
+      if (popup) popup.close();
+      toastError(`Failed to connect ${provider}`, err.message || String(err));
+    } finally {
+      setConnectingProvider(null);
+    }
+  };
+
+  const getStatusBadge = (provider: "github" | "linkedin") => {
+    const meta = profile?.portfolio_sync_meta?.[provider];
+    const status = meta?.status || "not_connected";
+
+    switch (status) {
+      case "success":
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <CheckCircle2 className="w-3 h-3 mr-1" />
+            Connected & Synced
+          </span>
+        );
+      case "failed":
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20" title={meta?.error || "Sync failed"}>
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Sync Failed
+          </span>
+        );
+      case "not_connected":
+      default:
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+            Not Connected
+          </span>
+        );
+    }
+  };
+
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [subscriptionTier, setSubscriptionTier] = useState<
@@ -1856,6 +1984,350 @@ const ProfilePage = (): JSX.Element => {
                       )}
                     </motion.div>
                   ))}
+                </div>
+              </Card>
+            </motion.div>
+
+            {/* Professional Portfolio Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.52 }}
+              whileHover={{ scale: 1.01 }}
+              className='transition-transform duration-300'
+            >
+              <Card className='product-section-card p-6 hover:border-brand/60 hover:shadow-lg transition-all duration-300'>
+                <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-foreground/10 pb-4'>
+                  <div>
+                    <h3 className='text-lg font-semibold text-foreground flex items-center'>
+                      <Briefcase className='w-5 h-5 mr-2 text-brand' />
+                      Professional Portfolio
+                    </h3>
+                    <p className='text-xs text-muted-foreground mt-1'>
+                      Integrate and showcase your professional profiles and project evidence.
+                    </p>
+                  </div>
+                  <div className='flex gap-2 self-end sm:self-auto'>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      disabled={syncingProviders.length > 0 || connectingProvider !== null}
+                      onClick={() => handleSync(["github", "linkedin"])}
+                      className='border-foreground/20 text-foreground hover:bg-foreground/10 flex items-center gap-1.5'
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${syncingProviders.length > 0 ? "animate-spin" : ""}`} />
+                      Refresh All
+                    </Button>
+                  </div>
+                </div>
+
+                <div className='grid grid-cols-1 xl:grid-cols-2 gap-6'>
+                  {/* GitHub Integration Showcase */}
+                  <div className='bg-foreground/5 border border-foreground/10 rounded-xl p-5 hover:bg-foreground/[0.07] transition-all duration-300 flex flex-col'>
+                    <div className='flex items-center justify-between mb-4'>
+                      <div className='flex items-center gap-2'>
+                        <div className='p-2 bg-zinc-950 rounded-lg border border-zinc-800 text-zinc-200'>
+                          <Github className='w-5 h-5' />
+                        </div>
+                        <div>
+                          <h4 className='font-semibold text-foreground text-sm'>GitHub Integration</h4>
+                          <div className='mt-0.5'>{getStatusBadge("github")}</div>
+                        </div>
+                      </div>
+                      
+                      {profile?.portfolio_sync_meta?.github?.status === "success" ? (
+                        <Button
+                          size='sm'
+                          variant='ghost'
+                          disabled={syncingProviders.includes("github")}
+                          onClick={() => handleSync(["github"])}
+                          className='product-helper-text hover:text-foreground text-xs flex items-center gap-1'
+                        >
+                          <RefreshCw className={`w-3 h-3 ${syncingProviders.includes("github") ? "animate-spin" : ""}`} />
+                          Sync
+                        </Button>
+                      ) : (
+                        <Button
+                          size='sm'
+                          disabled={connectingProvider === "github"}
+                          onClick={() => handleConnect("github")}
+                          className='bg-brand text-black hover:bg-brand/90 hover:scale-105 transition-all duration-300 text-xs py-1 px-3 h-auto'
+                        >
+                          {connectingProvider === "github" ? (
+                            <RefreshCw className='w-3 h-3 animate-spin mr-1' />
+                          ) : (
+                            <Plus className='w-3.5 h-3.5 mr-1' />
+                          )}
+                          Connect
+                        </Button>
+                      )}
+                    </div>
+
+                    {profile?.github_data?.username ? (
+                      <div className='space-y-4 flex-1 flex flex-col justify-between'>
+                        <div>
+                          {/* GitHub Profile Summary */}
+                          <div className='flex items-center gap-3 bg-foreground/[0.03] p-3 rounded-lg border border-foreground/5 mb-4'>
+                            {profile.github_data.avatar_url ? (
+                              <img
+                                src={profile.github_data.avatar_url}
+                                alt={profile.github_data.name || profile.github_data.username}
+                                className='w-10 h-10 rounded-full border border-foreground/10'
+                              />
+                            ) : (
+                              <div className='w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-200 font-bold'>
+                                <User className='w-5 h-5' />
+                              </div>
+                            )}
+                            <div>
+                              <a
+                                href={profile.github_data.profile_url}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                className='text-sm font-semibold text-foreground hover:text-brand flex items-center gap-1 transition-colors'
+                              >
+                                {profile.github_data.name || profile.github_data.username}
+                                <ExternalLink className='w-3 h-3' />
+                              </a>
+                              <p className='text-xs text-muted-foreground'>@{profile.github_data.username}</p>
+                            </div>
+                          </div>
+
+                          {profile.github_data.bio && (
+                            <p className='text-xs text-muted-foreground italic mb-4 px-1'>
+                              "{profile.github_data.bio}"
+                            </p>
+                          )}
+
+                          {/* GitHub Stats & Languages */}
+                          <div className='grid grid-cols-2 gap-2 mb-4'>
+                            <div className='bg-foreground/[0.02] p-2.5 rounded-lg border border-foreground/5 text-center'>
+                              <p className='text-[10px] text-muted-foreground uppercase font-semibold'>Public Repos</p>
+                              <p className='text-base font-bold text-foreground mt-0.5'>{profile.github_data.public_repos_count}</p>
+                            </div>
+                            <div className='bg-foreground/[0.02] p-2.5 rounded-lg border border-foreground/5 text-center'>
+                              <p className='text-[10px] text-muted-foreground uppercase font-semibold flex items-center justify-center gap-1'>
+                                <Star className='w-3 h-3 text-amber-400 fill-amber-400/20' /> Total Stars
+                              </p>
+                              <p className='text-base font-bold text-foreground mt-0.5'>{profile.github_data.total_stars}</p>
+                            </div>
+                          </div>
+
+                          {profile.github_data.top_languages && profile.github_data.top_languages.length > 0 && (
+                            <div className='mb-4'>
+                              <p className='text-xs font-semibold text-foreground mb-1.5 px-1'>Top Languages</p>
+                              <div className='flex flex-wrap gap-1.5'>
+                                {profile.github_data.top_languages.map((lang: string) => (
+                                  <span key={lang} className='px-2 py-0.5 bg-brand/10 text-brand border border-brand/20 rounded text-[10px] font-medium'>
+                                    {lang}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* GitHub Repositories List */}
+                          {profile.github_data.top_repositories && profile.github_data.top_repositories.length > 0 && (
+                            <div>
+                              <p className='text-xs font-semibold text-foreground mb-2 px-1'>Featured Repositories</p>
+                              <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+                                {profile.github_data.top_repositories.map((repo: any) => (
+                                  <a
+                                    key={repo.name}
+                                    href={repo.url}
+                                    target='_blank'
+                                    rel='noopener noreferrer'
+                                    className='bg-foreground/[0.02] hover:bg-foreground/[0.05] p-3 rounded-lg border border-foreground/5 hover:border-brand/40 hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between h-[100px]'
+                                  >
+                                    <div>
+                                      <div className='flex items-center justify-between'>
+                                        <span className='font-semibold text-foreground text-xs truncate max-w-[80%]'>{repo.name}</span>
+                                        <ExternalLink className='w-3 h-3 text-muted-foreground/60' />
+                                      </div>
+                                      <p className='text-[10px] text-muted-foreground/80 line-clamp-2 mt-1 leading-normal'>{repo.description || "No description provided."}</p>
+                                    </div>
+                                    <div className='flex items-center justify-between mt-2 pt-1.5 border-t border-foreground/5'>
+                                      <span className='text-[9px] text-brand font-medium'>{repo.language || "Unknown"}</span>
+                                      <div className='flex items-center gap-2 text-muted-foreground/60 text-[9px]'>
+                                        <span className='flex items-center gap-0.5'>
+                                          <Star className='w-2.5 h-2.5' /> {repo.stars}
+                                        </span>
+                                        <span className='flex items-center gap-0.5'>
+                                          <GitBranch className='w-2.5 h-2.5' /> {repo.forks}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {profile.github_data.synced_at && (
+                          <div className='text-[10px] text-muted-foreground/60 mt-4 border-t border-foreground/5 pt-2 flex justify-between items-center px-1'>
+                            <span>Last Synced: {new Date(profile.github_data.synced_at).toLocaleString()}</span>
+                            <span>Source: Composio</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className='flex-1 flex flex-col items-center justify-center text-center p-6 border border-dashed border-foreground/10 rounded-lg bg-foreground/[0.01] mt-2'>
+                        <div className='w-12 h-12 bg-zinc-950 rounded-full flex items-center justify-center border border-zinc-800 text-zinc-500 mb-3 shadow-inner'>
+                          <Github className='w-6 h-6' />
+                        </div>
+                        <h5 className='font-semibold text-foreground text-xs mb-1'>No GitHub Showcase</h5>
+                        <p className='text-[11px] text-muted-foreground/80 max-w-[200px] mb-4 leading-normal'>
+                          Connect your GitHub account to sync and display your top repositories and skills.
+                        </p>
+                        <Button
+                          size='sm'
+                          disabled={connectingProvider === "github"}
+                          onClick={() => handleConnect("github")}
+                          className='bg-brand text-black hover:bg-brand/90 text-xs px-4'
+                        >
+                          {connectingProvider === "github" ? (
+                            <RefreshCw className='w-3.5 h-3.5 animate-spin mr-1' />
+                          ) : (
+                            <Plus className='w-4 h-4 mr-1' />
+                          )}
+                          Connect GitHub
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* LinkedIn Integration Showcase */}
+                  <div className='bg-foreground/5 border border-foreground/10 rounded-xl p-5 hover:bg-foreground/[0.07] transition-all duration-300 flex flex-col'>
+                    <div className='flex items-center justify-between mb-4'>
+                      <div className='flex items-center gap-2'>
+                        <div className='p-2 bg-blue-950 rounded-lg border border-blue-900/50 text-blue-400'>
+                          <Linkedin className='w-5 h-5' />
+                        </div>
+                        <div>
+                          <h4 className='font-semibold text-foreground text-sm'>LinkedIn Integration</h4>
+                          <div className='mt-0.5'>{getStatusBadge("linkedin")}</div>
+                        </div>
+                      </div>
+                      
+                      {profile?.portfolio_sync_meta?.linkedin?.status === "success" ? (
+                        <Button
+                          size='sm'
+                          variant='ghost'
+                          disabled={syncingProviders.includes("linkedin")}
+                          onClick={() => handleSync(["linkedin"])}
+                          className='product-helper-text hover:text-foreground text-xs flex items-center gap-1'
+                        >
+                          <RefreshCw className={`w-3 h-3 ${syncingProviders.includes("linkedin") ? "animate-spin" : ""}`} />
+                          Sync
+                        </Button>
+                      ) : (
+                        <Button
+                          size='sm'
+                          disabled={connectingProvider === "linkedin"}
+                          onClick={() => handleConnect("linkedin")}
+                          className='bg-brand text-black hover:bg-brand/90 hover:scale-105 transition-all duration-300 text-xs py-1 px-3 h-auto'
+                        >
+                          {connectingProvider === "linkedin" ? (
+                            <RefreshCw className='w-3 h-3 animate-spin mr-1' />
+                          ) : (
+                            <Plus className='w-3.5 h-3.5 mr-1' />
+                          )}
+                          Connect
+                        </Button>
+                      )}
+                    </div>
+
+                    {profile?.linkedin_data?.name ? (
+                      <div className='space-y-4 flex-1 flex flex-col justify-between'>
+                        <div className='space-y-3'>
+                          {/* LinkedIn Profile Details */}
+                          <div className='bg-foreground/[0.03] p-4 rounded-lg border border-foreground/5'>
+                            <div className='flex justify-between items-start'>
+                              <div>
+                                <h5 className='font-semibold text-foreground text-sm'>{profile.linkedin_data.name}</h5>
+                                {profile.linkedin_data.headline && (
+                                  <p className='text-xs text-brand font-medium mt-0.5 leading-snug'>{profile.linkedin_data.headline}</p>
+                                )}
+                                {profile.linkedin_data.location && (
+                                  <p className='text-[10px] text-muted-foreground mt-1 flex items-center gap-1'>
+                                    <MapPin className='w-3 h-3' /> {profile.linkedin_data.location}
+                                  </p>
+                                )}
+                              </div>
+                              {profile.linkedin_data.profile_url && (
+                                <a
+                                  href={profile.linkedin_data.profile_url}
+                                  target='_blank'
+                                  rel='noopener noreferrer'
+                                  className='p-1.5 hover:bg-foreground/5 rounded text-muted-foreground hover:text-brand transition-all'
+                                  title='View LinkedIn Profile'
+                                >
+                                  <ExternalLink className='w-4 h-4' />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Current Position */}
+                          {profile.linkedin_data.current_position && (
+                            <div className='bg-foreground/[0.01] p-3.5 rounded-lg border border-foreground/5'>
+                              <p className='text-[10px] text-muted-foreground uppercase font-semibold mb-1'>Current Position</p>
+                              <div className='flex items-start gap-2.5'>
+                                <div className='p-1.5 bg-foreground/5 rounded border border-foreground/10 text-muted-foreground mt-0.5'>
+                                  <Briefcase className='w-3.5 h-3.5' />
+                                </div>
+                                <div>
+                                  <p className='text-xs font-semibold text-foreground'>{profile.linkedin_data.current_position.title || "Position Title"}</p>
+                                  <p className='text-xs text-muted-foreground/80 mt-0.5'>{profile.linkedin_data.current_position.company || "Company Name"}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Summary */}
+                          {profile.linkedin_data.summary && (
+                            <div className='bg-foreground/[0.01] p-3.5 rounded-lg border border-foreground/5'>
+                              <p className='text-[10px] text-muted-foreground uppercase font-semibold mb-1.5'>Professional Summary</p>
+                              <p className='text-xs text-muted-foreground leading-relaxed whitespace-pre-line line-clamp-4'>
+                                {profile.linkedin_data.summary}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {profile.linkedin_data.synced_at && (
+                          <div className='text-[10px] text-muted-foreground/60 mt-4 border-t border-foreground/5 pt-2 flex justify-between items-center px-1'>
+                            <span>Last Synced: {new Date(profile.linkedin_data.synced_at).toLocaleString()}</span>
+                            <span>Source: Composio</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className='flex-1 flex flex-col items-center justify-center text-center p-6 border border-dashed border-foreground/10 rounded-lg bg-foreground/[0.01] mt-2'>
+                        <div className='w-12 h-12 bg-blue-950 rounded-full flex items-center justify-center border border-blue-900/50 text-blue-500 mb-3 shadow-inner'>
+                          <Linkedin className='w-6 h-6' />
+                        </div>
+                        <h5 className='font-semibold text-foreground text-xs mb-1'>No LinkedIn Showcase</h5>
+                        <p className='text-[11px] text-muted-foreground/80 max-w-[200px] mb-4 leading-normal'>
+                          Connect your LinkedIn profile to showcase your professional bio, experience, and current role.
+                        </p>
+                        <Button
+                          size='sm'
+                          disabled={connectingProvider === "linkedin"}
+                          onClick={() => handleConnect("linkedin")}
+                          className='bg-brand text-black hover:bg-brand/90 text-xs px-4'
+                        >
+                          {connectingProvider === "linkedin" ? (
+                            <RefreshCw className='w-3.5 h-3.5 animate-spin mr-1' />
+                          ) : (
+                            <Plus className='w-4 h-4 mr-1' />
+                          )}
+                          Connect LinkedIn
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </Card>
             </motion.div>

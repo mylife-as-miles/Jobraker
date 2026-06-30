@@ -144,11 +144,11 @@ BEGIN
         )
         SELECT
             'pre_remediation_20260623',
-            COALESCE(ct.type, '(null)') AS tx_type,
+            COALESCE(ct.transaction_type, '(null)') AS tx_type,
             COUNT(*)                    AS row_count,
             SUM(ct.amount)              AS total_amount
         FROM public.credit_transactions ct
-        GROUP BY ct.type;
+        GROUP BY ct.transaction_type;
 
         RAISE NOTICE '[Phase 0] Transaction type audit written: % type buckets',
             (SELECT COUNT(*) FROM public.credit_type_audit

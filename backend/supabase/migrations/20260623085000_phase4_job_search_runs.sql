@@ -116,6 +116,7 @@ CREATE TRIGGER trg_job_search_runs_updated_at
 ALTER TABLE public.job_search_runs ENABLE ROW LEVEL SECURITY;
 
 -- Users can only read their own search runs
+DROP POLICY IF EXISTS job_search_runs_user_select ON public.job_search_runs;
 CREATE POLICY job_search_runs_user_select
   ON public.job_search_runs
   FOR SELECT
@@ -123,6 +124,7 @@ CREATE POLICY job_search_runs_user_select
 
 -- No direct INSERT / UPDATE / DELETE from client — service_role only
 -- (The Edge Function uses the service_role key to insert.)
+DROP POLICY IF EXISTS job_search_runs_service_all ON public.job_search_runs;
 CREATE POLICY job_search_runs_service_all
   ON public.job_search_runs
   FOR ALL
@@ -131,6 +133,7 @@ CREATE POLICY job_search_runs_service_all
   WITH CHECK (true);
 
 -- Admins can read all runs for support/debugging
+DROP POLICY IF EXISTS job_search_runs_admin_select ON public.job_search_runs;
 CREATE POLICY job_search_runs_admin_select
   ON public.job_search_runs
   FOR SELECT
