@@ -199,12 +199,12 @@ Deno.serve(async (req) => {
           )
         : [];
 
-      // Use raw API instead of SDK to ensure user_id matching with initiate flow
+      // Use v3 API (v1 is deprecated and returns 410)
       const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
 
-      // First: try with user_id filter
+      // Fetch connected accounts for this user via v3 API
       const accountsResponse = await fetch(
-        `https://backend.composio.dev/api/v1/connected_accounts?user_id=${encodeURIComponent(userId)}`,
+        `https://backend.composio.dev/api/v3/connected_accounts?user_id=${encodeURIComponent(userId)}`,
         {
           method: "GET",
           headers: { "x-api-key": apiKey },
@@ -224,29 +224,7 @@ Deno.serve(async (req) => {
         rawApiResponse = filteredResponseText;
       }
 
-      // Second: fetch ALL accounts (no user_id filter) to see if any exist
-      const allAccountsResponse = await fetch(
-        `https://backend.composio.dev/api/v1/connected_accounts`,
-        {
-          method: "GET",
-          headers: { "x-api-key": apiKey },
-        }
-      );
-      let allAccounts: Record<string, unknown>[] = [];
-      let allRawResponse: unknown = null;
-      const allResponseText = await allAccountsResponse.text();
-      try {
-        allRawResponse = JSON.parse(allResponseText);
-        if (allAccountsResponse.ok) {
-          const parsed = allRawResponse as Record<string, unknown>;
-          const allItems = parsed?.items || parsed?.data || parsed;
-          allAccounts = Array.isArray(allItems) ? allItems : [];
-        }
-      } catch (_) {
-        allRawResponse = allResponseText;
-      }
-
-      console.log(`[Status API] userId=${userId} filtered=${accounts.length} (${accountsResponse.status}) all=${allAccounts.length} (${allAccountsResponse.status})`);
+      console.log(`[Status API v3] userId=${userId} count=${accounts.length} (${accountsResponse.status})`);
 
       if (requested.length > 0) {
         const statuses = requested.map((item) => {
@@ -285,11 +263,9 @@ Deno.serve(async (req) => {
             statuses,
             _debug: {
               userId,
-              filteredStatus: accountsResponse.status,
-              filteredCount: accounts.length,
-              allStatus: allAccountsResponse.status,
-              allCount: allAccounts.length,
-              allAccounts: allAccounts.slice(0, 10).map((a: Record<string, unknown>) => ({
+              apiStatus: accountsResponse.status,
+              accountsFound: accounts.length,
+              accounts: accounts.slice(0, 10).map((a: Record<string, unknown>) => ({
                 id: a.id,
                 status: a.status,
                 appUniqueId: a.appUniqueId,
@@ -297,7 +273,6 @@ Deno.serve(async (req) => {
                 userId: a.userId || a.user_id || a.memberId,
               })),
               rawApiResponse,
-              allRawResponse,
             },
           }),
           {
