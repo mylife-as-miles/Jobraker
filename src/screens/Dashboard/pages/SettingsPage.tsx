@@ -675,8 +675,8 @@ export const SettingsPage = (): JSX.Element => {
   ]);
 
   const configuredComposioIntegrations = useMemo(
-    () => composioIntegrations,
-    [composioIntegrations],
+    () => COMPOSIO_INTEGRATIONS,
+    [],
   );
 
   const refreshComposioConnectionStatuses = useCallback(async () => {
