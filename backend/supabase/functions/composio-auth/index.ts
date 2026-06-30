@@ -46,15 +46,32 @@ function connectedAccountMatches(
   authConfigId: string | null,
   slug?: string | null,
 ) {
-  const authConfig = isRecord(account.authConfig) ? account.authConfig : null;
+  const authConfig = isRecord(account.authConfig) 
+    ? account.authConfig 
+    : (isRecord(account.auth_config) ? account.auth_config : null);
+  
+  const authConfigIdField = account.authConfigId || account.auth_config_id;
   const isIdMatch = authConfigId ? (
-    account.authConfigId === authConfigId ||
-    account.auth_config_id === authConfigId ||
+    authConfigIdField === authConfigId ||
     authConfig?.id === authConfigId
   ) : false;
 
-  const provider = asString(authConfig?.provider) || asString(account.appSlug) || asString(account.appName);
-  const appUniqueId = asString(account.appUniqueId);
+  const toolkit = isRecord(account.toolkit) ? account.toolkit : null;
+  const app = isRecord(account.app) ? account.app : null;
+
+  const provider = 
+    asString(authConfig?.provider) || 
+    asString(account.appSlug) || 
+    asString(account.app_slug) ||
+    asString(account.appName) || 
+    asString(account.app_name) ||
+    asString(toolkit?.slug) ||
+    asString(toolkit?.name) ||
+    asString(app?.slug) ||
+    asString(app?.name) ||
+    "";
+
+  const appUniqueId = asString(account.appUniqueId) || asString(account.app_unique_id) || "";
   const isSlugMatch = slug && (
     normalizeSlug(provider) === slug ||
     normalizeSlug(appUniqueId) === slug
@@ -234,15 +251,24 @@ Deno.serve(async (req) => {
           const account = accounts.find((candidate) =>
             connectedAccountMatches(candidate, itemAuthConfigId, itemSlug)
           );
-          const connectionParams = isRecord(account?.connectionParams) ? account.connectionParams : {};
-          const metadata = isRecord(account?.metadata) ? account.metadata : {};
+          const connectionParams = isRecord(account?.connectionParams) 
+            ? account.connectionParams 
+            : (isRecord(account?.connection_params) 
+               ? account.connection_params 
+               : (isRecord(account?.data) ? account.data : {}));
+
+          const metadata = isRecord(account?.metadata) 
+            ? account.metadata : (isRecord(account?.meta_data) ? account.meta_data : {});
+
           const identifier =
             asString(connectionParams.account_name) ||
             asString(connectionParams.email) ||
             asString(connectionParams.username) ||
+            asString(connectionParams.accountName) ||
             asString(metadata.account_name) ||
             asString(metadata.email) ||
             asString(metadata.username) ||
+            asString(metadata.accountName) ||
             asString(account?.name) ||
             null;
 
