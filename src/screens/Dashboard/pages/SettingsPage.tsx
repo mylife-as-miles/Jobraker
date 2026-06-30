@@ -169,6 +169,7 @@ type ComposioConnectionStatus = {
   configured: boolean;
   isConnected: boolean;
   connectionId?: string | null;
+  identifier?: string | null;
 };
 
 type ComposioIntegration = {
@@ -470,6 +471,8 @@ export const SettingsPage = (): JSX.Element => {
   const [composioStatusesLoading, setComposioStatusesLoading] = useState(false);
   const [connectingComposioSlug, setConnectingComposioSlug] =
     useState<ComposioIntegrationSlug | null>(null);
+  const [disconnectingComposioSlug, setDisconnectingComposioSlug] =
+    useState<ComposioIntegrationSlug | null>(null);
   // API Key state
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [newApiKeyName, setNewApiKeyName] = useState("");
@@ -723,6 +726,7 @@ export const SettingsPage = (): JSX.Element => {
             configured?: boolean;
             isConnected?: boolean;
             connectionId?: string | null;
+            identifier?: string | null;
           }>)
         : [];
 
@@ -734,6 +738,7 @@ export const SettingsPage = (): JSX.Element => {
             configured: !!integration.authConfigId,
             isConnected: !!status?.isConnected,
             connectionId: status?.connectionId ?? null,
+            identifier: status?.identifier ?? null,
           };
         }
         return next;
@@ -805,6 +810,39 @@ export const SettingsPage = (): JSX.Element => {
       }
     },
     [refreshComposioConnectionStatuses, supabase, toastError],
+  );
+
+  const handleDisconnectComposioIntegration = useCallback(
+    async (integration: ComposioIntegration, connectionId: string) => {
+      startTransition(() => {
+        setDisconnectingComposioSlug(integration.slug);
+      });
+
+      try {
+        const { error } = await supabase.functions.invoke("composio-auth", {
+          body: {
+            action: "disconnect",
+            connectionId,
+          },
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        success(`${integration.name} disconnected successfully!`);
+        void refreshComposioConnectionStatuses();
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error ? error.message : "Could not delete connection.";
+        toastError(`Failed to disconnect ${integration.name}`, message);
+      } finally {
+        startTransition(() => {
+          setDisconnectingComposioSlug(null);
+        });
+      }
+    },
+    [refreshComposioConnectionStatuses, supabase, success, toastError],
   );
 
   useEffect(() => {
@@ -4787,21 +4825,24 @@ export const SettingsPage = (): JSX.Element => {
               </Button>
             </div>
 
-            <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+            <div className='flex flex-col gap-4'>
               {COMPOSIO_INTEGRATIONS.map((integration) => {
                 const status = composioConnectionStatuses[integration.slug] ?? {
                   configured: !!integration.authConfigId,
                   isConnected: false,
                   connectionId: null,
+                  identifier: null,
                 };
                 const isConnecting = connectingComposioSlug === integration.slug;
+                const isDisconnecting = disconnectingComposioSlug === integration.slug;
+
                 return (
                   <div
                     key={integration.slug}
-                    className='bg-card border border-border/40 rounded-xl p-5 hover:border-brand/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'
+                    className='bg-card border border-border/40 rounded-xl p-6 hover:border-brand/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'
                   >
-                    <div className='flex items-start justify-between gap-4'>
-                      <div className='flex min-w-0 items-start gap-4'>
+                    <div className='flex items-center justify-between'>
+                      <div className='flex items-center gap-4 min-w-0'>
                         <div
                           className={`w-12 h-12 rounded-xl bg-gradient-to-br border flex items-center justify-center shrink-0 ${integration.accentClass}`}
                         >
@@ -4811,51 +4852,72 @@ export const SettingsPage = (): JSX.Element => {
                           <h3 className='text-sm font-medium text-foreground/95'>
                             {integration.name}
                           </h3>
-                          <p className='text-xs text-muted-foreground mt-1 leading-relaxed'>
+                          {status.isConnected && status.identifier ? (
+                            <p
+                              className='text-xs font-medium text-brand/90 mt-0.5 truncate'
+                              title={status.identifier}
+                            >
+                              {status.identifier}
+                            </p>
+                          ) : null}
+                          <p className='text-xs text-muted-foreground mt-0.5'>
                             {integration.description}
                           </p>
                         </div>
                       </div>
-                      <span
-                        className={`inline-flex shrink-0 items-center rounded-lg border px-2.5 py-1 text-xs font-medium ${
-                          status.isConnected
-                            ? "border-brand/30 bg-brand/10 text-brand"
-                            : status.configured
-                              ? "border-border/40 bg-muted/50 text-muted-foreground"
-                              : "border-amber-500/30 bg-amber-500/10 text-amber-300"
-                        }`}
-                      >
-                        {status.isConnected
-                          ? "Connected"
-                          : status.configured
-                            ? "Ready"
-                            : "Config needed"}
-                      </span>
-                    </div>
-                    <div className='mt-5 flex items-center justify-between gap-3'>
-                      <p className='truncate text-[11px] text-muted-foreground'>
-                        {status.connectionId
-                          ? `Connection: ${status.connectionId}`
-                          : status.configured
-                            ? `Toolkit: ${integration.toolkitSlug}`
-                            : `Missing VITE_COMPOSIO_${integration.slug.toUpperCase()}_CONFIG_ID`}
-                      </p>
-                      <Button
-                        type='button'
-                        variant='outline'
-                        className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-brand/10 hover:border-brand/30 transition-all'
-                        onClick={() =>
-                          void handleConnectComposioIntegration(integration)
-                        }
-                        disabled={isConnecting || !status.configured}
-                      >
-                        {isConnecting ? (
-                          <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
+                      <div className='flex flex-wrap items-center justify-end gap-2 shrink-0'>
+                        {status.isConnected ? (
+                          <>
+                            <span
+                              className='inline-flex items-center gap-2 rounded-lg border border-brand/30 bg-brand/10 px-3 py-2 text-sm font-medium text-brand'
+                              aria-live='polite'
+                            >
+                              <Link className='w-4 h-4 shrink-0' aria-hidden />
+                              Connected
+                            </span>
+                            <Button
+                              type='button'
+                              variant='outline'
+                              className='border-rose-500/35 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-400/50'
+                              onClick={() => {
+                                if (status.connectionId) {
+                                  void handleDisconnectComposioIntegration(integration, status.connectionId);
+                                }
+                              }}
+                              disabled={isDisconnecting}
+                            >
+                              {isDisconnecting ? (
+                                <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
+                              ) : null}
+                              Disconnect
+                            </Button>
+                          </>
                         ) : (
-                          <Link className='w-4 h-4 mr-2' />
+                          <>
+                            {!status.configured ? (
+                              <span className='inline-flex items-center rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-300'>
+                                Config needed
+                              </span>
+                            ) : null}
+                            <Button
+                              type='button'
+                              variant='outline'
+                              className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-brand/10 hover:border-brand/30 transition-all'
+                              onClick={() =>
+                                void handleConnectComposioIntegration(integration)
+                              }
+                              disabled={isConnecting || !status.configured}
+                            >
+                              {isConnecting ? (
+                                <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
+                              ) : (
+                                <Link className='w-4 h-4 mr-2' />
+                              )}
+                              Connect
+                            </Button>
+                          </>
                         )}
-                        {status.isConnected ? "Reconnect" : "Connect"}
-                      </Button>
+                      </div>
                     </div>
                   </div>
                 );

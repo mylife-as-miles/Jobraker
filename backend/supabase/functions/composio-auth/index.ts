@@ -158,6 +158,43 @@ serve(async (req) => {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
+    } else if (action === "disconnect") {
+      if (!connectionId) {
+        return new Response(
+          JSON.stringify({ error: "Missing connectionId for disconnect action" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          }
+        );
+      }
+
+      try {
+        await composio.connectedAccounts.delete({ id: connectionId });
+      } catch (err) {
+        try {
+          await (composio.connectedAccounts as any).delete(connectionId);
+        } catch {
+          const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+          const response = await fetch(`https://backend.composio.dev/api/v3/connected_accounts/${connectionId}`, {
+            method: "DELETE",
+            headers: {
+              "x-api-key": apiKey,
+            },
+          });
+          if (!response.ok) {
+            throw new Error(`Composio API delete failed: ${response.statusText}`);
+          }
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, message: "Connection deleted" }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
     } else if (action === "status") {
       const requested = Array.isArray(integrations)
         ? integrations.filter((item): item is RequestedIntegration =>
@@ -189,6 +226,18 @@ serve(async (req) => {
                 connectedAccountMatches(candidate, itemAuthConfigId)
               )
             : null;
+          const connectionParams = isRecord(account?.connectionParams) ? account.connectionParams : {};
+          const metadata = isRecord(account?.metadata) ? account.metadata : {};
+          const identifier =
+            asString(connectionParams.account_name) ||
+            asString(connectionParams.email) ||
+            asString(connectionParams.username) ||
+            asString(metadata.account_name) ||
+            asString(metadata.email) ||
+            asString(metadata.username) ||
+            asString(account?.name) ||
+            null;
+
           return {
             slug: itemSlug,
             label: item.label || itemSlug,
@@ -196,6 +245,7 @@ serve(async (req) => {
             configured: isNoAuth || Boolean(itemAuthConfigId),
             isConnected: isNoAuth || Boolean(account),
             connectionId: account?.id || null,
+            identifier,
             authType: isNoAuth ? "NO_AUTH" : "OAUTH2",
           };
         });
