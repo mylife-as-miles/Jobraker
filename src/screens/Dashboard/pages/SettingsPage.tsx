@@ -717,7 +717,7 @@ export const SettingsPage = (): JSX.Element => {
     setComposioStatusesLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke(
-        "composio-gmail-auth",
+        "composio-auth",
         {
           body: {
             action: "status",
@@ -776,7 +776,7 @@ export const SettingsPage = (): JSX.Element => {
       setConnectingComposioSlug(integration.slug);
       try {
         const { data, error } = await supabase.functions.invoke(
-          "composio-gmail-auth",
+          "composio-auth",
           {
             body: {
               action: "initiate",
