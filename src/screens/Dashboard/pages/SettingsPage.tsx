@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   TOUR_PAGE_LABELS,
@@ -773,7 +773,13 @@ export const SettingsPage = (): JSX.Element => {
         return;
       }
 
-      setConnectingComposioSlug(integration.slug);
+      // Open popup synchronously to prevent popup blockers
+      const popup = window.open("about:blank", "_blank", "width=560,height=760");
+
+      startTransition(() => {
+        setConnectingComposioSlug(integration.slug);
+      });
+      
       try {
         const { data, error } = await supabase.functions.invoke(
           "composio-auth",
@@ -796,14 +802,24 @@ export const SettingsPage = (): JSX.Element => {
           throw new Error("Composio did not return a redirect URL.");
         }
 
-        window.open(redirectUrl, "_blank", "width=560,height=760");
+        if (popup) {
+          popup.location.href = redirectUrl;
+        } else {
+          window.open(redirectUrl, "_blank", "width=560,height=760");
+        }
+        
         window.setTimeout(() => void refreshComposioConnectionStatuses(), 1500);
       } catch (error: unknown) {
+        if (popup) {
+          popup.close();
+        }
         const message =
           error instanceof Error ? error.message : "Could not start connection.";
         toastError(`Failed to connect ${integration.name}`, message);
       } finally {
-        setConnectingComposioSlug(null);
+        startTransition(() => {
+          setConnectingComposioSlug(null);
+        });
       }
     },
     [refreshComposioConnectionStatuses, supabase, toastError],
