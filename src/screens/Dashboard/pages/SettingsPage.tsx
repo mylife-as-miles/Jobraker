@@ -158,10 +158,8 @@ type ComposioIntegrationSlug =
   | "github"
   | "googledrive"
   | "googledocs"
-  | "calendly"
   | "cal"
   | "reddit"
-  | "twitter"
   | "hackernews"
   | "notion"
   | "googlecalendar"
@@ -211,15 +209,7 @@ const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     icon: <FileText className='w-6 h-6 text-sky-300' />,
     accentClass: "from-sky-500/20 to-sky-500/10 border-sky-500/30",
   },
-  {
-    slug: "calendly",
-    toolkitSlug: "calendly",
-    name: "Calendly",
-    description: "Share booking links and coordinate recruiter interview scheduling.",
-    authConfigId: import.meta.env.VITE_COMPOSIO_CALENDLY_CONFIG_ID,
-    icon: <Calendar className='w-6 h-6 text-cyan-300' />,
-    accentClass: "from-cyan-500/20 to-cyan-500/10 border-cyan-500/30",
-  },
+
   {
     slug: "cal",
     toolkitSlug: "cal",
@@ -238,15 +228,7 @@ const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     icon: <Globe className='w-6 h-6 text-orange-300' />,
     accentClass: "from-orange-500/20 to-orange-500/10 border-orange-500/30",
   },
-  {
-    slug: "twitter",
-    toolkitSlug: "twitter",
-    name: "X / Twitter",
-    description: "Track founder hiring posts, recruiter signals, and public job leads.",
-    authConfigId: import.meta.env.VITE_COMPOSIO_TWITTER_CONFIG_ID,
-    icon: <Share2 className='w-6 h-6 text-neutral-200' />,
-    accentClass: "from-neutral-500/20 to-neutral-500/10 border-neutral-500/30",
-  },
+
   {
     slug: "hackernews",
     toolkitSlug: "hackernews",
