@@ -211,15 +211,20 @@ Deno.serve(async (req) => {
         }
       );
       let accounts: Record<string, unknown>[] = [];
+      const filteredResponseText = await accountsResponse.text();
       let rawApiResponse: unknown = null;
-      if (accountsResponse.ok) {
-        const accountsData = await accountsResponse.json();
-        rawApiResponse = accountsData;
-        const rawItems = accountsData?.items || accountsData?.data || accountsData;
-        accounts = Array.isArray(rawItems) ? rawItems : [];
+      try {
+        rawApiResponse = JSON.parse(filteredResponseText);
+        if (accountsResponse.ok) {
+          const parsed = rawApiResponse as Record<string, unknown>;
+          const rawItems = parsed?.items || parsed?.data || parsed;
+          accounts = Array.isArray(rawItems) ? rawItems : [];
+        }
+      } catch (_) {
+        rawApiResponse = filteredResponseText;
       }
 
-      // Second: fetch ALL accounts (no user_id filter) to see if any exist at all
+      // Second: fetch ALL accounts (no user_id filter) to see if any exist
       const allAccountsResponse = await fetch(
         `https://backend.composio.dev/api/v1/connected_accounts`,
         {
@@ -228,13 +233,20 @@ Deno.serve(async (req) => {
         }
       );
       let allAccounts: Record<string, unknown>[] = [];
-      if (allAccountsResponse.ok) {
-        const allData = await allAccountsResponse.json();
-        const allItems = allData?.items || allData?.data || allData;
-        allAccounts = Array.isArray(allItems) ? allItems : [];
+      let allRawResponse: unknown = null;
+      const allResponseText = await allAccountsResponse.text();
+      try {
+        allRawResponse = JSON.parse(allResponseText);
+        if (allAccountsResponse.ok) {
+          const parsed = allRawResponse as Record<string, unknown>;
+          const allItems = parsed?.items || parsed?.data || parsed;
+          allAccounts = Array.isArray(allItems) ? allItems : [];
+        }
+      } catch (_) {
+        allRawResponse = allResponseText;
       }
 
-      console.log(`[Status API] userId=${userId} filtered=${accounts.length} all=${allAccounts.length}`);
+      console.log(`[Status API] userId=${userId} filtered=${accounts.length} (${accountsResponse.status}) all=${allAccounts.length} (${allAccountsResponse.status})`);
 
       if (requested.length > 0) {
         const statuses = requested.map((item) => {
@@ -273,7 +285,9 @@ Deno.serve(async (req) => {
             statuses,
             _debug: {
               userId,
+              filteredStatus: accountsResponse.status,
               filteredCount: accounts.length,
+              allStatus: allAccountsResponse.status,
               allCount: allAccounts.length,
               allAccounts: allAccounts.slice(0, 10).map((a: Record<string, unknown>) => ({
                 id: a.id,
@@ -283,6 +297,7 @@ Deno.serve(async (req) => {
                 userId: a.userId || a.user_id || a.memberId,
               })),
               rawApiResponse,
+              allRawResponse,
             },
           }),
           {
