@@ -2758,7 +2758,7 @@ export const ChatPage = () => {
       )}
 
       {!loadingTier && !hasChatAccess && (
-        <div className='flex items-center justify-center h-full w-full p-4 sm:p-6 z-40'>
+        <div className='flex items-center justify-center h-full overflow-y-scroll w-full p-4 sm:p-6 z-40'>
           <UpgradePrompt
             title='AI Chat Assistant'
             description='Unlock intelligent job search conversations with our advanced AI assistant.'

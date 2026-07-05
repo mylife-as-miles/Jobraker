@@ -91,7 +91,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
       initial='hidden'
       animate='visible'
       variants={containerVariants}
-      className={`relative overflow-hidden rounded-3xl border border-foreground/10bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  ${className}`}
+      className={`relative overflow-hidden mt-auto rounded-3xl border border-foreground/10 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  ${className}`}
     >
       {/* Ambient background effects */}
       <div className='pointer-events-none absolute inset-0'>
@@ -235,7 +235,9 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
                     <div className='relative z-10'>
                       <div className='mb-4 flex items-center justify-between'>
                         <div className='flex items-center gap-2'>
-                          <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconBgClass}`}>
+                          <div
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconBgClass}`}
+                          >
                             <Icon className={`h-4 w-4 ${iconClass}`} />
                           </div>
                           <h3 className='text-lg font-semibold text-foreground'>
@@ -246,7 +248,9 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
                           <div className='text-2xl font-bold text-foreground'>
                             ${plan.price}
                           </div>
-                          <div className='text-xs text-foreground/50'>per month</div>
+                          <div className='text-xs text-foreground/50'>
+                            per month
+                          </div>
                         </div>
                       </div>
 
@@ -255,14 +259,18 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
                           const label =
                             typeof feature === "string"
                               ? feature
-                              : [feature.name, feature.value].filter(Boolean).join(" • ");
+                              : [feature.name, feature.value]
+                                  .filter(Boolean)
+                                  .join(" • ");
 
                           return (
                             <li
                               key={`${plan.tier}-${index}`}
                               className='flex items-start gap-2 text-sm text-foreground/70'
                             >
-                              <Check className={`h-4 w-4 mt-0.5 flex-shrink-0 ${iconClass}`} />
+                              <Check
+                                className={`h-4 w-4 mt-0.5 flex-shrink-0 ${iconClass}`}
+                              />
                               <span>{label}</span>
                             </li>
                           );
@@ -270,7 +278,9 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
                       </ul>
 
                       <Link to='/dashboard/billing' className='block'>
-                        <Button className={`w-full font-semibold ${buttonClass}`}>
+                        <Button
+                          className={`w-full font-semibold ${buttonClass}`}
+                        >
                           Upgrade to {plan.name}
                           <ArrowRight className='ml-2 h-4 w-4' />
                         </Button>
