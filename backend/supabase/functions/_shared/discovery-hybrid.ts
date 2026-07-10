@@ -2893,6 +2893,76 @@ async function unrestrictedWebSearch(
   return results;
 }
 
+interface FilterResult {
+  passed: any[];
+  rejectedAggregate: number;
+  rejectedShortDesc: number;
+  rejectedRoleMismatch: number;
+  rejectedDomainMismatch: number;
+  rejectedStale: number;
+}
+
+function filterCandidates(
+  candidates: any[],
+  roleQuery: string,
+  targetDomains: string[],
+  relaxFilters = false
+): FilterResult {
+  const passed: any[] = [];
+  let rejectedAggregate = 0;
+  let rejectedShortDesc = 0;
+  let rejectedRoleMismatch = 0;
+  let rejectedDomainMismatch = 0;
+  let rejectedStale = 0;
+
+  const minDescLength = relaxFilters ? 30 : 120;
+  const maxAgeDays = relaxFilters ? 120 : 60;
+
+  for (const job of candidates) {
+    const isAggregate = isLikelyAggregateJobPage(job.url, job.title, job.description);
+    const isShortDesc = job.description.length < minDescLength && !isKnownJobDetailUrl(job.url);
+    
+    // In relaxed mode, bypass roleMatches (query is already run by search provider)
+    const isRoleMismatch = !relaxFilters && !roleMatches(job, roleQuery, false);
+    const isDomainMismatch = !candidateMatchesTargetDomains(job, targetDomains);
+    
+    const timestamp = postedAtTimestamp(job.posted_at);
+    const isStale = !relaxFilters && timestamp !== null && (Date.now() - timestamp > maxAgeDays * 24 * 60 * 60 * 1000);
+
+    if (isAggregate) {
+      rejectedAggregate++;
+      continue;
+    }
+    if (isShortDesc) {
+      rejectedShortDesc++;
+      continue;
+    }
+    if (isRoleMismatch) {
+      rejectedRoleMismatch++;
+      continue;
+    }
+    if (isDomainMismatch) {
+      rejectedDomainMismatch++;
+      continue;
+    }
+    if (isStale) {
+      rejectedStale++;
+      continue;
+    }
+
+    passed.push(job);
+  }
+
+  return {
+    passed,
+    rejectedAggregate,
+    rejectedShortDesc,
+    rejectedRoleMismatch,
+    rejectedDomainMismatch,
+    rejectedStale,
+  };
+}
+
 export async function discoverJobsFirecrawl(
   args: FirecrawlDiscoveryArgs,
   onBatch?: (jobs: DiscoveryJob[]) => Promise<void>,
@@ -2964,7 +3034,7 @@ export async function discoverJobsFirecrawl(
         }
       : candidate;
 
-    if (!roleMatches(enrichedCandidate, roleQuery)) continue;
+    if (!roleMatches(enrichedCandidate, roleQuery, true)) continue;
     const key = normalizeCanonicalJobUrl(enrichedCandidate.url) || enrichedCandidate.url;
     const existing = rawByUrl.get(key);
     rawByUrl.set(
@@ -3016,23 +3086,42 @@ export async function discoverJobsFirecrawl(
       })
     );
 
-    const ranked = normalized
-      .filter((job) => !isLikelyAggregateJobPage(job.url, job.title, job.description))
-      .filter((job) => job.description.length >= 120 || isKnownJobDetailUrl(job.url))
-      .filter((job) => roleMatches(job, roleQuery))
-      .filter((job) => candidateMatchesTargetDomains(job, targetDomains))
-      .filter((job) => !isStalePostedAt(job.posted_at))
-      .map((job) =>
-        attachRankingSignals(
+    const filterRes = filterCandidates(normalized, roleQuery, targetDomains, false);
+    let matchedJobs = filterRes.passed;
+
+    console.info("firecrawl.discovery.batch_filtering_metrics", {
+      batchIndex: b,
+      total: normalized.length,
+      passed: matchedJobs.length,
+      rejectedAggregate: filterRes.rejectedAggregate,
+      rejectedShortDesc: filterRes.rejectedShortDesc,
+      rejectedRoleMismatch: filterRes.rejectedRoleMismatch,
+      rejectedDomainMismatch: filterRes.rejectedDomainMismatch,
+      rejectedStale: filterRes.rejectedStale,
+    });
+
+    if (matchedJobs.length === 0) {
+      const relaxedRes = filterCandidates(normalized, roleQuery, targetDomains, true);
+      if (relaxedRes.passed.length > 0) {
+        console.info("firecrawl.discovery.batch_using_relaxed_fallback", {
+          batchIndex: b,
+          count: relaxedRes.passed.length,
+        });
+        matchedJobs = relaxedRes.passed.slice(0, 5);
+      }
+    }
+
+    const ranked = matchedJobs.map((job) =>
+      attachRankingSignals(
+        job,
+        computeRankingSignals(
           job,
-          computeRankingSignals(
-            job,
-            roleQuery,
-            args.location || context.candidateMemory.location || "Remote",
-            context.candidateMemory,
-          ),
-        )
-      );
+          roleQuery,
+          args.location || context.candidateMemory.location || "Remote",
+          context.candidateMemory,
+        ),
+      )
+    );
 
     const deduped = dedupeDiscoveredJobs(ranked).sort(compareRankedJobs);
     
@@ -3107,13 +3196,29 @@ export async function discoverJobsFirecrawl(
             }),
         );
 
-        finalJobs = dedupeDiscoveredJobs(
-          broadenedNormalized
-            .filter((job) => !isLikelyAggregateJobPage(job.url, job.title, job.description))
-            .filter((job) => job.description.length >= 120 || isKnownJobDetailUrl(job.url))
-            .filter((job) => roleMatches(job, args.searchQuery, true))
-            .filter((job) => !isStalePostedAt(job.posted_at)),
-        )
+        const filterRes = filterCandidates(broadenedNormalized, args.searchQuery, [], false);
+        let matchedJobs = filterRes.passed;
+
+        console.info("firecrawl.discovery.broadened_filtering_metrics", {
+          total: broadenedNormalized.length,
+          passed: matchedJobs.length,
+          rejectedAggregate: filterRes.rejectedAggregate,
+          rejectedShortDesc: filterRes.rejectedShortDesc,
+          rejectedRoleMismatch: filterRes.rejectedRoleMismatch,
+          rejectedStale: filterRes.rejectedStale,
+        });
+
+        if (matchedJobs.length === 0) {
+          const relaxedRes = filterCandidates(broadenedNormalized, args.searchQuery, [], true);
+          if (relaxedRes.passed.length > 0) {
+            console.info("firecrawl.discovery.broadened_using_relaxed_fallback", {
+              count: relaxedRes.passed.length,
+            });
+            matchedJobs = relaxedRes.passed.slice(0, 5);
+          }
+        }
+
+        finalJobs = dedupeDiscoveredJobs(matchedJobs)
           .sort(compareRankedJobs)
           .slice(0, args.limit);
 
@@ -3143,15 +3248,29 @@ export async function discoverJobsFirecrawl(
       args.limit,
     );
 
-    // Apply relaxed role matching
-    const matched = onlyFreshOrUndatedJobs(
-      unrestrictedJobs
-        .filter((job) => !isLikelyAggregateJobPage(job.url, job.title, job.description))
-        .filter((job) => job.description.length >= 120 || isKnownJobDetailUrl(job.url))
-        .filter((job) => roleMatches(job, args.searchQuery, true)),
-    );
+    const filterRes = filterCandidates(unrestrictedJobs, args.searchQuery, [], false);
+    let matchedJobs = filterRes.passed;
 
-    finalJobs = dedupeDiscoveredJobs(matched)
+    console.info("firecrawl.discovery.unrestricted_filtering_metrics", {
+      total: unrestrictedJobs.length,
+      passed: matchedJobs.length,
+      rejectedAggregate: filterRes.rejectedAggregate,
+      rejectedShortDesc: filterRes.rejectedShortDesc,
+      rejectedRoleMismatch: filterRes.rejectedRoleMismatch,
+      rejectedStale: filterRes.rejectedStale,
+    });
+
+    if (matchedJobs.length === 0) {
+      const relaxedRes = filterCandidates(unrestrictedJobs, args.searchQuery, [], true);
+      if (relaxedRes.passed.length > 0) {
+        console.info("firecrawl.discovery.unrestricted_using_relaxed_fallback", {
+          count: relaxedRes.passed.length,
+        });
+        matchedJobs = relaxedRes.passed.slice(0, 5);
+      }
+    }
+
+    finalJobs = dedupeDiscoveredJobs(matchedJobs)
       .sort((a, b) => b.source_confidence - a.source_confidence)
       .slice(0, args.limit);
 

@@ -20,6 +20,32 @@ class TaskCanceledError extends Error {
   }
 }
 
+function serializeError(err: any): string {
+  if (err == null) return "Unknown error";
+  if (typeof err === "string") return err;
+  if (err instanceof Error) {
+    const anyErr = err as any;
+    if (anyErr.response?.data) {
+      return `${err.message}: ${JSON.stringify(anyErr.response.data)}`;
+    }
+    return err.message || err.stack || String(err);
+  }
+  if (typeof err === "object") {
+    if (err.message) {
+      let msg = err.message;
+      if (err.details) msg += ` (${err.details})`;
+      if (err.code) msg += ` [Code: ${err.code}]`;
+      return msg;
+    }
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
+}
+
 async function executePipelineCleanup(supabase: any, userId: string, params: any, progress: any) {
   const jobIds = params.job_ids || [];
   if (!Array.isArray(jobIds) || jobIds.length === 0) {
@@ -507,7 +533,7 @@ Deno.serve(async (req) => {
             });
           }
         } else {
-          const errorMsg = err instanceof Error ? err.message : String(err);
+          const errorMsg = serializeError(err);
           console.error(`[process-task] Task ${taskId} failed`, err);
 
           const nextRetryCount = (task.retry_count || 0) + 1;

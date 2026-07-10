@@ -17,6 +17,7 @@ import { refundUserCredits } from "../_shared/refunds.ts";
 
 const AUTOMATION_RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_AUTOMATIONS_PER_WINDOW = 20;
+const DEFAULT_RTRVR_TIMEOUT_MS = 300_000;
 
 /** Default above Skyvern’s typical 50-step cap (iCIMS / long ATS). Override via body.max_steps_override or SKYVERN_MAX_STEPS_OVERRIDE. */
 const DEFAULT_MAX_STEPS_OVERRIDE = 200;
@@ -70,6 +71,100 @@ function parseRpcJsonObject(raw: unknown): Record<string, unknown> | null {
     }
   }
   return null;
+}
+
+type BrowserExecutionPreference = "automatic" | "my_chrome" | "jobraker_cloud";
+
+function normalizeBrowserExecutionPreference(value: unknown): BrowserExecutionPreference {
+  return value === "my_chrome" || value === "jobraker_cloud" || value === "automatic"
+    ? value
+    : "automatic";
+}
+
+function parseBoolean(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes", "on"].includes(normalized)) return true;
+    if (["0", "false", "no", "off"].includes(normalized)) return false;
+  }
+  return fallback;
+}
+
+function parseRtrvrTimeoutMs(): number {
+  const raw = Deno.env.get("RTRVR_TIMEOUT_MS");
+  const parsed = raw ? Number(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : DEFAULT_RTRVR_TIMEOUT_MS;
+}
+
+function configuredRtrvrRecordingContextForUrl(rawUrl: string | null | undefined): string | null {
+  const envRecordingContext = (name: string): string | null => {
+    const value = Deno.env.get(name)?.trim();
+    return value || null;
+  };
+
+  if (!rawUrl) return envRecordingContext("RTRVR_DEFAULT_APPLICATION_RECORDING_CONTEXT");
+
+  try {
+    const hostname = new URL(rawUrl).hostname.toLowerCase();
+    if (hostname.includes("greenhouse.io") || hostname.includes("greenhouse")) {
+      return envRecordingContext("RTRVR_GREENHOUSE_RECORDING_CONTEXT");
+    }
+    if (hostname.includes("lever.co")) {
+      return envRecordingContext("RTRVR_LEVER_RECORDING_CONTEXT");
+    }
+    if (hostname.includes("ashbyhq.com") || hostname.includes("ashby")) {
+      return envRecordingContext("RTRVR_ASHBY_RECORDING_CONTEXT");
+    }
+    if (hostname.includes("myworkdayjobs.com") || hostname.includes("workdayjobs.com")) {
+      return envRecordingContext("RTRVR_WORKDAY_RECORDING_CONTEXT");
+    }
+    if (hostname.includes("icims.com")) {
+      return envRecordingContext("RTRVR_ICIMS_RECORDING_CONTEXT");
+    }
+    return envRecordingContext("RTRVR_DEFAULT_APPLICATION_RECORDING_CONTEXT");
+  } catch {
+    return envRecordingContext("RTRVR_DEFAULT_APPLICATION_RECORDING_CONTEXT");
+  }
+}
+
+function guessMimeTypeFromPath(value: string): string {
+  const lower = value.toLowerCase().split("?")[0] || "";
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".docx")) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  if (lower.endsWith(".doc")) return "application/msword";
+  if (lower.endsWith(".txt")) return "text/plain";
+  return "application/octet-stream";
+}
+
+function cleanStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 50);
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const encoded = new TextEncoder().encode(value);
+  const hash = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(hash))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function buildAutoApplyIdempotencyKey(opts: {
+  userId: string;
+  applicationTarget: string;
+  applicationVersion?: string | null;
+}): Promise<string> {
+  const version = opts.applicationVersion?.trim() || "v1";
+  const digest = await sha256Hex(
+    `${opts.userId}:${opts.applicationTarget.trim().toLowerCase()}:${version}`,
+  );
+  return `auto-apply:${opts.userId}:${digest.slice(0, 40)}`;
 }
 
 function isRpcSuccess(row: Record<string, unknown> | null): boolean {
@@ -143,6 +238,43 @@ async function refreshResumeSignedUrlIfPossible(
   }
 
   return data.signedUrl;
+}
+
+async function resumeUrlForRtrvr(
+  resumeUrl: string,
+  userId: string,
+  serviceClient: any,
+): Promise<{ signedUrl: string; fileName: string; mimeType: string; expiresAt: string } | null> {
+  const parsed = parseSupabaseSignedObjectPath(resumeUrl);
+  if (!parsed || parsed.bucket !== "resumes" || !parsed.path.startsWith(`${userId}/`)) {
+    return {
+      signedUrl: resumeUrl,
+      fileName: "resume",
+      mimeType: guessMimeTypeFromPath(resumeUrl),
+      expiresAt: new Date(Date.now() + parseRtrvrTimeoutMs() + 5 * 60_000).toISOString(),
+    };
+  }
+
+  const ttlSeconds = Math.max(
+    600,
+    Math.min(60 * 30, Math.ceil(parseRtrvrTimeoutMs() / 1000) + 300),
+  );
+  const { data, error } = await serviceClient.storage
+    .from(parsed.bucket)
+    .createSignedUrl(parsed.path, ttlSeconds);
+
+  if (error || !data?.signedUrl) {
+    console.warn("apply-to-jobs: rtrvr signed URL refresh failed", error?.message);
+    return null;
+  }
+
+  const fileName = parsed.path.split("/").filter(Boolean).pop() || "resume";
+  return {
+    signedUrl: data.signedUrl,
+    fileName,
+    mimeType: guessMimeTypeFromPath(parsed.path),
+    expiresAt: new Date(Date.now() + ttlSeconds * 1000).toISOString(),
+  };
 }
 
 /**
@@ -304,6 +436,65 @@ Deno.serve(async (req) => {
       console.error("Error fetching job source settings:", error.message);
     }
 
+    const { data: profileRow } = await serviceClient
+      .from("profiles")
+      .select(
+        "first_name,last_name,job_title,location,phone,linkedin_url,github_url,browser_execution_preference,rtrvr_device_id,rtrvr_prefer_extension,auto_apply_auto_submit",
+      )
+      .eq("id", userId)
+      .maybeSingle();
+
+    const [
+      { data: experienceRows },
+      { data: educationRows },
+      { data: skillRows },
+      { data: answerRows },
+    ] = await Promise.all([
+      serviceClient
+        .from("profile_experiences")
+        .select("title,company,location,start_date,end_date,is_current,description")
+        .eq("user_id", userId)
+        .order("start_date", { ascending: false })
+        .limit(10),
+      serviceClient
+        .from("profile_education")
+        .select("degree,school,location,start_date,end_date,gpa")
+        .eq("user_id", userId)
+        .order("start_date", { ascending: false })
+        .limit(8),
+      serviceClient
+        .from("profile_skills")
+        .select("name,level,category")
+        .eq("user_id", userId)
+        .order("name")
+        .limit(80),
+      serviceClient
+        .from("answer_bank")
+        .select("theme,question,tags,body")
+        .eq("user_id", userId)
+        .limit(50),
+    ]);
+
+    const requestedBrowserPreference = normalizeBrowserExecutionPreference(
+      body?.browser_execution_preference ??
+        body?.browserExecutionPreference ??
+        profileRow?.browser_execution_preference,
+    );
+    const selectedRtrvrDeviceId =
+      typeof body?.rtrvr_device_id === "string" && body.rtrvr_device_id.trim()
+        ? body.rtrvr_device_id.trim()
+        : typeof profileRow?.rtrvr_device_id === "string"
+          ? profileRow.rtrvr_device_id
+          : null;
+    const preferRtrvrExtension = parseBoolean(
+      body?.rtrvr_prefer_extension ?? body?.preferExtension,
+      profileRow?.rtrvr_prefer_extension !== false,
+    );
+    const autoSubmit = parseBoolean(
+      body?.auto_submit ?? body?.autoSubmit,
+      profileRow?.auto_apply_auto_submit !== false,
+    );
+
     if (!jobUrls.length) {
       return new Response(
         JSON.stringify({
@@ -347,15 +538,67 @@ Deno.serve(async (req) => {
       typeof body?.workflow_id === "string" && body.workflow_id
         ? body.workflow_id
         : Deno.env.get("SKYVERN_WORKFLOW_ID") || "";
-
     if (!workflowId) {
+      console.warn(
+        "apply-to-jobs: SKYVERN_WORKFLOW_ID is not configured; rtrvr will run without Skyvern fallback.",
+      );
+    }
+
+    const applicationTarget = String(jobContext.job_id || jobUrls[0] || "").trim();
+    const applicationVersion =
+      typeof body?.application_version === "string"
+        ? body.application_version
+        : typeof jobContext.evaluation_id === "string"
+          ? jobContext.evaluation_id
+          : null;
+    const automationIdempotencyKey = await buildAutoApplyIdempotencyKey({
+      userId,
+      applicationTarget,
+      applicationVersion,
+    });
+
+    const { data: existingAutomation } = await serviceClient
+      .from("applications")
+      .select(
+        "id, status, canonical_stage, provider_status, run_id, automation_provider, automation_selected_mode, automation_fallback_applied, automation_fallback_reason, updated_at",
+      )
+      .eq("user_id", userId)
+      .eq("automation_idempotency_key", automationIdempotencyKey)
+      .maybeSingle();
+
+    if (
+      existingAutomation &&
+      !["Failed", "Terminated"].includes(String(existingAutomation.status || "")) &&
+      !["failed", "terminated", "cancelled", "canceled"].includes(
+        String(existingAutomation.provider_status || "").toLowerCase(),
+      )
+    ) {
       return new Response(
         JSON.stringify({
-          error: "workflow_id not provided and SKYVERN_WORKFLOW_ID env not set",
+          ok: true,
+          enqueued: true,
+          existing_run: true,
+          application: existingAutomation,
+          automation: {
+            provider: existingAutomation.automation_provider || "rtrvr",
+            status: existingAutomation.provider_status || "waiting",
+            run_id: existingAutomation.run_id || null,
+            selected_mode: existingAutomation.automation_selected_mode || null,
+            fallback_applied: existingAutomation.automation_fallback_applied === true,
+            fallback_reason: existingAutomation.automation_fallback_reason || null,
+          },
+          provider: {
+            name: existingAutomation.automation_provider || "rtrvr",
+            status: existingAutomation.provider_status || "waiting",
+          },
+          submitted: {
+            workflow_id: workflowId,
+            count: jobUrls.length,
+          },
         }),
         {
-          status: 400,
           headers: { ...corsHeaders, "content-type": "application/json" },
+          status: 200,
         },
       );
     }
@@ -472,20 +715,39 @@ Deno.serve(async (req) => {
       auto_apply_parallel_runs_available_before_launch:
         concurrencyResult.availableRuns,
       note:
-        "Reserved credits for run. Net billing occurs when Skyvern completes execution.",
+        "Reserved credits for run. Net billing occurs when the automation provider completes execution.",
     };
 
     let additionalInformation =
       typeof body?.additional_information === "string"
         ? body.additional_information
         : "";
-    let resume =
+    const providedResume =
       typeof body?.resume === "string" ? normalizeHttpUrlString(body.resume) : "";
+    let skyvernResume = providedResume;
+    let rtrvrResumeFile: {
+      signedUrl: string;
+      fileName: string;
+      mimeType: string;
+      expiresAt: string;
+    } | null = null;
     const resumeText = typeof body?.resume_text === "string" ? body.resume_text : "";
-    if (resume && (resume.startsWith("http://") || resume.startsWith("https://"))) {
+    if (
+      providedResume &&
+      (providedResume.startsWith("http://") || providedResume.startsWith("https://"))
+    ) {
       try {
-        resume = await refreshResumeSignedUrlIfPossible(
-          resume,
+        rtrvrResumeFile = await resumeUrlForRtrvr(
+          providedResume,
+          userId,
+          serviceClient,
+        );
+      } catch (error: any) {
+        console.warn("apply-to-jobs: resumeUrlForRtrvr", error?.message);
+      }
+      try {
+        skyvernResume = await refreshResumeSignedUrlIfPossible(
+          providedResume,
           userId,
           serviceClient,
         );
@@ -493,7 +755,7 @@ Deno.serve(async (req) => {
         console.warn("apply-to-jobs: refreshResumeSignedUrlIfPossible", error?.message);
       }
       try {
-        resume = await resumeUrlForSkyvern(resume, userId);
+        skyvernResume = await resumeUrlForSkyvern(skyvernResume, userId);
       } catch (error: any) {
         console.warn("apply-to-jobs: resumeUrlForSkyvern", error?.message);
       }
@@ -511,6 +773,57 @@ Deno.serve(async (req) => {
       ...(Object.keys(sourceCredentials).length > 0
         ? { source_credentials: sourceCredentials }
         : {}),
+    };
+
+    const candidateFullName =
+      [
+        typeof profileRow?.first_name === "string" ? profileRow.first_name : userInput.first_name,
+        typeof profileRow?.last_name === "string" ? profileRow.last_name : userInput.last_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || null;
+    const portfolioLinks = [
+      typeof profileRow?.linkedin_url === "string" ? profileRow.linkedin_url : null,
+      typeof profileRow?.github_url === "string" ? profileRow.github_url : null,
+      ...(Array.isArray(userInput.portfolio_links) ? userInput.portfolio_links : []),
+    ]
+      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      .slice(0, 10);
+    const candidateProfile = {
+      fullName: candidateFullName,
+      email,
+      phone:
+        typeof profileRow?.phone === "string"
+          ? profileRow.phone
+          : typeof userInput.phone === "string"
+            ? userInput.phone
+            : null,
+      location:
+        typeof profileRow?.location === "string"
+          ? profileRow.location
+          : typeof userInput.location === "string"
+            ? userInput.location
+            : null,
+      headline:
+        typeof profileRow?.job_title === "string"
+          ? profileRow.job_title
+          : typeof userInput.job_title === "string"
+            ? userInput.job_title
+            : null,
+      portfolioLinks,
+      employmentHistory: Array.isArray(experienceRows) ? experienceRows : [],
+      education: Array.isArray(educationRows) ? educationRows : [],
+      skills: Array.isArray(skillRows)
+        ? skillRows
+            .map((row: any) => row?.name)
+            .filter((name: unknown): name is string => typeof name === "string" && name.trim().length > 0)
+        : cleanStringArray(userInput.skills),
+      workAuthorization:
+        userInput.work_authorization && typeof userInput.work_authorization === "object"
+          ? userInput.work_authorization
+          : null,
+      savedScreeningAnswers: Array.isArray(answerRows) ? answerRows : [],
     };
 
     if (!additionalInformation && safeUserInput && typeof safeUserInput === "object") {
@@ -538,12 +851,13 @@ Deno.serve(async (req) => {
       additionalInformation = appendAutomationHints(additionalInformation);
     }
 
-    const isResumeUrl = resume.startsWith("http://") || resume.startsWith("https://");
+    const isSkyvernResumeUrl =
+      skyvernResume.startsWith("http://") || skyvernResume.startsWith("https://");
     const parameters: Record<string, unknown> = {
       job_urls: stringifyArrayForSkyvern(jobUrls),
       additional_information: additionalInformation,
-      resume: isResumeUrl ? resume : "",
-      resume_text: resumeText || (!isResumeUrl && resume ? resume : ""),
+      resume: isSkyvernResumeUrl ? skyvernResume : "",
+      resume_text: resumeText || (!isSkyvernResumeUrl && skyvernResume ? skyvernResume : ""),
       user_input: JSON.stringify(safeUserInput),
       email,
       cover_letter: coverLetter,
@@ -571,20 +885,90 @@ Deno.serve(async (req) => {
     }
 
     const maxSteps = resolveMaxStepsOverride(body as Record<string, unknown>);
+    const applyUrl = jobUrls[0] || null;
+    const rtrvrEnabled = parseBoolean(Deno.env.get("RTRVR_ENABLED"), true);
+    const rtrvrRecordingContext = configuredRtrvrRecordingContextForUrl(applyUrl);
+    const nowIso = new Date().toISOString();
+    const applicationId = crypto.randomUUID();
+    const rtrvrWebhookBase =
+      (Deno.env.get("RTRVR_WEBHOOK_URL") || Deno.env.get("AUTOMATION_WORKER_PUBLIC_URL") || "")
+        .replace(/\/$/, "");
+    const rtrvrWebhookUrl = rtrvrWebhookBase
+      ? `${rtrvrWebhookBase.endsWith("/webhooks/rtrvr") ? rtrvrWebhookBase : `${rtrvrWebhookBase}/webhooks/rtrvr`}`
+      : null;
+    const rtrvrStartInput = {
+      applicationId,
+      agentRunId,
+      userId,
+      applicationUrl: applyUrl || "",
+      idempotencyKey: automationIdempotencyKey,
+      attemptNumber: 1,
+      job: {
+        title: jobContext.job_title,
+        company: jobContext.company,
+        location: jobContext.location,
+        salary: jobContext.salary,
+        matchScore: jobContext.match_score,
+        matchReasons: jobContext.match_reasons,
+      },
+      candidate: candidateProfile,
+      resume: rtrvrResumeFile
+        ? {
+            signedUrl: rtrvrResumeFile.signedUrl,
+            fileName: rtrvrResumeFile.fileName,
+            mimeType: rtrvrResumeFile.mimeType,
+            text: resumeText || null,
+            expiresAt: rtrvrResumeFile.expiresAt,
+          }
+        : resumeText
+          ? { text: resumeText }
+          : null,
+      coverLetter,
+      autoSubmit,
+      browserPreference: requestedBrowserPreference,
+      preferExtension: preferRtrvrExtension,
+      selectedDeviceId: selectedRtrvrDeviceId,
+      rtrvrWebhookUrl,
+      rtrvrWebhookSecret: Deno.env.get("RTRVR_WEBHOOK_SECRET") || null,
+      skyvern: {
+        workflowId,
+        parameters,
+        proxyLocation,
+        webhookUrl,
+        title,
+        maxStepsOverride: maxSteps,
+      },
+      metadata: {
+        source: "apply-to-jobs",
+        jobId: jobContext.job_id,
+        evaluationId: jobContext.evaluation_id,
+        rtrvrRecordingContext,
+      },
+    };
     const queueParameters = {
-      workflow_id: workflowId,
-      parameters,
-      proxy_location: proxyLocation,
-      webhook_url: webhookUrl,
-      title,
-      max_steps_override: maxSteps,
+      provider: rtrvrEnabled ? "rtrvr" : "skyvern",
+      rtrvr: rtrvrStartInput,
+      skyvern: {
+        workflow_id: workflowId,
+        parameters,
+        proxy_location: proxyLocation,
+        webhook_url: webhookUrl,
+        title,
+        max_steps_override: maxSteps,
+      },
     };
 
-    const data = { status: "waiting", run_id: null };
-    const applyUrl = jobUrls[0] || null;
-    const nowIso = new Date().toISOString();
+    const data = {
+      provider: rtrvrEnabled ? "rtrvr" : "skyvern",
+      status: "waiting",
+      run_id: null,
+      requested_mode: requestedBrowserPreference,
+      selected_mode: null,
+      fallback_applied: false,
+    };
 
     const applicationPayload = {
+      id: applicationId,
       run_id: null,
       agent_run_id: agentRunId,
       job_id: jobContext.job_id,
@@ -603,6 +987,13 @@ Deno.serve(async (req) => {
       logo: null,
       workflow_id: workflowId,
       app_url: applyUrl,
+      automation_provider: rtrvrEnabled ? "rtrvr" : "skyvern",
+      automation_idempotency_key: automationIdempotencyKey,
+      automation_requested_mode: requestedBrowserPreference,
+      automation_selected_mode: null,
+      automation_fallback_applied: false,
+      automation_fallback_reason: null,
+      automation_device_id: selectedRtrvrDeviceId,
       provider_status: "waiting",
       failure_reason: null,
       match_score: jobContext.match_score,
@@ -631,6 +1022,13 @@ Deno.serve(async (req) => {
         logo: applicationPayload.logo,
         workflow_id: applicationPayload.workflow_id,
         app_url: applicationPayload.app_url,
+        automation_provider: applicationPayload.automation_provider,
+        automation_idempotency_key: applicationPayload.automation_idempotency_key,
+        automation_requested_mode: applicationPayload.automation_requested_mode,
+        automation_selected_mode: applicationPayload.automation_selected_mode,
+        automation_fallback_applied: applicationPayload.automation_fallback_applied,
+        automation_fallback_reason: applicationPayload.automation_fallback_reason,
+        automation_device_id: applicationPayload.automation_device_id,
         provider_status: applicationPayload.provider_status,
         failure_reason: applicationPayload.failure_reason,
         match_score: applicationPayload.match_score,

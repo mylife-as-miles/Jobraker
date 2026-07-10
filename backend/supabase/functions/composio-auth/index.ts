@@ -358,6 +358,17 @@ Deno.serve(async (req) => {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
+    } else if (action === "debug-configs") {
+      const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+      const authConfigsRes = await fetch("https://backend.composio.dev/api/v3/auth_configs", {
+        method: "GET",
+        headers: { "x-api-key": apiKey },
+      });
+      const data = await authConfigsRes.json();
+      return new Response(JSON.stringify({ data }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     } else {
       return new Response(JSON.stringify({ error: "Invalid action" }), {
         status: 400,

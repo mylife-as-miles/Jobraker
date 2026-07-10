@@ -230,20 +230,29 @@ function getApplicationStatusColor(status: ApplicationStatus) {
 }
 
 function isQueuedApplication(status: ApplicationStatus, providerStatus?: string | null) {
-  return status === "Pending" && providerStatus === "waiting";
+  return (
+    status === "Pending" &&
+    ["waiting", "waiting_worker", "launching"].includes(providerStatus || "")
+  );
 }
 
 function getApplicationStatusDisplay(status: ApplicationStatus, providerStatus?: string | null) {
-  return isQueuedApplication(status, providerStatus) ? "Queued" : status;
+  if (isQueuedApplication(status, providerStatus)) return "Queued";
+  if (providerStatus === "rtrvr_running") return "Running";
+  if (providerStatus === "waiting_for_user") return "Needs attention";
+  if (providerStatus === "prepared") return "Prepared";
+  return status;
 }
 
 function getApplicationStatusDisplayColor(
   status: ApplicationStatus,
   providerStatus?: string | null,
 ) {
-  return isQueuedApplication(status, providerStatus)
-    ? "#38bdf8"
-    : getApplicationStatusColor(status);
+  if (isQueuedApplication(status, providerStatus)) return "#38bdf8";
+  if (providerStatus === "rtrvr_running") return "#22c55e";
+  if (providerStatus === "waiting_for_user") return "#f59e0b";
+  if (providerStatus === "prepared") return "#a78bfa";
+  return getApplicationStatusColor(status);
 }
 
 function StatusBadge({
@@ -1637,6 +1646,52 @@ function ApplicationPage() {
                       automatically when capacity opens. Pro, Ultimate, and
                       concurrency boosts move more applications in parallel.
                     </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(detailApp.provider_status === "rtrvr_running" ||
+              detailApp.provider_status === "waiting_for_user" ||
+              detailApp.provider_status === "prepared" ||
+              detailApp.automation_fallback_applied) && (
+              <div className='rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4'>
+                <div className='flex items-start gap-3'>
+                  <div className='mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[#1dff00]/25 bg-[#1dff00]/10 text-[#1dff00]'>
+                    <Clock className='h-4 w-4' />
+                  </div>
+                  <div className='min-w-0 space-y-2'>
+                    <div className='text-sm font-semibold text-foreground/90'>
+                      {detailApp.provider_status === "waiting_for_user"
+                        ? "Security verification requires your attention"
+                        : detailApp.provider_status === "prepared"
+                          ? "Application prepared for review"
+                          : detailApp.automation_fallback_applied
+                            ? "Continuing with advanced fallback"
+                            : "Automation running"}
+                    </div>
+                    <div className='flex flex-wrap gap-2 text-xs text-foreground/60'>
+                      {detailApp.automation_provider && (
+                        <span className='rounded-md border border-foreground/10 px-2 py-1'>
+                          Provider: {detailApp.automation_provider}
+                        </span>
+                      )}
+                      {detailApp.automation_selected_mode && (
+                        <span className='rounded-md border border-foreground/10 px-2 py-1'>
+                          Mode: {detailApp.automation_selected_mode === "extension" ? "My Chrome" : "Jobraker Cloud"}
+                        </span>
+                      )}
+                      {detailApp.automation_fallback_applied && (
+                        <span className='rounded-md border border-amber-300/20 bg-amber-300/10 px-2 py-1 text-amber-200'>
+                          Fallback applied
+                        </span>
+                      )}
+                    </div>
+                    {(detailApp.failure_reason || detailApp.automation_fallback_reason) && (
+                      <p className='text-sm leading-relaxed text-foreground/70'>
+                        {detailApp.failure_reason || detailApp.automation_fallback_reason}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

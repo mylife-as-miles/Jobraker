@@ -1259,6 +1259,10 @@ export const JobPage = (): JSX.Element => {
   const [generatingDraft, setGeneratingDraft] = useState(false);
   const [draftData, setDraftData] = useState<ApplicationDraftData | null>(null);
   const [trueAutonomyEnabled, setTrueAutonomyEnabled] = useState(true);
+  const [browserExecutionPreference, setBrowserExecutionPreference] = useState<
+    "automatic" | "my_chrome" | "jobraker_cloud"
+  >("automatic");
+  const [autoSubmitApplications, setAutoSubmitApplications] = useState(true);
   const [coverLetterLibrary, setCoverLetterLibrary] = useState<
     CoverLetterLibraryEntry[]
   >([]);
@@ -1381,6 +1385,30 @@ export const JobPage = (): JSX.Element => {
   // Load user resumes for selection (used by the Auto Apply -> "Choose a resume" dialog)
   const { resumes, loading: resumesLoading } = useResumes();
   const { info, error: toastError } = useToast();
+
+  useEffect(() => {
+    if (!profile) return;
+    setBrowserExecutionPreference(
+      profile.browser_execution_preference || "automatic",
+    );
+    setAutoSubmitApplications(profile.auto_apply_auto_submit !== false);
+  }, [profile?.browser_execution_preference, profile?.auto_apply_auto_submit]);
+
+  const saveBrowserExecutionPreference = useCallback(
+    (preference: "automatic" | "my_chrome" | "jobraker_cloud") => {
+      setBrowserExecutionPreference(preference);
+      void updateProfile({ browser_execution_preference: preference } as Partial<Profile>);
+    },
+    [updateProfile],
+  );
+
+  const saveAutoSubmitPreference = useCallback(
+    (enabled: boolean) => {
+      setAutoSubmitApplications(enabled);
+      void updateProfile({ auto_apply_auto_submit: enabled } as Partial<Profile>);
+    },
+    [updateProfile],
+  );
 
   // Register walkthrough for Jobs page
   useRegisterCoachMarks({
@@ -3754,6 +3782,10 @@ export const JobPage = (): JSX.Element => {
                   null,
                 title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
                 cover_letter: jobCoverLetter,
+                browser_execution_preference: browserExecutionPreference,
+                rtrvr_device_id: profile?.rtrvr_device_id ?? null,
+                rtrvr_prefer_extension: profile?.rtrvr_prefer_extension !== false,
+                auto_submit: autoSubmitApplications,
                 ...(profileSnapshot
                   ? { additional_information: profileSnapshot }
                   : {}),
@@ -3944,6 +3976,10 @@ export const JobPage = (): JSX.Element => {
       aiEvaluation,
       draftData,
       trueAutonomyEnabled,
+      browserExecutionPreference,
+      autoSubmitApplications,
+      profile?.rtrvr_device_id,
+      profile?.rtrvr_prefer_extension,
       gamificationHook,
       fetchConcurrencyInfo,
     ],
@@ -6577,6 +6613,58 @@ export const JobPage = (): JSX.Element => {
                         className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${trueAutonomyEnabled ? "translate-x-4" : "translate-x-0"}`}
                       />
                     </button>
+                  </div>
+
+                  <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5 space-y-4'>
+                    <div className='flex flex-wrap items-center justify-between gap-3'>
+                      <div className='flex items-center gap-2 text-sm font-medium text-foreground/80'>
+                        <Briefcase className='w-4 h-4 text-brand' />
+                        Browser execution
+                      </div>
+                      <div className='inline-flex rounded-lg border border-foreground/10 bg-background/50 p-1'>
+                        {[
+                          ["automatic", "Automatic"],
+                          ["my_chrome", "My Chrome"],
+                          ["jobraker_cloud", "Jobraker Cloud"],
+                        ].map(([value, label]) => (
+                          <button
+                            key={value}
+                            type='button'
+                            onClick={() =>
+                              saveBrowserExecutionPreference(
+                                value as "automatic" | "my_chrome" | "jobraker_cloud",
+                              )
+                            }
+                            className={cn(
+                              "min-h-8 rounded-md px-3 text-xs font-medium transition",
+                              browserExecutionPreference === value
+                                ? "bg-brand/20 text-brand"
+                                : "text-foreground/60 hover:text-foreground hover:bg-foreground/5",
+                            )}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className='flex items-center justify-between gap-4 border-t border-foreground/10 pt-4'>
+                      <div className='text-sm font-medium text-foreground/80'>
+                        Final submit
+                      </div>
+                      <button
+                        type='button'
+                        onClick={() =>
+                          saveAutoSubmitPreference(!autoSubmitApplications)
+                        }
+                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${autoSubmitApplications ? "bg-brand" : "bg-foreground/20"}`}
+                        role='switch'
+                        aria-checked={autoSubmitApplications}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${autoSubmitApplications ? "translate-x-4" : "translate-x-0"}`}
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

@@ -34,6 +34,32 @@ const PUBLIC_JOB_SOURCE_ALIASES: Record<string, PublicJobSource> = {
   community: "community",
 };
 
+function serializeError(err: any): string {
+  if (err == null) return "Unknown error";
+  if (typeof err === "string") return err;
+  if (err instanceof Error) {
+    const anyErr = err as any;
+    if (anyErr.response?.data) {
+      return `${err.message}: ${JSON.stringify(anyErr.response.data)}`;
+    }
+    return err.message || err.stack || String(err);
+  }
+  if (typeof err === "object") {
+    if (err.message) {
+      let msg = err.message;
+      if (err.details) msg += ` (${err.details})`;
+      if (err.code) msg += ` [Code: ${err.code}]`;
+      return msg;
+    }
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
+}
+
 function parsePublicSources(value: unknown): PublicJobSource[] {
   const raw = Array.isArray(value)
     ? value
@@ -386,7 +412,7 @@ Deno.serve(async (req) => {
     } catch (err: any) {
       console.error("[jobs-search] Search failed", err);
       searchFailed = true;
-      failureReason = err.message || "Unknown error during search";
+      failureReason = serializeError(err);
     }
 
     const jobsInserted = totalInserted;

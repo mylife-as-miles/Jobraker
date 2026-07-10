@@ -16,13 +16,7 @@ import { getProxiedLogoUrl } from "../lib/utils";
 */
 
 // Brand-styled tooltip component overriding Joyride default UI
-const BrandedTooltip: React.FC<
-  TooltipRenderProps & {
-    waiting?: boolean;
-    internalStep?: any;
-    onCta?: () => void;
-  }
-> = ({
+const BrandedTooltip: React.FC<TooltipRenderProps> = ({
   backProps,
   closeProps,
   primaryProps,
@@ -32,10 +26,9 @@ const BrandedTooltip: React.FC<
   index,
   size,
   isLastStep,
-  waiting,
-  internalStep,
-  onCta,
 }) => {
+  const { waiting, steps: internalSteps, activeIndex, next } = useProductTour();
+  const internalStep = activeIndex >= 0 ? internalSteps[activeIndex] : null;
   const raw = step.content as any as string | undefined;
   let formatted: React.ReactNode = step.content as any;
   if (typeof raw === "string" && raw.includes("\n")) {
@@ -125,7 +118,7 @@ const BrandedTooltip: React.FC<
                     );
                   } catch {}
                 }
-                if (internalStep.cta.advanceOnClick) onCta?.();
+                if (internalStep.cta.advanceOnClick) next();
               }}
               className='mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-brand/15 hover:bg-brand/25 border border-brand/30 text-brand text-xs font-medium transition-colors'
             >
@@ -373,7 +366,6 @@ export const JoyrideAdapter: React.FC = () => {
   }, []);
 
   if (!isRunning || !steps.length) return null;
-  const internalStep = activeIndex >= 0 ? internalSteps[activeIndex] : null;
   return (
     <Joyride
       steps={steps}
@@ -384,14 +376,7 @@ export const JoyrideAdapter: React.FC = () => {
       hideCloseButton
       scrollToFirstStep
       spotlightClicks
-      tooltipComponent={(p: any) => (
-        <BrandedTooltip
-          {...p}
-          waiting={waiting}
-          internalStep={internalStep}
-          onCta={() => next()}
-        />
-      )}
+      tooltipComponent={BrandedTooltip}
       floaterProps={{
         disableAnimation: false,
         placement: "auto",

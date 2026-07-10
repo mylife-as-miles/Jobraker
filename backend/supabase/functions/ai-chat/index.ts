@@ -1638,8 +1638,14 @@ async function runAutoApplyFromUrl(opts: {
   const applyData = isRecord((applyResult as Record<string, unknown>).data)
     ? ((applyResult as Record<string, unknown>).data as Record<string, unknown>)
     : {};
-  const skyvern = isRecord(applyData.skyvern) ? applyData.skyvern : {};
-  const runId = asString(skyvern.run_id) || asString(skyvern.id);
+  const providerPayload = isRecord(applyData.skyvern)
+    ? applyData.skyvern
+    : isRecord(applyData.automation)
+      ? applyData.automation
+      : isRecord(applyData.provider)
+        ? applyData.provider
+        : {};
+  const runId = asString(providerPayload.run_id) || asString(providerPayload.id);
 
   let latestApplication: Record<string, unknown> | null = null;
   if (runId) {
@@ -2346,6 +2352,83 @@ const AGENT_FUNCTION_DECLARATIONS = [
         title: { type: "string" },
         max_steps_override: { type: "number" },
       },
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "rtrvr_list_devices",
+    description: "List online rtrvr browser extension devices for the signed-in user.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "rtrvr_capabilities",
+    description: "Return rtrvr profile capabilities and available automation features.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "rtrvr_scrape",
+    description: "Read-only scrape of a page through rtrvr. Use for dynamic or authenticated pages when browser context is needed.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        urls: { type: "array", items: { type: "string" } },
+        target: { type: "string", enum: ["auto", "cloud", "extension"] },
+        device_id: { type: "string" },
+        require_local_session: { type: "boolean" },
+      },
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "rtrvr_extract_from_page",
+    description: "Read-only structured extraction from a page through rtrvr.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        urls: { type: "array", items: { type: "string" } },
+        instruction: { type: "string" },
+        schema: { type: "object" },
+        device_id: { type: "string" },
+      },
+      required: ["instruction"],
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "rtrvr_run",
+    description: "Run a rtrvr browser agent task. This can mutate pages or submit forms and requires explicit user approval before use.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        urls: { type: "array", items: { type: "string" } },
+        instruction: { type: "string" },
+        target: { type: "string", enum: ["auto", "cloud", "extension"] },
+        prefer_extension: { type: "boolean" },
+        require_local_session: { type: "boolean" },
+        device_id: { type: "string" },
+        schema: { type: "object" },
+        approved: { type: "boolean" },
+      },
+      required: ["instruction"],
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "rtrvr_act_on_page",
+    description: "Act on a page through the rtrvr extension tool. This is mutating and requires explicit user approval before use.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        urls: { type: "array", items: { type: "string" } },
+        instruction: { type: "string" },
+        device_id: { type: "string" },
+        approved: { type: "boolean" },
+      },
+      required: ["instruction"],
       additionalProperties: true,
     },
   },
@@ -3347,7 +3430,7 @@ Google Calendar via Composio (scheduling intelligence, confirm-before-write):
 
 Edge functions:
 - Use list_edge_functions and get_edge_function_details before invoke_edge_function when you need to inspect or manipulate edge-function parameters.
-- Confirm before invoking side-effectful functions such as apply-to-jobs, init-payment, create_gmail_job_draft, send_gmail_job_email, label_gmail_job_emails, or webhook-like endpoints.`;
+- Confirm before invoking side-effectful functions such as apply-to-jobs, rtrvr_run, rtrvr_act_on_page, init-payment, create_gmail_job_draft, send_gmail_job_email, label_gmail_job_emails, or webhook-like endpoints.`;
       systemInstruction =
         `You are JobRaker Agent. Be proactive, use tools to help the user, and answer from JobRaker data before falling back to general advice. Confirm before applying, deleting, sending email, navigating away for the user, or triggering any side-effectful workflow.\nAfter every batch of tool calls, you MUST reply in plain language: what you did, the result, and the next step or a direct answer (never end with only tools and no message).\n\n${gmailJobRules.trim()}\n\n${agentCapabilityRules.trim()}\n\n${systemInstruction}`;
     }
@@ -4149,6 +4232,19 @@ Edge functions:
                       gmailMaxResults: asNumber(args.gmail_max_results) || undefined,
                       force: args.force === true,
                       limit: asNumber(args.limit) || undefined,
+                    });
+                  } else if (fn.name.startsWith("rtrvr_")) {
+                    const mutatingRtrvrTool =
+                      fn.name === "rtrvr_run" || fn.name === "rtrvr_act_on_page";
+                    result = await invokeEdgeFunctionByName({
+                      authHeader: authHeader!,
+                      name: "rtrvr-tools",
+                      timeoutMs: mutatingRtrvrTool ? 300_000 : 120_000,
+                      payload: {
+                        tool: fn.name,
+                        args,
+                        approved: mutatingRtrvrTool ? args.approved === true : true,
+                      },
                     });
                   } else if (fn.name === "list_resumes") {
                     const { data, error } = await supabaseUser

@@ -27,6 +27,10 @@ export type ApplyToJobsParams = {
   title?: string;
   /** Passed through to apply-to-jobs → Skyvern `x-max-steps-override` (default 200, max 500). */
   max_steps_override?: number;
+  browser_execution_preference?: "automatic" | "my_chrome" | "jobraker_cloud";
+  rtrvr_device_id?: string | null;
+  rtrvr_prefer_extension?: boolean;
+  auto_submit?: boolean;
   email?: string;
   job_id?: string | null;
   job_title?: string | null;
@@ -42,6 +46,7 @@ export type ApplyToJobsParams = {
 export async function applyToJobs(payload: ApplyToJobsParams) {
   const data = await invokeProtectedFunction<{
     ok: boolean;
+    existing_run?: boolean;
     skyvern?: any;
     automation?: any;
     provider?: any;

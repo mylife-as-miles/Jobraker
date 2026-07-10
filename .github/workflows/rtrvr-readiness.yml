@@ -1,0 +1,40 @@
+name: rtrvr readiness
+
+on:
+  pull_request:
+    paths:
+      - "backend/automation-worker/**"
+      - "backend/supabase/functions/rtrvr-tools/**"
+      - "backend/supabase/functions/apply-to-jobs/**"
+      - "backend/supabase/functions/process-auto-apply-queue/**"
+      - "backend/supabase/functions/ai-chat/**"
+      - "backend/supabase/migrations/20260705101554_rtrvr_automation_provider.sql"
+      - "src/services/applications/applyToJobs.ts"
+      - "src/hooks/useApplications.ts"
+      - "src/hooks/useProfileSettings.ts"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.rtrvr-integration.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run -s lint:rtrvr-integration
+      - run: npm run -s automation:worker:typecheck
+      - run: npm run -s automation:worker:test
+      - run: npm run -s typecheck:rtrvr-integration
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: npm run -s deno:check:rtrvr-integration
