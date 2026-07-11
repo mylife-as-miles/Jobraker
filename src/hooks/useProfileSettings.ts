@@ -55,6 +55,10 @@ export interface Profile {
   github_data?: any;
   linkedin_data?: any;
   portfolio_sync_meta?: any;
+  browser_execution_preference?: "automatic" | "my_chrome" | "jobraker_cloud";
+  rtrvr_device_id?: string | null;
+  rtrvr_prefer_extension?: boolean | null;
+  auto_apply_auto_submit?: boolean | null;
 }
 
 // Lightweight collection record types (duplicated from useProfileCollections to avoid coupling)

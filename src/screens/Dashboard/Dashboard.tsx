@@ -30,7 +30,7 @@ import {
   Briefcase,
 
   // CreditCard,
-  Video,
+  Tv,
   PanelLeft,
   FileText,
   PenTool,
@@ -560,7 +560,7 @@ export const Dashboard = (): JSX.Element => {
       base.splice(chatIndex + 1, 0, {
         id: "interview-studio",
         label: "Interview Studio",
-        icon: <Video className='w-5 h-5' />,
+        icon: <Tv className='w-5 h-5' />,
         path: "Dashboard / Interview Studio",
       });
     }

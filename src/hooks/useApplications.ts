@@ -46,6 +46,13 @@ export interface ApplicationRecord {
   draft_status?: "draft" | "ready" | "sent" | null;
   ai_confidence_score?: number | null;
   user_review_notes?: string | null;
+  automation_provider?: "rtrvr" | "skyvern" | null;
+  automation_requested_mode?: "automatic" | "my_chrome" | "jobraker_cloud" | null;
+  automation_selected_mode?: "extension" | "cloud" | null;
+  automation_fallback_applied?: boolean | null;
+  automation_fallback_reason?: string | null;
+  automation_device_id?: string | null;
+  automation_idempotency_key?: string | null;
   /** Full Skyvern webhook / run payload (workflow block outputs). */
   provider_run_output?: Record<string, unknown> | null;
 }

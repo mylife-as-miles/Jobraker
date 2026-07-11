@@ -128,10 +128,6 @@ serve(async (req) => {
     });
 
     const skyvernKey = Deno.env.get("SKYVERN_API_KEY");
-    if (!skyvernKey) {
-      console.error("[process-auto-apply-queue] SKYVERN_API_KEY is not configured.");
-      return new Response("SKYVERN_API_KEY is not configured", { status: 500, headers: corsHeaders });
-    }
 
     // 2. Resolve platform-wide concurrency limit
     const rawLimit = Deno.env.get("AUTO_APPLY_MAX_CONCURRENCY") || "10";
@@ -200,7 +196,58 @@ serve(async (req) => {
         continue;
       }
 
-      const { workflow_id, parameters, proxy_location, webhook_url, title, max_steps_override } = queueParams;
+      const queueProvider =
+        typeof queueParams.provider === "string" ? queueParams.provider : "skyvern";
+
+      if (queueProvider === "rtrvr") {
+        await supabase
+          .from("applications")
+          .update({
+            provider_status: "waiting_worker",
+            automation_provider: "rtrvr",
+            automation_claimed_by: null,
+            automation_lease_expires_at: null,
+            automation_heartbeat_at: null,
+            provider_run_output: {
+              ...previousRunOutput,
+              queue_parameters: queueParams,
+              queue_handoff: {
+                provider: "rtrvr",
+                handed_off_at: new Date().toISOString(),
+                worker: "automation-worker",
+              },
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", appId);
+        console.log(`[process-auto-apply-queue] Handed application ${appId} to rtrvr automation worker`);
+        continue;
+      }
+
+      const skyvernQueue =
+        queueParams.skyvern && typeof queueParams.skyvern === "object"
+          ? queueParams.skyvern
+          : queueParams;
+      const { workflow_id, parameters, proxy_location, webhook_url, title, max_steps_override } = skyvernQueue;
+
+      if (!skyvernKey || !workflow_id) {
+        const reason = !skyvernKey
+          ? "SKYVERN_API_KEY is not configured"
+          : "Skyvern workflow_id is not configured";
+        console.error(`[process-auto-apply-queue] ${reason} for application ${appId}`);
+        await supabase
+          .from("applications")
+          .update({
+            canonical_stage: "failed",
+            status: "Failed",
+            provider_status: "failed",
+            failure_reason: reason,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", appId);
+        await refundQueuedAutoApplyLaunch(supabase, appRow, appId, reason);
+        continue;
+      }
 
       const skyvernRun: Record<string, unknown> = {
         workflow_id,

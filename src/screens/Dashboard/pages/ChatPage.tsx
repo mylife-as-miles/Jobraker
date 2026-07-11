@@ -139,11 +139,7 @@ const customStyles = `
 
 const waitForAgentProgressPaint = () =>
   new Promise<void>((resolve) => {
-    // A real frame boundary keeps SSE updates visible even when many frames
-    // arrive in one network chunk and React would otherwise look "dumped".
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => window.setTimeout(resolve, 35));
-    });
+    window.requestAnimationFrame(resolve);
   });
 
 const parseSseFrame = (frame: string) => {

@@ -6,7 +6,7 @@ interface JobSearchLimits {
   currentCount: number;
   limit: number;
   remaining: number;
-  tier: 'Free' | 'Pro' | 'Ultimate';
+  tier: 'Free' | 'Basics' | 'Pro' | 'Ultimate';
   resetDate: string;
 }
 

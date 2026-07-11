@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": [
+    "src/vite-env.d.ts",
+    "src/services/applications/applyToJobs.ts",
+    "src/hooks/useApplications.ts",
+    "src/hooks/useProfileSettings.ts"
+  ]
+}

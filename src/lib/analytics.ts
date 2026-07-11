@@ -29,7 +29,7 @@ class PostHogSink implements AnalyticsSink {
   }
 
   flush() {
-    posthog.flush();
+    (posthog as unknown as { flush?: () => void }).flush?.();
   }
 }
 
