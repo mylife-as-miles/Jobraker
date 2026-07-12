@@ -7185,7 +7185,7 @@ export const JobPage = (): JSX.Element => {
               footer={
                 <Button
                   variant='ghost'
-                  className='w-full rounded-lg border border-foreground/15 bg-foreground/5 text-foreground/70 hover:text-foreground hover:bg-foreground/10'
+                  className='w-full rounded-lg border border-red-600/60 text-red-600 bg-red-600/15 hover:bg-red-600/30'
                   onClick={() => setSelectedJob(null)}
                 >
                   Cancel

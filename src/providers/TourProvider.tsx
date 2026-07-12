@@ -10,6 +10,7 @@ import React, {
 import { JoyrideAdapter } from "./JoyrideAdapter";
 import { useLocation } from "react-router-dom";
 import { useProfileSettings } from "../hooks/useProfileSettings";
+import { X } from "lucide-react";
 
 type CoachMark = {
   id: string; // unique id within page
@@ -489,7 +490,7 @@ const FloatingTourMenu: React.FC<{
               onClick={() => setOpen(false)}
               className='text-brand/70 hover:text-brand text-xs'
             >
-              ×
+              <X size={16} />
             </button>
           </div>
           <div className='max-h-64 overflow-auto pr-1 custom-scrollbar'>
