@@ -87,11 +87,23 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // 4. Check active connected accounts for this user in Composio
-    const { data: connectedAccounts } = await composio.connectedAccounts.list({
-      userIds: [userId],
-    });
-    const accounts = Array.isArray(connectedAccounts) ? connectedAccounts : [];
+    // 4. Check active connected accounts for this user in Composio via v3 API directly
+    const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+    const accountsResponse = await fetch(
+      `https://backend.composio.dev/api/v3/connected_accounts?user_id=${encodeURIComponent(userId)}`,
+      {
+        method: "GET",
+        headers: { "x-api-key": apiKey },
+      }
+    );
+    let accounts: any[] = [];
+    if (accountsResponse.ok) {
+      const parsed = await accountsResponse.json();
+      const rawItems = parsed?.items || parsed?.data || parsed;
+      accounts = Array.isArray(rawItems) ? rawItems : [];
+    } else {
+      console.warn(`[Sync Portfolio] Failed to fetch accounts from Composio: status=${accountsResponse.status}`);
+    }
 
     const githubConn = accounts.find(
       (a) => (a.toolkitSlug === "github" || a.appName === "github") && (a.status === "ACTIVE" || a.status === "active")

@@ -733,6 +733,44 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
       nextBasicsPatch.location = profile.location;
     }
 
+    const currentProfiles = resumeData.basics.profiles || [];
+    const nextProfiles = [...currentProfiles];
+    let profilesChanged = false;
+
+    if (profile?.github_data?.profile_url) {
+      const hasGithub = currentProfiles.some(
+        (p) => p.network?.toLowerCase() === "github"
+      );
+      if (!hasGithub) {
+        nextProfiles.push({
+          network: "GitHub",
+          username: profile.github_data.username || "",
+          url: profile.github_data.profile_url,
+          icon: "github",
+        });
+        profilesChanged = true;
+      }
+    }
+
+    if (profile?.linkedin_data?.profile_url) {
+      const hasLinkedin = currentProfiles.some(
+        (p) => p.network?.toLowerCase() === "linkedin"
+      );
+      if (!hasLinkedin) {
+        nextProfiles.push({
+          network: "LinkedIn",
+          username: profile.linkedin_data.name || "",
+          url: profile.linkedin_data.profile_url,
+          icon: "linkedin",
+        });
+        profilesChanged = true;
+      }
+    }
+
+    if (profilesChanged) {
+      nextBasicsPatch.profiles = nextProfiles;
+    }
+
     if (Object.keys(nextBasicsPatch).length > 0) {
       updateBasics(nextBasicsPatch);
     }
@@ -750,6 +788,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
     resumeData.basics.location,
     resumeData.basics.name,
     resumeData.basics.phone,
+    resumeData.basics.profiles,
     userEmail,
     updateBasics,
   ]);

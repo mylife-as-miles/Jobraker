@@ -90,6 +90,17 @@ export function SupportFloatingWidget({
 }: SupportFloatingWidgetProps) {
   const supabase = useMemo(() => createClient(), []);
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenSupport = () => {
+      setOpen(true);
+    };
+    window.addEventListener("jobraker:open-support", handleOpenSupport);
+    return () => {
+      window.removeEventListener("jobraker:open-support", handleOpenSupport);
+    };
+  }, []);
+
   const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [widgetView, setWidgetView] = useState<"list" | "chat">("list");
