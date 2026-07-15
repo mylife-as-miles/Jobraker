@@ -1304,6 +1304,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             }}
           >
             <div
+              id='resume-preview-container'
               className='origin-top-left transition-transform duration-200'
               style={{
                 width: `${PREVIEW_BASE_WIDTH}px`,

@@ -1,8 +1,50 @@
 import { ResumeData } from '../store/artboard';
 
 export const downloadResumePDF = async (resumeData: ResumeData) => {
+    const { basics } = resumeData;
+    const element = document.getElementById('resume-preview-container');
+
+    if (element) {
+        try {
+            const { default: html2canvas } = await import('html2canvas');
+            const { default: jsPDF } = await import('jspdf');
+
+            // Capture at 2x scale for print-quality crispness
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                logging: false,
+                onclone: (clonedDoc) => {
+                    const clonedEl = clonedDoc.getElementById('resume-preview-container');
+                    if (clonedEl) {
+                        clonedEl.style.transform = 'none';
+                    }
+                }
+            });
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.98);
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'pt',
+                format: 'a4'
+            });
+
+            // A4 dimensions in points: 595.28 x 841.89
+            const pdfWidth = 595.28;
+            const pdfHeight = 841.89;
+
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`${basics.name.replace(/\s+/g, '_')}_Resume.pdf`);
+            return;
+        } catch (e) {
+            console.error('High-fidelity PDF generation failed, falling back to basic layout:', e);
+        }
+    }
+
+    // --- FALLBACK BASIC LAYOUT GENERATION ---
     const { default: jsPDF } = await import('jspdf');
-    const { basics, sections, summary } = resumeData;
+    const { sections, summary } = resumeData;
     const paragraphSpacing =
         resumeData.metadata.typography.font.paragraphSpacing ?? 8;
     const doc = new jsPDF({
@@ -73,10 +115,8 @@ export const downloadResumePDF = async (resumeData: ResumeData) => {
         y += splitSummary.length * 12 + paragraphSpacing + 7;
     }
 
-    // Process all sections based on layout order if possible, or just iterate common ones
-    // For simplicity, we iterate common ones + custom
+    // Process all sections based on order
     const sectionKeys = Object.keys(sections);
-    // Sort logic could be added here based on layout if available
 
     const renderSection = (sectionId: string) => {
         const section = sections[sectionId];
@@ -142,14 +182,11 @@ export const downloadResumePDF = async (resumeData: ResumeData) => {
         }
     };
 
-    // Render in a specific order if desired, otherwise iterate
-    // Standard order: Experience, Education, Skills, Projects, others...
     const priority = ['experience', 'education', 'skills', 'projects'];
     priority.forEach(id => renderSection(id));
 
-    // Render remaining sections
     sectionKeys
-        .filter(k => !priority.includes(k) && k !== 'summary') // summary handled separately
+        .filter(k => !priority.includes(k) && k !== 'summary')
         .forEach(id => renderSection(id));
 
     doc.save(`${basics.name.replace(/\s+/g, '_')}_Resume.pdf`);
