@@ -10,6 +10,7 @@
     "test": "vitest --run",
     "lint": "npm run -s lint:rtrvr-integration",
     "lint:migrations": "node backend/scripts/run-lint-migrations.cjs",
+    "verify:auto-apply-queue": "node backend/scripts/verify-auto-apply-queue-migration.cjs",
     "lint:rtrvr-integration": "node backend/scripts/lint-rtrvr-integration.cjs",
     "automation:worker:build": "tsc -p backend/automation-worker/tsconfig.json",
     "automation:worker:typecheck": "tsc -p backend/automation-worker/tsconfig.json --noEmit",

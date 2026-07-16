@@ -118,7 +118,15 @@ serve(async (req) => {
     const token = authHeader?.replace(/^Bearer\s+/i, "");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!token || (token !== serviceRoleKey && token !== "SYSTEM_TRIGGER")) {
+    if (!serviceRoleKey) {
+      console.error("[process-auto-apply-queue] SUPABASE_SERVICE_ROLE_KEY is not configured");
+      return new Response(
+        JSON.stringify({ error: "Queue service configuration is unavailable.", code: "SERVICE_ROLE_CONFIGURATION_MISSING" }),
+        { status: 500, headers: corsHeaders },
+      );
+    }
+
+    if (!token || token !== serviceRoleKey) {
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
 
@@ -141,7 +149,10 @@ serve(async (req) => {
 
     if (acquireError) {
       console.error("[process-auto-apply-queue] acquire Candidates RPC error:", acquireError);
-      return new Response(JSON.stringify({ error: acquireError.message }), { status: 500, headers: corsHeaders });
+      return new Response(
+        JSON.stringify({ error: "Unable to acquire queued applications.", code: "QUEUE_ACQUISITION_FAILED" }),
+        { status: 500, headers: corsHeaders },
+      );
     }
 
     const ids = Array.isArray(candidateIds)
@@ -413,7 +424,7 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error("[process-auto-apply-queue] Server error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Unable to process the Auto Apply queue.", code: "AUTO_APPLY_QUEUE_FAILED" }), {
       status: 500,
       headers: corsHeaders,
     });
