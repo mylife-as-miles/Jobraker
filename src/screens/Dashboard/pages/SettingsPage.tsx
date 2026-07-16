@@ -155,6 +155,7 @@ async function getQRCode() {
 }
 
 type ComposioIntegrationSlug =
+  | "gmail"
   | "github"
   | "googledrive"
   | "googledocs"
@@ -256,6 +257,15 @@ const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     accentClass: "from-blue-500/20 to-blue-500/10 border-blue-500/30",
   },
 ];
+
+const GMAIL_COMPOSIO_INTEGRATION: ComposioIntegration = {
+  slug: "gmail",
+  toolkitSlug: "gmail",
+  name: "Gmail",
+  description: "Connect Gmail through Composio for Agent Mode email tools.",
+  icon: <Mail className='w-6 h-6 text-brand' />,
+  accentClass: "from-brand/20 to-brand/10 border-brand/30",
+};
 
 export const SettingsPage = (): JSX.Element => {
   const location = useLocation();
@@ -453,6 +463,7 @@ export const SettingsPage = (): JSX.Element => {
   const [gmailConnectedEmail, setGmailConnectedEmail] = useState<string | null>(
     null,
   );
+  const [gmailConnectionId, setGmailConnectionId] = useState<string | null>(null);
   const [gmailDisconnecting, setGmailDisconnecting] = useState(false);
   const [composioConnectionStatuses, setComposioConnectionStatuses] = useState<
     Partial<Record<ComposioIntegrationSlug, ComposioConnectionStatus>>
@@ -571,6 +582,7 @@ export const SettingsPage = (): JSX.Element => {
   }, []);
 
   const handleConnectGmail = async () => {
+    const popup = window.open("about:blank", "_blank", "width=560,height=760");
     try {
       const {
         data: { user },
@@ -580,10 +592,11 @@ export const SettingsPage = (): JSX.Element => {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("gmail-auth", {
+      const { data, error } = await supabase.functions.invoke("composio-auth", {
         body: {
           action: "initiate",
-          redirectUri: `${window.location.origin}/auth/callback/gmail`,
+          integrationSlug: GMAIL_COMPOSIO_INTEGRATION.slug,
+          toolkitSlug: GMAIL_COMPOSIO_INTEGRATION.toolkitSlug,
         },
       });
 
@@ -591,10 +604,17 @@ export const SettingsPage = (): JSX.Element => {
         throw error;
       }
 
-      const { redirectUrl } = data;
-      // Do not use noopener: OAuth popup must keep window.opener so /auth/callback/gmail can postMessage back.
-      window.open(redirectUrl, "_blank", "width=520,height=720");
+      const redirectUrl = (data as { redirectUrl?: unknown } | null)?.redirectUrl;
+      if (typeof redirectUrl !== "string" || !redirectUrl) {
+        throw new Error("Composio did not return a Gmail connection URL.");
+      }
+      if (popup) {
+        popup.location.href = redirectUrl;
+      } else {
+        window.open(redirectUrl, "_blank", "width=560,height=760");
+      }
     } catch (error: any) {
+      popup?.close();
       const errorMessage =
         error.details ||
         (error as Error).message ||
@@ -611,12 +631,20 @@ export const SettingsPage = (): JSX.Element => {
       if (!user) {
         setIsGmailConnected(false);
         setGmailConnectedEmail(null);
+        setGmailConnectionId(null);
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("gmail-auth", {
+      const { data, error } = await supabase.functions.invoke("composio-auth", {
         body: {
           action: "status",
+          integrations: [
+            {
+              slug: GMAIL_COMPOSIO_INTEGRATION.slug,
+              label: GMAIL_COMPOSIO_INTEGRATION.name,
+              toolkitSlug: GMAIL_COMPOSIO_INTEGRATION.toolkitSlug,
+            },
+          ],
         },
       });
 
@@ -624,33 +652,34 @@ export const SettingsPage = (): JSX.Element => {
         throw error;
       }
 
-      const payload = data as {
-        isConnected?: boolean;
-        email?: string | null;
-      } | null;
-
-      if (payload?.isConnected !== undefined) {
-        const connected = !!payload.isConnected;
-        setIsGmailConnected(connected);
-        const raw = payload.email;
-        setGmailConnectedEmail(
-          connected && typeof raw === "string" && raw.trim().length > 0
-            ? raw.trim()
-            : null,
-        );
-      }
+      const status = Array.isArray((data as { statuses?: unknown } | null)?.statuses)
+        ? (data as { statuses: Array<ComposioConnectionStatus> }).statuses[0]
+        : undefined;
+      const connected = !!status?.isConnected;
+      setIsGmailConnected(connected);
+      setGmailConnectionId(connected ? status?.connectionId ?? null : null);
+      const identifier = status?.identifier;
+      setGmailConnectedEmail(
+        connected && typeof identifier === "string" && identifier.trim().length > 0
+          ? identifier.trim()
+          : null,
+      );
     } catch (error: unknown) {
       console.error("Failed to check Gmail connection status:", error);
       setIsGmailConnected(false);
       setGmailConnectedEmail(null);
+      setGmailConnectionId(null);
     }
   }, [supabase]);
 
   const handleDisconnectGmail = useCallback(async () => {
     setGmailDisconnecting(true);
     try {
-      const { error } = await supabase.functions.invoke("gmail-auth", {
-        body: { action: "disconnect" },
+      if (!gmailConnectionId) {
+        throw new Error("No Composio Gmail connection was found.");
+      }
+      const { error } = await supabase.functions.invoke("composio-auth", {
+        body: { action: "disconnect", connectionId: gmailConnectionId },
       });
       if (error) {
         throw error;
@@ -669,6 +698,7 @@ export const SettingsPage = (): JSX.Element => {
     }
   }, [
     supabase,
+    gmailConnectionId,
     checkGmailConnection,
     success,
     toastError,
@@ -850,61 +880,6 @@ export const SettingsPage = (): JSX.Element => {
       window.removeEventListener("focus", onFocus);
     };
   }, [activeTab, checkGmailConnection, refreshComposioConnectionStatuses]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get("gmail") !== "connected") {
-      return;
-    }
-    params.delete("gmail");
-    const next = params.toString();
-    navigate(
-      { pathname: location.pathname, search: next ? `?${next}` : "" },
-      { replace: true },
-    );
-    void checkGmailConnection();
-    success("Gmail connected successfully!");
-  }, [
-    location.pathname,
-    location.search,
-    navigate,
-    checkGmailConnection,
-    success,
-  ]);
-
-  useEffect(() => {
-    const handleMessage = async (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) {
-        return;
-      }
-
-      const messageType =
-        typeof event.data === "string" ? event.data : event.data?.type;
-
-      if (messageType === "gmail-auth-error") {
-        toastError(
-          "Failed to connect Gmail",
-          typeof event.data === "object" &&
-            event.data &&
-            "message" in event.data
-            ? String((event.data as { message?: string }).message)
-            : "Please try again.",
-        );
-        return;
-      }
-
-      if (messageType === "gmail-auth-success") {
-        await checkGmailConnection();
-        success("Gmail connected successfully!");
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-
-    return () => {
-      window.removeEventListener("message", handleMessage);
-    };
-  }, [checkGmailConnection, success, toastError]);
 
   const initials = useMemo(() => {
     const a = (formData.firstName || "").trim();
@@ -4720,7 +4695,7 @@ export const SettingsPage = (): JSX.Element => {
                   </div>
                   <div className='min-w-0'>
                     <h3 className='text-sm font-medium text-foreground/95'>
-                      Gmail Pipeline
+                      Gmail (Composio)
                     </h3>
                     {isGmailConnected && gmailConnectedEmail ? (
                       <p
@@ -4731,8 +4706,7 @@ export const SettingsPage = (): JSX.Element => {
                       </p>
                     ) : null}
                     <p className='text-xs text-muted-foreground mt-0.5'>
-                      Detect application confirmations, interviews, offers, and
-                      rejections
+                      Connect Gmail for Composio-powered Agent Mode email tools
                     </p>
                   </div>
                 </div>
