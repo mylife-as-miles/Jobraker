@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   Eye,
   EyeOff,
@@ -10,9 +10,10 @@ import {
 import { Button } from "../../../../components/ui/button";
 import { useToast } from "../../../../components/ui/toast";
 import { useArtboardStore } from "../../../../store/artboard";
+import { Modal } from "../../../../components/ui/modal";
 import {
   createResumePhotoOptOut,
-  createResumePictureFromFile,
+  createResumePictureDefaults,
   setResumePhotoHidden,
 } from "../../../../utils/resume-picture";
 
@@ -23,6 +24,179 @@ interface ResumePhotoEditorProps {
   onUseProfileImage: () => Promise<boolean>;
   onRefreshProfileImage: () => Promise<boolean>;
 }
+
+// Internal Crop Dialog Component
+interface PhotoCropDialogProps {
+  open: boolean;
+  onClose: () => void;
+  imageSrc: string;
+  onSave: (croppedDataUrl: string) => void;
+}
+
+const PhotoCropDialog = ({ open, onClose, imageSrc, onSave }: PhotoCropDialogProps) => {
+  const D = 250; // display frame size
+  const [zoom, setZoom] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const imageRef = useRef<HTMLImageElement | null>(null);
+
+  const getScale = (z: number) => {
+    if (dimensions.width === 0 || dimensions.height === 0) return 0.1;
+    const s0 = Math.max(D / dimensions.width, D / dimensions.height);
+    return s0 * z;
+  };
+
+  const clampPosition = (x: number, y: number, z: number) => {
+    const scale = getScale(z);
+    const w = dimensions.width * scale;
+    const h = dimensions.height * scale;
+    const minX = D - w;
+    const minY = D - h;
+    return {
+      x: Math.min(0, Math.max(minX, x)),
+      y: Math.min(0, Math.max(minY, y)),
+    };
+  };
+
+  const handleImageLoad = () => {
+    if (!imageRef.current) return;
+    const { naturalWidth, naturalHeight } = imageRef.current;
+    setDimensions({ width: naturalWidth, height: naturalHeight });
+    
+    // Initial centering of image
+    const s0 = Math.max(D / naturalWidth, D / naturalHeight);
+    const w = naturalWidth * s0;
+    const h = naturalHeight * s0;
+    setPosition({
+      x: (D - w) / 2,
+      y: (D - h) / 2,
+    });
+    setZoom(1);
+  };
+
+  const handleZoomChange = (newZoom: number) => {
+    const oldScale = getScale(zoom);
+    const newScale = getScale(newZoom);
+    const cx = D / 2;
+    const cy = D / 2;
+    
+    // Maintain zoom focus at the viewport center
+    const px = (cx - position.x) / oldScale;
+    const py = (cy - position.y) / oldScale;
+    const newX = cx - px * newScale;
+    const newY = cy - py * newScale;
+    
+    const clamped = clampPosition(newX, newY, newZoom);
+    setPosition(clamped);
+    setZoom(newZoom);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    });
+    setIsDragging(true);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    const newX = e.clientX - dragStart.x;
+    const newY = e.clientY - dragStart.y;
+    const clamped = clampPosition(newX, newY, zoom);
+    setPosition(clamped);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    setIsDragging(false);
+  };
+
+  const handleSave = () => {
+    if (!imageRef.current || dimensions.width === 0) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = 384;
+    canvas.height = 384;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const scale = getScale(zoom);
+    const ratio = 384 / D;
+    const drawW = dimensions.width * scale * ratio;
+    const drawH = dimensions.height * scale * ratio;
+    const drawX = position.x * ratio;
+    const drawY = position.y * ratio;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 384, 384);
+    ctx.drawImage(imageRef.current, drawX, drawY, drawW, drawH);
+
+    const croppedDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    onSave(croppedDataUrl);
+  };
+
+  const scale = getScale(zoom);
+  const w = dimensions.width * scale;
+  const h = dimensions.height * scale;
+
+  return (
+    <Modal open={open} onClose={onClose} title="Reposition Profile Photo" size="sm">
+      <div className="flex flex-col items-center gap-6 py-2">
+        <div 
+          className="relative w-[250px] h-[250px] rounded-full overflow-hidden border border-brand/30 bg-muted select-none cursor-move shadow-inner"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        >
+          <img
+            ref={imageRef}
+            src={imageSrc}
+            alt="To crop"
+            onLoad={handleImageLoad}
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              width: dimensions.width ? `${w}px` : "auto",
+              height: dimensions.height ? `${h}px` : "auto",
+              transform: `translate(${position.x}px, ${position.y}px)`,
+              pointerEvents: "none",
+              maxWidth: "none",
+            }}
+          />
+        </div>
+        
+        <div className="w-full space-y-2 px-2">
+          <div className="flex justify-between text-xs text-muted-foreground font-medium">
+            <span>Zoom</span>
+            <span>{Math.round((zoom - 1) * 100)}%</span>
+          </div>
+          <input
+            type="range"
+            min="1"
+            max="3"
+            step="0.01"
+            value={zoom}
+            onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+            className="w-full accent-brand h-1.5 bg-foreground/10 rounded-lg appearance-none cursor-pointer"
+          />
+        </div>
+
+        <div className="flex w-full gap-3 mt-2">
+          <Button variant="outline" onClick={onClose} className="flex-1 rounded-xl">
+            Cancel
+          </Button>
+          <Button onClick={handleSave} className="flex-1 bg-brand text-black hover:bg-brand/90 rounded-xl font-semibold">
+            Apply Photo
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
 
 export const ResumePhotoEditor = ({
   hasProfileAvatar,
@@ -35,6 +209,7 @@ export const ResumePhotoEditor = ({
   const updateBasics = useArtboardStore((state) => state.updateBasics);
   const { success, error: toastError } = useToast();
   const [uploading, setUploading] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const isHidden = Boolean(picture?.effects?.hidden);
@@ -47,14 +222,28 @@ export const ResumePhotoEditor = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Use FileReader to get data URL for cropping modal
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result;
+      if (typeof dataUrl === "string") {
+        setCropImageSrc(dataUrl);
+      }
+    };
+    reader.readAsDataURL(file);
+    event.currentTarget.value = "";
+  };
+
+  const handleSaveCropped = (croppedDataUrl: string) => {
     setUploading(true);
     try {
-      const nextPicture = await createResumePictureFromFile(file, picture);
+      const nextPicture = createResumePictureDefaults(picture, croppedDataUrl);
       updateBasics({ picture: nextPicture });
       success(
         "Resume photo updated",
         "Your custom photo is ready across all resume templates.",
       );
+      setCropImageSrc(null);
     } catch (error: any) {
       toastError(
         "Photo upload failed",
@@ -62,7 +251,6 @@ export const ResumePhotoEditor = ({
       );
     } finally {
       setUploading(false);
-      event.currentTarget.value = "";
     }
   };
 
@@ -236,6 +424,15 @@ export const ResumePhotoEditor = ({
         className='hidden'
         onChange={handleFilePick}
       />
+
+      {cropImageSrc && (
+        <PhotoCropDialog
+          open={true}
+          onClose={() => setCropImageSrc(null)}
+          imageSrc={cropImageSrc}
+          onSave={handleSaveCropped}
+        />
+      )}
     </div>
   );
 };

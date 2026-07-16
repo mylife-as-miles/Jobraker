@@ -851,67 +851,52 @@ export const CoverLetterBuilderPage = () => {
   return (
     <div
       id='cover-page-root'
-      className={`product-page-shell relative flex flex-col ${
-        isMobile
-          ? "gap-4 px-3 py-4"
-          : "min-h-[calc(100vh-4rem)] gap-6 px-4 py-6 sm:px-6 lg:px-8"
-      }`}
+      className='product-page-shell flex flex-col h-full relative overflow-hidden bg-background text-foreground'
     >
       {/* Ambient Background Glows */}
       <div className='fixed top-20 right-0 h-96 w-96 bg-brand/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10' />
       <div className='fixed bottom-20 left-0 h-96 w-96 bg-brand/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10' />
 
-      {/* Header */}
-      <div
+      {/* Header toolbar */}
+      <header
         id='cover-header'
-        className='product-section-card sticky top-0 z-10 group relative flex flex-col justify-between gap-4 overflow-hidden rounded-2xl px-4 py-5 shadow-lg sm:px-6 xl:flex-row xl:items-center'
+        className='shrink-0 border-b border-border/40 bg-background/95 px-3 py-3 md:h-16 md:px-6 md:py-0 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex flex-col gap-3 md:flex-row md:items-center md:justify-between z-10'
       >
-        {/* Animated gradient overlay */}
-        <div className='absolute inset-0 bg-gradient-to-r from-brand/0 via-brand/5 to-brand/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none' />
-
-        <div className='relative flex items-center gap-3 sm:gap-4 w-full xl:w-auto'>
-          <Button
-            variant='ghost'
-            size='sm'
-            className='h-10 w-10 sm:h-12 sm:w-12 p-0 rounded-xl border border-brand/20 hover:border-brand/50 hover:bg-gradient-to-br hover:from-brand/15 hover:to-brand/5 hover:text-brand hover:scale-110 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] transition-all duration-200 group/btn shrink-0'
+        <div className='flex min-w-0 items-center gap-3 md:gap-4'>
+          <button
             onClick={() => navigate("/dashboard/cover-letter")}
+            className='product-helper-text flex items-center gap-2 text-sm transition-colors hover:text-foreground shrink-0'
           >
-            <ArrowLeft className='w-4 h-4 sm:w-5 sm:h-5 group-hover/btn:scale-110 transition-transform' />
-          </Button>
-          <div className='h-12 w-px bg-gradient-to-b from-transparent via-brand/40 to-transparent shadow-[0_0_10px_rgba(29,255,0,0.3)]' />
-          <div>
-            {/* Dynamic Title Input */}
-            <div className='flex items-center gap-2 group/title'>
-              <input
-                value={coverLetter.title || "Untitled Cover Letter"}
-                onChange={(e) => setCoverLetterTitle(e.target.value)}
-                className='product-page-title min-w-[300px] border-none bg-transparent text-3xl font-black tracking-tight outline-none focus:ring-0 sm:text-4xl placeholder:text-muted-foreground'
-                placeholder='Untitled Cover Letter'
-              />
-              <Edit2 className='w-5 h-5 product-helper-text opacity-0 group-hover/title:opacity-100 transition-opacity' />
-            </div>
-            <div className='flex items-center gap-3 mt-1.5'>
-              <p className='text-xs sm:text-sm product-helper-text flex items-center gap-2.5'>
-                <span className='flex items-center justify-center w-5 h-5 rounded-lg bg-brand/20 border border-brand/40'>
-                  <span className='inline-block w-2 h-2 bg-brand rounded-full animate-pulse shadow-[0_0_8px_rgba(29,255,0,0.8)]' />
-                </span>
-                AI Assistant Ready
-              </p>
-              {lastSaved && (
-                <span className='text-xs text-brand/70 flex items-center gap-1'>
-                  <Check className='w-3 h-3' />
-                  Saved {lastSaved.toLocaleTimeString()}
-                </span>
-              )}
-            </div>
+            <ArrowLeft className='w-4 h-4' />
+            <span>Back</span>
+          </button>
+          <div className='h-6 w-px shrink-0 bg-border/60' />
+          <div className='group relative flex min-w-0 flex-1 items-center gap-2'>
+            <input
+              value={coverLetter.title || "Untitled Cover Letter"}
+              onChange={(e) => setCoverLetterTitle(e.target.value)}
+              placeholder='Untitled Cover Letter'
+              className='product-page-title w-full min-w-0 rounded-md bg-transparent px-2 py-1 text-base font-semibold outline-none transition-all hover:bg-muted/30 focus:bg-muted/50 focus:ring-1 focus:ring-brand/50 md:text-lg'
+            />
+            <button
+              className='product-helper-text p-1 hover:text-brand transition-all opacity-60 hover:opacity-100 transition-opacity focus:opacity-100'
+            >
+              <Edit2 className='w-3.5 h-3.5' />
+            </button>
           </div>
         </div>
 
-        <div className='relative flex flex-wrap xl:flex-nowrap items-center gap-2.5 overflow-x-auto w-full xl:w-auto pb-2 xl:pb-0'>
+        <div className='flex items-center gap-2 overflow-x-auto pb-1 md:gap-3 md:pb-0 no-scrollbar'>
+          {lastSaved && (
+            <span className='text-xs text-brand/70 flex items-center gap-1 mr-2'>
+              <Check className='w-3 h-3' />
+              Saved {lastSaved.toLocaleTimeString()}
+            </span>
+          )}
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className='rounded-xl h-11 border-brand/30 bg-brand/10 text-brand hover:bg-brand/20 gap-2 shrink-0'
+            className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-bold whitespace-nowrap h-10 rounded-lg'
           >
             {isSaving ? (
               <Loader2 className='w-4 h-4 animate-spin' />
@@ -923,52 +908,52 @@ export const CoverLetterBuilderPage = () => {
           <Button
             variant='outline'
             onClick={() => setInlineEdit(!inlineEdit)}
-            className={`rounded-xl shrink-0 whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${inlineEdit ? "bg-brand/10 border-brand text-brand" : "border-brand/30 hover:border-brand/60 hover:text-brand hover:bg-brand/5"}`}
+            className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-semibold whitespace-nowrap h-10 rounded-lg border-border/60 ${inlineEdit ? "bg-brand/10 border-brand text-brand hover:bg-brand/15" : "hover:border-brand/60 hover:bg-brand/5"}`}
           >
-            <Pencil className='w-4 h-4 mr-2' />
+            <Pencil className='w-4 h-4' />
             {inlineEdit ? "Live Edit: On" : "Enable Live Edit"}
           </Button>
           <Button
             variant='outline'
             onClick={aiPolish}
             disabled={aiLoading || loadingTier}
-            className='product-outline-button h-11 rounded-xl transition-all hover:border-brand/60 hover:bg-brand/15'
+            className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-bold whitespace-nowrap h-10 rounded-lg'
           >
             <Wand2
-              className={`w-4 h-4 mr-2 ${aiLoading ? "animate-spin" : ""}`}
+              className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`}
             />
             {aiLoading ? "Polishing" : "AI Polish"}
             {!hasCoverLetterAiAccess && (
-              <Lock className='ml-2 w-3 h-3 opacity-50' />
+              <Lock className='ml-1 w-3 h-3 opacity-50' />
             )}
           </Button>
           <Button
             variant='outline'
             onClick={aiWriteFull}
             disabled={aiLoading || loadingTier}
-            className='product-outline-button h-11 rounded-xl transition-all hover:border-brand/60 hover:bg-brand/15'
+            className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-bold whitespace-nowrap h-10 rounded-lg'
           >
             <Wand2
-              className={`w-4 h-4 mr-2 ${aiLoading ? "animate-spin" : ""}`}
+              className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`}
             />
             {aiLoading ? "Writing" : "AI Generate"}
             {!hasCoverLetterAiAccess && (
-              <Lock className='ml-2 w-3 h-3 opacity-50' />
+              <Lock className='ml-1 w-3 h-3 opacity-50' />
             )}
           </Button>
           <Button
             variant='outline'
             onClick={() => setExportOpen(true)}
-            className='product-outline-button h-11 rounded-xl transition-all hover:border-brand/60 hover:bg-brand/15'
+            className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-medium whitespace-nowrap h-10 rounded-lg'
           >
-            <Download className='w-4 h-4 mr-2' />
+            <Download className='w-4 h-4' />
             Export
           </Button>
         </div>
-      </div>
+      </header>
 
       {isMobile && (
-        <div className='-mt-3 px-4 pb-1 flex justify-center'>
+        <div className='px-4 pb-3 pt-3 flex justify-center border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 shrink-0'>
           <div className='relative flex p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md w-full max-w-[340px]'>
             <button
               onClick={() => setMobileView("editor")}
@@ -1021,23 +1006,27 @@ export const CoverLetterBuilderPage = () => {
       />
 
       {!loadingTier && !hasCoverLetterAiAccess && (
-        <UpgradePrompt
-          compact
-          requiredTier='Basics'
-          showPricing={false}
-          title='Cover Letter AI'
-          description='Unlock AI polish and full tailored generation while keeping manual editing and exports on Free.'
-        />
+        <div className="px-4 pt-4 md:px-6 md:pt-6 shrink-0">
+          <UpgradePrompt
+            compact
+            requiredTier='Basics'
+            showPricing={false}
+            title='Cover Letter AI'
+            description='Unlock AI polish and full tailored generation while keeping manual editing and exports on Free.'
+          />
+        </div>
       )}
 
       {/* Main Layout */}
       <div
         id='cover-main-layout'
-        className='grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full'
+        className='flex-1 flex flex-col xl:flex-row overflow-hidden w-full'
       >
         {/* CONFIG PANEL (LEFT) */}
-        <Card className={`product-section-card p-6 rounded-2xl ${isMobile && mobileView !== "editor" ? "hidden" : "flex flex-col"}`}>
-          <div className='grid gap-6'>
+        <div
+          className={`${isMobile && mobileView !== "editor" ? "hidden" : "flex"} product-section-card-muted w-full flex-col overflow-y-auto custom-scrollbar rounded-none border-y-0 border-l-0 ${isMobile ? "pb-6" : "pb-20"} flex-1 xl:w-[460px] xl:min-w-[400px] xl:max-w-[500px] xl:flex-initial`}
+        >
+          <div className='p-4 xl:p-6 space-y-6'>
             {/* Library */}
             <div className='grid gap-3'>
               <div className='flex items-center justify-between'>
@@ -1398,75 +1387,79 @@ export const CoverLetterBuilderPage = () => {
               />
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* PREVIEW PANEL (RIGHT) */}
-        <Card className={`p-4 sm:p-8 bg-white min-h-[800px] text-black shadow-2xl overflow-y-auto ${isMobile && mobileView !== "preview" ? "hidden" : "flex flex-col"}`}>
-          <div
-            className='max-w-[800px] mx-auto space-y-6'
-            style={{
-              fontSize: `${typography.fontSize}px`,
-              fontFamily: "Times New Roman, serif",
-            }}
-          >
-            {/* Header Section */}
-            <div className='text-right space-y-1'>
-              <h2 className='font-bold text-lg'>
-                {sender.name || "Your Name"}
-              </h2>
-              {[sender.address, sender.phone, sender.email]
-                .filter(Boolean)
-                .map((line, i) => (
-                  <p key={i} className='text-gray-600'>
-                    {line}
-                  </p>
-                ))}
-            </div>
-
-            <div className='pt-4 border-b border-gray-200' />
-
-            <p>{new Date(content.date || Date.now()).toLocaleDateString()}</p>
-
-            <div className='space-y-1'>
-              <p className='font-bold'>{recipient.name || "Recipient Name"}</p>
-              {[recipient.title, company, recipient.address]
-                .filter(Boolean)
-                .map((line, i) => (
-                  <p key={i}>{line}</p>
-                ))}
-            </div>
-
-            {content.subject && (
-              <p className='font-bold underline mt-4'>
-                Subject: {content.subject}
-              </p>
-            )}
-
-            <p className='mt-4'>
-              {content.salutation || "Dear Hiring Manager,"}
-            </p>
-
-            {/* Content Body */}
-            <div className='space-y-4 leading-relaxed whitespace-pre-wrap'>
-              {(content.paragraphs.length
-                ? content.paragraphs
-                : content.rawBody.split(/\n\n+/)
-              ).map((para, i) => (
-                <p key={i}>{para}</p>
-              ))}
-            </div>
-
-            <div className='mt-8 space-y-4'>
-              <p>{content.closing || "Sincerely,"}</p>
-              <div className='h-12'>
-                {content.signature && (
-                  <p className='font-script text-xl'>{content.signature}</p>
-                )}
+        <div
+          className={`${isMobile && mobileView !== "preview" ? "hidden" : "flex"} flex-1 overflow-auto justify-center p-3 xl:p-8 relative custom-scrollbar bg-[hsl(var(--product-surface-muted))] dark:bg-background ${isMobile ? "pb-6 pt-4" : ""}`}
+        >
+          <Card className="p-8 sm:p-12 bg-white text-black shadow-2xl shrink-0 my-4 max-w-[800px] w-full min-h-[1100px] flex flex-col justify-start">
+            <div
+              className='max-w-[800px] mx-auto space-y-6 w-full'
+              style={{
+                fontSize: `${typography.fontSize}px`,
+                fontFamily: "Times New Roman, serif",
+              }}
+            >
+              {/* Header Section */}
+              <div className='text-right space-y-1'>
+                <h2 className='font-bold text-lg'>
+                  {sender.name || "Your Name"}
+                </h2>
+                {[sender.address, sender.phone, sender.email]
+                  .filter(Boolean)
+                  .map((line, i) => (
+                    <p key={i} className='text-gray-600'>
+                      {line}
+                    </p>
+                  ))}
               </div>
-              <p className='font-bold'>{content.signature || sender.name}</p>
+
+              <div className='pt-4 border-b border-gray-200' />
+
+              <p>{new Date(content.date || Date.now()).toLocaleDateString()}</p>
+
+              <div className='space-y-1'>
+                <p className='font-bold'>{recipient.name || "Recipient Name"}</p>
+                {[recipient.title, company, recipient.address]
+                  .filter(Boolean)
+                  .map((line, i) => (
+                    <p key={i}>{line}</p>
+                  ))}
+              </div>
+
+              {content.subject && (
+                <p className='font-bold underline mt-4'>
+                  Subject: {content.subject}
+                </p>
+              )}
+
+              <p className='mt-4'>
+                {content.salutation || "Dear Hiring Manager,"}
+              </p>
+
+              {/* Content Body */}
+              <div className='space-y-4 leading-relaxed whitespace-pre-wrap text-justify'>
+                {(content.paragraphs.length
+                  ? content.paragraphs
+                  : content.rawBody.split(/\n\n+/)
+                ).map((para, i) => (
+                  <p key={i}>{para}</p>
+                ))}
+              </div>
+
+              <div className='mt-8 space-y-4'>
+                <p>{content.closing || "Sincerely,"}</p>
+                <div className='h-12'>
+                  {content.signature && (
+                    <p className='font-script text-xl'>{content.signature}</p>
+                  )}
+                </div>
+                <p className='font-bold'>{content.signature || sender.name}</p>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       </div>
 
       {/* Config Toolbar */}

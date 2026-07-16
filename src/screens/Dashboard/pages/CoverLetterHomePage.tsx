@@ -20,6 +20,7 @@ import { CoverLetterCreationModal } from "../components/CoverLetterCreationModal
 import { CoverLetterPreviewCard } from "../components/CoverLetterPreviewCard";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { Modal } from "../../../components/ui/modal";
 
 const supabase = createClient();
 
@@ -32,6 +33,28 @@ export const CoverLetterHomePage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [letterToDelete, setLetterToDelete] = useState<any | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [showGuidance, setShowGuidance] = useState(false);
+
+  useEffect(() => {
+    const isDismissed = sessionStorage.getItem("jobraker:cover-letter-guidance-dismissed");
+    if (isDismissed !== "true") {
+      const timer = setTimeout(() => {
+        setShowGuidance(true);
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleOpenSupportChat = () => {
+    sessionStorage.setItem("jobraker:cover-letter-guidance-dismissed", "true");
+    setShowGuidance(false);
+    window.dispatchEvent(new CustomEvent("jobraker:open-support"));
+  };
+
+  const handleDismissGuidance = () => {
+    sessionStorage.setItem("jobraker:cover-letter-guidance-dismissed", "true");
+    setShowGuidance(false);
+  };
 
   useEffect(() => {
     const checkMobile = () => {
@@ -413,6 +436,34 @@ export const CoverLetterHomePage = () => {
         cancelText='Cancel'
       />
 
+      <Modal 
+        open={showGuidance} 
+        onClose={handleDismissGuidance} 
+        title="Need Help Writing Your Cover Letter?"
+        size="md"
+      >
+        <div className="flex flex-col items-center gap-4 text-center py-2">
+          <div className="w-12 h-12 rounded-full bg-brand/10 text-brand flex items-center justify-center">
+            <MessageSquare className="w-6 h-6" />
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm text-foreground">
+              Whether you are writing a cover letter from scratch or using our AI-assisted auto-builder, our <strong>AI Support Chat</strong> is here to help!
+            </p>
+            <p className="text-xs text-muted-foreground leading-normal">
+              Ask for structure suggestions, tone edits, or help with tailoring to a specific job description.
+            </p>
+          </div>
+          <div className="flex w-full gap-3 mt-4">
+            <Button variant="outline" onClick={handleDismissGuidance} className="flex-1 rounded-xl">
+              Maybe Later
+            </Button>
+            <Button onClick={handleOpenSupportChat} className="flex-1 bg-brand text-black hover:bg-brand/90 rounded-xl font-semibold">
+              Open Chat
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
