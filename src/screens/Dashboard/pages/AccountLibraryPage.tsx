@@ -49,7 +49,7 @@ export const AccountLibraryPage = () => {
 
   return (
     <div className="product-page-shell min-h-full">
-      <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8 pb-6 md:pb-24">
+      <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8 pb-24 h-fit">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
             Account Library

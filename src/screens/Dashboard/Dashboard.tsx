@@ -36,8 +36,8 @@ import {
   PenTool,
   Gift,
   Folder,
-  Crown,
-  Sparkles,
+  User2,
+  BriefcaseBusiness,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
@@ -666,163 +666,71 @@ export const Dashboard = (): JSX.Element => {
   return (
     <TooltipProvider delayDuration={150}>
       <div className='h-screen max-h-screen w-screen overflow-hidden bg-background flex'>
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div
-          className='fixed inset-0 bg-fore/50 backdrop-blur-sm z-40 lg:hidden'
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+        {/* Mobile sidebar overlay */}
+        {sidebarOpen && (
+          <div
+            className='fixed inset-0 bg-fore/50 backdrop-blur-sm z-40 lg:hidden'
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
-      {/* Sidebar - Modern & Advanced */}
-      <div
-        className={`
+        {/* Sidebar - Modern & Advanced */}
+        <div
+          className={`
         fixed inset-y-0 left-0 z-50 bg-card/95 backdrop-blur-xl border-r border-border/40 flex flex-col overflow-hidden transition-all duration-200
         ${sidebarOpen ? "translate-x-0 w-72" : "-translate-x-full lg:translate-x-0"}
         ${isCollapsed && isDesktop ? "lg:w-20" : "lg:w-72"}
       `}
-      >
-        {/* Logo Section */}
-        <div className='h-20 flex items-center px-6 border-b border-border/40 relative shrink-0'>
-          <div className='absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-brand/50 to-transparent opacity-50' />
+        >
+          {/* Logo Section */}
+          <div className='h-20 flex items-center px-6 border-b border-border/40 relative shrink-0'>
+            <div className='absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-brand/50 to-transparent opacity-50' />
 
-          <div
-            className={`flex items-center gap-3 relative z-10 w-full ${isCollapsed ? "justify-center" : ""}`}
-          >
-            <div className='w-9 h-9 rounded-xl flex items-center justify-center shrink-0 overflow-clip'>
-              <img
-                src='/logo/logo.jpeg'
-                className='object-cover w-full h-full'
-                alt='logo'
-              />
-            </div>
-
-            {!isCollapsed && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className='flex flex-col min-w-0'
-              >
-                <span className='font-bold text-lg leading-none tracking-tight text-foreground truncate'>
-                  JobRaker
-                </span>
-              </motion.div>
-            )}
-
-            <Button
-              variant='ghost'
-              size='icon'
-              className='lg:hidden ml-auto text-muted-foreground hover:text-foreground'
-              onClick={() => setSidebarOpen(false)}
+            <div
+              className={`flex items-center gap-3 relative z-10 w-full ${isCollapsed ? "justify-center" : ""}`}
             >
-              <X className='w-5 h-5' />
-            </Button>
-          </div>
-        </div>
-
-        {/* Navigation - Categorized */}
-        <div className='custom-scrollbar flex-1 overflow-y-auto px-3 py-6 space-y-6'>
-          {/* Section 1: Main */}
-          <div className='space-y-1'>
-            {!isCollapsed && (
-              <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
-                Platform
-              </h4>
-            )}
-            {navigationItems
-              .filter((i) => ["overview", "analytics"].includes(i.id))
-              .map((item) => (
-             
-                  <SidebarItem
-                  key={item.id}
-                  item={item}
-                  isActive={currentPage === item.id}
-                  isCollapsed={isCollapsed}
-                  onClick={() => {
-                    navigate(`/dashboard/${item.id}`);
-                    setSidebarOpen(false);
-                  }}
+              <div className='w-9 h-9 rounded-xl flex items-center justify-center shrink-0 overflow-clip'>
+                <img
+                  src='/logo/logo.jpeg'
+                  className='object-cover w-full h-full'
+                  alt='logo'
                 />
-               
-              ))}
+              </div>
+
+              {!isCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className='flex flex-col min-w-0'
+                >
+                  <span className='font-bold text-lg leading-none tracking-tight text-foreground truncate'>
+                    JobRaker
+                  </span>
+                </motion.div>
+              )}
+
+              <Button
+                variant='ghost'
+                size='icon'
+                className='lg:hidden ml-auto text-muted-foreground hover:text-foreground'
+                onClick={() => setSidebarOpen(false)}
+              >
+                <X className='w-5 h-5' />
+              </Button>
+            </div>
           </div>
 
-          {/* Section 2: Tools */}
-          <div className='space-y-1'>
-            {!isCollapsed && (
-              <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
-                AI Studio
-              </h4>
-            )}
-            {navigationItems
-              .filter((i) => ["chat", "interview-studio"].includes(i.id))
-              .map((item) => (
-                <SidebarItem
-                  key={item.id}
-                  item={item}
-                  isActive={currentPage === item.id}
-                  isCollapsed={isCollapsed}
-                  onClick={() => {
-                    navigate(`/dashboard/${item.id}`);
-                    setSidebarOpen(false);
-                  }}
-                />
-              ))}
-          </div>
-
-          {/* Section 3: Career */}
-          <div className='space-y-1'>
-            {!isCollapsed && (
-              <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
-                Career
-              </h4>
-            )}
-            {navigationItems
-              .filter((i) => ["jobs", "application"].includes(i.id))
-              .map((item) => (
-                <SidebarItem
-                  key={item.id}
-                  item={item}
-                  isActive={currentPage === item.id}
-                  isCollapsed={isCollapsed}
-                  onClick={() => {
-                    navigate(`/dashboard/${item.id}`);
-                    setSidebarOpen(false);
-                  }}
-                />
-              ))}
-          </div>
-
-          {/* Section 4: Settings (Misc) */}
-          {navigationItems.some(
-            (i) =>
-              ![
-                "overview",
-                "analytics",
-                "chat",
-                "interview-studio",
-                "jobs",
-                "application",
-              ].includes(i.id),
-          ) && (
+          {/* Navigation - Categorized */}
+          <div className='custom-scrollbar flex-1 overflow-y-auto px-3 py-6 space-y-6'>
+            {/* Section 1: Main */}
             <div className='space-y-1'>
               {!isCollapsed && (
                 <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
-                  Account
+                  Platform
                 </h4>
               )}
               {navigationItems
-                .filter(
-                  (i) =>
-                    ![
-                      "overview",
-                      "analytics",
-                      "chat",
-                      "interview-studio",
-                      "jobs",
-                      "application",
-                    ].includes(i.id),
-                )
+                .filter((i) => ["overview", "analytics"].includes(i.id))
                 .map((item) => (
                   <SidebarItem
                     key={item.id}
@@ -836,112 +744,204 @@ export const Dashboard = (): JSX.Element => {
                   />
                 ))}
             </div>
-          )}
-        </div>
 
-        {/* Premium Upgrade - Sleek Banner */}
-        <div className='p-4 border-t border-border/40 bg-card/40 shrink-0'>
-          {sidebarSubscriptionTier === null ? (
-            <SidebarPlanCardSkeleton isCollapsed={isCollapsed} />
-          ) : (
-            <div
-              onClick={() => navigate("/dashboard/billing")}
-              className={`group relative overflow-hidden rounded-xl bg-gradient-to-b from-card to-background border border-border/60 cursor-pointer hover:border-brand/30 transition-all duration-300 ${isCollapsed ? "p-2 flex justify-center" : "p-4"}`}
-            >
-              <div className='absolute inset-0 bg-brand/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500' />
+            {/* Section 2: Tools */}
+            <div className='space-y-1'>
+              {!isCollapsed && (
+                <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
+                  AI Studio
+                </h4>
+              )}
+              {navigationItems
+                .filter((i) => ["chat", "interview-studio"].includes(i.id))
+                .map((item) => (
+                  <SidebarItem
+                    key={item.id}
+                    item={item}
+                    isActive={currentPage === item.id}
+                    isCollapsed={isCollapsed}
+                    onClick={() => {
+                      navigate(`/dashboard/${item.id}`);
+                      setSidebarOpen(false);
+                    }}
+                  />
+                ))}
+            </div>
 
-              <div
-                className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} relative z-10`}
-              >
+            {/* Section 3: Career */}
+            <div className='space-y-1'>
+              {!isCollapsed && (
+                <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
+                  Career
+                </h4>
+              )}
+              {navigationItems
+                .filter((i) => ["jobs", "application"].includes(i.id))
+                .map((item) => (
+                  <SidebarItem
+                    key={item.id}
+                    item={item}
+                    isActive={currentPage === item.id}
+                    isCollapsed={isCollapsed}
+                    onClick={() => {
+                      navigate(`/dashboard/${item.id}`);
+                      setSidebarOpen(false);
+                    }}
+                  />
+                ))}
+            </div>
+
+            {/* Section 4: Settings (Misc) */}
+            {navigationItems.some(
+              (i) =>
+                ![
+                  "overview",
+                  "analytics",
+                  "chat",
+                  "interview-studio",
+                  "jobs",
+                  "application",
+                ].includes(i.id),
+            ) && (
+              <div className='space-y-1'>
                 {!isCollapsed && (
-                  <div>
-                    <h3 className='text-sm font-bold text-foreground group-hover:text-brand transition-colors'>
-                      {sidebarPlanCard.title}
-                    </h3>
-                    <p className='text-[10px] text-muted-foreground mt-1'>
-                      {sidebarPlanCard.subtitle}
-                    </p>
+                  <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
+                    Account
+                  </h4>
+                )}
+                {navigationItems
+                  .filter(
+                    (i) =>
+                      ![
+                        "overview",
+                        "analytics",
+                        "chat",
+                        "interview-studio",
+                        "jobs",
+                        "application",
+                      ].includes(i.id),
+                  )
+                  .map((item) => (
+                    <SidebarItem
+                      key={item.id}
+                      item={item}
+                      isActive={currentPage === item.id}
+                      isCollapsed={isCollapsed}
+                      onClick={() => {
+                        navigate(`/dashboard/${item.id}`);
+                        setSidebarOpen(false);
+                      }}
+                    />
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* Premium Upgrade - Sleek Banner */}
+          <div className='p-4 border-t border-border/40 bg-card/40 shrink-0'>
+            {sidebarSubscriptionTier === null ? (
+              <SidebarPlanCardSkeleton isCollapsed={isCollapsed} />
+            ) : (
+              <div
+                onClick={() => navigate("/dashboard/billing")}
+                className={`group relative overflow-hidden rounded-xl bg-gradient-to-b from-card to-background border border-border/60 cursor-pointer hover:border-brand/30 transition-all duration-300 ${isCollapsed ? "p-2 flex justify-center" : "p-4"}`}
+              >
+                <div className='absolute inset-0 bg-brand/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500' />
+
+                <div
+                  className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} relative z-10`}
+                >
+                  {!isCollapsed && (
+                    <div>
+                      <h3 className='text-sm font-bold text-foreground group-hover:text-brand transition-colors'>
+                        {sidebarPlanCard.title}
+                      </h3>
+                      <p className='text-[10px] text-muted-foreground mt-1'>
+                        {sidebarPlanCard.subtitle}
+                      </p>
+                    </div>
+                  )}
+                  <div className='w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand'>
+                    <TrendingUp size={16} />
+                  </div>
+                </div>
+
+                {!isCollapsed && (
+                  <div className='mt-3 flex items-center gap-2 text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors'>
+                    <span>{sidebarPlanCard.cta}</span>
+                    <BreadcrumbChevron size={12} />
                   </div>
                 )}
-                <div className='w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand'>
-                  <TrendingUp size={16} />
-                </div>
               </div>
-
-              {!isCollapsed && (
-                <div className='mt-3 flex items-center gap-2 text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors'>
-                  <span>{sidebarPlanCard.cta}</span>
-                  <BreadcrumbChevron size={12} />
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Main Content - Responsive */}
-      <div
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-300  ${isDesktop ? (isCollapsed ? "lg:ml-20" : "lg:ml-72") : ""}`}
-      >
-        {/* Header - Responsive */}
-        <header className='sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/40 p-2 sm:p-3 lg:p-4'>
-          <div className='flex items-center justify-between gap-2'>
-            <div className='flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1'>
-              {/* Desktop collapse toggle */}
-              <Button
-                variant='ghost'
-                size='sm'
-                className='hidden lg:flex text-muted-foreground hover:text-brand hover:bg-brand/10 transition-all duration-200 p-2 mr-2'
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              >
-                <PanelLeft className='w-5 h-5' />
-              </Button>
-              {/* Mobile menu button */}
-              <Button
-                variant='ghost'
-                size='sm'
-                className='hidden text-brand hover:bg-brand/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2'
-                onClick={() => setSidebarOpen(true)}
-                title='Open sidebar navigation'
-                aria-label='Open sidebar'
-              >
-                <Menu className='w-4 h-4 sm:w-5 sm:h-5' />
-              </Button>
-
-              {/* Logo and Brand on mobile */}
-              {currentPage === "overview" ? (
-                <div className='flex sm:hidden items-center gap-2 shrink-0'>
-                  <div className='w-7 h-7 rounded-lg flex items-center justify-center shrink-0 overflow-clip'>
-                    <img
-                      src='/logo/logo.jpeg'
-                      className='object-cover w-full h-full'
-                      alt='JobRaker logo'
-                    />
-                  </div>
-                  <span className='text-foreground font-bold text-lg leading-none tracking-tight'>
-                    JobRaker
-                  </span>
-                </div>
-              ) : (
-                <span className='sm:hidden text-foreground font-bold text-lg leading-none tracking-tight truncate max-w-[14rem]'>
-                  {getCurrentBreadcrumb().split(" / ").slice(-1)[0]}
-                </span>
-              )}
-
-              {/* Breadcrumb Navigation (sm+) */}
-              <div className='hidden sm:flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm lg:text-base min-w-0 whitespace-nowrap overflow-hidden'>
-                <button
-                  type='button'
-                  onClick={() => navigate("/dashboard/overview")}
-                  className='rounded-md p-1 text-[#666666] transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40'
-                  title='Go to dashboard'
-                  aria-label='Go to dashboard'
+        {/* Main Content - Responsive */}
+        <div
+          className={`flex-1 flex flex-col min-w-0 transition-all duration-300  ${isDesktop ? (isCollapsed ? "lg:ml-20" : "lg:ml-72") : ""}`}
+        >
+          {/* Header - Responsive */}
+          <header className='sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/40 p-2 sm:p-3 lg:p-4'>
+            <div className='flex items-center justify-between gap-2'>
+              <div className='flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1'>
+                {/* Desktop collapse toggle */}
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='hidden lg:flex text-muted-foreground hover:text-brand hover:bg-brand/10 transition-all duration-200 p-2 mr-2'
+                  onClick={() => setIsCollapsed(!isCollapsed)}
+                  title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                  aria-label={
+                    isCollapsed ? "Expand sidebar" : "Collapse sidebar"
+                  }
                 >
-                  <Home className='w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 flex-shrink-0' />
-                </button>
-                {getBreadcrumbItems().map((crumb, index, array) => (
+                  <PanelLeft className='w-5 h-5' />
+                </Button>
+                {/* Mobile menu button */}
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='hidden text-brand hover:bg-brand/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2'
+                  onClick={() => setSidebarOpen(true)}
+                  title='Open sidebar navigation'
+                  aria-label='Open sidebar'
+                >
+                  <Menu className='w-4 h-4 sm:w-5 sm:h-5' />
+                </Button>
+
+                {/* Logo and Brand on mobile */}
+                {currentPage === "overview" ? (
+                  <div className='flex sm:hidden items-center gap-2 shrink-0'>
+                    <div className='w-7 h-7 rounded-lg flex items-center justify-center shrink-0 overflow-clip'>
+                      <img
+                        src='/logo/logo.jpeg'
+                        className='object-cover w-full h-full'
+                        alt='JobRaker logo'
+                      />
+                    </div>
+                    <span className='text-foreground font-bold text-lg leading-none tracking-tight'>
+                      JobRaker
+                    </span>
+                  </div>
+                ) : (
+                  <span className='sm:hidden text-foreground font-bold text-lg leading-none tracking-tight truncate max-w-[14rem]'>
+                    {getCurrentBreadcrumb().split(" / ").slice(-1)[0]}
+                  </span>
+                )}
+
+                {/* Breadcrumb Navigation (sm+) */}
+                <div className='hidden sm:flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm lg:text-base min-w-0 whitespace-nowrap overflow-hidden'>
+                  <button
+                    type='button'
+                    onClick={() => navigate("/dashboard/overview")}
+                    className='rounded-md p-1 text-[#666666] transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40'
+                    title='Go to dashboard'
+                    aria-label='Go to dashboard'
+                  >
+                    <Home className='w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 flex-shrink-0' />
+                  </button>
+                  {getBreadcrumbItems().map((crumb, index, array) => (
                     <React.Fragment key={index}>
                       {index > 0 && (
                         <BreadcrumbChevron className='w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground/70 flex-shrink-0' />
@@ -963,71 +963,106 @@ export const Dashboard = (): JSX.Element => {
                       )}
                     </React.Fragment>
                   ))}
-              </div>
-            </div>
-
-            {/* Header Actions - Responsive */}
-            <div className='flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0 whitespace-nowrap'>
-              {/* Credit Display */}
-              {profile && <CreditDisplay />}
-
-              {/* Quick Actions */}
-              <Button
-                variant='ghost'
-                size='sm'
-                className='text-muted-foreground hover:text-foreground hover:bg-muted hover:scale-110 transition-all duration-300 flex p-1 sm:p-2'
-                onClick={() => navigate("/dashboard/settings")}
-                title='Settings'
-                aria-label='Open settings'
-              >
-                <Settings className='w-4 h-4 sm:w-5 sm:h-5' />
-              </Button>
-
-              <Button
-                variant='ghost'
-                size='sm'
-                className='text-muted-foreground hover:text-foreground hover:bg-muted hover:scale-110 transition-all duration-300 relative p-1 sm:p-2'
-                onClick={() => navigate("/dashboard/notifications")}
-                title={
-                  unreadCount > 0
-                    ? `${unreadCount} unread notifications`
-                    : "Notifications"
-                }
-                aria-label={
-                  unreadCount > 0
-                    ? `${unreadCount} unread notifications`
-                    : "Open notifications"
-                }
-              >
-                <Bell className='w-4 h-4 sm:w-5 sm:h-5' />
-                {unreadCount > 0 && (
-                  <span className='absolute -top-1 -right-1 min-w-3 h-3 sm:min-w-4 sm:h-4 lg:min-w-5 lg:h-5 bg-brand/80 rounded-full text-foreground text-[10px] font-bold flex items-center justify-center px-[2px]'>
-                    <span className='hidden sm:inline text-xs max-w-[2.5rem] truncate'>
-                      {unreadCount}
-                    </span>
-                    <span className='sm:hidden'>•</span>
-                  </span>
-                )}
-              </Button>
-
-              {/* Profile Button - Responsive */}
-              {!profile ? (
-                <div className='hidden sm:flex items-center space-x-3'>
-                  <Skeleton className='w-8 h-8 lg:w-10 lg:h-10 rounded-full' />
-                  <div className='hidden lg:flex flex-col space-y-1'>
-                    <Skeleton className='h-3 w-28' />
-                    <Skeleton className='h-3 w-20' />
-                  </div>
                 </div>
-              ) : (
+              </div>
+
+              {/* Header Actions - Responsive */}
+              <div className='flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0 whitespace-nowrap'>
+                {/* Credit Display */}
+                {profile && <CreditDisplay />}
+
+                {/* Quick Actions */}
                 <Button
                   variant='ghost'
-                  className='hidden sm:flex items-center space-x-2 sm:space-x-3 text-muted-foreground hover:text-foreground hover:bg-muted hover:scale-105 transition-all duration-300 sm:p-2'
+                  size='sm'
+                  className='text-muted-foreground hover:text-foreground hover:bg-muted hover:scale-110 transition-all duration-300 flex p-1 sm:p-2'
+                  onClick={() => navigate("/dashboard/settings")}
+                  title='Settings'
+                  aria-label='Open settings'
+                >
+                  <Settings className='w-4 h-4 sm:w-5 sm:h-5' />
+                </Button>
+
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='text-muted-foreground hover:text-foreground hover:bg-muted hover:scale-110 transition-all duration-300 relative p-1 sm:p-2'
+                  onClick={() => navigate("/dashboard/notifications")}
+                  title={
+                    unreadCount > 0
+                      ? `${unreadCount} unread notifications`
+                      : "Notifications"
+                  }
+                  aria-label={
+                    unreadCount > 0
+                      ? `${unreadCount} unread notifications`
+                      : "Open notifications"
+                  }
+                >
+                  <Bell className='w-4 h-4 sm:w-5 sm:h-5' />
+                  {unreadCount > 0 && (
+                    <span className='absolute -top-1 -right-1 min-w-3 h-3 sm:min-w-4 sm:h-4 lg:min-w-5 lg:h-5 bg-brand/80 rounded-full text-foreground text-[10px] font-bold flex items-center justify-center px-[2px]'>
+                      <span className='hidden sm:inline text-xs max-w-[2.5rem] truncate'>
+                        {unreadCount}
+                      </span>
+                      <span className='sm:hidden'>•</span>
+                    </span>
+                  )}
+                </Button>
+
+                {/* Profile Button - Responsive */}
+                {!profile ? (
+                  <div className='hidden sm:flex items-center space-x-3'>
+                    <Skeleton className='w-8 h-8 lg:w-10 lg:h-10 rounded-full' />
+                    <div className='hidden lg:flex flex-col space-y-1'>
+                      <Skeleton className='h-3 w-28' />
+                      <Skeleton className='h-3 w-20' />
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    variant='ghost'
+                    className='hidden sm:flex items-center space-x-2 sm:space-x-3 text-muted-foreground hover:text-foreground hover:bg-muted hover:scale-105 transition-all duration-300 sm:p-2'
+                    onClick={() => navigate("/dashboard/profile")}
+                    title='Profile'
+                    aria-label='Open profile'
+                  >
+                    <div className='w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-brand/80 rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300'>
+                      {avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={avatarUrl}
+                          alt='Avatar'
+                          className='w-full h-full object-cover'
+                        />
+                      ) : (
+                        <span className='text-foreground font-bold text-xs sm:text-sm lg:text-base'>
+                          {initials}
+                        </span>
+                      )}
+                    </div>
+                    <div className='text-right hidden lg:block max-w-[200px] overflow-hidden'>
+                      <p className='text-foreground font-medium text-xs sm:text-sm truncate'>
+                        {`${(profile?.first_name || "").trim()} ${(profile?.last_name || "").trim()}`.trim() ||
+                          "Your Name"}
+                      </p>
+                      <p className='text-muted-foreground text-xs truncate'>
+                        {email || "your@email"}
+                      </p>
+                    </div>
+                  </Button>
+                )}
+
+                {/* Mobile profile button */}
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='sm:hidden text-muted-foreground hover:text-foreground hover:bg-muted hover:scale-110 transition-all duration-300 p-1'
                   onClick={() => navigate("/dashboard/profile")}
                   title='Profile'
                   aria-label='Open profile'
                 >
-                  <div className='w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-brand/80 rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300'>
+                  <div className='w-6 h-6 bg-gradient-to-r from-brand to-background rounded-full overflow-hidden flex items-center justify-center'>
                     {avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -1036,185 +1071,152 @@ export const Dashboard = (): JSX.Element => {
                         className='w-full h-full object-cover'
                       />
                     ) : (
-                      <span className='text-foreground font-bold text-xs sm:text-sm lg:text-base'>
+                      <span className='text-foreground font-bold text-xs'>
                         {initials}
                       </span>
                     )}
                   </div>
-                  <div className='text-right hidden lg:block max-w-[200px] overflow-hidden'>
-                    <p className='text-foreground font-medium text-xs sm:text-sm truncate'>
-                      {`${(profile?.first_name || "").trim()} ${(profile?.last_name || "").trim()}`.trim() ||
-                        "Your Name"}
-                    </p>
-                    <p className='text-muted-foreground text-xs truncate'>
-                      {email || "your@email"}
-                    </p>
-                  </div>
                 </Button>
-              )}
-
-              {/* Mobile profile button */}
-              <Button
-                variant='ghost'
-                size='sm'
-                className='sm:hidden text-muted-foreground hover:text-foreground hover:bg-muted hover:scale-110 transition-all duration-300 p-1'
-                onClick={() => navigate("/dashboard/profile")}
-                title='Profile'
-                aria-label='Open profile'
-              >
-                <div className='w-6 h-6 bg-gradient-to-r from-brand to-background rounded-full overflow-hidden flex items-center justify-center'>
-                  {avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={avatarUrl}
-                      alt='Avatar'
-                      className='w-full h-full object-cover'
-                    />
-                  ) : (
-                    <span className='text-foreground font-bold text-xs'>
-                      {initials}
-                    </span>
-                  )}
-                </div>
-              </Button>
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* Page Content - Responsive */}
-        <div
-          className={`flex-1 flex flex-col min-h-0 relative ${
-            ["chat", "interview-studio"].includes(currentPage)
-              ? "overflow-hidden"
-              : "overflow-auto"
-          } ${!isDesktop ? "pb-20" : ""}`}
-        >
-          <AnimatePresence mode='wait'>
-            <motion.div
-              key={currentPage}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-              className='flex-1 flex flex-col h-full'
-            >
-              {renderPageContent()}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* Mobile Bottom Tab Bar */}
-      {!isDesktop && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border/40 px-2 grid grid-cols-5 h-16 select-none shadow-[0_-8px_32px_rgba(0,0,0,0.4)]">
-          {/* Home Tab */}
-          <button
-            onClick={() => navigate("/dashboard/overview")}
-            className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
-              currentPage === "overview"
-                ? "text-brand scale-105"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+          {/* Page Content - Responsive */}
+          <div
+            className={`flex-1 flex flex-col min-h-0 relative ${
+              ["chat", "interview-studio"].includes(currentPage)
+                ? "overflow-hidden"
+                : "overflow-auto"
+            } ${!isDesktop ? "pb-20" : ""}`}
           >
-            <Home className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] font-semibold">Home</span>
-          </button>
-
-          {/* Account Tab */}
-          <button
-            onClick={() => navigate("/dashboard/account")}
-            className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
-              currentPage === "account"
-                ? "text-brand scale-105"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Folder className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] font-semibold">Account</span>
-          </button>
-
-          {/* Career Tab (Center highlighted squircle button) */}
-          <div className="relative flex justify-center items-center -mt-6">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowCareerPopup(!showCareerPopup);
-              }}
-              className={`w-12 h-12 rounded-[14px] bg-gradient-to-br from-brand via-brand/90 to-brand/75 flex items-center justify-center text-black shadow-[0_0_20px_rgba(29,255,0,0.45)] active:scale-95 transition-all duration-300 hover:shadow-[0_0_25px_rgba(29,255,0,0.6)] z-50 ${
-                showCareerPopup ? "rotate-45" : ""
-              }`}
-              title="Career actions"
-              aria-label="Open Career menu"
-            >
-              <Sparkles className={`w-5 h-5 transition-transform duration-300 ${showCareerPopup ? "-rotate-45" : ""}`} />
-            </button>
-
-            {/* Popup Menu */}
-            <AnimatePresence>
-              {showCareerPopup && (
-                <motion.div
-                  initial={{ opacity: 0, y: 15, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 15, scale: 0.9 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  className="absolute bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center pointer-events-auto"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Jobs Pill */}
-                  <button
-                    onClick={() => {
-                      navigate("/dashboard/jobs");
-                      setShowCareerPopup(false);
-                    }}
-                    className="absolute right-2 flex w-32 translate-x-[-18px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(29,255,0,0.1)] shrink-0 text-foreground text-sm font-semibold"
-                  >
-                    <Briefcase className="w-4 h-4 text-brand" />
-                    <span>Jobs</span>
-                  </button>
-
-                  {/* Application Pill */}
-                  <button
-                    onClick={() => {
-                      navigate("/dashboard/application");
-                      setShowCareerPopup(false);
-                    }}
-                    className="absolute left-2 flex w-40 translate-x-[18px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(29,255,0,0.1)] shrink-0 text-foreground text-sm font-semibold"
-                  >
-                    <Users className="w-4 h-4 text-brand" />
-                    <span>Applications</span>
-                  </button>
-                </motion.div>
-              )}
+            <AnimatePresence mode='wait'>
+              <motion.div
+                key={currentPage}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className='flex-1 flex flex-col h-full'
+              >
+                {renderPageContent()}
+              </motion.div>
             </AnimatePresence>
           </div>
-
-          {/* Chat Tab */}
-          <button
-            onClick={() => navigate("/dashboard/chat")}
-            className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
-              currentPage === "chat"
-                ? "text-brand scale-105"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Crown className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] font-semibold">Chat</span>
-          </button>
-
-          {/* Analytics Tab */}
-          <button
-            onClick={() => navigate("/dashboard/analytics")}
-            className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
-              currentPage === "analytics"
-                ? "text-brand scale-105"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <User className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] font-semibold">Analytics</span>
-          </button>
         </div>
-      )}
+
+        {/* Mobile Bottom Tab Bar */}
+        {!isDesktop && (
+          <div className='fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border/40 px-2 grid grid-cols-5 h-16 select-none shadow-[0_-8px_32px_rgba(0,0,0,0.4)]'>
+            {/* Home Tab */}
+            <button
+              onClick={() => navigate("/dashboard/overview")}
+              className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
+                currentPage === "overview"
+                  ? "text-brand scale-105"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Home className='w-5 h-5 mb-0.5' />
+              <span className='text-[10px] font-semibold'>Home</span>
+            </button>
+
+            {/* Account Tab */}
+            <button
+              onClick={() => navigate("/dashboard/account")}
+              className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
+                currentPage === "account"
+                  ? "text-brand scale-105"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <User2 className='w-5 h-5 mb-0.5' />
+              <span className='text-[10px] font-semibold'>Account</span>
+            </button>
+
+            {/* Career Tab (Center highlighted squircle button) */}
+            <div className='relative flex justify-center items-center -mt-6'>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCareerPopup(!showCareerPopup);
+                }}
+                className={`w-12 h-12 rounded-[14px] bg-gradient-to-br from-brand via-brand/90 to-brand/75 flex items-center justify-center text-black shadow-[0_0_20px_rgba(29,255,0,0.45)] active:scale-95 transition-all duration-300 hover:shadow-[0_0_25px_rgba(29,255,0,0.6)] z-50 ${
+                  showCareerPopup ? "rotate-45" : ""
+                }`}
+                title='Career actions'
+                aria-label='Open Career menu'
+              >
+                <BriefcaseBusiness
+                  className={`w-5 h-5 transition-transform duration-300 ${showCareerPopup ? "-rotate-45" : ""}`}
+                />
+              </button>
+
+              {/* Popup Menu */}
+              <AnimatePresence>
+                {showCareerPopup && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 15, scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    className='absolute bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center pointer-events-auto'
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Jobs Pill */}
+                    <button
+                      onClick={() => {
+                        navigate("/dashboard/jobs");
+                        setShowCareerPopup(false);
+                      }}
+                      className='absolute right-2 flex w-32 translate-x-[-18px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(29,255,0,0.1)] shrink-0 text-foreground text-sm font-semibold'
+                    >
+                      <Briefcase className='w-4 h-4 text-brand' />
+                      <span>Jobs</span>
+                    </button>
+
+                    {/* Application Pill */}
+                    <button
+                      onClick={() => {
+                        navigate("/dashboard/application");
+                        setShowCareerPopup(false);
+                      }}
+                      className='absolute left-2 flex w-40 translate-x-[18px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(29,255,0,0.1)] shrink-0 text-foreground text-sm font-semibold'
+                    >
+                      <Users className='w-4 h-4 text-brand' />
+                      <span>Applications</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Chat Tab */}
+            <button
+              onClick={() => navigate("/dashboard/chat")}
+              className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
+                currentPage === "chat"
+                  ? "text-brand scale-105"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <MessageSquare className='w-5 h-5 mb-0.5' />
+              <span className='text-[10px] font-semibold'>Chat</span>
+            </button>
+
+            {/* Analytics Tab */}
+            <button
+              onClick={() => navigate("/dashboard/analytics")}
+              className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
+                currentPage === "analytics"
+                  ? "text-brand scale-105"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <TrendingUp className='w-5 h-5 mb-0.5' />
+              <span className='text-[10px] font-semibold'>Analytics</span>
+            </button>
+          </div>
+        )}
 
         <LowCreditsPromoModal
           open={lowCreditModalOpen}

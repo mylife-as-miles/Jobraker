@@ -182,7 +182,7 @@ export function JobTaskMonitor({
                       type='button'
                       variant='outline'
                       size='sm'
-                      className='h-8 border-foreground/15 bg-foreground/5 px-2 text-xs text-foreground/70 hover:border-brand/40 hover:text-brand'
+                      className='h-8 border-red-600/60 text-red-600 bg-red-600/15 hover:bg-red-600/30'
                       onClick={() => onStop(task)}
                     >
                       <Square className='mr-1.5 h-3.5 w-3.5' />
@@ -207,12 +207,14 @@ export function JobTaskMonitor({
                       variant='ghost'
                       size='sm'
                       className='h-8 w-8 p-0 text-foreground/40 hover:bg-foreground/5 hover:text-foreground/75'
-                      onClick={() => setDismissedTaskIds((prev) => {
-                        const next = new Set(prev);
-                        next.add(task.id);
-                        return next;
-                      })}
-                      title="Dismiss task"
+                      onClick={() =>
+                        setDismissedTaskIds((prev) => {
+                          const next = new Set(prev);
+                          next.add(task.id);
+                          return next;
+                        })
+                      }
+                      title='Dismiss task'
                     >
                       <X className='h-3.5 w-3.5' />
                     </Button>

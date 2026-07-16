@@ -5,6 +5,7 @@ import Joyride, {
   Step,
   TooltipRenderProps,
 } from "react-joyride";
+import { X } from "lucide-react";
 import { useProductTour } from "./TourProvider";
 import { getProxiedLogoUrl } from "../lib/utils";
 
@@ -64,9 +65,9 @@ const BrandedTooltip: React.FC<TooltipRenderProps> = ({
         {...closeProps}
         {...skipProps}
         title='Skip tour'
-        className='absolute -top-3 -right-3 h-8 w-8 rounded-full bg-brand/15 hover:bg-brand/30 text-brand text-lg font-bold flex items-center justify-center shadow-inner'
+        className='absolute top-3 right-3 h-8 w-8 rounded-full bg-brand/15 hover:bg-brand/30 text-brand text-lg font-bold flex items-center justify-center shadow-inner'
       >
-        ×
+        <X size={16} />
       </button>
       <div className='flex items-center gap-3 mb-2'>
         <div className='h-8 w-8 rounded-lg bg-brand/15 border border-brand/30 flex items-center justify-center text-brand text-xs font-bold'>
