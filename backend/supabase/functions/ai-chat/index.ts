@@ -488,7 +488,7 @@ function buildProfileSnapshot(profile: Record<string, unknown> | null): string {
 
 const PUBLIC_PROFILE_SITE_FIELDS =
   "id, user_id, slug, is_public, theme, headline, intro, cta_label, contact_email, links, design, section_order, views, created_at, updated_at";
-const PUBLIC_PROFILE_THEMES = new Set(["obsidian", "atelier", "prism", "mono"]);
+const PUBLIC_PROFILE_THEMES = new Set(["obsidian", "atelier", "prism", "mono", "navigator"]);
 const PUBLIC_PROFILE_SECTIONS = new Set(["hero", "signal", "experience", "skills", "education", "contact"]);
 const PUBLIC_PROFILE_BASE_URL =
   Deno.env.get("PUBLIC_APP_URL") ||
@@ -2056,7 +2056,7 @@ const AGENT_FUNCTION_DECLARATIONS = [
         is_public: { type: "boolean" },
         theme: {
           type: "string",
-          description: "One of obsidian, atelier, prism, or mono.",
+          description: "One of obsidian, atelier, prism, mono, or navigator.",
         },
         headline: { type: "string" },
         intro: { type: "string" },

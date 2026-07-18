@@ -15,6 +15,7 @@ import {
   Linkedin,
   Github,
 } from "lucide-react";
+import { NavigatorPortfolioTemplate } from "./NavigatorPortfolioTemplate";
 
 type PublicProfilePayload = {
   site: {
@@ -78,6 +79,7 @@ const THEMES: Record<string, { accent: string; alt: string; bg: string; text: st
   atelier: { accent: "#e6c27a", alt: "#78f0ff", bg: "#090806", text: "#fff8ea" },
   prism: { accent: "#76ffea", alt: "#ff6bd6", bg: "#030615", text: "#f5fbff" },
   mono: { accent: "#ffffff", alt: "#a8ff60", bg: "#050505", text: "#f7f7f0" },
+  navigator: { accent: "#1dff00", alt: "#d8ff5b", bg: "#030403", text: "#f7fff5" },
 };
 const DAY_LABELS: Record<string, string> = {
   "0": "Sun",
@@ -670,6 +672,19 @@ export const PublicProfilePage = () => {
         }
       : null,
   ].filter(Boolean) as Array<{ label: string; href: string; icon: any }>;
+
+  if (site.theme === "navigator") {
+    return (
+      <NavigatorPortfolioTemplate
+        site={site}
+        profile={profile}
+        experiences={experiences}
+        education={education}
+        skills={skills}
+        theme={theme}
+      />
+    );
+  }
 
   return (
     <main

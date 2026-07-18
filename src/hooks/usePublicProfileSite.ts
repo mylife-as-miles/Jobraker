@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "../lib/supabaseClient";
 import type { Profile } from "./useProfileSettings";
 
-export type PublicProfileTheme = "obsidian" | "atelier" | "prism" | "mono";
+export type PublicProfileTheme = "obsidian" | "atelier" | "prism" | "mono" | "navigator";
 
 export interface PublicProfileSite {
   id: string;

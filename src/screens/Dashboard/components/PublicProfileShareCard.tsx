@@ -1,4 +1,4 @@
-import { Copy, Crown, ExternalLink, Eye, Globe2, Palette, Sparkles } from "lucide-react";
+import { Compass, Copy, Crown, ExternalLink, Eye, Globe2, Palette, Sparkles } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { useToast } from "../../../components/ui/toast";
@@ -11,11 +11,13 @@ const THEME_OPTIONS: Array<{
   value: PublicProfileTheme;
   label: string;
   note: string;
+  icon: typeof Palette;
 }> = [
-  { value: "obsidian", label: "Obsidian", note: "dark, cinematic, neon" },
-  { value: "atelier", label: "Atelier", note: "editorial, warm, refined" },
-  { value: "prism", label: "Prism", note: "glass, color, motion" },
-  { value: "mono", label: "Mono", note: "sharp, minimal, senior" },
+  { value: "obsidian", label: "Obsidian", note: "dark, cinematic, neon", icon: Palette },
+  { value: "atelier", label: "Atelier", note: "editorial, warm, refined", icon: Palette },
+  { value: "prism", label: "Prism", note: "glass, color, motion", icon: Palette },
+  { value: "mono", label: "Mono", note: "sharp, minimal, senior", icon: Palette },
+  { value: "navigator", label: "Navigator", note: "story-led, lively, JobRaker green", icon: Compass },
 ];
 
 export function PublicProfileShareCard({ profile }: { profile: Profile | null }) {
@@ -119,20 +121,21 @@ export function PublicProfileShareCard({ profile }: { profile: Profile | null })
           <div className="mb-4 grid grid-cols-2 gap-2">
             {THEME_OPTIONS.map((option) => {
               const active = (site?.theme || "obsidian") === option.value;
+              const ThemeIcon = option.icon;
               return (
                 <button
                   key={option.value}
                   type="button"
                   disabled={saving}
                   onClick={() => void handleTheme(option.value)}
-                  className={`rounded-xl border p-3 text-left transition-all active:scale-[0.98] ${
+                  className={`rounded-xl border p-3 text-left transition-all active:scale-[0.98] ${option.value === "navigator" ? "col-span-2" : ""} ${
                     active
                       ? "border-brand/40 bg-brand/10 text-foreground"
                       : "border-foreground/10 bg-background/50 text-muted-foreground hover:border-brand/25 hover:text-foreground"
                   }`}
                 >
                   <div className="flex items-center gap-2 text-xs font-semibold">
-                    <Palette className="h-3.5 w-3.5 text-brand" />
+                    <ThemeIcon className="h-3.5 w-3.5 text-brand" />
                     {option.label}
                   </div>
                   <p className="mt-1 text-[10px] leading-relaxed opacity-75">
