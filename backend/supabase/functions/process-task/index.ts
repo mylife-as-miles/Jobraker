@@ -137,6 +137,9 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
   const requestedLimit = params.limit || 10;
   const sourceFocus = params.sources || [];
   const targetDomains = params.targetDomains || [];
+  const freshnessDays = Number.isFinite(Number(params.freshnessDays))
+    ? Math.max(1, Math.min(365, Math.floor(Number(params.freshnessDays))))
+    : 30;
   const agentRunId = params.agent_run_id;
 
   await progress.updateProgress(0, 3, "Resolving search limits...");
@@ -163,6 +166,7 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
       limit: effectiveLimit,
       sourceFocus,
       targetDomains,
+      freshnessDays,
     },
     async (batch) => {
       const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
@@ -235,6 +239,9 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
   return {
     count: displayableJobCount,
     jobsInserted: totalInserted,
+    newCount: totalInserted,
+    duplicateCount: Math.max(0, discoveredJobs.length - totalInserted),
+    displayedCount: displayableJobCount,
     jobsBilled: creditsCharged,
     warnings,
     jobs: discoveredJobs.map((job: any) => ({

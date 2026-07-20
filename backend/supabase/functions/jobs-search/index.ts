@@ -156,6 +156,9 @@ Deno.serve(async (req) => {
     const requestedLimit = Number.isFinite(Number(body?.limit))
       ? Math.max(1, Math.floor(Number(body.limit)))
       : 10;
+    const freshnessDays = Number.isFinite(Number(body?.freshnessDays))
+      ? Math.max(1, Math.min(365, Math.floor(Number(body.freshnessDays))))
+      : 30;
 
     if (!searchQuery) {
       return new Response(JSON.stringify({ error: "searchQuery is required" }), {
@@ -278,6 +281,7 @@ Deno.serve(async (req) => {
             limit: requestedLimit,
             sources: sourceFocus,
             targetDomains,
+            freshnessDays,
             agent_run_id: agentRunId,
             search_started_at: searchStartedAt,
           },
@@ -385,6 +389,7 @@ Deno.serve(async (req) => {
           limit: effectiveLimit,
           sourceFocus,
           targetDomains,
+          freshnessDays,
         },
         async (batch) => {
           const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
@@ -500,6 +505,9 @@ Deno.serve(async (req) => {
         creditsBalance,
         subscriptionTier,
         jobsInserted,
+        newCount: jobsInserted,
+        duplicateCount: Math.max(0, discoveredJobs.length - jobsInserted),
+        displayedCount: displayableJobCount,
         displayableJobCount,
         jobsBilled: actualCredits,
         creditsDeducted,
@@ -523,6 +531,7 @@ Deno.serve(async (req) => {
         count: discoveredJobs.length,
         sourceFocus,
         targetDomains,
+        freshnessDays,
         warnings,
       }),
       {

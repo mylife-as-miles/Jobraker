@@ -23,6 +23,44 @@ const DEFAULT_RTRVR_TIMEOUT_MS = 300_000;
 const DEFAULT_MAX_STEPS_OVERRIDE = 200;
 const MAX_MAX_STEPS_OVERRIDE = 500;
 
+async function dispatchAutoApplyQueue(applicationId: string): Promise<{
+  dispatched: boolean;
+  status?: number;
+  reason?: string;
+}> {
+  const baseUrl = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  if (!baseUrl || !serviceRoleKey) {
+    return { dispatched: false, reason: "queue_dispatch_configuration_missing" };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+  try {
+    const response = await fetch(`${baseUrl}/functions/v1/process-auto-apply-queue`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({ applicationId, source: "apply-to-jobs" }),
+      signal: controller.signal,
+    });
+    return {
+      dispatched: response.ok,
+      status: response.status,
+      reason: response.ok ? undefined : "queue_processor_rejected_request",
+    };
+  } catch (error) {
+    return {
+      dispatched: false,
+      reason: error instanceof Error ? error.message : "queue_dispatch_failed",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 const APPLY_AUTOMATION_HINTS = `[JobRaker automation — prioritize these]
 1) Cookie/consent: Dismiss any cookie banner, “Manage preferences”, or privacy overlay first (Accept, Accept all, Reject non-essential, Save & close, or Close/X) so the form and file inputs are not covered.
 2) Resume required: Parameters include a resume file URL (resume). On iCIMS and similar ATS, use device upload (“My Computer”, “Upload”, “Choose file”) and attach that file; prefer PDF; wait until the upload succeeds and validation clears before Next/Continue.
@@ -1129,12 +1167,25 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Dispatch directly so a healthy request does not depend solely on pg_net
+    // trigger/cron delivery. The durable waiting row remains the source of truth,
+    // and the trigger plus cron still provide retry coverage if this call fails.
+    const queueDispatch = await dispatchAutoApplyQueue(applicationId);
+    if (!queueDispatch.dispatched) {
+      console.warn("apply-to-jobs: direct queue dispatch deferred", {
+        applicationId,
+        status: queueDispatch.status ?? null,
+        reason: queueDispatch.reason ?? "unknown",
+      });
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
         enqueued: true,
         automation: data,
         provider: data,
+        queue_dispatch: queueDispatch,
         billing: billingForResponse,
         concurrency: {
           base_limit: concurrencyResult.baseLimit,

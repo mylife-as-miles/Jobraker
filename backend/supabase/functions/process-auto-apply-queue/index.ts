@@ -106,6 +106,98 @@ async function refundQueuedAutoApplyLaunch(
   }
 }
 
+async function recoverStaleAutoApplyRows(supabase: any): Promise<{
+  requeued: number;
+  failed: number;
+}> {
+  const launchingCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const workerCutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  const { data: staleRows, error } = await supabase
+    .from("applications")
+    .select(
+      "id, user_id, job_id, agent_run_id, provider_status, retry_count, updated_at, automation_heartbeat_at",
+    )
+    .eq("canonical_stage", "queued")
+    .in("provider_status", ["launching", "waiting_worker"])
+    .order("updated_at", { ascending: true })
+    .limit(200);
+
+  if (error) {
+    console.error("[process-auto-apply-queue] stale recovery query failed", error);
+    return { requeued: 0, failed: 0 };
+  }
+
+  let requeued = 0;
+  let failed = 0;
+  for (const row of staleRows ?? []) {
+    const staleCutoff = row.provider_status === "launching"
+      ? new Date(launchingCutoff).getTime()
+      : new Date(workerCutoff).getTime();
+    const updatedAt = new Date(row.updated_at).getTime();
+    if (!Number.isFinite(updatedAt) || updatedAt >= staleCutoff) {
+      continue;
+    }
+    const heartbeatAt = row.automation_heartbeat_at
+      ? new Date(row.automation_heartbeat_at).getTime()
+      : 0;
+    if (heartbeatAt > Date.now() - 10 * 60 * 1000) {
+      continue;
+    }
+
+    const nextRetry = Number(row.retry_count || 0) + 1;
+    if (nextRetry <= 3) {
+      const { error: requeueError } = await supabase
+        .from("applications")
+        .update({
+          provider_status: "waiting",
+          retry_count: nextRetry,
+          failure_reason: `Recovered stale ${row.provider_status} queue state; retrying (${nextRetry}/3).`,
+          automation_claimed_by: null,
+          automation_lease_token: null,
+          automation_lease_expires_at: null,
+          automation_heartbeat_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.id)
+        .eq("canonical_stage", "queued")
+        .eq("provider_status", row.provider_status);
+      if (!requeueError) requeued += 1;
+      continue;
+    }
+
+    const reason = `Automation did not leave ${row.provider_status} after 3 recovery attempts.`;
+    const { error: failError } = await supabase
+      .from("applications")
+      .update({
+        canonical_stage: "failed",
+        status: "Failed",
+        provider_status: "failed",
+        retry_count: nextRetry,
+        failure_reason: reason,
+        automation_claimed_by: null,
+        automation_lease_token: null,
+        automation_lease_expires_at: null,
+        automation_heartbeat_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", row.id)
+      .eq("canonical_stage", "queued")
+      .eq("provider_status", row.provider_status);
+    if (failError) continue;
+
+    if (row.job_id) {
+      await supabase
+        .from("jobs")
+        .update({ canonical_status: "failed", updated_at: new Date().toISOString() })
+        .eq("id", row.job_id);
+    }
+    await refundQueuedAutoApplyLaunch(supabase, row, row.id, reason);
+    failed += 1;
+  }
+
+  return { requeued, failed };
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
   if (req.method === "OPTIONS") {
@@ -137,6 +229,11 @@ serve(async (req) => {
 
     const skyvernKey = Deno.env.get("SKYVERN_API_KEY");
 
+    const recovery = await recoverStaleAutoApplyRows(supabase);
+    if (recovery.requeued > 0 || recovery.failed > 0) {
+      console.info("[process-auto-apply-queue] stale recovery complete", recovery);
+    }
+
     // 2. Resolve platform-wide concurrency limit
     const rawLimit = Deno.env.get("AUTO_APPLY_MAX_CONCURRENCY") || "10";
     const platformConcurrencyLimit = parseInt(rawLimit, 10) || 10;
@@ -161,7 +258,7 @@ serve(async (req) => {
           .filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
       : [];
     if (ids.length === 0) {
-      return new Response(JSON.stringify({ success: true, launched: 0 }), { status: 200, headers: corsHeaders });
+      return new Response(JSON.stringify({ success: true, launched: 0, recovery }), { status: 200, headers: corsHeaders });
     }
 
     console.log(`[process-auto-apply-queue] Found ${ids.length} candidates to process.`);
@@ -417,7 +514,7 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, launched: launchedCount }), {
+    return new Response(JSON.stringify({ success: true, launched: launchedCount, recovery }), {
       status: 200,
       headers: corsHeaders,
     });

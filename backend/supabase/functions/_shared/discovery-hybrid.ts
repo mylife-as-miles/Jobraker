@@ -4,6 +4,11 @@ import {
   type TrackedCompanySeed,
 } from "./candidate-memory.ts";
 import {
+  normalizeFreshnessDays,
+  resolveFirecrawlTimeFilter,
+  resolveRawCandidatePoolLimit,
+} from "./discovery-freshness.ts";
+import {
   firecrawlFetch,
   resolveFirecrawlApiKey,
   withRetry,
@@ -71,6 +76,8 @@ interface FirecrawlDiscoveryArgs {
   searchQuery: string;
   location: string;
   limit: number;
+  /** Only request recently indexed web results. Defaults to the last month. */
+  freshnessDays?: number;
   sourceFocus?: PublicJobSource[];
   targetDomains?: string[];
 }
@@ -209,7 +216,6 @@ const KNOWN_ATS_HINTS: Array<{ kind: SourceKind; match: RegExp }> = [
 
 const MAX_FIRECRAWL_SEEDS = 8;
 const MAX_FIRECRAWL_RESULTS_PER_SEED = 12;
-const MAX_RAW_CANDIDATES = 24;
 const MAX_DIRECT_FETCHES = 6;
 const MAX_VERIFICATION_POOL = 8;
 const FIRECRAWL_SEARCH_TIMEOUT_MS = 20000;
@@ -1529,11 +1535,14 @@ async function runSeedSearch(
   seed: SearchSeed,
   apiKey: string,
   settings: JobSourceSettings,
+  freshnessDays = 30,
 ): Promise<FirecrawlSearchCandidate[]> {
+  const tbs = resolveFirecrawlTimeFilter(freshnessDays);
   const payload = {
     query: seed.query,
     limit: seed.limit,
     sources: ["web"],
+    tbs,
     scrapeOptions: {
       formats: ["markdown", "links"],
       onlyMainContent: true,
@@ -2782,6 +2791,7 @@ async function unrestrictedWebSearch(
   searchQuery: string,
   location: string,
   limit: number,
+  freshnessDays = 30,
 ): Promise<DiscoveryJob[]> {
   let apiKey: string;
   try {
@@ -2796,6 +2806,7 @@ async function unrestrictedWebSearch(
     query: `${searchQuery} ${loc} job posting (hiring OR careers OR apply) -inurl:search -inurl:login`,
     limit: Math.min(limit * 2, 30),
     sources: ["web"],
+    tbs: resolveFirecrawlTimeFilter(freshnessDays),
     scrapeOptions: {
       formats: ["markdown", "links"],
       onlyMainContent: true,
@@ -2976,6 +2987,33 @@ export async function discoverJobsFirecrawl(
     ...(args.targetDomains || []),
     ...extractTargetDomainsFromText(args.searchQuery),
   ]);
+  const freshnessDays = normalizeFreshnessDays(args.freshnessDays);
+  const seenJobUrls = new Set<string>();
+  const { data: seenRows, error: seenRowsError } = await args.serviceClient
+    .from("jobs")
+    .select("apply_url, source_id")
+    .eq("user_id", args.userId)
+    .limit(5000);
+  if (seenRowsError) {
+    console.warn("firecrawl.discovery.seen_jobs_load_failed", {
+      userId: args.userId,
+      error: seenRowsError.message || String(seenRowsError),
+    });
+  } else {
+    for (const row of seenRows ?? []) {
+      const applyUrl = normalizeCanonicalJobUrl(asString(row.apply_url));
+      if (applyUrl) seenJobUrls.add(applyUrl);
+      const sourceId = asString(row.source_id);
+      if (sourceId?.startsWith("job:")) {
+        const sourceUrl = normalizeCanonicalJobUrl(sourceId.slice(4));
+        if (sourceUrl) seenJobUrls.add(sourceUrl);
+      }
+    }
+  }
+  const isUnseenCandidate = (candidate: { url: string }): boolean => {
+    const canonicalUrl = normalizeCanonicalJobUrl(candidate.url) || candidate.url;
+    return !seenJobUrls.has(canonicalUrl);
+  };
   const roleQuery = targetDomains.length > 0
     ? stripSourceTargetsFromQuery(args.searchQuery) || args.searchQuery
     : args.searchQuery;
@@ -3005,7 +3043,7 @@ export async function discoverJobsFirecrawl(
 
   const seedResults = (
     await runWithConcurrency(seeds, 3, (seed) =>
-      runSeedSearch(seed, apiKey, context.settings)
+      runSeedSearch(seed, apiKey, context.settings, freshnessDays)
     )
   ).flat();
   console.info("firecrawl.discovery.stage", {
@@ -3017,6 +3055,7 @@ export async function discoverJobsFirecrawl(
 
   const rawByUrl = new Map<string, FirecrawlSearchCandidate>();
   for (const candidate of seedResults) {
+    if (!isUnseenCandidate(candidate)) continue;
     if (!candidateMatchesTargetDomains(candidate, targetDomains)) continue;
     const trackedDomainHit = matchesTrackedDomain(
       hostFromUrl(candidate.url),
@@ -3045,6 +3084,7 @@ export async function discoverJobsFirecrawl(
     );
   }
 
+  const candidatePoolLimit = resolveRawCandidatePoolLimit(args.limit);
   const rawCandidates = Array.from(rawByUrl.values())
     .sort((left, right) => {
       if (left.is_tracked_company !== right.is_tracked_company) {
@@ -3053,7 +3093,7 @@ export async function discoverJobsFirecrawl(
       if (left.priority !== right.priority) return left.priority - right.priority;
       return right.source_confidence - left.source_confidence;
     })
-    .slice(0, Math.min(Math.max(args.limit + 6, 18), MAX_RAW_CANDIDATES));
+    .slice(0, candidatePoolLimit);
 
   const directFetchBudget = Math.min(
     Math.max(Math.ceil(args.limit / 6), 4),
@@ -3133,10 +3173,6 @@ export async function discoverJobsFirecrawl(
     const fallbackUnverified = deduped.filter((job) => !verifiedUrls.has(job.url));
     const batchFinal = [...verified, ...fallbackUnverified].sort(compareRankedJobs);
 
-    if (onBatch && batchFinal.length > 0) {
-      await onBatch(batchFinal);
-    }
-
     console.info("firecrawl.discovery.batch_complete", {
       batchIndex: b,
       batchSize: batchFinal.length,
@@ -3170,12 +3206,13 @@ export async function discoverJobsFirecrawl(
       );
       const broadenedResults = (
         await runWithConcurrency(broadenedSeeds, 3, (seed) =>
-          runSeedSearch(seed, apiKey, context.settings),
+          runSeedSearch(seed, apiKey, context.settings, freshnessDays),
         )
       ).flat();
 
       const broadenedByUrl = new Map<string, FirecrawlSearchCandidate>();
       for (const candidate of broadenedResults) {
+        if (!isUnseenCandidate(candidate)) continue;
         if (!roleMatches(candidate, args.searchQuery, true)) continue;
         const key = normalizeCanonicalJobUrl(candidate.url) || candidate.url;
         if (!broadenedByUrl.has(key)) broadenedByUrl.set(key, candidate);
@@ -3184,7 +3221,7 @@ export async function discoverJobsFirecrawl(
       if (broadenedByUrl.size > 0) {
         const broadenedCandidates = Array.from(broadenedByUrl.values())
           .sort((a, b) => b.source_confidence - a.source_confidence)
-          .slice(0, Math.min(Math.max(args.limit + 6, 18), MAX_RAW_CANDIDATES));
+          .slice(0, candidatePoolLimit);
 
         const broadenedNormalized = await runWithConcurrency(
           broadenedCandidates,
@@ -3226,7 +3263,6 @@ export async function discoverJobsFirecrawl(
           warnings.push(
             `No jobs found in "${args.location}". Showing results for "${broadened}" instead.`,
           );
-          if (onBatch) await onBatch(finalJobs);
         }
       }
     }
@@ -3246,13 +3282,15 @@ export async function discoverJobsFirecrawl(
       args.searchQuery,
       args.location,
       args.limit,
+      freshnessDays,
     );
 
-    const filterRes = filterCandidates(unrestrictedJobs, args.searchQuery, [], false);
+    const unseenUnrestrictedJobs = unrestrictedJobs.filter(isUnseenCandidate);
+    const filterRes = filterCandidates(unseenUnrestrictedJobs, args.searchQuery, [], false);
     let matchedJobs = filterRes.passed;
 
     console.info("firecrawl.discovery.unrestricted_filtering_metrics", {
-      total: unrestrictedJobs.length,
+      total: unseenUnrestrictedJobs.length,
       passed: matchedJobs.length,
       rejectedAggregate: filterRes.rejectedAggregate,
       rejectedShortDesc: filterRes.rejectedShortDesc,
@@ -3261,7 +3299,7 @@ export async function discoverJobsFirecrawl(
     });
 
     if (matchedJobs.length === 0) {
-      const relaxedRes = filterCandidates(unrestrictedJobs, args.searchQuery, [], true);
+      const relaxedRes = filterCandidates(unseenUnrestrictedJobs, args.searchQuery, [], true);
       if (relaxedRes.passed.length > 0) {
         console.info("firecrawl.discovery.unrestricted_using_relaxed_fallback", {
           count: relaxedRes.passed.length,
@@ -3278,7 +3316,6 @@ export async function discoverJobsFirecrawl(
       warnings.push(
         "No results found from your configured job sources. These results were found from the broader web and may be less relevant.",
       );
-      if (onBatch) await onBatch(finalJobs);
     } else {
       warnings.push(
         `Your search "${args.searchQuery}" in "${args.location}" is very specific and returned no results. Try broadening your job title or changing the location.`,
@@ -3300,8 +3337,16 @@ export async function discoverJobsFirecrawl(
     );
   }
 
+  // Persist only the jobs actually returned to the user. Persisting every raw
+  // candidate prematurely marks unshown jobs as seen and starves later refreshes.
+  if (onBatch && finalJobs.length > 0) {
+    await onBatch(finalJobs);
+  }
+
   console.info("firecrawl.discovery.complete", {
     returnedCount: finalJobs.length,
+    excludedSeenCount: seenJobUrls.size,
+    freshnessDays,
     warningCount: warnings.length,
     elapsed_ms: Date.now() - startedAt,
   });

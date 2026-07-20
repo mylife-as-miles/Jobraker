@@ -282,7 +282,8 @@ export async function persistDiscoveredJobs(
     })
   );
 
-  const insertedIds = results.map(r => r.job_id);
+  const newResultCount = results.filter((result) => result.is_new_to_user).length;
+  const duplicateResultCount = results.length - newResultCount;
 
   // ── V2: Insert job_search_results rows ─────────────────────────────────────
   // Link each job to the agent run with billing eligibility flags.
@@ -294,7 +295,9 @@ export async function persistDiscoveredJobs(
       p_user_id:         options.userId,
       p_job_id:          res.job_id,
       p_rank:            idx + 1,
-      p_displayable:     true,
+      // Fresh-search results should show opportunities the user has not already
+      // seen. Duplicate rows remain linked to the run for auditability.
+      p_displayable:     res.is_new_to_user,
       // Only charge for jobs that are genuinely new to this user
       p_is_new_to_user:  res.is_new_to_user,
       // Billable = displayable AND new AND has an apply URL
@@ -361,7 +364,10 @@ export async function persistDiscoveredJobs(
   });
 
   return {
-    jobsInserted: insertedIds.length,
+    jobsInserted: newResultCount,
+    jobsProcessed: results.length,
+    duplicateCount: duplicateResultCount,
+    displayableCount: newResultCount,
     rows,
   };
 }

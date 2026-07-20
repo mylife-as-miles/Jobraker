@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabaseClient";
 import { VISIBLE_JOB_QUEUE_STATES } from "@/lib/applicationState";
+import { shouldDisplayFreshRunResult } from "../../../backend/supabase/functions/_shared/discovery-freshness";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -94,7 +95,9 @@ async function fetchResultsByRunId(
     throw error;
   }
 
-  return (data as RunResultRow[] | null) ?? [];
+  // The database normally excludes duplicate run rows. Keep a client-side
+  // guard so older RPC deployments cannot reintroduce previously seen jobs.
+  return ((data as RunResultRow[] | null) ?? []).filter(shouldDisplayFreshRunResult);
 }
 
 /**
@@ -242,20 +245,17 @@ export function getJobsQueueQueryOptions<TJob>({
             scope.agentRunId,
           );
           rawRows = runResults.map(runResultRowToJobsRow);
-          if (rawRows.length === 0 && scope.searchQuery?.trim()) {
-            console.warn(
-              "[useJobsQueue] V2 path returned zero rows; falling back to legacy query",
-              { agentRunId: scope.agentRunId },
-            );
-            rawRows = await fetchResultsLegacy(supabase, user.id, scope);
-          }
-        } catch {
-          // V2 RPC failed — fall through to legacy query with same scope params.
-          console.warn(
-            "[useJobsQueue] V2 path failed; falling back to legacy query",
-            { agentRunId: scope.agentRunId },
-          );
-          rawRows = await fetchResultsLegacy(supabase, user.id, scope);
+          // A completed run with zero fresh rows is a valid result. Do not
+          // broaden it into historical jobs from previous searches.
+        } catch (error) {
+          // Never replace a failed run-scoped lookup with historical jobs.
+          // React Query will expose the recoverable error and can retry the
+          // same agentRunId without corrupting the visible result set.
+          console.error("[useJobsQueue] V2 run lookup failed", {
+            agentRunId: scope.agentRunId,
+            error,
+          });
+          throw error;
         }
       } else {
         // ── Legacy path (no agentRunId) ─────────────────────────────────────

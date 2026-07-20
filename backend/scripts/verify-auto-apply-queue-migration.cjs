@@ -39,6 +39,23 @@ const migration = fs.readFileSync(migrationPath, "utf8");
 const queueAcquisitionMigration = fs.readFileSync(queueAcquisitionPath, "utf8");
 const diagnostics = fs.readFileSync(diagnosticsPath, "utf8");
 const edgeFunction = fs.readFileSync(edgeFunctionPath, "utf8");
+const applyToJobsPath = path.join(
+  root,
+  "backend",
+  "supabase",
+  "functions",
+  "apply-to-jobs",
+  "index.ts",
+);
+const recoveryMigrationPath = path.join(
+  root,
+  "backend",
+  "supabase",
+  "migrations",
+  "20260720091000_recover_stale_auto_apply_queue.sql",
+);
+const applyToJobs = fs.readFileSync(applyToJobsPath, "utf8");
+const recoveryMigration = fs.readFileSync(recoveryMigrationPath, "utf8");
 
 function expectIncludes(text, expected, description) {
   assert.ok(text.includes(expected), `${description}: expected ${JSON.stringify(expected)}`);
@@ -88,5 +105,11 @@ expectIncludes(diagnostics, "net.http_request_queue", "diagnostics inspect pendi
 assert.ok(!edgeFunction.includes("SYSTEM_TRIGGER"), "edge function only accepts the service-role token");
 expectIncludes(edgeFunction, "QUEUE_ACQUISITION_FAILED", "edge function returns a safe acquisition error code");
 expectIncludes(edgeFunction, "AUTO_APPLY_QUEUE_FAILED", "edge function returns a safe processing error code");
+expectIncludes(edgeFunction, "recoverStaleAutoApplyRows", "queue processor recovers abandoned non-terminal rows");
+expectIncludes(edgeFunction, "Recovered stale", "stale recovery records an actionable reason");
+expectIncludes(applyToJobs, "dispatchAutoApplyQueue(applicationId)", "enqueue path directly dispatches durable queue work");
+expectIncludes(applyToJobs, "queue_dispatch", "enqueue response reports queue dispatch state");
+expectIncludes(recoveryMigration, "provider_status = 'launching'", "cron wakes for stale launching rows");
+expectIncludes(recoveryMigration, "provider_status = 'waiting_worker'", "cron wakes for stale worker handoffs");
 
 console.log("Auto Apply queue migration verification: OK");

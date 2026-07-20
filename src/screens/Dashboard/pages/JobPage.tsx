@@ -2650,6 +2650,7 @@ export const JobPage = (): JSX.Element => {
           location: currentSearchScope.location,
           locationScope: effectiveLocationScope,
           limit: maxResultsPerSearch,
+          freshnessDays: 30,
           ...(sources ? { sources } : {}),
           ...(targetDomains.length > 0 ? { targetDomains } : {}),
           async: true,
@@ -3951,7 +3952,7 @@ export const JobPage = (): JSX.Element => {
           setApplyProgress((prev) => ({ ...prev, done, success, fail }));
           setAutomationFinished(true);
           pushLog(
-            `Automation complete. ${success} succeeded, ${fail} failed.`,
+            `Queue submission complete. ${success} queued, ${fail} failed to queue.`,
             success > 0 ? "success" : "error",
           );
         }
@@ -5002,16 +5003,16 @@ export const JobPage = (): JSX.Element => {
                     <Loader2 className='w-5 h-5 animate-spin text-brand' />
                     <div>
                       <div className='text-sm font-medium'>
-                        Automation in progress
+                        Submitting to automation
                       </div>
                       <div className='text-xs text-foreground/70'>
                         {applyProgress.total} roles • {applyProgress.success}{" "}
-                        successful / {applyProgress.fail} flagged
+                        queued / {applyProgress.fail} failed
                       </div>
                     </div>
                   </div>
                   <div className='text-xs text-foreground/50'>
-                    {applyProgress.done}/{applyProgress.total} completed
+                    {applyProgress.done}/{applyProgress.total} submitted
                   </div>
                 </div>
                 <div className='relative mt-4 h-2 rounded-full bg-foreground/12 overflow-hidden'>
@@ -6875,8 +6876,8 @@ export const JobPage = (): JSX.Element => {
                           <AlertTriangle className='w-4 h-4 text-brand' />
                         )}
                         {automationFinished
-                          ? "Automation Complete"
-                          : "Automation Running"}
+                          ? "Queue Submission Complete"
+                          : "Submitting Applications"}
                       </div>
                       <div className='text-sm font-mono text-foreground/70'>
                         {applyProgress.done}/{applyProgress.total}
@@ -6909,7 +6910,7 @@ export const JobPage = (): JSX.Element => {
                         {applyProgress.success}
                       </div>
                       <div className='text-[10px] uppercase tracking-wider text-brand/70 mt-1'>
-                        Success
+                        Queued
                       </div>
                     </div>
                     <div
