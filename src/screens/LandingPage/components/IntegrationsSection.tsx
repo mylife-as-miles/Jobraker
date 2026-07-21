@@ -1,4 +1,3 @@
-import React from "react";
 import { motion } from "framer-motion";
 import {
   Briefcase,
@@ -10,9 +9,6 @@ import {
   Server,
   Code,
   Bot,
-  Cpu,
-  Network,
-  Share2,
 } from "lucide-react";
 
 // Split integrations into two orbital groups

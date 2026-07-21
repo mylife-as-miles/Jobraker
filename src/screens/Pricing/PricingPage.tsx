@@ -1,4 +1,3 @@
-import React from "react";
 import { Pricing } from "../../components/blocks/pricing";
 import { ProductPageHeader } from "../../components/ui/ProductPageHeader";
 import { Seo } from "@/components/seo/Seo";

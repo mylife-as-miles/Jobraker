@@ -10,7 +10,6 @@ import {
   Edit2,
   Trash2,
   Download,
-  History,
   MessageSquare,
 } from "lucide-react";
 import { useArtboardStore } from "../../../store/artboard";
@@ -23,6 +22,7 @@ import { getResumeDisplayName } from "@/lib/resumeDisplay";
 import { useResumes, type ResumeRecord } from "@/hooks/useResumes";
 import { useToast } from "@/components/ui/toast";
 import { downloadResumePDF } from "@/utils/resume-download";
+import { normalizeResumeDataForEditor } from "@/lib/resumeHydration";
 import { Modal } from "../../../components/ui/modal";
 
 export const ResumeHomePage = () => {
@@ -399,7 +399,11 @@ export const ResumeHomePage = () => {
                 </button>
                 <button
                   type='button'
-                  onClick={() => void downloadResumePDF(resume.data)}
+                  onClick={() =>
+                    void downloadResumePDF(
+                      normalizeResumeDataForEditor(resume.data, displayName),
+                    )
+                  }
                   className='p-2 product-helper-text hover:text-foreground hover:bg-brand/10 rounded-lg transition-colors'
                   title='Download'
                 >

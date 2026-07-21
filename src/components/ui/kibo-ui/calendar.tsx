@@ -1,6 +1,5 @@
 "use client";
 import React, { useMemo, useState, useCallback, useEffect } from "react";
-import { motion } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
@@ -924,5 +923,4 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
 };
 
 export default KiboCalendar;
-
 

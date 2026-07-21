@@ -8,9 +8,7 @@ import {
   Edit2,
   Trash2,
   Mail,
-  History,
   MessageSquare,
-  FileText,
 } from "lucide-react";
 import { useArtboardStore } from "../../../store/artboard";
 import { Button } from "../../../components/ui/button";

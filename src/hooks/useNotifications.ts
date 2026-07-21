@@ -126,7 +126,6 @@ export function useNotifications(limit: number = 10) {
     if (!userId) return;
     
     let channel: any = null;
-    let subscribed = false;
     
     try {
       channel = (supabase as any)
@@ -159,11 +158,7 @@ export function useNotifications(limit: number = 10) {
             setItems(prev => prev.filter(n => n.id !== payload.old.id));
           }
         })
-        .subscribe((status: string) => {
-          if (status === 'SUBSCRIBED') {
-            subscribed = true;
-          }
-        });
+        .subscribe();
     } catch (error) {
       console.error('Failed to setup realtime subscription:', error);
     }

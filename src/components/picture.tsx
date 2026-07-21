@@ -1,4 +1,4 @@
-import { cn, isUrl } from "@reactive-resume/utils";
+import { cn } from "@/lib/utils";
 
 import { useArtboardStore } from "../store/artboard";
 
@@ -7,10 +7,22 @@ type PictureProps = {
 };
 
 export const Picture = ({ className }: PictureProps) => {
-  const picture = useArtboardStore((state) => state.resume?.basics?.picture);
-  const fontSize = useArtboardStore((state) => state.resume?.metadata?.typography?.font?.size || 16);
+  const picture = useArtboardStore((state) => state.resume.data.basics.picture);
+  const fontSize = useArtboardStore(
+    (state) => state.resume.data.metadata.typography.font.size || 16,
+  );
 
-  if (!picture || !isUrl(picture?.url) || picture?.effects?.hidden) return null;
+  const hasValidUrl = (() => {
+    if (!picture?.url) return false;
+    try {
+      const url = new URL(picture.url, window.location.origin);
+      return url.protocol === "http:" || url.protocol === "https:" || url.protocol === "data:";
+    } catch {
+      return false;
+    }
+  })();
+
+  if (!picture || !hasValidUrl || picture.effects.hidden) return null;
 
   return (
     <img

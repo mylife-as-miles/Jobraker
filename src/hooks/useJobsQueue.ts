@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabaseClient";
 import { VISIBLE_JOB_QUEUE_STATES } from "@/lib/applicationState";
-import { shouldDisplayFreshRunResult } from "../../../backend/supabase/functions/_shared/discovery-freshness";
+import { shouldDisplayFreshRunResult } from "../../backend/supabase/functions/_shared/discovery-freshness";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types

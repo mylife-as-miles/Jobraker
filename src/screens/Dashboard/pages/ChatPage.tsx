@@ -75,7 +75,11 @@ import {
   parseSkillCall,
   replaceSkillPaletteTrigger,
 } from "@/lib/chatSkills/parser";
-import type { ChatSkillCall, ParsedSkillCall } from "@/lib/chatSkills/types";
+import type {
+  ChatSkillCall,
+  ParsedSkillCall,
+  SkillExecutionInput,
+} from "@/lib/chatSkills/types";
 import {
   MessageSquare,
   Wand2,
@@ -139,7 +143,7 @@ const customStyles = `
 
 const waitForAgentProgressPaint = () =>
   new Promise<void>((resolve) => {
-    window.requestAnimationFrame(resolve);
+    window.requestAnimationFrame(() => resolve());
   });
 
 const parseSseFrame = (frame: string) => {
@@ -2331,7 +2335,7 @@ export const ChatPage = () => {
         sessionId === activeSessionId
           ? messages
           : sessions.find((session) => session.id === sessionId)?.messages || [];
-      const conversationContext = currentMessages
+      const conversationContext: SkillExecutionInput["conversationContext"] = currentMessages
         .filter((message) => message.role !== "skill" && message.content.trim())
         .slice(-8)
         .map((message) => ({
@@ -3358,7 +3362,7 @@ export const ChatPage = () => {
                                                     fill="#8884d8"
                                                     dataKey={keys[0] || "value"}
                                                   >
-                                                    {data.map((entry: any, index: number) => (
+                                                    {data.map((_entry: any, index: number) => (
                                                       <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                                                     ))}
                                                   </Pie>

@@ -102,18 +102,20 @@ export const heartbeatCheckupSkill: JobrakerChatSkill = {
     }
 
     // 1. Fetch active applications from Database
-    const { data: apps = [] } = await supabase
+    const { data: applicationRows } = await supabase
       .from("applications")
       .select("*")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false });
 
     // 2. Fetch pending notifications/reminders
-    const { data: reminders = [] } = await supabase
+    const { data: reminderRows } = await supabase
       .from("notifications")
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
+    const apps = applicationRows ?? [];
+    const reminders = reminderRows ?? [];
 
     // 3. Compile Checklist
     const checks: HeartbeatCheck[] = [

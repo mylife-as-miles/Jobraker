@@ -76,7 +76,7 @@ export const useGSAPAnimations = () => {
 // Scroll reveal animation with performance optimization
 export const useScrollReveal = (selector: string, options?: any) => {
   useEffect(() => {
-    const elements = gsap.utils.toArray(selector);
+    const elements = gsap.utils.toArray<HTMLElement>(selector);
     
     elements.forEach((element: any) => {
       gsap.fromTo(element, 
@@ -204,7 +204,7 @@ export const useStaggerAnimation = (selector: string, stagger: number = 0.1) => 
         stagger: stagger,
         ease: "power2.out",
         scrollTrigger: {
-          trigger: elements[0],
+          trigger: elements[0] as HTMLElement | undefined,
           start: "top 80%",
           toggleActions: "play none none reverse"
         }

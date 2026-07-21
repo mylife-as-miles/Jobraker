@@ -287,7 +287,7 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
                 start,
                 end,
               };
-            }).filter((item) => item.school || item.degree),
+            }).filter((item: { school: string; degree: string }) => item.school || item.degree),
             experience: legacyExperience.map((item: any) => {
               const { start, end } = parseLegacyRange(
                 str(item?.date || item?.period),
@@ -300,7 +300,9 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
                 endDate: end,
                 description: str(item?.summary || item?.description),
               };
-            }).filter((item) => item.company || item.title || item.description),
+            }).filter((item: { company: string; title: string; description: string }) =>
+              item.company || item.title || item.description,
+            ),
             projects: Array.isArray(legacySections?.projects?.items)
               ? legacySections.projects.items.map((item: any) => ({
                   name: str(item?.name || item?.title),

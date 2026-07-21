@@ -24,13 +24,13 @@ jobs:
         env:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        working-directory: backend/supabase
+        working-directory: backend
         run: supabase link --project-ref "${SUPABASE_PROJECT_REF}" --password "${SUPABASE_DB_PASSWORD}" --yes
       - name: Push migrations (dry-run)
-        working-directory: backend/supabase
+        working-directory: backend
         run: supabase db push --linked --dry-run
       - name: Push migrations
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        working-directory: backend/supabase
+        working-directory: backend
         run: supabase db push --linked --include-all --yes -p "${SUPABASE_DB_PASSWORD}"

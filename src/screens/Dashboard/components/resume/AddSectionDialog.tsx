@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogClose,
@@ -20,12 +20,10 @@ import {
   BookOpen,
   HandHeart,
   Users,
-  LayoutTemplate,
   Plus,
 } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
-import { cn } from "../../../../lib/utils";
 
 interface AddSectionDialogProps {
   open: boolean;

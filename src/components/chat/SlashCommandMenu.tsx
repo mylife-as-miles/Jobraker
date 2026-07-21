@@ -43,7 +43,7 @@ const COMMANDS: SlashCommandDefinition[] = [
   },
 ];
 
-export function SlashCommandMenu({ open, query, onSelect, anchorRef }: Props) {
+export function SlashCommandMenu({ open, query, onSelect }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const list = useMemo(() => {
     const q = query.toLowerCase();

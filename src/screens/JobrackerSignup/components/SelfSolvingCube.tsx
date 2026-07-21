@@ -11,8 +11,6 @@ import * as THREE from "three";
 
 // --- Constants ---
 const CUBE_SIZE = 0.95; // Slightly smaller to leave gaps
-const SPACING = 1; // Grid step
-const TOTAL_SIZE = 1; // For math consistency
 const SCRAMBLE_SPEED = 6;
 const SOLVE_SPEED = 3;
 const WAIT_TIME = 60; // Frames to wait between phases
@@ -127,7 +125,7 @@ const RubiksLogic = () => {
     return arr;
   }, []);
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     if (!pivotRef.current) return;
 
     if (animationState.current.active) {
@@ -386,4 +384,3 @@ export const SelfSolvingCube = () => {
     </div>
   );
 };
-

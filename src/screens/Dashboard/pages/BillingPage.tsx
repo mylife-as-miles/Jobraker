@@ -249,29 +249,6 @@ function inferBillingCycleFromSubscriptionPeriod(
  * the common case where the payment gateway renewed but the DB row was never
  * updated.
  */
-function addCalendarMonths(d: Date, months: number): Date {
-  const out = new Date(d.getTime());
-  out.setMonth(out.getMonth() + months);
-  return out;
-}
-
-function projectNextRenewalDate(
-  periodEnd: string | null,
-  cycle: "monthly" | "quarterly" | "yearly" | null,
-): Date | null {
-  if (!periodEnd) return null;
-  const d = new Date(periodEnd);
-  if (!Number.isFinite(d.getTime())) return null;
-  const now = new Date();
-  if (d > now) return d;
-  const stepMonths = cycle === "yearly" ? 12 : cycle === "quarterly" ? 3 : 1;
-  let projected = new Date(d);
-  while (projected <= now) {
-    projected = addCalendarMonths(projected, stepMonths);
-  }
-  return projected;
-}
-
 /** Explains the date shown in the billing card (next charge), not the monthly credit cron. */
 function getPaymentRenewalCaption(
   cancelAtPeriodEnd: boolean,
@@ -521,7 +498,7 @@ export const BillingPage = () => {
   const [billingInterval, setBillingInterval] =
     useState<BillingInterval>("monthly");
   /** Ultimate: extra credits above catalog base (3500); scales price at checkout. */
-  const [ultimateCreditsMonthly, setUltimateCreditsMonthly] = useState(
+  const [ultimateCreditsMonthly, setUltimateCreditsMonthly] = useState<number>(
     ULTIMATE_CREDITS_SLIDER.min,
   );
   /** Inferred from subscription period (or last successful order) — used so "CURRENT" matches monthly vs annual. */

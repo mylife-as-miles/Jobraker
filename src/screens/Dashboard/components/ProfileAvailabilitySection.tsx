@@ -99,7 +99,7 @@ function parseExceptions(raw: unknown): DateException[] {
 function useTimezoneOptions(): string[] {
   return useMemo(() => {
     try {
-      const intl = Intl as Intl & {
+      const intl = globalThis.Intl as typeof globalThis.Intl & {
         supportedValuesOf?: (k: string) => string[];
       };
       if (typeof intl.supportedValuesOf === "function") {

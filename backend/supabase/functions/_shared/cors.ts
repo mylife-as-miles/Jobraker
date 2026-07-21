@@ -27,6 +27,13 @@ const ALLOWED_NORMALIZED = new Set(
   ALLOWED_ORIGINS.map((o) => normalizeOriginForCompare(o)),
 );
 
+export function resolveAllowedOrigin(origin?: string | null): string | null {
+  const raw = typeof origin === "string" ? origin.trim() : "";
+  return raw && ALLOWED_NORMALIZED.has(normalizeOriginForCompare(raw))
+    ? stripTrailingSlash(raw)
+    : null;
+}
+
 const BASE_ALLOW_HEADERS =
   "authorization, x-client-info, apikey, content-type, x-skyvern-api-key, x-api-key, accept, accept-language, content-language, prefer, range, x-supabase-api-version";
 
@@ -54,10 +61,7 @@ function mergeAllowHeaders(
  */
 export function getCorsHeaders(origin?: string | null, req?: Request): Record<string, string> {
   const raw = typeof origin === "string" ? origin.trim() : "";
-  const matched =
-    raw && ALLOWED_NORMALIZED.has(normalizeOriginForCompare(raw))
-      ? stripTrailingSlash(raw)
-      : ALLOWED_ORIGINS[0];
+  const matched = resolveAllowedOrigin(raw) ?? ALLOWED_ORIGINS[0];
 
   const requested = req?.headers.get("access-control-request-headers");
   const allowHeaders = mergeAllowHeaders(BASE_ALLOW_HEADERS, requested);

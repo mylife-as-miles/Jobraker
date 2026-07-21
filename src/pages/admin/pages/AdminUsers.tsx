@@ -1089,7 +1089,6 @@ export default function AdminUsers() {
     changeSubscription,
     deleteUser,
     updateUserRole,
-    removeUserRole,
     fetchPlans,
     fetchUserTransactions,
   } = useAdminActions();

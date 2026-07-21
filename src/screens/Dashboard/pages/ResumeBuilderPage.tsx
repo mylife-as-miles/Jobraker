@@ -1,7 +1,6 @@
-import { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback, useReducer } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ChevronDown,
@@ -25,7 +24,6 @@ import {
 import {
   useArtboardStore,
   initialResumeState,
-  type ResumeData,
 } from "@/store/artboard";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
@@ -34,7 +32,6 @@ import { useToast } from "@/components/ui/toast";
 import { useResumeProfilePhoto } from "@/hooks/useResumeProfilePhoto";
 import { useProfileSettings } from "@/hooks/useProfileSettings";
 import { createClient } from "@/lib/supabaseClient";
-import { useResumeRecord } from "@/hooks/useResumeRecord";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { TemplateSelector } from "../components/TemplateSelector";
@@ -46,14 +43,17 @@ import { PersonalDetailsEditor } from "../components/resume/PersonalDetailsEdito
 import { ResumeTemplateRenderer } from "@/templates/render-resume-template";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { resolveResumePageLayout } from "@/lib/resumeLayout";
-import { downloadResumePDF } from "@/utils/resume-download";
 import {
-  saveResumeDraft,
-  loadResumeDraft,
-  removeResumeDraft,
-} from "@/lib/resumeDraftStorage";
-import { loadParsedResumeProfileData } from "@/lib/parsedResume";
-import { mapParsedDataToResume } from "@/lib/resume-mapper";
+  buildCandidateProfileSnapshot,
+  fillResumeFromCandidateProfile,
+} from "@/lib/candidateProfileSnapshot";
+import {
+  initialResumeEditorState,
+  resumeEditorReducer,
+} from "@/lib/resumeEditorState";
+import { useResumePersistence } from "@/hooks/useResumePersistence";
+import { useResumeExport } from "@/hooks/useResumeExport";
+import { useResumeHydration } from "@/hooks/useResumeHydration";
 
 const PREVIEW_BASE_WIDTH = 794;
 const PREVIEW_BASE_HEIGHT = 1123;
@@ -69,271 +69,20 @@ const SECTION_ICONS: Record<string, any> = {
   custom: FileText,
 };
 
-const DRAFT_AUTOSAVE_DELAY_MS = 2000;
-
-function buildHydratedResumeState(
-  remoteResume: any,
-  data = initialResumeState.data,
-) {
-  return {
-    id: remoteResume.id,
-    is_public: remoteResume.public_share_enabled,
-    views: remoteResume.views || 0,
-    downloads: remoteResume.downloads || 0,
-    data,
-  };
-}
-
-function fallbackSection(sectionId: string, section?: Record<string, any>) {
-  return {
-    id: section?.id || sectionId,
-    title:
-      section?.title ||
-      sectionId.charAt(0).toUpperCase() + sectionId.slice(1).replace(/-/g, " "),
-    columns: 1,
-    hidden: false,
-    items: [],
-    type: "basic" as const,
-  };
-}
-
-function mergeResumeSection(
-  baseSection: any,
-  sectionId: string,
-  section?: Record<string, any>,
-) {
-  const fallback = baseSection ?? fallbackSection(sectionId, section);
-
-  return {
-    ...fallback,
-    ...section,
-    id: section?.id || fallback.id,
-    title: section?.title || fallback.title,
-    columns: section?.columns ?? fallback.columns,
-    hidden: section?.hidden ?? fallback.hidden,
-    items: Array.isArray(section?.items) ? section.items : fallback.items,
-    type: section?.type ?? fallback.type,
-  };
-}
-
-function normalizeResumeDataForEditor(data: unknown, fallbackTitle?: string) {
-  const base = structuredClone(initialResumeState.data);
-
-  if (!data || typeof data !== "object") {
-    return {
-      ...base,
-      title: fallbackTitle || base.title,
-    };
-  }
-
-  const source = data as Record<string, any>;
-  const mergedSections = { ...base.sections } as typeof base.sections;
-
-  for (const [sectionId, section] of Object.entries(
-    (source.sections as Record<string, Record<string, any>>) ?? {},
-  )) {
-    mergedSections[sectionId] = mergeResumeSection(
-      mergedSections[sectionId],
-      sectionId,
-      section,
-    );
-  }
-
-  return {
-    ...base,
-    ...source,
-    title:
-      typeof source.title === "string" && source.title.trim()
-        ? source.title
-        : fallbackTitle || base.title,
-    basics: {
-      ...base.basics,
-      ...(source.basics as Record<string, any> | undefined),
-      website: {
-        ...base.basics.website,
-        ...((source.basics as Record<string, any> | undefined)?.website ?? {}),
-      },
-      customFields: Array.isArray(
-        (source.basics as Record<string, any> | undefined)?.customFields,
-      )
-        ? (source.basics as Record<string, any>).customFields
-        : base.basics.customFields,
-      profiles: Array.isArray(
-        (source.basics as Record<string, any> | undefined)?.profiles,
-      )
-        ? (source.basics as Record<string, any>).profiles
-        : base.basics.profiles,
-      picture:
-        (source.basics as Record<string, any> | undefined)?.picture ??
-        base.basics.picture,
-    },
-    summary: {
-      ...base.summary,
-      ...(source.summary as Record<string, any> | undefined),
-      items: Array.isArray(
-        (source.summary as Record<string, any> | undefined)?.items,
-      )
-        ? (source.summary as Record<string, any>).items
-        : base.summary.items,
-    },
-    sections: mergedSections,
-    metadata: {
-      ...base.metadata,
-      ...(source.metadata as Record<string, any> | undefined),
-      layout: {
-        ...base.metadata.layout,
-        ...((source.metadata as Record<string, any> | undefined)?.layout ?? {}),
-        pages: Array.isArray(
-          (source.metadata as Record<string, any> | undefined)?.layout?.pages,
-        )
-          ? (source.metadata as Record<string, any>).layout.pages
-          : base.metadata.layout.pages,
-      },
-      page: {
-        ...base.metadata.page,
-        ...((source.metadata as Record<string, any> | undefined)?.page ?? {}),
-        options: {
-          ...base.metadata.page.options,
-          ...((source.metadata as Record<string, any> | undefined)?.page
-            ?.options ?? {}),
-        },
-      },
-      typography: {
-        ...base.metadata.typography,
-        ...((source.metadata as Record<string, any> | undefined)?.typography ??
-          {}),
-        font: {
-          ...base.metadata.typography.font,
-          ...((source.metadata as Record<string, any> | undefined)?.typography
-            ?.font ?? {}),
-          paragraphSpacing:
-            typeof (source.metadata as Record<string, any> | undefined)
-              ?.typography?.font?.paragraphSpacing === "number"
-              ? (source.metadata as Record<string, any>).typography.font
-                  .paragraphSpacing
-              : base.metadata.typography.font.paragraphSpacing,
-        },
-      },
-      theme: {
-        ...base.metadata.theme,
-        ...((source.metadata as Record<string, any> | undefined)?.theme ?? {}),
-      },
-    },
-  };
-}
-
-function normalizeHydrationValue(value: unknown) {
-  return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
-
-function isPlaceholderField(value: unknown, fallback: string) {
-  const normalizedValue = normalizeHydrationValue(value);
-  return (
-    !normalizedValue || normalizedValue === normalizeHydrationValue(fallback)
-  );
-}
-
-function matchesTemplateFields(
-  item: Record<string, unknown> | undefined,
-  template: Record<string, unknown> | undefined,
-  fields: string[],
-) {
-  if (!item || !template) return false;
-
-  return fields.every(
-    (field) =>
-      normalizeHydrationValue(item[field]) ===
-      normalizeHydrationValue(template[field]),
-  );
-}
-
-function looksLikePlaceholderResumeData(data: ResumeData | null | undefined) {
-  if (!data || typeof data !== "object") {
-    return true;
-  }
-
-  const basics = data.basics ?? {};
-  const summary = data.summary ?? {};
-  const experienceItems = Array.isArray(data.sections?.experience?.items)
-    ? data.sections.experience.items
-    : [];
-  const educationItems = Array.isArray(data.sections?.education?.items)
-    ? data.sections.education.items
-    : [];
-  const skillItems = Array.isArray(data.sections?.skills?.items)
-    ? data.sections.skills.items
-    : [];
-  const defaultData = initialResumeState.data;
-  const defaultExperienceItems = defaultData.sections.experience.items;
-  const defaultEducationItems = defaultData.sections.education.items;
-  const defaultSkillItems = defaultData.sections.skills.items;
-  const placeholderBasicsCount = [
-    isPlaceholderField(basics.name, defaultData.basics.name),
-    isPlaceholderField(basics.headline, defaultData.basics.headline),
-    isPlaceholderField(basics.email, defaultData.basics.email),
-    isPlaceholderField(basics.phone, defaultData.basics.phone),
-    isPlaceholderField(basics.location, defaultData.basics.location),
-  ].filter(Boolean).length;
-
-  const titleLooksPlaceholder = isPlaceholderField(
-    data.title,
-    defaultData.title,
-  );
-  const summaryLooksPlaceholder = isPlaceholderField(
-    summary.content,
-    defaultData.summary.content || "",
-  );
-  const experienceLooksPlaceholder = experienceItems.some(
-    (item: any, index: number) => {
-      const defaultItem = defaultExperienceItems[index];
-      return matchesTemplateFields(item, defaultItem, ["company", "position"]);
-    },
-  );
-  const educationLooksPlaceholder = educationItems.some(
-    (item: any, index: number) => {
-      const defaultItem = defaultEducationItems[index];
-      return matchesTemplateFields(item, defaultItem, ["school", "degree"]);
-    },
-  );
-  const skillsLookPlaceholder =
-    skillItems.length > 0 &&
-    skillItems.every((item: any, index: number) =>
-      matchesTemplateFields(item, defaultSkillItems[index], ["name"]),
-    );
-  const websiteLooksPlaceholder =
-    isPlaceholderField(basics.website?.url, defaultData.basics.website.url) &&
-    isPlaceholderField(basics.website?.label, defaultData.basics.website.label);
-  const structuralPlaceholderCount = [
-    titleLooksPlaceholder,
-    summaryLooksPlaceholder,
-    experienceLooksPlaceholder,
-    educationLooksPlaceholder,
-    skillsLookPlaceholder,
-    websiteLooksPlaceholder,
-  ].filter(Boolean).length;
-
-  return (
-    (placeholderBasicsCount >= 4 && structuralPlaceholderCount >= 1) ||
-    structuralPlaceholderCount >= 2
-  );
-}
-
 interface ResumeBuilderPageProps {
   resumeId?: string | null;
 }
 
 const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { success, error: toastError, info } = useToast();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
-  const {
-    data: remoteResume,
-    error: remoteResumeError,
-    isPending: isRemoteResumePending,
-  } = useResumeRecord(resumeId);
+  const { save: persistResume } = useResumePersistence(resumeId);
+  const { downloadPdf, exporting } = useResumeExport((message) => {
+    toastError("PDF export failed", message);
+  });
 
   // Store actions/state
   const resumeState = useArtboardStore();
@@ -348,7 +97,11 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const resumeData = resumeStateData.data;
 
   // Local UI State
-  const [saving, setSaving] = useState(false);
+  const [editorState, dispatchEditor] = useReducer(
+    resumeEditorReducer,
+    initialResumeEditorState,
+  );
+  const saving = editorState.status === "saving";
   const [aiLoading, setAiLoading] = useState(false);
   const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
@@ -357,23 +110,27 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const [isMobile, setIsMobile] = useState(false);
   const [zoom, setZoom] = useState(0.85);
   const [previewScale, setPreviewScale] = useState(1);
-  const [lastDraftSavedAt, setLastDraftSavedAt] = useState<number | null>(null);
-  const [hydrationReady, setHydrationReady] = useState(false);
 
   const previewPanelRef = useRef<HTMLDivElement>(null);
-  const autosaveTimerRef = useRef<number | null>(null);
-  const draftHydratedRef = useRef(false);
-  const latestResumeStateRef = useRef(resumeStateData);
-  const lastDraftSignatureRef = useRef<string>("");
-  const serverUpdatedAtRef = useRef<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const editorHydrationObservedRef = useRef(false);
 
-  const draftStorageKey = `resume_draft_${resumeId || "new"}`;
-
-  // Keep latest ref updated for autosave
-  useEffect(() => {
-    latestResumeStateRef.current = resumeStateData;
-  }, [resumeStateData]);
+  const {
+    hydrationReady,
+    lastDraftSavedAt,
+    markDraftBaseline,
+    clearResumeDraft,
+    serverUpdatedAtRef,
+  } = useResumeHydration({
+    resumeId,
+    resume: resumeStateData,
+    supabase,
+    setResume,
+    setResumeId,
+    dispatchEditor,
+    info,
+    error: toastError,
+  });
 
   // Responsive Check
   useEffect(() => {
@@ -385,168 +142,8 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Hydration and Initial Fetch
-  useEffect(() => {
-    let cancelled = false;
-    const hydrateResume = async () => {
-      draftHydratedRef.current = false;
-      setHydrationReady(false);
-
-      if (!resumeId) {
-        setResume(initialResumeState);
-        draftHydratedRef.current = true;
-        setHydrationReady(true);
-        return;
-      }
-
-      if (isRemoteResumePending) {
-        return;
-      }
-
-      const localDraft = await loadResumeDraft(draftStorageKey);
-      if (cancelled) return;
-
-      const normalizedRemoteData = remoteResume
-        ? normalizeResumeDataForEditor(
-            remoteResume.data,
-            remoteResume.name || initialResumeState.data.title,
-          )
-        : null;
-
-      if (remoteResumeError || !remoteResume) {
-        if (localDraft?.resume) {
-          setResume(localDraft.resume);
-          setResumeId(localDraft.resume.id);
-          info("Draft restored", "We restored your local unsaved changes.");
-        } else {
-          toastError(
-            "Resume not found",
-            "We couldn't load this resume. You'll be using a fresh template.",
-          );
-        }
-      } else if (
-        remoteResume &&
-        normalizedRemoteData &&
-        !looksLikePlaceholderResumeData(normalizedRemoteData)
-      ) {
-        const remoteState = buildHydratedResumeState(
-          remoteResume,
-          normalizedRemoteData,
-        );
-        serverUpdatedAtRef.current = remoteResume.updated_at ?? null;
-        lastDraftSignatureRef.current = JSON.stringify(remoteState);
-        setResume(remoteState);
-        setResumeId(remoteResume.id);
-      } else if (remoteResume) {
-        const canRestoreLocalDraft =
-          Boolean(localDraft?.resume) &&
-          !looksLikePlaceholderResumeData(localDraft?.resume?.data) &&
-          (!remoteResume.updated_at ||
-            !localDraft?.sourceUpdatedAt ||
-            localDraft.sourceUpdatedAt === remoteResume.updated_at);
-        const parsedProfile = await loadParsedResumeProfileData({
-          supabase,
-          resumeId: remoteResume.id,
-          fallbackName: remoteResume.name,
-        });
-
-        if (cancelled) return;
-
-        const hydratedData = parsedProfile
-          ? mapParsedDataToResume(
-              parsedProfile,
-              structuredClone(normalizedRemoteData ?? initialResumeState.data),
-            )
-          : (normalizedRemoteData ?? {
-              ...structuredClone(initialResumeState.data),
-              title: remoteResume.name || initialResumeState.data.title,
-            });
-        const hydratedState = buildHydratedResumeState(
-          remoteResume,
-          hydratedData,
-        );
-
-        serverUpdatedAtRef.current = remoteResume.updated_at ?? null;
-        lastDraftSignatureRef.current = JSON.stringify(hydratedState);
-        setResume(hydratedState);
-        setResumeId(remoteResume.id);
-
-        if (parsedProfile) {
-          if (
-            normalizedRemoteData &&
-            looksLikePlaceholderResumeData(normalizedRemoteData)
-          ) {
-            const repairTimestamp = new Date().toISOString();
-            serverUpdatedAtRef.current = repairTimestamp;
-
-            const { error: repairError } = await supabase
-              .from("resumes")
-              .update({
-                data: hydratedData,
-                name: hydratedData.title || remoteResume.name,
-                updated_at: repairTimestamp,
-              })
-              .eq("id", remoteResume.id);
-
-            if (repairError) {
-              console.warn(
-                "Failed to repair placeholder resume data",
-                repairError,
-              );
-            } else {
-              void queryClient.invalidateQueries({
-                queryKey: ["resume", remoteResume.id],
-              });
-            }
-          }
-
-          info(
-            "Resume imported",
-            "We populated the resume editor with details parsed from your uploaded file.",
-          );
-          await removeResumeDraft(draftStorageKey);
-          setLastDraftSavedAt(null);
-        } else if (canRestoreLocalDraft && localDraft?.resume) {
-          serverUpdatedAtRef.current = localDraft.sourceUpdatedAt ?? null;
-          lastDraftSignatureRef.current = JSON.stringify(localDraft.resume);
-          setResume(localDraft.resume);
-          setResumeId(localDraft.resume.id);
-          if (!restoredDraftNoticeRef.current) {
-            restoredDraftNoticeRef.current = true;
-            info(
-              "Draft restored",
-              "We restored your unsaved resume draft from this device.",
-            );
-          }
-        }
-      }
-      draftHydratedRef.current = true;
-      setHydrationReady(true);
-    };
-
-    void hydrateResume();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    draftStorageKey,
-    info,
-    isRemoteResumePending,
-    queryClient,
-    remoteResume,
-    remoteResumeError,
-    resumeId,
-    setResume,
-    setResumeId,
-    supabase,
-    toastError,
-  ]);
-
-  const restoredDraftNoticeRef = useRef(false);
-
   // Profile Data for Auto-population
-  const { profile, experiences } = useProfileSettings();
+  const { profile, experiences, education, skills } = useProfileSettings();
   const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
@@ -590,207 +187,47 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
     };
   }, [isMobile, zoom]);
 
+  const candidateProfile = useMemo(
+    () =>
+      buildCandidateProfileSnapshot({
+        profile,
+        email: userEmail,
+        experiences: experiences.data,
+        education: education.data,
+        skills: skills.data,
+      }),
+    [education.data, experiences.data, profile, skills.data, userEmail],
+  );
+
   useEffect(() => {
-    if (!draftHydratedRef.current) return;
-
-    const signature = JSON.stringify(resumeStateData);
-    if (signature === lastDraftSignatureRef.current) return;
-
-    if (autosaveTimerRef.current) {
-      window.clearTimeout(autosaveTimerRef.current);
+    if (!hydrationReady) {
+      editorHydrationObservedRef.current = false;
+      return;
     }
-
-    autosaveTimerRef.current = window.setTimeout(() => {
-      const snapshot = JSON.parse(
-        JSON.stringify(latestResumeStateRef.current),
-      ) as typeof resumeStateData;
-      const snapshotSignature = JSON.stringify(snapshot);
-
-      void saveResumeDraft({
-        key: draftStorageKey,
-        resume: snapshot,
-        updatedAt: Date.now(),
-        sourceUpdatedAt: serverUpdatedAtRef.current,
-      })
-        .then(() => {
-          lastDraftSignatureRef.current = snapshotSignature;
-          setLastDraftSavedAt(Date.now());
-        })
-        .catch((draftError: Error) => {
-          console.error("Resume draft autosave failed:", draftError);
-        });
-    }, DRAFT_AUTOSAVE_DELAY_MS);
-
-    return () => {
-      if (autosaveTimerRef.current) {
-        window.clearTimeout(autosaveTimerRef.current);
-      }
-    };
-  }, [draftStorageKey, resumeStateData]);
-
-  useEffect(() => {
-    const flushDraft = () => {
-      if (!draftHydratedRef.current) return;
-
-      const snapshot = JSON.parse(
-        JSON.stringify(latestResumeStateRef.current),
-      ) as typeof resumeStateData;
-      const snapshotSignature = JSON.stringify(snapshot);
-
-      if (snapshotSignature === lastDraftSignatureRef.current) return;
-
-      void saveResumeDraft({
-        key: draftStorageKey,
-        resume: snapshot,
-        updatedAt: Date.now(),
-        sourceUpdatedAt: serverUpdatedAtRef.current,
-      })
-        .then(() => {
-          lastDraftSignatureRef.current = snapshotSignature;
-        })
-        .catch((draftError: Error) => {
-          console.error("Resume draft flush failed:", draftError);
-        });
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        flushDraft();
-      }
-    };
-
-    window.addEventListener("pagehide", flushDraft);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener("pagehide", flushDraft);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [draftStorageKey, resumeStateData]);
-
-  const defaultBasics = initialResumeState.data.basics;
-  const normalizeFieldValue = (value?: string) =>
-    value?.trim().toLowerCase() || "";
-  const isPlaceholderBasicsValue = (
-    value: string | undefined,
-    fallback: string,
-  ) => {
-    const normalizedValue = normalizeFieldValue(value);
-    if (!normalizedValue) return true;
-    return normalizedValue === normalizeFieldValue(fallback);
-  };
+    if (!editorHydrationObservedRef.current) {
+      editorHydrationObservedRef.current = true;
+      dispatchEditor({ type: "READY" });
+      return;
+    }
+    dispatchEditor({ type: "CHANGE" });
+  }, [hydrationReady, resumeStateData]);
 
   useEffect(() => {
     if (!hydrationReady) return;
+    const mapped = fillResumeFromCandidateProfile(
+      resumeData,
+      initialResumeState.data,
+      candidateProfile,
+    );
 
-    const profileName =
-      `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim();
-    const profileHeadline =
-      profile?.job_title?.trim() ||
-      experiences.data.find((item) => item.is_current)?.title?.trim() ||
-      experiences.data[0]?.title?.trim() ||
-      "";
-    const nextBasicsPatch: Partial<typeof resumeData.basics> = {};
-
-    if (
-      profileName &&
-      isPlaceholderBasicsValue(resumeData.basics.name, defaultBasics.name)
-    ) {
-      nextBasicsPatch.name = profileName;
-    }
-
-    if (
-      profileHeadline &&
-      isPlaceholderBasicsValue(
-        resumeData.basics.headline,
-        defaultBasics.headline,
-      )
-    ) {
-      nextBasicsPatch.headline = profileHeadline;
-    }
-
-    if (
-      userEmail &&
-      isPlaceholderBasicsValue(resumeData.basics.email, defaultBasics.email)
-    ) {
-      nextBasicsPatch.email = userEmail;
-    }
-
-    if (
-      profile?.phone &&
-      isPlaceholderBasicsValue(resumeData.basics.phone, defaultBasics.phone)
-    ) {
-      nextBasicsPatch.phone = profile.phone;
-    }
-
-    if (
-      profile?.location &&
-      isPlaceholderBasicsValue(
-        resumeData.basics.location,
-        defaultBasics.location,
-      )
-    ) {
-      nextBasicsPatch.location = profile.location;
-    }
-
-    const currentProfiles = resumeData.basics.profiles || [];
-    const nextProfiles = [...currentProfiles];
-    let profilesChanged = false;
-
-    if (profile?.github_data?.profile_url) {
-      const hasGithub = currentProfiles.some(
-        (p) => p.network?.toLowerCase() === "github"
-      );
-      if (!hasGithub) {
-        nextProfiles.push({
-          network: "GitHub",
-          username: profile.github_data.username || "",
-          url: profile.github_data.profile_url,
-          icon: "github",
-        });
-        profilesChanged = true;
-      }
-    }
-
-    if (profile?.linkedin_data?.profile_url) {
-      const hasLinkedin = currentProfiles.some(
-        (p) => p.network?.toLowerCase() === "linkedin"
-      );
-      if (!hasLinkedin) {
-        nextProfiles.push({
-          network: "LinkedIn",
-          username: profile.linkedin_data.name || "",
-          url: profile.linkedin_data.profile_url,
-          icon: "linkedin",
-        });
-        profilesChanged = true;
-      }
-    }
-
-    if (profilesChanged) {
-      nextBasicsPatch.profiles = nextProfiles;
-    }
-
-    if (Object.keys(nextBasicsPatch).length > 0) {
-      updateBasics(nextBasicsPatch);
+    if (JSON.stringify(mapped) !== JSON.stringify(resumeData)) {
+      setResumeData(mapped);
     }
   }, [
-    defaultBasics.email,
-    defaultBasics.headline,
+    candidateProfile,
     hydrationReady,
-    defaultBasics.location,
-    defaultBasics.name,
-    defaultBasics.phone,
-    experiences.data,
-    profile,
-    resumeData.basics.email,
-    resumeData.basics.headline,
-    resumeData.basics.location,
-    resumeData.basics.name,
-    resumeData.basics.phone,
-    resumeData.basics.profiles,
-    userEmail,
-    updateBasics,
+    resumeData,
+    setResumeData,
   ]);
 
   // Actions
@@ -843,10 +280,6 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
-  };
-
-  const downloadPDF = () => {
-    void downloadResumePDF(resumeData);
   };
 
   const aiPolishSummary = async (
@@ -905,13 +338,19 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const previewFrameHeight = PREVIEW_BASE_HEIGHT * effectivePreviewScale;
   const editorStatusLabel = saving
     ? "Saving..."
+    : editorState.status === "error"
+      ? "Save failed"
+      : editorState.status === "saved"
+        ? "Saved"
+        : editorState.status === "dirty"
+          ? "Unsaved changes"
     : lastDraftSavedAt
       ? "Autosaved locally"
       : "Ready";
 
   const handleSave = async () => {
     if (!resumeId) return;
-    setSaving(true);
+    dispatchEditor({ type: "SAVE" });
     try {
       const pictureSnapshot = await syncProfilePicture(false);
       const dataToSave = pictureSnapshot
@@ -920,37 +359,39 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             basics: { ...resumeData.basics, picture: pictureSnapshot },
           }
         : resumeData;
-      const { error } = await supabase
-        .from("resumes")
-        .update({
-          data: dataToSave,
-          name: dataToSave.title,
-          slug: dataToSave.slug,
-          tags: dataToSave.tags,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", resumeId);
-      if (error) throw error;
-      serverUpdatedAtRef.current = new Date().toISOString();
-      lastDraftSignatureRef.current = JSON.stringify({
-        ...latestResumeStateRef.current,
+      const saved = await persistResume(dataToSave);
+      serverUpdatedAtRef.current = saved.updated_at;
+      markDraftBaseline({
+        ...resumeStateData,
         id: resumeId,
         data: dataToSave,
       });
-      await queryClient.invalidateQueries({ queryKey: ["resume", resumeId] });
-      await removeResumeDraft(draftStorageKey);
-      setLastDraftSavedAt(null);
+      await clearResumeDraft();
       success("Resume saved", "Your latest resume changes have been saved.");
+      dispatchEditor({ type: "SAVED" });
       setSaveAlertOpen(true);
     } catch (e: any) {
+      const message = e?.message || "Unable to save your resume right now.";
+      dispatchEditor({ type: "FAIL", error: message });
       toastError(
         "Save failed",
-        e?.message || "Unable to save your resume right now.",
+        message,
       );
-    } finally {
-      setSaving(false);
     }
   };
+
+  if (!hydrationReady) {
+    return (
+      <div className="product-page-shell flex h-full flex-col animate-pulse">
+        <div className="h-16 border-b border-border/40 bg-background/80" />
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-border/40 bg-foreground/5" />
+          <div className="hidden rounded-2xl border border-border/40 bg-foreground/5 lg:block" />
+        </div>
+        <span className="sr-only">Loading resume editor</span>
+      </div>
+    );
+  }
 
   return (
     <div className='product-page-shell flex flex-col h-full relative overflow-hidden'>
@@ -1055,11 +496,16 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           </button>
 
           <button
-            onClick={downloadPDF}
+            onClick={() => void downloadPdf(resumeData)}
+            disabled={exporting}
             className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-medium whitespace-nowrap'
           >
-            <Download className='w-4 h-4 shrink-0' />
-            <span className='hidden sm:inline'>PDF export</span>
+            <Download
+              className={`w-4 h-4 shrink-0 ${exporting ? "animate-pulse" : ""}`}
+            />
+            <span className='hidden sm:inline'>
+              {exporting ? "Exporting..." : "PDF export"}
+            </span>
           </button>
         </div>
       </header>

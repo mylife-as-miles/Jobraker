@@ -86,20 +86,17 @@ const normalizeTrackedCompanies = (
   value: Profile["tracked_companies"],
 ): TrackedCompany[] => {
   if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (typeof item === "string") {
-        return { name: item };
-      }
-      if (!item || typeof item !== "object") return null;
-      return {
+  return value.flatMap((item): TrackedCompany[] => {
+      const company: TrackedCompany = typeof item === "string"
+        ? { name: item }
+        : {
         name: item.name ?? "",
         careers_url: item.careers_url ?? "",
         source_hint: item.source_hint ?? "",
         domain: item.domain ?? "",
-      } satisfies TrackedCompany;
-    })
-    .filter((item): item is TrackedCompany => Boolean(item?.name?.trim()));
+      };
+      return company.name.trim() ? [company] : [];
+    });
 };
 
 const sanitizeProofPoints = (items: ProofPoint[]): Profile["proof_points"] =>

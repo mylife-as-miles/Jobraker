@@ -1,4 +1,3 @@
-import React from "react";
 import { Helmet } from "react-helmet-async";
 
 const APP_ORIGIN = "https://app.jobraker.io";

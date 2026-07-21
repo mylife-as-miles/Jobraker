@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Type, Palette, FileText, Layout, ChevronDown } from "lucide-react";
+import { Type, Palette, FileText, Layout } from "lucide-react";
 import { useArtboardStore } from "../../../store/artboard";
 import { Slider } from "../../../components/ui/slider";
 import {

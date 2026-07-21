@@ -11,7 +11,6 @@ import { ArrowRight, Terminal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export const HeroParallax = () => {
-  const navigate = useNavigate();
   const ref = React.useRef(null);
   const { scrollYProgress } = useScroll({
     target: ref,

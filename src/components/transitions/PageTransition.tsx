@@ -44,7 +44,7 @@ export const PageTransition = ({ children, className }: PageTransitionProps) => 
 
 export const PageTransitionWrapper = ({ children }: { children: ReactNode }) => {
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence initial={false}>
       {children}
     </AnimatePresence>
   );

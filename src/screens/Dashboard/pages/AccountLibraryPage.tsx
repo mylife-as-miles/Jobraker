@@ -1,4 +1,3 @@
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import { FileText, PenTool, Gift, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -52,10 +51,10 @@ export const AccountLibraryPage = () => {
       <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8 pb-24 h-fit">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-            Account Library
+            Documents
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Access and manage your personal job search assets and referrals.
+            Create and manage the documents and network assets supporting your job search.
           </p>
         </div>
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Pricing } from '../../../components/blocks/pricing';
 import { SUBSCRIPTION_MARKETING_PLANS } from '@/lib/subscriptionAccess';
 import { captureClientEvent } from '@/lib/analytics';

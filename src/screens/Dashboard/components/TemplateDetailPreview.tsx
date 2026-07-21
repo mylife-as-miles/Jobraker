@@ -5,14 +5,16 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize,
-  Check,
-  LayoutTemplate,
   Edit3,
   Download,
   Palette,
   Type as TypeIcon,
 } from "lucide-react";
-import { useArtboardStore, ArtboardStore } from "../../../store/artboard";
+import {
+  useArtboardStore,
+  type ArtboardStore,
+  type ResumeData,
+} from "../../../store/artboard";
 import { cn } from "../../../lib/utils";
 import { TemplatePreview } from "./TemplatePreview";
 
@@ -57,12 +59,14 @@ export const TemplateDetailPreview = ({
   );
   const [zoom, setZoom] = useState(1);
 
-  const metadataOverride = useMemo(
+  const metadataOverride = useMemo<ResumeData["metadata"]>(
     () => ({
       ...storeMetadata,
       theme: {
         ...storeMetadata.theme,
         primary: primaryColor,
+        text: storeMetadata.theme?.text ?? "#111827",
+        background: storeMetadata.theme?.background ?? "#ffffff",
       },
       typography: {
         ...storeMetadata.typography,

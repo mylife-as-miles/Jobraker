@@ -11,10 +11,16 @@ import { JoyrideAdapter } from "./JoyrideAdapter";
 import { useLocation } from "react-router-dom";
 import { useProfileSettings } from "../hooks/useProfileSettings";
 import { X } from "lucide-react";
+import {
+  isTourStepApplicable,
+  type TourViewport,
+} from "../lib/tourLayout";
 
 type CoachMark = {
   id: string; // unique id within page
   selector?: string; // CSS selector (lazy queried)
+  mobileSelector?: string; // alternate selector for mobile-only layouts
+  viewport?: TourViewport; // omit when the step does not apply
   element?: HTMLElement | null; // direct element reference (optional)
   title: string;
   body: string;
@@ -98,6 +104,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
   const { profile, completeWalkthrough } = useProfileSettings();
   const [waiting, setWaiting] = useState(false);
   const [registryVersion, setRegistryVersion] = useState(0);
+  const startRetryRef = useRef<number | null>(null);
   const labels = {
     back: "Back",
     next: "Next",
@@ -163,18 +170,26 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const resolveElements = useCallback((marks: RegistryEntry[]) => {
-    return marks.map((m) => {
-      let el: HTMLElement | null = m.element || null;
-      if (!el && m.selector) {
+    const viewportWidth = window.innerWidth;
+    return marks.filter((m) =>
+      isTourStepApplicable(m.viewport, viewportWidth)
+    ).map((m) => {
+      const selector = viewportWidth < 768 && m.mobileSelector
+        ? m.mobileSelector
+        : m.selector;
+      let el: HTMLElement | null = viewportWidth < 768 && m.mobileSelector
+        ? null
+        : m.element || null;
+      if (!el && selector) {
         try {
           // Prefer data-tour selector exact match if user passed shorthand like application-search
           const direct = document.querySelector<HTMLElement>(
-            m.selector.startsWith("[data-tour=") ||
-              m.selector.startsWith(".") ||
-              m.selector.startsWith("#") ||
-              m.selector.includes(" ")
-              ? m.selector
-              : `[data-tour="${m.selector}"]`,
+            selector.startsWith("[data-tour=") ||
+              selector.startsWith(".") ||
+              selector.startsWith("#") ||
+              selector.includes(" ")
+              ? selector
+              : `[data-tour="${selector}"]`,
           );
           el = direct;
         } catch {
@@ -187,34 +202,84 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const start = useCallback(
     (pageId: string) => {
-      const list =
-        registry.current.get(pageId) || registry.current.get("*") || [];
-      const resolved = resolveElements(list).filter((m) => !!m.title);
-      if (!resolved.length) return;
-      setPage(pageId);
-      setOrder(resolved);
-      // Resume persisted progress if available and valid
-      const persistedRaw = localStorage.getItem(`tour_state:${pageId}`);
-      let resumeIndex = 0;
-      if (persistedRaw) {
-        try {
-          const parsed = JSON.parse(persistedRaw);
-          if (
-            typeof parsed.index === "number" &&
-            parsed.index >= 0 &&
-            parsed.index < resolved.length
-          ) {
-            resumeIndex = parsed.index;
-          }
-        } catch {
-          /* ignore */
-        }
+      if (startRetryRef.current !== null) {
+        window.clearTimeout(startRetryRef.current);
       }
-      setActiveIndex(resumeIndex);
-      setIsRunning(true);
+      const attemptStart = (attempt: number) => {
+        const list =
+          registry.current.get(pageId) || registry.current.get("*") || [];
+        const resolved = resolveElements(list).filter(
+          (m) => Boolean(m.title) && Boolean(m.element),
+        );
+        if (!resolved.length && attempt < 8) {
+          startRetryRef.current = window.setTimeout(
+            () => attemptStart(attempt + 1),
+            150,
+          );
+          return;
+        }
+        startRetryRef.current = null;
+        if (!resolved.length) return;
+        setPage(pageId);
+        setOrder(resolved);
+        const persistedRaw = localStorage.getItem(`tour_state:${pageId}`);
+        let resumeIndex = 0;
+        if (persistedRaw) {
+          try {
+            const parsed = JSON.parse(persistedRaw);
+            if (
+              typeof parsed.index === "number" &&
+              parsed.index >= 0 &&
+              parsed.index < resolved.length
+            ) {
+              resumeIndex = parsed.index;
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+        setActiveIndex(resumeIndex);
+        setIsRunning(true);
+      };
+      attemptStart(0);
     },
     [resolveElements],
   );
+
+  useEffect(() => () => {
+    if (startRetryRef.current !== null) {
+      window.clearTimeout(startRetryRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isRunning || !page) return;
+    let frame = 0;
+    const refreshForViewport = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const list = registry.current.get(page) || registry.current.get("*") || [];
+        const resolved = resolveElements(list).filter(
+          (mark) => Boolean(mark.title) && Boolean(mark.element),
+        );
+        if (!resolved.length) {
+          setIsRunning(false);
+          setPage(null);
+          setActiveIndex(-1);
+          return;
+        }
+        setOrder(resolved);
+        setActiveIndex((index) => Math.min(Math.max(index, 0), resolved.length - 1));
+      });
+    };
+    window.addEventListener("resize", refreshForViewport);
+    window.addEventListener("orientationchange", refreshForViewport);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", refreshForViewport);
+      window.removeEventListener("orientationchange", refreshForViewport);
+    };
+  }, [isRunning, page, resolveElements]);
 
   const next = useCallback(() => {
     setActiveIndex((idx) => {
@@ -264,25 +329,6 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [page, completeWalkthrough]);
 
   const active = activeIndex >= 0 ? order[activeIndex] : null;
-
-  // Auto-scroll into view & re-measure when active changes
-  useEffect(() => {
-    if (!active || !isRunning) return;
-    const el = active.element;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const fullyVisible =
-      rect.top >= 64 && rect.bottom <= window.innerHeight - 32; // small padding
-    if (!fullyVisible) {
-      el.scrollIntoView({ block: "center", behavior: "smooth" });
-      setTimeout(() => {
-        // force reflow for overlay reposition
-        setOrder((prev) =>
-          prev.map((m) => (m.id === active.id ? { ...m, element: el } : m)),
-        );
-      }, 380);
-    }
-  }, [active?.id, isRunning]);
 
   // Persist active step progress
   useEffect(() => {
@@ -446,7 +492,7 @@ const pageLabels: Record<string, string> = {
   chat: "Chat",
 };
 
-const FloatingTourMenu: React.FC<{
+export const FloatingTourMenu: React.FC<{
   registry: React.MutableRefObject<Map<string, any[]>>;
   start: (p: string) => void;
   page: string | null;

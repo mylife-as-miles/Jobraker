@@ -1,4 +1,3 @@
-import React from 'react';
 import { useArtboardStore } from '../../store/artboard';
 
 // Minimal store adapter to make templates work with existing store

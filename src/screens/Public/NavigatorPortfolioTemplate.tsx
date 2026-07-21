@@ -3,14 +3,12 @@ import { Link } from "react-router-dom";
 import {
   ArrowDown,
   ArrowUpRight,
-  BriefcaseBusiness,
   CalendarDays,
   ChevronRight,
   Github,
   GraduationCap,
   Linkedin,
   Mail,
-  MapPin,
   Phone,
   Sparkles,
 } from "lucide-react";

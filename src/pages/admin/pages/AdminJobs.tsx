@@ -6,8 +6,6 @@ import {
   ChevronDown,
   X,
   Loader2,
-  Play,
-  Trash2,
   AlertTriangle,
   CheckCircle2,
   User as UserIcon,
@@ -19,8 +17,6 @@ import {
   RefreshCw,
   Layers,
   Clock,
-  ShieldAlert,
-  ArrowUpRight,
   Ban,
   FileText,
   CornerUpLeft,
@@ -36,6 +32,7 @@ interface ApplicationWithUser {
   location?: string | null;
   applied_date: string;
   status: string;
+  canonical_stage?: string | null;
   run_id?: string | null;
   workflow_id?: string | null;
   app_url?: string | null;

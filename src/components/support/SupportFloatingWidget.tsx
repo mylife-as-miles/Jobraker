@@ -16,7 +16,6 @@ import {
   Sparkles,
   X,
   CheckCircle,
-  User,
   Clock,
 } from "lucide-react";
 
@@ -776,10 +775,10 @@ export function SupportFloatingWidget({
                         <Bot className="h-3.5 w-3.5" />
                         <span>Support AI</span>
                       </div>
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        className="prose prose-invert prose-sm max-w-none text-foreground/90 break-words leading-relaxed prose-p:leading-relaxed prose-pre:my-2"
-                        components={{
+                      <div className="prose prose-invert prose-sm max-w-none text-foreground/90 break-words leading-relaxed prose-p:leading-relaxed prose-pre:my-2">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
                           a: ({ node: _node, ...props }) => (
                             <a {...props} target="_blank" rel="noreferrer" className="text-brand hover:underline font-medium" />
                           ),
@@ -798,10 +797,11 @@ export function SupportFloatingWidget({
                               </code>
                             );
                           }
-                        }}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
+                          }}
+                        >
+                          {message.content}
+                        </ReactMarkdown>
+                      </div>
                     </div>
                   ) : (
                     <p className="whitespace-pre-wrap">{message.content}</p>

@@ -154,8 +154,6 @@ export function usePrivacySettings() {
     if (changes.length > 0) {
       try {
         const userAgent = navigator.userAgent;
-        const ipAddress = null; // Would need backend to get real IP
-        
         for (const key of changes) {
           await (supabase as any).from('privacy_audit_log').insert({
             user_id: userId,

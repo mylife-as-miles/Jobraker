@@ -31,8 +31,6 @@ export function ConcurrencyLimitModal({
     onOpenChange(false);
   }, [onOpenChange]);
 
-  const isBasics = currentTier === "Basics";
-  const isPro = currentTier === "Pro";
   const isFree = currentTier === "Free" || !currentTier;
 
   // Anchoring options

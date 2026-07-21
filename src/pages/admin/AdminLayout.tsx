@@ -1,20 +1,13 @@
 import {
   LayoutDashboard,
   Users,
-  MessageSquare,
-  CreditCard,
-  TrendingUp,
-  Activity,
   Settings,
-  Database,
-  Zap,
   ChevronRight,
   ChevronDown,
   Menu,
   X,
   Crown,
   ShieldAlert,
-  WalletCards,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";

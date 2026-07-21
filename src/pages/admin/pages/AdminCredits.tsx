@@ -259,7 +259,7 @@ export default function AdminCredits() {
         .select("available, reserved, lifetime_earned, lifetime_spent");
 
       const hasV2Data = !creditsError && credits && credits.length > 0;
-      setIsV2(hasV2Data);
+      setIsV2(Boolean(hasV2Data));
 
       if (!hasV2Data) {
         // Fallback to legacy user_credits

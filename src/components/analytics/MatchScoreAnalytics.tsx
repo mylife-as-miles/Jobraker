@@ -133,7 +133,16 @@ export function MatchScoreAnalytics({
           <div className='relative'>
             {hasData ? (
               <div className='space-y-3.5'>
-                {rows.map((item) => (
+                {rows.map((item: {
+                  id: string;
+                  company?: string;
+                  color: string;
+                  fullLabel: string;
+                  label: string;
+                  rank: number;
+                  value: number;
+                  width: number;
+                }) => (
                   <motion.div
                     key={item.id}
                     initial={{ opacity: 0, y: 10 }}

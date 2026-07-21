@@ -6,7 +6,6 @@ import {
   Copy,
   PenTool,
   CheckCircle2,
-  AlertCircle,
   Search,
   Globe,
 } from "lucide-react";

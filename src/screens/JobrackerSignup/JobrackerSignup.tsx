@@ -4,7 +4,6 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  Sparkles,
   CheckCircle2,
   Loader2,
 } from "lucide-react";
@@ -32,7 +31,6 @@ import { useToast } from "../../components/ui/toast-provider";
 import Modal from "../../components/ui/modal";
 import { SelfSolvingCube } from "./components/SelfSolvingCube";
 import { sanitizeTextValue } from "@/lib/inputSecurity";
-import { logSecurityEvent } from "../../utils/sessionManagement";
 
 function isAdminHost() {
   return window.location.hostname.startsWith("admin.");

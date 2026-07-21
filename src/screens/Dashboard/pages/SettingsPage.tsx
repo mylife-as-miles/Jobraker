@@ -48,7 +48,6 @@ import {
   X,
   LifeBuoy,
   Calendar,
-  Code,
 } from "lucide-react";
 import remoteCoLogo from "../../../assets/job-sources/remote-co.svg";
 import remotiveLogo from "../../../assets/job-sources/remotive.svg";
@@ -80,6 +79,10 @@ import { CreditService } from "@/services/creditService";
 import { getProxiedLogoUrl } from "../../../lib/utils";
 import useMediaQuery from "@/hooks/use-media-query";
 import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
+import {
+  createOAuthRequestId,
+  waitForComposioConnection,
+} from "@/lib/composioConnection";
 
 const SignOutDialog = ({
   open,
@@ -726,6 +729,7 @@ export const SettingsPage = (): JSX.Element => {
               slug: integration.slug,
               label: integration.name,
               toolkitSlug: integration.toolkitSlug,
+              authConfigId: integration.authConfigId,
             })),
           },
         },
@@ -769,6 +773,7 @@ export const SettingsPage = (): JSX.Element => {
     async (integration: ComposioIntegration) => {
       // Open popup synchronously to prevent popup blockers
       const popup = window.open("about:blank", "_blank", "width=560,height=760");
+      const oauthRequestId = createOAuthRequestId();
 
       startTransition(() => {
         setConnectingComposioSlug(integration.slug);
@@ -782,6 +787,8 @@ export const SettingsPage = (): JSX.Element => {
               action: "initiate",
               integrationSlug: integration.slug,
               toolkitSlug: integration.toolkitSlug,
+              authConfigId: integration.authConfigId,
+              oauthRequestId,
             },
           },
         );
@@ -801,7 +808,31 @@ export const SettingsPage = (): JSX.Element => {
           window.open(redirectUrl, "_blank", "width=560,height=760");
         }
         
-        window.setTimeout(() => void refreshComposioConnectionStatuses(), 1500);
+        const connected = await waitForComposioConnection({
+          popup,
+          requestId: oauthRequestId,
+          provider: integration.slug,
+          check: async () => {
+            const { data: statusData, error: statusError } =
+              await supabase.functions.invoke("composio-auth", {
+                body: {
+                  action: "status",
+                  integrationSlug: integration.slug,
+                  toolkitSlug: integration.toolkitSlug,
+                  authConfigId: integration.authConfigId,
+                },
+              });
+            if (statusError) return false;
+            return Boolean(statusData?.isConnected);
+          },
+        });
+        await refreshComposioConnectionStatuses();
+        if (!connected) {
+          toastError(
+            `${integration.name} connection not completed`,
+            "Complete authorization in the popup, then use Refresh status to try again.",
+          );
+        }
       } catch (error: unknown) {
         if (popup) {
           popup.close();
@@ -1520,7 +1551,7 @@ export const SettingsPage = (): JSX.Element => {
         jobsP,
         bookmarksP,
         creditTxP,
-        creditsRes,
+        creditsP,
         subsP,
         notifsP,
         eduP,
@@ -4832,7 +4863,11 @@ export const SettingsPage = (): JSX.Element => {
                               onClick={() =>
                                 void handleConnectComposioIntegration(integration)
                               }
-                              disabled={isConnecting || !status.configured}
+                              disabled={
+                                composioStatusesLoading ||
+                                isConnecting ||
+                                !status.configured
+                              }
                             >
                               {isConnecting ? (
                                 <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
@@ -6151,8 +6186,7 @@ export const SettingsPage = (): JSX.Element => {
 
 // Unused function - kept for potential future use
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/naming-convention
-// @ts-expect-error - Intentionally unused, kept for potential future use
-function _DefaultsForm() {
+export function DefaultsForm() {
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError } = useToast();
   const [loading, setLoading] = useState(true);

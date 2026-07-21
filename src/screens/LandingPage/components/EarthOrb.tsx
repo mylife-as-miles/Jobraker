@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useState, useCallback } from 'react';
+import React, { useRef, useMemo, useState, useCallback, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sphere, Stars } from '@react-three/drei';
 import * as THREE from 'three';
@@ -115,22 +115,34 @@ const Globe = () => {
 };
 
 const OrbitRing = ({ radius, speed, color, opacity, rotateX = 0, rotateY = 0, rotateZ = 0 }: any) => {
-    const ringRef = useRef<THREE.Line>(null);
     const curve = useMemo(() => new THREE.EllipseCurve(0, 0, radius, radius, 0, 2 * Math.PI, false, 0), [radius]);
     const points = useMemo(() => curve.getPoints(120), [curve]);
     const geometry = useMemo(() => new THREE.BufferGeometry().setFromPoints(points), [points]);
+    const line = useMemo(
+      () => new THREE.Line(
+        geometry,
+        new THREE.LineBasicMaterial({
+          color,
+          transparent: true,
+          opacity,
+          blending: THREE.AdditiveBlending,
+        }),
+      ),
+      [color, geometry, opacity],
+    );
+
+    useEffect(() => () => {
+      geometry.dispose();
+      (line.material as THREE.Material).dispose();
+    }, [geometry, line]);
 
     useFrame(() => {
-        if (ringRef.current) {
-            ringRef.current.rotation.z += speed * 0.01;
-        }
+        line.rotation.z += speed * 0.01;
     });
 
     return (
         <group rotation={[rotateX, rotateY, rotateZ]}>
-             <line ref={ringRef} geometry={geometry}>
-                <lineBasicMaterial color={color} transparent opacity={opacity} blending={THREE.AdditiveBlending} />
-            </line>
+            <primitive object={line} />
         </group>
     );
 };

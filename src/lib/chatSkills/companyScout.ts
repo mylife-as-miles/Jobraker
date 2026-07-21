@@ -1,5 +1,5 @@
 import { invokeProtectedFunction } from "@/services/supabase/invokeProtectedFunction";
-import { resolveTargetCompanies, inferRoleFromContext } from "./directApply";
+import { resolveTargetCompanies } from "./directApply";
 import type {
   JobrakerChatSkill,
   SkillExecutionInput,
@@ -115,12 +115,6 @@ export const companyScoutSkill: JobrakerChatSkill = {
     }
 
     const targetCompanies = resolveTargetCompanies(input);
-    const fullContext = [
-      input.userInstruction,
-      ...(input.conversationContext || []).map((msg) => msg.content),
-    ].join("\n");
-    const role = inferRoleFromContext(input.args, fullContext, targetCompanies);
-
     if (!targetCompanies.length) {
       return {
         status: "completed",

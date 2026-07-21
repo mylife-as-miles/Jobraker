@@ -1,7 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuid } from 'uuid';
-import type { ChatMessageRecord } from '../hooks/useChat';
+
+export interface ChatMessageRecord {
+  id: string;
+  content: string;
+  role?: "user" | "assistant" | "system" | "skill";
+  createdAt?: number;
+  [key: string]: unknown;
+}
 
 export interface ChatSnippet {
   id: string;

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import {
   Eye,
   EyeOff,
@@ -111,7 +111,7 @@ const PhotoCropDialog = ({ open, onClose, imageSrc, onSave }: PhotoCropDialogPro
     setPosition(clamped);
   };
 
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerUp = () => {
     setIsDragging(false);
   };
 

@@ -1,5 +1,5 @@
-import React, { useRef } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef } from "react";
+import { motion } from "framer-motion";
 
 const steps = [
   {
@@ -30,15 +30,10 @@ const steps = [
 
 export const ScrollShowcase = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end end"],
-  });
-
   return (
     <section ref={containerRef} className='bg-background relative'>
       {steps.map((step, i) => (
-        <ShowcaseStep key={i} step={step} index={i} total={steps.length} />
+        <ShowcaseStep key={i} step={step} />
       ))}
     </section>
   );
@@ -46,12 +41,8 @@ export const ScrollShowcase = () => {
 
 const ShowcaseStep = ({
   step,
-  index,
-  total,
 }: {
   step: (typeof steps)[0];
-  index: number;
-  total: number;
 }) => {
   return (
     <div className='min-h-screen sticky top-0 flex items-center justify-center overflow-hidden border-t border-brand/10 bg-background'>

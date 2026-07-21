@@ -9,7 +9,7 @@ function getStrictContext<T>(
   }: {
     value: T;
     children?: React.ReactNode;
-  }) => React.JSX.Element,
+  }) => React.ReactElement,
   () => T,
 ] {
   const Context = React.createContext<T | undefined>(undefined);

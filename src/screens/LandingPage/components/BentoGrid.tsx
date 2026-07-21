@@ -1,9 +1,7 @@
-import React from "react";
 import { motion } from "framer-motion";
 import {
   Bot,
   FileText,
-  BarChart3,
   Activity,
   ArrowRight,
   MessageSquare,

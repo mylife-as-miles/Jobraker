@@ -10,7 +10,6 @@ import {
   Volume2,
   Briefcase,
   Layers,
-  HelpCircle,
   FolderOpen,
   Info,
   Sparkles,

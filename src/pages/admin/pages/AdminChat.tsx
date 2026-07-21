@@ -11,12 +11,9 @@ import {
   Send,
   LifeBuoy,
   Clock,
-  ArrowUpRight,
   RefreshCw,
   AlertCircle,
-  ExternalLink,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
@@ -274,7 +271,7 @@ export default function AdminChat() {
     return tickets.filter((t) => {
       const matchesStatus = statusFilter === "all" || t.status === statusFilter;
       
-      const email = activeTicketId === t.id ? activeUserEmail : "";
+      const email = activeTicketId === t.id ? activeUserEmail ?? "" : "";
       const name = `${t.profiles?.first_name || ""} ${t.profiles?.last_name || ""}`;
       const subject = t.subject || "";
       const matchesSearch =
@@ -509,7 +506,6 @@ export default function AdminChat() {
                   </div>
                 ) : (
                   messages.map((m) => {
-                    const isAi = m.sender_role === "ai";
                     const isAdmin = m.sender_role === "admin";
                     const isUser = m.sender_role === "user";
                     const isSystem = m.metadata?.isSystemLog === true;
@@ -567,12 +563,12 @@ export default function AdminChat() {
                           </div>
 
                           {!isUser ? (
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              className={`prose prose-sm max-w-none break-words leading-relaxed prose-p:leading-relaxed prose-pre:my-2 ${
+                            <div className={`prose prose-sm max-w-none break-words leading-relaxed prose-p:leading-relaxed prose-pre:my-2 ${
                                 isAdmin ? "prose-invert text-black font-medium prose-a:underline" : "prose-invert text-foreground/95"
-                              }`}
-                              components={{
+                              }`}>
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
                                 a: ({ node: _node, ...props }) => (
                                   <a {...props} target="_blank" rel="noreferrer" className={isAdmin ? "text-black font-bold" : "text-brand hover:underline font-medium"} />
                                 ),
@@ -591,10 +587,11 @@ export default function AdminChat() {
                                     </code>
                                   );
                                 }
-                              }}
-                            >
-                              {m.content}
-                            </ReactMarkdown>
+                                }}
+                              >
+                                {m.content}
+                              </ReactMarkdown>
+                            </div>
                           ) : (
                             <p className='whitespace-pre-wrap'>{m.content}</p>
                           )}

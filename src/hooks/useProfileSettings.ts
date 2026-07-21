@@ -52,6 +52,7 @@ export interface Profile {
   subscription_tier?: "Free" | "Basics" | "Pro" | "Ultimate" | null;
   linkedin_url?: string | null;
   github_url?: string | null;
+  about?: string | null;
   github_data?: any;
   linkedin_data?: any;
   portfolio_sync_meta?: any;

@@ -1,13 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Composio } from "npm:@composio/core@0.13.1";
-import { getCorsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders, resolveAllowedOrigin } from "../_shared/cors.ts";
 import {
   SubscriptionAccessError,
   requireAuthenticatedUser,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
-
-const corsHeaders = getCorsHeaders();
+import {
+  findActiveConnectedAccount,
+  normalizeComposioSlug,
+  normalizeConnectedAccount,
+} from "../_shared/composio-connected-account.ts";
 
 const composio = new Composio({
   apiKey: Deno.env.get("COMPOSIO_API_KEY") || "",
@@ -17,14 +20,7 @@ function asString(val: unknown): string {
   return typeof val === "string" ? val : "";
 }
 
-function normalizeSlug(slug: string | null | undefined): string {
-  if (!slug) return "";
-  return slug.toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
+const normalizeSlug = normalizeComposioSlug;
 
 function getEnvAuthConfigId(slug: string | null): string | null {
   if (!slug) return null;
@@ -46,42 +42,7 @@ function connectedAccountMatches(
   authConfigId: string | null,
   slug?: string | null,
 ) {
-  const authConfig = isRecord(account.authConfig) 
-    ? account.authConfig 
-    : (isRecord(account.auth_config) ? account.auth_config : null);
-  
-  const authConfigIdField = account.authConfigId || account.auth_config_id;
-  const isIdMatch = authConfigId ? (
-    authConfigIdField === authConfigId ||
-    authConfig?.id === authConfigId
-  ) : false;
-
-  const toolkit = isRecord(account.toolkit) ? account.toolkit : null;
-  const app = isRecord(account.app) ? account.app : null;
-
-  const provider = 
-    asString(authConfig?.provider) || 
-    asString(account.appSlug) || 
-    asString(account.app_slug) ||
-    asString(account.appName) || 
-    asString(account.app_name) ||
-    asString(toolkit?.slug) ||
-    asString(toolkit?.name) ||
-    asString(app?.slug) ||
-    asString(app?.name) ||
-    "";
-
-  const appUniqueId = asString(account.appUniqueId) || asString(account.app_unique_id) || "";
-  const isSlugMatch = slug && (
-    normalizeSlug(provider) === slug ||
-    normalizeSlug(appUniqueId) === slug
-  );
-
-  console.log(
-    `[Matching] Account ID=${account.id} Status=${account.status} Provider=${provider} AppUniqueId=${appUniqueId} TargetSlug=${slug} isIdMatch=${isIdMatch} isSlugMatch=${isSlugMatch}`
-  );
-
-  return (isIdMatch || isSlugMatch) && account.status === "ACTIVE";
+  return Boolean(findActiveConnectedAccount([account], { authConfigId, slug }));
 }
 
 interface RequestedIntegration {
@@ -92,7 +53,25 @@ interface RequestedIntegration {
   noAuth?: boolean;
 }
 
+function buildOAuthCallbackUrl(
+  req: Request,
+  slug: string,
+  requestId: unknown,
+): string | null {
+  if (typeof requestId !== "string" || !/^[a-zA-Z0-9_-]{12,128}$/.test(requestId)) {
+    return null;
+  }
+  const origin =
+    resolveAllowedOrigin(req.headers.get("origin")) ||
+    resolveAllowedOrigin(Deno.env.get("PUBLIC_APP_URL")) ||
+    "https://app.jobraker.io";
+  const callback = new URL(`/auth/callback/composio/${encodeURIComponent(slug)}`, origin);
+  callback.searchParams.set("requestId", requestId);
+  return callback.toString();
+}
+
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -131,6 +110,7 @@ Deno.serve(async (req) => {
          return new Response(JSON.stringify({ error: "Missing integration slug" }), { status: 400, headers: corsHeaders });
       }
 
+      const callbackUrl = buildOAuthCallbackUrl(req, slug, body.oauthRequestId);
       const linkConnection = async (configId: string) => {
         const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
         return await fetch("https://backend.composio.dev/api/v3/connected_accounts/link", {
@@ -142,6 +122,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             user_id: userId,
             auth_config_id: configId,
+            ...(callbackUrl ? { callback_url: callbackUrl } : {}),
           }),
         });
       };
@@ -198,15 +179,16 @@ Deno.serve(async (req) => {
         JSON.stringify({
           connectionId: connectionRequest.id || connectionRequest.connectionId,
           redirectUrl: connectionRequest.redirectUrl || connectionRequest.redirect_url,
+          callbackConfigured: Boolean(callbackUrl),
         }),
         {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
-    } else if (action === "delete") {
+    } else if (action === "disconnect" || action === "delete") {
       if (!connectionId) {
-        return new Response(JSON.stringify({ error: "Missing connectionId for delete action" }), {
+        return new Response(JSON.stringify({ error: "Missing connectionId for disconnect action" }), {
           status: 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
@@ -275,26 +257,9 @@ Deno.serve(async (req) => {
           const account = accounts.find((candidate) =>
             connectedAccountMatches(candidate, itemAuthConfigId, itemSlug)
           );
-          const connectionParams = isRecord(account?.connectionParams) 
-            ? account.connectionParams 
-            : (isRecord(account?.connection_params) 
-               ? account.connection_params 
-               : (isRecord(account?.data) ? account.data : {}));
-
-          const metadata = isRecord(account?.metadata) 
-            ? account.metadata : (isRecord(account?.meta_data) ? account.meta_data : {});
-
-          const identifier =
-            asString(connectionParams.account_name) ||
-            asString(connectionParams.email) ||
-            asString(connectionParams.username) ||
-            asString(connectionParams.accountName) ||
-            asString(metadata.account_name) ||
-            asString(metadata.email) ||
-            asString(metadata.username) ||
-            asString(metadata.accountName) ||
-            asString(account?.name) ||
-            null;
+          const identifier = account
+            ? normalizeConnectedAccount(account).identifier
+            : null;
 
           return {
             slug: itemSlug,
@@ -318,9 +283,10 @@ Deno.serve(async (req) => {
       }
 
       const singleSlug = normalizeSlug(body.integrationSlug ?? body.slug);
-      const account = authConfigId
-        ? accounts.find((candidate) => connectedAccountMatches(candidate, authConfigId, singleSlug))
-        : null;
+      const account = findActiveConnectedAccount(accounts, {
+        authConfigId,
+        slug: singleSlug,
+      });
 
       return new Response(
         JSON.stringify({ isConnected: Boolean(account), connectionId: account?.id || null }),

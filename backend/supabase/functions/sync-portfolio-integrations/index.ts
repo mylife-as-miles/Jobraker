@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { Composio } from "npm:@composio/core@0.2.2";
+import { Composio } from "npm:@composio/core@0.13.1";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAuthenticatedUser } from "../_shared/subscription.ts";
+import { findActiveConnectedAccount } from "../_shared/composio-connected-account.ts";
 
 const composio = new Composio({ apiKey: Deno.env.get("COMPOSIO_API_KEY") });
 
@@ -105,12 +106,8 @@ serve(async (req) => {
       console.warn(`[Sync Portfolio] Failed to fetch accounts from Composio: status=${accountsResponse.status}`);
     }
 
-    const githubConn = accounts.find(
-      (a) => (a.toolkitSlug === "github" || a.appName === "github") && (a.status === "ACTIVE" || a.status === "active")
-    );
-    const linkedinConn = accounts.find(
-      (a) => (a.toolkitSlug === "linkedin" || a.appName === "linkedin") && (a.status === "ACTIVE" || a.status === "active")
-    );
+    const githubConn = findActiveConnectedAccount(accounts, { slug: "github" });
+    const linkedinConn = findActiveConnectedAccount(accounts, { slug: "linkedin" });
 
     // 5. Fetch current user profile to preserve old data if a sync fails
     const { data: profile, error: profileErr } = await supabaseAdmin
@@ -304,9 +301,19 @@ serve(async (req) => {
       throw new Error(`Failed to update user profile data: ${updateErr.message}`);
     }
 
+    const requestedResults = providers
+      .filter((provider): provider is "github" | "linkedin" =>
+        provider === "github" || provider === "linkedin"
+      )
+      .map((provider) => updatedSyncMeta[provider]);
+    const succeeded = requestedResults.filter((result) => result.status === "success").length;
+    const success = requestedResults.length > 0 && succeeded === requestedResults.length;
+    const partialSuccess = succeeded > 0 && succeeded < requestedResults.length;
+
     return new Response(
       JSON.stringify({
-        success: true,
+        success,
+        partialSuccess,
         github: updatedSyncMeta.github,
         linkedin: updatedSyncMeta.linkedin,
       }),

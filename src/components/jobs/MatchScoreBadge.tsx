@@ -1,5 +1,3 @@
-import React from "react";
-
 export function getMatchScoreClasses(score: number | null | undefined) {
   if (typeof score !== "number") {
     return "text-foreground/55 bg-foreground/5 border-foreground/10";

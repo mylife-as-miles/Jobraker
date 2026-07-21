@@ -34,7 +34,6 @@ import { useToast } from "../../../components/ui/toast";
 import { createClient } from "../../../lib/supabaseClient";
 
 import {
-  List as ListIcon,
   Search,
   Columns,
   ExternalLink,
@@ -298,7 +297,7 @@ function StatusBadge({
   );
 }
 
-function ApplicationsListView({
+export function ApplicationsListView({
   filtered,
   selectedStatus,
   update,
@@ -2448,7 +2447,7 @@ function ApplicationPage() {
 
       {/* Interview Agent Modal */}
       <Modal
-        isOpen={interviewAgentOpen}
+        open={interviewAgentOpen}
         onClose={() => setInterviewAgentOpen(false)}
         title="Interview Scheduling Agent"
       >

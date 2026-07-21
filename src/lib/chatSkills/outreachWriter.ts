@@ -83,8 +83,6 @@ export const outreachWriterSkill: JobrakerChatSkill = {
       ...(input.conversationContext || []).map((msg) => msg.content),
     ].join("\n");
     const role = inferRoleFromContext(input.args, fullContext, targetCompanies);
-    const company = targetCompanies[0] || "Target Company";
-
     if (!targetCompanies.length) {
       return {
         status: "completed",

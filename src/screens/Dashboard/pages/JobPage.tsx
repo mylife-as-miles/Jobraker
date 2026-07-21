@@ -49,7 +49,6 @@ import {
 } from "../../../hooks/useJobsQueue";
 import { useResumes } from "../../../hooks/useResumes";
 import { Card } from "../../../components/ui/card";
-import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
 import useMediaQuery from "../../../hooks/use-media-query";
 import { createClient } from "../../../lib/supabaseClient";
@@ -555,7 +554,6 @@ type ApplicationDraftData = {
   savedAt?: string | null;
 };
 
-const COVER_LETTER_LIBRARY_KEY = "jr.coverLetters.library.v1";
 const COVER_LETTER_DEFAULT_KEY = "jr.coverLetters.defaultId";
 const COVER_LETTER_DRAFT_KEY = "jr.coverLetter.draft.v2";
 
@@ -1332,7 +1330,6 @@ export const JobPage = (): JSX.Element => {
   const {
     tasks: jobTasks,
     createTask,
-    updateTask,
     cancelTask,
   } = useJobIntelligenceTasks();
   const hasPaidInsightsAccess = hasSubscriptionAccess(
@@ -1368,8 +1365,6 @@ export const JobPage = (): JSX.Element => {
   // Debug payload capture for in-app panel
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
   const [dbgSearchRes, setDbgSearchRes] = useState<any>(null);
-  const backgroundEvaluationRunnerRef = useRef(false);
-  const backgroundEvaluationInFlightRef = useRef<Set<string>>(new Set());
   const backgroundEvaluationFailedRef = useRef<Set<string>>(new Set());
   const activeTaskIdRef = useRef<string | null>(null);
   const canceledTaskIdsRef = useRef<Set<string>>(new Set());
@@ -2263,62 +2258,6 @@ export const JobPage = (): JSX.Element => {
       }
     },
     [evaluationLoadingByJob, evaluationReports, hasJobEvaluationAccess],
-  );
-
-  const buildEvaluationSummary = useCallback(
-    (evaluation: EvaluateJobFitResponse) => ({
-      evaluation_id: evaluation.evaluation_id ?? null,
-      archetype: evaluation.archetype,
-      canonical_decision: evaluation.canonical_decision,
-      confidence_score: evaluation.confidence_score,
-      blockers: evaluation.blockers,
-      exact_fit_evidence: evaluation.exact_fit_evidence,
-      matched_keywords: evaluation.matched_keywords,
-    }),
-    [],
-  );
-
-  const mergeEvaluationIntoState = useCallback(
-    (jobId: string, evaluation: EvaluateJobFitResponse) => {
-      const summary = buildEvaluationSummary(evaluation);
-
-      setEvaluationReports((prev) => ({
-        ...prev,
-        [jobId]: {
-          ...evaluation,
-          candidate_memory: prev[jobId]?.candidate_memory ?? null,
-        },
-      }));
-
-      setJobs((prev) =>
-        prev.map((row) =>
-          row.id === jobId
-            ? {
-                ...row,
-                canonical_status:
-                  row.canonical_status === "draft_ready"
-                    ? "draft_ready"
-                    : "evaluated",
-                evaluation_summary: summary,
-              }
-            : row,
-        ),
-      );
-
-      setJobToAutoApply((prev) =>
-        prev && prev.id === jobId
-          ? {
-              ...prev,
-              canonical_status:
-                prev.canonical_status === "draft_ready"
-                  ? "draft_ready"
-                  : "evaluated",
-              evaluation_summary: summary,
-            }
-          : prev,
-      );
-    },
-    [buildEvaluationSummary],
   );
 
   useEffect(() => {

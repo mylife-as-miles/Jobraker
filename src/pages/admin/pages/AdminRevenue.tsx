@@ -7,12 +7,7 @@ import {
   Loader2,
   ArrowUp,
   Search,
-  Filter,
-  ChevronDown,
-  CheckCircle2,
   X,
-  FileText,
-  ArrowUpRight,
   ArrowDownRight,
   Calendar,
 } from "lucide-react";

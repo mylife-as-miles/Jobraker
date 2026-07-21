@@ -436,9 +436,9 @@ function DropdownMenuShortcut(props: DropdownMenuShortcutProps) {
 
 type DropdownMenuItemIndicatorProps = Omit<
   React.ComponentProps<typeof DropdownMenuPrimitive.ItemIndicator>,
-  'asChild'
+  'asChild' | 'ref'
 > &
-  HTMLMotionProps<'div'>;
+  Omit<HTMLMotionProps<'div'>, 'ref'>;
 
 function DropdownMenuItemIndicator(props: DropdownMenuItemIndicatorProps) {
   return (

@@ -58,12 +58,27 @@ import {
   type ReferralSuggestion,
   type LinkedInConnection,
 } from "@/hooks/useReferrals";
+import {
+  inspectLinkedInConnectionsCsv,
+  type LinkedInCsvColumnMap,
+  type LinkedInCsvField,
+  type LinkedInCsvInspection,
+} from "@/lib/parseLinkedInConnectionsCsv";
 
 const LINKEDIN_DATA_EXPORT_URL =
   "https://www.linkedin.com/mypreferences/d/download-my-data";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_EXT = new Set(["pdf", "txt", "text", "docx"]);
+const CSV_MAPPING_FIELDS: Array<{ field: LinkedInCsvField; label: string }> = [
+  { field: "first_name", label: "First name" },
+  { field: "last_name", label: "Last name" },
+  { field: "email", label: "Email" },
+  { field: "company", label: "Company" },
+  { field: "position", label: "Position" },
+  { field: "connected_on", label: "Connected on" },
+  { field: "profile_url", label: "LinkedIn URL" },
+];
 
 function buildReferrerSnapshot(profile: Profile | null): string {
   if (!profile) return "";
@@ -907,7 +922,7 @@ function MyReferralsPanel({
   funnelCounts,
   referrals,
   loading,
-  onMarkStage,
+  onMarkStage: _onMarkStage,
 }: {
   onOpenFitCheck: () => void;
   onShareLink: () => void;
@@ -1177,6 +1192,11 @@ export const ReferralsPage = (): JSX.Element => {
   const [helpOpen, setHelpOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [replaceNetwork, setReplaceNetwork] = useState(true);
+  const [csvPreview, setCsvPreview] = useState<{
+    file: File;
+    text: string;
+    inspection: LinkedInCsvInspection;
+  } | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
   const { profile } = useProfileSettings();
@@ -1238,6 +1258,47 @@ export const ReferralsPage = (): JSX.Element => {
     );
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   }, [referralShareUrl, toastError]);
+
+  const prepareLinkedInCsv = useCallback(async (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error("The CSV must be 10 MB or smaller.");
+    }
+    const text = await file.text();
+    const inspection = inspectLinkedInConnectionsCsv(text);
+    if (!inspection.rows.length && !inspection.headers.length) {
+      throw new Error(
+        inspection.warnings[0] || "No valid LinkedIn connections were found.",
+      );
+    }
+    setCsvPreview({ file, text, inspection });
+  }, []);
+
+  const updateCsvMapping = useCallback((field: LinkedInCsvField, header: string) => {
+    setCsvPreview((current) => {
+      if (!current) return current;
+      const mapping: LinkedInCsvColumnMap = {
+        ...current.inspection.mapping,
+        [field]: header || undefined,
+      };
+      return {
+        ...current,
+        inspection: inspectLinkedInConnectionsCsv(current.text, mapping),
+      };
+    });
+  }, []);
+
+  const confirmLinkedInCsvImport = useCallback(async () => {
+    if (!csvPreview) return;
+    try {
+      await importLinkedInCsv(csvPreview.file, { replace: replaceNetwork });
+      setCsvPreview(null);
+    } catch (err) {
+      toastError(
+        "Import failed",
+        err instanceof Error ? err.message : "Could not import CSV",
+      );
+    }
+  }, [csvPreview, importLinkedInCsv, replaceNetwork, toastError]);
 
   const copyCustomMsg = useCallback(
     async (sug: ReferralSuggestion) => {
@@ -1339,6 +1400,88 @@ export const ReferralsPage = (): JSX.Element => {
         open={whatsNewOpen}
         onClose={() => setWhatsNewOpen(false)}
       />
+      <Modal
+        open={Boolean(csvPreview)}
+        onClose={() => !importing && setCsvPreview(null)}
+        title="Review LinkedIn import"
+        size="lg"
+        footer={
+          <div className="flex w-full justify-end gap-2">
+            <Button variant="outline" onClick={() => setCsvPreview(null)} disabled={importing}>
+              Cancel
+            </Button>
+            <Button onClick={() => void confirmLinkedInCsvImport()} disabled={importing || !csvPreview?.inspection.rows.length}>
+              {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Import {csvPreview?.inspection.rows.length ?? 0} contacts
+            </Button>
+          </div>
+        }
+      >
+        {csvPreview ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-lg border border-border/50 p-3">
+                <div className="text-xl font-semibold">{csvPreview.inspection.rows.length}</div>
+                <div className="text-xs product-helper-text">Valid</div>
+              </div>
+              <div className="rounded-lg border border-border/50 p-3">
+                <div className="text-xl font-semibold">{csvPreview.inspection.duplicateCount}</div>
+                <div className="text-xs product-helper-text">Duplicates</div>
+              </div>
+              <div className="rounded-lg border border-border/50 p-3">
+                <div className="text-xl font-semibold">{csvPreview.inspection.invalidCount}</div>
+                <div className="text-xs product-helper-text">Invalid</div>
+              </div>
+            </div>
+            {csvPreview.inspection.warnings.length ? (
+              <ul className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-200">
+                {csvPreview.inspection.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+              </ul>
+            ) : null}
+            <div>
+              <h3 className="mb-2 text-sm font-semibold text-foreground">Column mapping</h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {CSV_MAPPING_FIELDS.map(({ field, label }) => (
+                  <label key={field} className="grid grid-cols-[7rem_1fr] items-center gap-2 text-xs text-muted-foreground">
+                    <span>{label}</span>
+                    <select
+                      value={csvPreview.inspection.mapping[field] || ""}
+                      onChange={(event) => updateCsvMapping(field, event.target.value)}
+                      className="h-9 rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                    >
+                      <option value="">Not mapped</option>
+                      {csvPreview.inspection.headers.map((header) => (
+                        <option key={header} value={header}>{header}</option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-border/50">
+              <table className="w-full min-w-[620px] text-left text-xs">
+                <thead className="bg-foreground/5 text-muted-foreground">
+                  <tr><th className="p-2">Name</th><th className="p-2">Company</th><th className="p-2">Position</th><th className="p-2">Email</th></tr>
+                </thead>
+                <tbody>
+                  {csvPreview.inspection.rows.slice(0, 20).map((row, index) => (
+                    <tr key={`${row.profile_url || row.email || row.first_name}-${index}`} className="border-t border-border/40">
+                      <td className="p-2">{[row.first_name, row.last_name].filter(Boolean).join(" ") || "—"}</td>
+                      <td className="p-2">{row.company || "—"}</td>
+                      <td className="p-2">{row.position || "—"}</td>
+                      <td className="p-2">{row.email || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <label className="flex items-center gap-2 text-xs product-helper-text">
+              <input type="checkbox" checked={replaceNetwork} onChange={(event) => setReplaceNetwork(event.target.checked)} className="accent-brand" />
+              Replace my previous LinkedIn import
+            </label>
+          </div>
+        ) : null}
+      </Modal>
 
       <div className='w-full max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8'>
         <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
@@ -1555,11 +1698,9 @@ export const ReferralsPage = (): JSX.Element => {
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) {
-                        void importLinkedInCsv(f, {
-                          replace: replaceNetwork,
-                        }).catch((err) =>
+                        void prepareLinkedInCsv(f).catch((err) =>
                           toastError(
-                            "Import failed",
+                            "Could not read CSV",
                             err instanceof Error
                               ? err.message
                               : "Could not import CSV",

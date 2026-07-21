@@ -86,6 +86,8 @@ export interface ResumeData {
   slug: string;
   tags: string[];
   metadata: {
+    schemaVersion?: number;
+    sourceType?: "template" | "profile" | "imported" | "edited" | "legacy";
     template: string;
     layout: {
       sidebarWidth: number;
@@ -387,6 +389,8 @@ export const initialResumeState: ResumeState = {
       },
     },
     metadata: {
+      schemaVersion: 2,
+      sourceType: "template",
       template: "azurill",
       layout: {
         sidebarWidth: 30,
@@ -862,7 +866,7 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
     set((state) => ({ coverLetter: { ...state.coverLetter, tags } })),
 
   resetCoverLetter: () =>
-    set((state) => ({
+    set(() => ({
       coverLetter: {
         id: "",
         title: "Untitled Cover Letter",

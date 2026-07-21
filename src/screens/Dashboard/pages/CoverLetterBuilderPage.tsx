@@ -50,6 +50,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useProfileSettings } from "@/hooks/useProfileSettings";
+import {
+  buildCandidateProfileSnapshot,
+  fillCoverLetterSenderFromCandidateProfile,
+} from "@/lib/candidateProfileSnapshot";
 
 const supabase = createClient();
 
@@ -84,6 +89,8 @@ export const CoverLetterBuilderPage = () => {
   );
   const setCoverLetterId = useArtboardStore((state) => state.setCoverLetterId);
   const resetCoverLetter = useArtboardStore((state) => state.resetCoverLetter);
+  const { profile, experiences, education, skills } = useProfileSettings();
+  const [userEmail, setUserEmail] = useState("");
 
   // Destructure for easier access
   const {
@@ -202,6 +209,18 @@ export const CoverLetterBuilderPage = () => {
   const routeId = location.pathname.split("/")[4] || null;
   const activeId = currentLibId || routeId || id;
 
+  const candidateProfile = useMemo(
+    () =>
+      buildCandidateProfileSnapshot({
+        profile,
+        email: userEmail,
+        experiences: experiences.data,
+        education: education.data,
+        skills: skills.data,
+      }),
+    [education.data, experiences.data, profile, skills.data, userEmail],
+  );
+
   const normalizeCoverLetterPayload = (record: any) => {
     const payload = record?.data;
     if (payload && typeof payload === "object" && !Array.isArray(payload) && Object.keys(payload).length > 2) {
@@ -305,6 +324,22 @@ export const CoverLetterBuilderPage = () => {
     };
     loadData();
   }, [navigate, resetCoverLetter, routeId, setCoverLetterId]);
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? "");
+    });
+  }, []);
+
+  useEffect(() => {
+    const nextSender = fillCoverLetterSenderFromCandidateProfile(
+      sender,
+      candidateProfile,
+    );
+    if (JSON.stringify(nextSender) !== JSON.stringify(sender)) {
+      setCoverLetterField("sender", nextSender);
+    }
+  }, [candidateProfile, sender, setCoverLetterField]);
 
   useEffect(() => {
     const loadLibrary = async () => {

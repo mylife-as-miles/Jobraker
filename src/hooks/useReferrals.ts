@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
-import { parseLinkedInConnectionsCsv } from "@/lib/parseLinkedInConnectionsCsv";
+import { inspectLinkedInConnectionsCsv } from "@/lib/parseLinkedInConnectionsCsv";
 import { buildReferralUrl } from "@/lib/referralAttribution";
 import { invokeProtectedFunction } from "@/services/supabase/invokeProtectedFunction";
 import { useToast } from "@/components/ui/toast";
@@ -244,51 +244,38 @@ export function useReferrals() {
       if (!userId) throw new Error("Not signed in");
       setImporting(true);
       try {
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error("The CSV is larger than 10 MB. Split it into smaller files and try again.");
+        }
         const text = await file.text();
-        const parsed = parseLinkedInConnectionsCsv(text);
+        const inspection = inspectLinkedInConnectionsCsv(text);
+        const parsed = inspection.rows;
         if (!parsed.length) {
-          throw new Error("No rows found. Use LinkedIn Connections.csv export.");
+          throw new Error(inspection.warnings[0] || "No rows found. Use LinkedIn Connections.csv export.");
         }
 
-        if (options.replace) {
-          const { error: delErr } = await supabase.from("linkedin_connection_imports").delete().eq("user_id", userId);
-          if (delErr) throw delErr;
-        }
+        const rows = parsed.map((p) => ({
+          first_name: p.first_name || null,
+          last_name: p.last_name || null,
+          email: p.email || null,
+          company: p.company || null,
+          position: p.position || null,
+          connected_on: normalizeConnectionDate(p.connected_on),
+          profile_url: p.profile_url || null,
+          raw: p.raw,
+        }));
+        const { data, error } = await supabase.rpc("import_linkedin_connections", {
+          p_source_filename: file.name,
+          p_replace: options.replace,
+          p_connections: rows,
+        });
+        if (error) throw error;
+        const imported = Number((data as { imported_count?: number } | null)?.imported_count) || parsed.length;
 
-        const { data: batch, error: bErr } = await supabase
-          .from("linkedin_connection_imports")
-          .insert({
-            user_id: userId,
-            source_filename: file.name,
-            row_count: parsed.length,
-          })
-          .select("id")
-          .single();
-
-        if (bErr || !batch?.id) throw bErr || new Error("Failed to create import batch");
-
-        const importId = batch.id as string;
-        const chunkSize = 200;
-        for (let i = 0; i < parsed.length; i += chunkSize) {
-          const slice = parsed.slice(i, i + chunkSize);
-          const rows = slice.map((p) => ({
-            user_id: userId,
-            import_id: importId,
-            first_name: p.first_name || null,
-            last_name: p.last_name || null,
-            email: p.email || null,
-            company: p.company || null,
-            position: p.position || null,
-            connected_on: normalizeConnectionDate(p.connected_on),
-            profile_url: p.profile_url || null,
-            raw: p.raw,
-            agent_scan_status: "pending" as const,
-          }));
-          const { error: insErr } = await supabase.from("linkedin_connections").insert(rows);
-          if (insErr) throw insErr;
-        }
-
-        success("Connections imported", `${parsed.length} contacts saved. Run AI match to find roles.`);
+        success(
+          "Connections imported",
+          `${imported} contacts saved${inspection.duplicateCount ? `; ${inspection.duplicateCount} duplicate rows skipped` : ""}. Run AI match to find roles.`,
+        );
         await Promise.all([
           refreshConnectionsMeta(),
           refreshConnectionsList()
@@ -387,4 +374,3 @@ function normalizeConnectionDate(raw: string | null): string | null {
   }
   return null;
 }
-

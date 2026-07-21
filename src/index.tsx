@@ -8,19 +8,8 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import { LandingPage } from "./screens/LandingPage";
-import { WaitlistPage } from "./screens/Waitlist/WaitlistPage";
-import { EarlyAccessPage } from "./screens/EarlyAccess/EarlyAccessPage";
-import { JobrackerSignup } from "./screens/JobrackerSignup";
-import { Onboarding } from "./screens/Onboarding";
-import { Analytics } from "./screens/Analytics";
-import { Dashboard } from "./screens/Dashboard";
-import { PrivacyPolicy } from "./screens/PrivacyPolicy";
-import { PublicResumePage } from "./screens/Public/PublicResumePage";
-import { PublicProfilePage } from "./screens/Public/PublicProfilePage";
 import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
-import GmailCallbackPage from "./screens/AuthCallback/GmailCallbackPage";
 import { ToastProvider } from "./components/ui/toast-provider";
 import { AppearanceProvider } from "./providers/AppearanceProvider";
 
@@ -34,26 +23,45 @@ import { PageTransition } from "./components/transitions";
 import posthog, { initPostHog } from "./lib/posthog";
 import { PostHogProvider } from "posthog-js/react";
 import { HelmetProvider } from "react-helmet-async";
-import AdminCheckCredits from "@/pages/AdminCheckCredits";
 import { usePostHogAuthBridge } from "./hooks/usePostHogAuthBridge";
-import { PricingPage } from "./screens/Pricing";
-import TermsOfService from "./screens/TermsOfService";
-import SecurityPage from "./screens/SecurityPage";
-import {
-  AdminLayout,
-  AdminOverview,
-  AdminUsers,
-  AdminChat,
-  AdminRevenue,
-  AdminCredits,
-  AdminProviderCredits,
-  AdminActivity,
-  AdminDatabase,
-  AdminPerformance,
-  AdminSettings,
-  AdminJobs,
-} from "./pages/admin";
-import AdminSubscriptions from "./pages/admin/pages/AdminSubscriptions";
+
+const lazyNamed = <T extends React.ComponentType<any>>(
+  importer: () => Promise<Record<string, unknown>>,
+  exportName: string,
+) => React.lazy(async () => {
+  const module = await importer();
+  return { default: module[exportName] as T };
+});
+
+const LandingPage = lazyNamed(() => import("./screens/LandingPage"), "LandingPage");
+const WaitlistPage = lazyNamed(() => import("./screens/Waitlist/WaitlistPage"), "WaitlistPage");
+const EarlyAccessPage = lazyNamed(() => import("./screens/EarlyAccess/EarlyAccessPage"), "EarlyAccessPage");
+const JobrackerSignup = lazyNamed(() => import("./screens/JobrackerSignup"), "JobrackerSignup");
+const Onboarding = lazyNamed(() => import("./screens/Onboarding"), "Onboarding");
+const Analytics = lazyNamed(() => import("./screens/Analytics"), "Analytics");
+const Dashboard = lazyNamed(() => import("./screens/Dashboard"), "Dashboard");
+const PrivacyPolicy = lazyNamed(() => import("./screens/PrivacyPolicy"), "PrivacyPolicy");
+const PublicResumePage = lazyNamed(() => import("./screens/Public/PublicResumePage"), "PublicResumePage");
+const PublicProfilePage = lazyNamed(() => import("./screens/Public/PublicProfilePage"), "PublicProfilePage");
+const PricingPage = lazyNamed(() => import("./screens/Pricing"), "PricingPage");
+const GmailCallbackPage = React.lazy(() => import("./screens/AuthCallback/GmailCallbackPage"));
+const ComposioCallbackPage = React.lazy(() => import("./screens/AuthCallback/ComposioCallbackPage"));
+const TermsOfService = React.lazy(() => import("./screens/TermsOfService"));
+const SecurityPage = React.lazy(() => import("./screens/SecurityPage"));
+const AdminCheckCredits = React.lazy(() => import("@/pages/AdminCheckCredits"));
+const AdminLayout = React.lazy(() => import("./pages/admin/AdminLayout"));
+const AdminOverview = React.lazy(() => import("./pages/admin/pages/AdminOverview"));
+const AdminUsers = React.lazy(() => import("./pages/admin/pages/AdminUsers"));
+const AdminChat = React.lazy(() => import("./pages/admin/pages/AdminChat"));
+const AdminRevenue = React.lazy(() => import("./pages/admin/pages/AdminRevenue"));
+const AdminCredits = React.lazy(() => import("./pages/admin/pages/AdminCredits"));
+const AdminProviderCredits = React.lazy(() => import("./pages/admin/pages/AdminProviderCredits"));
+const AdminActivity = React.lazy(() => import("./pages/admin/pages/AdminActivity"));
+const AdminDatabase = React.lazy(() => import("./pages/admin/pages/AdminDatabase"));
+const AdminPerformance = React.lazy(() => import("./pages/admin/pages/AdminPerformance"));
+const AdminSettings = React.lazy(() => import("./pages/admin/pages/AdminSettings"));
+const AdminJobs = React.lazy(() => import("./pages/admin/pages/AdminJobs"));
+const AdminSubscriptions = React.lazy(() => import("./pages/admin/pages/AdminSubscriptions"));
 
 const APP_ORIGIN = "https://app.jobraker.io";
 initPostHog();
@@ -104,7 +112,8 @@ function AnimatedRoutes() {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode='wait'>
+    <AnimatePresence initial={false}>
+      <React.Suspense fallback={<RouteLoadingFallback />}>
       <Routes location={location} key={location.pathname}>
         {/* Default route shows landing page */}
         <Route
@@ -278,6 +287,14 @@ function AnimatedRoutes() {
             </PageTransition>
           }
         />
+        <Route
+          path='/auth/callback/composio/:provider'
+          element={
+            <PageTransition>
+              <ComposioCallbackPage />
+            </PageTransition>
+          }
+        />
 
         {/* Admin Dashboard Routes */}
         <Route
@@ -318,7 +335,25 @@ function AnimatedRoutes() {
         {/* Catch all - redirect to landing page */}
         <Route path='*' element={<Navigate to={ROUTES.ROOT} replace />} />
       </Routes>
+      </React.Suspense>
     </AnimatePresence>
+  );
+}
+
+function RouteLoadingFallback() {
+  return (
+    <div className='min-h-screen bg-background p-6' role='status' aria-live='polite'>
+      <div className='mx-auto max-w-6xl animate-pulse space-y-5'>
+        <div className='h-10 w-48 rounded-lg bg-muted' />
+        <div className='h-56 rounded-2xl bg-muted/70' />
+        <div className='grid gap-4 sm:grid-cols-3'>
+          <div className='h-28 rounded-xl bg-muted/60' />
+          <div className='h-28 rounded-xl bg-muted/60' />
+          <div className='h-28 rounded-xl bg-muted/60' />
+        </div>
+        <span className='sr-only'>Loading page</span>
+      </div>
+    </div>
   );
 }
 

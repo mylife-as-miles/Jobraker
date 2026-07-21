@@ -45,6 +45,12 @@ import { useGamification } from "../../../hooks/useGamification";
 import { CandidateMemoryEditor } from "../components/CandidateMemoryEditor";
 import { ProfileAvailabilitySection } from "../components/ProfileAvailabilitySection";
 import { PublicProfileShareCard } from "../components/PublicProfileShareCard";
+import {
+  PORTFOLIO_INTEGRATIONS,
+  createOAuthRequestId,
+  waitForComposioConnection,
+  type PortfolioProvider,
+} from "../../../lib/composioConnection";
 
 // Data now comes from Supabase via useProfileCollections
 
@@ -55,6 +61,18 @@ const ProfilePage = (): JSX.Element => {
     updateProfile,
     loading: profileLoading,
     refresh: refreshProfile,
+    experiences,
+    education,
+    skills,
+    addExperience,
+    addEducation,
+    addSkill,
+    deleteExperience,
+    deleteEducation,
+    deleteSkill,
+    updateExperience,
+    updateEducation,
+    updateSkill,
   } = useProfileSettings();
   const { success: toastSuccess, error: toastError } = useToast();
   const supabase = useMemo(() => createClient(), []);
@@ -72,7 +90,10 @@ const ProfilePage = (): JSX.Element => {
 
       if (error) throw error;
 
-      if (data?.success) {
+      const failedProviders = providers.filter(
+        (provider) => data?.[provider]?.status !== "success",
+      );
+      if (data?.success && failedProviders.length === 0) {
         toastSuccess("Portfolio Sync", `Successfully synced ${providers.join(" & ")}`);
         await refreshProfile();
       } else {
@@ -97,10 +118,9 @@ const ProfilePage = (): JSX.Element => {
     }
   };
 
-  const handleConnect = async (provider: "github" | "linkedin") => {
-    const configId = provider === "github" 
-      ? import.meta.env.VITE_COMPOSIO_GITHUB_CONFIG_ID 
-      : import.meta.env.VITE_COMPOSIO_LINKEDIN_CONFIG_ID;
+  const handleConnect = async (provider: PortfolioProvider) => {
+    const integration = PORTFOLIO_INTEGRATIONS[provider];
+    const configId = integration.authConfigId;
 
     if (!configId) {
       toastError(
@@ -111,15 +131,17 @@ const ProfilePage = (): JSX.Element => {
     }
 
     const popup = window.open("about:blank", "_blank", "width=560,height=760");
+    const oauthRequestId = createOAuthRequestId();
     setConnectingProvider(provider);
 
     try {
       const { data, error } = await supabase.functions.invoke("composio-auth", {
         body: {
           action: "initiate",
-          integrationSlug: provider,
-          toolkitSlug: provider,
+          integrationSlug: integration.slug,
+          toolkitSlug: integration.toolkitSlug,
           authConfigId: configId,
+          oauthRequestId,
         },
       });
 
@@ -134,10 +156,30 @@ const ProfilePage = (): JSX.Element => {
         window.open(redirectUrl, "_blank", "width=560,height=760");
       }
 
-      // Check for connection status after a short delay
-      setTimeout(async () => {
-        await handleSync([provider]);
-      }, 5000);
+      const connected = await waitForComposioConnection({
+        popup,
+        requestId: oauthRequestId,
+        provider,
+        check: async () => {
+          const { data: statusData, error: statusError } =
+            await supabase.functions.invoke("composio-auth", {
+              body: {
+                action: "status",
+                integrationSlug: integration.slug,
+                toolkitSlug: integration.toolkitSlug,
+                authConfigId: integration.authConfigId,
+              },
+            });
+          if (statusError) return false;
+          return Boolean(statusData?.isConnected);
+        },
+      });
+      if (!connected) {
+        throw new Error(
+          "Authorization was not completed. Reopen the connection and finish the provider flow.",
+        );
+      }
+      await handleSync([provider]);
     } catch (err: any) {
       if (popup) popup.close();
       toastError(`Failed to connect ${provider}`, err.message || String(err));
@@ -250,22 +292,6 @@ const ProfilePage = (): JSX.Element => {
       clearInterval(id);
     };
   }, [supabase, (profile as any)?.avatar_url]);
-
-  // Collections now sourced directly from useProfileSettings (centralized hook)
-  const {
-    experiences,
-    education,
-    skills,
-    addExperience,
-    addEducation,
-    addSkill,
-    deleteExperience,
-    deleteEducation,
-    deleteSkill,
-    updateExperience,
-    updateEducation,
-    updateSkill,
-  } = useProfileSettings() as any; // NOTE: duplicate hook invocation; consider consolidating later
 
   // Local UI state for creation / editing
   const [showAddExperience, setShowAddExperience] = useState(false);
@@ -542,76 +568,50 @@ const ProfilePage = (): JSX.Element => {
 
                   <div className='flex justify-center space-x-2 mt-4'>
                     {profile?.linkedin_url ? (
-                      <Button
-                        size='sm'
-                        variant='outline'
-                        className='product-outline-button hover:scale-105 transition-all duration-300'
-                        asChild
+                      <a
+                        href={
+                          profile.linkedin_url.startsWith("http")
+                            ? profile.linkedin_url
+                            : `https://${profile.linkedin_url}`
+                        }
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='product-outline-button inline-flex h-8 items-center justify-center rounded-xl px-3 text-sm font-medium hover:scale-105 transition-all duration-300'
                       >
-                        <a
-                          href={
-                            profile.linkedin_url.startsWith("http")
-                              ? profile.linkedin_url
-                              : `https://${profile.linkedin_url}`
-                          }
-                          target='_blank'
-                          rel='noopener noreferrer'
-                        >
-                          <ExternalLink className='w-4 h-4 mr-1' />
-                          LinkedIn
-                        </a>
-                      </Button>
+                        <ExternalLink className='w-4 h-4 mr-1' />
+                        LinkedIn
+                      </a>
                     ) : (
-                      <Button
-                        size='sm'
-                        variant='outline'
-                        className='product-outline-button border-dashed border-foreground/20 text-muted-foreground/60 hover:text-foreground hover:scale-105 transition-all duration-300'
-                        asChild
+                      <Link
+                        to='/dashboard/settings/profile'
+                        className='product-outline-button inline-flex h-8 items-center justify-center rounded-xl border-dashed border-foreground/20 px-3 text-sm font-medium text-muted-foreground/60 hover:text-foreground hover:scale-105 transition-all duration-300'
                       >
-                        <Link
-                          to='/dashboard/settings/profile'
-                          className='flex items-center'
-                        >
-                          <Plus className='w-4 h-4 mr-1' />
-                          Add LinkedIn
-                        </Link>
-                      </Button>
+                        <Plus className='w-4 h-4 mr-1' />
+                        Add LinkedIn
+                      </Link>
                     )}
                     {profile?.github_url ? (
-                      <Button
-                        size='sm'
-                        variant='outline'
-                        className='product-outline-button hover:scale-105 transition-all duration-300'
-                        asChild
+                      <a
+                        href={
+                          profile.github_url.startsWith("http")
+                            ? profile.github_url
+                            : `https://${profile.github_url}`
+                        }
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='product-outline-button inline-flex h-8 items-center justify-center rounded-xl px-3 text-sm font-medium hover:scale-105 transition-all duration-300'
                       >
-                        <a
-                          href={
-                            profile.github_url.startsWith("http")
-                              ? profile.github_url
-                              : `https://${profile.github_url}`
-                          }
-                          target='_blank'
-                          rel='noopener noreferrer'
-                        >
-                          <ExternalLink className='w-4 h-4 mr-1' />
-                          GitHub
-                        </a>
-                      </Button>
+                        <ExternalLink className='w-4 h-4 mr-1' />
+                        GitHub
+                      </a>
                     ) : (
-                      <Button
-                        size='sm'
-                        variant='outline'
-                        className='product-outline-button border-dashed border-foreground/20 text-muted-foreground/60 hover:text-foreground hover:scale-105 transition-all duration-300'
-                        asChild
+                      <Link
+                        to='/dashboard/settings/profile'
+                        className='product-outline-button inline-flex h-8 items-center justify-center rounded-xl border-dashed border-foreground/20 px-3 text-sm font-medium text-muted-foreground/60 hover:text-foreground hover:scale-105 transition-all duration-300'
                       >
-                        <Link
-                          to='/dashboard/settings/profile'
-                          className='flex items-center'
-                        >
-                          <Plus className='w-4 h-4 mr-1' />
-                          Add GitHub
-                        </Link>
-                      </Button>
+                        <Plus className='w-4 h-4 mr-1' />
+                        Add GitHub
+                      </Link>
                     )}
                   </div>
                 </div>

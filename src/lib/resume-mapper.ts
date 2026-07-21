@@ -2,6 +2,7 @@
 import { nanoid } from 'nanoid';
 import { ResumeData } from '../store/artboard';
 import { ParsedProfileData } from '../services/ai/parseResumeProfile';
+import { withResumeSource } from './resumeDocumentSchema';
 
 function formatPeriod(start?: string, end?: string) {
     const cleanStart = start?.trim() || '';
@@ -137,5 +138,5 @@ export function mapParsedDataToResume(parsed: ParsedProfileData, baseState: Resu
          // resume.title = `${parsed.firstName} - ${parsed.jobTitle}`;
     }
 
-    return resume;
+    return withResumeSource(resume, 'imported');
 }

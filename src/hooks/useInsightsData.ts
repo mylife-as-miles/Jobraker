@@ -194,11 +194,6 @@ export function useInsightsData(
           return;
         }
 
-        const startIso = range.start.toISOString();
-        const endIso = range.end.toISOString();
-        const prevStartIso = prevRange.start.toISOString();
-        const prevEndIso = prevRange.end.toISOString();
-
         // 2. Fetch applications, jobs, and parsed_resumes in parallel
         const [appsResult, jobsResult, resumeResult] = await Promise.all([
           supabase

@@ -109,7 +109,6 @@ export const useParallaxScroll = (selector: string, speed: number = 0.5) => {
 export const useCounterAnimation = (
   target: number,
   duration: number = 2000,
-  selector?: string
 ) => {
   const countRef = useRef<HTMLSpanElement>(null);
 
@@ -147,4 +146,3 @@ export const useCounterAnimation = (
 
   return countRef;
 };
-

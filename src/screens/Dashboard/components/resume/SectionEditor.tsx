@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useArtboardStore } from "../../../../store/artboard";
 import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
@@ -10,7 +10,7 @@ interface SectionEditorProps {
   title?: string;
 }
 
-export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
+export const SectionEditor = ({ sectionId }: SectionEditorProps) => {
   const section = useArtboardStore(
     (state) => state.resume.data.sections[sectionId],
   );

@@ -31,8 +31,6 @@ export const AIPolishDialog = ({
 
   // Calculate position
   let style = {};
-  let connectorStyle = {};
-
   if (targetRect) {
     // Position to the right of the target if space permits, otherwise below
     // For this demo, let's assume valid desktop space as per the image
