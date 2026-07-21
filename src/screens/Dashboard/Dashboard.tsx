@@ -71,6 +71,7 @@ import { ReferralsPage } from "./pages/ReferralsPage";
 import { AccountLibraryPage } from "./pages/AccountLibraryPage";
 import { ExperienceFeedbackPrompt } from "./components/ExperienceFeedbackPrompt";
 import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
+import { LowCreditsBanner } from "@/components/LowCreditsBanner";
 
 type DashboardPage =
   | "overview"
@@ -322,6 +323,15 @@ export const Dashboard = (): JSX.Element => {
 
   const { balance: creditBalance, loading: creditsLoading } = useCredits();
   const [lowCreditModalOpen, setLowCreditModalOpen] = useState(false);
+  const creditPressure = useMemo(
+    () => getCreditPressureStats(creditBalance),
+    [creditBalance],
+  );
+  const shouldShowCriticalCreditBanner =
+    !creditsLoading &&
+    currentPage !== "billing" &&
+    creditPressure.shouldAlert &&
+    creditPressure.percentSpent >= 90;
   const [sidebarSubscriptionTier, setSidebarSubscriptionTier] =
     useState<SubscriptionTier | null>(null);
 
@@ -332,14 +342,18 @@ export const Dashboard = (): JSX.Element => {
       return;
     }
     if (!creditBalance) return;
-    if (!getCreditPressureStats(creditBalance).shouldAlert) {
+    if (!creditPressure.shouldAlert) {
+      setLowCreditModalOpen(false);
+      return;
+    }
+    if (creditPressure.percentSpent >= 90) {
       setLowCreditModalOpen(false);
       return;
     }
     const snoozeUntil = readSnoozeUntil();
     if (snoozeUntil && Date.now() < snoozeUntil) return;
     setLowCreditModalOpen(true);
-  }, [creditBalance, creditsLoading, currentPage]);
+  }, [creditPressure, creditsLoading, currentPage]);
 
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -1227,6 +1241,11 @@ export const Dashboard = (): JSX.Element => {
             navigate("/dashboard/billing?promo=LOWCREDIT_RESCUE")
           }
         />
+        {shouldShowCriticalCreditBanner ? (
+          <LowCreditsBanner
+            onTopUp={() => navigate("/dashboard/billing")}
+          />
+        ) : null}
         {currentPage !== "chat" && (
           <SupportFloatingWidget
             currentPageId={currentPage}
