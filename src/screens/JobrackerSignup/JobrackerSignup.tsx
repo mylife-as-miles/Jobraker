@@ -370,30 +370,39 @@ export const JobrackerSignup = (): JSX.Element => {
   };
 
   const handleResendVerification = async () => {
+    if (!ensureCaptchaToken()) {
+      return;
+    }
+
     try {
       setResending(true);
       const sanitizedEmail = sanitizeTextValue(formData.email).value.trim();
-      const authAny = (supabase as any).auth;
-      if (authAny && typeof authAny.resend === "function") {
-        const { error } = await authAny.resend({
-          type: "signup",
-          email: sanitizedEmail,
-          options: { emailRedirectTo: AUTH_REDIRECTS.signIn() },
-        });
-        if (error) throw error;
-      }
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: sanitizedEmail,
+        options: {
+          emailRedirectTo: AUTH_REDIRECTS.signIn(),
+          captchaToken: captchaToken ?? undefined,
+        },
+      });
+      if (error) throw error;
       success("Verification email resent");
     } catch (e: any) {
       const rawMessage = e?.message || String(e);
       let userFriendlyMessage = "Failed to resend verification link. Please try again.";
       if (rawMessage.includes("rate limit") || rawMessage.includes("too many requests")) {
         userFriendlyMessage = "Too many requests. Please wait a few minutes before requesting another link.";
+      } else if (rawMessage.includes("CAPTCHA") || rawMessage.includes("captcha")) {
+        userFriendlyMessage = "Security verification expired. Please complete the CAPTCHA again.";
       } else if (rawMessage.length < 80) {
         userFriendlyMessage = rawMessage;
       }
       toastError("Resend failed", userFriendlyMessage);
     } finally {
       setResending(false);
+      if (turnstileEnabled) {
+        resetCaptcha();
+      }
     }
   };
 
@@ -887,7 +896,7 @@ export const JobrackerSignup = (): JSX.Element => {
             <Button
               variant='ghost'
               className='flex-1 border border-brand/30 hover:bg-foreground/10 text-foreground'
-              disabled={resending}
+              disabled={resending || (turnstileEnabled && !captchaToken)}
               onClick={handleResendVerification}
             >
               {resending && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
