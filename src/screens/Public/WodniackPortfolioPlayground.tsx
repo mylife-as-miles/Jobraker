@@ -12,6 +12,144 @@ type Artifact = {
   depth: number;
 };
 
+const LAYOUT_FIXES = `
+  .wdk-way {
+    min-height: max(56rem, 125svh);
+  }
+
+  .wdk-way-copy {
+    padding-top: clamp(5rem, 8vw, 8rem);
+    padding-bottom: clamp(8rem, 12vw, 12rem);
+  }
+
+  .wdk-way-copy h2 {
+    display: grid;
+    width: min(62vw, 56rem);
+    max-width: 7.2ch;
+    gap: 0.035em;
+    font-size: clamp(5rem, 10.75vw, 11.5rem);
+    line-height: 0.82;
+    letter-spacing: -0.055em;
+    text-wrap: balance;
+  }
+
+  .wdk-way-copy h2 span {
+    display: block;
+    white-space: nowrap;
+  }
+
+  .wdk-way-copy p {
+    position: relative;
+    z-index: 35;
+    width: min(28rem, 36vw);
+    margin-top: 2.25rem;
+    margin-right: 1.5rem;
+    padding: 0.8rem 1rem;
+    background: color-mix(in srgb, var(--wdk-red) 78%, transparent);
+    backdrop-filter: blur(5px);
+  }
+
+  .wdk-artifacts {
+    pointer-events: none;
+  }
+
+  .wdk-artifact {
+    max-width: 13rem;
+  }
+
+  .wdk-contact-inner {
+    grid-template-columns: minmax(18rem, 0.82fr) minmax(0, 1.18fr);
+    gap: clamp(2rem, 4vw, 4rem);
+  }
+
+  .wdk-contact-button {
+    width: min(31vw, 29rem);
+  }
+
+  .wdk-contact-copy {
+    min-width: 0;
+  }
+
+  .wdk-contact-copy h2 {
+    max-width: 9ch;
+    font-size: clamp(4rem, 6.4vw, 7.25rem);
+    line-height: 0.88;
+    letter-spacing: -0.045em;
+    overflow-wrap: normal;
+    word-break: normal;
+    text-wrap: balance;
+  }
+
+  @media (max-width: 1024px) {
+    .wdk-way-copy h2 {
+      width: min(80vw, 48rem);
+      font-size: clamp(5rem, 14vw, 9rem);
+    }
+
+    .wdk-way-copy p {
+      width: min(30rem, 55vw);
+      margin-right: 0;
+    }
+
+    .wdk-contact-inner {
+      grid-template-columns: 1fr;
+      gap: 3rem;
+    }
+
+    .wdk-contact-button {
+      width: min(64vw, 28rem);
+    }
+
+    .wdk-contact-copy h2 {
+      max-width: 10ch;
+      margin-inline: auto;
+      font-size: clamp(4rem, 10vw, 7rem);
+    }
+  }
+
+  @media (max-width: 720px) {
+    .wdk-way {
+      min-height: 112svh;
+    }
+
+    .wdk-way-copy {
+      padding-top: 5rem;
+      padding-bottom: 7rem;
+    }
+
+    .wdk-way-copy h2 {
+      width: 100%;
+      max-width: 7ch;
+      font-size: clamp(4rem, 19vw, 7rem);
+      line-height: 0.84;
+    }
+
+    .wdk-way-copy p {
+      width: auto;
+      max-width: 24rem;
+      margin-top: 2rem;
+      margin-left: 0;
+      padding: 0.75rem 0;
+      background: transparent;
+      backdrop-filter: none;
+    }
+
+    .wdk-contact-inner {
+      gap: 2.5rem;
+    }
+
+    .wdk-contact-button {
+      width: min(78vw, 24rem);
+    }
+
+    .wdk-contact-copy h2 {
+      max-width: 9ch;
+      font-size: clamp(3.5rem, 15vw, 5.8rem);
+      line-height: 0.9;
+    }
+  }
+`;
+
 export function PlayfulArtifacts({
   profile,
   skills,
@@ -24,8 +162,8 @@ export function PlayfulArtifacts({
       raw.push({
         label: skill.name,
         kind: "skill",
-        x: [9, 68, 21, 76, 45][index] ?? 45,
-        y: [14, 9, 67, 70, 35][index] ?? 45,
+        x: [5, 70, 15, 84, 71][index] ?? 71,
+        y: [12, 9, 78, 72, 38][index] ?? 38,
         rotate: [-9, 7, 5, -6, 3][index] ?? 0,
         depth: [0.32, 0.52, 0.42, 0.28, 0.58][index] ?? 0.4,
       });
@@ -34,18 +172,18 @@ export function PlayfulArtifacts({
       raw.push({
         label: goal,
         kind: "goal",
-        x: [7, 61, 73][index] ?? 50,
-        y: [43, 46, 24][index] ?? 50,
+        x: [5, 65, 84][index] ?? 84,
+        y: [55, 58, 24][index] ?? 24,
         rotate: [4, -7, 9][index] ?? 0,
         depth: [0.65, 0.4, 0.48][index] ?? 0.5,
       });
     });
     if (education[0]) {
-      raw.push({ label: education[0].school, kind: "education", x: 24, y: 25, rotate: -4, depth: 0.36 });
+      raw.push({ label: education[0].school, kind: "education", x: 28, y: 8, rotate: -4, depth: 0.36 });
     }
-    raw.push({ label: profile.location || "Remote-ready", kind: "location", x: 48, y: 78, rotate: 5, depth: 0.55 });
+    raw.push({ label: profile.location || "Remote-ready", kind: "location", x: 50, y: 88, rotate: 5, depth: 0.55 });
     if (profile.avatarUrl) {
-      raw.push({ label: profile.avatarUrl, kind: "portrait", x: 84, y: 49, rotate: 8, depth: 0.7 });
+      raw.push({ label: profile.avatarUrl, kind: "portrait", x: 86, y: 44, rotate: 8, depth: 0.7 });
     }
     return raw.slice(0, 11);
   }, [education, profile.avatarUrl, profile.goals, profile.location, skills]);
@@ -59,6 +197,7 @@ export function PlayfulArtifacts({
 
   return (
     <section className="wdk-way" onPointerMove={onPointerMove} onPointerLeave={() => setPointer({ x: 0, y: 0 })}>
+      <style>{LAYOUT_FIXES}</style>
       <div className="wdk-way-lines" aria-hidden />
       <div className="wdk-way-smiley" aria-hidden>
         <span className="wdk-way-eye wdk-way-eye-left" />
@@ -68,7 +207,7 @@ export function PlayfulArtifacts({
 
       <div className="wdk-way-copy">
         <span>Playground / process / personality</span>
-        <h2>Do things<br />your way.</h2>
+        <h2><span>Do things</span><span>your way.</span></h2>
         <p>Move across the scene. The objects react, just like the source portfolio’s playful creative laboratory.</p>
       </div>
 
