@@ -38,6 +38,8 @@ interface OverviewPageProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
+const AUTO_APPLY_START_KEY = "jobraker:auto_apply_started_at";
+
 const timeAgo = (iso: string): string => {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return "";
@@ -376,6 +378,50 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
       setAutoApplySaving(false);
     }
   };
+
+  // Live Run runtime: count up from when Auto Apply was turned on. The start
+  // time is persisted so the timer survives reloads, and cleared when paused —
+  // it reflects how long the current run has actually been active.
+  const [runtimeLabel, setRuntimeLabel] = useState("00:00:00");
+
+  useEffect(() => {
+    const format = (ms: number) => {
+      const total = Math.max(0, Math.floor(ms / 1000));
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
+    };
+
+    if (!autoApplyActive) {
+      try {
+        localStorage.removeItem(AUTO_APPLY_START_KEY);
+      } catch {}
+      setRuntimeLabel("00:00:00");
+      return;
+    }
+
+    // Resume from the stored start, or anchor a new one if none/invalid.
+    let start = Date.now();
+    try {
+      const stored = localStorage.getItem(AUTO_APPLY_START_KEY);
+      const parsed = stored ? Number.parseInt(stored, 10) : NaN;
+      if (Number.isFinite(parsed) && parsed > 0 && parsed <= Date.now()) {
+        start = parsed;
+      } else {
+        localStorage.setItem(AUTO_APPLY_START_KEY, String(start));
+      }
+    } catch {
+      /* localStorage unavailable — fall back to session-only start */
+    }
+
+    setRuntimeLabel(format(Date.now() - start));
+    const id = window.setInterval(
+      () => setRuntimeLabel(format(Date.now() - start)),
+      1000,
+    );
+    return () => window.clearInterval(id);
+  }, [autoApplyActive]);
 
   // --- Tour coach marks -----------------------------------------------------
 
@@ -839,14 +885,14 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
 
             <div className='relative z-10 flex-1 flex flex-col items-center justify-center text-center'>
               <p className='text-xs text-muted-foreground font-medium'>
-                Applications sent today
+                {autoApplyActive ? "Session runtime" : "Applications sent"}
               </p>
-              <div className='mt-1 text-4xl sm:text-5xl font-bold text-foreground font-mono tracking-tight'>
-                {appsLoading ? (
-                  <Skeleton className='h-12 w-24' />
-                ) : (
-                  String(autoSentToday).padStart(2, "0")
-                )}
+              <div
+                className={`mt-1 text-4xl sm:text-5xl font-bold font-mono tracking-tight tabular-nums ${
+                  autoApplyActive ? "text-foreground" : "text-foreground/50"
+                }`}
+              >
+                {runtimeLabel}
               </div>
               <p className='mt-2 text-[10px] text-muted-foreground'>
                 {autoApplyActive ? (
@@ -895,12 +941,16 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                 <>
                   <CheckCircle2 className='w-3.5 h-3.5 text-brand' />
                   <span className='text-foreground/70'>
-                    AI Agent running smoothly
+                    {autoSentToday > 0
+                      ? `${autoSentToday} sent today · AI Agent running smoothly`
+                      : "AI Agent running smoothly"}
                   </span>
                 </>
               ) : (
                 <span className='text-foreground/40'>
-                  Auto Apply is paused
+                  {autoSentToday > 0
+                    ? `${autoSentToday} sent today · Auto Apply is paused`
+                    : "Auto Apply is paused"}
                 </span>
               )}
             </div>
