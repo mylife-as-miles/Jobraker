@@ -1,35 +1,32 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MatchScoreAnalytics } from "../../../components/analytics/MatchScoreAnalytics";
-import { Switch } from "../../../components/ui/switch";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
 import {
-  Building2,
-  AlertCircle,
+  ArrowUpRight,
+  ArrowDownRight,
+  Bot,
+  CalendarDays,
+  CheckCircle2,
   Inbox,
-  Bell,
+  Minus,
+  Pause,
+  Play,
+  Square,
+  Zap,
 } from "lucide-react";
-import KiboCalendar, {
-  CalendarEvent,
-} from "../../../components/ui/kibo-ui/calendar";
-import CalendarDayDetail from "../../../components/ui/kibo-ui/CalendarDayDetail";
-import { useNotifications } from "../../../hooks/useNotifications";
 import {
   useApplications,
   ApplicationStatus,
 } from "../../../hooks/useApplications";
 import { Skeleton } from "../../../components/ui/skeleton";
-import { SplitLineAreaChart } from "./SplitLineAreaChart";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { useAnalyticsData } from "../../../hooks/useAnalyticsData";
 import { StreakCard } from "../../../components/StreakCard";
 import { useGamification } from "../../../hooks/useGamification";
+import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import type { Profile } from "../../../hooks/useProfileSettings";
-// SplitLineAreaChart removed; chart moved to Application section
-
-// Using realtime notifications; no local interface needed here
 
 interface OverviewPageProps {
   profile?: Profile | null;
@@ -37,318 +34,163 @@ interface OverviewPageProps {
   skillCount?: number;
 }
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const timeAgo = (iso: string): string => {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const diff = Date.now() - then;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+};
+
+const formatInterviewDate = (iso: string): string => {
+  const d = new Date(iso);
+  const today = new Date();
+  const startToday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  const startThat = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dayDiff = Math.round(
+    (startThat.getTime() - startToday.getTime()) / 86400000,
+  );
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (dayDiff === 0) return `Today · ${time}`;
+  if (dayDiff === 1) return `Tomorrow · ${time}`;
+  return `${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${time}`;
+};
+
+const STATUS_CHIP_CLASSES: Partial<Record<ApplicationStatus, string>> = {
+  Applied: "bg-brand/10 text-brand border-brand/30",
+  Interview: "bg-[#00b2ff]/10 text-[#56c2ff] border-[#00b2ff]/30",
+  Offer: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+  Rejected: "bg-red-500/10 text-red-400 border-red-500/30",
+  Failed: "bg-red-500/10 text-red-400 border-red-500/30",
+  Pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30",
+  Draft: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30",
+};
+
+const statusChip = (status: ApplicationStatus) =>
+  STATUS_CHIP_CLASSES[status] ||
+  "bg-foreground/5 text-foreground/60 border-foreground/10";
+
+// ---------------------------------------------------------------------------
+// Stat card (top row)
+// ---------------------------------------------------------------------------
+
+interface StatCardProps {
+  label: string;
+  value: number;
+  deltaPct: number;
+  highlight?: boolean;
+  loading?: boolean;
+  onOpen: () => void;
+}
+
+const StatCard = ({
+  label,
+  value,
+  deltaPct,
+  highlight = false,
+  loading = false,
+  onOpen,
+}: StatCardProps) => {
+  const rounded = Math.round(deltaPct);
+  const DeltaIcon =
+    rounded > 0 ? ArrowUpRight : rounded < 0 ? ArrowDownRight : Minus;
+  return (
+    <Card
+      className={`relative rounded-2xl border p-4 sm:p-5 transition-all duration-300 group ${
+        highlight
+          ? "bg-brand text-black border-brand shadow-[0_0_30px_rgba(29,255,0,0.15)]"
+          : "bg-card/50 backdrop-blur-xl border-foreground/10 hover:border-brand/30"
+      }`}
+    >
+      <div className='flex items-start justify-between'>
+        <span
+          className={`text-xs sm:text-sm font-semibold tracking-tight ${
+            highlight ? "text-black/80" : "text-foreground"
+          }`}
+        >
+          {label}
+        </span>
+        <button
+          type='button'
+          onClick={onOpen}
+          aria-label={`Open ${label}`}
+          className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all duration-200 ${
+            highlight
+              ? "bg-black/10 border-black/20 text-black hover:bg-black/20"
+              : "bg-foreground/5 border-foreground/10 text-foreground/60 hover:text-brand hover:border-brand/40"
+          }`}
+        >
+          <ArrowUpRight className='w-3.5 h-3.5' />
+        </button>
+      </div>
+      <div
+        className={`mt-2 text-3xl sm:text-4xl font-bold tracking-tight ${
+          highlight ? "text-black" : "text-foreground"
+        }`}
+      >
+        {loading ? (
+          <Skeleton
+            className={`h-9 w-16 ${highlight ? "bg-black/10" : ""}`}
+          />
+        ) : (
+          value
+        )}
+      </div>
+      <div className='mt-3 flex items-center gap-2'>
+        <span
+          className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${
+            highlight
+              ? "bg-black/10 border-black/20 text-black"
+              : rounded < 0
+                ? "bg-red-500/10 border-red-500/30 text-red-400"
+                : "bg-brand/10 border-brand/30 text-brand"
+          }`}
+        >
+          <DeltaIcon className='w-3 h-3' />
+          {Math.abs(rounded)}%
+        </span>
+        <span
+          className={`text-[10px] font-medium ${
+            highlight ? "text-black/60" : "text-muted-foreground"
+          }`}
+        >
+          vs last 7 days
+        </span>
+      </div>
+    </Card>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Overview page
+// ---------------------------------------------------------------------------
+
+type ChartRange = "7d" | "4w" | "6m";
+
 export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
   const navigate = useNavigate();
-  const [selectedPeriod, setSelectedPeriod] = useState("1 Month");
-  const [stacked, setStacked] = useState(false);
-  const [stackedTouched, setStackedTouched] = useState(false);
-  const [visibleSeries, setVisibleSeries] = useState<string[]>([]);
-  const { items: notifItems, loading: notifLoading } = useNotifications(6);
-  const {
-    applications,
-    loading: appsLoading,
-    update,
-    create,
-  } = useApplications();
-  const matchAnalytics = useAnalyticsData("30d", { granularity: "day" });
-  const [statusFilter, setStatusFilter] = useState<ApplicationStatus[] | null>(
-    null,
-  ); // null => all
-  const mappedNotifs = useMemo(() => {
-    return notifItems.map((n) => {
-      // Per-type style mapping for visual differentiation & accessibility
-      const baseSize = "w-9 h-9 sm:w-10 sm:h-10";
-      const shared =
-        "rounded-xl flex items-center justify-center font-bold text-xs sm:text-sm shadow-inner transition ring-1";
-      let className = "";
-      let inner: JSX.Element | string;
-      if (n.type === "application") {
-        className = `${baseSize} ${shared} bg-brand/15 ring-brand/40 text-[#b6ffb6] group-hover:ring-brand/60`;
-        inner = (n.company || "A").charAt(0).toUpperCase();
-      } else if (n.type === "interview") {
-        className = `${baseSize} ${shared} bg-background/40 ring-[#56c2ff]/30 text-[#56c2ff] group-hover:ring-[#56c2ff]/60`;
-        inner = <Building2 className='w-4 h-4 sm:w-5 sm:h-5' />;
-      } else if (n.type === "company") {
-        className = `${baseSize} ${shared} bg-background ring-foreground/10 text-foreground group-hover:ring-brand/50`;
-        inner = (n.company || "C").charAt(0).toUpperCase();
-      } else {
-        // system / fallback
-        className = `${baseSize} ${shared} bg-brand ring-brand/40 text-brand group-hover:ring-brand/70`;
-        inner = <AlertCircle className='w-4 h-4 sm:w-5 sm:h-5' />;
-      }
-      return {
-        id: n.id,
-        type: n.type as any,
-        title: n.title,
-        message: n.message || "",
-        time: new Date(n.created_at).toLocaleString(),
-        icon: <div className={className}>{inner}</div>,
-      };
-    });
-  }, [notifItems]);
-
-  // Realtime clock and dynamic calendar state
-  const [now, setNow] = useState<Date>(new Date());
-  // Month being viewed in the calendar (defaults to current month)
-  const [viewDate, setViewDate] = useState<Date>(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1);
-  });
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  // monthLabel removed (handled by KiboCalendar header internally now)
-
-  const timeLabel = useMemo(
-    () =>
-      now.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      }),
-    [now],
-  );
-
-  // Smart default for stacked: Today/1 Week -> stacked; 1 Month -> overlap (unless user toggled)
-  useEffect(() => {
-    if (stackedTouched) return;
-    setStacked(selectedPeriod !== "1 Month");
-  }, [selectedPeriod, stackedTouched]);
-
-  // Load persisted UI state
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("overview_apps_chart_ui");
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (typeof parsed.stacked === "boolean") {
-        setStacked(parsed.stacked);
-        setStackedTouched(true);
-      }
-      if (
-        Array.isArray(parsed.visible) &&
-        parsed.visible.every((v: any) => typeof v === "string")
-      ) {
-        setVisibleSeries(parsed.visible);
-      }
-    } catch {}
-  }, []);
-
-  // Persist on change
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "overview_apps_chart_ui",
-        JSON.stringify({ stacked, visible: visibleSeries }),
-      );
-    } catch {}
-  }, [stacked, visibleSeries]);
-
-  // Build real series based on selected period with status-specific keys
-  const { seriesData, seriesMeta, interviewCount, offerRate, rejectionRate, totals } = useMemo(() => {
-    const period = selectedPeriod;
-
-    // Apply status filtering (search removed per request)
-    let filtered = applications;
-    if (statusFilter && statusFilter.length) {
-      const set = new Set(statusFilter);
-      filtered = filtered.filter((a) => set.has(a.status));
-    }
-
-    type Bucket = { key: string; label: string; start: Date; end: Date };
-    const buckets: Bucket[] = [];
-
-    if (period === "Today") {
-      const start = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        0,
-        0,
-        0,
-      );
-      for (let h = 0; h < 24; h++) {
-        const s = new Date(start.getTime());
-        s.setHours(h);
-        const e = new Date(s.getTime());
-        e.setHours(h + 1);
-        buckets.push({
-          key: `${s.getFullYear()}-${s.getMonth()}-${s.getDate()}-${h}`,
-          label: `${h.toString().padStart(2, "0")}:00`,
-          start: s,
-          end: e,
-        });
-      }
-    } else if (period === "1 Week") {
-      const start = new Date(now);
-      start.setDate(start.getDate() - 6);
-      start.setHours(0, 0, 0, 0);
-      for (let i = 0; i < 7; i++) {
-        const s = new Date(start.getTime());
-        s.setDate(start.getDate() + i);
-        const e = new Date(s.getTime());
-        e.setDate(s.getDate() + 1);
-        buckets.push({
-          key: `${s.getFullYear()}-${s.getMonth()}-${s.getDate()}`,
-          label: s.toLocaleDateString(undefined, { weekday: "short" }),
-          start: s,
-          end: e,
-        });
-      }
-    } else {
-      // 1 Month: last 6 months for trend
-      const end = new Date(now.getFullYear(), now.getMonth(), 1);
-      const start = new Date(end.getFullYear(), end.getMonth() - 5, 1);
-      for (let i = 0; i < 6; i++) {
-        const s = new Date(start.getFullYear(), start.getMonth() + i, 1);
-        const e = new Date(s.getFullYear(), s.getMonth() + 1, 1);
-        buckets.push({
-          key: `${s.getFullYear()}-${s.getMonth()}`,
-          label: s.toLocaleString(undefined, { month: "short" }),
-          start: s,
-          end: e,
-        });
-      }
-    }
-
-    // Initialize counts per status
-    const statuses = ["Applied", "Interview", "Offer", "Rejected"] as const;
-    const data = buckets.map((b) => {
-      const point: Record<string, string | number> = { label: b.label };
-      statuses.forEach((s) => {
-        point[s] = 0;
-      });
-      return point;
-    });
-
-    let applied = 0;
-    let interviews = 0;
-    let offers = 0;
-    let rejections = 0;
-    let totalInWindow = 0;
-
-    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-
-    const weekStart = new Date(now);
-    weekStart.setDate(weekStart.getDate() - 6);
-    weekStart.setHours(0, 0, 0, 0);
-    const weekEnd = new Date(now);
-    weekEnd.setHours(23, 59, 59, 999);
-
-    const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-    for (const app of filtered) {
-      const appDate = new Date(app.applied_date);
-      const intDate = app.interview_date ? new Date(app.interview_date) : null;
-
-      let appInWindow = false;
-      let intInWindow = false;
-
-      if (period === "Today") {
-        appInWindow = appDate >= dayStart && appDate < dayEnd;
-        intInWindow = intDate ? (intDate >= dayStart && intDate < dayEnd) : false;
-      } else if (period === "1 Week") {
-        appInWindow = appDate >= weekStart && appDate <= weekEnd;
-        intInWindow = intDate ? (intDate >= weekStart && intDate <= weekEnd) : false;
-      } else {
-        appInWindow = appDate >= sixMonthsStart && appDate < monthEnd;
-        intInWindow = intDate ? (intDate >= sixMonthsStart && intDate < monthEnd) : false;
-      }
-
-      if (appInWindow) {
-        totalInWindow++;
-        if (app.status === "Applied") applied++;
-        else if (app.status === "Offer") offers++;
-        else if (app.status === "Rejected") rejections++;
-
-        // Aggregate bucket for chart (only for applications within the window)
-        const idx = buckets.findIndex((b) => appDate >= b.start && appDate < b.end);
-        if (idx >= 0) {
-          const s = (app.status as string) || "Applied";
-          if (s in data[idx]) data[idx][s] = (data[idx][s] as number) + 1;
-          else data[idx]["Applied"] = (data[idx]["Applied"] as number) + 1;
-        }
-      }
-
-      // Count under interviews if status is "Interview" AND falls in window, OR if interview_date falls in the window
-      const countAsInterview = (app.status === "Interview" && appInWindow) || intInWindow;
-      if (countAsInterview) {
-        interviews++;
-      }
-    }
-
-    // Improved distinctive palette for accessibility / color meaning
-    const palette: Record<string, string> = {
-      Applied: "#1dff00",
-      Interview: "#00b2ff",
-      Offer: "#10b981",
-      Rejected: "#ef4444",
-    };
-    const series = statuses.map((s) => ({
-      key: s,
-      label: s,
-      color: palette[s] || "#999999",
-    }));
-
-    const offerRate = totalInWindow ? offers / totalInWindow : 0;
-    const rejectionRate = totalInWindow ? rejections / totalInWindow : 0;
-
-    return {
-      seriesData: data,
-      seriesMeta: series,
-      appliedCount: applied,
-      interviewCount: interviews,
-      offerRate,
-      rejectionRate,
-      totals: { totalInWindow },
-    };
-  }, [applications, now, selectedPeriod, statusFilter]);
-
-  // Calendar selection & view state
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedRange, setSelectedRange] = useState<{
-    start: Date;
-    end: Date;
-  } | null>(null);
-  const [calendarViewMode, setCalendarViewMode] = useState<"month" | "week">(
-    "month",
-  );
-  const [showShortcuts, setShowShortcuts] = useState(false);
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "?" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setShowShortcuts((s) => !s);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  // Derive calendar events from applications: use interview_date if present else applied_date as end indicator
-  const calendarEvents: CalendarEvent[] = useMemo(() => {
-    return applications.map((app) => {
-      const dateStr = app.interview_date || app.applied_date;
-      let date: Date;
-      try {
-        date = new Date(dateStr);
-      } catch {
-        date = new Date();
-      }
-      return {
-        id: app.id,
-        date,
-        title: app.job_title.slice(0, 24),
-        subtitle: app.company?.slice(0, 24) || "",
-        status: app.status,
-      };
-    });
-  }, [applications]);
+  const { applications, loading: appsLoading } = useApplications();
+  const analytics = useAnalyticsData("7d", { granularity: "day" });
+  const { profile: liveProfile, updateProfile } = useProfileSettings();
+  const [chartRange, setChartRange] = useState<ChartRange>("7d");
+  const [autoApplySaving, setAutoApplySaving] = useState(false);
 
   // Gamification: XP, streaks, achievements from DB
   const gamification = useGamification();
@@ -374,480 +216,695 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
           : 0;
     return {
       currentStreak: s.current_streak,
-      longestStreak: s.longest_streak,
       weekProgress: weekCount,
       completionRate,
       activeDays: s.week_activity,
     };
   }, [gamification.streak]);
 
-  // Product tour coach marks for overview dashboard
+  // --- Stat row -------------------------------------------------------------
+
+  const pendingStats = useMemo(() => {
+    const isPending = (s: ApplicationStatus) =>
+      s === "Pending" || s === "Draft";
+    const count = applications.filter((a) => isPending(a.status)).length;
+    const now = Date.now();
+    const last7 = applications.filter(
+      (a) =>
+        isPending(a.status) &&
+        now - new Date(a.created_at).getTime() <= 7 * 86400000,
+    ).length;
+    const prev7 = applications.filter((a) => {
+      if (!isPending(a.status)) return false;
+      const age = now - new Date(a.created_at).getTime();
+      return age > 7 * 86400000 && age <= 14 * 86400000;
+    }).length;
+    const deltaPct = prev7 > 0 ? ((last7 - prev7) / prev7) * 100 : last7 > 0 ? 100 : 0;
+    return { count, deltaPct };
+  }, [applications]);
+
+  // --- Application Analytics bar chart --------------------------------------
+
+  const chartBars = useMemo(() => {
+    const now = new Date();
+    type Bar = { label: string; value: number };
+    const bars: Bar[] = [];
+    const add = (label: string, start: Date, end: Date) => {
+      const value = applications.filter((a) => {
+        const d = new Date(a.applied_date);
+        return d >= start && d < end;
+      }).length;
+      bars.push({ label, value });
+    };
+
+    if (chartRange === "7d") {
+      for (let i = 6; i >= 0; i--) {
+        const s = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+        const e = new Date(s.getFullYear(), s.getMonth(), s.getDate() + 1);
+        add(s.toLocaleDateString(undefined, { weekday: "narrow" }), s, e);
+      }
+    } else if (chartRange === "4w") {
+      for (let i = 3; i >= 0; i--) {
+        const e = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - i * 7 + 1,
+        );
+        const s = new Date(e.getFullYear(), e.getMonth(), e.getDate() - 7);
+        add(
+          s.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+          s,
+          e,
+        );
+      }
+    } else {
+      for (let i = 5; i >= 0; i--) {
+        const s = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const e = new Date(s.getFullYear(), s.getMonth() + 1, 1);
+        add(s.toLocaleString(undefined, { month: "narrow" }), s, e);
+      }
+    }
+    const max = Math.max(...bars.map((b) => b.value));
+    // Round the axis max up to a friendly step
+    const step = max <= 5 ? 5 : max <= 10 ? 10 : Math.ceil(max / 10) * 10;
+    return { bars, max, axisMax: step };
+  }, [applications, chartRange]);
+
+  const chartEmpty = !appsLoading && chartBars.max === 0;
+
+  // --- AI Agent: next upcoming interview ------------------------------------
+
+  const nextInterview = useMemo(() => {
+    const startToday = new Date();
+    startToday.setHours(0, 0, 0, 0);
+    return (
+      applications
+        .filter(
+          (a) => a.interview_date && new Date(a.interview_date) >= startToday,
+        )
+        .sort(
+          (a, b) =>
+            new Date(a.interview_date as string).getTime() -
+            new Date(b.interview_date as string).getTime(),
+        )[0] || null
+    );
+  }, [applications]);
+
+  // --- Recent applications --------------------------------------------------
+
+  const recentApps = useMemo(
+    () =>
+      [...applications]
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        )
+        .slice(0, 4),
+    [applications],
+  );
+
+  // --- Application progress gauge -------------------------------------------
+
+  const progress = useMemo(() => {
+    const applied = applications.filter((a) => a.status === "Applied").length;
+    const inReview = applications.filter(
+      (a) => a.status === "Pending" || a.status === "Draft",
+    ).length;
+    const interview = applications.filter(
+      (a) => a.status === "Interview" || a.status === "Offer",
+    ).length;
+    const total = applied + inReview + interview;
+    const pct = total > 0 ? Math.round(((applied + interview) / total) * 100) : 0;
+    const share = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
+    const weekCount = applications.filter(
+      (a) => Date.now() - new Date(a.applied_date).getTime() <= 7 * 86400000,
+    ).length;
+    return {
+      pct,
+      total,
+      weekCount,
+      legend: [
+        { label: "Applied", count: applied, share: share(applied), dot: "bg-brand" },
+        { label: "In Review", count: inReview, share: share(inReview), dot: "bg-yellow-400" },
+        { label: "Interview", count: interview, share: share(interview), dot: "bg-[#56c2ff]" },
+      ],
+    };
+  }, [applications]);
+
+  // --- Live Run (auto apply) ------------------------------------------------
+
+  const autoApplyActive = Boolean(liveProfile?.auto_apply_auto_submit);
+
+  const autoSentToday = useMemo(() => {
+    const startToday = new Date();
+    startToday.setHours(0, 0, 0, 0);
+    return applications.filter((a) => {
+      const automated =
+        a.run_id || a.automation_provider || a.draft_status === "sent";
+      return automated && new Date(a.applied_date) >= startToday;
+    }).length;
+  }, [applications]);
+
+  const setAutoApply = async (enabled: boolean) => {
+    if (autoApplySaving || !liveProfile) return;
+    setAutoApplySaving(true);
+    try {
+      await updateProfile({ auto_apply_auto_submit: enabled } as Partial<Profile>);
+    } catch {
+      // updateProfile surfaces its own error handling
+    } finally {
+      setAutoApplySaving(false);
+    }
+  };
+
+  // --- Tour coach marks -----------------------------------------------------
+
   useRegisterCoachMarks({
     page: "overview",
     marks: [
       {
-        id: "next-best-actions",
-        selector: "#overview-next-best-actions",
-        title: "Your next best actions",
-        body: "Start here for the most useful next step based on your profile and current application pipeline.",
+        id: "stats-row",
+        selector: "#overview-stats",
+        title: "Your key numbers",
+        body: "Jobs matched, applications sent, interviews, and pending reviews — each compared against the previous 7 days.",
       },
       {
         id: "apps-chart",
         selector: "#overview-apps-chart",
-        title: "Application Velocity",
-        body: "Track how many applications you submit over time with interactive charts. Switch between Today, 1 Week, and 1 Month views. Toggle stacked mode to compare statuses side-by-side.",
+        title: "Application Analytics",
+        body: "How many applications you submitted per day. Switch the range to zoom out to weeks or months.",
       },
       {
-        id: "status-toggle",
-        selector: "#overview-status-filter-buttons",
-        title: "Focus by Status",
-        body: "Filter the dataset to highlight specific pipeline stages like Applied, Interview, Offer, or Rejected. Select multiple statuses to see combined trends. Color-coded pills make it easy to identify each status.",
+        id: "streak-card",
+        selector: "#overview-streak",
+        title: "Daily streak",
+        body: "Log in and take actions every day to grow your streak.",
       },
       {
-        id: "calendar-pane",
-        selector: "#overview-calendar",
-        title: "Calendar Insight",
-        body: "Interviews and applied dates appear here so you can plan your week effectively. Click any date to see detailed application information. Switch between month and week views for different perspectives.",
+        id: "recent-apps",
+        selector: "#overview-recent-apps",
+        title: "Recent applications",
+        body: "Your latest applications with live status. Click through to manage the full pipeline.",
       },
       {
-        id: "notifications-panel",
-        selector: "#overview-notifications",
-        title: "Recent Notifications",
-        body: "Stay on top of interview scheduling, offers, and important system updates. Notifications are color-coded by type and show real-time updates from your job search activities.",
+        id: "live-run",
+        selector: "#overview-live-run",
+        title: "Auto Apply",
+        body: "See whether Auto Apply is running and how many applications it sent today. Pause or resume it from here.",
       },
     ],
   });
 
+  // Semicircle gauge geometry
+  const GAUGE_LEN = Math.PI * 80; // radius 80
+
   return (
     <div className='product-page-shell min-h-full'>
-      <div className='w-full max-w-7xl mx-auto p-3 sm:p-4 lg:p-6 xl:p-8'>
-        {/* Responsive overview layout */}
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 items-start'>
-          {/* Left Column - Applications and Match Score */}
-          <div className='lg:col-span-2 space-y-4 sm:space-y-6 w-full'>
-            {/* Applications Card */}
-            <div className='w-full'>
-              <Card className='bg-card/50 backdrop-blur-xl border p-4 sm:p-6 lg:p-8 rounded-2xl border-foreground/10'>
-                <div className='flex flex-col xl:flex-row xl:items-center justify-between mb-6 gap-4'>
-                  <div className='flex items-center gap-3'>
-                    <h2 className='text-lg sm:text-xl lg:text-2xl font-bold text-foreground'>
-                      Applications
-                    </h2>
-                    <span className='px-2 py-0.5 rounded-full bg-brand/10 border border-brand/20 text-xs font-medium text-brand'>
-                      {totals.totalInWindow} Total
-                    </span>
-                  </div>
+      <div className='w-full max-w-7xl mx-auto p-3 sm:p-4 lg:p-6 xl:p-8 space-y-4 sm:space-y-6'>
+        {/* Row 1 — Stat cards */}
+        <div
+          id='overview-stats'
+          data-tour='overview-stats'
+          className='grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4'
+        >
+          <StatCard
+            label='Jobs Matched'
+            value={analytics.metrics.jobsFound}
+            deltaPct={analytics.comparisons.jobsFoundDeltaPct}
+            highlight
+            loading={analytics.loading}
+            onOpen={() => navigate("/dashboard/jobs")}
+          />
+          <StatCard
+            label='Applications Sent'
+            value={analytics.metrics.applications}
+            deltaPct={analytics.comparisons.applicationsDeltaPct}
+            loading={analytics.loading}
+            onOpen={() => navigate("/dashboard/application")}
+          />
+          <StatCard
+            label='Interviews'
+            value={analytics.metrics.interviews}
+            deltaPct={analytics.comparisons.interviewsDeltaPct}
+            loading={analytics.loading}
+            onOpen={() => navigate("/dashboard/application")}
+          />
+          <StatCard
+            label='Pending Review'
+            value={pendingStats.count}
+            deltaPct={pendingStats.deltaPct}
+            loading={appsLoading}
+            onOpen={() => navigate("/dashboard/application")}
+          />
+        </div>
 
-                  {/* Period Selector + Stacked Toggle */}
-                  <div className='flex flex-wrap items-center gap-2'>
-                    <div className='product-control-surface p-1 bg-foreground/5 rounded-lg border border-foreground/10'>
-                      {["Today", "1 Week", "1 Month"].map((period) => (
-                        <button
-                          key={period}
-                          onClick={() => setSelectedPeriod(period)}
-                          title={`Show data for ${period}`}
-                          className={`text-xs px-3 py-1.5 rounded-md transition-all duration-300 font-medium ${
-                            selectedPeriod === period
-                              ? "product-control-button-active text-black shadow-sm"
-                              : "product-control-button"
-                          }`}
-                        >
-                          {period}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className='h-6 w-px bg-foreground/10 mx-1 hidden sm:block' />
-
-                    <div
-                      className='flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/5 border border-foreground/10'
-                      title='Toggle stacked / overlapping series'
-                    >
-                      <span className='text-xs font-medium text-[#888]'>
-                        Stacked
-                      </span>
-                      <Switch
-                        checked={stacked}
-                        onCheckedChange={(v: boolean) => {
-                          setStackedTouched(true);
-                          setStacked(!!v);
-                        }}
-                        className='scale-75 origin-right'
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Status Filter Pills */}
-                <div
-                  id='overview-status-filter-buttons'
-                  data-tour='overview-status-filter-buttons'
-                  className='flex flex-wrap items-center justify-start gap-2 mb-6'
-                >
-                  {["All", "Applied", "Interview", "Offer", "Rejected"].map(
-                    (s) => {
-                      const active =
-                        s === "All"
-                          ? !statusFilter
-                          : statusFilter?.includes(s as ApplicationStatus);
-                      const baseColors: Record<string, string> = {
-                        Applied:
-                          "bg-brand/10 text-brand border-brand/30 hover:bg-brand/20",
-                        Interview:
-                          "bg-background/10 text-[#56c2ff] border-[#00b2ff]/30 hover:bg-background/20",
-                        Offer:
-                          "bg-brand/10 text-brand border-brand/30 hover:bg-brand/20",
-                        Rejected:
-                          "bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20",
-                        All: "bg-foreground/5 text-foreground/80 border-foreground/10 hover:bg-foreground/10",
-                      };
-                      const activeClass = active
-                        ? "ring-1 ring-foreground/20 shadow-lg scale-105 contrast-125"
-                        : "opacity-60 hover:opacity-100 grayscale-[0.3] hover:grayscale-0";
-
-                      return (
-                        <button
-                          key={s}
-                          type='button'
-                          onClick={() => {
-                            if (s === "All") {
-                              setStatusFilter(null);
-                              return;
-                            }
-                            setStatusFilter((prev) => {
-                              if (!prev) return [s as ApplicationStatus];
-                              if (prev.includes(s as ApplicationStatus)) {
-                                const next = prev.filter((p) => p !== s);
-                                return next.length ? next : null;
-                              }
-                              return [...prev, s as ApplicationStatus];
-                            });
-                          }}
-                          className={`text-xs px-3 py-1.5 rounded-md border transition-all duration-300 font-medium tracking-wide flex items-center gap-2 ${baseColors[s]} ${activeClass}`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${s === "All" ? "bg-foreground" : "bg-current"}`}
-                          />
-                          {s}
-                        </button>
-                      );
-                    },
-                  )}
-                </div>
-
-                {/* Stats & Conversion Metrics - Enhanced Visuals */}
-                <div className='grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8'>
-                  <div className='p-4 rounded-xl bg-foreground/5 border border-foreground/10'>
-                    <div className='text-2xl lg:text-3xl font-bold text-foreground mb-1'>
-                      {totals.totalInWindow}
-                    </div>
-                    <div className='text-xs text-muted-foreground font-medium uppercase tracking-wider'>
-                      Applications
-                    </div>
-                  </div>
-                  <div className='p-4 rounded-xl  border bg-[#00b2ff]/10 border-[#00b2ff]/30'>
-                    <div className='text-2xl lg:text-3xl font-bold text-[#56c2ff] mb-1'>
-                      {interviewCount}
-                    </div>
-                    <div className='text-xs text-[#56c2ff]/70 font-medium uppercase tracking-wider'>
-                      Interviews
-                    </div>
-                  </div>
-                  <div className='p-4 rounded-xl bg-brand/10 border border-brand/30'>
-                    <div className='text-2xl lg:text-3xl font-bold text-brand mb-1'>
-                      {Math.round(offerRate * 100)}%
-                    </div>
-                    <div className='text-xs text-brand font-medium uppercase tracking-wider'>
-                      Offer Rate
-                    </div>
-                  </div>
-                  <div className='p-4 rounded-xl border bg-red-500/10 border-red-500/30'>
-                    <div className='text-2xl lg:text-3xl font-bold text-red-500 mb-1'>
-                      {Math.round(rejectionRate * 100)}%
-                    </div>
-                    <div className='text-xs text-red-500 font-medium uppercase tracking-wider'>
-                      Rejection Rate
-                    </div>
-                  </div>
-                </div>
-
-                {/* Applications Chart */}
-                <div
-                  id='overview-apps-chart'
-                  data-tour='overview-apps-chart'
-                  className='w-full h-72 lg:h-80 relative'
-                  aria-live='polite'
-                >
-                  <div
-                    className={`w-full h-full transition-opacity duration-500 ${appsLoading ? "opacity-0" : "opacity-100"}`}
-                  >
-                    {!appsLoading && (
-                      <SplitLineAreaChart
-                        data={seriesData}
-                        xKey='label'
-                        series={seriesMeta}
-                        stacked={stacked}
-                        onVisibleChange={setVisibleSeries}
-                        defaultVisible={visibleSeries}
-                        tickFormatter={(v) => String(v).slice(0, 3)}
-                        className='h-full w-full'
-                      />
-                    )}
-                  </div>
-                  {appsLoading && (
-                    <div className='absolute inset-0 flex flex-col gap-4'>
-                      <Skeleton className='h-6 w-40' />
-                      <Skeleton className='h-full w-full' />
-                    </div>
-                  )}
-                </div>
-              </Card>
+        {/* Row 2 — Analytics chart | AI Agent | Streak */}
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch'>
+          {/* Application Analytics */}
+          <Card
+            id='overview-apps-chart'
+            data-tour='overview-apps-chart'
+            className='rounded-2xl border border-foreground/10 bg-card/50 backdrop-blur-xl p-4 sm:p-5 flex flex-col'
+          >
+            <div className='flex items-center justify-between mb-4'>
+              <h2 className='text-sm sm:text-base font-semibold text-foreground tracking-tight'>
+                Application Analytics
+              </h2>
+              <select
+                value={chartRange}
+                onChange={(e) => setChartRange(e.target.value as ChartRange)}
+                aria-label='Analytics range'
+                className='text-[10px] sm:text-xs font-medium rounded-full border border-foreground/10 bg-foreground/5 text-foreground/80 px-2.5 py-1 outline-none hover:border-brand/40 focus:border-brand/40 transition-colors cursor-pointer'
+              >
+                <option value='7d'>Last 7 Days</option>
+                <option value='4w'>Last 4 Weeks</option>
+                <option value='6m'>Last 6 Months</option>
+              </select>
             </div>
 
-            {/* Calendar (Kibo UI) - moved up, swapping with Match Scores */}
-            <div>
-              <Card
-                id='overview-calendar'
-                data-tour='overview-calendar'
-                className='rounded-3xl border border-white/8 bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-3 sm:p-6 backdrop-blur-xl'
-              >
-                <div className='mb-4 flex flex-col gap-3 text-[10px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:text-xs'>
-                  <div className='inline-flex w-fit items-center gap-2 rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
-                    <span className='h-2 w-2 rounded-full bg-brand shadow-[0_0_12px_rgba(29,255,0,0.45)]' />
-                    Current time:{" "}
-                    <span className='font-semibold text-brand'>{timeLabel}</span>
-                  </div>
-                  <div className='flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.02] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
-                    <span className='text-muted-foreground hidden sm:inline'>
-                      View:
-                    </span>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={() =>
-                        setCalendarViewMode((m) =>
-                          m === "month" ? "week" : "month",
-                        )
-                      }
-                      className='rounded-full border border-brand/20 bg-brand/10 px-3 py-1.5 text-[10px] text-brand transition hover:border-brand/35 hover:bg-brand/15 sm:text-xs'
+            <div className='flex-1 min-h-[180px] flex gap-2 relative'>
+              {/* Y axis */}
+              <div className='flex flex-col justify-between text-[9px] text-foreground/40 font-medium pb-5 shrink-0 text-right'>
+                {[4, 3, 2, 1, 0].map((t) => (
+                  <span key={t}>
+                    {Math.round((chartBars.axisMax / 4) * t)}
+                  </span>
+                ))}
+              </div>
+              {/* Bars */}
+              <div className='flex-1 flex items-end justify-between gap-2 sm:gap-3'>
+                {chartBars.bars.map((bar, i) => {
+                  const h =
+                    chartBars.axisMax > 0
+                      ? (bar.value / chartBars.axisMax) * 100
+                      : 0;
+                  const isPeak =
+                    chartBars.max > 0 && bar.value === chartBars.max;
+                  return (
+                    <div
+                      key={`${bar.label}-${i}`}
+                      className='flex-1 flex flex-col items-center gap-1.5 h-full justify-end'
                     >
-                      {calendarViewMode === "month"
-                        ? "Switch to Week"
-                        : "Switch to Month"}
-                    </Button>
-                  </div>
-                </div>
-                <div className='overflow-x-auto'>
-                  <KiboCalendar
-                    month={viewDate}
-                    selectedDate={selectedDate || undefined}
-                    onMonthChange={(d) => setViewDate(d)}
-                    onSelectDate={(d) => setSelectedDate(d)}
-                    events={calendarEvents}
-                    maxVisibleEventsPerDay={3}
-                    rangeSelectable
-                    onSelectRange={setSelectedRange}
-                    locale={Intl.DateTimeFormat().resolvedOptions().locale}
-                    viewMode={calendarViewMode}
-                    onViewModeChange={setCalendarViewMode}
-                    heatmap
-                    showLegend
-                  />
-                </div>
-                {selectedRange && (
-                  <div className='mt-3 text-center text-[10px] sm:text-xs text-muted-foreground flex flex-col items-center gap-1'>
-                    <div>
-                      Range:{" "}
-                      <span className='text-brand font-medium'>
-                        {selectedRange.start.toLocaleDateString()} →{" "}
-                        {selectedRange.end.toLocaleDateString()}
+                      <div className='w-full flex-1 flex items-end justify-center'>
+                        <motion.div
+                          initial={{ height: 0 }}
+                          animate={{ height: `${Math.max(h, bar.value > 0 ? 6 : 2)}%` }}
+                          transition={{ duration: 0.6, delay: i * 0.05, ease: "easeOut" }}
+                          title={`${bar.value} application${bar.value === 1 ? "" : "s"}`}
+                          className={`w-2/3 max-w-[26px] rounded-full ${
+                            bar.value === 0
+                              ? "bg-foreground/[0.06]"
+                              : isPeak
+                                ? "bg-brand shadow-[0_0_12px_rgba(29,255,0,0.35)]"
+                                : "bg-brand/35"
+                          }`}
+                        />
+                      </div>
+                      <span className='text-[9px] text-foreground/40 font-medium'>
+                        {bar.label}
                       </span>
                     </div>
+                  );
+                })}
+              </div>
+              {chartEmpty && (
+                <div className='absolute inset-0 flex items-center justify-center'>
+                  <div className='text-center px-4 py-3 rounded-xl border border-dashed border-foreground/15 bg-background/60 backdrop-blur-sm'>
+                    <p className='text-xs text-foreground/70 font-medium'>
+                      No applications in this period
+                    </p>
                     <button
-                      onClick={() => {
-                        setSelectedRange(null);
-                        localStorage.removeItem("calendar_last_range");
-                      }}
-                      className='px-2 py-0.5 rounded border border-foreground/10 hover:border-brand/40 hover:text-brand hover:bg-brand/10 text-[10px]'
+                      type='button'
+                      onClick={() => navigate("/dashboard/jobs")}
+                      className='mt-1 text-[10px] text-brand hover:underline font-semibold'
                     >
-                      Clear
+                      Find jobs to apply →
                     </button>
                   </div>
-                )}
-                <CalendarDayDetail
-                  date={selectedDate}
-                  range={selectedRange}
-                  onClose={() => {
-                    setSelectedDate(null);
-                    setSelectedRange(null);
-                  }}
-                  applications={applications}
-                  onUpdateApplication={update}
-                  onCreateApplication={async (input) => {
-                    await create({
-                      job_title: input.job_title,
-                      company: input.company,
-                      status: input.status as any,
-                      applied_date: input.applied_date,
-                    });
-                  }}
-                />
-              </Card>
-              {showShortcuts && (
-                <div className='mt-4 text-[10px] sm:text-xs text-muted-foreground border border-border/20 rounded-lg p-3 bg-muted/10'>
-                  <div className='flex justify-between mb-2'>
-                    <span className='text-foreground/80 font-medium'>
-                      Shortcuts
-                    </span>
-                    <button
-                      onClick={() => setShowShortcuts(false)}
-                      className='text-brand hover:underline'
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <ul className='grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1'>
-                    <li>
-                      <kbd className='px-1 py-0.5 bg-foreground/10 rounded'>
-                        Ctrl/⌘ + ?
-                      </kbd>{" "}
-                      Toggle help
-                    </li>
-                    <li>
-                      <kbd className='px-1 py-0.5 bg-foreground/10 rounded'>
-                        Shift + ←/→/↑/↓
-                      </kbd>{" "}
-                      Expand range
-                    </li>
-                    <li>
-                      <kbd className='px-1 py-0.5 bg-foreground/10 rounded'>
-                        Click + drag
-                      </kbd>{" "}
-                      Select range
-                    </li>
-                    <li>
-                      <kbd className='px-1 py-0.5 bg-foreground/10 rounded'>
-                        Esc
-                      </kbd>{" "}
-                      Close popup
-                    </li>
-                  </ul>
                 </div>
               )}
             </div>
-          </div>
+          </Card>
 
-          {/* Right Column - Streaks, Notifications, Match Scores */}
-          <div className='space-y-4 sm:space-y-6'>
-            {/* Streak Card */}
+          {/* AI Agent */}
+          <Card className='rounded-2xl border border-foreground/10 bg-card/50 backdrop-blur-xl p-4 sm:p-5 flex flex-col'>
+            <div className='flex items-center gap-2.5 mb-4'>
+              <div className='w-9 h-9 rounded-xl bg-gradient-to-br from-brand/20 to-brand/5 border border-brand/30 flex items-center justify-center shadow-inner'>
+                <Bot className='w-4 h-4 text-brand' />
+              </div>
+              <h2 className='text-sm sm:text-base font-semibold text-foreground tracking-tight'>
+                AI Agent
+              </h2>
+            </div>
+
+            {nextInterview ? (
+              <>
+                <p className='text-sm text-muted-foreground'>Interview with</p>
+                <p className='text-xl sm:text-2xl font-bold text-foreground tracking-tight mt-0.5 truncate'>
+                  {nextInterview.company || nextInterview.job_title}
+                </p>
+                <div className='mt-2 flex items-center gap-1.5 text-xs text-muted-foreground'>
+                  <CalendarDays className='w-3.5 h-3.5 text-brand' />
+                  {formatInterviewDate(nextInterview.interview_date as string)}
+                </div>
+                <div className='mt-3 flex flex-wrap gap-1.5'>
+                  <span className='px-2 py-0.5 rounded-full border border-foreground/10 bg-foreground/5 text-[10px] font-medium text-foreground/70 truncate max-w-[160px]'>
+                    {nextInterview.job_title}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full border text-[10px] font-medium ${statusChip(nextInterview.status)}`}
+                  >
+                    {nextInterview.status}
+                  </span>
+                </div>
+                <Button
+                  onClick={() => navigate("/dashboard/application")}
+                  className='mt-auto w-full bg-brand text-black hover:bg-brand/90 rounded-xl font-semibold text-sm h-10 gap-2 !mt-4'
+                >
+                  <Play className='w-4 h-4 fill-current' />
+                  Open Session
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className='text-sm text-muted-foreground'>
+                  Upcoming interview
+                </p>
+                <p className='text-xl sm:text-2xl font-bold text-foreground/60 tracking-tight mt-0.5'>
+                  Nothing scheduled
+                </p>
+                <div className='mt-2 flex items-center gap-1.5 text-xs text-muted-foreground'>
+                  <CalendarDays className='w-3.5 h-3.5 text-foreground/40' />
+                  Interviews you land will show up here
+                </div>
+                <Button
+                  onClick={() => navigate("/dashboard/jobs")}
+                  variant='outline'
+                  className='mt-auto w-full rounded-xl font-semibold text-sm h-10 gap-2 border-brand/30 text-brand hover:bg-brand/10 hover:text-brand !mt-4'
+                >
+                  Find Jobs
+                </Button>
+              </>
+            )}
+          </Card>
+
+          {/* Streak (replaces Opportunity Pipeline) */}
+          <div id='overview-streak' data-tour='overview-streak'>
             <StreakCard
               currentStreak={streakData.currentStreak}
               weekProgress={streakData.weekProgress}
               completionRate={streakData.completionRate}
               activeDays={streakData.activeDays}
             />
-
-            {/* Notifications Card */}
-            <div>
-              <Card
-                id='overview-notifications'
-                className='relative overflow-hidden bg-card border backdrop-blur-xl p-4 sm:p-6 rounded-2xl group border-foreground/10'
-              >
-                <div className='absolute -top-24 -right-24 w-72 h-72 rounded-full bg-brand/5 blur-3xl  transition' />
-                <div className='flex items-center justify-between mb-4 sm:mb-5 relative z-10'>
-                  <div>
-                    <h2 className='text-lg sm:text-xl lg:text-2xl font-bold text-foreground tracking-tight flex items-center gap-2'>
-                      <div className='w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-brand/20 to-brand/5 border border-brand/30 flex items-center justify-center shadow-inner'>
-                        <Bell className='w-4 h-4 sm:w-5 sm:h-5 text-brand' />
-                      </div>
-                      Notifications
-                    </h2>
-                    <p className='mt-1 text-[11px] sm:text-xs text-muted-foreground'>
-                      Recent activity & status changes
-                    </p>
-                  </div>
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    onClick={() => navigate("/dashboard/notifications")}
-                    className='text-foreground/70 hover:text-brand hover:bg-brand/10 transition-all ease-in-out duration-200 text-xs sm:text-sm font-medium border border-transparent hover:border-brand/40 px-3'
-                  >
-                    View all
-                  </Button>
-                </div>
-
-                <div className='space-y-2.5 sm:space-y-3 min-h-[140px] relative z-10'>
-                  {notifLoading && (
-                    <div className='grid grid-cols-1 gap-2.5 sm:gap-3'>
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className='flex items-start gap-3 p-2.5 sm:p-3 rounded-xl border border-foreground/10 bg-foreground/[0.04]'
-                        >
-                          <Skeleton className='h-9 w-9 rounded-xl' />
-                          <div className='flex-1 space-y-2 py-0.5'>
-                            <Skeleton className='h-3 w-2/3' />
-                            <Skeleton className='h-3 w-1/3' />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {mappedNotifs.length === 0 && !notifLoading && (
-                    <div className='flex items-center justify-center p-8 border border-dashed border-brand/30 rounded-xl bg-foreground/5'>
-                      <div className='text-center'>
-                        <div className='mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3'>
-                          <Inbox className='w-6 h-6 text-brand' />
-                        </div>
-                        <p className='text-foreground/70 font-medium'>
-                          You’re all caught up
-                        </p>
-                        <p className='text-xs text-foreground/70'>
-                          No notifications yet. Activity will show up here.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {!notifLoading &&
-                    mappedNotifs.map((notification, index) => (
-                      <motion.button
-                        type='button'
-                        key={notification.id}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{
-                          duration: 0.45,
-                          delay: 0.05 * index,
-                          ease: "easeOut",
-                        }}
-                        whileHover={{ scale: 1.015 }}
-                        whileTap={{ scale: 0.985 }}
-                        className='w-full text-left flex items-start gap-3 p-2.5 sm:p-3 rounded-xl border border-foreground/10  bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 hover:border-brand/40 transition-all duration-400 group relative overflow-hidden'
-                      >
-                        {notification.icon}
-                        <div className='flex-1 min-w-0'>
-                          <p className='text-[11px] sm:text-sm text-foreground font-medium leading-relaxed tracking-tight truncate flex items-center gap-2'>
-                            {notification.title}
-                            <span className='hidden md:inline-flex text-[9px] px-1.5 py-0.5 rounded bg-foreground/10 border border-brand/30 text-brand font-semibold tracking-wide'>
-                              NEW
-                            </span>
-                          </p>
-                          <p className='text-[10px] sm:text-xs text-foreground/40 mt-1 font-mono tracking-wide'>
-                            {notification.time}
-                          </p>
-                        </div>
-                        <span className='absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-gradient-to-r from-transparent via-brand/5 to-transparent' />
-                      </motion.button>
-                    ))}
-                </div>
-              </Card>
-            </div>
-
-            {/* Match Score Analytics (Refined layout) */}
-            <div>
-              <MatchScoreAnalytics period='30d' data={matchAnalytics} />
-            </div>
           </div>
+        </div>
+
+        {/* Row 3 — Recent Applications | Application Progress | Live Run */}
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch'>
+          {/* Recent Applications */}
+          <Card
+            id='overview-recent-apps'
+            data-tour='overview-recent-apps'
+            className='rounded-2xl border border-foreground/10 bg-card/50 backdrop-blur-xl p-4 sm:p-5 flex flex-col'
+          >
+            <div className='flex items-center justify-between mb-4'>
+              <h2 className='text-sm sm:text-base font-semibold text-foreground tracking-tight'>
+                Recent Applications
+              </h2>
+              <button
+                type='button'
+                onClick={() => navigate("/dashboard/application")}
+                className='text-[10px] sm:text-xs font-medium rounded-full border border-foreground/10 bg-foreground/5 text-foreground/80 px-2.5 py-1 hover:border-brand/40 hover:text-brand transition-colors'
+              >
+                View All
+              </button>
+            </div>
+
+            {appsLoading ? (
+              <div className='space-y-2.5'>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className='flex items-center gap-3 p-2 rounded-xl'>
+                    <Skeleton className='w-9 h-9 rounded-xl' />
+                    <div className='flex-1 space-y-1.5'>
+                      <Skeleton className='h-3 w-2/3' />
+                      <Skeleton className='h-2.5 w-1/2' />
+                    </div>
+                    <Skeleton className='h-5 w-14 rounded-full' />
+                  </div>
+                ))}
+              </div>
+            ) : recentApps.length === 0 ? (
+              <div className='flex-1 flex items-center justify-center p-6 border border-dashed border-brand/30 rounded-xl bg-foreground/5'>
+                <div className='text-center'>
+                  <Inbox className='w-6 h-6 text-brand mx-auto mb-2' />
+                  <p className='text-sm text-foreground/70 font-medium'>
+                    No applications yet
+                  </p>
+                  <button
+                    type='button'
+                    onClick={() => navigate("/dashboard/jobs")}
+                    className='mt-1 text-xs text-brand hover:underline font-semibold'
+                  >
+                    Browse jobs to get started →
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className='space-y-1.5 flex-1'>
+                  {recentApps.map((app, i) => (
+                    <motion.button
+                      key={app.id}
+                      type='button'
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35, delay: i * 0.05 }}
+                      onClick={() => navigate("/dashboard/application")}
+                      className='w-full flex items-center gap-3 p-2 rounded-xl hover:bg-foreground/5 border border-transparent hover:border-foreground/10 transition-all text-left group'
+                    >
+                      <div className='w-9 h-9 rounded-xl bg-foreground/5 border border-foreground/10 flex items-center justify-center overflow-hidden shrink-0'>
+                        {app.logo ? (
+                          <img
+                            src={app.logo}
+                            alt=''
+                            className='w-5 h-5 object-contain'
+                          />
+                        ) : (
+                          <span className='text-xs font-bold text-brand'>
+                            {(app.company || "?").charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <div className='flex-1 min-w-0'>
+                        <p className='text-xs sm:text-sm font-semibold text-foreground truncate'>
+                          {app.company || app.job_title}
+                        </p>
+                        <p className='text-[10px] text-muted-foreground truncate'>
+                          {app.job_title}
+                          {app.location ? ` · ${app.location}` : ""}
+                        </p>
+                      </div>
+                      <div className='flex flex-col items-end gap-1 shrink-0'>
+                        <span
+                          className={`px-2 py-0.5 rounded-full border text-[9px] font-semibold ${statusChip(app.status)}`}
+                        >
+                          {app.status}
+                        </span>
+                        <span className='text-[9px] text-foreground/40'>
+                          {timeAgo(app.created_at)}
+                        </span>
+                      </div>
+                    </motion.button>
+                  ))}
+                </div>
+                <button
+                  type='button'
+                  onClick={() => navigate("/dashboard/application")}
+                  className='mt-3 inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline w-fit'
+                >
+                  View all applications
+                  <ArrowUpRight className='w-3 h-3' />
+                </button>
+              </>
+            )}
+          </Card>
+
+          {/* Application Progress */}
+          <Card className='rounded-2xl border border-foreground/10 bg-card/50 backdrop-blur-xl p-4 sm:p-5 flex flex-col'>
+            <h2 className='text-sm sm:text-base font-semibold text-foreground tracking-tight mb-2'>
+              Application Progress
+            </h2>
+
+            <div className='flex-1 flex flex-col items-center justify-center'>
+              <div className='relative w-full max-w-[220px]'>
+                <svg viewBox='0 0 200 110' className='w-full'>
+                  <path
+                    d='M 20 100 A 80 80 0 0 1 180 100'
+                    fill='none'
+                    stroke='currentColor'
+                    className='text-foreground/10'
+                    strokeWidth='14'
+                    strokeLinecap='round'
+                  />
+                  <motion.path
+                    d='M 20 100 A 80 80 0 0 1 180 100'
+                    fill='none'
+                    stroke='#1dff00'
+                    strokeWidth='14'
+                    strokeLinecap='round'
+                    strokeDasharray={GAUGE_LEN}
+                    initial={{ strokeDashoffset: GAUGE_LEN }}
+                    animate={{
+                      strokeDashoffset:
+                        GAUGE_LEN * (1 - progress.pct / 100),
+                    }}
+                    transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
+                    style={{
+                      filter:
+                        progress.pct > 0
+                          ? "drop-shadow(0 0 6px rgba(29,255,0,0.4))"
+                          : undefined,
+                    }}
+                  />
+                </svg>
+                <div className='absolute inset-x-0 bottom-0 text-center'>
+                  <div className='text-2xl sm:text-3xl font-bold text-foreground'>
+                    {progress.pct}%
+                  </div>
+                  <div className='text-[10px] text-muted-foreground font-medium uppercase tracking-wider'>
+                    Progress
+                  </div>
+                </div>
+              </div>
+
+              <div className='mt-4 w-full grid grid-cols-3 gap-2'>
+                {progress.legend.map((item) => (
+                  <div key={item.label} className='text-center'>
+                    <div className='flex items-center justify-center gap-1'>
+                      <span className={`w-1.5 h-1.5 rounded-full ${item.dot}`} />
+                      <span className='text-[9px] text-foreground/50 font-medium uppercase tracking-wide'>
+                        {item.label}
+                      </span>
+                    </div>
+                    <div className='text-[10px] font-bold text-foreground mt-0.5'>
+                      {item.count} ({item.share}%)
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className='mt-4 pt-3 border-t border-foreground/10 flex items-center gap-1.5 text-[10px] text-muted-foreground'>
+              <Zap className='w-3 h-3 text-brand shrink-0' />
+              {progress.total > 0
+                ? `Keep it up! ${progress.weekCount} application${progress.weekCount === 1 ? "" : "s"} in the last 7 days.`
+                : "Start applying to see your pipeline progress here."}
+            </div>
+          </Card>
+
+          {/* Live Run */}
+          <Card
+            id='overview-live-run'
+            data-tour='overview-live-run'
+            className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 flex flex-col ${
+              autoApplyActive
+                ? "border-brand/40 bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.12),transparent_55%)] bg-card"
+                : "border-foreground/10 bg-card/50 backdrop-blur-xl"
+            }`}
+          >
+            <div className='absolute -top-20 -right-20 w-56 h-56 rounded-full bg-brand/5 blur-3xl' />
+            <div className='relative z-10 flex items-center justify-between mb-4'>
+              <div className='flex items-center gap-2'>
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    autoApplyActive
+                      ? "bg-brand animate-pulse shadow-[0_0_8px_rgba(29,255,0,0.6)]"
+                      : "bg-foreground/30"
+                  }`}
+                />
+                <h2 className='text-sm sm:text-base font-semibold text-foreground tracking-tight'>
+                  Live Run
+                </h2>
+              </div>
+              <span
+                className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wide border ${
+                  autoApplyActive
+                    ? "bg-brand text-black border-brand"
+                    : "bg-foreground/5 text-foreground/50 border-foreground/10"
+                }`}
+              >
+                {autoApplyActive ? "Auto Apply Active" : "Auto Apply Off"}
+              </span>
+            </div>
+
+            <div className='relative z-10 flex-1 flex flex-col items-center justify-center text-center'>
+              <p className='text-xs text-muted-foreground font-medium'>
+                Applications sent today
+              </p>
+              <div className='mt-1 text-4xl sm:text-5xl font-bold text-foreground font-mono tracking-tight'>
+                {appsLoading ? (
+                  <Skeleton className='h-12 w-24' />
+                ) : (
+                  String(autoSentToday).padStart(2, "0")
+                )}
+              </div>
+              <p className='mt-2 text-[10px] text-muted-foreground'>
+                {autoApplyActive ? (
+                  <span className='inline-flex items-center gap-1.5'>
+                    Finding matches
+                    <span className='w-1 h-1 rounded-full bg-brand' />
+                    Customizing
+                    <span className='w-1 h-1 rounded-full bg-brand' />
+                    Applying
+                  </span>
+                ) : (
+                  "Resume Auto Apply to keep applying for you"
+                )}
+              </p>
+
+              <div className='mt-4 flex items-center gap-3'>
+                <button
+                  type='button'
+                  disabled={autoApplySaving || !liveProfile}
+                  onClick={() => setAutoApply(!autoApplyActive)}
+                  aria-label={
+                    autoApplyActive ? "Pause Auto Apply" : "Resume Auto Apply"
+                  }
+                  className='w-11 h-11 rounded-full bg-foreground/10 border border-foreground/15 flex items-center justify-center text-foreground hover:border-brand/40 hover:text-brand transition-all disabled:opacity-40 disabled:cursor-not-allowed'
+                >
+                  {autoApplyActive ? (
+                    <Pause className='w-4 h-4 fill-current' />
+                  ) : (
+                    <Play className='w-4 h-4 fill-current' />
+                  )}
+                </button>
+                <button
+                  type='button'
+                  disabled={autoApplySaving || !liveProfile || !autoApplyActive}
+                  onClick={() => setAutoApply(false)}
+                  aria-label='Stop Auto Apply'
+                  className='w-11 h-11 rounded-full bg-red-500/90 border border-red-500 flex items-center justify-center text-white hover:bg-red-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed'
+                >
+                  <Square className='w-3.5 h-3.5 fill-current' />
+                </button>
+              </div>
+            </div>
+
+            <div className='relative z-10 mt-4 pt-3 border-t border-foreground/10 flex items-center justify-center gap-1.5 text-[10px] font-medium'>
+              {autoApplyActive ? (
+                <>
+                  <CheckCircle2 className='w-3.5 h-3.5 text-brand' />
+                  <span className='text-foreground/70'>
+                    AI Agent running smoothly
+                  </span>
+                </>
+              ) : (
+                <span className='text-foreground/40'>
+                  Auto Apply is paused
+                </span>
+              )}
+            </div>
+          </Card>
         </div>
       </div>
     </div>
