@@ -195,12 +195,12 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
                     >
                       <stop
                         offset='5%'
-                        stopColor='#1dff00'
+                        stopColor='#22c55e'
                         stopOpacity={0.24}
                       />
                       <stop
                         offset='95%'
-                        stopColor='#1dff00'
+                        stopColor='#22c55e'
                         stopOpacity={0.02}
                       />
                     </linearGradient>
@@ -245,9 +245,9 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
                     type='monotone'
                     dataKey='applications'
                     name='Applications'
-                    stroke='#1dff00'
+                    stroke='#22c55e'
                     strokeWidth={3}
-                    dot={{ r: 3, fill: "#1dff00" }}
+                    dot={{ r: 3, fill: "#22c55e" }}
                     activeDot={{ r: 5 }}
                   />
                 </AreaChart>

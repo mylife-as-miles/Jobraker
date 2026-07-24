@@ -63,13 +63,13 @@ export const AIPolishDialog = ({
           {/* Connector Line/Dot */}
           {targetRect && (
             <div className='absolute top-6 -left-6 flex items-center'>
-              <div className='w-1.5 h-1.5 rounded-full bg-brand shadow-[0_0_10px_#1dff00]' />
+              <div className='w-1.5 h-1.5 rounded-full bg-brand shadow-[0_0_10px_#22c55e]' />
               <div className='w-6 h-[1px] bg-gradient-to-r from-brand to-brand/30' />
             </div>
           )}
 
           {/* Glow effect */}
-          <div className='absolute -inset-4 border-2 border-brand rounded-xl shadow-[0_0_30px_rgba(29,255,0,0.2)] bg-transparent animate-pulse pointer-events-none' />
+          <div className='absolute -inset-4 border-2 border-brand rounded-xl shadow-[0_0_30px_rgba(34,197,94,0.2)] bg-transparent animate-pulse pointer-events-none' />
 
           <div className='bg-background border border-brand/30 rounded-2xl shadow-2xl overflow-hidden flex flex-col relative z-10'>
             {/* Header */}

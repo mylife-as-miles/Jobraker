@@ -431,7 +431,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
                 className='absolute inset-0 pointer-events-none opacity-40'
                 style={{
                   background:
-                    "radial-gradient(circle at 30% 20%, rgba(29,255,0,0.08), transparent 60%)",
+                    "radial-gradient(circle at 30% 20%, rgba(34,197,94,0.08), transparent 60%)",
                 }}
               />
               <button
@@ -470,7 +470,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
                         <path
                           d={sparkline.path}
                           fill='none'
-                          stroke='#1dff00'
+                          stroke='#22c55e'
                           strokeWidth={2}
                           strokeLinejoin='round'
                           strokeLinecap='round'
@@ -484,7 +484,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
                               cx={x}
                               cy={y}
                               r={1.8}
-                              fill='#1dff00'
+                              fill='#22c55e'
                             />
                           );
                         })}
@@ -771,7 +771,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
               Cancel
             </Button>
             <Button
-              className='bg-gradient-to-r from-brand to-background text-black font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]'
+              className='bg-gradient-to-r from-brand to-background text-black font-semibold hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]'
               onClick={async () => {
                 if (!onUpdateApplication || !followUpAppId) {
                   setFollowUpOpen(false);

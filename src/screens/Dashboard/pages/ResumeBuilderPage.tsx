@@ -461,7 +461,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           <button
             onClick={() => aiPolishSummary()}
             disabled={aiLoading || loadingTier}
-            className='flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 rounded-lg bg-brand hover:bg-brand text-black text-xs md:text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] whitespace-nowrap disabled:opacity-60'
+            className='flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 rounded-lg bg-brand hover:bg-brand text-black text-xs md:text-sm font-bold transition-all shadow-[0_0_15px_rgba(34,197,94,0.3)] whitespace-nowrap disabled:opacity-60'
           >
             <Sparkles className='w-4 h-4 shrink-0' />
             <span className='hidden sm:inline'>
@@ -524,7 +524,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
               {mobileView === "editor" && (
                 <motion.div
                   layoutId="activeResumeBuilderTab"
-                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(34,197,94,0.25)]"
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}
@@ -542,7 +542,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
               {mobileView === "preview" && (
                 <motion.div
                   layoutId="activeResumeBuilderTab"
-                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(34,197,94,0.25)]"
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}

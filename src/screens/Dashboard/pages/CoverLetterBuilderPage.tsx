@@ -1001,7 +1001,7 @@ export const CoverLetterBuilderPage = () => {
               {mobileView === "editor" && (
                 <motion.div
                   layoutId="activeCoverLetterBuilderTab"
-                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(34,197,94,0.25)]"
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}
@@ -1019,7 +1019,7 @@ export const CoverLetterBuilderPage = () => {
               {mobileView === "preview" && (
                 <motion.div
                   layoutId="activeCoverLetterBuilderTab"
-                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(29,255,0,0.25)]"
+                  className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(34,197,94,0.25)]"
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}

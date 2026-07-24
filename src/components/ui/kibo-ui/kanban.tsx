@@ -159,7 +159,7 @@ export function KanbanCard({
     <div
       className={`group relative rounded-lg border bg-gradient-to-br from-background to-background/95 p-4 transition-all duration-200 cursor-grab active:cursor-grabbing ${
         isDragging
-          ? "border-brand/50 shadow-[0_0_30px_rgba(29,255,0,0.3)] scale-105 opacity-50"
+          ? "border-brand/50 shadow-[0_0_30px_rgba(34,197,94,0.3)] scale-105 opacity-50"
           : "border-foreground/8 hover:border-foreground/15 hover:translate-y-[-1px] bg-background shadow-sm hover:shadow-md"
       }`}
       draggable

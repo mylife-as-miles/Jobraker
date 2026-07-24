@@ -59,7 +59,7 @@ export function Pricing({
 
       <div className='mb-10 flex justify-center'>
         <div
-          className='inline-flex items-center rounded-full border border-brand/25 bg-[#090b0f] p-1 shadow-[inset_0_0_0_1px_rgba(29,255,0,0.06)]'
+          className='inline-flex items-center rounded-full border border-brand/25 bg-[#090b0f] p-1 shadow-[inset_0_0_0_1px_rgba(34,197,94,0.06)]'
           aria-label='Billing period'
         >
           <button
@@ -73,7 +73,7 @@ export function Pricing({
               "h-9 rounded-full px-4 text-sm font-semibold transition-all duration-200 active:scale-[0.98]",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-black",
               isMonthly
-                ? "bg-brand text-black shadow-[0_0_18px_rgba(29,255,0,0.26)]"
+                ? "bg-brand text-black shadow-[0_0_18px_rgba(34,197,94,0.26)]"
                 : "text-neutral-400 hover:text-foreground",
             )}
           >
@@ -90,7 +90,7 @@ export function Pricing({
               "h-9 rounded-full px-4 text-sm font-semibold transition-all duration-200 active:scale-[0.98]",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-black",
               !isMonthly
-                ? "bg-brand text-black shadow-[0_0_18px_rgba(29,255,0,0.26)]"
+                ? "bg-brand text-black shadow-[0_0_18px_rgba(34,197,94,0.26)]"
                 : "text-neutral-400 hover:text-foreground",
             )}
           >
@@ -122,7 +122,7 @@ export function Pricing({
             className={cn(
               "relative flex flex-col rounded-2xl border-[1px] bg-background p-6 text-center",
               plan.isPopular
-                ? "z-10 border-2 border-brand shadow-[0_0_34px_rgba(29,255,0,0.16)]"
+                ? "z-10 border-2 border-brand shadow-[0_0_34px_rgba(34,197,94,0.16)]"
                 : "z-0 border-brand/20 hover:border-brand/35",
               !plan.isPopular && "mt-5",
             )}

@@ -117,7 +117,7 @@ const StatCard = ({
     <Card
       className={`relative rounded-2xl border p-4 sm:p-5 transition-all duration-300 group ${
         highlight
-          ? "bg-brand text-black border-brand shadow-[0_0_30px_rgba(29,255,0,0.15)]"
+          ? "bg-brand text-black border-brand shadow-[0_0_30px_rgba(34,197,94,0.15)]"
           : "bg-card/50 backdrop-blur-xl border-foreground/10 hover:border-brand/30"
       }`}
     >
@@ -561,7 +561,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                             bar.value === 0
                               ? "bg-foreground/[0.06]"
                               : isPeak
-                                ? "bg-brand shadow-[0_0_12px_rgba(29,255,0,0.35)]"
+                                ? "bg-brand shadow-[0_0_12px_rgba(34,197,94,0.35)]"
                                 : "bg-brand/35"
                           }`}
                         />
@@ -795,7 +795,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                   <motion.path
                     d='M 20 100 A 80 80 0 0 1 180 100'
                     fill='none'
-                    stroke='#1dff00'
+                    stroke='#22c55e'
                     strokeWidth='14'
                     strokeLinecap='round'
                     strokeDasharray={GAUGE_LEN}
@@ -808,7 +808,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                     style={{
                       filter:
                         progress.pct > 0
-                          ? "drop-shadow(0 0 6px rgba(29,255,0,0.4))"
+                          ? "drop-shadow(0 0 6px rgba(34,197,94,0.4))"
                           : undefined,
                     }}
                   />
@@ -854,7 +854,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
             data-tour='overview-live-run'
             className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 flex flex-col ${
               autoApplyActive
-                ? "border-brand/40 bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.12),transparent_55%)] bg-card"
+                ? "border-brand/40 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.12),transparent_55%)] bg-card"
                 : "border-foreground/10 bg-card/50 backdrop-blur-xl"
             }`}
           >
@@ -864,7 +864,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                 <span
                   className={`w-2 h-2 rounded-full ${
                     autoApplyActive
-                      ? "bg-brand animate-pulse shadow-[0_0_8px_rgba(29,255,0,0.6)]"
+                      ? "bg-brand animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"
                       : "bg-foreground/30"
                   }`}
                 />

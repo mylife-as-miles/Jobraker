@@ -72,7 +72,7 @@ const ShowcaseStep = ({
               initial={{ scale: 0.8, opacity: 0 }}
               whileInView={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.8 }}
-              className='relative aspect-video rounded-xl overflow-hidden border border-brand/30 shadow-[0_0_50px_rgba(29,255,0,0.1)]'
+              className='relative aspect-video rounded-xl overflow-hidden border border-brand/30 shadow-[0_0_50px_rgba(34,197,94,0.1)]'
             >
               <div className='absolute inset-0 bg-brand/10 mix-blend-overlay z-10' />
               <img

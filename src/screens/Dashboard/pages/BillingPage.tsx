@@ -1244,7 +1244,7 @@ export const BillingPage = () => {
             style={{ animationDelay: "2s" }}
           />
           {/* Grid overlay */}
-          <div className='absolute inset-0 bg-[linear-gradient(to_right,#1dff0005_1px,transparent_1px),linear-gradient(to_bottom,#1dff0005_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]' />
+          <div className='absolute inset-0 bg-[linear-gradient(to_right,#22c55e05_1px,transparent_1px),linear-gradient(to_bottom,#22c55e05_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]' />
         </div>
 
         <div className='relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16'>
@@ -1257,7 +1257,7 @@ export const BillingPage = () => {
               <span className='bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent'>
                 Billing &
               </span>{" "}
-              <span className='text-brand drop-shadow-[0_0_15px_rgba(29,255,0,0.3)]'>
+              <span className='text-brand drop-shadow-[0_0_15px_rgba(34,197,94,0.3)]'>
                 Credits
               </span>
             </h1>
@@ -1409,7 +1409,7 @@ export const BillingPage = () => {
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
         {promoApplied && (
           <div className='mb-8'>
-            <div className='relative overflow-hidden rounded-2xl border border-brand/20 bg-brand/5 px-6 py-4 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_0_30px_rgba(29,255,0,0.05)]'>
+            <div className='relative overflow-hidden rounded-2xl border border-brand/20 bg-brand/5 px-6 py-4 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_0_30px_rgba(34,197,94,0.05)]'>
               <div className='flex items-center gap-3 min-w-0'>
                 <div className='p-2 rounded-xl bg-brand/10 border border-brand/20 text-brand shrink-0 animate-pulse'>
                   <Percent className='w-5 h-5' />
@@ -1631,7 +1631,7 @@ export const BillingPage = () => {
                       <Card
                         className={`group relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden transition-all duration-300 ${
                           isCurrentPlan
-                            ? "border-brand/50 bg-gradient-to-b from-brand/10 to-transparent shadow-[0_0_40px_-10px_rgba(29,255,0,0.2)]"
+                            ? "border-brand/50 bg-gradient-to-b from-brand/10 to-transparent shadow-[0_0_40px_-10px_rgba(34,197,94,0.2)]"
                             : isPro &&
                                 (billingInterval === "yearly" ||
                                   billingInterval === "quarterly")
@@ -1960,7 +1960,7 @@ export const BillingPage = () => {
                                     isCurrentPlan
                                       ? "bg-foreground/5 text-foreground/50 cursor-default border border-foreground/5"
                                       : plan.name === "Basics"
-                                        ? "bg-brand text-background hover:bg-brand hover:brightness-110 hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] hover:scale-[1.02]"
+                                        ? "bg-brand text-background hover:bg-brand hover:brightness-110 hover:shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:scale-[1.02]"
                                         : plan.name === "Pro"
                                           ? "bg-blue-500 text-foreground hover:bg-blue-600 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-[1.02]"
                                           : plan.name === "Ultimate"
@@ -2032,8 +2032,8 @@ export const BillingPage = () => {
               transition={{ duration: 0.3 }}
               className='space-y-12'
             >
-              <section className='relative overflow-hidden rounded-[2rem] border border-brand/20 bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.14),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] p-6 sm:p-8 lg:p-10'>
-                <div className='absolute inset-0 bg-[linear-gradient(135deg,rgba(29,255,0,0.05),transparent_36%,rgba(255,255,255,0.04))]' />
+              <section className='relative overflow-hidden rounded-[2rem] border border-brand/20 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.14),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] p-6 sm:p-8 lg:p-10'>
+                <div className='absolute inset-0 bg-[linear-gradient(135deg,rgba(34,197,94,0.05),transparent_36%,rgba(255,255,255,0.04))]' />
                 <div className='relative space-y-8'>
                   <div className='max-w-3xl'>
                     <div className='mb-4 inline-flex items-center gap-2 rounded-full border border-brand/25 bg-brand/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-brand'>
@@ -2141,7 +2141,7 @@ export const BillingPage = () => {
                           onClick={() => setSelectedConcurrencyPackSku(pack.sku)}
                           className={`group rounded-[1.6rem] border p-5 text-left transition-all duration-300 ${
                             isSelected
-                              ? "border-brand bg-brand/10 shadow-[0_0_28px_rgba(29,255,0,0.18)]"
+                              ? "border-brand bg-brand/10 shadow-[0_0_28px_rgba(34,197,94,0.18)]"
                               : "border-white/8 bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.05]"
                           }`}
                         >
@@ -2207,7 +2207,7 @@ export const BillingPage = () => {
                         </p>
                       </div>
                       <Button
-                        className='h-14 min-w-[220px] rounded-full bg-brand px-8 text-base font-bold text-background shadow-[0_0_32px_rgba(29,255,0,0.28)] hover:bg-brand hover:brightness-110'
+                        className='h-14 min-w-[220px] rounded-full bg-brand px-8 text-base font-bold text-background shadow-[0_0_32px_rgba(34,197,94,0.28)] hover:bg-brand hover:brightness-110'
                         disabled={processingPayment}
                         onClick={() =>
                           handlePayment("concurrency_pack", selectedConcurrencyPack)
@@ -2317,7 +2317,7 @@ export const BillingPage = () => {
                           <Button
                             className={`w-full font-bold transition-all duration-300 ${
                               pack.is_popular
-                                ? "bg-brand text-background hover:bg-brand hover:brightness-110 shadow-[0_0_20px_rgba(29,255,0,0.3)]"
+                                ? "bg-brand text-background hover:bg-brand hover:brightness-110 shadow-[0_0_20px_rgba(34,197,94,0.3)]"
                                 : "bg-foreground/10 text-foreground hover:bg-foreground/20"
                             }`}
                             disabled={processingPayment}

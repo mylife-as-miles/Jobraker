@@ -148,7 +148,7 @@ const PasswordReset = () => {
                       disabled={
                         submitting || !check.valid || password !== confirm
                       }
-                      className='w-full shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(29,255,0,1)_85%)] text-foreground font-bold rounded-xl disabled:opacity-60'
+                      className='w-full shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(34,197,94,1)_0%,rgba(34,197,94,1)_85%)] text-foreground font-bold rounded-xl disabled:opacity-60'
                     >
                       Update Password
                     </Button>

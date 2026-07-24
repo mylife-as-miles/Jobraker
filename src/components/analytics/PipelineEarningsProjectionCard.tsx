@@ -307,7 +307,7 @@ export function PipelineEarningsProjectionCard({
                 <Tooltip
                   contentStyle={{
                     background: "rgba(12,14,18,0.95)",
-                    border: "1px solid rgba(29,255,0,0.25)",
+                    border: "1px solid rgba(34,197,94,0.25)",
                     borderRadius: 12,
                     fontSize: 12,
                   }}
@@ -329,7 +329,7 @@ export function PipelineEarningsProjectionCard({
                   type='monotone'
                   dataKey='expected'
                   name='Expected'
-                  stroke='#1dff00'
+                  stroke='#22c55e'
                   fill='url(#expGrad)'
                   fillOpacity={0.2}
                   strokeWidth={2}
@@ -345,8 +345,8 @@ export function PipelineEarningsProjectionCard({
                 />
                 <defs>
                   <linearGradient id='expGrad' x1='0' y1='0' x2='0' y2='1'>
-                    <stop offset='0%' stopColor='#1dff00' stopOpacity={0.35} />
-                    <stop offset='100%' stopColor='#1dff00' stopOpacity={0} />
+                    <stop offset='0%' stopColor='#22c55e' stopOpacity={0.35} />
+                    <stop offset='100%' stopColor='#22c55e' stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id='optGrad' x1='0' y1='0' x2='0' y2='1'>
                     <stop offset='0%' stopColor='#34d399' stopOpacity={0.3} />

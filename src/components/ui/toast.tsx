@@ -194,11 +194,11 @@ function variantBorderClass(v: ToastVariant) {
 function variantDotClass(v: ToastVariant) {
   switch (v) {
     case "success":
-      return "bg-brand shadow-[0_0_12px_#1dff00]";
+      return "bg-brand shadow-[0_0_12px_#22c55e]";
     case "error":
-      return "bg-brand/100 shadow-[0_0_12px_#1dff00]";
+      return "bg-brand/100 shadow-[0_0_12px_#22c55e]";
     case "warning":
-      return "bg-brand shadow-[0_0_12px_#1dff00]";
+      return "bg-brand shadow-[0_0_12px_#22c55e]";
     default:
       return "bg-muted-foreground";
   }

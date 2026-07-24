@@ -329,7 +329,7 @@ export const ResumePhotoEditor = ({
               className='h-full w-full object-cover'
             />
           ) : (
-            <div className='flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#1dff00,transparent)] text-brand'>
+            <div className='flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#22c55e,transparent)] text-brand'>
               <ImagePlus className='h-6 w-6' />
             </div>
           )}

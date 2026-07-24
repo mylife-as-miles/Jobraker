@@ -117,7 +117,7 @@ export function useAppearanceSettings() {
       setSettings(s);
       applyAppearanceToDOM({
         theme: s?.theme || "dark",
-        accent_color: s?.accent_color || "#1dff00",
+        accent_color: s?.accent_color || "#22c55e",
         reduce_motion: s?.reduce_motion || false,
       });
     } catch (e: any) {
@@ -141,7 +141,7 @@ export function useAppearanceSettings() {
       const r = localStorage.getItem("appearance_reduce_motion") === "1";
       applyAppearanceToDOM({
         theme: t || "dark",
-        accent_color: a || "#1dff00",
+        accent_color: a || "#22c55e",
         reduce_motion: r,
       });
     } catch {}
@@ -205,7 +205,7 @@ export function useAppearanceSettings() {
         .insert({
           id: userId,
           theme: "dark",
-          accent_color: "#1dff00",
+          accent_color: "#22c55e",
           reduce_motion: false,
           ...payload,
         })

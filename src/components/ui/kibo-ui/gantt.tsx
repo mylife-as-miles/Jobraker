@@ -149,7 +149,7 @@ export const Gantt: React.FC<GanttProps> = ({
     <div
       ref={scrollRef}
       className={
-        "relative w-full overflow-auto rounded-2xl border border-brand/20 bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] " +
+        "relative w-full overflow-auto rounded-2xl border border-brand/20 bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(34,197,94,0.15)] " +
         className
       }
       style={{ WebkitOverflowScrolling: "touch" }}
@@ -162,7 +162,7 @@ export const Gantt: React.FC<GanttProps> = ({
         <div className='flex items-stretch'>
           <div className='w-64 flex items-center justify-between gap-3 px-4 py-3 border-r border-brand/20'>
             <div className='flex items-center gap-2'>
-              <div className='h-2 w-2 rounded-full bg-brand shadow-[0_0_8px_rgba(29,255,0,0.6)]' />
+              <div className='h-2 w-2 rounded-full bg-brand shadow-[0_0_8px_rgba(34,197,94,0.6)]' />
               <span className='text-xs font-medium bg-gradient-to-r from-brand to-[#6dffb0] bg-clip-text text-transparent'>
                 Timeline View
               </span>
@@ -249,7 +249,7 @@ export const Gantt: React.FC<GanttProps> = ({
                 className='absolute top-0 bottom-0'
                 style={{ left: `${todayPercent! * 100}%` }}
               >
-                <div className='h-full w-[2px] bg-gradient-to-b from-brand via-brand/80 to-brand/20 shadow-[0_0_8px_rgba(29,255,0,0.5)]' />
+                <div className='h-full w-[2px] bg-gradient-to-b from-brand via-brand/80 to-brand/20 shadow-[0_0_8px_rgba(34,197,94,0.5)]' />
                 <div className='absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md bg-brand text-black text-[10px] font-bold tracking-wide shadow-lg'>
                   Today
                 </div>
@@ -377,7 +377,7 @@ export const Gantt: React.FC<GanttProps> = ({
                                 </>
                               )}
                               <div
-                                className='absolute group rounded-lg overflow-hidden ring-1 ring-white/10 shadow-md hover:ring-brand/40 hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/60 transform hover:scale-[1.02]'
+                                className='absolute group rounded-lg overflow-hidden ring-1 ring-white/10 shadow-md hover:ring-brand/40 hover:shadow-[0_0_20px_rgba(34,197,94,0.2)] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/60 transform hover:scale-[1.02]'
                                 style={{
                                   left: `${left}%`,
                                   width: widthPct + "%",
@@ -408,7 +408,7 @@ export const Gantt: React.FC<GanttProps> = ({
                                     : null}
                                 </div>
                                 {/* Enhanced Tooltip */}
-                                <div className='absolute z-30 hidden group-hover:flex -top-3 left-1/2 -translate-y-full -translate-x-1/2 min-w-[220px] max-w-[280px] flex-col rounded-xl border border-brand/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-3 shadow-[0_0_30px_rgba(29,255,0,0.2)]'>
+                                <div className='absolute z-30 hidden group-hover:flex -top-3 left-1/2 -translate-y-full -translate-x-1/2 min-w-[220px] max-w-[280px] flex-col rounded-xl border border-brand/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-3 shadow-[0_0_30px_rgba(34,197,94,0.2)]'>
                                   <div className='flex items-center gap-2 mb-2 pb-2 border-b border-foreground/10'>
                                     <div
                                       className={`h-2 w-2 rounded-full ${item.status === "Applied" ? "bg-brand" : item.status === "Interview" ? "bg-brand" : item.status === "Failed" ? "bg-orange-400" : item.status === "Terminated" ? "bg-rose-600" : item.status === "Offer" ? "bg-lime-400" : item.status === "Rejected" ? "bg-rose-400" : "bg-gray-400"}`}
@@ -479,17 +479,17 @@ function statusColor(status?: string): { bg: string; fg: string } {
     case "Draft":
       return { bg: "linear-gradient(90deg,#2dd4bf,#2dd4bf)", fg: "#0c1a24" };
     case "Applied":
-      return { bg: "linear-gradient(90deg,#1dff00,#1dff00)", fg: "#041f11" };
+      return { bg: "linear-gradient(90deg,#22c55e,#22c55e)", fg: "#041f11" };
     case "Failed":
       return { bg: "linear-gradient(90deg,#f97316,#ea580c)", fg: "#1a0a00" };
     case "Terminated":
       return { bg: "linear-gradient(90deg,#e11d48,#9f1239)", fg: "#fff1f2" };
     case "Interview":
-      return { bg: "linear-gradient(90deg,#1dff00,#1dff00)", fg: "#2d1e04" };
+      return { bg: "linear-gradient(90deg,#22c55e,#22c55e)", fg: "#2d1e04" };
     case "Offer":
       return { bg: "linear-gradient(90deg,#84cc16,#166534)", fg: "#0b1f0f" };
     case "Rejected":
-      return { bg: "linear-gradient(90deg,#fb7185,#1dff00)", fg: "#2f070f" };
+      return { bg: "linear-gradient(90deg,#fb7185,#22c55e)", fg: "#2f070f" };
     case "Withdrawn":
       return { bg: "linear-gradient(90deg,#94a3b8,#334155)", fg: "#0f1822" };
     case "Pending":
@@ -503,13 +503,13 @@ function statusAccent(status?: string): string {
     case "Draft":
       return "#2dd4bf";
     case "Applied":
-      return "#1dff00";
+      return "#22c55e";
     case "Failed":
       return "#f97316";
     case "Terminated":
       return "#e11d48";
     case "Interview":
-      return "#1dff00";
+      return "#22c55e";
     case "Offer":
       return "#84cc16";
     case "Rejected":
@@ -1042,7 +1042,7 @@ export const GanttToday: React.FC = () => {
       className='absolute inset-y-0 pointer-events-none'
       style={{ left: p + "%" }}
     >
-      <div className='h-full w-px bg-brand shadow-[0_0_0_1px_rgba(29,255,0,0.4)]' />
+      <div className='h-full w-px bg-brand shadow-[0_0_0_1px_rgba(34,197,94,0.4)]' />
       <div className='absolute -top-2 -translate-y-full -translate-x-1/2 px-1 py-0.5 rounded bg-brand text-black text-[9px] font-semibold'>
         Today
       </div>

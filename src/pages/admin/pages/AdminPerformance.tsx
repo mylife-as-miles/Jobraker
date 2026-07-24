@@ -443,8 +443,8 @@ export default function AdminPerformance() {
           <AreaChart data={history}>
             <defs>
               <linearGradient id='colorDb' x1='0' y1='0' x2='0' y2='1'>
-                <stop offset='5%' stopColor='#1dff00' stopOpacity={0.1} />
-                <stop offset='95%' stopColor='#1dff00' stopOpacity={0} />
+                <stop offset='5%' stopColor='#22c55e' stopOpacity={0.1} />
+                <stop offset='95%' stopColor='#22c55e' stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid
@@ -482,7 +482,7 @@ export default function AdminPerformance() {
             <Area
               type='monotone'
               dataKey='database'
-              stroke='#1dff00'
+              stroke='#22c55e'
               strokeWidth={2}
               fillOpacity={1}
               fill='url(#colorDb)'
