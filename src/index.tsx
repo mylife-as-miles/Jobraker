@@ -326,16 +326,6 @@ function AnimatedRoutes() {
           }
         />
 
-        {/* TEMPORARY dev-only template preview harness */}
-        {import.meta.env.DEV && (
-          <Route
-            path='/r/__template-preview'
-            element={React.createElement(
-              React.lazy(() => import("./dev/TemplatePreviewDev")),
-            )}
-          />
-        )}
-
         {/* Catch all - redirect to landing page */}
         <Route path='*' element={<Navigate to={ROUTES.ROOT} replace />} />
       </Routes>
