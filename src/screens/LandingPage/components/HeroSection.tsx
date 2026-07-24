@@ -11,7 +11,7 @@ export const HeroSection = () => {
   return (
     <div className='relative w-full min-h-screen flex flex-col justify-center overflow-hidden bg-background pt-24 pb-20 px-4 sm:px-6 lg:px-8'>
       {/* Background Grid Effect */}
-      <div className='absolute inset-0 bg-[linear-gradient(to_right,#16a34a0a_1px,transparent_1px),linear-gradient(to_bottom,#16a34a0a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none' />
+      <div className='absolute inset-0 bg-[linear-gradient(to_right,#2fd9680a_1px,transparent_1px),linear-gradient(to_bottom,#2fd9680a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none' />
 
       <div className='relative z-10 w-full max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-20'>
         {/* Left Column: Text Content - Vertically centered */}
@@ -47,7 +47,7 @@ export const HeroSection = () => {
                 });
                 navigate(ROUTES.SIGNIN);
               }}
-              className='bg-brand text-black hover:bg-brand/90 h-12 px-6 text-base font-bold rounded-none border border-brand transition-all hover:shadow-[0_0_20px_rgba(22,163,74,0.4)] w-full sm:w-auto'
+              className='bg-brand text-black hover:bg-brand/90 h-12 px-6 text-base font-bold rounded-none border border-brand transition-all hover:shadow-[0_0_20px_rgba(47,217,104,0.4)] w-full sm:w-auto'
             >
               Sign Up
               <ArrowRight className='w-5 h-5 ml-2' />

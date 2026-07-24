@@ -11,7 +11,7 @@ interface LineChartProps {
 
 export const AnimatedLineChart: React.FC<LineChartProps> = ({ 
   data, 
-  color = "#16a34a", 
+  color = "#2fd968", 
   showArea = true,
   height = 120 
 }) => {

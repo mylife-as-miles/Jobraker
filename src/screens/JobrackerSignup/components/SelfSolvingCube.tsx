@@ -71,7 +71,7 @@ const Cubie = React.forwardRef(
             />
             <Edges
               threshold={15}
-              color='#16a34a'
+              color='#2fd968'
               renderOrder={100}
               scale={1.0}
               linewidth={1}
@@ -82,7 +82,7 @@ const Cubie = React.forwardRef(
         {/* Inner Glow Core */}
         <mesh scale={[0.4, 0.4, 0.4]}>
           <boxGeometry />
-          <meshBasicMaterial color='#16a34a' transparent opacity={0.1} />
+          <meshBasicMaterial color='#2fd968' transparent opacity={0.1} />
         </mesh>
       </mesh>
     );
@@ -308,10 +308,10 @@ const RubiksLogic = () => {
 const CubeFallback = () => (
   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
     <div className="relative w-[200px] h-[200px]">
-      <div className="absolute inset-0 border border-[#16a34a]/20 rounded-md rotate-12 animate-pulse" />
-      <div className="absolute inset-6 border border-[#16a34a]/15 rounded-md -rotate-6" />
-      <div className="absolute inset-12 border border-[#16a34a]/10 rounded-md rotate-3" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(22,163,74,0.05),transparent_60%)]" />
+      <div className="absolute inset-0 border border-[#2fd968]/20 rounded-md rotate-12 animate-pulse" />
+      <div className="absolute inset-6 border border-[#2fd968]/15 rounded-md -rotate-6" />
+      <div className="absolute inset-12 border border-[#2fd968]/10 rounded-md rotate-3" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(47,217,104,0.05),transparent_60%)]" />
     </div>
   </div>
 );
@@ -353,7 +353,7 @@ export const SelfSolvingCube = () => {
         <pointLight
           position={[10, 10, 10]}
           intensity={2}
-          color='#16a34a'
+          color='#2fd968'
           distance={20}
         />
         <pointLight

@@ -2881,7 +2881,7 @@ export const ChatPage = () => {
                     {mobileTab === "chat" && (
                       <motion.div
                         layoutId="activeMobileTab"
-                        className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(22,163,74,0.25)]"
+                        className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(47,217,104,0.25)]"
                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
                       />
                     )}
@@ -2899,7 +2899,7 @@ export const ChatPage = () => {
                     {mobileTab === "history" && (
                       <motion.div
                         layoutId="activeMobileTab"
-                        className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(22,163,74,0.25)]"
+                        className="absolute inset-0 bg-brand rounded-full -z-10 shadow-[0_2px_10px_rgba(47,217,104,0.25)]"
                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
                       />
                     )}
@@ -3166,7 +3166,7 @@ export const ChatPage = () => {
                 <div className='flex-1 flex flex-col items-center justify-center px-6 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
                   <div className='max-w-2xl w-full text-center space-y-4 md:space-y-6 py-6 flex flex-col items-center'>
                     <div className='flex justify-center mb-4'>
-                      <div className='w-16 h-16 bg-foreground/5 rounded-2xl flex items-center justify-center border border-brand/20 relative shadow-[0_0_15px_rgba(22,163,74,0.05)]'>
+                      <div className='w-16 h-16 bg-foreground/5 rounded-2xl flex items-center justify-center border border-brand/20 relative shadow-[0_0_15px_rgba(47,217,104,0.05)]'>
                         <Bot className='w-8 h-8 text-brand' />
                         <div className='absolute -right-0.5 -bottom-0.5 w-5 h-5 bg-brand rounded-full border-2 border-background flex items-center justify-center'>
                           <span className='w-1.5 h-1.5 bg-primary-foreground rounded-full'></span>

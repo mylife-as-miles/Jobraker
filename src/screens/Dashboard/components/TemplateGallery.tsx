@@ -178,7 +178,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                     className={cn(
                       "px-4 py-1.5 rounded-full text-xs font-bold transition-all border",
                       filter === cat
-                        ? "bg-brand/10 text-brand border-brand/30 shadow-[0_0_15px_rgba(22,163,74,0.1)]"
+                        ? "bg-brand/10 text-brand border-brand/30 shadow-[0_0_15px_rgba(47,217,104,0.1)]"
                         : "bg-background text-[#9cbaa1] border-[#28392b] hover:border-[#5c6e60]",
                     )}
                   >
@@ -212,7 +212,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                   className={cn(
                     "relative bg-white aspect-[1/1.414] rounded-xl overflow-hidden border transition-all duration-300 transform group-hover:scale-[1.02]",
                     currentTemplate === template.id
-                      ? "border-brand border-4 shadow-[0_0_30px_rgba(22,163,74,0.2)]"
+                      ? "border-brand border-4 shadow-[0_0_30px_rgba(47,217,104,0.2)]"
                       : "border-[#28392b] hover:border-brand/50",
                   )}
                 >
@@ -295,7 +295,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
             </button>
             <button
               onClick={handleConfirm}
-              className='px-10 py-3 bg-brand hover:bg-[#18d600] text-black rounded-lg font-black text-sm transition-all shadow-[0_0_20px_rgba(22,163,74,0.3)] flex items-center gap-2 active:scale-95'
+              className='px-10 py-3 bg-brand hover:bg-[#18d600] text-black rounded-lg font-black text-sm transition-all shadow-[0_0_20px_rgba(47,217,104,0.3)] flex items-center gap-2 active:scale-95'
             >
               <Edit3 className='w-4 h-4' />
               Use This Template

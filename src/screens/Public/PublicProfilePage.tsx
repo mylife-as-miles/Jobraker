@@ -75,11 +75,11 @@ type PublicProfilePayload = {
 };
 
 const THEMES: Record<string, { accent: string; alt: string; bg: string; text: string }> = {
-  obsidian: { accent: "#16a34a", alt: "#9f7aea", bg: "#030403", text: "#f7fff5" },
+  obsidian: { accent: "#2fd968", alt: "#9f7aea", bg: "#030403", text: "#f7fff5" },
   atelier: { accent: "#e6c27a", alt: "#78f0ff", bg: "#090806", text: "#fff8ea" },
   prism: { accent: "#76ffea", alt: "#ff6bd6", bg: "#030615", text: "#f5fbff" },
   mono: { accent: "#ffffff", alt: "#a8ff60", bg: "#050505", text: "#f7f7f0" },
-  navigator: { accent: "#16a34a", alt: "#d8ff5b", bg: "#030403", text: "#f7fff5" },
+  navigator: { accent: "#2fd968", alt: "#d8ff5b", bg: "#030403", text: "#f7fff5" },
 };
 const DAY_LABELS: Record<string, string> = {
   "0": "Sun",

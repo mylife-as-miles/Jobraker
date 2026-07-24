@@ -69,7 +69,7 @@ export const IntegrationsSection = () => {
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
               className='absolute w-32 h-32 bg-brand/20 rounded-full blur-xl'
             />
-            <div className='w-20 h-20 bg-background rounded-full border border-brand/50 flex items-center justify-center shadow-[0_0_30px_rgba(22,163,74,0.3)] relative z-20 backdrop-blur-sm'>
+            <div className='w-20 h-20 bg-background rounded-full border border-brand/50 flex items-center justify-center shadow-[0_0_30px_rgba(47,217,104,0.3)] relative z-20 backdrop-blur-sm'>
               <Bot className='w-10 h-10 text-brand' />
             </div>
             {/* Scanning Ring */}

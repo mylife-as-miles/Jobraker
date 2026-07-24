@@ -574,7 +574,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                             bar.value === 0
                               ? "bg-foreground/[0.06]"
                               : isPeak
-                                ? "bg-brand shadow-[0_0_12px_rgba(22,163,74,0.35)]"
+                                ? "bg-brand shadow-[0_0_12px_rgba(47,217,104,0.35)]"
                                 : "bg-brand/35"
                           }`}
                         />
@@ -808,7 +808,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                   <motion.path
                     d='M 20 100 A 80 80 0 0 1 180 100'
                     fill='none'
-                    stroke='#16a34a'
+                    stroke='#2fd968'
                     strokeWidth='14'
                     strokeLinecap='round'
                     strokeDasharray={GAUGE_LEN}
@@ -821,7 +821,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                     style={{
                       filter:
                         progress.pct > 0
-                          ? "drop-shadow(0 0 6px rgba(22,163,74,0.4))"
+                          ? "drop-shadow(0 0 6px rgba(47,217,104,0.4))"
                           : undefined,
                     }}
                   />
@@ -867,7 +867,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
             data-tour='overview-live-run'
             className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 flex flex-col ${
               runActive
-                ? "border-brand/40 bg-[radial-gradient(circle_at_top,rgba(22,163,74,0.12),transparent_55%)] bg-card"
+                ? "border-brand/40 bg-[radial-gradient(circle_at_top,rgba(47,217,104,0.12),transparent_55%)] bg-card"
                 : "border-foreground/10 bg-card/50 backdrop-blur-xl"
             }`}
           >
@@ -877,7 +877,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                 <span
                   className={`w-2 h-2 rounded-full ${
                     runActive
-                      ? "bg-brand animate-pulse shadow-[0_0_8px_rgba(22,163,74,0.6)]"
+                      ? "bg-brand animate-pulse shadow-[0_0_8px_rgba(47,217,104,0.6)]"
                       : autoApplyEnabled
                         ? "bg-brand/60"
                         : "bg-foreground/30"

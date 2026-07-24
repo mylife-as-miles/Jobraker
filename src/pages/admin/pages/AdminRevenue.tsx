@@ -302,12 +302,12 @@ export default function AdminRevenue() {
                     x2='0'
                     y2='1'
                   >
-                    <stop offset='5%' stopColor='#16a34a' stopOpacity={0.3} />
-                    <stop offset='95%' stopColor='#16a34a' stopOpacity={0} />
+                    <stop offset='5%' stopColor='#2fd968' stopOpacity={0.3} />
+                    <stop offset='95%' stopColor='#2fd968' stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id='mrrGradient2' x1='0' y1='0' x2='0' y2='1'>
-                    <stop offset='5%' stopColor='#16a34a' stopOpacity={0.3} />
-                    <stop offset='95%' stopColor='#16a34a' stopOpacity={0} />
+                    <stop offset='5%' stopColor='#2fd968' stopOpacity={0.3} />
+                    <stop offset='95%' stopColor='#2fd968' stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray='3 3' stroke='#374151' />
@@ -320,7 +320,7 @@ export default function AdminRevenue() {
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "#1f2937",
-                    border: "1px solid #16a34a",
+                    border: "1px solid #2fd968",
                     borderRadius: "8px",
                     color: "#fff",
                   }}
@@ -329,7 +329,7 @@ export default function AdminRevenue() {
                 <Area
                   type='monotone'
                   dataKey='revenue'
-                  stroke='#16a34a'
+                  stroke='#2fd968'
                   strokeWidth={2}
                   fill='url(#revenueGradient)'
                   name='Revenue'
@@ -337,7 +337,7 @@ export default function AdminRevenue() {
                 <Line
                   type='monotone'
                   dataKey='mrr'
-                  stroke='#16a34a'
+                  stroke='#2fd968'
                   strokeWidth={2}
                   name='MRR'
                   dot={false}
@@ -373,14 +373,14 @@ export default function AdminRevenue() {
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#1f2937",
-                      border: "1px solid #16a34a",
+                      border: "1px solid #2fd968",
                       borderRadius: "8px",
                       color: "#fff",
                     }}
                   />
                   <Bar
                     dataKey='newSubs'
-                    fill='#16a34a'
+                    fill='#2fd968'
                     radius={[8, 8, 0, 0]}
                     name='New Subscriptions'
                   />
@@ -590,7 +590,7 @@ export default function AdminRevenue() {
                       key={tx.id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      whileHover={{ backgroundColor: "rgba(22,163,74, 0.05)" }}
+                      whileHover={{ backgroundColor: "rgba(47,217,104, 0.05)" }}
                       onClick={() => {
                         setSelectedTransaction(tx);
                         setIsDetailOpen(true);

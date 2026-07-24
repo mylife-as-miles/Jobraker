@@ -112,7 +112,7 @@ function sourceBadgeClass(source: NotificationSource) {
     case "automation":
       return "border-cyan-400/35 bg-cyan-500/10 text-cyan-200";
     case "application":
-      return "border-[#16a34a]/35 bg-[#16a34a]/10 text-[#baffba]";
+      return "border-[#2fd968]/35 bg-[#2fd968]/10 text-[#baffba]";
     case "job_search":
       return "border-violet-400/35 bg-violet-500/10 text-violet-200";
     case "billing":
@@ -154,12 +154,12 @@ function getNotificationAppearance(
   switch (type) {
     case "interview":
       return {
-        bgColor: "#16a34a",
+        bgColor: "#2fd968",
         icon: <Calendar className="w-4 h-4 text-black" />,
       };
     case "system":
       return {
-        bgColor: "#16a34a",
+        bgColor: "#2fd968",
         icon: <AlertCircle className="w-4 h-4 text-black" />,
       };
     case "company":
@@ -184,7 +184,7 @@ function getNotificationAppearance(
       };
     default:
       return {
-        bgColor: "#16a34a",
+        bgColor: "#2fd968",
         icon: <Bell className="w-4 h-4 text-black" />,
       };
   }
@@ -193,9 +193,9 @@ function getNotificationAppearance(
 function getPriorityColor(priority: string) {
   switch (priority) {
     case "high":
-      return "border-l-[#16a34a]";
+      return "border-l-[#2fd968]";
     case "medium":
-      return "border-l-[#16a34a]/60";
+      return "border-l-[#2fd968]/60";
     case "low":
       return "border-l-slate-500";
     default:
@@ -285,7 +285,7 @@ export const NotificationPage = (): JSX.Element => {
             Connect your inbox under{" "}
             <button
               type="button"
-              className="font-semibold text-[#16a34a] underline underline-offset-2 hover:brightness-110"
+              className="font-semibold text-[#2fd968] underline underline-offset-2 hover:brightness-110"
               onClick={() => navigate("/dashboard/settings/integrations")}
             >
               Settings → Integrations
@@ -692,7 +692,7 @@ export const NotificationPage = (): JSX.Element => {
                     setSelectedNotification(null);
                   }
                 }}
-                className="product-outline-button text-[#16a34a] hover:border-[#16a34a]/50 hover:bg-[#16a34a]/10 hover:text-[#16a34a] hover:scale-105 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
+                className="product-outline-button text-[#2fd968] hover:border-[#2fd968]/50 hover:bg-[#2fd968]/10 hover:text-[#2fd968] hover:scale-105 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Delete Selected
@@ -725,12 +725,12 @@ export const NotificationPage = (): JSX.Element => {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <Mail className="w-4 h-4 text-[#16a34a]" />
+                  <Mail className="w-4 h-4 text-[#2fd968]" />
                   <h2 className="text-sm font-semibold text-foreground">Gmail Watch</h2>
                   <span
                     className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${
                       gmailStatus.isConnected
-                        ? "border-[#16a34a]/35 bg-[#16a34a]/10 text-[#baffba]"
+                        ? "border-[#2fd968]/35 bg-[#2fd968]/10 text-[#baffba]"
                         : "border-border/50 bg-muted/50 text-muted-foreground"
                     }`}
                   >
@@ -814,7 +814,7 @@ export const NotificationPage = (): JSX.Element => {
                     onClick={() => setFilter(filterOption.key)}
                     className={`${
                       filter === filterOption.key
-                        ? "product-control-button-active hover:bg-[#16a34a]/15"
+                        ? "product-control-button-active hover:bg-[#2fd968]/15"
                         : "product-control-button"
                     }`}
                   >
@@ -852,7 +852,7 @@ export const NotificationPage = (): JSX.Element => {
                 <label className="product-helper-text flex cursor-pointer select-none items-center gap-1 text-[10px] uppercase tracking-wide">
                   <input
                     type="checkbox"
-                    className="accent-[#16a34a] w-3 h-3"
+                    className="accent-[#2fd968] w-3 h-3"
                     checked={autoMarkSeen}
                     onChange={(event) => {
                       const value = event.target.checked;
@@ -880,8 +880,8 @@ export const NotificationPage = (): JSX.Element => {
               {filteredNotifications.length === 0 && !loading ? (
                 <div className="p-8 flex items-center justify-center">
                   <div className="text-center">
-                    <div className="mx-auto w-14 h-14 rounded-full bg-[#16a34a]/10 flex items-center justify-center mb-3">
-                      <Inbox className="w-7 h-7 text-[#16a34a]" />
+                    <div className="mx-auto w-14 h-14 rounded-full bg-[#2fd968]/10 flex items-center justify-center mb-3">
+                      <Inbox className="w-7 h-7 text-[#2fd968]" />
                     </div>
                     <p className="text-foreground font-medium">No notifications</p>
                     <p className="product-helper-text text-xs">
@@ -948,7 +948,7 @@ export const NotificationPage = (): JSX.Element => {
                               </span>
                             ) : null}
                             {!notification.seenAt ? (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#16a34a]/15 text-[#16a34a] text-[10px] font-semibold tracking-wide animate-pulse">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#2fd968]/15 text-[#2fd968] text-[10px] font-semibold tracking-wide animate-pulse">
                                 New
                               </span>
                             ) : null}
@@ -960,7 +960,7 @@ export const NotificationPage = (): JSX.Element => {
                           size="sm"
                           disabled={!supportsStar}
                           title={supportsStar ? "" : "Starring requires the latest notification migration."}
-                          className={`product-helper-text hover:text-[#16a34a] hover:scale-110 transition-all duration-300 p-1 ${
+                          className={`product-helper-text hover:text-[#2fd968] hover:scale-110 transition-all duration-300 p-1 ${
                             !supportsStar ? "opacity-50 cursor-not-allowed" : ""
                           }`}
                           onClick={(event) => {
@@ -970,7 +970,7 @@ export const NotificationPage = (): JSX.Element => {
                         >
                           <Star
                             className={`w-3 h-3 ${
-                              notification.isStarred ? "fill-current text-[#16a34a]" : ""
+                              notification.isStarred ? "fill-current text-[#2fd968]" : ""
                             }`}
                           />
                         </Button>
@@ -987,7 +987,7 @@ export const NotificationPage = (): JSX.Element => {
                       ) : null}
 
                       {!notification.isRead ? (
-                        <div className="w-2 h-2 bg-[#16a34a] rounded-full mt-2" />
+                        <div className="w-2 h-2 bg-[#2fd968] rounded-full mt-2" />
                       ) : null}
                     </div>
                   </div>
@@ -999,7 +999,7 @@ export const NotificationPage = (): JSX.Element => {
                   <Button
                     variant="ghost"
                     onClick={() => loadMore()}
-                    className="w-full text-[#16a34a] hover:bg-[#16a34a]/10"
+                    className="w-full text-[#2fd968] hover:bg-[#2fd968]/10"
                   >
                     Load more
                   </Button>
@@ -1061,7 +1061,7 @@ export const NotificationPage = (): JSX.Element => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="product-helper-text hover:text-[#16a34a] hover:scale-110 transition-all duration-300"
+                        className="product-helper-text hover:text-[#2fd968] hover:scale-110 transition-all duration-300"
                         onClick={async () => {
                           if (!selectedNotification) return;
                           await remove(selectedNotification);
@@ -1107,7 +1107,7 @@ export const NotificationPage = (): JSX.Element => {
                       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-foreground/10">
                         {selectedNotificationData.actionUrl ? (
                           <Button
-                            className="bg-[#16a34a] text-black hover:bg-[#16a34a]/90 hover:scale-105 transition-all duration-300"
+                            className="bg-[#2fd968] text-black hover:bg-[#2fd968]/90 hover:scale-105 transition-all duration-300"
                             onClick={() => openNotificationAction(selectedNotificationData.actionUrl)}
                           >
                             <ExternalLink className="w-4 h-4 mr-2" />

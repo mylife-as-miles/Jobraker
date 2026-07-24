@@ -246,7 +246,7 @@ export const RoadmapItem = React.forwardRef<HTMLDivElement, RoadmapItemProps>(
         ref={ref}
         className={cn(
           "group relative rounded-xl border border-foreground/10 bg-gradient-to-br from-white/[0.05] to-white/[0.02] p-3 shadow-sm hover:border-brand/40 transition-colors",
-          "hover:shadow-[0_0_0_1px_rgba(22,163,74,0.25),0_4px_18px_-6px_rgba(22,163,74,0.45)]",
+          "hover:shadow-[0_0_0_1px_rgba(47,217,104,0.25),0_4px_18px_-6px_rgba(47,217,104,0.45)]",
           className,
         )}
         data-status={status}

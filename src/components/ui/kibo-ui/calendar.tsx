@@ -230,7 +230,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
     const pal: Record<string, string> = {
       draft: "#2dd4bf",
       pending: "#8b8b8b",
-      applied: "#16a34a",
+      applied: "#2fd968",
       failed: "#f97316",
       terminated: "#e11d48",
       interview: "#56c2ff",
@@ -594,7 +594,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
             </span>
           ))}
           {heatmap && (
-            <span className='inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/10 px-3 py-1 text-brand shadow-[0_0_24px_rgba(22,163,74,0.08)]'>
+            <span className='inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/10 px-3 py-1 text-brand shadow-[0_0_24px_rgba(47,217,104,0.08)]'>
               <span className='h-2.5 w-2.5 rounded-full bg-brand/90' />{" "}
               Density
             </span>
@@ -746,7 +746,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                 cell.inCurrent ? "cursor-pointer" : "cursor-pointer opacity-40",
                 isWeekend && !isToday ? "bg-[#111827]" : "",
                 isToday
-                  ? "!border-brand/25 !bg-[linear-gradient(180deg,rgba(22,163,74,0.14),rgba(13,18,23,0.96))] text-white shadow-[0_20px_50px_rgba(22,163,74,0.08)] ring-1 ring-brand/20"
+                  ? "!border-brand/25 !bg-[linear-gradient(180deg,rgba(47,217,104,0.14),rgba(13,18,23,0.96))] text-white shadow-[0_20px_50px_rgba(47,217,104,0.08)] ring-1 ring-brand/20"
                   : "",
                 !isToday && cell.inCurrent
                   ? "text-foreground/80 hover:-translate-y-[1px] hover:border-brand/20 hover:bg-[#111722]"
@@ -755,10 +755,10 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                   ? "bg-[#090d13] text-foreground/30 hover:bg-[#0d1219]"
                   : "",
                 isSelected && !isToday
-                  ? "!border-brand/35 !bg-[linear-gradient(180deg,rgba(22,163,74,0.08),rgba(17,23,34,0.96))] shadow-[0_18px_40px_rgba(22,163,74,0.06)]"
+                  ? "!border-brand/35 !bg-[linear-gradient(180deg,rgba(47,217,104,0.08),rgba(17,23,34,0.96))] shadow-[0_18px_40px_rgba(47,217,104,0.06)]"
                   : "",
                 inSelectedRange(cell.date) && !isToday
-                  ? "!border-brand/15 !bg-[linear-gradient(180deg,rgba(22,163,74,0.07),rgba(12,16,23,0.94))]"
+                  ? "!border-brand/15 !bg-[linear-gradient(180deg,rgba(47,217,104,0.07),rgba(12,16,23,0.94))]"
                   : "",
                 focusContrast && dayEvents.length === 0 && !isToday
                   ? "opacity-45 hover:opacity-80"

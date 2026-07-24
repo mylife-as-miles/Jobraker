@@ -579,7 +579,7 @@ export const FloatingTourMenu: React.FC<{
       )}
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`h-11 px-4 rounded-full font-semibold text-sm flex items-center gap-2 shadow-[0_0_0_1px_rgba(22,163,74,0.3),0_8px_18px_-6px_rgba(0,0,0,0.6)] transition-colors ${open ? "bg-brand text-black" : "bg-background text-brand hover:bg-[#132413]"}`}
+        className={`h-11 px-4 rounded-full font-semibold text-sm flex items-center gap-2 shadow-[0_0_0_1px_rgba(47,217,104,0.3),0_8px_18px_-6px_rgba(0,0,0,0.6)] transition-colors ${open ? "bg-brand text-black" : "bg-background text-brand hover:bg-[#132413]"}`}
         aria-expanded={open}
         aria-label='Open guided tour menu'
       >

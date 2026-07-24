@@ -610,7 +610,7 @@ export const Onboarding = (): JSX.Element => {
         <div className='grid gap-6 md:grid-cols-2'>
           <button
             onClick={() => setMode("resume")}
-            className='group relative overflow-hidden rounded-2xl border border-brand/30 bg-gradient-to-br from-[#141414] via-background to-black p-8 text-left shadow-[0_0_0_1px_rgba(22,163,74,0.15),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(22,163,74,0.4),0_25px_50px_-12px_rgba(22,163,74,0.15)] transition'
+            className='group relative overflow-hidden rounded-2xl border border-brand/30 bg-gradient-to-br from-[#141414] via-background to-black p-8 text-left shadow-[0_0_0_1px_rgba(47,217,104,0.15),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(47,217,104,0.4),0_25px_50px_-12px_rgba(47,217,104,0.15)] transition'
           >
             <div className='absolute top-3 right-3 px-2 py-1 rounded-full bg-brand/20 border border-brand/40 text-brand text-[10px] font-semibold uppercase tracking-wide'>
               Recommended
@@ -697,7 +697,7 @@ export const Onboarding = (): JSX.Element => {
           className='product-section-card p-10 relative overflow-hidden'
           aria-live='polite'
         >
-          <div className='absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(22,163,74,0.15),transparent_70%)] opacity-70' />
+          <div className='absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(47,217,104,0.15),transparent_70%)] opacity-70' />
           <div className='relative z-10 flex flex-col gap-8'>
             <div className='flex flex-col lg:flex-row gap-8'>
               <div className='flex-1 flex flex-col gap-4'>
@@ -728,7 +728,7 @@ export const Onboarding = (): JSX.Element => {
                   }}
                 >
                   <div
-                    className={`flex flex-col items-center justify-center gap-4 border-2 border-dashed rounded-xl py-12 px-6 relative overflow-hidden transition ${dragActive ? "border-brand bg-brand/10 shadow-[0_0_0_1px_rgba(22,163,74,0.4),0_0_20px_-2px_rgba(22,163,74,0.4)]" : "border-brand/40 group-hover:border-brand bg-brand/5"}`}
+                    className={`flex flex-col items-center justify-center gap-4 border-2 border-dashed rounded-xl py-12 px-6 relative overflow-hidden transition ${dragActive ? "border-brand bg-brand/10 shadow-[0_0_0_1px_rgba(47,217,104,0.4),0_0_20px_-2px_rgba(47,217,104,0.4)]" : "border-brand/40 group-hover:border-brand bg-brand/5"}`}
                   >
                     <div className='absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-brand/10 to-transparent transition' />
                     <UploadCloud className='w-10 h-10 text-brand' />
@@ -1162,7 +1162,7 @@ export const Onboarding = (): JSX.Element => {
               <Button
                 onClick={handleResumePricingSubmit}
                 disabled={uploading}
-                className='w-full max-w-md bg-brand text-black hover:bg-brand/90 transition-all h-11 text-sm font-semibold rounded-lg shadow-[0_0_15px_rgba(22,163,74,0.2)]'
+                className='w-full max-w-md bg-brand text-black hover:bg-brand/90 transition-all h-11 text-sm font-semibold rounded-lg shadow-[0_0_15px_rgba(47,217,104,0.2)]'
               >
                 {uploading ? "Completing setup..." : "Activate Account & Go to Dashboard"}
               </Button>
@@ -1494,7 +1494,7 @@ const PricingSelector = ({
               onClick={() => setSelectedPlan(plan.tier)}
               className={`text-left relative flex flex-col p-5 rounded-2xl border transition-all duration-300 ${
                 isSelected
-                  ? "border-brand bg-brand/5 shadow-[0_0_20px_rgba(22,163,74,0.1)]"
+                  ? "border-brand bg-brand/5 shadow-[0_0_20px_rgba(47,217,104,0.1)]"
                   : "border-foreground/10 bg-foreground/[0.02] hover:border-foreground/20 hover:bg-foreground/[0.04]"
               } ${isPro && !isSelected ? "hover:shadow-[0_0_15px_rgba(255,255,255,0.02)]" : ""}`}
             >

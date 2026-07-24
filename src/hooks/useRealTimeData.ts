@@ -31,14 +31,14 @@ export const useRealTimeData = () => {
 
   const [barData, setBarData] = useState([
     { name: 'Jobs found', value: 104, color: '#3B82F6' },
-    { name: 'Applications', value: 58, color: '#16a34a' },
-    { name: 'Interviews', value: 15, color: '#16a34a' },
+    { name: 'Applications', value: 58, color: '#2fd968' },
+    { name: 'Interviews', value: 15, color: '#2fd968' },
   ]);
 
   const [donutData, setDonutData] = useState([
-    { name: '1st Iteration', value: 16, color: '#16a34a' },
-    { name: '2nd Iteration', value: 36, color: '#16a34a' },
-    { name: '3rd Iteration', value: 48, color: '#16a34a' },
+    { name: '1st Iteration', value: 16, color: '#2fd968' },
+    { name: '2nd Iteration', value: 36, color: '#2fd968' },
+    { name: '3rd Iteration', value: 48, color: '#2fd968' },
   ]);
 
   // Simulate real-time updates

@@ -343,14 +343,14 @@ export const InterviewStudioPage: React.FC = () => {
   return (
     <div className='h-full bg-background text-foreground overflow-hidden flex flex-col relative'>
       {/* Background Grid */}
-      <div className='absolute inset-0 bg-[linear-gradient(rgba(22,163,74,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(22,163,74,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none' />
+      <div className='absolute inset-0 bg-[linear-gradient(rgba(47,217,104,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(47,217,104,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none' />
 
       {/* Main Content Area */}
       <div className='flex-1 flex flex-col xl:grid xl:grid-cols-12 gap-4 p-4 min-h-0 z-10 overflow-y-auto xl:overflow-hidden'>
         {/* HEADER (Mobile Only - usually redundant if sidebar exists, but good for context) */}
         <div className='xl:col-span-12 flex items-center justify-between shrink-0 xl:mb-2'>
           <div className='flex items-center gap-2'>
-            <span className='w-2 h-2 bg-brand rounded-full shadow-[0_0_8px_#16a34a]' />
+            <span className='w-2 h-2 bg-brand rounded-full shadow-[0_0_8px_#2fd968]' />
             <h1 className='font-bold font-mono tracking-tight text-lg'>
               Interview Studio
             </h1>

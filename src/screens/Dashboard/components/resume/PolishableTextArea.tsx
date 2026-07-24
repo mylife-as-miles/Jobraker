@@ -37,7 +37,7 @@ export const PolishableTextArea = ({
         className={cn(
           "pr-10 transition-all duration-300",
           isPolishing &&
-            "border-brand ring-1 ring-brand shadow-[0_0_15px_rgba(22,163,74,0.1)]",
+            "border-brand ring-1 ring-brand shadow-[0_0_15px_rgba(47,217,104,0.1)]",
           className,
         )}
         {...props}
@@ -60,7 +60,7 @@ export const PolishableTextArea = ({
             className={cn(
               "p-1.5 rounded-lg transition-all duration-300",
               isPolishing
-                ? "bg-brand text-black shadow-[0_0_10px_rgba(22,163,74,0.5)]"
+                ? "bg-brand text-black shadow-[0_0_10px_rgba(47,217,104,0.5)]"
                 : "bg-gray-100 dark:bg-muted text-gray-400 hover:text-brand hover:bg-brand/10",
             )}
             title='AI Polish'
