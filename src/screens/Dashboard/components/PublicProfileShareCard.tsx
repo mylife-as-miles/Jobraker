@@ -1,4 +1,4 @@
-import { Compass, Copy, Crown, ExternalLink, Eye, Globe2, Newspaper, Palette, Sparkles } from "lucide-react";
+import { Compass, Copy, Crown, ExternalLink, Eye, Globe2, Newspaper, Palette, Sparkles, Waves } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { useToast } from "../../../components/ui/toast";
@@ -45,11 +45,21 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     accent: "#b4532f",
     icon: Newspaper,
   },
+  {
+    id: "wodniack",
+    theme: "navigator",
+    label: "Wodniack",
+    note: "kinetic waves, giant type, creative motion",
+    accent: "#f40c3f",
+    icon: Waves,
+  },
 ];
 
 function getActiveTemplate(theme: string | undefined, design: Record<string, unknown> | undefined): PublicProfileTemplate {
   if (theme === "navigator") {
-    return design?.templateVariant === "editorial" ? "editorial" : "navigator";
+    if (design?.templateVariant === "editorial") return "editorial";
+    if (design?.templateVariant === "wodniack") return "wodniack";
+    return "navigator";
   }
   return "atelier";
 }
@@ -162,7 +172,7 @@ export function PublicProfileShareCard({ profile }: { profile: Profile | null })
             </div>
           </div>
 
-          <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {TEMPLATE_OPTIONS.map((option) => {
               const active = activeTemplate === option.id;
               const TemplateIcon = option.icon;
