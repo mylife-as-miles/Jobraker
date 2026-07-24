@@ -3,7 +3,7 @@ import { createClient } from "../lib/supabaseClient";
 import type { Profile } from "./useProfileSettings";
 
 export type PublicProfileTheme = "atelier" | "navigator";
-export type PublicProfileTemplate = "atelier" | "navigator" | "editorial" | "wodniack";
+export type PublicProfileTemplate = "atelier" | "navigator" | "editorial" | "kinetic" | "odyssey";
 
 export interface PublicProfileSite {
   id: string;
