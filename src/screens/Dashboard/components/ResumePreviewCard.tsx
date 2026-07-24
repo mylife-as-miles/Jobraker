@@ -36,7 +36,7 @@ export const ResumePreviewCard: React.FC<ResumePreviewCardProps> = ({
   );
 
   const resolvedTemplateId =
-    previewData?.metadata.template || templateId || "azurill";
+    previewData?.metadata.template || templateId || "linton";
 
   useEffect(() => {
     const updateScale = () => {

@@ -86,73 +86,15 @@ export const TemplateDetailPreview = ({
     onClose();
   };
 
-  const templateInfo = {
-    azurill: {
-      name: "Azurill",
-      description:
-        "A professional, structured template ideal for designers and developers. Features a timeline layout and clean typography.",
-    },
-    bronzor: {
-      name: "Bronzor",
-      description:
-        "Structured grid layout, highly organized and space-efficient for technical profiles.",
-    },
-    chikorita: {
-      name: "Chikorita",
-      description:
-        "Modern sidebar layout with vibrant accents, perfect for creative professionals.",
-    },
-    onyx: {
-      name: "Onyx",
-      description:
-        "Classic single-column professional layout with a focus on core experiences.",
-    },
-    ditgar: {
-      name: "Ditgar",
-      description:
-        "Bold purple-accented layout with a prominent sidebar for skills and contact info.",
-    },
-    ditto: {
-      name: "Ditto",
-      description:
-        "Playful split-header layout with a floating portrait and balanced sidebar.",
-    },
-    gengar: {
-      name: "Gengar",
-      description:
-        "Sleek, dark modern sidebar with purple highlights and geometric sections.",
-    },
-    glalie: {
-      name: "Glalie",
-      description:
-        "Cool blue-accented layout with a polished boxed contact panel.",
-    },
-    kakuna: {
-      name: "Kakuna",
-      description:
-        "Centered minimalist layout with strong symmetry and subtle portrait framing.",
-    },
-    eevee: {
-      name: "Eevee",
-      description:
-        "Soft boxed header with editorial portrait framing and elegant spacing.",
-    },
-    lapras: {
-      name: "Lapras",
-      description:
-        "Clean card-based layout with rounded corners and a very modern feel.",
-    },
-    pikachu: {
-      name: "Pikachu",
-      description:
-        "Vibrant bold header with a modern look that stands out instantly.",
-    },
-    rhyhorn: {
-      name: "Rhyhorn",
-      description:
-        "Sturdy professional layout with a right-aligned photo for a balanced look.",
-    },
-  }[templateId] || {
+  const templateInfo: { name: string; description: string } = (
+    {
+      linton: {
+        name: "Linton",
+        description:
+          "An editorial cream layout with an oversized display name, charcoal quote and contact panels, dot-rated skills, and a vertical RESUME wordmark.",
+      },
+    } as Record<string, { name: string; description: string }>
+  )[templateId] || {
     name: "Template",
     description: "A professional resume template.",
   };

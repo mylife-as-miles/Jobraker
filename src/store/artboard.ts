@@ -391,7 +391,7 @@ export const initialResumeState: ResumeState = {
     metadata: {
       schemaVersion: 2,
       sourceType: "template",
-      template: "azurill",
+      template: "linton",
       layout: {
         sidebarWidth: 30,
         pages: [

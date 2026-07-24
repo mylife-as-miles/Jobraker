@@ -5,84 +5,18 @@ import { cn } from "../../../lib/utils";
 import { TemplatePreview } from "./TemplatePreview";
 import { TemplateDetailPreview } from "./TemplateDetailPreview";
 
-const availableTemplates = [
+// Each entry needs a matching component in render-resume-template.tsx.
+const availableTemplates: Array<{
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+}> = [
   {
-    id: "azurill",
-    name: "Azurill",
-    description: "Timeline style, clean typography.",
-    category: "Professional",
-  },
-  {
-    id: "bronzor",
-    name: "Bronzor",
-    description: "Structured grid, highly organized.",
-    category: "Professional",
-  },
-  {
-    id: "chikorita",
-    name: "Chikorita",
-    description: "Modern sidebar layout with teal accents.",
+    id: "linton",
+    name: "Linton",
+    description: "Editorial cream layout with charcoal quote panel.",
     category: "Creative",
-  },
-  {
-    id: "onyx",
-    name: "Onyx",
-    description: "Classic single-column professional layout.",
-    category: "Simple",
-  },
-  {
-    id: "ditgar",
-    name: "Ditgar",
-    description: "Bold purple-accented layout with prominent sidebar.",
-    category: "Tech",
-  },
-  {
-    id: "ditto",
-    name: "Ditto",
-    description: "Playful split-header layout with a floating portrait.",
-    category: "Creative",
-  },
-  {
-    id: "gengar",
-    name: "Gengar",
-    description: "Sleek, dark purple modern sidebar.",
-    category: "Tech",
-  },
-  {
-    id: "glalie",
-    name: "Glalie",
-    description: "Cool blue accents with a boxed contact panel.",
-    category: "Professional",
-  },
-  {
-    id: "kakuna",
-    name: "Kakuna",
-    description: "Centered, minimalist layout with clean balance.",
-    category: "Simple",
-  },
-  {
-    id: "eevee",
-    name: "Eevee",
-    description: "Soft boxed header with editorial portrait framing.",
-    category: "Simple",
-  },
-  {
-    id: "lapras",
-    name: "Lapras",
-    description: "Clean card-based layout with rounded corners.",
-    category: "Creative",
-  },
-  {
-    id: "pikachu",
-    name: "Pikachu",
-    description: "Vibrant bold header with modern look.",
-    category: "Creative",
-  },
-  {
-    id: "rhyhorn",
-    name: "Rhyhorn",
-    description: "Sturdy professional layout with right photo.",
-    category: "Professional",
   },
 ];
 
@@ -202,6 +136,17 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
           </div>
 
           {/* Template Grid */}
+          {filteredTemplates.length === 0 && (
+            <div className='flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#28392b] bg-background/40 py-24 text-center'>
+              <LayoutTemplate className='w-10 h-10 text-[#5c6e60]' />
+              <h3 className='text-xl font-bold text-foreground'>
+                No templates available yet
+              </h3>
+              <p className='text-[#9cbaa1] max-w-md'>
+                A new batch of resume templates is on the way. Check back soon.
+              </p>
+            </div>
+          )}
           <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10 pb-32'>
             {filteredTemplates.map((template) => (
               <div

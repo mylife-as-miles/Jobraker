@@ -41,7 +41,7 @@ For each section the user wants to include, gather specific details. Never inven
 
 Ask about preferences:
 
-- Template preference (13 available: azurill, bronzor, chikorita, ditto, ditgar, gengar, glalie, kakuna, lapras, leafish, onyx, pikachu, rhyhorn)
+- Template preference (1 available: linton)
 - Page format: A4 or Letter
 - Which sections to include and their order
 
@@ -106,7 +106,7 @@ Example minimal structure:
   "summary": { "title": "Summary", "columns": 1, "hidden": false, "content": "" },
   "sections": { ... },
   "customSections": [],
-  "metadata": { "template": "onyx", "layout": { ... }, ... }
+  "metadata": { "template": "linton", "layout": { ... }, ... }
 }
 \`\`\`
 

@@ -1,23 +1,33 @@
 import type React from "react";
-import { AzurillTemplate } from "./azurill";
-import { BronzorTemplate } from "./bronzor";
-import { ChikoritaTemplate } from "./chikorita";
-import { DitgarTemplate } from "./ditgar";
-import { DittoTemplate } from "./ditto";
-import { EeveeTemplate } from "./eevee";
-import { GengarTemplate } from "./gengar";
-import { GlalieTemplate } from "./glalie";
-import { KakunaTemplate } from "./kakuna";
-import { LaprasTemplate } from "./lapras";
-import { OnyxTemplate } from "./onyx";
-import { PikachuTemplate } from "./pikachu";
-import { RhyhornTemplate } from "./rhyhorn";
-import type { TemplateProps } from "./azurill/types";
+import { LayoutTemplate } from "lucide-react";
+import { LintonTemplate } from "./linton";
+import type { TemplateProps } from "./types";
 import type { ResumeData } from "@/store/artboard";
 import {
   ResumeTemplateDataProvider,
   useResumeTemplateData,
 } from "./use-resume-template-data";
+
+/**
+ * Registry of available resume templates.
+ *
+ * The previous batch of templates has been removed. To add the new batch,
+ * import each template and map its id to the component here, e.g.:
+ *
+ *   import { MyTemplate } from "./my-template";
+ *
+ *   const TEMPLATE_REGISTRY: Record<string, TemplateComponent> = {
+ *     "my-template": MyTemplate,
+ *   };
+ *
+ * Also register the id/name/description in the gallery lists
+ * (TemplateGallery.tsx, TemplateSelector.tsx, TemplateDetailPreview.tsx).
+ */
+type TemplateComponent = React.ComponentType<TemplateProps>;
+
+const TEMPLATE_REGISTRY: Record<string, TemplateComponent> = {
+  linton: LintonTemplate,
+};
 
 interface ResumeTemplateRendererProps extends TemplateProps {
   templateId: string;
@@ -31,136 +41,17 @@ export function ResumeTemplateRenderer({
   metadataOverride,
   resumeDataOverride,
 }: ResumeTemplateRendererProps) {
-  let templateNode: JSX.Element;
+  const Template = TEMPLATE_REGISTRY[templateId];
 
-  switch (templateId) {
-    case "azurill":
-      templateNode = (
-        <AzurillTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-    case "onyx":
-      templateNode = (
-        <OnyxTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-    case "bronzor":
-      templateNode = (
-        <BronzorTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-    case "chikorita":
-      templateNode = (
-        <ChikoritaTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-    case "ditgar":
-      templateNode = (
-        <DitgarTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-    case "ditto":
-      templateNode = (
-        <DittoTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-    case "eevee":
-      templateNode = (
-        <EeveeTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-    case "gengar":
-      templateNode = (
-        <GengarTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-    case "glalie":
-      templateNode = (
-        <GlalieTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-    case "kakuna":
-      templateNode = (
-        <KakunaTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-    case "lapras":
-      templateNode = (
-        <LaprasTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-    case "pikachu":
-      templateNode = (
-        <PikachuTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-    case "rhyhorn":
-      templateNode = (
-        <RhyhornTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-    default:
-      templateNode = (
-        <AzurillTemplate
-          pageIndex={pageIndex}
-          pageLayout={pageLayout}
-          metadataOverride={metadataOverride}
-        />
-      );
-      break;
-  }
+  const templateNode = Template ? (
+    <Template
+      pageIndex={pageIndex}
+      pageLayout={pageLayout}
+      metadataOverride={metadataOverride}
+    />
+  ) : (
+    <ResumeTemplatePlaceholder />
+  );
 
   return (
     <ResumeTemplateDataProvider
@@ -170,9 +61,7 @@ export function ResumeTemplateRenderer({
           : null
       }
     >
-      <ResumeTemplateShell>
-        {templateNode}
-      </ResumeTemplateShell>
+      <ResumeTemplateShell>{templateNode}</ResumeTemplateShell>
     </ResumeTemplateDataProvider>
   );
 }
@@ -192,6 +81,21 @@ function ResumeTemplateShell({ children }: { children: React.ReactNode }) {
       }
     >
       {children}
+    </div>
+  );
+}
+
+function ResumeTemplatePlaceholder() {
+  return (
+    <div className='flex h-full min-h-[400px] w-full flex-col items-center justify-center gap-3 bg-white p-10 text-center text-gray-400'>
+      <LayoutTemplate className='h-10 w-10' />
+      <p className='text-sm font-semibold text-gray-500'>
+        No resume templates available yet
+      </p>
+      <p className='max-w-xs text-xs leading-relaxed'>
+        A new batch of templates is on the way. Register them in
+        render-resume-template.tsx.
+      </p>
     </div>
   );
 }

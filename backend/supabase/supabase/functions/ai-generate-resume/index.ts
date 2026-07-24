@@ -244,7 +244,7 @@ Schema Reference:
     }
   },
   "metadata": {
-    "template": "onyx",
+    "template": "linton",
     "layout": {
       "sidebarWidth": 35,
       "pages": [

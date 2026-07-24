@@ -272,7 +272,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
     (id) => id !== "summary" && sections[id] && !sections[id].hidden,
   );
 
-  const selectedTemplate = metadata?.template || "azurill";
+  const selectedTemplate = metadata?.template || "linton";
 
   const [expandedSection, setExpandedSection] = useState<string | null>(
     "personal",

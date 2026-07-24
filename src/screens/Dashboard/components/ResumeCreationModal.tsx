@@ -96,7 +96,7 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                         name: name,
                         slug: slug,
                         tags: tags,
-                        template: 'azurill',
+                        template: 'linton',
                         status: 'Draft',
                         data: initialData
                     }
