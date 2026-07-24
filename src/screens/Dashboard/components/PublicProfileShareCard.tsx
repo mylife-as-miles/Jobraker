@@ -1,24 +1,58 @@
-import { Compass, Copy, Crown, ExternalLink, Eye, Globe2, Palette, Sparkles } from "lucide-react";
+import { Compass, Copy, Crown, ExternalLink, Eye, Globe2, Newspaper, Palette, Sparkles } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { useToast } from "../../../components/ui/toast";
 import type { Profile } from "../../../hooks/useProfileSettings";
-import { usePublicProfileSite, type PublicProfileTheme } from "../../../hooks/usePublicProfileSite";
+import {
+  usePublicProfileSite,
+  type PublicProfileTemplate,
+  type PublicProfileTheme,
+} from "../../../hooks/usePublicProfileSite";
 import { useSubscriptionTier } from "../../../hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "../../../lib/subscriptionAccess";
 
-const THEME_OPTIONS: Array<{
-  value: PublicProfileTheme;
+type TemplateOption = {
+  id: PublicProfileTemplate;
+  theme: PublicProfileTheme;
   label: string;
   note: string;
+  accent: string;
   icon: typeof Palette;
-}> = [
-  { value: "obsidian", label: "Obsidian", note: "dark, cinematic, neon", icon: Palette },
-  { value: "atelier", label: "Atelier", note: "editorial, warm, refined", icon: Palette },
-  { value: "prism", label: "Prism", note: "glass, color, motion", icon: Palette },
-  { value: "mono", label: "Mono", note: "sharp, minimal, senior", icon: Palette },
-  { value: "navigator", label: "Navigator", note: "story-led, lively, JobRaker green", icon: Compass },
+};
+
+const TEMPLATE_OPTIONS: TemplateOption[] = [
+  {
+    id: "atelier",
+    theme: "atelier",
+    label: "Atelier",
+    note: "editorial, warm, refined",
+    accent: "#e6c27a",
+    icon: Palette,
+  },
+  {
+    id: "navigator",
+    theme: "navigator",
+    label: "Navigator",
+    note: "story-led, lively, JobRaker green",
+    accent: "#1dff00",
+    icon: Compass,
+  },
+  {
+    id: "editorial",
+    theme: "navigator",
+    label: "Editorial",
+    note: "magazine cover, warm paper, personal",
+    accent: "#b4532f",
+    icon: Newspaper,
+  },
 ];
+
+function getActiveTemplate(theme: string | undefined, design: Record<string, unknown> | undefined): PublicProfileTemplate {
+  if (theme === "navigator") {
+    return design?.templateVariant === "editorial" ? "editorial" : "navigator";
+  }
+  return "atelier";
+}
 
 export function PublicProfileShareCard({ profile }: { profile: Profile | null }) {
   const { success, error: toastError } = useToast();
@@ -27,6 +61,7 @@ export function PublicProfileShareCard({ profile }: { profile: Profile | null })
   const isPublished = site?.is_public === true;
   const canHideWatermark = hasSubscriptionAccess(subscriptionTier, "Basics");
   const watermarkVisible = site?.design?.showWatermark !== false;
+  const activeTemplate = getActiveTemplate(site?.theme, site?.design);
 
   const handleCopy = async () => {
     try {
@@ -65,12 +100,21 @@ export function PublicProfileShareCard({ profile }: { profile: Profile | null })
     }
   };
 
-  const handleTheme = async (theme: PublicProfileTheme) => {
+  const handleTemplate = async (option: TemplateOption) => {
     try {
-      await updateSite({ theme });
-      success("Portfolio aesthetic updated");
+      const current = site || (await ensureSite());
+      if (!current) return;
+      await updateSite({
+        theme: option.theme,
+        design: {
+          ...(current.design || {}),
+          accent: option.accent,
+          templateVariant: option.id,
+        },
+      });
+      success(`${option.label} portfolio selected`);
     } catch (err: any) {
-      toastError("Theme update failed", err.message);
+      toastError("Template update failed", err.message);
     }
   };
 
@@ -118,24 +162,24 @@ export function PublicProfileShareCard({ profile }: { profile: Profile | null })
             </div>
           </div>
 
-          <div className="mb-4 grid grid-cols-2 gap-2">
-            {THEME_OPTIONS.map((option) => {
-              const active = (site?.theme || "obsidian") === option.value;
-              const ThemeIcon = option.icon;
+          <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {TEMPLATE_OPTIONS.map((option) => {
+              const active = activeTemplate === option.id;
+              const TemplateIcon = option.icon;
               return (
                 <button
-                  key={option.value}
+                  key={option.id}
                   type="button"
                   disabled={saving}
-                  onClick={() => void handleTheme(option.value)}
-                  className={`rounded-xl border p-3 text-left transition-all active:scale-[0.98] ${option.value === "navigator" ? "col-span-2" : ""} ${
+                  onClick={() => void handleTemplate(option)}
+                  className={`rounded-xl border p-3 text-left transition-all active:scale-[0.98] ${
                     active
                       ? "border-brand/40 bg-brand/10 text-foreground"
                       : "border-foreground/10 bg-background/50 text-muted-foreground hover:border-brand/25 hover:text-foreground"
                   }`}
                 >
                   <div className="flex items-center gap-2 text-xs font-semibold">
-                    <ThemeIcon className="h-3.5 w-3.5 text-brand" />
+                    <TemplateIcon className="h-3.5 w-3.5 text-brand" />
                     {option.label}
                   </div>
                   <p className="mt-1 text-[10px] leading-relaxed opacity-75">

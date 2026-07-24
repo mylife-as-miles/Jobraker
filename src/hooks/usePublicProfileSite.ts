@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "../lib/supabaseClient";
 import type { Profile } from "./useProfileSettings";
 
-export type PublicProfileTheme = "obsidian" | "atelier" | "prism" | "mono" | "navigator";
+export type PublicProfileTheme = "atelier" | "navigator";
+export type PublicProfileTemplate = "atelier" | "navigator" | "editorial";
 
 export interface PublicProfileSite {
   id: string;
@@ -22,11 +23,27 @@ export interface PublicProfileSite {
 }
 
 const DEFAULT_DESIGN = {
-  accent: "#1dff00",
-  density: "cinematic",
-  motion: "scroll-scrub",
-  texture: "shader-glass",
+  accent: "#e6c27a",
+  density: "editorial",
+  motion: "scroll-reveal",
+  texture: "paper-glow",
+  templateVariant: "atelier",
 };
+
+const SUPPORTED_THEMES = new Set<PublicProfileTheme>(["atelier", "navigator"]);
+
+function normalizeSite(site: PublicProfileSite | null): PublicProfileSite | null {
+  if (!site) return null;
+  const theme = SUPPORTED_THEMES.has(site.theme as PublicProfileTheme)
+    ? (site.theme as PublicProfileTheme)
+    : "atelier";
+
+  return {
+    ...site,
+    theme,
+    design: site.design && typeof site.design === "object" ? site.design : {},
+  };
+}
 
 function slugify(value: string) {
   return value
@@ -55,7 +72,7 @@ function buildDefaultSite(profile: Profile | null, userId: string) {
     user_id: userId,
     slug: buildFallbackSlug(profile, userId),
     is_public: false,
-    theme: "obsidian",
+    theme: "atelier" as PublicProfileTheme,
     headline: role,
     intro:
       profile?.about ||
@@ -97,7 +114,7 @@ export function usePublicProfileSite(profile: Profile | null) {
         .eq("user_id", userId)
         .maybeSingle();
       if (fetchError) throw fetchError;
-      setSite((data as PublicProfileSite | null) || null);
+      setSite(normalizeSite(data as PublicProfileSite | null));
     } catch (err: any) {
       setError(err.message || "Failed to load public profile site");
     } finally {
@@ -123,8 +140,9 @@ export function usePublicProfileSite(profile: Profile | null) {
         .maybeSingle();
       if (existingError) throw existingError;
       if (existing) {
-        setSite(existing as PublicProfileSite);
-        return existing as PublicProfileSite;
+        const normalized = normalizeSite(existing as PublicProfileSite);
+        setSite(normalized);
+        return normalized;
       }
 
       const payload = buildDefaultSite(profile, userId);
@@ -134,8 +152,9 @@ export function usePublicProfileSite(profile: Profile | null) {
         .select("*")
         .single();
       if (insertError) throw insertError;
-      setSite(data as PublicProfileSite);
-      return data as PublicProfileSite;
+      const normalized = normalizeSite(data as PublicProfileSite);
+      setSite(normalized);
+      return normalized;
     } catch (err: any) {
       setError(err.message || "Failed to create public profile site");
       throw err;
@@ -166,8 +185,9 @@ export function usePublicProfileSite(profile: Profile | null) {
         .select("*")
         .single();
       if (updateError) throw updateError;
-      setSite(data as PublicProfileSite);
-      return data as PublicProfileSite;
+      const normalized = normalizeSite(data as PublicProfileSite);
+      setSite(normalized);
+      return normalized;
     } catch (err: any) {
       setError(err.message || "Failed to update public profile site");
       throw err;
