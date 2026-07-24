@@ -77,20 +77,7 @@ const AccountLibraryPage = lazyWithRetry(() => import("./pages/AccountLibraryPag
 const HelpCenterPage = lazyWithRetry(() => import("./pages/HelpCenterPage"), "HelpCenterPage");
 
 function DashboardPageFallback() {
-  return (
-    <div className='flex-1 p-4 sm:p-6 lg:p-8' role='status' aria-live='polite'>
-      <div className='animate-pulse space-y-5'>
-        <Skeleton className='h-9 w-52 rounded-lg' />
-        <div className='grid gap-4 md:grid-cols-3'>
-          <Skeleton className='h-28 rounded-xl' />
-          <Skeleton className='h-28 rounded-xl' />
-          <Skeleton className='h-28 rounded-xl' />
-        </div>
-        <Skeleton className='h-72 rounded-2xl' />
-        <span className='sr-only'>Loading dashboard page</span>
-      </div>
-    </div>
-  );
+  return null;
 }
 
 type DashboardPage =
@@ -210,6 +197,25 @@ export const Dashboard = (): JSX.Element => {
   const supabase = useMemo(() => createClient(), []);
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const { start: startTour } = useProductTour();
+
+  useEffect(() => {
+    // Preload dashboard pages for instant tab switching without loading screens
+    import("./pages/OverviewPage");
+    import("./pages/AnalyticsPage");
+    import("./pages/JobPage");
+    import("./pages/ApplicationPage");
+    import("./pages/SettingsPage");
+    import("./pages/NotificationPage");
+    import("./pages/ProfilePage");
+    import("./pages/ChatPage");
+    import("./pages/BillingPage");
+    import("./pages/InterviewStudioPage");
+    import("./pages/ResumePage");
+    import("./pages/CoverLetterPage");
+    import("./pages/ReferralsPage");
+    import("./pages/AccountLibraryPage");
+    import("./pages/HelpCenterPage");
+  }, []);
 
   useEffect(() => {
     if (!profile?.id) return;
