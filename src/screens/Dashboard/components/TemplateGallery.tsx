@@ -48,6 +48,12 @@ const availableTemplates: Array<{
     description: "Playful pink Memphis card with colorful pill sections.",
     category: "Creative",
   },
+  {
+    id: "anderson",
+    name: "Anderson",
+    description: "Retro pixel-desktop CV with mint OS-window panels.",
+    category: "Tech",
+  },
 ];
 
 interface TemplateGalleryProps {

@@ -118,6 +118,11 @@ export const TemplateDetailPreview = ({
         description:
           "A playful Memphis-pop layout: a pink frame around a cream card with a black border, traffic-light dots and a Curriculum Vitae header, colorful pill section headings (green, pink, orange), dot-rating skills, colored bullet entries, and a sunburst behind the photo.",
       },
+      anderson: {
+        name: "Anderson",
+        description:
+          "A retro pixel-desktop CV in monospace: a mint background with cream and tan OS-window panels (title-bar chrome, a floating tool palette, a window scrollbar), green dot-rated skills, and windowed experience, education and reference panels.",
+      },
     } as Record<string, { name: string; description: string }>
   )[templateId] || {
     name: "Template",

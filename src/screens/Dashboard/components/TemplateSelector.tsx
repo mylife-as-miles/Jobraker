@@ -44,6 +44,12 @@ const availableTemplates: Array<{
     description:
       "A playful pink-framed Memphis card with a black border, colorful pill section headings, dot-rating skills, colored bullet entries, and a sunburst behind the photo.",
   },
+  {
+    id: "anderson",
+    name: "Anderson",
+    description:
+      "A retro pixel-desktop CV in monospace: a mint background with cream and tan OS-window panels, a floating tool palette, green dot-rated skills, and windowed experience, education and reference panels.",
+  },
 ];
 
 interface TemplateSelectorProps {
