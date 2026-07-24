@@ -136,8 +136,13 @@ Deno.serve(async (req) => {
           response = res;
         } else {
           const errorText = await res.text();
-          if (res.status === 400 && (errorText.includes("Auth_Config_NotFound") || errorText.includes("Auth config not found"))) {
-            console.warn(`Custom AuthConfig ID ${finalAuthConfigId} not found on Composio. Falling back to default...`);
+          if (
+            (res.status === 400 || res.status === 404) &&
+            (errorText.includes("Auth_Config_NotFound") ||
+              errorText.includes("Auth config not found") ||
+              errorText.includes("NotFound"))
+          ) {
+            console.warn(`Custom AuthConfig ID ${finalAuthConfigId} not found on Composio (HTTP ${res.status}). Falling back to default...`);
             finalAuthConfigId = null;
           } else {
             throw new Error(`Composio API error (${res.status}): ${errorText}`);
@@ -149,7 +154,7 @@ Deno.serve(async (req) => {
         try {
           const authConfigs = await composio.authConfigs.list({
             toolkitSlug: slug,
-            isDefault: true
+            isDefault: true,
           });
           if (authConfigs.items && authConfigs.items.length > 0) {
             finalAuthConfigId = authConfigs.items[0].id;
@@ -159,8 +164,43 @@ Deno.serve(async (req) => {
         }
 
         if (!finalAuthConfigId) {
+          try {
+            const authConfigsAll = await composio.authConfigs.list({
+              toolkitSlug: slug,
+            });
+            if (authConfigsAll.items && authConfigsAll.items.length > 0) {
+              finalAuthConfigId = authConfigsAll.items[0].id;
+            }
+          } catch (e) {
+            console.warn(`Failed to fetch all auth configs for ${slug}:`, e);
+          }
+        }
+
+        if (!finalAuthConfigId) {
+          try {
+            const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+            const v3Res = await fetch(
+              `https://backend.composio.dev/api/v3/auth_configs?toolkit_slug=${encodeURIComponent(slug)}`,
+              {
+                headers: { "x-api-key": apiKey },
+              }
+            );
+            if (v3Res.ok) {
+              const v3Data = await v3Res.json();
+              const items = v3Data.items || v3Data.data || (Array.isArray(v3Data) ? v3Data : []);
+              if (items.length > 0) {
+                const defaultItem = items.find((i: any) => i.is_default || i.isDefault) || items[0];
+                finalAuthConfigId = defaultItem.id;
+              }
+            }
+          } catch (e) {
+            console.warn(`Failed to fetch v3 auth config fallback for ${slug}:`, e);
+          }
+        }
+
+        if (!finalAuthConfigId) {
           return new Response(
-            JSON.stringify({ error: `Could not resolve default AuthConfigId for ${slug}` }), 
+            JSON.stringify({ error: `Could not resolve default AuthConfigId for ${slug}` }),
             { status: 400, headers: corsHeaders }
           );
         }

@@ -58,29 +58,23 @@ import { ExperienceFeedbackPrompt } from "./components/ExperienceFeedbackPrompt"
 import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
 import { useProductTour } from "@/providers/TourProvider";
 
-const lazyPage = <T extends React.ComponentType<any>>(
-  importer: () => Promise<Record<string, unknown>>,
-  exportName: string,
-) => React.lazy(async () => {
-  const module = await importer();
-  return { default: module[exportName] as T };
-});
+import { lazyWithRetry } from "@/utils/lazyWithRetry";
 
-const OverviewPage = lazyPage(() => import("./pages/OverviewPage"), "OverviewPage");
-const AnalyticsPage = lazyPage(() => import("./pages/AnalyticsPage"), "AnalyticsPage");
-const JobPage = lazyPage(() => import("./pages/JobPage"), "JobPage");
-const ApplicationPage = React.lazy(() => import("./pages/ApplicationPage"));
-const SettingsPage = lazyPage(() => import("./pages/SettingsPage"), "SettingsPage");
-const NotificationPage = lazyPage(() => import("./pages/NotificationPage"), "NotificationPage");
-const ProfilePage = React.lazy(() => import("./pages/ProfilePage"));
-const ChatPage = lazyPage(() => import("./pages/ChatPage"), "ChatPage");
-const BillingPage = lazyPage(() => import("./pages/BillingPage"), "BillingPage");
-const InterviewStudioPage = React.lazy(() => import("./pages/InterviewStudioPage"));
-const ResumePage = lazyPage(() => import("./pages/ResumePage"), "ResumePage");
-const CoverLetterPage = lazyPage(() => import("./pages/CoverLetterPage"), "CoverLetterPage");
-const ReferralsPage = lazyPage(() => import("./pages/ReferralsPage"), "ReferralsPage");
-const AccountLibraryPage = lazyPage(() => import("./pages/AccountLibraryPage"), "AccountLibraryPage");
-const HelpCenterPage = lazyPage(() => import("./pages/HelpCenterPage"), "HelpCenterPage");
+const OverviewPage = lazyWithRetry(() => import("./pages/OverviewPage"), "OverviewPage");
+const AnalyticsPage = lazyWithRetry(() => import("./pages/AnalyticsPage"), "AnalyticsPage");
+const JobPage = lazyWithRetry(() => import("./pages/JobPage"), "JobPage");
+const ApplicationPage = lazyWithRetry(() => import("./pages/ApplicationPage"));
+const SettingsPage = lazyWithRetry(() => import("./pages/SettingsPage"), "SettingsPage");
+const NotificationPage = lazyWithRetry(() => import("./pages/NotificationPage"), "NotificationPage");
+const ProfilePage = lazyWithRetry(() => import("./pages/ProfilePage"));
+const ChatPage = lazyWithRetry(() => import("./pages/ChatPage"), "ChatPage");
+const BillingPage = lazyWithRetry(() => import("./pages/BillingPage"), "BillingPage");
+const InterviewStudioPage = lazyWithRetry(() => import("./pages/InterviewStudioPage"));
+const ResumePage = lazyWithRetry(() => import("./pages/ResumePage"), "ResumePage");
+const CoverLetterPage = lazyWithRetry(() => import("./pages/CoverLetterPage"), "CoverLetterPage");
+const ReferralsPage = lazyWithRetry(() => import("./pages/ReferralsPage"), "ReferralsPage");
+const AccountLibraryPage = lazyWithRetry(() => import("./pages/AccountLibraryPage"), "AccountLibraryPage");
+const HelpCenterPage = lazyWithRetry(() => import("./pages/HelpCenterPage"), "HelpCenterPage");
 
 function DashboardPageFallback() {
   return (

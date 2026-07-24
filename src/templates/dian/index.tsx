@@ -270,8 +270,12 @@ function EntrySection({ id }: { id: string }) {
       <AccentHeading id={id} title={section.title} />
       <div className='space-y-4'>
         {items.map((item) => {
-          const primary = getPrimary(item);
-          const org = getOrg(item);
+          const isEdu = id === "education";
+          const primary = isEdu
+            ? item.school || item.institution || item.degree || item.name || "Untitled"
+            : getPrimary(item);
+          const rawOrg = isEdu ? item.degree || "" : getOrg(item);
+          const org = rawOrg && rawOrg !== primary ? rawOrg : "";
           const date = getDate(item);
           const extra = item.grade || item.gpa;
           const description = sanitizeHtmlFragment(item.description || "");
