@@ -9,6 +9,16 @@ export interface AppearanceSettings {
   updated_at: string;
 }
 
+// The brand accent changed from a neon lime to green. Existing users have the
+// old lime persisted as their accent_color; map any legacy lime value to the
+// new default green so their UI matches the rest of the app (self-heals on load).
+const LEGACY_ACCENTS = new Set(["#1dff00", "#52ff4b", "#7bffb2"]);
+const DEFAULT_ACCENT = "#22c55e";
+
+function normalizeAccent(accent: string): string {
+  return LEGACY_ACCENTS.has((accent || "").toLowerCase()) ? DEFAULT_ACCENT : accent;
+}
+
 function hexToHsl(hex: string): { h: number; s: number; l: number } | null {
   if (!hex.startsWith("#")) return null;
   const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -65,8 +75,9 @@ function applyAppearanceToDOM({
   if (theme === "dark" || (theme === "auto" && prefersDark))
     root.classList.add("dark");
 
-  // Accent color variables
-  const hsl = hexToHsl(accent_color);
+  // Accent color variables (legacy lime accents are migrated to the new green)
+  const normalizedAccent = normalizeAccent(accent_color);
+  const hsl = hexToHsl(normalizedAccent);
   if (hsl) {
     root.style.setProperty("--brand", `${hsl.h} ${hsl.s}% ${hsl.l}%`);
   }
@@ -78,7 +89,7 @@ function applyAppearanceToDOM({
   // Persist for early boot
   try {
     localStorage.setItem("appearance_theme", theme);
-    localStorage.setItem("appearance_accent", accent_color);
+    localStorage.setItem("appearance_accent", normalizedAccent);
     localStorage.setItem("appearance_reduce_motion", reduce_motion ? "1" : "0");
   } catch {}
 }
