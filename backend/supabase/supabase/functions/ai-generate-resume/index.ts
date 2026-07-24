@@ -263,7 +263,7 @@ Resume writing guidelines:
 - Quantify achievements: Use numbers when possible ("Increased sales by 25%", "Managed team of 8")
 - Be specific: Replace vague terms with concrete examples
 - Use ${tone} tone throughout
-- Template: set metadata.template to the design that best fits this candidate. Choose exactly one of the available templates: "linton" (light editorial cream layout), "kumar" (dark bento-grid layout), "micah" (dark charcoal-and-gold layout), "smith" (coral two-column with dark sidebar), or "clarke" (light lime bento cards). Do not use any other value.
+- Template: set metadata.template to the design that best fits this candidate. Choose exactly one of the available templates: "linton" (light editorial cream layout), "kumar" (dark bento-grid layout), "micah" (dark charcoal-and-gold layout), "smith" (coral two-column with dark sidebar), "clarke" (light lime bento cards), or "mercado" (playful pink Memphis-pop). Do not use any other value.
 ${targetRole ? `- Tailor the resume for the target role: ${targetRole}` : ""}
 - Do NOT hallucinate or invent information. Only use what was provided.
 - If limited information is provided, work with what you have and make it compelling.`;

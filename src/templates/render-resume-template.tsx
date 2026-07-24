@@ -3,6 +3,7 @@ import { LayoutTemplate } from "lucide-react";
 import { ClarkeTemplate } from "./clarke";
 import { KumarTemplate } from "./kumar";
 import { LintonTemplate } from "./linton";
+import { MercadoTemplate } from "./mercado";
 import { MicahTemplate } from "./micah";
 import { SmithTemplate } from "./smith";
 import type { TemplateProps } from "./types";
@@ -35,6 +36,7 @@ const TEMPLATE_REGISTRY: Record<string, TemplateComponent> = {
   micah: MicahTemplate,
   smith: SmithTemplate,
   clarke: ClarkeTemplate,
+  mercado: MercadoTemplate,
 };
 
 interface ResumeTemplateRendererProps extends TemplateProps {

@@ -28,9 +28,9 @@ const themeColors = [
   { name: "Green", value: "#0df233" },
   { name: "Blue", value: "#3b82f6" },
   { name: "Purple", value: "#a855f7" },
-  { name: "Signal", value: "#1dff00" },
+  { name: "Signal", value: "#22c55e" },
   { name: "Teal", value: "#2dd4bf" },
-  { name: "Neon", value: "#1dff00" },
+  { name: "Neon", value: "#22c55e" },
 ];
 
 const typographyOptions = [
@@ -113,6 +113,11 @@ export const TemplateDetailPreview = ({
         description:
           "A light bento layout with black-outlined rounded cards: a huge black name beside a lime-framed photo, an outlined headline pill, a lime profile card with contact details, white work-experience and education cards, a lime reference card, and a skills card of outlined pills.",
       },
+      mercado: {
+        name: "Mercado",
+        description:
+          "A playful Memphis-pop layout: a pink frame around a cream card with a black border, traffic-light dots and a Curriculum Vitae header, colorful pill section headings (green, pink, orange), dot-rating skills, colored bullet entries, and a sunburst behind the photo.",
+      },
     } as Record<string, { name: string; description: string }>
   )[templateId] || {
     name: "Template",
@@ -182,7 +187,7 @@ export const TemplateDetailPreview = ({
                   className={cn(
                     "h-10 rounded border text-sm font-medium transition-all flex items-center justify-center",
                     fontFamily === font.family
-                      ? "bg-border border-brand text-foreground shadow-[0_0_10px_rgba(29,255,0,0.1)]"
+                      ? "bg-border border-brand text-foreground shadow-[0_0_10px_rgba(34,197,94,0.1)]"
                       : "bg-background border-transparent text-[#9cbaa1] hover:border-[#28392b] hover:text-foreground",
                   )}
                 >
@@ -196,7 +201,7 @@ export const TemplateDetailPreview = ({
           <div className='mt-auto pt-6 border-t border-[#28392b] space-y-3'>
             <button
               onClick={handleConfirm}
-              className='w-full flex items-center justify-center gap-2 h-12 bg-brand hover:bg-[#18d600] text-[#111812] rounded-lg font-bold text-base transition-all shadow-[0_0_20px_rgba(29,255,0,0.2)] active:scale-95'
+              className='w-full flex items-center justify-center gap-2 h-12 bg-brand hover:bg-[#18d600] text-[#111812] rounded-lg font-bold text-base transition-all shadow-[0_0_20px_rgba(34,197,94,0.2)] active:scale-95'
             >
               <Edit3 className='w-5 h-5' />
               Use This Template
@@ -285,7 +290,7 @@ export const TemplateDetailPreview = ({
                     border: 2px solid #0A0A0A;
                 }
                 .preview-scroll::-webkit-scrollbar-thumb:hover {
-                    background: #1dff00;
+                    background: #22c55e;
                 }
                 .bg-grid-pattern {
                     background-image: radial-gradient(circle, #28392b 1px, transparent 1px);

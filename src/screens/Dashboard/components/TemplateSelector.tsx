@@ -38,6 +38,12 @@ const availableTemplates: Array<{
     description:
       "A light bento layout with black-outlined cards, a bold name, a lime-framed photo, lime profile and reference cards, and pill skills.",
   },
+  {
+    id: "mercado",
+    name: "Mercado",
+    description:
+      "A playful pink-framed Memphis card with a black border, colorful pill section headings, dot-rating skills, colored bullet entries, and a sunburst behind the photo.",
+  },
 ];
 
 interface TemplateSelectorProps {
