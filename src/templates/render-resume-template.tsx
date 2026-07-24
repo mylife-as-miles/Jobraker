@@ -2,6 +2,7 @@ import type React from "react";
 import { LayoutTemplate } from "lucide-react";
 import { KumarTemplate } from "./kumar";
 import { LintonTemplate } from "./linton";
+import { MicahTemplate } from "./micah";
 import type { TemplateProps } from "./types";
 import type { ResumeData } from "@/store/artboard";
 import {
@@ -29,6 +30,7 @@ type TemplateComponent = React.ComponentType<TemplateProps>;
 const TEMPLATE_REGISTRY: Record<string, TemplateComponent> = {
   linton: LintonTemplate,
   kumar: KumarTemplate,
+  micah: MicahTemplate,
 };
 
 interface ResumeTemplateRendererProps extends TemplateProps {

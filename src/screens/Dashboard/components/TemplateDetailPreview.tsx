@@ -98,6 +98,11 @@ export const TemplateDetailPreview = ({
         description:
           "A dark bento-grid layout: rounded charcoal cards on near-black, an italic intro beside the photo, chip rows for interests, tools and languages, and side-by-side experience panels.",
       },
+      micah: {
+        name: "Micah",
+        description:
+          "A charcoal-and-gold layout: a top contact bar, an oversized stacked name beside an arch-topped photo, white experience and achievement cards floating on the dark ground, and dark education and skill-bar sections.",
+      },
     } as Record<string, { name: string; description: string }>
   )[templateId] || {
     name: "Template",

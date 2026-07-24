@@ -41,7 +41,7 @@ For each section the user wants to include, gather specific details. Never inven
 
 Ask about preferences:
 
-- Template preference (2 available: linton, kumar)
+- Template preference (3 available: linton, kumar, micah)
 - Page format: A4 or Letter
 - Which sections to include and their order
 

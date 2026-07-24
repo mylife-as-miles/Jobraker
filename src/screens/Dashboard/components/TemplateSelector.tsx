@@ -20,6 +20,12 @@ const availableTemplates: Array<{
     description:
       "A dark bento-grid layout with rounded cards, chip badges, and side-by-side experience panels.",
   },
+  {
+    id: "micah",
+    name: "Micah",
+    description:
+      "A charcoal layout with gold accents, a stacked name, arch photo, white experience/achievement cards, and skill bars.",
+  },
 ];
 
 interface TemplateSelectorProps {

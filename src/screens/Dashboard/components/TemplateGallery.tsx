@@ -24,6 +24,12 @@ const availableTemplates: Array<{
     description: "Dark bento grid of rounded cards and chip badges.",
     category: "Tech",
   },
+  {
+    id: "micah",
+    name: "Micah",
+    description: "Charcoal & gold with white cards and skill bars.",
+    category: "Creative",
+  },
 ];
 
 interface TemplateGalleryProps {
