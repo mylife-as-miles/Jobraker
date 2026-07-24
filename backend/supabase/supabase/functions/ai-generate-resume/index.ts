@@ -263,6 +263,7 @@ Resume writing guidelines:
 - Quantify achievements: Use numbers when possible ("Increased sales by 25%", "Managed team of 8")
 - Be specific: Replace vague terms with concrete examples
 - Use ${tone} tone throughout
+- Template: set metadata.template to the design that best fits this candidate. Choose exactly one of the available templates: "linton" (light editorial cream layout) or "kumar" (dark bento-grid layout). Do not use any other value.
 ${targetRole ? `- Tailor the resume for the target role: ${targetRole}` : ""}
 - Do NOT hallucinate or invent information. Only use what was provided.
 - If limited information is provided, work with what you have and make it compelling.`;
