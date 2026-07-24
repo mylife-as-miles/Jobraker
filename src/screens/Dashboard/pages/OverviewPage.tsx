@@ -6,14 +6,10 @@ import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
 import {
-  ArrowRight,
   Building2,
   AlertCircle,
   Inbox,
   Bell,
-  Briefcase,
-  FileText,
-  UserRound,
 } from "lucide-react";
 import KiboCalendar, {
   CalendarEvent,
@@ -41,11 +37,7 @@ interface OverviewPageProps {
   skillCount?: number;
 }
 
-export const OverviewPage = ({
-  profile = null,
-  experienceCount = 0,
-  skillCount = 0,
-}: OverviewPageProps): JSX.Element => {
+export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
   const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState("1 Month");
   const [stacked, setStacked] = useState(false);
@@ -59,46 +51,6 @@ export const OverviewPage = ({
     create,
   } = useApplications();
   const matchAnalytics = useAnalyticsData("30d", { granularity: "day" });
-  const nextBestActions = useMemo(() => {
-    const actions = [];
-    const profileIncomplete =
-      !profile?.job_title || !profile?.location || !experienceCount || !skillCount;
-
-    if (profileIncomplete) {
-      actions.push({
-        title: "Complete your candidate profile",
-        description: "Better profile evidence improves matching and document drafts.",
-        route: "/dashboard/profile",
-        cta: "Complete profile",
-        icon: UserRound,
-      });
-    }
-    if (!applications.length) {
-      actions.push({
-        title: "Review fresh job matches",
-        description: "Start with roles that match your current search criteria.",
-        route: "/dashboard/jobs",
-        cta: "Find jobs",
-        icon: Briefcase,
-      });
-    } else {
-      actions.push({
-        title: "Move an application forward",
-        description: "Review your pipeline and record the next follow-up or interview step.",
-        route: "/dashboard/application",
-        cta: "Open pipeline",
-        icon: Briefcase,
-      });
-    }
-    actions.push({
-      title: "Prepare your documents",
-      description: "Create a resume or cover letter using your saved profile details.",
-      route: "/dashboard/account",
-      cta: "Open documents",
-      icon: FileText,
-    });
-    return actions.slice(0, 3);
-  }, [applications.length, experienceCount, profile?.job_title, profile?.location, skillCount]);
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus[] | null>(
     null,
   ); // null => all
@@ -469,36 +421,6 @@ export const OverviewPage = ({
   return (
     <div className='product-page-shell min-h-full'>
       <div className='w-full max-w-7xl mx-auto p-3 sm:p-4 lg:p-6 xl:p-8'>
-        <section id='overview-next-best-actions' className='mb-4 sm:mb-6 lg:mb-8' data-tour='overview-next-best-actions'>
-          <div className='mb-3 flex items-end justify-between gap-3'>
-            <div>
-              <h1 className='text-xl font-bold text-foreground sm:text-2xl'>What should you do next?</h1>
-              <p className='mt-1 text-sm text-muted-foreground'>Focus on one useful action, then return for the next.</p>
-            </div>
-          </div>
-          <div className='grid gap-3 md:grid-cols-3'>
-            {nextBestActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <button
-                  key={action.title}
-                  type='button'
-                  onClick={() => navigate(action.route)}
-                  className='group rounded-2xl border border-foreground/10 bg-card/60 p-4 text-left transition-colors hover:border-brand/30 hover:bg-brand/5'
-                >
-                  <div className='mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-brand/10 text-brand'>
-                    <Icon className='h-4.5 w-4.5' />
-                  </div>
-                  <h2 className='text-sm font-semibold text-foreground'>{action.title}</h2>
-                  <p className='mt-1 min-h-10 text-xs leading-relaxed text-muted-foreground'>{action.description}</p>
-                  <span className='mt-3 inline-flex items-center text-xs font-semibold text-brand'>
-                    {action.cta}<ArrowRight className='ml-1.5 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5' />
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
         {/* Responsive overview layout */}
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 items-start'>
           {/* Left Column - Applications and Match Score */}
