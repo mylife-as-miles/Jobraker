@@ -330,13 +330,13 @@ export default function AdminLayout() {
                               }}
                               className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 relative ${
                                 isActive
-                                  ? "text-brand bg-gradient-to-r from-brand/20 to-background/10 font-bold border border-brand/30 shadow-[0_0_8px_rgba(34,197,94,0.05)]"
+                                  ? "text-brand bg-gradient-to-r from-brand/20 to-background/10 font-bold border border-brand/30 shadow-[0_0_8px_rgba(22,163,74,0.05)]"
                                   : "text-gray-400 hover:text-white hover:bg-foreground/5 border border-transparent hover:border-brand/20"
                               }`}
                             >
                               <span>{item.name}</span>
                               {isActive && (
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-brand shadow-[0_0_6px_rgba(34,197,94,0.8)]" />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-brand shadow-[0_0_6px_rgba(22,163,74,0.8)]" />
                               )}
                             </button>
                           </div>

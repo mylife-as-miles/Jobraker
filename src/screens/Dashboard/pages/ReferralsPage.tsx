@@ -607,7 +607,7 @@ function PremiumLockOverlay({
         <Button
           type='button'
           size='sm'
-          className='w-full bg-brand text-black hover:bg-brand/90 text-[11px] py-1 h-7.5 font-bold rounded-lg shadow-[0_0_12px_rgba(34,197,94,0.25)]'
+          className='w-full bg-brand text-black hover:bg-brand/90 text-[11px] py-1 h-7.5 font-bold rounded-lg shadow-[0_0_12px_rgba(22,163,74,0.25)]'
           onClick={onUpgrade}
         >
           Upgrade to {requiredTier}
@@ -1519,7 +1519,7 @@ export const ReferralsPage = (): JSX.Element => {
                 >
                   {t.label}
                   {tab === t.id ? (
-                    <span className='absolute left-0 right-0 -bottom-px h-0.5 bg-brand rounded-full shadow-[0_0_8px_rgba(34,197,94,0.45)]' />
+                    <span className='absolute left-0 right-0 -bottom-px h-0.5 bg-brand rounded-full shadow-[0_0_8px_rgba(22,163,74,0.45)]' />
                   ) : null}
                 </button>
               ))}
@@ -1603,7 +1603,7 @@ export const ReferralsPage = (): JSX.Element => {
           <div className='relative mt-6 mb-4 px-4'>
             <div className='absolute top-4 left-0 right-0 h-1 bg-foreground/10 rounded-full' />
             <div
-              className='absolute top-4 left-0 h-1 bg-brand rounded-full shadow-[0_0_8px_rgba(34,197,94,0.5)] transition-all duration-500 ease-out'
+              className='absolute top-4 left-0 h-1 bg-brand rounded-full shadow-[0_0_8px_rgba(22,163,74,0.5)] transition-all duration-500 ease-out'
               style={{ width: `${progressPercent}%` }}
             />
 
@@ -1618,7 +1618,7 @@ export const ReferralsPage = (): JSX.Element => {
                     <div
                       className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all duration-300 ${
                         isUnlocked
-                          ? "bg-brand border-brand text-black shadow-[0_0_12px_rgba(34,197,94,0.45)] font-bold"
+                          ? "bg-brand border-brand text-black shadow-[0_0_12px_rgba(22,163,74,0.45)] font-bold"
                           : "bg-background border-border text-muted-foreground"
                       }`}
                     >

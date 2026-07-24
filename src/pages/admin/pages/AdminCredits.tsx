@@ -598,7 +598,7 @@ export default function AdminCredits() {
             />
             <Bar
               dataKey='consumed'
-              fill='#22c55e'
+              fill='#16a34a'
               radius={[4, 4, 0, 0]}
               name='Credits Consumed'
               maxBarSize={40}

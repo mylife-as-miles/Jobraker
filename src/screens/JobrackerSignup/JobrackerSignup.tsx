@@ -776,7 +776,7 @@ export const JobrackerSignup = (): JSX.Element => {
                     (!passwordCheck.valid ||
                       formData.password !== formData.confirmPassword))
                 }
-                className='w-full h-9 bg-brand hover:bg-brand/90 text-background font-semibold rounded-lg text-xs transition-all shadow-[0_0_15px_rgba(34,197,94,0.2)] hover:shadow-[0_0_20px_rgba(34,197,94,0.3)] mt-1'
+                className='w-full h-9 bg-brand hover:bg-brand/90 text-background font-semibold rounded-lg text-xs transition-all shadow-[0_0_15px_rgba(22,163,74,0.2)] hover:shadow-[0_0_20px_rgba(22,163,74,0.3)] mt-1'
               >
                 {submitting ? (
                   <Loader2 className='animate-spin w-3.5 h-3.5' />
@@ -836,7 +836,7 @@ export const JobrackerSignup = (): JSX.Element => {
       {/* RIGHT SIDE: Immersive Visual */}
       <div className='hidden lg:block lg:w-1/2 relative bg-background overflow-hidden h-full'>
         {/* Background Grid */}
-        <div className='absolute inset-0 bg-[linear-gradient(rgba(34,197,94,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,background_40%,transparent_80%)]' />
+        <div className='absolute inset-0 bg-[linear-gradient(rgba(22,163,74,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(22,163,74,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,background_40%,transparent_80%)]' />
 
         {/* 3D Self-Solving Cube */}
         <div className='absolute inset-0 flex items-center justify-center scale-110 translate-x-12 pointer-events-none'>
@@ -905,7 +905,7 @@ export const JobrackerSignup = (): JSX.Element => {
           </div>
           <div className='pt-2'>
             <Button
-              className='w-full bg-[linear-gradient(270deg,rgba(34,197,94,1)_0%,rgba(34,197,94,1)_85%)] text-foreground'
+              className='w-full bg-[linear-gradient(270deg,rgba(22,163,74,1)_0%,rgba(22,163,74,1)_85%)] text-foreground'
               onClick={() => {
                 setShowVerifyModal(false);
                 navigate(ROUTES.SIGNIN);

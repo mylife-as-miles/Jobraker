@@ -172,7 +172,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           </div>
         )}
       </div>
-      <div className='pointer-events-none absolute -right-10 -top-10 w-40 h-40 bg-[conic-gradient(from_90deg_at_50%_50%,#22c55e_0deg,transparent_140deg)] opacity-10 blur-2xl group-hover:opacity-20 transition-opacity' />
+      <div className='pointer-events-none absolute -right-10 -top-10 w-40 h-40 bg-[conic-gradient(from_90deg_at_50%_50%,#16a34a_0deg,transparent_140deg)] opacity-10 blur-2xl group-hover:opacity-20 transition-opacity' />
     </div>
   );
 };

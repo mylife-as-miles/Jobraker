@@ -1501,7 +1501,7 @@ export const JobPage = (): JSX.Element => {
         className='pointer-events-none absolute -inset-24 opacity-30'
         style={{
           background:
-            "radial-gradient(600px 200px at 20% -10%, rgba(34,197,94,0.25), rgba(34,197,94,0) 60%)",
+            "radial-gradient(600px 200px at 20% -10%, rgba(22,163,74,0.25), rgba(22,163,74,0) 60%)",
         }}
         initial={{ opacity: 0.15 }}
         animate={{ opacity: [0.15, 0.3, 0.15] }}
@@ -1559,7 +1559,7 @@ export const JobPage = (): JSX.Element => {
               transition={{ delay: idx * 0.1 }}
               className={`relative flex items-center gap-2 rounded-lg border p-2.5 transition-all duration-300 ${
                 isActive
-                  ? "border-brand bg-brand/10 shadow-[0_0_15px_rgba(34,197,94,0.2)]"
+                  ? "border-brand bg-brand/10 shadow-[0_0_15px_rgba(22,163,74,0.2)]"
                   : isCompleted
                     ? "border-brand/50 bg-brand/5"
                     : "border-foreground/10 bg-foreground/5"
@@ -1610,7 +1610,7 @@ export const JobPage = (): JSX.Element => {
                 <motion.span
                   layoutId='activeStepGlow'
                   className='absolute inset-0 rounded-lg pointer-events-none'
-                  style={{ boxShadow: "0 0 20px rgba(34,197,94,0.25) inset" }}
+                  style={{ boxShadow: "0 0 20px rgba(22,163,74,0.25) inset" }}
                 />
               )}
             </motion.div>
@@ -1628,7 +1628,7 @@ export const JobPage = (): JSX.Element => {
             className='absolute inset-0 opacity-20'
             style={{
               background:
-                "linear-gradient(90deg, transparent 0%, rgba(34,197,94,0.4) 50%, transparent 100%)",
+                "linear-gradient(90deg, transparent 0%, rgba(22,163,74,0.4) 50%, transparent 100%)",
             }}
             animate={{ x: ["-100%", "200%"] }}
             transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
@@ -4331,8 +4331,8 @@ export const JobPage = (): JSX.Element => {
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all hover:scale-105",
                         profileReady
-                          ? "border-brand/60 bg-gradient-to-br from-brand/20 to-brand/10 text-brand shadow-[0_0_10px_rgba(34,197,94,0.15)] hover:shadow-[0_0_15px_rgba(34,197,94,0.25)]"
-                          : "border-brand/50 bg-gradient-to-br from-brand/15 to-brand/5 text-brand shadow-[0_0_10px_rgba(34,197,94,0.15)] hover:shadow-[0_0_15px_rgba(34,197,94,0.25)]",
+                          ? "border-brand/60 bg-gradient-to-br from-brand/20 to-brand/10 text-brand shadow-[0_0_10px_rgba(22,163,74,0.15)] hover:shadow-[0_0_15px_rgba(22,163,74,0.25)]"
+                          : "border-brand/50 bg-gradient-to-br from-brand/15 to-brand/5 text-brand shadow-[0_0_10px_rgba(22,163,74,0.15)] hover:shadow-[0_0_15px_rgba(22,163,74,0.25)]",
                       )}
                       title={
                         profileReady
@@ -4362,8 +4362,8 @@ export const JobPage = (): JSX.Element => {
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all hover:scale-105",
                         resumeLibraryReady
-                          ? "border-brand/60 bg-gradient-to-br from-brand/20 to-brand/10 text-brand shadow-[0_0_10px_rgba(34,197,94,0.15)] hover:shadow-[0_0_15px_rgba(34,197,94,0.25)]"
-                          : "border-brand/50 bg-gradient-to-br from-brand/15 to-brand/5 text-brand shadow-[0_0_10px_rgba(34,197,94,0.15)] hover:shadow-[0_0_15px_rgba(34,197,94,0.25)]",
+                          ? "border-brand/60 bg-gradient-to-br from-brand/20 to-brand/10 text-brand shadow-[0_0_10px_rgba(22,163,74,0.15)] hover:shadow-[0_0_15px_rgba(22,163,74,0.25)]"
+                          : "border-brand/50 bg-gradient-to-br from-brand/15 to-brand/5 text-brand shadow-[0_0_10px_rgba(22,163,74,0.15)] hover:shadow-[0_0_15px_rgba(22,163,74,0.25)]",
                       )}
                       title={
                         resumeLibraryReady
@@ -4558,7 +4558,7 @@ export const JobPage = (): JSX.Element => {
                       className='pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300'
                       style={{
                         background:
-                          "linear-gradient(120deg, transparent 0%, rgba(34,197,94,0.25) 45%, transparent 90%)",
+                          "linear-gradient(120deg, transparent 0%, rgba(22,163,74,0.25) 45%, transparent 90%)",
                       }}
                     />
                     <span className='relative inline-flex items-center justify-center gap-1.5 sm:gap-2'>
@@ -4794,7 +4794,7 @@ export const JobPage = (): JSX.Element => {
               <div className='space-y-5'>
                 <Card className='relative overflow-hidden border border-brand/20 bg-gradient-to-br from-background via-background/98 to-background/95 p-6 sm:p-7'>
                   <motion.div
-                    className='pointer-events-none absolute inset-[-40%] bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.28),rgba(34,197,94,0)_60%)] opacity-60'
+                    className='pointer-events-none absolute inset-[-40%] bg-[radial-gradient(circle_at_top,rgba(22,163,74,0.28),rgba(22,163,74,0)_60%)] opacity-60'
                     animate={{ rotate: [0, 360] }}
                     transition={{
                       duration: 14,
@@ -4959,7 +4959,7 @@ export const JobPage = (): JSX.Element => {
                     className='absolute inset-0 opacity-30'
                     style={{
                       background:
-                        "linear-gradient(90deg, transparent 0%, rgba(34,197,94,0.6) 50%, transparent 100%)",
+                        "linear-gradient(90deg, transparent 0%, rgba(22,163,74,0.6) 50%, transparent 100%)",
                     }}
                     animate={{ x: ["-100%", "200%"] }}
                     transition={{
@@ -4989,7 +4989,7 @@ export const JobPage = (): JSX.Element => {
                 </div>
 
                 {/* Main Content */}
-                <Card className='relative z-10 max-w-2xl mx-auto bg-gradient-to-br from-background via-background/95 to-background/90 border border-brand/20 backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_0_1px_rgba(34,197,94,0.1)]'>
+                <Card className='relative z-10 max-w-2xl mx-auto bg-gradient-to-br from-background via-background/95 to-background/90 border border-brand/20 backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_0_1px_rgba(22,163,74,0.1)]'>
                   <div className='p-8 sm:p-12 text-center space-y-8'>
                     {/* Icon Container with Animation */}
                     <motion.div
@@ -5002,9 +5002,9 @@ export const JobPage = (): JSX.Element => {
                       <div className='absolute inset-0 rounded-full bg-gradient-to-br from-brand/20 to-background/10 blur-xl animate-pulse' />
 
                       {/* Icon Background */}
-                      <div className='relative w-full h-full rounded-full bg-gradient-to-br from-brand/10 to-background/5 border border-brand/30 flex items-center justify-center shadow-[0_0_40px_rgba(34,197,94,0.15)]'>
+                      <div className='relative w-full h-full rounded-full bg-gradient-to-br from-brand/10 to-background/5 border border-brand/30 flex items-center justify-center shadow-[0_0_40px_rgba(22,163,74,0.15)]'>
                         <Briefcase
-                          className='w-16 h-16 text-brand drop-shadow-[0_0_20px_rgba(34,197,94,0.6)]'
+                          className='w-16 h-16 text-brand drop-shadow-[0_0_20px_rgba(22,163,74,0.6)]'
                           strokeWidth={1.5}
                         />
                       </div>
@@ -5068,7 +5068,7 @@ export const JobPage = (): JSX.Element => {
                           )
                         }
                         disabled={incrementalMode}
-                        className='group relative overflow-hidden px-8 py-6 rounded-xl bg-gradient-to-r from-brand to-background text- font-semibold text-base shadow-[0_0_0_1px_#22c55e,0_8px_32px_rgba(34,197,94,0.4)] hover:shadow-[0_0_0_1px_#22c55e,0_12px_48px_rgba(34,197,94,0.6)] transition-all duration-300 hover:scale-105 active:scale-95'
+                        className='group relative overflow-hidden px-8 py-6 rounded-xl bg-gradient-to-r from-brand to-background text- font-semibold text-base shadow-[0_0_0_1px_#16a34a,0_8px_32px_rgba(22,163,74,0.4)] hover:shadow-[0_0_0_1px_#16a34a,0_12px_48px_rgba(22,163,74,0.6)] transition-all duration-300 hover:scale-105 active:scale-95'
                       >
                         <span className='relative z-10 flex items-center gap-3'>
                           <Search className='w-5 h-5' />
@@ -5202,7 +5202,7 @@ export const JobPage = (): JSX.Element => {
                             />
                           </div>
                         ) : (
-                          <div className='w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-brand to-background flex items-center justify-center text- font-bold text-xl shadow-[0_0_15px_rgba(34,197,94,0.2)]'>
+                          <div className='w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-brand to-background flex items-center justify-center text- font-bold text-xl shadow-[0_0_15px_rgba(22,163,74,0.2)]'>
                             {job.logo}
                           </div>
                         )}
@@ -6126,7 +6126,7 @@ export const JobPage = (): JSX.Element => {
                       key={step.id}
                       className={`flex-1 rounded-xl border p-3 sm:p-4 transition-all duration-300 ${
                         status === "active"
-                          ? "border-brand/60 bg-brand/10 shadow-[0_0_18px_rgba(34,197,94,0.25)]"
+                          ? "border-brand/60 bg-brand/10 shadow-[0_0_18px_rgba(22,163,74,0.25)]"
                           : status === "done"
                             ? "border-brand/30 bg-brand/12 text-foreground/80"
                             : "border-foreground/12 bg-foreground/[0.02] text-foreground/60"
@@ -6193,7 +6193,7 @@ export const JobPage = (): JSX.Element => {
                               onClick={() => setSelectedResumeId(r.id)}
                               className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
                                 selected
-                                  ? "border-brand/60 bg-brand/12 shadow-[0_0_16px_rgba(34,197,94,0.25)]"
+                                  ? "border-brand/60 bg-brand/12 shadow-[0_0_16px_rgba(22,163,74,0.25)]"
                                   : "border-foreground/12 bg-foreground/[0.02] hover:border-brand/45 hover:bg-brand/8"
                               }`}
                             >
@@ -6277,7 +6277,7 @@ export const JobPage = (): JSX.Element => {
                             onClick={() => setSelectedCoverLetterId(null)}
                             className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
                               !selectedCoverLetterId
-                                ? "border-brand/60 bg-brand/12 shadow-[0_0_16px_rgba(34,197,94,0.25)]"
+                                ? "border-brand/60 bg-brand/12 shadow-[0_0_16px_rgba(22,163,74,0.25)]"
                                 : "border-foreground/12 bg-foreground/[0.02] hover:border-brand/45 hover:bg-brand/8"
                             }`}
                           >
@@ -6335,7 +6335,7 @@ export const JobPage = (): JSX.Element => {
                                 }
                                 className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
                                   selected
-                                    ? "border-brand/60 bg-brand/12 shadow-[0_0_16px_rgba(34,197,94,0.25)]"
+                                    ? "border-brand/60 bg-brand/12 shadow-[0_0_16px_rgba(22,163,74,0.25)]"
                                     : "border-foreground/12 bg-foreground/[0.02] hover:border-brand/45 hover:bg-brand/8"
                                 }`}
                               >

@@ -7,9 +7,9 @@ import * as THREE from 'three';
 const GlobeFallback = () => (
   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
     <div className="relative w-[280px] h-[280px] md:w-[340px] md:h-[340px]">
-      <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_40%_35%,rgba(34,197,94,0.15),transparent_60%)] animate-pulse" />
-      <div className="absolute inset-4 rounded-full border border-[#22c55e]/20" />
-      <div className="absolute inset-8 rounded-full border border-[#22c55e]/10" />
+      <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_40%_35%,rgba(22,163,74,0.15),transparent_60%)] animate-pulse" />
+      <div className="absolute inset-4 rounded-full border border-[#16a34a]/20" />
+      <div className="absolute inset-8 rounded-full border border-[#16a34a]/10" />
       <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_center,#050505_40%,transparent_70%)]" />
     </div>
   </div>
@@ -69,7 +69,7 @@ const Globe = () => {
         </bufferGeometry>
         <pointsMaterial
           size={0.02}
-          color="#22c55e"
+          color="#16a34a"
           transparent
           opacity={0.6}
           sizeAttenuation
@@ -81,7 +81,7 @@ const Globe = () => {
       <mesh ref={wireframeRef}>
         <sphereGeometry args={[2.0, 48, 48]} />
         <meshBasicMaterial
-          color="#22c55e"
+          color="#16a34a"
           wireframe
           transparent
           opacity={0.05}
@@ -97,7 +97,7 @@ const Globe = () => {
       <mesh>
         <sphereGeometry args={[2.2, 32, 32]} />
         <meshBasicMaterial
-            color="#22c55e"
+            color="#16a34a"
             transparent
             opacity={0.03}
             side={THREE.BackSide}
@@ -106,10 +106,10 @@ const Globe = () => {
       </mesh>
 
       {/* 6. Orbit Rings */}
-      <OrbitRing radius={2.5} speed={0.3} color="#22c55e" opacity={0.4} />
-      <OrbitRing radius={3.0} speed={0.2} color="#22c55e" opacity={0.2} rotateX={Math.PI / 2.5} />
+      <OrbitRing radius={2.5} speed={0.3} color="#16a34a" opacity={0.4} />
+      <OrbitRing radius={3.0} speed={0.2} color="#16a34a" opacity={0.2} rotateX={Math.PI / 2.5} />
       <OrbitRing radius={2.8} speed={-0.2} color="#ffffff" opacity={0.15} rotateZ={Math.PI / 4} />
-      <OrbitRing radius={3.5} speed={0.1} color="#22c55e" opacity={0.1} rotateY={Math.PI / 3} />
+      <OrbitRing radius={3.5} speed={0.1} color="#16a34a" opacity={0.1} rotateY={Math.PI / 3} />
     </group>
   );
 };
@@ -180,7 +180,7 @@ export const EarthOrb = () => {
         style={{ opacity: contextLost ? 0 : 1, transition: 'opacity 0.5s ease' }}
       >
         <ambientLight intensity={0.2} />
-        <pointLight position={[10, 10, 10]} intensity={1.5} color="#22c55e" />
+        <pointLight position={[10, 10, 10]} intensity={1.5} color="#16a34a" />
         <pointLight position={[-10, -10, -10]} intensity={0.5} color="#004000" />
 
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />

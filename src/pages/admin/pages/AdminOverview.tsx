@@ -147,9 +147,9 @@ export default function AdminOverview() {
   // Subscription distribution data
   const subscriptionData = [
     { name: "Free", value: 60, color: "#6b7280" },
-    { name: "Basics", value: 10, color: "#22c55e" },
-    { name: "Pro", value: 20, color: "#22c55e" },
-    { name: "Ultimate", value: 10, color: "#22c55e" },
+    { name: "Basics", value: 10, color: "#16a34a" },
+    { name: "Pro", value: 20, color: "#16a34a" },
+    { name: "Ultimate", value: 10, color: "#16a34a" },
   ];
 
   // Credit usage trend data
@@ -164,8 +164,8 @@ export default function AdminOverview() {
 
   // Feature usage comparison
   const featureUsage = [
-    { feature: "Job Search", value: stats.totalJobSearches, fill: "#22c55e" },
-    { feature: "Auto Apply", value: stats.totalAutoApplies, fill: "#22c55e" },
+    { feature: "Job Search", value: stats.totalJobSearches, fill: "#16a34a" },
+    { feature: "Auto Apply", value: stats.totalAutoApplies, fill: "#16a34a" },
   ];
 
   const feedbackDistribution = feedbackStats?.distribution.map((item) => ({
@@ -272,12 +272,12 @@ export default function AdminOverview() {
                       >
                         <stop
                           offset='5%'
-                          stopColor='#22c55e'
+                          stopColor='#16a34a'
                           stopOpacity={0.3}
                         />
                         <stop
                           offset='95%'
-                          stopColor='#22c55e'
+                          stopColor='#16a34a'
                           stopOpacity={0}
                         />
                       </linearGradient>
@@ -300,7 +300,7 @@ export default function AdminOverview() {
                     <Area
                       type='monotone'
                       dataKey='mrr'
-                      stroke='#22c55e'
+                      stroke='#16a34a'
                       strokeWidth={2}
                       fill='url(#mrrGradient)'
                     />
@@ -343,7 +343,7 @@ export default function AdminOverview() {
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#1f2937",
-                      border: "1px solid #22c55e",
+                      border: "1px solid #16a34a",
                       borderRadius: "8px",
                       color: "#fff",
                     }}
@@ -389,7 +389,7 @@ export default function AdminOverview() {
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "#1f2937",
-                    border: "1px solid #22c55e",
+                    border: "1px solid #16a34a",
                     borderRadius: "8px",
                     color: "#fff",
                   }}
@@ -515,12 +515,12 @@ export default function AdminOverview() {
                       <Tooltip
                         contentStyle={{
                           backgroundColor: "#1f2937",
-                          border: "1px solid #22c55e",
+                          border: "1px solid #16a34a",
                           borderRadius: "8px",
                           color: "#fff",
                         }}
                       />
-                      <Bar dataKey='count' radius={[8, 8, 0, 0]} fill='#22c55e' />
+                      <Bar dataKey='count' radius={[8, 8, 0, 0]} fill='#16a34a' />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -561,8 +561,8 @@ export default function AdminOverview() {
                         x2='0'
                         y2='1'
                       >
-                        <stop offset='5%' stopColor='#22c55e' stopOpacity={0.28} />
-                        <stop offset='95%' stopColor='#22c55e' stopOpacity={0} />
+                        <stop offset='5%' stopColor='#16a34a' stopOpacity={0.28} />
+                        <stop offset='95%' stopColor='#16a34a' stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray='3 3' stroke='#374151' />
@@ -575,7 +575,7 @@ export default function AdminOverview() {
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "#1f2937",
-                        border: "1px solid #22c55e",
+                        border: "1px solid #16a34a",
                         borderRadius: "8px",
                         color: "#fff",
                       }}
@@ -583,7 +583,7 @@ export default function AdminOverview() {
                     <Area
                       type='monotone'
                       dataKey='responses'
-                      stroke='#22c55e'
+                      stroke='#16a34a'
                       strokeWidth={2}
                       fill='url(#feedbackResponsesGradient)'
                     />

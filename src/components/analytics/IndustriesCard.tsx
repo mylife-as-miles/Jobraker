@@ -118,7 +118,7 @@ export function IndustriesCard({
                     width={96}
                   />
                   <Tooltip
-                    cursor={{ fill: "rgba(34,197,94,0.06)" }}
+                    cursor={{ fill: "rgba(22,163,74,0.06)" }}
                     contentStyle={{
                       borderRadius: 16,
                       border: "1px solid rgba(148,163,184,0.18)",

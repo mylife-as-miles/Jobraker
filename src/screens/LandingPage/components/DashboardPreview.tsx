@@ -38,7 +38,7 @@ export const DashboardPreview = () => {
         <div className='absolute inset-0 bg-brand blur-[100px] opacity-10 rounded-full transform scale-75 z-0' />
 
         {/* Dashboard Container */}
-        <div className='relative bg-background rounded-xl border border-brand/20 shadow-[0_0_50px_rgba(34,197,94,0.15)] overflow-hidden backdrop-blur-sm z-10'>
+        <div className='relative bg-background rounded-xl border border-brand/20 shadow-[0_0_50px_rgba(22,163,74,0.15)] overflow-hidden backdrop-blur-sm z-10'>
           {/* Mock Browser Bar */}
           <div className='h-10 bg-background/50 border-b border-brand/10 flex items-center px-4 space-x-2'>
             <div className='w-3 h-3 rounded-full bg-brand/20 border border-brand/50' />

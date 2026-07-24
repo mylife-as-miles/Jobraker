@@ -62,6 +62,12 @@ const availableTemplates: Array<{
     description:
       "A cream editorial layout with a giant rotated name running up the left edge, a HELLO greeting beside the photo, a black contact bar, and bold uppercase section headings with hamburger-line accents.",
   },
+  {
+    id: "dian",
+    name: "Dian",
+    description:
+      "A neo-brutalist CV with thick black strokes, squared corners, solid teal/magenta/yellow accent blocks and hard offset shadows: a window-chrome header, an accent contact bar, dot-bullet experience, black language bars, and a two-column skills grid.",
+  },
 ];
 
 interface TemplateSelectorProps {

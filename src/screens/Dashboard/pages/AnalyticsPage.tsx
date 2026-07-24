@@ -162,7 +162,7 @@ export function AnalyticsPage() {
             <div className='flex items-center gap-3'>
               <Button
                 variant='outline'
-                className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-foreground/10 transition-all duration-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.15)]'
+                className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-foreground/10 transition-all duration-200 hover:shadow-[0_0_20px_rgba(22,163,74,0.15)]'
                 onClick={() => analytics.refresh?.({ bypassCache: true })}
               >
                 <RefreshCw
@@ -172,7 +172,7 @@ export function AnalyticsPage() {
               </Button>
               <Button
                 variant='outline'
-                className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-foreground/10 transition-all duration-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.15)]'
+                className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-foreground/10 transition-all duration-200 hover:shadow-[0_0_20px_rgba(22,163,74,0.15)]'
                 disabled={analytics.loading}
                 onClick={() => analytics.exportCSV?.()}
               >
@@ -193,7 +193,7 @@ export function AnalyticsPage() {
               </Button>
               <Button
                 variant='outline'
-                className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-foreground/10 transition-all duration-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.15)]'
+                className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-foreground/10 transition-all duration-200 hover:shadow-[0_0_20px_rgba(22,163,74,0.15)]'
                 disabled={analytics.loading}
                 onClick={() => analytics.exportJSON?.()}
               >

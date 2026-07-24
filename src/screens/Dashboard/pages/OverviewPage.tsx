@@ -115,16 +115,20 @@ const StatCard = ({
     rounded > 0 ? ArrowUpRight : rounded < 0 ? ArrowDownRight : Minus;
   return (
     <Card
-      className={`relative rounded-2xl border p-4 sm:p-5 transition-all duration-300 group ${
+      className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 transition-all duration-300 group hover:-translate-y-0.5 ${
         highlight
-          ? "bg-brand text-black border-brand shadow-[0_0_30px_rgba(34,197,94,0.15)]"
+          ? "text-slate-950 border-emerald-300/60 bg-[linear-gradient(135deg,#00FF87_0%,#00E676_35%,#00B894_70%,#007a48_100%)] shadow-[0_10px_30px_rgba(0,255,135,0.25)] hover:shadow-[0_15px_40px_rgba(0,255,135,0.4)]"
           : "bg-card/50 backdrop-blur-xl border-foreground/10 hover:border-brand/30"
       }`}
     >
-      <div className='flex items-start justify-between'>
+      {/* Radial gloss overlay for depth */}
+      {highlight && (
+        <div className='absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.45)_0%,transparent_65%)] pointer-events-none' />
+      )}
+      <div className='relative z-10 flex items-start justify-between'>
         <span
           className={`text-xs sm:text-sm font-semibold tracking-tight ${
-            highlight ? "text-black/80" : "text-foreground"
+            highlight ? "text-slate-900/90" : "text-foreground"
           }`}
         >
           {label}
@@ -135,7 +139,7 @@ const StatCard = ({
           aria-label={`Open ${label}`}
           className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all duration-200 ${
             highlight
-              ? "bg-black/10 border-black/20 text-black hover:bg-black/20"
+              ? "bg-black/10 border-black/20 text-slate-950 hover:bg-black/20 hover:scale-105"
               : "bg-foreground/5 border-foreground/10 text-foreground/60 hover:text-brand hover:border-brand/40"
           }`}
         >
@@ -143,8 +147,8 @@ const StatCard = ({
         </button>
       </div>
       <div
-        className={`mt-2 text-3xl sm:text-4xl font-bold tracking-tight ${
-          highlight ? "text-black" : "text-foreground"
+        className={`relative z-10 mt-2 text-3xl sm:text-4xl font-bold tracking-tight ${
+          highlight ? "text-slate-950" : "text-foreground"
         }`}
       >
         {loading ? (
@@ -155,11 +159,11 @@ const StatCard = ({
           value
         )}
       </div>
-      <div className='mt-3 flex items-center gap-2'>
+      <div className='relative z-10 mt-3 flex items-center gap-2'>
         <span
           className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${
             highlight
-              ? "bg-black/10 border-black/20 text-black"
+              ? "bg-black/10 border-black/20 text-slate-950"
               : rounded < 0
                 ? "bg-red-500/10 border-red-500/30 text-red-400"
                 : "bg-brand/10 border-brand/30 text-brand"
@@ -170,7 +174,7 @@ const StatCard = ({
         </span>
         <span
           className={`text-[10px] font-medium ${
-            highlight ? "text-black/60" : "text-muted-foreground"
+            highlight ? "text-slate-900/75" : "text-muted-foreground"
           }`}
         >
           vs last 7 days
@@ -355,7 +359,16 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
 
   // --- Live Run (auto apply) ------------------------------------------------
 
-  const autoApplyActive = Boolean(liveProfile?.auto_apply_auto_submit);
+  // The setting toggle is the master switch; a run is only actually "live"
+  // when Auto Apply is on AND there are jobs queued for it to work through.
+  const autoApplyEnabled = Boolean(liveProfile?.auto_apply_auto_submit);
+
+  const queuedCount = useMemo(
+    () => applications.filter((a) => a.canonical_stage === "queued").length,
+    [applications],
+  );
+
+  const runActive = autoApplyEnabled && queuedCount > 0;
 
   const autoSentToday = useMemo(() => {
     const startToday = new Date();
@@ -393,7 +406,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
       return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
     };
 
-    if (!autoApplyActive) {
+    if (!runActive) {
       try {
         localStorage.removeItem(AUTO_APPLY_START_KEY);
       } catch {}
@@ -421,7 +434,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
       1000,
     );
     return () => window.clearInterval(id);
-  }, [autoApplyActive]);
+  }, [runActive]);
 
   // --- Tour coach marks -----------------------------------------------------
 
@@ -561,7 +574,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                             bar.value === 0
                               ? "bg-foreground/[0.06]"
                               : isPeak
-                                ? "bg-brand shadow-[0_0_12px_rgba(34,197,94,0.35)]"
+                                ? "bg-brand shadow-[0_0_12px_rgba(22,163,74,0.35)]"
                                 : "bg-brand/35"
                           }`}
                         />
@@ -795,7 +808,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                   <motion.path
                     d='M 20 100 A 80 80 0 0 1 180 100'
                     fill='none'
-                    stroke='#22c55e'
+                    stroke='#16a34a'
                     strokeWidth='14'
                     strokeLinecap='round'
                     strokeDasharray={GAUGE_LEN}
@@ -808,7 +821,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                     style={{
                       filter:
                         progress.pct > 0
-                          ? "drop-shadow(0 0 6px rgba(34,197,94,0.4))"
+                          ? "drop-shadow(0 0 6px rgba(22,163,74,0.4))"
                           : undefined,
                     }}
                   />
@@ -853,8 +866,8 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
             id='overview-live-run'
             data-tour='overview-live-run'
             className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 flex flex-col ${
-              autoApplyActive
-                ? "border-brand/40 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.12),transparent_55%)] bg-card"
+              runActive
+                ? "border-brand/40 bg-[radial-gradient(circle_at_top,rgba(22,163,74,0.12),transparent_55%)] bg-card"
                 : "border-foreground/10 bg-card/50 backdrop-blur-xl"
             }`}
           >
@@ -863,9 +876,11 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
               <div className='flex items-center gap-2'>
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    autoApplyActive
-                      ? "bg-brand animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"
-                      : "bg-foreground/30"
+                    runActive
+                      ? "bg-brand animate-pulse shadow-[0_0_8px_rgba(22,163,74,0.6)]"
+                      : autoApplyEnabled
+                        ? "bg-brand/60"
+                        : "bg-foreground/30"
                   }`}
                 />
                 <h2 className='text-sm sm:text-base font-semibold text-foreground tracking-tight'>
@@ -874,28 +889,36 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
               </div>
               <span
                 className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wide border ${
-                  autoApplyActive
+                  runActive
                     ? "bg-brand text-black border-brand"
-                    : "bg-foreground/5 text-foreground/50 border-foreground/10"
+                    : autoApplyEnabled
+                      ? "bg-brand/10 text-brand border-brand/30"
+                      : "bg-foreground/5 text-foreground/50 border-foreground/10"
                 }`}
               >
-                {autoApplyActive ? "Auto Apply Active" : "Auto Apply Off"}
+                {runActive
+                  ? "Running"
+                  : autoApplyEnabled
+                    ? "Auto Apply Idle"
+                    : "Auto Apply Off"}
               </span>
             </div>
 
             <div className='relative z-10 flex-1 flex flex-col items-center justify-center text-center'>
               <p className='text-xs text-muted-foreground font-medium'>
-                {autoApplyActive ? "Session runtime" : "Applications sent"}
+                {runActive ? "Session runtime" : "Applications sent"}
               </p>
               <div
                 className={`mt-1 text-4xl sm:text-5xl font-bold font-mono tracking-tight tabular-nums ${
-                  autoApplyActive ? "text-foreground" : "text-foreground/50"
+                  runActive ? "text-foreground" : "text-foreground/50"
                 }`}
               >
-                {runtimeLabel}
+                {runActive
+                  ? runtimeLabel
+                  : String(autoSentToday).padStart(2, "0")}
               </div>
               <p className='mt-2 text-[10px] text-muted-foreground'>
-                {autoApplyActive ? (
+                {runActive ? (
                   <span className='inline-flex items-center gap-1.5'>
                     Finding matches
                     <span className='w-1 h-1 rounded-full bg-brand' />
@@ -903,6 +926,8 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                     <span className='w-1 h-1 rounded-full bg-brand' />
                     Applying
                   </span>
+                ) : autoApplyEnabled ? (
+                  "Waiting for new matches to apply"
                 ) : (
                   "Resume Auto Apply to keep applying for you"
                 )}
@@ -912,13 +937,13 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                 <button
                   type='button'
                   disabled={autoApplySaving || !liveProfile}
-                  onClick={() => setAutoApply(!autoApplyActive)}
+                  onClick={() => setAutoApply(!autoApplyEnabled)}
                   aria-label={
-                    autoApplyActive ? "Pause Auto Apply" : "Resume Auto Apply"
+                    autoApplyEnabled ? "Pause Auto Apply" : "Resume Auto Apply"
                   }
                   className='w-11 h-11 rounded-full bg-foreground/10 border border-foreground/15 flex items-center justify-center text-foreground hover:border-brand/40 hover:text-brand transition-all disabled:opacity-40 disabled:cursor-not-allowed'
                 >
-                  {autoApplyActive ? (
+                  {autoApplyEnabled ? (
                     <Pause className='w-4 h-4 fill-current' />
                   ) : (
                     <Play className='w-4 h-4 fill-current' />
@@ -926,7 +951,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                 </button>
                 <button
                   type='button'
-                  disabled={autoApplySaving || !liveProfile || !autoApplyActive}
+                  disabled={autoApplySaving || !liveProfile || !autoApplyEnabled}
                   onClick={() => setAutoApply(false)}
                   aria-label='Stop Auto Apply'
                   className='w-11 h-11 rounded-full bg-red-500/90 border border-red-500 flex items-center justify-center text-white hover:bg-red-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed'
@@ -937,19 +962,18 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
             </div>
 
             <div className='relative z-10 mt-4 pt-3 border-t border-foreground/10 flex items-center justify-center gap-1.5 text-[10px] font-medium'>
-              {autoApplyActive ? (
+              {runActive ? (
                 <>
                   <CheckCircle2 className='w-3.5 h-3.5 text-brand' />
                   <span className='text-foreground/70'>
-                    {autoSentToday > 0
-                      ? `${autoSentToday} sent today · AI Agent running smoothly`
-                      : "AI Agent running smoothly"}
+                    {queuedCount} in queue · AI Agent running smoothly
                   </span>
                 </>
               ) : (
                 <span className='text-foreground/40'>
-                  {autoSentToday > 0
-                    ? `${autoSentToday} sent today · Auto Apply is paused`
+                  {autoSentToday > 0 ? `${autoSentToday} sent today · ` : ""}
+                  {autoApplyEnabled
+                    ? "Idle — no jobs in the queue"
                     : "Auto Apply is paused"}
                 </span>
               )}

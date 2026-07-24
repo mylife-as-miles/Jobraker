@@ -61,7 +61,7 @@ const BrandedTooltip: React.FC<TooltipRenderProps> = ({
   return (
     <div
       {...tooltipProps}
-      className='relative max-w-sm w-[min(380px,calc(100vw-24px))] max-h-[calc(100dvh-120px-env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain rounded-2xl border border-brand/35 bg-gradient-to-br from-[#132313] via-background to-black p-4 sm:p-5 shadow-[0_4px_28px_-6px_rgba(0,0,0,0.7),0_0_0_1px_rgba(34,197,94,0.25)] text-white font-sans'
+      className='relative max-w-sm w-[min(380px,calc(100vw-24px))] max-h-[calc(100dvh-120px-env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain rounded-2xl border border-brand/35 bg-gradient-to-br from-[#132313] via-background to-black p-4 sm:p-5 shadow-[0_4px_28px_-6px_rgba(0,0,0,0.7),0_0_0_1px_rgba(22,163,74,0.25)] text-white font-sans'
     >
       <button
         {...closeProps}
@@ -150,7 +150,7 @@ const BrandedTooltip: React.FC<TooltipRenderProps> = ({
           <button
             {...primaryProps}
             disabled={waiting}
-            className='px-3 py-1.5 rounded-md text-xs font-semibold bg-brand text-black hover:brightness-110 shadow-[0_0_0_1px_rgba(34,197,94,0.4)] transition-all'
+            className='px-3 py-1.5 rounded-md text-xs font-semibold bg-brand text-black hover:brightness-110 shadow-[0_0_0_1px_rgba(22,163,74,0.4)] transition-all'
           >
             {waiting ? "Complete action…" : isLastStep ? "Finish" : "Next"}
           </button>
@@ -309,7 +309,7 @@ export const JoyrideAdapter: React.FC = () => {
       style.id = id;
       style.textContent = `
   .react-joyride__overlay { backdrop-filter: blur(0.4px); }
-    .react-joyride__spotlight { box-shadow: 0 0 0 2px #22c55e, 0 0 0 6px rgba(34,197,94,0.25), 0 0 0 10000px rgba(0,0,0,0.45) !important; border-radius: 12px !important; }
+    .react-joyride__spotlight { box-shadow: 0 0 0 2px #16a34a, 0 0 0 6px rgba(22,163,74,0.25), 0 0 0 10000px rgba(0,0,0,0.45) !important; border-radius: 12px !important; }
         .react-joyride__tooltip { background: transparent !important; box-shadow: none !important; position: relative !important; }
         @media (max-width: 639px) {
           .react-joyride__tooltip { max-width: calc(100vw - 24px) !important; }
@@ -318,8 +318,8 @@ export const JoyrideAdapter: React.FC = () => {
         .react-joyride__tooltip[data-placement="top"] { margin-bottom: 16px !important; }
         .react-joyride__tooltip[data-placement="left"] { margin-right: 16px !important; }
         .react-joyride__tooltip[data-placement="right"] { margin-left: 16px !important; }
-        .react-joyride__beacon { box-shadow: 0 0 0 0 rgba(34,197,94,0.65); animation: joyPulse 2.4s ease-in-out infinite; }
-        @keyframes joyPulse { 0%{ box-shadow:0 0 0 0 rgba(34,197,94,0.45);} 70%{ box-shadow:0 0 0 14px rgba(34,197,94,0);} 100%{ box-shadow:0 0 0 0 rgba(34,197,94,0);} }
+        .react-joyride__beacon { box-shadow: 0 0 0 0 rgba(22,163,74,0.65); animation: joyPulse 2.4s ease-in-out infinite; }
+        @keyframes joyPulse { 0%{ box-shadow:0 0 0 0 rgba(22,163,74,0.45);} 70%{ box-shadow:0 0 0 14px rgba(22,163,74,0);} 100%{ box-shadow:0 0 0 0 rgba(22,163,74,0);} }
       `;
       document.head.appendChild(style);
     }
@@ -352,15 +352,15 @@ export const JoyrideAdapter: React.FC = () => {
       styles={{
         options: {
           zIndex: 10040,
-          primaryColor: "#22c55e",
+          primaryColor: "#16a34a",
           textColor: "#ffffff",
           overlayColor: "rgba(0,0,0,0.55)",
           arrowColor: "#132313",
         },
-        buttonNext: { background: "#22c55e", color: "#000", fontWeight: 600 },
-        buttonBack: { color: "#22c55e" },
-        buttonSkip: { color: "#22c55e" },
-        beaconInner: { backgroundColor: "#22c55e" },
+        buttonNext: { background: "#16a34a", color: "#000", fontWeight: 600 },
+        buttonBack: { color: "#16a34a" },
+        buttonSkip: { color: "#16a34a" },
+        beaconInner: { backgroundColor: "#16a34a" },
       }}
       callback={handleCallback}
     />

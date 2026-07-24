@@ -12,8 +12,8 @@ export interface AppearanceSettings {
 // The brand accent changed from a neon lime to green. Existing users have the
 // old lime persisted as their accent_color; map any legacy lime value to the
 // new default green so their UI matches the rest of the app (self-heals on load).
-const LEGACY_ACCENTS = new Set(["#1dff00", "#52ff4b", "#7bffb2"]);
-const DEFAULT_ACCENT = "#22c55e";
+const LEGACY_ACCENTS = new Set(["#1dff00", "#52ff4b", "#7bffb2", "#22c55e"]);
+const DEFAULT_ACCENT = "#16a34a";
 
 function normalizeAccent(accent: string): string {
   return LEGACY_ACCENTS.has((accent || "").toLowerCase()) ? DEFAULT_ACCENT : accent;
@@ -128,7 +128,7 @@ export function useAppearanceSettings() {
       setSettings(s);
       applyAppearanceToDOM({
         theme: s?.theme || "dark",
-        accent_color: s?.accent_color || "#22c55e",
+        accent_color: s?.accent_color || "#16a34a",
         reduce_motion: s?.reduce_motion || false,
       });
     } catch (e: any) {
@@ -152,7 +152,7 @@ export function useAppearanceSettings() {
       const r = localStorage.getItem("appearance_reduce_motion") === "1";
       applyAppearanceToDOM({
         theme: t || "dark",
-        accent_color: a || "#22c55e",
+        accent_color: a || "#16a34a",
         reduce_motion: r,
       });
     } catch {}
@@ -216,7 +216,7 @@ export function useAppearanceSettings() {
         .insert({
           id: userId,
           theme: "dark",
-          accent_color: "#22c55e",
+          accent_color: "#16a34a",
           reduce_motion: false,
           ...payload,
         })

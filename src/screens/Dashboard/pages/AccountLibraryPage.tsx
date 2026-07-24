@@ -16,7 +16,7 @@ export const AccountLibraryPage = () => {
       badge: "AI Tailoring",
       color: "from-brand/20 to-transparent",
       borderColor: "group-hover:border-brand/50",
-      glowColor: "rgba(34,197,94, 0.15)",
+      glowColor: "rgba(22,163,74, 0.15)",
       cta: "Manage Resumes",
       path: "/dashboard/resume"
     },

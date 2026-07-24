@@ -28,9 +28,9 @@ const themeColors = [
   { name: "Green", value: "#0df233" },
   { name: "Blue", value: "#3b82f6" },
   { name: "Purple", value: "#a855f7" },
-  { name: "Signal", value: "#22c55e" },
+  { name: "Signal", value: "#16a34a" },
   { name: "Teal", value: "#2dd4bf" },
-  { name: "Neon", value: "#22c55e" },
+  { name: "Neon", value: "#16a34a" },
 ];
 
 const typographyOptions = [
@@ -133,6 +133,11 @@ export const TemplateDetailPreview = ({
         description:
           "A cream editorial layout with a giant rotated name running up the left edge, a HELLO greeting beside the photo with a circular text badge, a black contact bar, and bold uppercase section headings with hamburger-line accents and icon interests.",
       },
+      dian: {
+        name: "Dian",
+        description:
+          "A neo-brutalist CV: a paper-beige page with thick black strokes, squared corners, solid teal/magenta/yellow accent blocks and hard offset shadows, a window-chrome header, an accent contact bar, dot-bullet experience and education, black language bars, and a two-column skills grid.",
+      },
     } as Record<string, { name: string; description: string }>
   )[templateId] || {
     name: "Template",
@@ -202,7 +207,7 @@ export const TemplateDetailPreview = ({
                   className={cn(
                     "h-10 rounded border text-sm font-medium transition-all flex items-center justify-center",
                     fontFamily === font.family
-                      ? "bg-border border-brand text-foreground shadow-[0_0_10px_rgba(34,197,94,0.1)]"
+                      ? "bg-border border-brand text-foreground shadow-[0_0_10px_rgba(22,163,74,0.1)]"
                       : "bg-background border-transparent text-[#9cbaa1] hover:border-[#28392b] hover:text-foreground",
                   )}
                 >
@@ -216,7 +221,7 @@ export const TemplateDetailPreview = ({
           <div className='mt-auto pt-6 border-t border-[#28392b] space-y-3'>
             <button
               onClick={handleConfirm}
-              className='w-full flex items-center justify-center gap-2 h-12 bg-brand hover:bg-[#18d600] text-[#111812] rounded-lg font-bold text-base transition-all shadow-[0_0_20px_rgba(34,197,94,0.2)] active:scale-95'
+              className='w-full flex items-center justify-center gap-2 h-12 bg-brand hover:bg-[#18d600] text-[#111812] rounded-lg font-bold text-base transition-all shadow-[0_0_20px_rgba(22,163,74,0.2)] active:scale-95'
             >
               <Edit3 className='w-5 h-5' />
               Use This Template
@@ -305,7 +310,7 @@ export const TemplateDetailPreview = ({
                     border: 2px solid #0A0A0A;
                 }
                 .preview-scroll::-webkit-scrollbar-thumb:hover {
-                    background: #22c55e;
+                    background: #16a34a;
                 }
                 .bg-grid-pattern {
                     background-image: radial-gradient(circle, #28392b 1px, transparent 1px);

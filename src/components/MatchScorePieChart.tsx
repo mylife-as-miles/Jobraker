@@ -55,14 +55,14 @@ const chartConfig = {
 const getCategoryColor = (label: string) => {
   const normalized = label.toLowerCase();
   if (normalized.includes("role") || normalized.includes("focus"))
-    return "#22c55e";
+    return "#16a34a";
   if (normalized.includes("keyword") || normalized.includes("match"))
     return "#56c2ff";
   if (normalized.includes("goal") || normalized.includes("profile"))
-    return "#22c55e";
+    return "#16a34a";
   if (normalized.includes("location") || normalized.includes("alignment"))
-    return "#22c55e";
-  return "#22c55e";
+    return "#16a34a";
+  return "#16a34a";
 };
 
 export function MatchScorePieChart({

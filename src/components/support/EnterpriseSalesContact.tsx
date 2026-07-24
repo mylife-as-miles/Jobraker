@@ -264,7 +264,7 @@ export function EnterpriseSalesContact({
           </button>
 
           <div className='grid min-h-[680px] lg:grid-cols-[1.08fr_1fr]'>
-            <div className='flex flex-col justify-between border-b border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.12),transparent_28%),linear-gradient(180deg,#111315_0%,#0d0f12_100%)] p-8 lg:border-b-0 lg:border-r lg:p-10'>
+            <div className='flex flex-col justify-between border-b border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(22,163,74,0.12),transparent_28%),linear-gradient(180deg,#111315_0%,#0d0f12_100%)] p-8 lg:border-b-0 lg:border-r lg:p-10'>
               <div className='space-y-8'>
                 <div className='flex items-center gap-3'>
                   <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-sm font-bold text-black'>
