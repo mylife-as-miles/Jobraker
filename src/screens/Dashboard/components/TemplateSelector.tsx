@@ -50,6 +50,18 @@ const availableTemplates: Array<{
     description:
       "A retro pixel-desktop CV in monospace: a mint background with cream and tan OS-window panels, a floating tool palette, green dot-rated skills, and windowed experience, education and reference panels.",
   },
+  {
+    id: "rosca",
+    name: "Rosca",
+    description:
+      "A bold editorial fashion CV: a near-black page with green glows and a cream card, a dark header contact bar, a huge black name with a rotated green tag, folder-tab dark section cards, and gradient green skill pills.",
+  },
+  {
+    id: "laurent",
+    name: "Laurent",
+    description:
+      "A cream editorial layout with a giant rotated name running up the left edge, a HELLO greeting beside the photo, a black contact bar, and bold uppercase section headings with hamburger-line accents.",
+  },
 ];
 
 interface TemplateSelectorProps {

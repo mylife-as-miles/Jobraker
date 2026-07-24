@@ -54,6 +54,18 @@ const availableTemplates: Array<{
     description: "Retro pixel-desktop CV with mint OS-window panels.",
     category: "Tech",
   },
+  {
+    id: "rosca",
+    name: "Rosca",
+    description: "Bold editorial fashion CV with folder-tab dark cards.",
+    category: "Creative",
+  },
+  {
+    id: "laurent",
+    name: "Laurent",
+    description: "Editorial layout with a giant rotated vertical name.",
+    category: "Creative",
+  },
 ];
 
 interface TemplateGalleryProps {

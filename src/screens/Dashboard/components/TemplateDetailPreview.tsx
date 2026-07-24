@@ -123,6 +123,16 @@ export const TemplateDetailPreview = ({
         description:
           "A retro pixel-desktop CV in monospace: a mint background with cream and tan OS-window panels (title-bar chrome, a floating tool palette, a window scrollbar), green dot-rated skills, and windowed experience, education and reference panels.",
       },
+      rosca: {
+        name: "Rosca",
+        description:
+          "A bold editorial fashion layout: a near-black page with green glows and a cream card, a dark header contact bar with flower motifs, a huge black name with a rotated green tag, folder-tab dark section cards, outlined date and GPA pills, and gradient green skill pills.",
+      },
+      laurent: {
+        name: "Laurent",
+        description:
+          "A cream editorial layout with a giant rotated name running up the left edge, a HELLO greeting beside the photo with a circular text badge, a black contact bar, and bold uppercase section headings with hamburger-line accents and icon interests.",
+      },
     } as Record<string, { name: string; description: string }>
   )[templateId] || {
     name: "Template",

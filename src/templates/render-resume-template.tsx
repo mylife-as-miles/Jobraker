@@ -3,9 +3,11 @@ import { LayoutTemplate } from "lucide-react";
 import { AndersonTemplate } from "./anderson";
 import { ClarkeTemplate } from "./clarke";
 import { KumarTemplate } from "./kumar";
+import { LaurentTemplate } from "./laurent";
 import { LintonTemplate } from "./linton";
 import { MercadoTemplate } from "./mercado";
 import { MicahTemplate } from "./micah";
+import { RoscaTemplate } from "./rosca";
 import { SmithTemplate } from "./smith";
 import type { TemplateProps } from "./types";
 import type { ResumeData } from "@/store/artboard";
@@ -39,6 +41,8 @@ const TEMPLATE_REGISTRY: Record<string, TemplateComponent> = {
   clarke: ClarkeTemplate,
   mercado: MercadoTemplate,
   anderson: AndersonTemplate,
+  rosca: RoscaTemplate,
+  laurent: LaurentTemplate,
 };
 
 interface ResumeTemplateRendererProps extends TemplateProps {
