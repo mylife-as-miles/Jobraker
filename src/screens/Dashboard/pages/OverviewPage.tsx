@@ -117,7 +117,7 @@ const StatCard = ({
     <Card
       className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 transition-all duration-300 group hover:-translate-y-0.5 ${
         highlight
-          ? "text-slate-950 border-emerald-300/60 bg-[linear-gradient(135deg,#00FF87_0%,#00E676_35%,#00B894_70%,#007a48_100%)] shadow-[0_10px_30px_rgba(0,255,135,0.25)] hover:shadow-[0_15px_40px_rgba(0,255,135,0.4)]"
+          ? "text-slate-950 border-emerald-300/60 bg-[linear-gradient(135deg,#5cf29a_0%,#2fd968_38%,#17b85f_72%,#0a7a42_100%)] shadow-[0_10px_30px_rgba(47,217,104,0.25)] hover:shadow-[0_15px_40px_rgba(47,217,104,0.4)]"
           : "bg-card/50 backdrop-blur-xl border-foreground/10 hover:border-brand/30"
       }`}
     >
