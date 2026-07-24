@@ -3,15 +3,22 @@ import {
   type EditorialPortfolioProps,
 } from "./EditorialPortfolioTemplate";
 import { NavigatorPortfolioTemplate as NavigatorPortfolioTemplateClassic } from "./NavigatorPortfolioTemplateClassic";
-import { WodniackPortfolioTemplate } from "./WodniackPortfolioTemplate";
+import { WodniackPortfolioTemplate as KineticPortfolioTemplate } from "./WodniackPortfolioTemplate";
+import { OdysseyPortfolioTemplate } from "./OdysseyPortfolioTemplate";
 
 export function NavigatorPortfolioTemplate(props: EditorialPortfolioProps) {
-  if (props.site.design?.templateVariant === "editorial") {
+  const variant = props.site.design?.templateVariant;
+
+  if (variant === "editorial") {
     return <EditorialPortfolioTemplate {...props} />;
   }
 
-  if (props.site.design?.templateVariant === "wodniack") {
-    return <WodniackPortfolioTemplate {...props} />;
+  if (variant === "kinetic" || variant === "wodniack") {
+    return <KineticPortfolioTemplate {...props} />;
+  }
+
+  if (variant === "odyssey") {
+    return <OdysseyPortfolioTemplate {...props} />;
   }
 
   return <NavigatorPortfolioTemplateClassic {...props} />;
