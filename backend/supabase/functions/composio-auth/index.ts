@@ -131,6 +131,27 @@ Deno.serve(async (req) => {
       let response: Response | null = null;
 
       if (finalAuthConfigId) {
+        const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+        try {
+          const configRes = await fetch(`https://backend.composio.dev/api/v3/auth_configs/${finalAuthConfigId}`, {
+            headers: { "x-api-key": apiKey },
+          });
+          if (configRes.ok) {
+            const configData = await configRes.json();
+            const configToolkit = normalizeSlug(
+              configData?.toolkit?.slug || configData?.toolkit_slug || configData?.app_slug || configData?.appName || configData?.app?.slug
+            );
+            if (configToolkit && configToolkit !== slug) {
+              console.warn(`AuthConfig ${finalAuthConfigId} belongs to '${configToolkit}', not requested '${slug}'. Falling back to default ${slug} config...`);
+              finalAuthConfigId = null;
+            }
+          }
+        } catch (e) {
+          console.warn(`Could not verify AuthConfig ${finalAuthConfigId} toolkit:`, e);
+        }
+      }
+
+      if (finalAuthConfigId) {
         const res = await linkConnection(finalAuthConfigId);
         if (res.ok) {
           response = res;
