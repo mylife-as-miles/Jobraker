@@ -18,6 +18,12 @@ const availableTemplates: Array<{
     description: "Editorial cream layout with charcoal quote panel.",
     category: "Creative",
   },
+  {
+    id: "kumar",
+    name: "Kumar",
+    description: "Dark bento grid of rounded cards and chip badges.",
+    category: "Tech",
+  },
 ];
 
 interface TemplateGalleryProps {

@@ -14,6 +14,12 @@ const availableTemplates: Array<{
     description:
       "An editorial cream layout with a charcoal quote panel, dot-rated skills, and a bold display name.",
   },
+  {
+    id: "kumar",
+    name: "Kumar",
+    description:
+      "A dark bento-grid layout with rounded cards, chip badges, and side-by-side experience panels.",
+  },
 ];
 
 interface TemplateSelectorProps {

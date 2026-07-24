@@ -93,6 +93,11 @@ export const TemplateDetailPreview = ({
         description:
           "An editorial cream layout with an oversized display name, charcoal quote and contact panels, dot-rated skills, and a vertical RESUME wordmark.",
       },
+      kumar: {
+        name: "Kumar",
+        description:
+          "A dark bento-grid layout: rounded charcoal cards on near-black, an italic intro beside the photo, chip rows for interests, tools and languages, and side-by-side experience panels.",
+      },
     } as Record<string, { name: string; description: string }>
   )[templateId] || {
     name: "Template",
