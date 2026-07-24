@@ -3,7 +3,7 @@ import { createClient } from "../lib/supabaseClient";
 import type { Profile } from "./useProfileSettings";
 
 export type PublicProfileTheme = "atelier" | "navigator";
-export type PublicProfileTemplate = "atelier" | "navigator" | "editorial" | "kinetic" | "odyssey";
+export type PublicProfileTemplate = "hologram" | "navigator" | "editorial" | "kinetic";
 
 export interface PublicProfileSite {
   id: string;
@@ -23,25 +23,35 @@ export interface PublicProfileSite {
 }
 
 const DEFAULT_DESIGN = {
-  accent: "#e6c27a",
-  density: "editorial",
-  motion: "scroll-reveal",
-  texture: "paper-glow",
-  templateVariant: "atelier",
+  accent: "#63f3ff",
+  density: "immersive",
+  motion: "hologram-scan",
+  texture: "digital-noise",
+  templateVariant: "hologram",
 };
 
 const SUPPORTED_THEMES = new Set<PublicProfileTheme>(["atelier", "navigator"]);
 
 function normalizeSite(site: PublicProfileSite | null): PublicProfileSite | null {
   if (!site) return null;
-  const theme = SUPPORTED_THEMES.has(site.theme as PublicProfileTheme)
-    ? (site.theme as PublicProfileTheme)
-    : "atelier";
+  const rawDesign = site.design && typeof site.design === "object" ? site.design : {};
+  const legacyAtelier = site.theme === "atelier" || rawDesign.templateVariant === "atelier";
+  const retiredOdyssey = rawDesign.templateVariant === "odyssey";
+  const theme = legacyAtelier
+    ? "navigator"
+    : SUPPORTED_THEMES.has(site.theme as PublicProfileTheme)
+      ? (site.theme as PublicProfileTheme)
+      : "navigator";
+  const design = legacyAtelier
+    ? { ...rawDesign, accent: "#63f3ff", templateVariant: "hologram" }
+    : retiredOdyssey
+      ? { ...rawDesign, accent: "#1dff00", templateVariant: "navigator" }
+      : rawDesign;
 
   return {
     ...site,
     theme,
-    design: site.design && typeof site.design === "object" ? site.design : {},
+    design,
   };
 }
 
@@ -72,7 +82,7 @@ function buildDefaultSite(profile: Profile | null, userId: string) {
     user_id: userId,
     slug: buildFallbackSlug(profile, userId),
     is_public: false,
-    theme: "atelier" as PublicProfileTheme,
+    theme: "navigator" as PublicProfileTheme,
     headline: role,
     intro:
       profile?.about ||
