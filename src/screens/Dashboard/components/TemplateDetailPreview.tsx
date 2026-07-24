@@ -108,6 +108,11 @@ export const TemplateDetailPreview = ({
         description:
           "A coral-accented two-column layout: a rounded dark sidebar with the photo, skill and language bars, contact and reference blocks, alongside a white column with a split-color name and coral timeline sections for education, experience and achievements.",
       },
+      clarke: {
+        name: "Clarke",
+        description:
+          "A light bento layout with black-outlined rounded cards: a huge black name beside a lime-framed photo, an outlined headline pill, a lime profile card with contact details, white work-experience and education cards, a lime reference card, and a skills card of outlined pills.",
+      },
     } as Record<string, { name: string; description: string }>
   )[templateId] || {
     name: "Template",

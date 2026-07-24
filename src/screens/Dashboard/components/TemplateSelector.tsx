@@ -32,6 +32,12 @@ const availableTemplates: Array<{
     description:
       "A coral-accented two-column layout with a dark sidebar (photo, skill and language bars, contact, reference) and timeline sections.",
   },
+  {
+    id: "clarke",
+    name: "Clarke",
+    description:
+      "A light bento layout with black-outlined cards, a bold name, a lime-framed photo, lime profile and reference cards, and pill skills.",
+  },
 ];
 
 interface TemplateSelectorProps {

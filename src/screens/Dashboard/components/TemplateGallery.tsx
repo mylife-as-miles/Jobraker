@@ -36,6 +36,12 @@ const availableTemplates: Array<{
     description: "Coral two-column with dark sidebar and timelines.",
     category: "Professional",
   },
+  {
+    id: "clarke",
+    name: "Clarke",
+    description: "Lime bento cards with a bold name and pill skills.",
+    category: "Creative",
+  },
 ];
 
 interface TemplateGalleryProps {
