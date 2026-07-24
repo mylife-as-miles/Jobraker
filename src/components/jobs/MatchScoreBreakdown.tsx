@@ -17,7 +17,7 @@ export default function MatchScoreBreakdown({
             {matched.map((s, i) => (
               <span
                 key={i}
-                className='px-2 py-1 bg-[#16a34a20] text-brand text-xs rounded border border-brand/30'
+                className='px-2 py-1 bg-[#2fd96820] text-brand text-xs rounded border border-brand/30'
               >
                 {s}
               </span>

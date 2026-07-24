@@ -50,7 +50,7 @@ export const LiveDemo = () => {
 
   return (
     <div className='w-full max-w-lg mx-auto font-mono text-xs sm:text-sm'>
-      <div className='rounded-lg overflow-hidden border border-brand/30 bg-background/80 backdrop-blur-xl shadow-[0_0_30px_rgba(22,163,74,0.15)]'>
+      <div className='rounded-lg overflow-hidden border border-brand/30 bg-background/80 backdrop-blur-xl shadow-[0_0_30px_rgba(47,217,104,0.15)]'>
         {/* Terminal Header */}
         <div className='flex items-center justify-between px-4 py-2 bg-brand/10 border-b border-brand/20'>
           <div className='flex items-center space-x-2'>

@@ -2087,7 +2087,7 @@ export const SettingsPage = (): JSX.Element => {
                   <span
                     className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium ${
                       isGmailConnected
-                        ? "border-[#16a34a]/30 bg-[#16a34a]/10 text-[#16a34a]"
+                        ? "border-[#2fd968]/30 bg-[#2fd968]/10 text-[#2fd968]"
                         : "border-border/40 bg-muted/50 text-muted-foreground"
                     }`}
                   >
@@ -2098,7 +2098,7 @@ export const SettingsPage = (): JSX.Element => {
                     <Button
                       type='button'
                       variant='outline'
-                      className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#16a34a]/10 hover:border-[#16a34a]/30 transition-all'
+                      className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#2fd968]/10 hover:border-[#2fd968]/30 transition-all'
                       onClick={handleConnectGmail}
                       disabled={
                         loadingEmailIntegrationAccess ||
@@ -2112,7 +2112,7 @@ export const SettingsPage = (): JSX.Element => {
                     <Button
                       type='button'
                       variant='outline'
-                      className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#16a34a]/10 hover:border-[#16a34a]/30 transition-all'
+                      className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-[#2fd968]/10 hover:border-[#2fd968]/30 transition-all'
                       onClick={() => navigate("/dashboard/notifications")}
                     >
                       <Bell className='w-4 h-4 mr-2' />
@@ -2151,7 +2151,7 @@ export const SettingsPage = (): JSX.Element => {
                 ].map((setting) => (
                   <div
                     key={setting.key}
-                    className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-[#16a34a]/30 hover:bg-muted/50 transition-all'
+                    className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-[#2fd968]/30 hover:bg-muted/50 transition-all'
                   >
                     <div className='flex-1 pr-4'>
                       <h4 className='text-sm font-medium text-foreground'>
@@ -2171,7 +2171,7 @@ export const SettingsPage = (): JSX.Element => {
                       disabled={notifLoading || !hasGmailIntegrationAccess}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                         ((notif as any)?.[setting.key] ?? setting.fallback)
-                          ? "bg-[#16a34a]"
+                          ? "bg-[#2fd968]"
                           : "bg-muted"
                       }`}
                     >
@@ -3463,12 +3463,12 @@ export const SettingsPage = (): JSX.Element => {
               </h3>
               <div className='flex flex-wrap gap-4'>
                 {[
-                  "#16a34a", // Signal Green
-                  "#16a34a", // Neon Green
+                  "#2fd968", // Signal Green
+                  "#2fd968", // Neon Green
                   "#3b82f6", // Blue
                   "#8b5cf6", // Purple
-                  "#16a34a", // Neon Green
-                  "#16a34a", // Action Green
+                  "#2fd968", // Neon Green
+                  "#2fd968", // Action Green
                 ].map((color) => (
                   <button
                     key={color}
@@ -3486,7 +3486,7 @@ export const SettingsPage = (): JSX.Element => {
                         toastError("Failed to set accent", e.message);
                       }
                     }}
-                    className={`w-12 h-12 rounded-full cursor-pointer border-2 transition-all hover:scale-110 shadow-lg ${(appearanceSettings?.accent_color || "#16a34a").toLowerCase() === color.toLowerCase()
+                    className={`w-12 h-12 rounded-full cursor-pointer border-2 transition-all hover:scale-110 shadow-lg ${(appearanceSettings?.accent_color || "#2fd968").toLowerCase() === color.toLowerCase()
                       ? "border-white ring-4 ring-white/20 scale-110"
                       : "border-background/50 hover:border-foreground/50"
                       }`}
@@ -4451,7 +4451,7 @@ export const SettingsPage = (): JSX.Element => {
                       }}
                       className={`cursor-pointer p-4 rounded-xl border transition-all flex flex-col gap-4 group ${
                         isEnabled
-                          ? "bg-brand/5 border-brand/30 shadow-[0_0_15px_rgba(22,163,74,0.05)]"
+                          ? "bg-brand/5 border-brand/30 shadow-[0_0_15px_rgba(47,217,104,0.05)]"
                           : "bg-background/50 border-border/40 hover:border-border/60 hover:bg-muted/50"
                       }`}
                     >
@@ -4583,7 +4583,7 @@ export const SettingsPage = (): JSX.Element => {
                         </div>
                         <button
                           onClick={() => handleToggleDefaultDomain(s.domain)}
-                          className={`relative w-14 h-8 rounded-full transition-all duration-300 ${isEnabled ? "bg-brand shadow-[0_0_15px_rgba(22,163,74,0.3)]" : "bg-muted/30"}`}
+                          className={`relative w-14 h-8 rounded-full transition-all duration-300 ${isEnabled ? "bg-brand shadow-[0_0_15px_rgba(47,217,104,0.3)]" : "bg-muted/30"}`}
                         >
                           <div
                             className={`absolute top-1 left-1 w-6 h-6 rounded-full bg-black shadow-sm transition-transform duration-300 ${isEnabled ? "translate-x-6" : "translate-x-0"}`}
@@ -5023,7 +5023,7 @@ export const SettingsPage = (): JSX.Element => {
                       key={plan.id}
                       className={`group relative p-5 rounded-xl border transition-all hover:shadow-lg hover:shadow-brand/5 hover:-translate-y-0.5 ${
                         isCurrentPlan
-                          ? "border-brand/40 bg-brand/5 shadow-[0_0_20px_rgba(22,163,74,0.1)]"
+                          ? "border-brand/40 bg-brand/5 shadow-[0_0_20px_rgba(47,217,104,0.1)]"
                           : "border-border/40 bg-background/50 hover:border-brand/30 hover:bg-muted/50"
                       }`}
                     >
@@ -5533,7 +5533,7 @@ export const SettingsPage = (): JSX.Element => {
                   key={type.value}
                   className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors border ${
                     deletionRequestType === type.value
-                      ? "bg-brand/5 border-brand/30 shadow-[0_0_15px_rgba(22,163,74,0.05)]"
+                      ? "bg-brand/5 border-brand/30 shadow-[0_0_15px_rgba(47,217,104,0.05)]"
                       : "bg-card border-border/40 hover:bg-muted/50 hover:border-border/60"
                   }`}
                 >

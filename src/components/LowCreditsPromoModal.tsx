@@ -269,7 +269,7 @@ export function LowCreditsPromoModal({
               onUpgrade();
               handleClose();
             }}
-            className='h-12 w-full rounded-xl bg-brand text-sm font-bold text-black shadow-[0_0_24px_rgba(22,163,74,0.35)] transition-all hover:bg-brand hover:brightness-110 hover:shadow-[0_0_32px_rgba(22,163,74,0.45)] sm:text-base'
+            className='h-12 w-full rounded-xl bg-brand text-sm font-bold text-black shadow-[0_0_24px_rgba(47,217,104,0.35)] transition-all hover:bg-brand hover:brightness-110 hover:shadow-[0_0_32px_rgba(47,217,104,0.45)] sm:text-base'
           >
             Keep my search moving
           </Button>

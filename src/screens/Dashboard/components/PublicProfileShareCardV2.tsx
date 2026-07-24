@@ -9,8 +9,8 @@ import { hasSubscriptionAccess } from "../../../lib/subscriptionAccess";
 
 type Option = { id: PublicProfileTemplate; theme: PublicProfileTheme; label: string; note: string; accent: string; icon: typeof Palette };
 const OPTIONS: Option[] = [
-  { id: "hologram", theme: "navigator", label: "Hologram", note: "cyan lab, projected HUD, digital avatar", accent: "#63f3ff", icon: MonitorCog },
-  { id: "navigator", theme: "navigator", label: "Navigator", note: "story-led, lively, JobRaker green", accent: "#1dff00", icon: Compass },
+  { id: "atelier", theme: "atelier", label: "Atelier", note: "editorial, warm, refined", accent: "#e6c27a", icon: Palette },
+  { id: "navigator", theme: "navigator", label: "Navigator", note: "story-led, lively, JobRaker green", accent: "#2fd968", icon: Compass },
   { id: "editorial", theme: "navigator", label: "Editorial", note: "magazine cover, warm paper, personal", accent: "#b4532f", icon: Newspaper },
   { id: "kinetic", theme: "navigator", label: "Kinetic", note: "reactive waves, giant type, creative motion", accent: "#f40c3f", icon: Waves },
 ];
@@ -83,7 +83,7 @@ export function PublicProfileShareCard({ profile }: { profile: Profile | null })
   return (
     <Card className="product-section-card overflow-hidden p-0">
       <div className="relative p-5">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(29,255,0,0.16),transparent_32%),linear-gradient(145deg,rgba(255,255,255,0.05),transparent)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(47,217,104,0.16),transparent_32%),linear-gradient(145deg,rgba(255,255,255,0.05),transparent)]" />
         <div className="relative">
           <div className="mb-4 flex items-start justify-between gap-3">
             <div><div className="mb-2 inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-brand"><Globe2 className="h-3.5 w-3.5" />Public portfolio</div><h3 className="text-base font-semibold text-foreground">Recruiter-ready profile</h3><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Publish a polished profile link for recruiters, hiring managers, and portfolio requests.</p></div>

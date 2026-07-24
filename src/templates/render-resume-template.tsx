@@ -47,6 +47,41 @@ const TEMPLATE_REGISTRY: Record<string, TemplateComponent> = {
   dian: DianTemplate,
 };
 
+// Resumes created before this batch (or by AI) may carry an old / deleted template id.
+// Map known legacy ids to equivalent templates, and fall back to "linton" if unmapped.
+const LEGACY_TEMPLATE_MAP: Record<string, string> = {
+  azurill: "linton",
+  onyx: "kumar",
+  pikachu: "micah",
+  charmander: "smith",
+  squirtle: "clarke",
+  bulbasaur: "mercado",
+  eevee: "anderson",
+  snorlax: "rosca",
+  mewtwo: "laurent",
+  classic: "linton",
+  modern: "kumar",
+  minimal: "micah",
+  professional: "smith",
+  creative: "dian",
+  executive: "laurent",
+  tech: "mercado",
+  default: "linton",
+};
+
+const FALLBACK_TEMPLATE_ID = "linton";
+
+export function getTemplateComponent(templateId?: string | null): TemplateComponent {
+  if (!templateId) return TEMPLATE_REGISTRY[FALLBACK_TEMPLATE_ID];
+  const normalized = String(templateId).toLowerCase().trim();
+  const aliased = LEGACY_TEMPLATE_MAP[normalized] || normalized;
+  return (
+    TEMPLATE_REGISTRY[aliased] ||
+    TEMPLATE_REGISTRY[normalized] ||
+    TEMPLATE_REGISTRY[FALLBACK_TEMPLATE_ID]
+  );
+}
+
 interface ResumeTemplateRendererProps extends TemplateProps {
   templateId: string;
   resumeDataOverride?: ResumeData;
@@ -59,17 +94,7 @@ export function ResumeTemplateRenderer({
   metadataOverride,
   resumeDataOverride,
 }: ResumeTemplateRendererProps) {
-  const Template = TEMPLATE_REGISTRY[templateId];
-
-  const templateNode = Template ? (
-    <Template
-      pageIndex={pageIndex}
-      pageLayout={pageLayout}
-      metadataOverride={metadataOverride}
-    />
-  ) : (
-    <ResumeTemplatePlaceholder />
-  );
+  const Template = getTemplateComponent(templateId);
 
   return (
     <ResumeTemplateDataProvider
@@ -79,7 +104,13 @@ export function ResumeTemplateRenderer({
           : null
       }
     >
-      <ResumeTemplateShell>{templateNode}</ResumeTemplateShell>
+      <ResumeTemplateShell>
+        <Template
+          pageIndex={pageIndex}
+          pageLayout={pageLayout}
+          metadataOverride={metadataOverride}
+        />
+      </ResumeTemplateShell>
     </ResumeTemplateDataProvider>
   );
 }

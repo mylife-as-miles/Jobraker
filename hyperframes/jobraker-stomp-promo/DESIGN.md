@@ -6,7 +6,7 @@ JobRaker launches as a blunt, kinetic stomp-typography promo: oversized type hit
 
 - `#050805` Background: near-black with a slight green cast.
 - `#F2FFF0` Foreground: bright, high-contrast text.
-- `#16a34a` Brand accent: JobRaker acid green from the app theme.
+- `#2fd968` Brand accent: JobRaker acid green from the app theme.
 - `#7CFF72` Secondary glow: softer green for depth and highlights.
 - `#FFB020` Impact accent: sparingly used for warning, launch, and beat-hit moments.
 - `#172217` Surface: dark panels and UI mock surfaces.

@@ -584,7 +584,7 @@ function buildDefaultPublicProfileSite(userId: string, context: Record<string, u
     cta_label: "Start a conversation",
     links: [],
     design: {
-      accent: "#16a34a",
+      accent: "#2fd968",
       density: "cinematic",
       motion: "scroll-scrub",
       texture: "shader-glass",

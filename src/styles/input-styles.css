@@ -47,20 +47,20 @@
 
 /* Focus state */
 .styled-input:focus {
-  border-color: #16a34a;
+  border-color: #2fd968;
   background-color: rgba(245, 245, 245, 1);
-  box-shadow: 0 0 0 2px rgba(22,163,74, 0.2);
+  box-shadow: 0 0 0 2px rgba(47,217,104, 0.2);
 }
 
 /* Error state */
 .styled-input.error {
-  border-color: #16a34a;
-  background-color: rgba(22,163,74, 0.9);
+  border-color: #2fd968;
+  background-color: rgba(47,217,104, 0.9);
 }
 
 .styled-input.error:focus {
-  border-color: #16a34a;
-  box-shadow: 0 0 0 2px rgba(22,163,74, 0.2);
+  border-color: #2fd968;
+  box-shadow: 0 0 0 2px rgba(47,217,104, 0.2);
 }
 
 /* Container for input groups */
@@ -105,14 +105,14 @@
 }
 
 .styled-input.dark:focus {
-  border-color: #16a34a;
+  border-color: #2fd968;
   background-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 0 0 2px rgba(22,163,74, 0.3);
+  box-shadow: 0 0 0 2px rgba(47,217,104, 0.3);
 }
 
 /* Accessibility improvements */
 .styled-input:focus-visible {
-  outline: 2px solid #16a34a;
+  outline: 2px solid #2fd968;
   outline-offset: 2px;
 }
 
@@ -124,8 +124,8 @@
   }
   
   .styled-input:focus {
-    border-color: #16a34a;
-    box-shadow: 0 0 0 3px rgba(22,163,74, 0.5);
+    border-color: #2fd968;
+    box-shadow: 0 0 0 3px rgba(47,217,104, 0.5);
   }
 }
 

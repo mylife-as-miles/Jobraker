@@ -1532,7 +1532,7 @@ function PlanFormDialog({
               <motion.button
                 whileHover={{
                   scale: 1.02,
-                  boxShadow: "0 0 30px rgba(22,163,74, 0.3)",
+                  boxShadow: "0 0 30px rgba(47,217,104, 0.3)",
                 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onSave}
@@ -1639,7 +1639,7 @@ function DeleteConfirmDialog({
               <motion.button
                 whileHover={{
                   scale: 1.02,
-                  boxShadow: "0 0 30px rgba(22,163,74, 0.4)",
+                  boxShadow: "0 0 30px rgba(47,217,104, 0.4)",
                 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onConfirm}
