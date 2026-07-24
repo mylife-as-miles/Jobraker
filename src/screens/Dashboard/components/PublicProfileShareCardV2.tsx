@@ -1,4 +1,4 @@
-import { Compass, Copy, Crown, ExternalLink, Eye, Globe2, MonitorCog, Newspaper, Palette, Sparkles, Waves } from "lucide-react";
+import { Compass, Copy, Crown, ExternalLink, Eye, Globe2, MonitorCog, Newspaper, Sparkles, Waves } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { useToast } from "../../../components/ui/toast";
@@ -7,9 +7,9 @@ import { usePublicProfileSite, type PublicProfileTemplate, type PublicProfileThe
 import { useSubscriptionTier } from "../../../hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "../../../lib/subscriptionAccess";
 
-type Option = { id: PublicProfileTemplate; theme: PublicProfileTheme; label: string; note: string; accent: string; icon: typeof Palette };
+type Option = { id: PublicProfileTemplate; theme: PublicProfileTheme; label: string; note: string; accent: string; icon: typeof MonitorCog };
 const OPTIONS: Option[] = [
-  { id: "atelier", theme: "atelier", label: "Atelier", note: "editorial, warm, refined", accent: "#e6c27a", icon: Palette },
+  { id: "hologram", theme: "navigator", label: "Hologram", note: "cyan lab, projected HUD, digital avatar", accent: "#63f3ff", icon: MonitorCog },
   { id: "navigator", theme: "navigator", label: "Navigator", note: "story-led, lively, JobRaker green", accent: "#2fd968", icon: Compass },
   { id: "editorial", theme: "navigator", label: "Editorial", note: "magazine cover, warm paper, personal", accent: "#b4532f", icon: Newspaper },
   { id: "kinetic", theme: "navigator", label: "Kinetic", note: "reactive waves, giant type, creative motion", accent: "#f40c3f", icon: Waves },
