@@ -46,7 +46,12 @@ export const CoverLetterHomePage = () => {
   const handleOpenSupportChat = () => {
     sessionStorage.setItem("jobraker:cover-letter-guidance-dismissed", "true");
     setShowGuidance(false);
-    window.dispatchEvent(new CustomEvent("jobraker:open-support"));
+    navigate("/dashboard/chat", {
+      state: {
+        autoPrompt:
+          "Help me write a strong cover letter using my saved profile. Review what you know about me, suggest how to tailor it, and ask me for the target job description if you need it.",
+      },
+    });
   };
 
   const handleDismissGuidance = () => {

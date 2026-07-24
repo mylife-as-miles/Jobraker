@@ -52,7 +52,7 @@ import {
   AreaChart,
   Area
 } from "recharts";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { createClient } from "../../../lib/supabaseClient";
 import {
   cacheChatAttachments,
@@ -1799,6 +1799,7 @@ function UserChatAttachment({
 export const ChatPage = () => {
   const { error: toastError } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   // UI state
   const [text, setText] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -2625,6 +2626,34 @@ export const ChatPage = () => {
     setText("");
     setCaretPosition(0);
   };
+
+  // Auto-invoke: when navigated here with an `autoPrompt` (e.g. from the
+  // resume/cover-letter "Open Chat" modal), submit it once so the assistant
+  // immediately runs the relevant tool (analyze_resume, etc.) on the user's
+  // real data instead of dropping them into a blank chat.
+  const handleSubmitRef = useRef(handleSubmit);
+  handleSubmitRef.current = handleSubmit;
+  const autoInvokeFiredRef = useRef(false);
+  useEffect(() => {
+    const state = location.state as { autoPrompt?: string } | null;
+    const autoPrompt = state?.autoPrompt?.trim();
+    if (!autoPrompt || autoInvokeFiredRef.current) return;
+    // Wait until subscription tier is resolved; only fire for entitled users
+    // and never on top of an in-flight request.
+    if (loadingTier || !hasChatAccess || isChatBusy) return;
+
+    autoInvokeFiredRef.current = true;
+    // Clear the navigation state so a refresh or back-nav doesn't re-fire it.
+    navigate(location.pathname, { replace: true, state: null });
+    void handleSubmitRef.current({ text: autoPrompt });
+  }, [
+    location.state,
+    location.pathname,
+    loadingTier,
+    hasChatAccess,
+    isChatBusy,
+    navigate,
+  ]);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);

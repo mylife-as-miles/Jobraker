@@ -53,7 +53,12 @@ export const ResumeHomePage = () => {
   const handleOpenSupportChat = () => {
     sessionStorage.setItem("jobraker:resume-guidance-dismissed", "true");
     setShowGuidance(false);
-    window.dispatchEvent(new CustomEvent("jobraker:open-support"));
+    navigate("/dashboard/chat", {
+      state: {
+        autoPrompt:
+          "Please analyze my current resume for ATS compatibility, layout, and impact, then give me specific, prioritized improvements I can apply.",
+      },
+    });
   };
 
   const handleDismissGuidance = () => {
