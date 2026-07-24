@@ -103,6 +103,11 @@ export const TemplateDetailPreview = ({
         description:
           "A charcoal-and-gold layout: a top contact bar, an oversized stacked name beside an arch-topped photo, white experience and achievement cards floating on the dark ground, and dark education and skill-bar sections.",
       },
+      smith: {
+        name: "Smith",
+        description:
+          "A coral-accented two-column layout: a rounded dark sidebar with the photo, skill and language bars, contact and reference blocks, alongside a white column with a split-color name and coral timeline sections for education, experience and achievements.",
+      },
     } as Record<string, { name: string; description: string }>
   )[templateId] || {
     name: "Template",

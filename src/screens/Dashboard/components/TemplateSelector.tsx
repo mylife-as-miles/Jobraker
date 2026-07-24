@@ -26,6 +26,12 @@ const availableTemplates: Array<{
     description:
       "A charcoal layout with gold accents, a stacked name, arch photo, white experience/achievement cards, and skill bars.",
   },
+  {
+    id: "smith",
+    name: "Smith",
+    description:
+      "A coral-accented two-column layout with a dark sidebar (photo, skill and language bars, contact, reference) and timeline sections.",
+  },
 ];
 
 interface TemplateSelectorProps {

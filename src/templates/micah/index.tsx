@@ -73,19 +73,44 @@ const getItemDate = (item: ResumeSectionItem) =>
   item.period ||
   [item.startDate, item.endDate].filter(Boolean).join(" - ");
 
-export function MicahTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
-  const defaultLayout = {
-    fullWidth: false,
-    main: ["experience", "skills"],
-    sidebar: ["education", "awards"],
-  };
+export function MicahTemplate({ pageIndex = 0 }: TemplateProps) {
   const resumeData = useResumeTemplateData();
-  const storeLayout = resumeData.metadata.layout.pages[pageIndex];
-  const layout = pageLayout || storeLayout || defaultLayout;
+  const sections = resumeData.sections;
   const isFirstPage = pageIndex === 0;
 
-  const leftSections = (layout.main || []).filter((id) => id !== "summary");
-  const rightSections = (layout.sidebar || []).filter((id) => id !== "summary");
+  // Placement is by section role, not the layout arrays: the builder renders
+  // each template as a single page, so a fixed arrangement keeps the signature
+  // look regardless of the resume's main/sidebar configuration.
+  const isVisible = (id: string) => {
+    const section = sections[id];
+    return Boolean(
+      section && !section.hidden && section.items.some((item) => !item.hidden),
+    );
+  };
+  const placed = new Set<string>(["summary"]);
+  const claim = (id: string) => {
+    placed.add(id);
+    return isVisible(id);
+  };
+
+  // Left (narrow): experience white card, then skill/language bars.
+  const leftSections: string[] = [];
+  if (claim("experience")) leftSections.push("experience");
+  for (const id of ["skills", "languages"]) {
+    if (claim(id)) leftSections.push(id);
+  }
+
+  // Right (wide): education, any extras, then the achievement card last.
+  const rightSections: string[] = [];
+  if (claim("education")) rightSections.push("education");
+  const showAwards = claim("awards");
+  for (const id of Object.keys(sections)) {
+    if (!placed.has(id) && isVisible(id)) {
+      placed.add(id);
+      rightSections.push(id);
+    }
+  }
+  if (showAwards) rightSections.push("awards");
 
   return (
     <div

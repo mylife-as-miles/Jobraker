@@ -53,29 +53,46 @@ const getItemDate = (item: ResumeSectionItem) =>
   item.period ||
   [item.startDate, item.endDate].filter(Boolean).join(" - ");
 
-export function LintonTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
-  const defaultLayout = {
-    fullWidth: false,
-    main: ["awards", "education", "experience"],
-    sidebar: ["skills", "languages", "interests"],
-  };
+export function LintonTemplate({ pageIndex = 0 }: TemplateProps) {
   const resumeData = useResumeTemplateData();
-  const storeLayout = resumeData.metadata.layout.pages[pageIndex];
-  const layout = pageLayout || storeLayout || defaultLayout;
+  const sections = resumeData.sections;
   const isFirstPage = pageIndex === 0;
 
-  // Summary and skills have dedicated slots in this design.
-  const mainSections = (layout.main || []).filter((id) => id !== "summary");
-  const sidebarSections = (layout.sidebar || []).filter(
-    (id) => id !== "summary",
-  );
+  // Placement is by section role, not the layout arrays: the builder renders
+  // each template as a single page, so a fixed arrangement keeps the signature
+  // look regardless of the resume's main/sidebar configuration.
+  const isVisible = (id: string) => {
+    const section = sections[id];
+    return Boolean(
+      section && !section.hidden && section.items.some((item) => !item.hidden),
+    );
+  };
+  const placed = new Set<string>(["summary"]);
+  const claim = (id: string) => {
+    placed.add(id);
+    return isVisible(id);
+  };
 
-  // Right side renders as two editorial columns: the last main section
-  // (typically experience) gets its own column, the rest stack in the first.
-  const columnB =
-    mainSections.length > 1 ? mainSections.slice(-1) : ([] as string[]);
-  const columnA =
-    mainSections.length > 1 ? mainSections.slice(0, -1) : mainSections;
+  // Left rail: skill/language/interest lists with level dots.
+  const sidebarSections: string[] = [];
+  for (const id of ["skills", "languages", "interests"]) {
+    if (claim(id)) sidebarSections.push(id);
+  }
+
+  // Right side is two editorial columns: Experience gets its own (columnB),
+  // Award + Education + any extras stack in columnA.
+  const columnB: string[] = [];
+  if (claim("experience")) columnB.push("experience");
+
+  const columnA: string[] = [];
+  if (claim("awards")) columnA.push("awards");
+  if (claim("education")) columnA.push("education");
+  for (const id of Object.keys(sections)) {
+    if (!placed.has(id) && isVisible(id)) {
+      placed.add(id);
+      columnA.push(id);
+    }
+  }
 
   return (
     <div

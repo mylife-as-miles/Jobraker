@@ -30,6 +30,12 @@ const availableTemplates: Array<{
     description: "Charcoal & gold with white cards and skill bars.",
     category: "Creative",
   },
+  {
+    id: "smith",
+    name: "Smith",
+    description: "Coral two-column with dark sidebar and timelines.",
+    category: "Professional",
+  },
 ];
 
 interface TemplateGalleryProps {

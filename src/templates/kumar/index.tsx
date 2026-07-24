@@ -151,37 +151,46 @@ function LabelRowCard({
   );
 }
 
-export function KumarTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
-  const defaultLayout = {
-    fullWidth: false,
-    main: ["experience", "education"],
-    sidebar: ["interests", "skills", "languages"],
-  };
+export function KumarTemplate({ pageIndex = 0 }: TemplateProps) {
   const resumeData = useResumeTemplateData();
-  const storeLayout = resumeData.metadata.layout.pages[pageIndex];
-  const layout = pageLayout || storeLayout || defaultLayout;
   const isFirstPage = pageIndex === 0;
   const { basics, sections } = resumeData;
 
-  const mainSections = (layout.main || []).filter((id) => id !== "summary");
-  const chipSections = (layout.sidebar || []).filter((id) => id !== "summary");
-
-  // Interests sits beside the intro in the header; the rest become chip rows.
-  const headerChipSection = isFirstPage
-    ? chipSections.find((id) => id === "interests")
-    : undefined;
-  const bodyChipSections = chipSections.filter(
-    (id) => id !== headerChipSection,
-  );
-
-  const experienceIds = mainSections.filter((id) => id === "experience");
-  const stackedIds = mainSections.filter((id) => id !== "experience");
-
-  const experienceItems = experienceIds.flatMap((id) => {
+  // Placement is by section role, not the layout arrays: the builder renders
+  // each template as a single page, so a fixed arrangement keeps the signature
+  // look regardless of the resume's main/sidebar configuration.
+  const isVisible = (id: string) => {
     const section = sections[id];
-    if (!section || section.hidden) return [];
-    return section.items.filter((item) => !item.hidden);
-  });
+    return Boolean(
+      section && !section.hidden && section.items.some((item) => !item.hidden),
+    );
+  };
+  const placed = new Set<string>(["summary", "interests", "experience"]);
+
+  // Interests sits beside the intro; skills/languages become chip rows below.
+  const headerChipSection =
+    isFirstPage && isVisible("interests") ? "interests" : undefined;
+
+  const bodyChipSections: string[] = [];
+  for (const id of ["skills", "languages"]) {
+    placed.add(id);
+    if (isVisible(id)) bodyChipSections.push(id);
+  }
+
+  const experienceItems = isVisible("experience")
+    ? sections["experience"].items.filter((item) => !item.hidden)
+    : [];
+
+  // Education and any remaining sections stack in the right column.
+  const stackedIds: string[] = [];
+  if (isVisible("education")) stackedIds.push("education");
+  placed.add("education");
+  for (const id of Object.keys(sections)) {
+    if (!placed.has(id) && isVisible(id)) {
+      placed.add(id);
+      stackedIds.push(id);
+    }
+  }
 
   const hasProfiles =
     (basics.profiles || []).length > 0 || Boolean(basics.website?.url);
