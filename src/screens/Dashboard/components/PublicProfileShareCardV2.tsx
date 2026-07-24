@@ -1,4 +1,4 @@
-import { Compass, Copy, Crown, ExternalLink, Eye, Globe2, Newspaper, Palette, Rocket, Sparkles, Waves } from "lucide-react";
+import { Compass, Copy, Crown, ExternalLink, Eye, Globe2, MonitorCog, Newspaper, Palette, Sparkles, Waves } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { useToast } from "../../../components/ui/toast";
@@ -13,15 +13,13 @@ const OPTIONS: Option[] = [
   { id: "navigator", theme: "navigator", label: "Navigator", note: "story-led, lively, JobRaker green", accent: "#2fd968", icon: Compass },
   { id: "editorial", theme: "navigator", label: "Editorial", note: "magazine cover, warm paper, personal", accent: "#b4532f", icon: Newspaper },
   { id: "kinetic", theme: "navigator", label: "Kinetic", note: "reactive waves, giant type, creative motion", accent: "#f40c3f", icon: Waves },
-  { id: "odyssey", theme: "navigator", label: "Odyssey", note: "rocket voyage, cosmic HUD, mission archive", accent: "#4cc9f0", icon: Rocket },
 ];
 
 function activeTemplate(theme?: string, design?: Record<string, unknown>): PublicProfileTemplate {
-  if (theme !== "navigator") return "atelier";
   const variant = design?.templateVariant;
+  if (theme !== "navigator" || variant === "atelier" || variant === "hologram") return "hologram";
   if (variant === "editorial") return "editorial";
   if (variant === "kinetic" || variant === "wodniack") return "kinetic";
-  if (variant === "odyssey") return "odyssey";
   return "navigator";
 }
 
@@ -92,7 +90,7 @@ export function PublicProfileShareCard({ profile }: { profile: Profile | null })
             <div className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${published ? "border-brand/40 bg-brand/10 text-brand" : "border-foreground/10 bg-foreground/5 text-muted-foreground"}`}>{published ? "Live" : "Draft"}</div>
           </div>
 
-          <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {OPTIONS.map((option) => { const Icon = option.icon; const active = selected === option.id; return <button key={option.id} type="button" disabled={saving} onClick={() => void choose(option)} className={`rounded-xl border p-3 text-left transition-all active:scale-[0.98] ${active ? "border-brand/40 bg-brand/10 text-foreground" : "border-foreground/10 bg-background/50 text-muted-foreground hover:border-brand/25 hover:text-foreground"}`}><div className="flex items-center gap-2 text-xs font-semibold"><Icon className="h-3.5 w-3.5 text-brand" />{option.label}</div><p className="mt-1 text-[10px] leading-relaxed opacity-75">{option.note}</p></button>; })}
           </div>
 
@@ -103,7 +101,7 @@ export function PublicProfileShareCard({ profile }: { profile: Profile | null })
             <Button type="button" size="sm" variant="outline" disabled={saving || !canHide} onClick={() => void toggleWatermark()} className="shrink-0 border-foreground/10">{watermark ? "Hide" : "Show"}</Button>
           </div>
 
-          <div className="flex flex-wrap gap-2"><Button type="button" size="sm" disabled={saving} onClick={togglePublish} className="bg-brand text-black hover:bg-brand/90"><Sparkles className="mr-2 h-4 w-4" />{published ? "Unpublish" : "Publish"}</Button><Button type="button" size="sm" variant="outline" disabled={saving} onClick={copy} className="border-foreground/10"><Copy className="mr-2 h-4 w-4" />Copy</Button><Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void preview()} className="border-foreground/10"><Eye className="mr-2 h-4 w-4" />{published ? "Preview" : "Draft Preview"}<ExternalLink className="ml-2 h-3.5 w-3.5" /></Button></div>
+          <div className="flex flex-wrap gap-2"><Button type="button" size="sm" disabled={saving} onClick={togglePublish} className="bg-brand text-black hover:bg-brand/90"><Sparkles className="mr-2 h-4 w-4" />{published ? "Unpublish" : "Publish"}</Button><Button type="button" size="sm" variant="outline" disabled={saving} onClick={copy} className="border-foreground/10"><Copy className="mr-2 h-4 w-4" />Copy</Button><Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void preview()} className="border-foreground/10"><Eye className="mr-2 h-3.5 w-3.5" />{published ? "Preview" : "Draft Preview"}<ExternalLink className="ml-2 h-3.5 w-3.5" /></Button></div>
         </div>
       </div>
     </Card>
