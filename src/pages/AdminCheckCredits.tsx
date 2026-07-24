@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabaseClient";
 import { ShieldAlert } from "lucide-react";
 import { formatCreditEntry } from "@/lib/creditFormatting";
 import { CreditService } from "@/services/creditService";
+import { RouteLoadingFallback } from "@/components/system/RouteLoadingFallback";
 
 /**
  * Admin utility to check user credits by email
@@ -109,14 +110,7 @@ export default function AdminCheckCredits() {
 
   // Show loading state while checking admin status
   if (checking) {
-    return (
-      <div className='min-h-screen bg-gray-900 flex items-center justify-center'>
-        <div className='text-center'>
-          <div className='w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mx-auto mb-4' />
-          <p className='text-gray-400 text-sm'>Verifying admin access...</p>
-        </div>
-      </div>
-    );
+    return <RouteLoadingFallback />;
   }
 
   // Show access denied if not admin

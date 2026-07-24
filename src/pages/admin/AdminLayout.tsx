@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { isCurrentUserAdmin, getCurrentUserAdminSubRole } from "../../lib/adminUtils";
 import { Button } from "../../components/ui/button";
 import { createClient } from "../../lib/supabaseClient";
+import { RouteLoadingFallback } from "@/components/system/RouteLoadingFallback";
 
 const navigationGroups = [
   {
@@ -178,14 +179,7 @@ export default function AdminLayout() {
 
   // Show loading state while checking admin status
   if (checking) {
-    return (
-      <div className='min-h-screen bg-gradient-to-br from-background via-background to-background flex items-center justify-center'>
-        <div className='text-center'>
-          <div className='w-16 h-16 border-4 border-brand/20 border-t-brand rounded-full animate-spin mx-auto mb-4' />
-          <p className='text-gray-400 text-sm'>Verifying admin access...</p>
-        </div>
-      </div>
-    );
+    return <RouteLoadingFallback />;
   }
 
   // Show access denied if not admin.

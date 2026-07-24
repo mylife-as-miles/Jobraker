@@ -6097,11 +6097,9 @@ export const JobPage = (): JSX.Element => {
               </div>
 
               {loadingTier ? (
-                <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-8 text-center'>
-                  <div className='mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-brand' />
-                  <p className='text-sm text-foreground/70'>
-                    Checking auto apply access...
-                  </p>
+                <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-6 animate-pulse space-y-3'>
+                  <div className='h-5 w-40 rounded bg-muted' />
+                  <div className='h-14 rounded-lg bg-muted/60' />
                 </div>
               ) : !hasAutoApplyAccess ? (
                 <UpgradePrompt

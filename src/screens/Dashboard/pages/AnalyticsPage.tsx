@@ -86,10 +86,15 @@ export function AnalyticsPage() {
 
       <div className='relative space-y-6 p-4 sm:p-6 lg:p-8 mx-auto max-w-7xl'>
         {loadingTier ? (
-          <Card className='rounded-2xl border border-foreground/10 bg-foreground/5 p-10 text-center'>
-            <div className='mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-brand' />
-            <p className='text-sm text-foreground/70'>Loading analytics access...</p>
-          </Card>
+          <div className='animate-pulse space-y-4'>
+            <div className='h-10 w-48 rounded-lg bg-muted' />
+            <div className='h-48 rounded-2xl bg-muted/70' />
+            <div className='grid gap-4 sm:grid-cols-3'>
+              <div className='h-24 rounded-xl bg-muted/60' />
+              <div className='h-24 rounded-xl bg-muted/60' />
+              <div className='h-24 rounded-xl bg-muted/60' />
+            </div>
+          </div>
         ) : !hasAnalyticsAccess ? (
           <UpgradePrompt
             title='Advanced Analytics'

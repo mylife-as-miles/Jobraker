@@ -2778,11 +2778,10 @@ export const ChatPage = () => {
       <style>{customStyles}</style>
 
       {loadingTier && (
-        <div className='absolute inset-0 z-50 flex items-center justify-center bg-background'>
-          <div className='text-foreground text-center'>
-            <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-brand mx-auto mb-4'></div>
-            <p className='text-foreground/90'>Loading...</p>
-          </div>
+        <div className='absolute inset-0 z-50 p-6 bg-background animate-pulse space-y-4'>
+          <div className='h-10 w-48 rounded-lg bg-muted' />
+          <div className='h-64 rounded-2xl bg-muted/70' />
+          <div className='h-24 rounded-xl bg-muted/60' />
         </div>
       )}
 

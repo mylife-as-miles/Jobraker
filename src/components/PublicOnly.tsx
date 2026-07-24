@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { createClient } from "../lib/supabaseClient";
 import { ROUTES } from "../routes";
 import { getCachedAuthSnapshot } from "@/lib/offlineAppCache";
+import { RouteLoadingFallback } from "./system/RouteLoadingFallback";
 
 const AUTH_SESSION_TIMEOUT_MS = 30_000;
 
@@ -120,11 +121,7 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
   }, [navigate, supabase]);
 
   if (checking) {
-    return (
-      <div className='min-h-screen grid place-items-center bg-background'>
-        <div className='w-6 h-6 border-2 border-foreground/20 border-t-brand rounded-full animate-spin' />
-      </div>
-    );
+    return <RouteLoadingFallback />;
   }
   return <>{children}</>;
 };

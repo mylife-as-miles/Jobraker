@@ -10,6 +10,8 @@ import {
   updateCachedOnboardingStatus,
 } from "@/lib/offlineAppCache";
 
+import { RouteLoadingFallback } from "./system/RouteLoadingFallback";
+
 type Props = { children: React.ReactNode };
 
 const AUTH_SESSION_TIMEOUT_MS = 45_000;
@@ -287,11 +289,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
   }, [navigate, supabase]);
 
   if (checking || !onboardingCheck.done) {
-    return (
-      <div className='min-h-screen grid place-items-center bg-background'>
-        <div className='w-6 h-6 border-2 border-foreground/20 border-t-brand rounded-full animate-spin' />
-      </div>
-    );
+    return <RouteLoadingFallback />;
   }
   return <>{children}</>;
 };

@@ -2453,9 +2453,9 @@ function ApplicationPage() {
       >
         <div className='space-y-4'>
           {loadingTier ? (
-            <div className='py-10 text-center'>
-              <div className='mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-[#b347ff]' />
-              <p className='text-sm text-foreground/70'>Checking interview assistant access...</p>
+            <div className='py-6 space-y-3 animate-pulse'>
+              <div className='h-6 w-48 rounded bg-muted' />
+              <div className='h-20 rounded-xl bg-muted/60' />
             </div>
           ) : !hasInterviewAssistantAccess ? (
             <UpgradePrompt

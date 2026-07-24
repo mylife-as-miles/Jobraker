@@ -1,193 +1,158 @@
-import { ResumeData } from '../store/artboard';
+import { createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { ResumeData } from "../store/artboard";
+import { ResumeTemplateRenderer } from "../templates/render-resume-template";
 
+// A4 at 96dpi — the exact size the on-screen preview is rendered at.
+const A4_WIDTH_PX = 794;
+const A4_MIN_HEIGHT_PX = 1123;
+
+/**
+ * Copy the app's stylesheets / font links into the print frame so the resume
+ * renders with the exact same styles it has on screen. Returns promises that
+ * resolve once external stylesheets have loaded.
+ */
+function cloneHeadStyles(source: Document, target: Document): Promise<void>[] {
+  const waits: Promise<void>[] = [];
+  const nodes = source.querySelectorAll(
+    'style, link[rel="stylesheet"], link[rel="preconnect"], link[href*="fonts.googleapis"], link[href*="fonts.gstatic"]',
+  );
+  nodes.forEach((node) => {
+    const clone = node.cloneNode(true) as HTMLElement;
+    target.head.appendChild(clone);
+    if (
+      clone.tagName === "LINK" &&
+      (clone as HTMLLinkElement).rel === "stylesheet"
+    ) {
+      waits.push(
+        new Promise<void>((resolve) => {
+          clone.addEventListener("load", () => resolve(), { once: true });
+          clone.addEventListener("error", () => resolve(), { once: true });
+          window.setTimeout(resolve, 3000);
+        }),
+      );
+    }
+  });
+  return waits;
+}
+
+function waitForImages(root: HTMLElement): Promise<void> {
+  const images = Array.from(root.querySelectorAll("img"));
+  return Promise.all(
+    images.map((img) =>
+      img.complete && img.naturalWidth > 0
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            img.addEventListener("load", () => resolve(), { once: true });
+            img.addEventListener("error", () => resolve(), { once: true });
+            window.setTimeout(resolve, 3000);
+          }),
+    ),
+  ).then(() => undefined);
+}
+
+/**
+ * Export a resume to PDF exactly as it appears in the preview.
+ *
+ * Renders the template at true A4 size into an isolated, off-screen iframe and
+ * invokes the browser's native print engine. Unlike a canvas rasteriser, this
+ * reproduces gradients, filters, shadows, rotated text and SVG faithfully, and
+ * paginates naturally. The user picks "Save as PDF" in the print dialog.
+ */
 export const downloadResumePDF = async (resumeData: ResumeData) => {
-    const { basics } = resumeData;
-    const element = document.getElementById('resume-preview-container');
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.title = "Resume print frame";
+  iframe.style.cssText = [
+    "position:fixed",
+    "left:-10000px",
+    "top:0",
+    `width:${A4_WIDTH_PX}px`,
+    `height:${A4_MIN_HEIGHT_PX}px`,
+    "border:0",
+    "opacity:0",
+    "pointer-events:none",
+  ].join(";");
+  document.body.appendChild(iframe);
 
-    if (element) {
-        try {
-            const { default: html2canvas } = await import('html2canvas');
-            const { default: jsPDF } = await import('jspdf');
-
-            // Capture at 2x scale for print-quality crispness
-            const canvas = await html2canvas(element, {
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                logging: false,
-                onclone: (clonedDoc) => {
-                    const clonedEl = clonedDoc.getElementById('resume-preview-container');
-                    if (clonedEl) {
-                        clonedEl.style.transform = 'none';
-                    }
-                }
-            });
-
-            const imgData = canvas.toDataURL('image/jpeg', 0.98);
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'pt',
-                format: 'a4'
-            });
-
-            // A4 dimensions in points: 595.28 x 841.89
-            const pdfWidth = 595.28;
-            const pdfHeight = 841.89;
-
-            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`${basics.name.replace(/\s+/g, '_')}_Resume.pdf`);
-            return;
-        } catch (e) {
-            console.error('High-fidelity PDF generation failed, falling back to basic layout:', e);
-        }
+  let root: Root | null = null;
+  const cleanup = () => {
+    try {
+      root?.unmount();
+    } catch {
+      /* noop */
     }
-
-    // --- FALLBACK BASIC LAYOUT GENERATION ---
-    const { default: jsPDF } = await import('jspdf');
-    const { sections, summary } = resumeData;
-    const paragraphSpacing =
-        resumeData.metadata.typography.font.paragraphSpacing ?? 8;
-    const doc = new jsPDF({
-        format: 'a4',
-        unit: 'pt'
-    });
-
-    const margin = 50;
-    let y = margin;
-    const pageWidth = 595;
-    const contentWidth = pageWidth - margin * 2;
-
-    // Helper to check page break
-    const checkPageBreak = (height: number) => {
-        if (y + height > 800) { // Approx A4 height - margin
-            doc.addPage();
-            y = margin;
-        }
-    };
-
-    // Header
-    doc.setFontSize(24);
-    doc.setFont('helvetica', 'bold');
-    doc.text(basics.name, margin, y);
-    y += 20;
-
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100);
-    doc.text(basics.headline, margin, y);
-    y += 20;
-
-    doc.setFontSize(10);
-    doc.setTextColor(150);
-    const contactInfo = [
-        basics.email,
-        basics.phone,
-        basics.location,
-        basics.website?.url
-    ].filter(Boolean).join(' | ');
-    doc.text(contactInfo, margin, y);
-    y += 30;
-
-    // Profiles
-    if (basics.profiles && basics.profiles.length > 0) {
-         const profilesText = basics.profiles.map(p => `${p.network}: ${p.url}`).join(' | ');
-         const splitProfiles = doc.splitTextToSize(profilesText, contentWidth);
-         doc.text(splitProfiles, margin, y);
-         y += splitProfiles.length * 12 + 10;
+    try {
+      iframe.remove();
+    } catch {
+      /* noop */
     }
+  };
 
-    doc.setTextColor(0);
+  try {
+    const doc = iframe.contentDocument;
+    const win = iframe.contentWindow;
+    if (!doc || !win) throw new Error("The print frame could not be created.");
 
-    // Summary
-    if (summary.content && !summary.hidden) {
-        checkPageBreak(50);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(summary.title || 'SUMMARY', margin, y);
-        y += 15;
-        doc.line(margin, y - 5, pageWidth - margin, y - 5);
+    doc.open();
+    doc.write(
+      '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>',
+    );
+    doc.close();
 
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        const plainSummary = summary.content.replace(/<[^>]*>?/gm, '');
-        const splitSummary = doc.splitTextToSize(plainSummary, contentWidth);
-        doc.text(splitSummary, margin, y);
-        y += splitSummary.length * 12 + paragraphSpacing + 7;
+    doc.documentElement.className = document.documentElement.className;
+    doc.body.className = document.body.className;
+
+    const baseStyle = doc.createElement("style");
+    baseStyle.textContent = `
+      @page { size: A4 portrait; margin: 0; }
+      html, body { margin: 0; padding: 0; background: #ffffff; }
+      *, *::before, *::after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      #print-root { width: ${A4_WIDTH_PX}px; min-height: ${A4_MIN_HEIGHT_PX}px; }
+    `;
+    doc.head.appendChild(baseStyle);
+
+    const styleWaits = cloneHeadStyles(document, doc);
+
+    const mount = doc.createElement("div");
+    mount.id = "print-root";
+    doc.body.appendChild(mount);
+
+    root = createRoot(mount);
+    root.render(
+      createElement(ResumeTemplateRenderer, {
+        templateId: resumeData.metadata.template,
+        resumeDataOverride: resumeData,
+      }),
+    );
+
+    // Let styles, the React commit, fonts and images settle before printing.
+    await Promise.all(styleWaits);
+    await new Promise((resolve) => window.setTimeout(resolve, 80));
+    try {
+      await (doc as Document & { fonts?: FontFaceSet }).fonts?.ready;
+    } catch {
+      /* fonts API unavailable */
     }
+    await waitForImages(mount);
+    await new Promise((resolve) => window.setTimeout(resolve, 150));
 
-    // Process all sections based on order
-    const sectionKeys = Object.keys(sections);
+    // Clean up after the print dialog is dismissed (or a safety timeout).
+    win.addEventListener(
+      "afterprint",
+      () => window.setTimeout(cleanup, 300),
+      { once: true },
+    );
+    window.setTimeout(cleanup, 60000);
 
-    const renderSection = (sectionId: string) => {
-        const section = sections[sectionId];
-        if (!section || section.hidden || section.items.length === 0) return;
-
-        checkPageBreak(50);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text((section.title || sectionId).toUpperCase(), margin, y);
-        y += 15;
-        doc.line(margin, y - 5, pageWidth - margin, y - 5);
-
-        if (section.type === 'list') {
-            // Skills, Interests, Languages
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            const items = section.items.map((s: any) => s.name).join(' • ');
-            const splitItems = doc.splitTextToSize(items, contentWidth);
-            doc.text(splitItems, margin, y);
-            y += splitItems.length * 12 + 15;
-        } else {
-            // Experience, Education, etc.
-            section.items.forEach((item: any) => {
-                checkPageBreak(60); // Check for item height
-                doc.setFontSize(11);
-                doc.setFont('helvetica', 'bold');
-
-                const title = item.title || item.degree || item.name || '';
-                const subtitle = item.company || item.school || item.institution || item.issuer || '';
-                const date = item.date || item.period || '';
-
-                doc.text(title, margin, y);
-                doc.setFont('helvetica', 'normal');
-                if (date) {
-                    const dateWidth = doc.getTextWidth(date);
-                    doc.text(date, pageWidth - margin - dateWidth, y);
-                }
-                y += 14;
-
-                if (subtitle) {
-                    doc.setFontSize(10);
-                    doc.setFont('helvetica', 'italic');
-                    doc.text(subtitle, margin, y);
-                    y += 14;
-                }
-
-                if (item.description) {
-                    doc.setFontSize(10);
-                    doc.setFont('helvetica', 'normal');
-                    const descText = item.description.replace(/<[^>]*>?/gm, '\n');
-                    const lines = descText.split('\n').filter(Boolean);
-                    lines.forEach((desc: string) => {
-                        const bullet = '• ' + desc.trim();
-                        const splitDesc = doc.splitTextToSize(bullet, contentWidth - 10);
-                        checkPageBreak(splitDesc.length * 12);
-                        doc.text(splitDesc, margin + 10, y);
-                        y += splitDesc.length * 12 + paragraphSpacing;
-                    });
-                }
-                y += 10; // spacing after item
-            });
-            y += 5;
-        }
-    };
-
-    const priority = ['experience', 'education', 'skills', 'projects'];
-    priority.forEach(id => renderSection(id));
-
-    sectionKeys
-        .filter(k => !priority.includes(k) && k !== 'summary')
-        .forEach(id => renderSection(id));
-
-    doc.save(`${basics.name.replace(/\s+/g, '_')}_Resume.pdf`);
+    win.focus();
+    win.print();
+  } catch (error) {
+    cleanup();
+    console.error("PDF generation failed:", error);
+    throw error;
+  }
 };

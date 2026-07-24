@@ -1102,9 +1102,10 @@ function MyReferralsPanel({
       </div>
 
       {loading ? (
-        <Card className='product-section-card p-10 text-center border-foreground/15'>
-          <Loader2 className='w-8 h-8 animate-spin text-brand mx-auto' />
-          <p className='text-sm product-helper-text mt-3'>Loading referrals…</p>
+        <Card className='product-section-card p-6 border-foreground/15 animate-pulse space-y-4'>
+          <div className='h-6 w-40 rounded bg-muted' />
+          <div className='h-24 rounded-xl bg-muted/60' />
+          <div className='h-24 rounded-xl bg-muted/60' />
         </Card>
       ) : filteredReferrals.length === 0 ? (
         <Card className='product-section-card py-16 px-6 text-center border-dashed border-foreground/15 hover:border-brand/30 transition-colors'>
