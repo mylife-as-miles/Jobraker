@@ -36,8 +36,8 @@ import {
   PenTool,
   Gift,
   Folder,
-  CircleHelp,
-  CreditCard,
+  // CircleHelp,
+  // CreditCard,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useProfileSettings } from "../../hooks/useProfileSettings";
@@ -504,13 +504,13 @@ export const Dashboard = (): JSX.Element => {
     const base: PageLink[] = [
       {
         id: "overview",
-        label: "Home",
+        label: "Dashboard",
         icon: <BarChart3 className='w-5 h-5' />,
         path: "Dashboard",
       },
       {
         id: "chat",
-        label: "Assistant",
+        label: "Chat",
         icon: <MessageSquare className='w-5 h-5' />,
         path: "Dashboard / Chat",
       },
@@ -522,7 +522,7 @@ export const Dashboard = (): JSX.Element => {
       },
       {
         id: "application",
-        label: "Applications",
+        label: "Application",
         icon: <Users className='w-5 h-5' />,
         path: "Dashboard / Application",
       },
@@ -569,12 +569,6 @@ export const Dashboard = (): JSX.Element => {
         path: "Dashboard / Settings",
       },
       {
-        id: "billing",
-        label: "Billing",
-        icon: <CreditCard className='w-5 h-5' />,
-        path: "Dashboard / Billing",
-      },
-      {
         id: "pricing",
         label: "Pricing",
         icon: <Plus className='w-5 h-5' />,
@@ -582,15 +576,9 @@ export const Dashboard = (): JSX.Element => {
       },
       {
         id: "account",
-        label: "Documents",
+        label: "Account",
         icon: <Folder className='w-5 h-5' />,
-        path: "Dashboard / Documents",
-      },
-      {
-        id: "help",
-        label: "Help Center",
-        icon: <CircleHelp className='w-5 h-5' />,
-        path: "Dashboard / Help Center",
+        path: "Dashboard / Account",
       },
     ];
 
@@ -611,9 +599,10 @@ export const Dashboard = (): JSX.Element => {
   const navigationItems = useMemo(() => {
     return allDashboardPages.filter(
       (page) =>
-        !["profile", "settings", "notifications", "pricing"].includes(page.id),
+        !["profile", "settings", "notifications", "pricing"].includes(page.id) &&
+        !(isDesktop && page.id === "account"),
     );
-  }, [allDashboardPages]);
+  }, [allDashboardPages, isDesktop]);
 
   const currentItem = useMemo(
     () => allDashboardPages.find((item) => item.id === currentPage),
@@ -781,15 +770,15 @@ export const Dashboard = (): JSX.Element => {
 
           {/* Navigation - Categorized */}
           <div className='custom-scrollbar flex-1 overflow-y-auto px-3 py-6 space-y-6'>
-            {/* Primary destinations */}
+            {/* Section 1: Main */}
             <div className='space-y-1'>
               {!isCollapsed && (
                 <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
-                  Workspace
+                  Platform
                 </h4>
               )}
               {navigationItems
-                .filter((i) => ["overview", "jobs", "application", "account", "chat"].includes(i.id))
+                .filter((i) => ["overview", "analytics"].includes(i.id))
                 .map((item) => (
                   <SidebarItem
                     key={item.id}
@@ -804,15 +793,15 @@ export const Dashboard = (): JSX.Element => {
                 ))}
             </div>
 
-            {/* Secondary destinations */}
+            {/* Section 2: Tools */}
             <div className='space-y-1'>
               {!isCollapsed && (
                 <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
-                  More
+                  AI Studio
                 </h4>
               )}
               {navigationItems
-                .filter((i) => ["analytics", "referrals", "billing", "interview-studio", "help"].includes(i.id))
+                .filter((i) => ["chat", "interview-studio"].includes(i.id))
                 .map((item) => (
                   <SidebarItem
                     key={item.id}
@@ -826,6 +815,74 @@ export const Dashboard = (): JSX.Element => {
                   />
                 ))}
             </div>
+
+            {/* Section 3: Career */}
+            <div className='space-y-1'>
+              {!isCollapsed && (
+                <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
+                  Career
+                </h4>
+              )}
+              {navigationItems
+                .filter((i) => ["jobs", "application"].includes(i.id))
+                .map((item) => (
+                  <SidebarItem
+                    key={item.id}
+                    item={item}
+                    isActive={currentPage === item.id}
+                    isCollapsed={isCollapsed}
+                    onClick={() => {
+                      navigate(`/dashboard/${item.id}`);
+                      setSidebarOpen(false);
+                    }}
+                  />
+                ))}
+            </div>
+
+            {/* Section 4: Settings (Misc) */}
+            {navigationItems.some(
+              (i) =>
+                ![
+                  "overview",
+                  "analytics",
+                  "chat",
+                  "interview-studio",
+                  "jobs",
+                  "application",
+                ].includes(i.id),
+            ) && (
+              <div className='space-y-1'>
+                {!isCollapsed && (
+                  <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
+                    Account
+                  </h4>
+                )}
+                {navigationItems
+                  .filter(
+                    (i) =>
+                      ![
+                        "overview",
+                        "analytics",
+                        "chat",
+                        "interview-studio",
+                        "jobs",
+                        "application",
+                      ].includes(i.id),
+                  )
+                  .map((item) => (
+                    <SidebarItem
+                      key={item.id}
+                      item={item}
+                      isActive={currentPage === item.id}
+                      isCollapsed={isCollapsed}
+                      onClick={() => {
+                        navigate(`/dashboard/${item.id}`);
+                        setSidebarOpen(false);
+                      }}
+                    />
+                  ))}
+              </div>
+            )}
           </div>
 
           {/* Premium Upgrade - Sleek Banner */}
