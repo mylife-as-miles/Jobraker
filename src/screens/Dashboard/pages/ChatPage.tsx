@@ -114,6 +114,7 @@ import { useToast } from "../../../components/ui/toast-provider";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 import { motion } from "framer-motion";
+import { RouteLoadingFallback } from "@/components/system/RouteLoadingFallback";
 
 // Custom styles for the new design
 const customStyles = `
@@ -2784,11 +2785,7 @@ export const ChatPage = () => {
       <style>{customStyles}</style>
 
       {loadingTier && (
-        <div className='absolute inset-0 z-50 p-6 bg-background animate-pulse space-y-4'>
-          <div className='h-10 w-48 rounded-lg bg-muted' />
-          <div className='h-64 rounded-2xl bg-muted/70' />
-          <div className='h-24 rounded-xl bg-muted/60' />
-        </div>
+       <RouteLoadingFallback/>
       )}
 
       {!loadingTier && !hasChatAccess && (

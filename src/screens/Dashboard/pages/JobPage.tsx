@@ -4358,7 +4358,7 @@ export const JobPage = (): JSX.Element => {
                     </span>
                   ) : (
                     <Link
-                      to='/dashboard/resumes'
+                      to='/dashboard/resume'
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all hover:scale-105",
                         resumeLibraryReady
