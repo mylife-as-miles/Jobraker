@@ -247,14 +247,19 @@ export const ResumeHomePage = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleCreateNew}
-            className='aspect-[3/4] border rounded-2xl border-foreground/20 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
+            className='rounded-xl border border-foreground/20 bg-foreground/5 cursor-pointer flex flex-col justify-between overflow-hidden group transition-all h-full'
           >
-            <div className='w-16 h-16 rounded-full bg-brand/10 flex items-center justify-center text-brand group-hover:scale-110 transition-transform'>
-              <Plus className='w-8 h-8' />
+            <div className='aspect-[794/1123] flex flex-col items-center justify-center gap-4 p-6'>
+              <div className='w-16 h-16 rounded-full bg-brand/10 flex items-center justify-center text-brand group-hover:scale-110 transition-transform'>
+                <Plus className='w-8 h-8' />
+              </div>
+              <span className='font-medium text-foreground/60 group-hover:text-foreground transition-colors text-center'>
+                Create New Resume
+              </span>
             </div>
-            <span className='font-medium text-foreground/60 group-hover:text-foreground transition-colors'>
-              Create New Resume
-            </span>
+            <div className='p-4 min-w-0 pointer-events-none select-none opacity-0 border-t border-transparent'>
+              <div className='h-5' />
+            </div>
           </motion.div>
 
           {/* Import Existing Card */}
@@ -262,32 +267,38 @@ export const ResumeHomePage = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleImportClick}
-            className='border rounded-2xl border-foreground/20 aspect-[3/4] cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative'
+            className='rounded-xl border border-foreground/20 bg-foreground/5 cursor-pointer flex flex-col justify-between overflow-hidden group transition-all relative h-full'
           >
-            {isImporting ? (
-              <div className='flex flex-col items-center gap-3'>
-                <div className='w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin' />
-                <span className='text-xs text-foreground/60 animate-pulse'>
-                  Analyzing PDF...
-                </span>
-              </div>
-            ) : (
-              <>
-                <div className='w-16 h-16 rounded-full bg-foreground/5 flex items-center justify-center text-brand  group-hover:scale-110 transition-transform'>
-                  <Upload className='w-8 h-8' />
+            <div className='aspect-[794/1123] flex flex-col items-center justify-center gap-4 p-6'>
+              {isImporting ? (
+                <div className='flex flex-col items-center gap-3'>
+                  <div className='w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin' />
+                  <span className='text-xs text-foreground/60 animate-pulse'>
+                    Analyzing PDF...
+                  </span>
                 </div>
-                <span className='font-medium text-foreground/60 group-hover:text-foreground transition-colors'>
-                  Import Existing
-                </span>
-              </>
-            )}
+              ) : (
+                <>
+                  <div className='w-16 h-16 rounded-full bg-foreground/5 flex items-center justify-center text-brand group-hover:scale-110 transition-transform'>
+                    <Upload className='w-8 h-8' />
+                  </div>
+                  <span className='font-medium text-foreground/60 group-hover:text-foreground transition-colors text-center'>
+                    Import Existing
+                  </span>
+                </>
+              )}
+            </div>
+            <div className='p-4 min-w-0 pointer-events-none select-none opacity-0 border-t border-transparent'>
+              <div className='h-5' />
+            </div>
           </motion.div>
+
           {/* Resume Cards */}
           {normalizedResumes.map(({ record: resume, displayName }) => (
             <motion.div
               key={resume.id}
               whileHover={{ y: -5 }}
-              className='rounded-xl bg-foreground/5 border overflow-hidden group transition-all relative flex flex-col'
+              className='rounded-xl bg-foreground/5 border overflow-hidden group transition-all relative flex flex-col h-full'
             >
               {/* Preview Area (Top 2/3) */}
               <div
