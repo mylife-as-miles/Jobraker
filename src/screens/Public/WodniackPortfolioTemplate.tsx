@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { ArrowUpRight, CalendarDays, GraduationCap, MapPin, Sparkles } from "lucide-react";
+import { ArrowUpRight, CalendarDays, GraduationCap, Sparkles } from "lucide-react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
 import type { EditorialPortfolioProps } from "./EditorialPortfolioTemplate";
 import { WodniackWaveField } from "./WodniackWaveField";
 import { ContactItems, PlayfulArtifacts } from "./WodniackPortfolioPlayground";
-import { FourPointStar, WorkStage, chunkName, initials, splitTitle, yearRange } from "./WodniackPortfolioCore";
+import { FourPointStar, WorkStage, chunkName, splitTitle, yearRange } from "./WodniackPortfolioCore";
 import { WodniackSiteHead } from "./WodniackSiteHead";
 import { WodniackHero } from "./WodniackHero";
+import { WodniackAbout } from "./WodniackAbout";
+import { WodniackSeparator } from "./WodniackSeparator";
 import { WodniackIntro } from "./WodniackIntro";
 import { WodniackScrollbar } from "./WodniackScrollbar";
 import { emitter, observeIntersections, prefersReducedMotion, startRuntime, ticker } from "./WodniackRuntime";
@@ -88,14 +90,24 @@ export function WodniackPortfolioTemplate({
     "--wdk-white": "#fff0eb",
   } as CSSProperties;
 
-  const signals = [
-    ["Experience", `${profile.experienceYears || 0}+ years`],
-    ["Roles", String(experiences.length)],
-    ["Capabilities", String(skills.length)],
-    ["Portfolio views", String(site.views)],
-    ["Location", profile.location || "Remote-ready"],
-    ["Current direction", profile.goals[0] || profile.jobTitle || "Career growth"],
+  const aboutParagraphs = [intro, profile.about].filter(
+    (paragraph, index, all): paragraph is string =>
+      Boolean(paragraph) && all.indexOf(paragraph) === index,
+  );
+
+  const aboutCounters = [
+    { key: "years", name: "Years", counters: [`${profile.experienceYears || 0}+ experience`] },
+    { key: "roles", name: "Roles", counters: [`x ${experiences.length}`] },
+    { key: "skills", name: "Skills", counters: [`x ${skills.length}`] },
   ];
+
+  const aboutTexts = [
+    site.headline ? { key: "headline", text: site.headline } : null,
+    profile.location ? { key: "location", text: `Based in ${profile.location}` } : null,
+    ...profile.goals.slice(0, 3).map((goal, index) => ({ key: `goal-${index}`, text: goal })),
+    education[0] ? { key: "education", text: education[0].school } : null,
+    { key: "views", text: `${site.views} portfolio views` },
+  ].filter((tile): tile is { key: string; text: string } => Boolean(tile));
 
   return (
     <main className="wdk-root" style={style} ref={rootRef}>
@@ -113,48 +125,13 @@ export function WodniackPortfolioTemplate({
         footChunks={["Do", "Things", "Your", "Way", profile.location || "Remote"]}
       />
 
-      <section id="about" className="wdk-about">
-        <div className="wdk-about-grid" aria-hidden />
-        <div className="wdk-about-inner">
-          <article className="wdk-about-copy">
-            <p className="wdk-kicker">01 / About</p>
-            <h2>Curiosity is<br />the real skill.</h2>
-            <p>{intro}</p>
-            {profile.goals.length ? (
-              <div className="wdk-goals">
-                {profile.goals.slice(0, 4).map((goal, index) => (
-                  <span key={goal}><small>{String(index + 1).padStart(2, "0")}</small>{goal}</span>
-                ))}
-              </div>
-            ) : null}
-          </article>
+      <WodniackAbout
+        paragraphs={aboutParagraphs}
+        counters={aboutCounters}
+        texts={aboutTexts}
+      />
 
-          <div className="wdk-signals">
-            <div className="wdk-signal-heading">
-              <span>Profile signals</span>
-              <FourPointStar className="wdk-signal-star" />
-            </div>
-            {signals.map(([label, value], index) => (
-              <div key={label} className="wdk-signal-row">
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <strong>{label}</strong>
-                <em>{value}</em>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="wdk-profile-band">
-          <div className="wdk-profile-portrait">
-            {profile.avatarUrl ? <img src={profile.avatarUrl} alt={profile.name} /> : <span>{initials(profile.name)}</span>}
-          </div>
-          <div>
-            <p>{profile.name}</p>
-            <strong>{site.headline || profile.jobTitle || "Career portfolio"}</strong>
-          </div>
-          <div className="wdk-profile-location"><MapPin className="h-4 w-4" />{profile.location || "Remote-ready"}</div>
-        </div>
-      </section>
+      <WodniackSeparator variant="secondary" strings={["Do", "Things", "Your", "Way"]} />
 
       <WorkStage experiences={experiences} accent={accent} />
 
