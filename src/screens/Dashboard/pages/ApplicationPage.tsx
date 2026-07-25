@@ -562,6 +562,7 @@ function ApplicationPage() {
   const { success, error: toastError, info } = useToast();
   const {
     applications,
+    loading: appsLoading,
     exportCSV,
     update,
     remove,
