@@ -30,7 +30,6 @@ import {
   Briefcase,
 
   // CreditCard,
-  Tv,
   PanelLeft,
   FileText,
   PenTool,
@@ -91,7 +90,7 @@ type DashboardPage =
   | "profile"
   | "pricing"
   | "billing"
-  | "interview-studio"
+  | "interview-studio" 
   | "resume"
   | "cover-letter"
   | "referrals"
@@ -582,19 +581,8 @@ export const Dashboard = (): JSX.Element => {
       },
     ];
 
-    if (isAdmin) {
-      // Insert Interview Studio after Chat
-      const chatIndex = base.findIndex((p) => p.id === "chat");
-      base.splice(chatIndex + 1, 0, {
-        id: "interview-studio",
-        label: "Interview Studio",
-        icon: <Tv className='w-5 h-5' />,
-        path: "Dashboard / Interview Studio",
-      });
-    }
-
     return base;
-  }, [isAdmin]);
+  }, []);
 
   const navigationItems = useMemo(() => {
     return allDashboardPages.filter(
@@ -801,7 +789,7 @@ export const Dashboard = (): JSX.Element => {
                 </h4>
               )}
               {navigationItems
-                .filter((i) => ["chat", "interview-studio"].includes(i.id))
+                .filter((i) => i.id === "chat")
                 .map((item) => (
                   <SidebarItem
                     key={item.id}
