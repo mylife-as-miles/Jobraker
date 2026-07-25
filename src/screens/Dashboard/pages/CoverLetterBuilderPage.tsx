@@ -163,6 +163,27 @@ export const CoverLetterBuilderPage = () => {
   const [mobileView, setMobileView] = useState<"editor" | "preview">("editor");
   const [isMobile, setIsMobile] = useState(false);
 
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const lastScrollTopRef = useRef(0);
+
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      if (!isMobile) return;
+      const currentScrollTop = e.currentTarget.scrollTop;
+      const diff = currentScrollTop - lastScrollTopRef.current;
+
+      if (currentScrollTop < 20) {
+        setHeaderVisible(true);
+      } else if (diff > 8 && currentScrollTop > 40) {
+        setHeaderVisible(false);
+      } else if (diff < -8) {
+        setHeaderVisible(true);
+      }
+      lastScrollTopRef.current = currentScrollTop;
+    },
+    [isMobile],
+  );
+
   // Responsive Check
   useEffect(() => {
     const checkMobile = () => {
@@ -895,7 +916,13 @@ export const CoverLetterBuilderPage = () => {
       {/* Header toolbar */}
       <header
         id='cover-header'
-        className='shrink-0 border-b border-border/40 bg-background/95 px-3 py-3 md:h-16 md:px-6 md:py-0 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex flex-col gap-3 md:flex-row md:items-center md:justify-between z-10'
+        className={`shrink-0 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex flex-col gap-3 md:flex-row md:items-center md:justify-between z-10 transition-all duration-300 overflow-hidden ${
+          isMobile
+            ? headerVisible
+              ? "max-h-[300px] px-3 py-3 opacity-100"
+              : "max-h-0 px-3 py-0 opacity-0 border-b-0 pointer-events-none"
+            : "md:h-16 md:px-6 md:py-0 opacity-100"
+        }`}
       >
         <div className='flex min-w-0 items-center gap-3 md:gap-4'>
           <button
@@ -1059,6 +1086,7 @@ export const CoverLetterBuilderPage = () => {
       >
         {/* CONFIG PANEL (LEFT) */}
         <div
+          onScroll={handleScroll}
           className={`${isMobile && mobileView !== "editor" ? "hidden" : "flex"} product-section-card-muted w-full flex-col overflow-y-auto custom-scrollbar rounded-none border-y-0 border-l-0 ${isMobile ? "pb-6" : "pb-20"} flex-1 xl:w-[460px] xl:min-w-[400px] xl:max-w-[500px] xl:flex-initial`}
         >
           <div className='p-4 xl:p-6 space-y-6'>
@@ -1426,6 +1454,7 @@ export const CoverLetterBuilderPage = () => {
 
         {/* PREVIEW PANEL (RIGHT) */}
         <div
+          onScroll={handleScroll}
           className={`${isMobile && mobileView !== "preview" ? "hidden" : "flex"} flex-1 overflow-auto justify-center p-3 xl:p-8 relative custom-scrollbar bg-[hsl(var(--product-surface-muted))] dark:bg-background ${isMobile ? "pb-6 pt-4" : ""}`}
         >
           <Card className="p-8 sm:p-12 bg-white text-black shadow-2xl shrink-0 my-4 max-w-[800px] w-full min-h-[1100px] flex flex-col justify-start">

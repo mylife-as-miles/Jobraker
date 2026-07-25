@@ -132,6 +132,27 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
     error: toastError,
   });
 
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const lastScrollTopRef = useRef(0);
+
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      if (!isMobile) return;
+      const currentScrollTop = e.currentTarget.scrollTop;
+      const diff = currentScrollTop - lastScrollTopRef.current;
+
+      if (currentScrollTop < 20) {
+        setHeaderVisible(true);
+      } else if (diff > 8 && currentScrollTop > 40) {
+        setHeaderVisible(false);
+      } else if (diff < -8) {
+        setHeaderVisible(true);
+      }
+      lastScrollTopRef.current = currentScrollTop;
+    },
+    [isMobile],
+  );
+
   // Responsive Check
   useEffect(() => {
     const checkMobile = () => {
@@ -413,7 +434,15 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
       </Modal>
 
       {/* Header toolbar */}
-      <header className='shrink-0 border-b border-border/40 bg-background/95 px-3 py-3 md:h-16 md:px-6 md:py-0 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex flex-col gap-3 md:flex-row md:items-center md:justify-between z-10'>
+      <header
+        className={`shrink-0 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex flex-col gap-3 md:flex-row md:items-center md:justify-between z-10 transition-all duration-300 overflow-hidden ${
+          isMobile
+            ? headerVisible
+              ? "max-h-[300px] px-3 py-3 opacity-100"
+              : "max-h-0 px-3 py-0 opacity-0 border-b-0 pointer-events-none"
+            : "md:h-16 md:px-6 md:py-0 opacity-100"
+        }`}
+      >
         <div className='flex min-w-0 items-center gap-3 md:gap-4'>
           <button
             onClick={() => navigate("/dashboard/resume")}
@@ -569,6 +598,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
       <div className='flex-1 flex flex-col md:flex-row overflow-hidden'>
         {/* Editor Panel (Left) */}
         <div
+          onScroll={handleScroll}
           className={`${isMobile && mobileView !== "editor" ? "hidden" : "flex"} product-section-card-muted w-full flex-col overflow-y-auto custom-scrollbar rounded-none border-y-0 border-l-0 ${isMobile ? "pb-6" : "pb-20"} flex-1 md:w-[40%] md:min-w-[350px] md:max-w-[500px] md:flex-initial`}
         >
           <div className='p-4 md:p-6 space-y-4'>
@@ -723,6 +753,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
         {/* Preview Panel (Right) */}
         <div
           ref={previewPanelRef}
+          onScroll={handleScroll}
           className={`${isMobile && mobileView !== "preview" ? "hidden" : "flex"} flex-1 overflow-auto justify-center p-3 md:p-8 relative custom-scrollbar bg-[hsl(var(--product-surface-muted))] dark:bg-background ${isMobile ? "pb-6 pt-4" : ""}`}
         >
           {!isMobile && (
