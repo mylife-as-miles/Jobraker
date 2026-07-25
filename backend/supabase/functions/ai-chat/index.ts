@@ -2428,6 +2428,21 @@ const AGENT_FUNCTION_DECLARATIONS = [
       additionalProperties: true,
     },
   },
+  {
+    name: "rtrvr_hiring_signals",
+    description: "Run the RTRVR Company Hiring Signals Tracker to analyze hiring patterns, executive hires, and department expansions for target companies.",
+    parameters: {
+      type: "object",
+      properties: {
+        companies: { type: "string", description: "Comma-separated company names to track (e.g., Stripe, OpenAI, Vercel)" },
+        signal_type: { type: "string", enum: ["all", "execs", "expansion"], description: "Signal focus area (default: all)" },
+        target: { type: "string", enum: ["auto", "cloud", "extension"] },
+      },
+      required: ["companies"],
+      additionalProperties: true,
+    },
+  },
+  {
     name: "rtrvr_run",
     description: "Run a rtrvr browser agent task. This can mutate pages or submit forms and requires explicit user approval before use.",
     parameters: {
