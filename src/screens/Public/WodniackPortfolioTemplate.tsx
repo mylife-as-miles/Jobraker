@@ -5,6 +5,7 @@ import type { EditorialPortfolioProps } from "./EditorialPortfolioTemplate";
 import { WodniackWaveField } from "./WodniackWaveField";
 import { ContactItems, PlayfulArtifacts } from "./WodniackPortfolioPlayground";
 import { FourPointStar, KineticWord, WorkStage, chunkName, initials, splitTitle, yearRange } from "./WodniackPortfolioCore";
+import { WodniackSiteHead } from "./WodniackSiteHead";
 import "./WodniackPortfolioTemplate.css";
 
 const SOURCE_REPOSITORY = "https://github.com/AntoineW/AW-2025-Portfolio";
@@ -77,19 +78,12 @@ export function WodniackPortfolioTemplate({
       ) : null}
       {site.isPreview ? <div className="wdk-preview">Private preview</div> : null}
 
-      <header className="wdk-header">
-        <a href="#top" className="wdk-logo" aria-label="Back to the top">
-          <span>JR</span><small>04</small>
-        </a>
-        <nav aria-label="Portfolio sections">
-          <a href="#about">About</a>
-          <a href="#work">Work</a>
-          <a href="#contact">Contact</a>
-        </nav>
-        <button type="button" className="wdk-contrast" onClick={() => setContrasted((value) => !value)} aria-pressed={!contrasted}>
-          <span /> Contrast
-        </button>
-      </header>
+      <WodniackSiteHead
+        site={site}
+        profile={profile}
+        contrasted={contrasted}
+        onToggleContrast={() => setContrasted((value) => !value)}
+      />
 
       <section id="top" className="wdk-hero">
         <WodniackWaveField className="wdk-hero-waves" stroke="var(--wdk-secondary)" dot="var(--wdk-secondary)" strength={1.05} />
