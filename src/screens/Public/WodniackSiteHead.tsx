@@ -248,7 +248,7 @@ export function WodniackSiteHead({
       width: 144,
       color: { dark: "#160000ff", light: "#00000000" },
     })
-      .then((url) => { if (!cancelled) setQrCode(url); })
+      .then((url: string) => { if (!cancelled) setQrCode(url); })
       .catch(() => { if (!cancelled) setQrCode(null); });
     return () => { cancelled = true; };
   }, [email, mailto]);
