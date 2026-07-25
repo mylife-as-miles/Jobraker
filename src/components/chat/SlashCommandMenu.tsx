@@ -111,14 +111,14 @@ export function SlashCommandMenu({ open, query, onSelect }: Props) {
                       <span className='text-brand'>/{item.cmd}</span> —{" "}
                       {item.title}
                     </span>
-                    <span className='text-[10px] text-neutral-400 leading-snug'>
+                    <span className='text-[10px] text-muted-foreground leading-snug'>
                       {item.description}
                     </span>
                   </button>
                 </li>
               ))}
             </ul>
-            <div className='px-3 py-1.5 text-[10px] text-neutral-500 flex justify-between'>
+            <div className='px-3 py-1.5 text-[10px] text-muted-foreground flex justify-between'>
               <span>↑↓ navigate • Enter select</span>
               <span>
                 {list.length} match{list.length !== 1 ? "es" : ""}

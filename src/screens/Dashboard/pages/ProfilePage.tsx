@@ -210,7 +210,7 @@ const ProfilePage = (): JSX.Element => {
       case "not_connected":
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-500/10 text-muted-foreground border border-zinc-500/20">
             Not Connected
           </span>
         );
@@ -2026,7 +2026,7 @@ const ProfilePage = (): JSX.Element => {
                   <div className='bg-foreground/5 border border-foreground/10 rounded-xl p-5 hover:bg-foreground/[0.07] transition-all duration-300 flex flex-col'>
                     <div className='flex items-center justify-between mb-4'>
                       <div className='flex items-center gap-2'>
-                        <div className='p-2 bg-zinc-950 rounded-lg border border-zinc-800 text-zinc-200'>
+                        <div className='p-2 bg-zinc-950 rounded-lg border border-zinc-800 text-foreground/80'>
                           <Github className='w-5 h-5' />
                         </div>
                         <div>
@@ -2075,7 +2075,7 @@ const ProfilePage = (): JSX.Element => {
                                 className='w-10 h-10 rounded-full border border-foreground/10'
                               />
                             ) : (
-                              <div className='w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-200 font-bold'>
+                              <div className='w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-foreground/80 font-bold'>
                                 <User className='w-5 h-5' />
                               </div>
                             )}
@@ -2173,7 +2173,7 @@ const ProfilePage = (): JSX.Element => {
                       </div>
                     ) : (
                       <div className='flex-1 flex flex-col items-center justify-center text-center p-6 border border-dashed border-foreground/10 rounded-lg bg-foreground/[0.01] mt-2'>
-                        <div className='w-12 h-12 bg-zinc-950 rounded-full flex items-center justify-center border border-zinc-800 text-zinc-500 mb-3 shadow-inner'>
+                        <div className='w-12 h-12 bg-zinc-950 rounded-full flex items-center justify-center border border-zinc-800 text-muted-foreground mb-3 shadow-inner'>
                           <Github className='w-6 h-6' />
                         </div>
                         <h5 className='font-semibold text-foreground text-xs mb-1'>No GitHub Showcase</h5>

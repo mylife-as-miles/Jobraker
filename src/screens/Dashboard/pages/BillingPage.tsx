@@ -1134,7 +1134,7 @@ export const BillingPage = () => {
       default:
         return {
           icon: <Coins className='w-4 h-4' />,
-          color: "text-gray-400 bg-gray-400/10 border-gray-400/20",
+          color: "text-muted-foreground bg-gray-400/10 border-gray-400/20",
         };
     }
   };
@@ -1261,7 +1261,7 @@ export const BillingPage = () => {
                 Credits
               </span>
             </h1>
-            <p className='text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed'>
+            <p className='text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed'>
               Price search and drafting separately from automation. Plans
               include governed auto-apply runs, while packs top up search and AI
               usage.
@@ -1288,7 +1288,7 @@ export const BillingPage = () => {
                     </span>
                   </div>
                   <div className='space-y-1'>
-                    <p className='text-sm text-gray-400 font-medium'>
+                    <p className='text-sm text-muted-foreground font-medium'>
                       Available workflow fuel
                     </p>
                     <p className='text-4xl font-bold text-foreground tracking-tight'>
@@ -1329,13 +1329,13 @@ export const BillingPage = () => {
                     </span>
                   </div>
                   <div className='space-y-1'>
-                    <p className='text-sm text-gray-400 font-medium'>
+                    <p className='text-sm text-muted-foreground font-medium'>
                       Current Tier
                     </p>
                     <p className='text-4xl font-bold text-foreground tracking-tight'>
                       {subscriptionTier}
                     </p>
-                    <p className='text-sm text-gray-500'>
+                    <p className='text-sm text-muted-foreground'>
                       {plans
                         .find((p) => p.name === subscriptionTier)
                         ?.credits_per_month?.toLocaleString() || 0}{" "}
@@ -1377,7 +1377,7 @@ export const BillingPage = () => {
                     );
                     return (
                       <div className='space-y-1'>
-                        <p className='text-sm text-gray-400 font-medium'>
+                        <p className='text-sm text-muted-foreground font-medium'>
                           Next payment
                         </p>
                         <p className='text-lg font-bold text-foreground tracking-tight pt-2'>
@@ -1389,7 +1389,7 @@ export const BillingPage = () => {
                               })
                             : "Not scheduled"}
                         </p>
-                        <p className='text-xs text-gray-500 pt-1'>{primary}</p>
+                        <p className='text-xs text-muted-foreground pt-1'>{primary}</p>
                         {secondary ? (
                           <p className='text-[11px] text-gray-600 leading-snug pt-0.5'>
                             {secondary}
@@ -1476,7 +1476,7 @@ export const BillingPage = () => {
                 className={`relative flex items-center gap-1.5 px-3 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-full transition-all duration-300 shrink-0 ${
                   activeTab === tab.id
                     ? "text-background shadow-lg"
-                    : "text-gray-400 hover:text-foreground hover:bg-foreground/5"
+                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                 }`}
               >
                 {activeTab === tab.id && (
@@ -2043,7 +2043,7 @@ export const BillingPage = () => {
                     <h2 className='text-3xl font-black uppercase leading-[0.95] text-foreground sm:text-4xl lg:text-5xl'>
                       Clear your ready queue faster without changing your main plan
                     </h2>
-                    <p className='mt-4 max-w-2xl text-sm leading-7 text-gray-300 sm:text-base'>
+                    <p className='mt-4 max-w-2xl text-sm leading-7 text-foreground/80 sm:text-base'>
                       Your subscription sets the baseline automation speed.
                       Boost packs stack on top for the current billing period so
                       queued opportunities can keep moving when search volume spikes.
@@ -2051,30 +2051,30 @@ export const BillingPage = () => {
                   </div>
 
                   <div className='grid gap-4 lg:grid-cols-[1.2fr_0.8fr]'>
-                    <div className='rounded-[1.75rem] border border-white/8 bg-black/35 p-5 sm:p-6'>
-                      <p className='text-sm font-semibold text-gray-300'>
+                    <div className='rounded-[1.75rem] border border-foreground/8 bg-black/35 p-5 sm:p-6'>
+                      <p className='text-sm font-semibold text-foreground/80'>
                         Current parallel capacity
                       </p>
                       <div className='mt-5 grid gap-3 sm:grid-cols-3'>
-                        <div className='rounded-2xl border border-white/6 bg-white/[0.04] p-4'>
-                          <p className='text-xs uppercase tracking-[0.22em] text-gray-500'>
+                        <div className='rounded-2xl border border-foreground/6 bg-foreground/[0.04] p-4'>
+                          <p className='text-xs uppercase tracking-[0.22em] text-muted-foreground'>
                             Active now
                           </p>
                           <p className='mt-3 text-3xl font-bold text-foreground'>
                             {activeAutoApplyRuns}/{totalConcurrencySlots}
                           </p>
-                          <p className='mt-1 text-sm text-gray-400'>
+                          <p className='mt-1 text-sm text-muted-foreground'>
                             queued auto-apply workflows
                           </p>
                         </div>
-                        <div className='rounded-2xl border border-white/6 bg-white/[0.04] p-4'>
-                          <p className='text-xs uppercase tracking-[0.22em] text-gray-500'>
+                        <div className='rounded-2xl border border-foreground/6 bg-foreground/[0.04] p-4'>
+                          <p className='text-xs uppercase tracking-[0.22em] text-muted-foreground'>
                             From {subscriptionTier}
                           </p>
                           <p className='mt-3 text-3xl font-bold text-foreground'>
                             {baseConcurrencySlots}
                           </p>
-                          <p className='mt-1 text-sm text-gray-400'>
+                          <p className='mt-1 text-sm text-muted-foreground'>
                             included parallel slots
                           </p>
                         </div>
@@ -2091,24 +2091,24 @@ export const BillingPage = () => {
                         </div>
                       </div>
 
-                      <div className='mt-5 flex flex-wrap gap-3 text-sm text-gray-300'>
-                        <span className='inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.04] px-3 py-2'>
+                      <div className='mt-5 flex flex-wrap gap-3 text-sm text-foreground/80'>
+                        <span className='inline-flex items-center gap-2 rounded-full border border-foreground/8 bg-foreground/[0.04] px-3 py-2'>
                           <Gauge className='h-4 w-4 text-brand' />
                           Faster automation bursts
                         </span>
-                        <span className='inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.04] px-3 py-2'>
+                        <span className='inline-flex items-center gap-2 rounded-full border border-foreground/8 bg-foreground/[0.04] px-3 py-2'>
                           <Layers3 className='h-4 w-4 text-brand' />
                           Stacks with paid plans
                         </span>
-                        <span className='inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.04] px-3 py-2'>
+                        <span className='inline-flex items-center gap-2 rounded-full border border-foreground/8 bg-foreground/[0.04] px-3 py-2'>
                           <Clock3 className='h-4 w-4 text-brand' />
                           Valid through your current billing window
                         </span>
                       </div>
                     </div>
 
-                    <div className='rounded-[1.75rem] border border-white/8 bg-black/35 p-5 sm:p-6'>
-                      <p className='text-sm font-semibold text-gray-300'>
+                    <div className='rounded-[1.75rem] border border-foreground/8 bg-black/35 p-5 sm:p-6'>
+                      <p className='text-sm font-semibold text-foreground/80'>
                         How it works
                       </p>
                       <div className='mt-4 space-y-3'>
@@ -2119,12 +2119,12 @@ export const BillingPage = () => {
                         ].map((item) => (
                           <div
                             key={item}
-                            className='flex gap-3 rounded-2xl border border-white/6 bg-white/[0.04] p-3.5'
+                            className='flex gap-3 rounded-2xl border border-foreground/6 bg-foreground/[0.04] p-3.5'
                           >
                             <div className='mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand/15 text-brand'>
                               <Check className='h-3.5 w-3.5' />
                             </div>
-                            <p className='text-sm leading-6 text-gray-300'>{item}</p>
+                            <p className='text-sm leading-6 text-foreground/80'>{item}</p>
                           </div>
                         ))}
                       </div>
@@ -2142,7 +2142,7 @@ export const BillingPage = () => {
                           className={`group rounded-[1.6rem] border p-5 text-left transition-all duration-300 ${
                             isSelected
                               ? "border-brand bg-brand/10 shadow-[0_0_28px_rgba(47,217,104,0.18)]"
-                              : "border-white/8 bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.05]"
+                              : "border-foreground/8 bg-foreground/[0.03] hover:border-foreground/15 hover:bg-foreground/[0.05]"
                           }`}
                         >
                           <div className='flex items-start justify-between gap-3'>
@@ -2150,7 +2150,7 @@ export const BillingPage = () => {
                               <p className='text-lg font-bold text-foreground'>
                                 +{pack.parallel_slots} parallel
                               </p>
-                              <p className='mt-1 text-sm text-gray-400'>{pack.name}</p>
+                              <p className='mt-1 text-sm text-muted-foreground'>{pack.name}</p>
                             </div>
                             {pack.is_popular ? (
                               <span className='rounded-full border border-brand/25 bg-brand/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-brand'>
@@ -2158,7 +2158,7 @@ export const BillingPage = () => {
                               </span>
                             ) : null}
                           </div>
-                          <p className='mt-4 min-h-[48px] text-sm leading-6 text-gray-400'>
+                          <p className='mt-4 min-h-[48px] text-sm leading-6 text-muted-foreground'>
                             {pack.description}
                           </p>
                           <div className='mt-5 flex items-end justify-between gap-3'>
@@ -2166,7 +2166,7 @@ export const BillingPage = () => {
                               <p className='text-3xl font-bold text-foreground'>
                                 ${pack.price_usd}
                               </p>
-                              <p className='text-xs uppercase tracking-[0.18em] text-gray-500'>
+                              <p className='text-xs uppercase tracking-[0.18em] text-muted-foreground'>
                                 current billing period
                               </p>
                             </div>
@@ -2174,7 +2174,7 @@ export const BillingPage = () => {
                               className={`rounded-full px-3 py-1 text-xs font-semibold ${
                                 isSelected
                                   ? "bg-brand text-background"
-                                  : "bg-white/[0.08] text-gray-300"
+                                  : "bg-foreground/[0.08] text-foreground/80"
                               }`}
                             >
                               {isSelected ? "Selected" : "Select"}
@@ -2197,7 +2197,7 @@ export const BillingPage = () => {
                           slot
                           {selectedConcurrencyPack.parallel_slots === 1 ? "" : "s"}
                         </p>
-                        <p className='mt-2 text-sm leading-6 text-gray-400'>
+                        <p className='mt-2 text-sm leading-6 text-muted-foreground'>
                           Your live capacity would move from {baseConcurrencySlots}
                           {" "}to{" "}
                           {baseConcurrencySlots +
@@ -2239,7 +2239,7 @@ export const BillingPage = () => {
                 <h2 className='text-3xl font-bold text-foreground mb-3'>
                   One-Time Momentum Packs
                 </h2>
-                <p className='text-gray-400'>
+                <p className='text-muted-foreground'>
                   Credit packs are emergency fuel for active opportunities. Plans
                   are still the better deal when you want JobRaker running every week.
                 </p>
@@ -2274,7 +2274,7 @@ export const BillingPage = () => {
                           className={`p-3 rounded-2xl mb-4 ${
                             pack.is_popular
                               ? "bg-brand/10 text-brand"
-                              : "bg-foreground/5 text-gray-400 group-hover:text-foreground group-hover:bg-foreground/10"
+                              : "bg-foreground/5 text-muted-foreground group-hover:text-foreground group-hover:bg-foreground/10"
                           } transition-colors`}
                         >
                           <Package className='w-8 h-8' />
@@ -2293,10 +2293,10 @@ export const BillingPage = () => {
                               pack.credits + pack.bonus_credits
                             ).toLocaleString()}
                           </p>
-                          <p className='text-xs text-gray-400 uppercase tracking-widest font-medium'>
+                          <p className='text-xs text-muted-foreground uppercase tracking-widest font-medium'>
                             Search + AI Credits
                           </p>
-                          <p className='text-xs text-gray-500 mt-2'>
+                          <p className='text-xs text-muted-foreground mt-2'>
                             {pack.description}
                           </p>
                         </div>
@@ -2305,7 +2305,7 @@ export const BillingPage = () => {
                           <p className='text-3xl font-bold text-foreground mb-1'>
                             ${pack.price_usd}
                           </p>
-                          <p className='text-xs text-gray-500 mb-4'>
+                          <p className='text-xs text-muted-foreground mb-4'>
                             $
                             {(
                               pack.price_usd /
@@ -2364,7 +2364,7 @@ export const BillingPage = () => {
                     <p className='font-bold text-foreground mb-1'>
                       {benefit.title}
                     </p>
-                    <p className='text-sm text-gray-400'>{benefit.desc}</p>
+                    <p className='text-sm text-muted-foreground'>{benefit.desc}</p>
                   </div>
                 ))}
               </div>
@@ -2385,7 +2385,7 @@ export const BillingPage = () => {
                 <h2 className='text-3xl font-bold text-foreground mb-3'>
                   Credit Costs
                 </h2>
-                <p className='text-gray-400 max-w-2xl mx-auto'>
+                <p className='text-muted-foreground max-w-2xl mx-auto'>
                   See how many credits each feature uses. Some AI features
                   include a free monthly allowance on paid plans before credits
                   are deducted.
@@ -2402,7 +2402,7 @@ export const BillingPage = () => {
                       </div>
                       AI Features
                     </CardTitle>
-                    <CardDescription className='text-gray-400'>
+                    <CardDescription className='text-muted-foreground'>
                       Chat, cover letters, resume analysis, and more
                     </CardDescription>
                   </CardHeader>
@@ -2470,7 +2470,7 @@ export const BillingPage = () => {
                             <p className='text-sm font-medium text-foreground'>
                               {item.label}
                             </p>
-                            <p className='text-xs text-gray-500 mt-0.5'>
+                            <p className='text-xs text-muted-foreground mt-0.5'>
                               {item.note}
                             </p>
                           </div>
@@ -2499,7 +2499,7 @@ export const BillingPage = () => {
                       </div>
                       Search & Applications
                     </CardTitle>
-                    <CardDescription className='text-gray-400'>
+                    <CardDescription className='text-muted-foreground'>
                       Job search, auto-apply, and application tracking
                     </CardDescription>
                   </CardHeader>
@@ -2553,7 +2553,7 @@ export const BillingPage = () => {
                             <p className='text-sm font-medium text-foreground'>
                               {item.label}
                             </p>
-                            <p className='text-xs text-gray-500 mt-0.5'>
+                            <p className='text-xs text-muted-foreground mt-0.5'>
                               {item.note}
                             </p>
                           </div>
@@ -2587,7 +2587,7 @@ export const BillingPage = () => {
                   { text: string; accent: string; bg: string }
                 > = {
                   Free: {
-                    text: "text-gray-400",
+                    text: "text-muted-foreground",
                     accent: "text-foreground",
                     bg: "bg-foreground/5",
                   },
@@ -2864,7 +2864,7 @@ export const BillingPage = () => {
                           <CardTitle className='text-xl font-bold text-foreground tracking-tight'>
                             Compare Plans
                           </CardTitle>
-                          <CardDescription className='text-gray-400 mt-1'>
+                          <CardDescription className='text-muted-foreground mt-1'>
                             Every feature across all tiers — see exactly what
                             you get
                           </CardDescription>
@@ -2875,7 +2875,7 @@ export const BillingPage = () => {
                             className={`rounded-full px-3 py-1 font-semibold transition-all ${
                               billingInterval === "monthly"
                                 ? "bg-brand text-background shadow-sm"
-                                : "text-gray-400 hover:text-foreground"
+                                : "text-muted-foreground hover:text-foreground"
                             }`}
                           >
                             Monthly
@@ -2885,7 +2885,7 @@ export const BillingPage = () => {
                             className={`rounded-full px-3 py-1 font-semibold transition-all inline-flex items-center gap-1 ${
                               billingInterval === "quarterly"
                                 ? "bg-brand text-background shadow-sm"
-                                : "text-gray-400 hover:text-foreground"
+                                : "text-muted-foreground hover:text-foreground"
                             }`}
                           >
                             Quarterly
@@ -2898,7 +2898,7 @@ export const BillingPage = () => {
                             className={`rounded-full px-3 py-1 font-semibold transition-all ${
                               billingInterval === "yearly"
                                 ? "bg-brand text-background shadow-sm"
-                                : "text-gray-400 hover:text-foreground"
+                                : "text-muted-foreground hover:text-foreground"
                             }`}
                           >
                             Annual{" "}
@@ -2955,12 +2955,12 @@ export const BillingPage = () => {
                                           <span className='text-lg font-extrabold text-foreground'>
                                             ${pricing.headline}
                                           </span>
-                                          <span className='text-[11px] text-gray-500'>
+                                          <span className='text-[11px] text-muted-foreground'>
                                             {pricing.suffix}
                                           </span>
                                         </div>
                                       ) : (
-                                        <span className='text-[11px] text-gray-500'>
+                                        <span className='text-[11px] text-muted-foreground'>
                                           Free
                                         </span>
                                       )}
@@ -3030,7 +3030,7 @@ export const BillingPage = () => {
                                         {row.feature}
                                       </span>
                                       {row.sub && (
-                                        <span className='block text-[11px] text-gray-500 mt-0.5'>
+                                        <span className='block text-[11px] text-muted-foreground mt-0.5'>
                                           {row.sub}
                                         </span>
                                       )}
@@ -3080,14 +3080,14 @@ export const BillingPage = () => {
                       <CardTitle className='text-xl font-bold text-foreground flex items-center gap-2'>
                         Transaction History
                       </CardTitle>
-                      <CardDescription className='text-gray-400 mt-1'>
+                      <CardDescription className='text-muted-foreground mt-1'>
                         View all your credit transactions and usage history
                       </CardDescription>
                     </div>
                     <Button
                       variant='outline'
                       size='sm'
-                      className='gap-2 border-foreground/10 bg-foreground/5 hover:bg-foreground/10 text-gray-300 hover:text-foreground shrink-0'
+                      className='gap-2 border-foreground/10 bg-foreground/5 hover:bg-foreground/10 text-foreground/80 hover:text-foreground shrink-0'
                       onClick={exportTransactionsCSV}
                     >
                       <Download className='w-4 h-4' />
@@ -3099,12 +3099,12 @@ export const BillingPage = () => {
                   {groupedTransactions.length === 0 ? (
                     <div className='flex flex-col items-center justify-center py-24 text-center'>
                       <div className='p-4 rounded-full bg-foreground/5 mb-4 border border-foreground/10'>
-                        <History className='w-8 h-8 text-gray-400' />
+                        <History className='w-8 h-8 text-muted-foreground' />
                       </div>
                       <p className='text-foreground font-medium text-lg mb-1'>
                         No transactions yet
                       </p>
-                      <p className='text-gray-500 text-sm max-w-xs'>
+                      <p className='text-muted-foreground text-sm max-w-xs'>
                         Your credit purchases and usage will appear here once
                         you start using JobRaker.
                       </p>
@@ -3146,11 +3146,11 @@ export const BillingPage = () => {
                                       <p className="text-foreground font-medium truncate">
                                         {description}
                                       </p>
-                                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-foreground/5 text-gray-400 font-medium">
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-foreground/5 text-muted-foreground font-medium">
                                         Run Receipt
                                       </span>
                                     </div>
-                                    <p className="text-xs text-gray-500 font-mono mt-0.5">
+                                    <p className="text-xs text-muted-foreground font-mono mt-0.5">
                                       {formatDate(createdAt)}
                                     </p>
                                   </div>
@@ -3164,19 +3164,19 @@ export const BillingPage = () => {
                                           ? "text-brand"
                                           : netAmount < 0
                                             ? "text-foreground"
-                                            : "text-gray-400"
+                                            : "text-muted-foreground"
                                       }`}
                                     >
                                       {netAmount > 0 ? "+" : ""}
                                       {netAmount}
                                     </p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-muted-foreground">
                                       {hasAuthoritativeBalance
                                         ? `Balance: ${balanceAfter}`
                                         : "Legacy receipt"}
                                     </p>
                                   </div>
-                                  <div className="text-gray-500 group-hover:text-foreground transition-colors">
+                                  <div className="text-muted-foreground group-hover:text-foreground transition-colors">
                                     {isExpanded ? (
                                       <ChevronDown className="w-5 h-5" />
                                     ) : (
@@ -3198,7 +3198,7 @@ export const BillingPage = () => {
                                     <div className="p-4 sm:p-6 pl-12 sm:pl-16 space-y-4">
                                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border border-foreground/5 rounded-xl p-4 bg-background/50">
                                         <div>
-                                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Reserved Amount</p>
+                                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Reserved Amount</p>
                                           <p className="text-base font-bold font-mono text-foreground mt-1">
                                             {(() => {
                                               const resTx = item.transactions.find(t => t.amount < 0);
@@ -3207,7 +3207,7 @@ export const BillingPage = () => {
                                           </p>
                                         </div>
                                         <div>
-                                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Refunded Amount</p>
+                                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Refunded Amount</p>
                                           <p className="text-base font-bold font-mono text-brand mt-1">
                                             {(() => {
                                               const refTx = item.transactions.find(t => t.amount > 0);
@@ -3216,7 +3216,7 @@ export const BillingPage = () => {
                                           </p>
                                         </div>
                                         <div>
-                                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Net Charged</p>
+                                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Net Charged</p>
                                           <p className="text-base font-bold font-mono text-foreground mt-1">
                                             {netAmount} credits
                                           </p>
@@ -3238,7 +3238,7 @@ export const BillingPage = () => {
                                                     <p className="text-foreground font-medium text-xs sm:text-sm">
                                                       {tx.description}
                                                     </p>
-                                                    <p className="text-[10px] text-gray-500 font-mono mt-0.5">
+                                                    <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
                                                       {formatDate(tx.created_at)}
                                                     </p>
                                                   </div>
@@ -3249,7 +3249,7 @@ export const BillingPage = () => {
                                                   }`}>
                                                     {tx.amount > 0 ? "+" : ""}{tx.amount}
                                                   </p>
-                                                  <p className="text-[10px] text-gray-500">
+                                                  <p className="text-[10px] text-muted-foreground">
                                                     {tx.source === "v2"
                                                       ? `After: ${tx.balance_after}`
                                                       : "Legacy receipt"}
@@ -3290,7 +3290,7 @@ export const BillingPage = () => {
                                   <p className='text-foreground font-medium truncate mb-0.5'>
                                     {item.description}
                                   </p>
-                                  <p className='text-xs text-gray-500 font-mono'>
+                                  <p className='text-xs text-muted-foreground font-mono'>
                                     {formatDate(item.created_at)}
                                   </p>
                                 </div>
@@ -3306,7 +3306,7 @@ export const BillingPage = () => {
                                   {item.amount > 0 ? "+" : ""}
                                   {item.amount}
                                 </p>
-                                <p className='text-xs text-gray-500'>
+                                <p className='text-xs text-muted-foreground'>
                                   {item.source === "v2"
                                     ? `Balance: ${item.balance_after}`
                                     : "Legacy receipt"}

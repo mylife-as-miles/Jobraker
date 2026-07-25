@@ -141,7 +141,7 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <span className="text-brand">+</span> Create a new cover letter
                     </DialogTitle>
-                    <DialogDescription className="text-zinc-400">
+                    <DialogDescription className="text-muted-foreground">
                         Start building your cover letter by giving it a name.
                     </DialogDescription>
                 </DialogHeader>
@@ -149,7 +149,7 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
                 <div className="grid gap-6 py-4">
                     {/* Name Input */}
                     <div className="grid gap-2">
-                        <label htmlFor="name" className="text-sm font-medium text-zinc-300">
+                        <label htmlFor="name" className="text-sm font-medium text-foreground/80">
                             Name
                         </label>
                         <Input
@@ -160,18 +160,18 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
                             className="bg-zinc-900 border-zinc-800 focus:border-brand text-foreground placeholder:text-zinc-600"
                             autoFocus
                         />
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-muted-foreground">
                             Tip: Include the company and role for easy identification.
                         </p>
                     </div>
 
                     {/* Slug Input */}
                     <div className="grid gap-2">
-                        <label htmlFor="slug" className="text-sm font-medium text-zinc-300">
+                        <label htmlFor="slug" className="text-sm font-medium text-foreground/80">
                             Slug
                         </label>
                         <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
                                 jobraker.io/cover-letter/
                             </span>
                             <Input
@@ -181,19 +181,19 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
                                 className="bg-zinc-900 border-zinc-800 focus:border-brand text-foreground pl-[230px]"
                             />
                         </div>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-muted-foreground">
                             This is a URL-friendly name for your cover letter.
                         </p>
                     </div>
 
                     {/* Tags Input */}
                     <div className="grid gap-2">
-                        <label htmlFor="tags" className="text-sm font-medium text-zinc-300">
+                        <label htmlFor="tags" className="text-sm font-medium text-foreground/80">
                             Tags
                         </label>
                         <div className="min-h-[48px] p-2 bg-zinc-900 border border-zinc-800 rounded-xl focus-within:border-brand flex flex-wrap gap-2">
                             {tags.map((tag) => (
-                                <span key={tag} className="bg-zinc-800 text-zinc-200 px-2 py-1 rounded-md text-sm flex items-center gap-1">
+                                <span key={tag} className="bg-zinc-800 text-foreground/80 px-2 py-1 rounded-md text-sm flex items-center gap-1">
                                     {tag}
                                     <button onClick={() => removeTag(tag)} className="hover:text-foreground">
                                         <X size={14} />
@@ -209,8 +209,8 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
                                 className="bg-transparent border-none outline-none text-foreground flex-1 min-w-[120px] text-sm h-7"
                             />
                         </div>
-                        <p className="text-xs text-zinc-500">
-                            Press <kbd className="bg-zinc-800 px-1 rounded text-zinc-300">Enter</kbd> or <kbd className="bg-zinc-800 px-1 rounded text-zinc-300">,</kbd> to add tags.
+                        <p className="text-xs text-muted-foreground">
+                            Press <kbd className="bg-zinc-800 px-1 rounded text-foreground/80">Enter</kbd> or <kbd className="bg-zinc-800 px-1 rounded text-foreground/80">,</kbd> to add tags.
                         </p>
                     </div>
                 </div>

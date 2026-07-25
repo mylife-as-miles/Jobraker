@@ -80,7 +80,7 @@ export const AIPolishDialog = ({
               </div>
               <button
                 onClick={onClose}
-                className='text-slate-400 hover:text-foreground transition-colors'
+                className='text-muted-foreground hover:text-foreground transition-colors'
               >
                 <X className='w-5 h-5' />
               </button>
@@ -91,7 +91,7 @@ export const AIPolishDialog = ({
               {loading ? (
                 <div className='flex flex-col items-center justify-center py-12 space-y-4'>
                   <Wand2 className='w-8 h-8 text-brand animate-spin' />
-                  <p className='text-sm text-gray-400'>
+                  <p className='text-sm text-muted-foreground'>
                     Analyzing your content...
                   </p>
                 </div>
@@ -99,10 +99,10 @@ export const AIPolishDialog = ({
                 <>
                   {/* Original */}
                   <div>
-                    <div className='text-xs uppercase tracking-wider text-slate-500 font-bold mb-2'>
+                    <div className='text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2'>
                       Original
                     </div>
-                    <div className='p-3 bg-brand/10 border border-brand/20 rounded-lg text-slate-300 text-sm line-through decoration-slate-500/50'>
+                    <div className='p-3 bg-brand/10 border border-brand/20 rounded-lg text-foreground/80 text-sm line-through decoration-slate-500/50'>
                       {originalText}
                     </div>
                   </div>
@@ -114,7 +114,7 @@ export const AIPolishDialog = ({
                         <div className='flex items-center justify-between'>
                           <div className='flex items-center gap-2'>
                             <div
-                              className={`text-xs uppercase tracking-wider font-bold ${suggestion.isRecommended ? "text-brand" : "text-slate-400"}`}
+                              className={`text-xs uppercase tracking-wider font-bold ${suggestion.isRecommended ? "text-brand" : "text-muted-foreground"}`}
                             >
                               Suggestion {index + 1}
                             </div>
@@ -124,7 +124,7 @@ export const AIPolishDialog = ({
                               </span>
                             )}
                           </div>
-                          <div className='text-[10px] text-slate-500'>
+                          <div className='text-[10px] text-muted-foreground'>
                             {suggestion.label}
                           </div>
                         </div>
@@ -158,7 +158,7 @@ export const AIPolishDialog = ({
                                 e.stopPropagation();
                                 setSelectedSuggestion(null);
                               }}
-                              className='px-3 py-2 rounded-lg border border-foreground/10 hover:bg-muted/50 text-slate-400 text-xs font-medium transition-colors'
+                              className='px-3 py-2 rounded-lg border border-foreground/10 hover:bg-muted/50 text-muted-foreground text-xs font-medium transition-colors'
                             >
                               Dismiss
                             </button>
@@ -172,7 +172,7 @@ export const AIPolishDialog = ({
             </div>
 
             {/* Footer */}
-            <div className='p-3 bg-muted text-center border-t border-border text-[10px] text-slate-500'>
+            <div className='p-3 bg-muted text-center border-t border-border text-[10px] text-muted-foreground'>
               AI can make mistakes. Please review suggestions.
             </div>
           </div>

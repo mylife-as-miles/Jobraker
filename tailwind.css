@@ -128,6 +128,21 @@
     color-scheme: light;
   }
 
+  /*
+   * The brand green (#2fd968) is tuned to sit on a black page. As *text* on a
+   * light background it only reaches ~1.7:1, which is the "text blending into
+   * the background" effect. Darken it for text in light mode only — fills
+   * (bg-brand, borders, rings) are untouched, so buttons and the accent cards
+   * keep their vivid green.
+   *
+   * color-mix (rather than a hardcoded darker green) keeps this correct when a
+   * user picks a custom accent: applyAppearanceToDOM sets --brand as an inline
+   * style at runtime, and this derives from whatever that ends up being.
+   */
+  html:not(.dark) .text-brand {
+    color: color-mix(in srgb, hsl(var(--brand)), #000 34%);
+  }
+
   html,
   body,
   #app,

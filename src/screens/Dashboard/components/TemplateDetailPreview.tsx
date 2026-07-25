@@ -181,7 +181,7 @@ export const TemplateDetailPreview = ({
                   className={cn(
                     "w-8 h-8 rounded-full transition-all border-2",
                     primaryColor === color.value
-                      ? "border-white ring-2 ring-white/20 ring-offset-2 ring-offset-[#111812] scale-110"
+                      ? "border-white ring-2 ring-foreground/20 ring-offset-2 ring-offset-[#111812] scale-110"
                       : "border-transparent hover:scale-105",
                   )}
                   style={{ backgroundColor: color.value }}

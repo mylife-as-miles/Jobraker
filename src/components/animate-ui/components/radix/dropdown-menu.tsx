@@ -96,7 +96,7 @@ function DropdownMenuItem({
         data-inset={inset}
         data-variant={variant}
         className={cn(
-          "relative z-10 flex select-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-white outline-none transition-colors",
+          "relative z-10 flex select-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition-colors",
           "data-[highlighted=true]:text-brand data-[state=open]:text-brand",
           "data-[variant=destructive]:text-brand data-[variant=destructive]:data-[highlighted=true]:bg-brand/10",
           "data-[disabled=true]:opacity-40 data-[disabled=true]:pointer-events-none",
@@ -124,7 +124,7 @@ function DropdownMenuCheckboxItem({
       <DropdownMenuCheckboxItemPrimitive
         disabled={disabled}
         className={cn(
-          "relative z-10 flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-3 pl-9 text-sm text-white outline-none transition-colors",
+          "relative z-10 flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-3 pl-9 text-sm text-foreground outline-none transition-colors",
           "data-[highlighted=true]:text-brand",
           "data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-40",
           "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-foreground/70",
@@ -166,7 +166,7 @@ function DropdownMenuRadioItem({
       <DropdownMenuRadioItemPrimitive
         disabled={disabled}
         className={cn(
-          "relative z-10 flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-3 pl-9 text-sm text-white outline-none transition-colors",
+          "relative z-10 flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-3 pl-9 text-sm text-foreground outline-none transition-colors",
           "data-[highlighted=true]:text-brand",
           "data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-40",
           "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-foreground/70",
@@ -258,7 +258,7 @@ function DropdownMenuSubTrigger({
       <DropdownMenuSubTriggerPrimitive
         data-inset={inset}
         className={cn(
-          "relative z-10 flex cursor-default select-none items-center rounded-lg px-3 py-2 text-sm text-white outline-none transition-colors data-[inset=true]:pl-8",
+          "relative z-10 flex cursor-default select-none items-center rounded-lg px-3 py-2 text-sm text-foreground outline-none transition-colors data-[inset=true]:pl-8",
           "data-[state=open]:text-brand data-[highlighted=true]:text-brand",
           "data-[state=open]:[&_[data-slot=chevron]]:rotate-90 [&_[data-slot=chevron]]:transition-transform [&_[data-slot=chevron]]:duration-300 [&_[data-slot=chevron]]:ease-in-out",
           className,

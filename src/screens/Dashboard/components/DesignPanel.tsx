@@ -80,7 +80,7 @@ export const DesignPanel = () => {
         {activeTab === "typography" && (
           <div className='space-y-6 animate-in fade-in duration-300'>
             <div className='space-y-3'>
-              <label className='text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400'>
+              <label className='text-xs font-semibold uppercase tracking-wider text-muted-foreground dark:text-muted-foreground'>
                 Font Family
               </label>
               <Select
@@ -138,10 +138,10 @@ export const DesignPanel = () => {
 
             <div className='space-y-4'>
               <div className='flex items-center justify-between'>
-                <label className='text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400'>
+                <label className='text-xs font-semibold uppercase tracking-wider text-muted-foreground dark:text-muted-foreground'>
                   Font Size
                 </label>
-                <span className='text-xs font-mono text-gray-400'>
+                <span className='text-xs font-mono text-muted-foreground'>
                   {typography.size}px
                 </span>
               </div>
@@ -156,10 +156,10 @@ export const DesignPanel = () => {
 
             <div className='space-y-4'>
               <div className='flex items-center justify-between'>
-                <label className='text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400'>
+                <label className='text-xs font-semibold uppercase tracking-wider text-muted-foreground dark:text-muted-foreground'>
                   Line Height
                 </label>
-                <span className='text-xs font-mono text-gray-400'>
+                <span className='text-xs font-mono text-muted-foreground'>
                   {typography.lineHeight || 1.5}
                 </span>
               </div>
@@ -176,10 +176,10 @@ export const DesignPanel = () => {
 
             <div className='space-y-4'>
               <div className='flex items-center justify-between'>
-                <label className='text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400'>
+                <label className='text-xs font-semibold uppercase tracking-wider text-muted-foreground dark:text-muted-foreground'>
                   Paragraph Spacing
                 </label>
-                <span className='text-xs font-mono text-gray-400'>
+                <span className='text-xs font-mono text-muted-foreground'>
                   {typography.paragraphSpacing ?? 8}px
                 </span>
               </div>
@@ -221,7 +221,7 @@ export const DesignPanel = () => {
         {activeTab === "page" && (
           <div className='space-y-6 animate-in fade-in duration-300'>
             <div className='space-y-3'>
-              <label className='text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400'>
+              <label className='text-xs font-semibold uppercase tracking-wider text-muted-foreground dark:text-muted-foreground'>
                 Format
               </label>
               <Select
@@ -242,10 +242,10 @@ export const DesignPanel = () => {
 
             <div className='space-y-4'>
               <div className='flex items-center justify-between'>
-                <label className='text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400'>
+                <label className='text-xs font-semibold uppercase tracking-wider text-muted-foreground dark:text-muted-foreground'>
                   Margins
                 </label>
-                <span className='text-xs font-mono text-gray-400'>
+                <span className='text-xs font-mono text-muted-foreground'>
                   {page.margin}mm
                 </span>
               </div>
@@ -265,10 +265,10 @@ export const DesignPanel = () => {
           <div className='space-y-6 animate-in fade-in duration-300'>
             <div className='space-y-4'>
               <div className='flex items-center justify-between'>
-                <label className='text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400'>
+                <label className='text-xs font-semibold uppercase tracking-wider text-muted-foreground dark:text-muted-foreground'>
                   Sidebar Width
                 </label>
-                <span className='text-xs font-mono text-gray-400'>
+                <span className='text-xs font-mono text-muted-foreground'>
                   {layout.sidebarWidth}%
                 </span>
               </div>
@@ -281,7 +281,7 @@ export const DesignPanel = () => {
                   updateLayout({ sidebarWidth: vals[0] })
                 }
               />
-              <p className='text-[10px] text-gray-400'>
+              <p className='text-[10px] text-muted-foreground'>
                 Adjusts the width of the sidebar column relative to the page
                 width.
               </p>
@@ -311,7 +311,7 @@ const TabButton = ({
             ${
               isActive
                 ? "bg-white dark:bg-muted text-brand shadow-sm"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-foreground hover:bg-gray-100 dark:hover:bg-muted/50"
+                : "text-muted-foreground dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground hover:bg-gray-100 dark:hover:bg-muted/50"
             }
         `}
   >
@@ -330,7 +330,7 @@ const ColorPicker = ({
   onChange: (val: string) => void;
 }) => (
   <div className='space-y-3'>
-    <label className='text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400'>
+    <label className='text-xs font-semibold uppercase tracking-wider text-muted-foreground dark:text-muted-foreground'>
       {label}
     </label>
     <div className='flex items-center gap-3'>

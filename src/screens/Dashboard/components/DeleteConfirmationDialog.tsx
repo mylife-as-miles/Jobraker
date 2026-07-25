@@ -37,7 +37,7 @@ export const DeleteConfirmationDialog: React.FC<
             <Trash2 className='w-5 h-5' />
             {title}
           </DialogTitle>
-          <DialogDescription className='text-zinc-400'>
+          <DialogDescription className='text-muted-foreground'>
             {description}
           </DialogDescription>
         </DialogHeader>
@@ -47,7 +47,7 @@ export const DeleteConfirmationDialog: React.FC<
             variant='ghost'
             onClick={() => onOpenChange(false)}
             disabled={loading}
-            className='hover:bg-zinc-900 text-zinc-300 hover:text-foreground'
+            className='hover:bg-zinc-900 text-foreground/80 hover:text-foreground'
           >
             Cancel
           </Button>

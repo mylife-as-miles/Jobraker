@@ -89,7 +89,7 @@ export default function SortDropdown({ value, onChange, className }: SortDropdow
                   "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-colors duration-150",
                   value === opt.value
                     ? "bg-[#2fd968]/10 text-[#d8ffe2]"
-                    : "text-foreground/72 hover:bg-white/[0.04] hover:text-foreground",
+                    : "text-foreground/72 hover:bg-foreground/[0.04] hover:text-foreground",
                 ].join(" ")}
               >
                 <span className="truncate font-medium">{opt.label}</span>

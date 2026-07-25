@@ -71,23 +71,23 @@ export const ChatSearchPalette = ({ open, onClose }: Props) => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder='Search current session (Ctrl+K)'
-                className='flex-1 bg-transparent outline-none text-sm text-neutral-200 placeholder:text-neutral-500'
+                className='flex-1 bg-transparent outline-none text-sm text-foreground/80 placeholder:text-muted-foreground'
               />
               <button
                 onClick={onClose}
-                className='p-1.5 rounded-md hover:bg-brand/10 text-neutral-400 hover:text-white'
+                className='p-1.5 rounded-md hover:bg-brand/10 text-muted-foreground hover:text-foreground'
               >
                 <X className='w-4 h-4' />
               </button>
             </div>
             <div className='max-h-[60vh] overflow-y-auto custom-scrollbar py-2'>
               {results.length === 0 && query && (
-                <div className='px-5 py-6 text-center text-xs text-neutral-500'>
+                <div className='px-5 py-6 text-center text-xs text-muted-foreground'>
                   No matches
                 </div>
               )}
               {!query && (
-                <div className='px-5 py-6 text-center text-xs text-neutral-500'>
+                <div className='px-5 py-6 text-center text-xs text-muted-foreground'>
                   Type to search messages…
                 </div>
               )}
@@ -97,7 +97,7 @@ export const ChatSearchPalette = ({ open, onClose }: Props) => {
                     key={r.message.id}
                     className='group rounded-lg border border-transparent hover:border-brand/30 bg-background/40 hover:bg-[#131d13]/70 transition'
                   >
-                    <div className='px-3 py-2 text-[11px] text-neutral-300 leading-relaxed'>
+                    <div className='px-3 py-2 text-[11px] text-foreground/80 leading-relaxed'>
                       <span className='text-brand/80 font-mono mr-2'>
                         score:{r.score}
                       </span>

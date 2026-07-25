@@ -193,7 +193,7 @@ const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     name: "GitHub",
     description: "Pull project evidence, repos, languages, and portfolio signals into Agent Mode.",
     authConfigId: import.meta.env.VITE_COMPOSIO_GITHUB_CONFIG_ID,
-    icon: <Github className='w-6 h-6 text-zinc-200' />,
+    icon: <Github className='w-6 h-6 text-foreground/80' />,
     accentClass: "from-zinc-500/20 to-zinc-500/10 border-zinc-500/30",
   },
   {
@@ -239,7 +239,7 @@ const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     name: "Notion",
     description: "Use brag docs, case studies, notes, and project writeups as candidate context.",
     authConfigId: import.meta.env.VITE_COMPOSIO_NOTION_CONFIG_ID,
-    icon: <Database className='w-6 h-6 text-stone-200' />,
+    icon: <Database className='w-6 h-6 text-foreground/80' />,
     accentClass: "from-stone-500/20 to-stone-500/10 border-stone-500/30",
   },
   {
@@ -3445,7 +3445,7 @@ export const SettingsPage = (): JSX.Element => {
                       <div
                         className={`w-10 h-10 rounded-lg mx-auto mb-3 ${
                           theme === "Dark"
-                            ? "bg-black ring-1 ring-white/10"
+                            ? "bg-black ring-1 ring-foreground/10"
                             : theme === "Light"
                               ? "bg-white ring-1 ring-black/10"
                               : "bg-gradient-to-r from-50% to-50% from-black border to-white"
@@ -3491,7 +3491,7 @@ export const SettingsPage = (): JSX.Element => {
                       }
                     }}
                     className={`w-12 h-12 rounded-full cursor-pointer border-2 transition-all hover:scale-110 shadow-lg ${(appearanceSettings?.accent_color || "#2fd968").toLowerCase() === color.toLowerCase()
-                      ? "border-white ring-4 ring-white/20 scale-110"
+                      ? "border-white ring-4 ring-foreground/20 scale-110"
                       : "border-background/50 hover:border-foreground/50"
                       }`}
                     style={{ backgroundColor: color }}
@@ -4088,7 +4088,7 @@ export const SettingsPage = (): JSX.Element => {
                                 ? "bg-brand/20 text-brand"
                                 : req.status === "processing"
                                   ? "bg-blue-500/20 text-blue-400"
-                                  : "bg-zinc-500/20 text-zinc-400"
+                                  : "bg-zinc-500/20 text-muted-foreground"
                             }`}
                           >
                             {req.status}
@@ -4101,7 +4101,7 @@ export const SettingsPage = (): JSX.Element => {
             )}
 
             {/* Account Deletion */}
-            <div className='bg-card border border-brand/30 rounded-xl p-6 shadow-sm ring-1 ring-white/5'>
+            <div className='bg-card border border-brand/30 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
               <div className='flex items-center gap-3 mb-4'>
                 <AlertTriangle className='w-5 h-5 text-brand' />
                 <h3 className='text-base font-medium text-brand'>
@@ -4562,7 +4562,7 @@ export const SettingsPage = (): JSX.Element => {
                           />
                         </div>
                         <div className='flex-1 pt-1'>
-                          <h3 className='text-xl font-bold tracking-tight text-white flex items-center gap-2'>
+                          <h3 className='text-xl font-bold tracking-tight text-foreground flex items-center gap-2'>
                             {s.name} Access
                             {s.requiresCredentials && (
                               <Lock className='w-4 h-4 text-brand' />
@@ -4578,7 +4578,7 @@ export const SettingsPage = (): JSX.Element => {
                       {/* Power Toggle */}
                       <div className='bg-[#16161D] border border-border/10 rounded-xl p-5 flex items-center justify-between'>
                         <div>
-                          <p className='text-sm font-semibold text-white'>
+                          <p className='text-sm font-semibold text-foreground'>
                             Job Source Status
                           </p>
                           <p className='text-xs text-foreground/50 mt-0.5'>
@@ -4606,7 +4606,7 @@ export const SettingsPage = (): JSX.Element => {
                             </span>
                           </div>
 
-                          <div className='space-y-3 p-5 rounded-xl border border-white/5 bg-black/20'>
+                          <div className='space-y-3 p-5 rounded-xl border border-foreground/5 bg-black/20'>
                             <div className='space-y-1.5'>
                               <label className='text-xs font-semibold text-foreground/70 uppercase tracking-wider ml-1'>
                                 Access Email
@@ -5740,7 +5740,7 @@ export const SettingsPage = (): JSX.Element => {
               )}
           </div>
 
-          <div className='flex items-start gap-2 p-3 bg-card border border-border/40 rounded-lg ring-1 ring-white/5 shadow-sm'>
+          <div className='flex items-start gap-2 p-3 bg-card border border-border/40 rounded-lg ring-1 ring-foreground/5 shadow-sm'>
             <input
               type='checkbox'
               id='confirm-deletion'
@@ -5969,7 +5969,7 @@ export const SettingsPage = (): JSX.Element => {
                 location.
               </p>
             </div>
-            <div className='bg-card border border-border/40 rounded-lg p-4 shadow-sm ring-1 ring-white/5'>
+            <div className='bg-card border border-border/40 rounded-lg p-4 shadow-sm ring-1 ring-foreground/5'>
               <p className='text-xs text-muted-foreground mb-2'>
                 Your API Key:
               </p>

@@ -44,19 +44,19 @@ export const PinnedAndSnippetsPanel = ({ open, onClose }: Props) => {
             <div className='flex items-center gap-2'>
               <button
                 onClick={() => setTab("pinned")}
-                className={`text-[11px] px-2 py-1 rounded-md border ${tab === "pinned" ? "border-brand/60 text-brand bg-[#3a2f0c]" : "border-brand/20 text-neutral-400 hover:text-brand"}`}
+                className={`text-[11px] px-2 py-1 rounded-md border ${tab === "pinned" ? "border-brand/60 text-brand bg-[#3a2f0c]" : "border-brand/20 text-muted-foreground hover:text-brand"}`}
               >
                 Pinned
               </button>
               <button
                 onClick={() => setTab("snippets")}
-                className={`text-[11px] px-2 py-1 rounded-md border ${tab === "snippets" ? "border-brand/60 text-brand bg-[#3a2f0c]" : "border-brand/20 text-neutral-400 hover:text-brand"}`}
+                className={`text-[11px] px-2 py-1 rounded-md border ${tab === "snippets" ? "border-brand/60 text-brand bg-[#3a2f0c]" : "border-brand/20 text-muted-foreground hover:text-brand"}`}
               >
                 Snippets
               </button>
               <button
                 onClick={onClose}
-                className='p-1.5 rounded-md hover:bg-brand/10 text-neutral-400 hover:text-white'
+                className='p-1.5 rounded-md hover:bg-brand/10 text-muted-foreground hover:text-foreground'
               >
                 <X className='w-4 h-4' />
               </button>
@@ -66,7 +66,7 @@ export const PinnedAndSnippetsPanel = ({ open, onClose }: Props) => {
             {tab === "pinned" && (
               <div className='space-y-2'>
                 {pinnedMessages.length === 0 && (
-                  <div className='text-[11px] text-neutral-500 text-center pt-6'>
+                  <div className='text-[11px] text-muted-foreground text-center pt-6'>
                     No pinned messages yet.
                   </div>
                 )}
@@ -77,7 +77,7 @@ export const PinnedAndSnippetsPanel = ({ open, onClose }: Props) => {
                   >
                     <div className='flex items-start gap-2'>
                       <Pin className='w-4 h-4 text-brand mt-0.5' />
-                      <div className='flex-1 text-[12px] leading-relaxed text-neutral-200 whitespace-pre-wrap'>
+                      <div className='flex-1 text-[12px] leading-relaxed text-foreground/80 whitespace-pre-wrap'>
                         {pm.content.slice(0, 800)}
                       </div>
                     </div>
@@ -96,7 +96,7 @@ export const PinnedAndSnippetsPanel = ({ open, onClose }: Props) => {
             {tab === "snippets" && (
               <div className='space-y-2'>
                 {snippets.length === 0 && (
-                  <div className='text-[11px] text-neutral-500 text-center pt-6'>
+                  <div className='text-[11px] text-muted-foreground text-center pt-6'>
                     No saved snippets yet.
                   </div>
                 )}
@@ -114,7 +114,7 @@ export const PinnedAndSnippetsPanel = ({ open, onClose }: Props) => {
                           <div className='text-[11px] font-semibold text-brand mb-1 truncate'>
                             {sn.title}
                           </div>
-                          <div className='text-[12px] leading-relaxed text-neutral-300 whitespace-pre-wrap'>
+                          <div className='text-[12px] leading-relaxed text-foreground/80 whitespace-pre-wrap'>
                             {sn.content.slice(0, 1000)}
                           </div>
                         </div>
@@ -133,7 +133,7 @@ export const PinnedAndSnippetsPanel = ({ open, onClose }: Props) => {
               </div>
             )}
           </div>
-          <div className='px-4 py-2 border-t border-brand/20 text-[10px] text-neutral-500 tracking-wider flex justify-between'>
+          <div className='px-4 py-2 border-t border-brand/20 text-[10px] text-muted-foreground tracking-wider flex justify-between'>
             <span>{pinnedMessages.length} pinned</span>
             <span>{snippets.length} snippets</span>
           </div>

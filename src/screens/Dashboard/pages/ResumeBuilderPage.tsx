@@ -500,7 +500,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           <button
             onClick={aiGenerateResume}
             disabled={aiLoading || loadingTier}
-            className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-brand/60 hover:bg-brand/15 dark:hover:bg-white/10 dark:hover:border-white/20'
+            className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-brand/60 hover:bg-brand/15 dark:hover:bg-foreground/10 dark:hover:border-foreground/20'
           >
             <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
             <span className='hidden sm:inline'>

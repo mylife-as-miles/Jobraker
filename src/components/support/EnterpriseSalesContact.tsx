@@ -186,7 +186,7 @@ export function EnterpriseSalesContact({
               ].map((item) => (
                 <div
                   key={item}
-                  className='rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-3 text-sm text-foreground/72'
+                  className='rounded-2xl border border-foreground/8 bg-foreground/[0.02] px-4 py-3 text-sm text-foreground/72'
                 >
                   <div className='flex items-start gap-3'>
                     <CheckCircle2 className='mt-0.5 h-4 w-4 shrink-0 text-brand' />
@@ -204,7 +204,7 @@ export function EnterpriseSalesContact({
                 {PARTNER_SEGMENTS.map((segment) => (
                   <div
                     key={segment}
-                    className='rounded-2xl border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.015))] px-4 py-3 text-sm font-medium text-foreground/60'
+                    className='rounded-2xl border border-foreground/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.015))] px-4 py-3 text-sm font-medium text-foreground/60'
                   >
                     {segment}
                   </div>
@@ -213,7 +213,7 @@ export function EnterpriseSalesContact({
             </div>
           </div>
 
-          <div className='rounded-[24px] border border-brand/16 bg-white/[0.02] p-5 lg:p-6'>
+          <div className='rounded-[24px] border border-brand/16 bg-foreground/[0.02] p-5 lg:p-6'>
             <div className='space-y-4'>
               <div className='flex items-start gap-3'>
                 <div className='rounded-2xl border border-brand/20 bg-brand/10 p-3 text-brand'>
@@ -253,18 +253,18 @@ export function EnterpriseSalesContact({
       </div>
 
       <Modal open={open} onClose={closeModal} size='xl'>
-        <div className='relative -mx-5 -my-4 overflow-hidden rounded-2xl border border-white/8 bg-[#111315] text-foreground'>
+        <div className='relative -mx-5 -my-4 overflow-hidden rounded-2xl border border-foreground/8 bg-[#111315] text-foreground'>
           <button
             type='button'
             onClick={closeModal}
-            className='absolute right-5 top-5 z-10 rounded-full border border-white/10 bg-white/[0.04] p-2 text-foreground/65 transition-colors hover:bg-white/[0.08] hover:text-foreground'
+            className='absolute right-5 top-5 z-10 rounded-full border border-foreground/10 bg-foreground/[0.04] p-2 text-foreground/65 transition-colors hover:bg-foreground/[0.08] hover:text-foreground'
             aria-label='Close enterprise sales form'
           >
             <X className='h-5 w-5' />
           </button>
 
           <div className='grid min-h-[680px] lg:grid-cols-[1.08fr_1fr]'>
-            <div className='flex flex-col justify-between border-b border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(47,217,104,0.12),transparent_28%),linear-gradient(180deg,#111315_0%,#0d0f12_100%)] p-8 lg:border-b-0 lg:border-r lg:p-10'>
+            <div className='flex flex-col justify-between border-b border-foreground/8 bg-[radial-gradient(circle_at_top_left,rgba(47,217,104,0.12),transparent_28%),linear-gradient(180deg,#111315_0%,#0d0f12_100%)] p-8 lg:border-b-0 lg:border-r lg:p-10'>
               <div className='space-y-8'>
                 <div className='flex items-center gap-3'>
                   <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-sm font-bold text-black'>
@@ -308,7 +308,7 @@ export function EnterpriseSalesContact({
                   {PARTNER_SEGMENTS.map((segment) => (
                     <div
                       key={segment}
-                      className='rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4 text-center text-sm font-medium text-foreground/48'
+                      className='rounded-2xl border border-foreground/8 bg-foreground/[0.03] px-4 py-4 text-center text-sm font-medium text-foreground/48'
                     >
                       {segment}
                     </div>
@@ -344,7 +344,7 @@ export function EnterpriseSalesContact({
                     </Button>
                     <Button
                       variant='outline'
-                      className='border-white/12 bg-transparent text-foreground/72 hover:bg-white/[0.03]'
+                      className='border-foreground/12 bg-transparent text-foreground/72 hover:bg-foreground/[0.03]'
                       onClick={resetForm}
                     >
                       Submit another request
@@ -371,7 +371,7 @@ export function EnterpriseSalesContact({
                             onChange={handleChange("firstName")}
                             placeholder='Jordan'
                             inputSize='md'
-                            className='h-12 border-white/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
+                            className='h-12 border-foreground/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
                           />
                         </Field>
                         <Field label='Last name'>
@@ -380,7 +380,7 @@ export function EnterpriseSalesContact({
                             onChange={handleChange("lastName")}
                             placeholder='Adebayo'
                             inputSize='md'
-                            className='h-12 border-white/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
+                            className='h-12 border-foreground/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
                           />
                         </Field>
                         <Field label='Company name'>
@@ -389,7 +389,7 @@ export function EnterpriseSalesContact({
                             onChange={handleChange("companyName")}
                             placeholder='Northstar Talent'
                             inputSize='md'
-                            className='h-12 border-white/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
+                            className='h-12 border-foreground/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
                           />
                         </Field>
                         <Field label='Job title'>
@@ -398,7 +398,7 @@ export function EnterpriseSalesContact({
                             onChange={handleChange("jobTitle")}
                             placeholder='Director of Career Services'
                             inputSize='md'
-                            className='h-12 border-white/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
+                            className='h-12 border-foreground/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
                           />
                         </Field>
                         <Field label='Business email'>
@@ -408,7 +408,7 @@ export function EnterpriseSalesContact({
                             onChange={handleChange("businessEmail")}
                             placeholder='team@company.com'
                             inputSize='md'
-                            className='h-12 border-white/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
+                            className='h-12 border-foreground/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
                           />
                         </Field>
                         <Field label='Website'>
@@ -417,7 +417,7 @@ export function EnterpriseSalesContact({
                             onChange={handleChange("website")}
                             placeholder='www.company.com'
                             inputSize='md'
-                            className='h-12 border-white/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
+                            className='h-12 border-foreground/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
                           />
                         </Field>
                       </div>
@@ -438,7 +438,7 @@ export function EnterpriseSalesContact({
                           <select
                             value={formData.teamSize}
                             onChange={handleChange("teamSize")}
-                            className='h-12 w-full rounded-xl border border-white/10 bg-[#17191c] px-4 text-base text-foreground outline-none transition-colors hover:border-white/15 focus:border-brand'
+                            className='h-12 w-full rounded-xl border border-foreground/10 bg-[#17191c] px-4 text-base text-foreground outline-none transition-colors hover:border-foreground/15 focus:border-brand'
                           >
                             <option value=''>Select team size</option>
                             {TEAM_SIZE_OPTIONS.map((option) => (
@@ -452,7 +452,7 @@ export function EnterpriseSalesContact({
                           <select
                             value={formData.rolloutTimeline}
                             onChange={handleChange("rolloutTimeline")}
-                            className='h-12 w-full rounded-xl border border-white/10 bg-[#17191c] px-4 text-base text-foreground outline-none transition-colors hover:border-white/15 focus:border-brand'
+                            className='h-12 w-full rounded-xl border border-foreground/10 bg-[#17191c] px-4 text-base text-foreground outline-none transition-colors hover:border-foreground/15 focus:border-brand'
                           >
                             <option value=''>Select timeline</option>
                             {TIMELINE_OPTIONS.map((option) => (
@@ -470,7 +470,7 @@ export function EnterpriseSalesContact({
                           onChange={handleChange("monthlyHiringVolume")}
                           placeholder='e.g. 120 candidate reviews / month'
                           inputSize='md'
-                          className='h-12 border-white/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
+                          className='h-12 border-foreground/10 bg-[#17191c] px-4 text-base font-normal tracking-normal placeholder:text-foreground/25'
                         />
                       </Field>
 
@@ -480,7 +480,7 @@ export function EnterpriseSalesContact({
                           value={formData.useCase}
                           onChange={handleChange("useCase")}
                           placeholder='Describe your workflow, team structure, and what a successful rollout would look like.'
-                          className='min-h-[148px] rounded-xl border-white/10 bg-[#17191c] px-4 py-3 text-base text-foreground placeholder:text-foreground/25 focus:ring-brand/50'
+                          className='min-h-[148px] rounded-xl border-foreground/10 bg-[#17191c] px-4 py-3 text-base text-foreground placeholder:text-foreground/25 focus:ring-brand/50'
                         />
                       </Field>
 
@@ -495,7 +495,7 @@ export function EnterpriseSalesContact({
                           type='button'
                           variant='outline'
                           onClick={() => setStep(1)}
-                          className='h-12 flex-1 border-white/10 bg-transparent text-foreground/72 hover:bg-white/[0.03]'
+                          className='h-12 flex-1 border-foreground/10 bg-transparent text-foreground/72 hover:bg-foreground/[0.03]'
                         >
                           Back
                         </Button>

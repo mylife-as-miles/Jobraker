@@ -101,7 +101,7 @@ export function MatchScoreAnalytics({
               </p>
             </div>
 
-            <div className='rounded-2xl border border-border/40 bg-background/40 backdrop-blur-md px-5 py-4 text-right shadow-inner ring-1 ring-white/5'>
+            <div className='rounded-2xl border border-border/40 bg-background/40 backdrop-blur-md px-5 py-4 text-right shadow-inner ring-1 ring-foreground/5'>
               <div className='text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60'>
                 Average
               </div>
@@ -196,7 +196,7 @@ export function MatchScoreAnalytics({
                     </div>
 
                     <div className='mt-3 pl-10'>
-                      <div className='h-2.5 overflow-hidden rounded-full bg-white/[0.04] ring-1 ring-white/[0.05]'>
+                      <div className='h-2.5 overflow-hidden rounded-full bg-foreground/[0.04] ring-1 ring-foreground/[0.05]'>
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${item.width}%` }}

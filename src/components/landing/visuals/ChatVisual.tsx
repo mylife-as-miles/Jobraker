@@ -12,9 +12,9 @@ export const ChatVisual = () => {
         className='flex items-start space-x-2'
       >
         <div className='w-6 h-6 rounded-full bg-foreground/10 flex items-center justify-center shrink-0'>
-          <User className='w-3 h-3 text-gray-400' />
+          <User className='w-3 h-3 text-muted-foreground' />
         </div>
-        <div className='bg-foreground/10 p-2 rounded-r-lg rounded-bl-lg text-gray-300 max-w-[80%]'>
+        <div className='bg-foreground/10 p-2 rounded-r-lg rounded-bl-lg text-foreground/80 max-w-[80%]'>
           Check my emails for interview requests.
         </div>
       </motion.div>

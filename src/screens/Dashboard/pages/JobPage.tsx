@@ -5274,7 +5274,7 @@ export const JobPage = (): JSX.Element => {
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
                                   job.status === "applied"
                                     ? "bg-brand/10 text-brand border-brand/20"
-                                    : "bg-foreground/5 text-gray-400 border-foreground/10"
+                                    : "bg-foreground/5 text-muted-foreground border-foreground/10"
                                 }`}
                               >
                                 {job.status}
@@ -5417,7 +5417,7 @@ export const JobPage = (): JSX.Element => {
                             return tags.slice(0, 4).map((t, i) => (
                               <span
                                 key={`t-${i}`}
-                                className='inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-foreground/[0.03] border border-foreground/[0.08] text-gray-400 hover:text-foreground transition-colors cursor-default'
+                                className='inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-foreground/[0.03] border border-foreground/[0.08] text-muted-foreground hover:text-foreground transition-colors cursor-default'
                               >
                                 {t}
                               </span>

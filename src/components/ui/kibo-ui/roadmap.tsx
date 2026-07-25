@@ -176,7 +176,7 @@ export const RoadmapGroup: React.FC<RoadmapGroupProps> = ({
   return (
     <Wrapper
       className={cn(
-        "rounded-xl border border-foreground/10 bg-white/[0.03] p-3 backdrop-blur-sm",
+        "rounded-xl border border-foreground/10 bg-foreground/[0.03] p-3 backdrop-blur-sm",
         className,
       )}
       {...rest}

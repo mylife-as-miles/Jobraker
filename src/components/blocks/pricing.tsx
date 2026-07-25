@@ -52,7 +52,7 @@ export function Pricing({
         <h2 className='text-4xl font-bold tracking-tight text-foreground sm:text-5xl'>
           {title}
         </h2>
-        <p className='whitespace-pre-line text-lg text-neutral-400'>
+        <p className='whitespace-pre-line text-lg text-muted-foreground'>
           {description}
         </p>
       </div>
@@ -74,7 +74,7 @@ export function Pricing({
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-black",
               isMonthly
                 ? "bg-brand text-black shadow-[0_0_18px_rgba(47,217,104,0.26)]"
-                : "text-neutral-400 hover:text-foreground",
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             Monthly
@@ -91,7 +91,7 @@ export function Pricing({
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-black",
               !isMonthly
                 ? "bg-brand text-black shadow-[0_0_18px_rgba(47,217,104,0.26)]"
-                : "text-neutral-400 hover:text-foreground",
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             Annual{" "}
@@ -142,12 +142,12 @@ export function Pricing({
                 <span className='text-5xl font-bold tracking-tight text-foreground'>
                   ${isMonthly ? plan.price : plan.yearlyPrice}
                 </span>
-                <span className='text-sm font-semibold leading-6 tracking-wide text-neutral-400'>
+                <span className='text-sm font-semibold leading-6 tracking-wide text-muted-foreground'>
                     / {isMonthly ? plan.period : "year"}
                 </span>
               </div>
 
-              <p className='text-xs leading-5 text-neutral-500'>
+              <p className='text-xs leading-5 text-muted-foreground'>
                 {isMonthly ? "billed monthly" : "billed annually"}
               </p>
 
@@ -170,7 +170,7 @@ export function Pricing({
                       <span className='text-left'>
                         {featureName}
                         {featureValue ? (
-                          <span className='ml-1 text-neutral-400'>
+                          <span className='ml-1 text-muted-foreground'>
                             - {featureValue}
                           </span>
                         ) : null}
@@ -200,7 +200,7 @@ export function Pricing({
                 {plan.buttonText}
               </Button>
 
-              <p className='mt-6 text-xs leading-5 text-neutral-500'>
+              <p className='mt-6 text-xs leading-5 text-muted-foreground'>
                 {plan.description}
               </p>
             </div>

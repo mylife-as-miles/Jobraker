@@ -20,13 +20,13 @@ function StatusTooltip({
   if (!item) return null;
 
   return (
-    <div className='min-w-[150px] rounded-2xl border border-white/10 bg-slate-950/95 px-3 py-2 text-left shadow-2xl backdrop-blur-md'>
-      <div className='text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400'>
+    <div className='min-w-[150px] rounded-2xl border border-foreground/10 bg-slate-950/95 px-3 py-2 text-left shadow-2xl backdrop-blur-md'>
+      <div className='text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground'>
         {item.name}
       </div>
       <div className='mt-1 flex items-center gap-2 text-sm font-semibold text-slate-50'>
         <span>{item.share ?? 0}%</span>
-        <span className='text-slate-500'>:</span>
+        <span className='text-muted-foreground'>:</span>
         <span>{item.value} applications</span>
       </div>
     </div>

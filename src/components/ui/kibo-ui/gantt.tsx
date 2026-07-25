@@ -196,7 +196,7 @@ export const Gantt: React.FC<GanttProps> = ({
                     <div
                       key={i}
                       style={{ width: autoDayWidth }}
-                      className={`py-2.5 text-center border-r border-brand/5 last:border-r-0 transition-colors ${isWeekend ? "bg-white/[0.02]" : ""}`}
+                      className={`py-2.5 text-center border-r border-brand/5 last:border-r-0 transition-colors ${isWeekend ? "bg-foreground/[0.02]" : ""}`}
                     >
                       <div className='text-foreground/40 text-[9px] uppercase tracking-wider'>
                         {d.toLocaleDateString(undefined, { weekday: "short" })}
@@ -239,7 +239,7 @@ export const Gantt: React.FC<GanttProps> = ({
                   <div
                     key={i}
                     style={{ width: autoDayWidth }}
-                    className={`h-full border-r border-brand/[0.03] last:border-r-0 ${isWeekend ? "bg-white/[0.01]" : ""}`}
+                    className={`h-full border-r border-brand/[0.03] last:border-r-0 ${isWeekend ? "bg-foreground/[0.01]" : ""}`}
                   />
                 );
               })}
@@ -328,7 +328,7 @@ export const Gantt: React.FC<GanttProps> = ({
                       return (
                         <div
                           key={item.id}
-                          className='relative group/item hover:bg-white/[0.02] transition-colors'
+                          className='relative group/item hover:bg-foreground/[0.02] transition-colors'
                           style={{ height }}
                         >
                           <div className='absolute inset-y-0 left-0 flex items-center pl-4 pr-3 w-64 overflow-hidden'>
@@ -360,7 +360,7 @@ export const Gantt: React.FC<GanttProps> = ({
                                     }}
                                   />
                                   <div
-                                    className='absolute rounded-full border border-white/10 bg-background/90 shadow-[0_0_10px_rgba(0,0,0,0.25)]'
+                                    className='absolute rounded-full border border-foreground/10 bg-background/90 shadow-[0_0_10px_rgba(0,0,0,0.25)]'
                                     style={{
                                       left: `${trailEndP! * 100}%`,
                                       top: height * 0.5,
@@ -377,7 +377,7 @@ export const Gantt: React.FC<GanttProps> = ({
                                 </>
                               )}
                               <div
-                                className='absolute group rounded-lg overflow-hidden ring-1 ring-white/10 shadow-md hover:ring-brand/40 hover:shadow-[0_0_20px_rgba(47,217,104,0.2)] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/60 transform hover:scale-[1.02]'
+                                className='absolute group rounded-lg overflow-hidden ring-1 ring-foreground/10 shadow-md hover:ring-brand/40 hover:shadow-[0_0_20px_rgba(47,217,104,0.2)] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/60 transform hover:scale-[1.02]'
                                 style={{
                                   left: `${left}%`,
                                   width: widthPct + "%",
@@ -413,7 +413,7 @@ export const Gantt: React.FC<GanttProps> = ({
                                     <div
                                       className={`h-2 w-2 rounded-full ${item.status === "Applied" ? "bg-brand" : item.status === "Interview" ? "bg-brand" : item.status === "Failed" ? "bg-orange-400" : item.status === "Terminated" ? "bg-rose-600" : item.status === "Offer" ? "bg-lime-400" : item.status === "Rejected" ? "bg-rose-400" : "bg-gray-400"}`}
                                     />
-                                    <div className='font-semibold text-white text-sm truncate'>
+                                    <div className='font-semibold text-foreground text-sm truncate'>
                                       {item.label}
                                     </div>
                                   </div>
@@ -759,7 +759,7 @@ export const GanttSidebarItem: React.FC<{
     type='button'
     onClick={() => onSelectItem?.(feature.id)}
     className={
-      "text-left px-2 py-1 rounded-md text-xs bg-foreground/5 hover:bg-foreground/10 text-foreground/70 focus:outline-none focus:ring-1 focus:ring-white/30 transition " +
+      "text-left px-2 py-1 rounded-md text-xs bg-foreground/5 hover:bg-foreground/10 text-foreground/70 focus:outline-none focus:ring-1 focus:ring-foreground/30 transition " +
       className
     }
   >
@@ -951,7 +951,7 @@ export const GanttFeatureItem: React.FC<GanttFeatureItemProps> = ({
     <div className={"relative h-8 " + className} {...rest}>
       <div
         ref={barRef}
-        className='group absolute top-1/2 -translate-y-1/2 rounded-md ring-1 ring-white/10 hover:ring-white/30 hover:shadow-lg shadow-sm cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-brand/60'
+        className='group absolute top-1/2 -translate-y-1/2 rounded-md ring-1 ring-foreground/10 hover:ring-foreground/30 hover:shadow-lg shadow-sm cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-brand/60'
         style={{
           left: `calc(${left}% + 0px)`,
           width: widthPct + "%",

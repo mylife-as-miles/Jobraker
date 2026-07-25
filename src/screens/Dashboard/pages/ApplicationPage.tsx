@@ -411,7 +411,7 @@ export function ApplicationsListView({
                     className='group relative overflow-hidden rounded-[1.4rem] border-0 bg-transparent p-0 shadow-none'
                   >
                     <div
-                      className='w-full cursor-pointer rounded-[1.4rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.018))] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)] transition-[border-color,box-shadow,transform,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-[#2fd968]/28 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.024))] hover:shadow-[0_22px_48px_rgba(0,0,0,0.32)] active:scale-[0.985]'
+                      className='w-full cursor-pointer rounded-[1.4rem] border border-foreground/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.018))] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)] transition-[border-color,box-shadow,transform,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-[#2fd968]/28 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.024))] hover:shadow-[0_22px_48px_rgba(0,0,0,0.32)] active:scale-[0.985]'
                       onClick={() => setDetailId(a.id)}
                     >
                       <div className='flex items-start gap-4'>
