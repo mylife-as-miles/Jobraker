@@ -11,6 +11,7 @@ const READ_ONLY_TOOLS = new Set([
   "rtrvr_job_aggregator",
   "rtrvr_hiring_signals",
   "rtrvr_yc_startup_jobs",
+  "rtrvr_brand_mention_scanner",
 ]);
 const MUTATING_TOOLS = new Set(["rtrvr_run", "rtrvr_act_on_page"]);
 

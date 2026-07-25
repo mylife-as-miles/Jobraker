@@ -2457,6 +2457,20 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "rtrvr_brand_mention_scanner",
+    description: "Run the RTRVR Brand Mention Scanner agent to search and compile mention reports across Twitter/X, Reddit, and HackerNews.",
+    parameters: {
+      type: "object",
+      properties: {
+        brand: { type: "string", description: "Brand, product, or company name to search (e.g., JobRaker, Stripe, OpenAI)" },
+        platforms: { type: "string", enum: ["all", "twitter", "reddit", "hackernews"], description: "Platforms to search (default: all)" },
+        target: { type: "string", enum: ["auto", "cloud", "extension"] },
+      },
+      required: ["brand"],
+      additionalProperties: true,
+    },
+  },
+  {
     name: "rtrvr_run",
     description: "Run a rtrvr browser agent task. This can mutate pages or submit forms and requires explicit user approval before use.",
     parameters: {
