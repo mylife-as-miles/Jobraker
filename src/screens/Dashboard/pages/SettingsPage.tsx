@@ -60,6 +60,7 @@ import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
 import { useSecuritySettings } from "../../../hooks/useSecuritySettings";
 import { createClient } from "../../../lib/supabaseClient";
 import { useAppearance } from "../../../providers/AppearanceProvider";
+import { setThemeToggleOrigin } from "../../../hooks/useAppearanceSettings";
 import { useToast } from "../../../components/ui/toast";
 import { AnswerBankPanel } from "../components/AnswerBankPanel";
 import Modal from "../../../components/ui/modal";
@@ -3412,11 +3413,14 @@ export const SettingsPage = (): JSX.Element => {
                 {["Dark", "Light", "Auto"].map((theme) => (
                   <button
                     key={theme}
-                    onClick={async () => {
+                    onClick={async (event) => {
                       const value = theme.toLowerCase() as
                         | "dark"
                         | "light"
                         | "auto";
+                      const { left, top, width, height } =
+                        event.currentTarget.getBoundingClientRect();
+                      setThemeToggleOrigin(left + width / 2, top + height / 2);
                       try {
                         if (!appearanceSettings)
                           await (appearance as any).createSettings({

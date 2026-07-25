@@ -2885,7 +2885,7 @@ function KanbanSkeleton() {
 
 function CalendarSkeleton() {
   return (
-    <div className='border border-foreground/10 rounded-lg bg-foreground/30 p-4'>
+    <div className='border border-[#2fd968]/20 rounded-xl bg-card p-4'>
       <div className='flex items-center justify-between mb-4'>
         <Skeleton className='h-6 w-40 bg-foreground/10' />
         <div className='flex gap-2'>
@@ -2912,7 +2912,7 @@ function CalendarSkeleton() {
 
 function TableSkeleton() {
   return (
-    <div className='rounded-xl border border-foreground/10 bg-foreground/30 overflow-hidden'>
+    <div className='rounded-xl border border-[#2fd968]/20 bg-card overflow-hidden'>
       <div className='bg-foreground/5 px-4 py-3 flex gap-4'>
         {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} className='h-3 w-24 bg-foreground/10' />

@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
+const RTRVR_API_BASE = "https://api.rtrvr.ai";
+
 const READ_ONLY_TOOLS = new Set([
   "rtrvr_scrape",
   "rtrvr_list_devices",
@@ -20,6 +22,9 @@ const MUTATING_TOOLS = new Set([
   "rtrvr_send_linkedin_connection_request",
 ]);
 
+/** Tools that map to the /scrape endpoint instead of /agent */
+const SCRAPE_TOOLS = new Set(["rtrvr_scrape", "rtrvr_extract_from_page"]);
+
 function redact(value: unknown): unknown {
   if (typeof value === "string") {
     return value.replace(/(rtrvr_|mcp_at_|Bearer\s+)[A-Za-z0-9._-]+/g, "$1[redacted]");
@@ -35,6 +40,186 @@ function redact(value: unknown): unknown {
     ]),
   );
 }
+
+/* ---------- Template payload builders ---------- */
+
+interface AgentPayload {
+  input: string;
+  urls?: string[];
+  schema?: Record<string, unknown>;
+  webhookUrl?: string;
+  response?: { verbosity: string };
+}
+
+function buildLinkedInJobHunterPayload(args: Record<string, unknown>): AgentPayload {
+  const query = String(args.query || "Software Engineer");
+  const location = String(args.location || "");
+  const experienceLevel = String(args.experience_level || "all");
+  const limit = Number(args.limit) || 50;
+  return {
+    input: `Search LinkedIn Jobs for "${query}" positions${location ? ` in ${location}` : ""}. ` +
+      `Experience level filter: ${experienceLevel}. Extract up to ${limit} job listings with: ` +
+      `job title, company name, location, salary (if shown), job URL, posting date, job type (Full-time/Part-time/Contract), ` +
+      `and a brief description. Return structured JSON.`,
+    urls: ["https://www.linkedin.com/jobs"],
+    response: { verbosity: "final" },
+  };
+}
+
+function buildJobAggregatorPayload(args: Record<string, unknown>): AgentPayload {
+  const title = String(args.title || "Software Engineer");
+  const location = String(args.location || "");
+  const salaryMin = String(args.salary_min || "");
+  const limit = Number(args.limit) || 100;
+  const perPlatform = Math.ceil(limit / 3);
+  return {
+    input: `Search for "${title}" jobs${location ? ` in ${location}` : ""}${salaryMin ? ` with minimum salary $${salaryMin}` : ""}. ` +
+      `Search across LinkedIn Jobs, Indeed, and Glassdoor. Extract roughly ${perPlatform} jobs from each platform (${limit} total). ` +
+      `For each job extract: title, company, location, salary range, URL, source platform, posting date. ` +
+      `Deduplicate by company+title. Return structured JSON.`,
+    urls: [
+      "https://www.linkedin.com/jobs",
+      "https://www.indeed.com",
+      "https://www.glassdoor.com/Job",
+    ],
+    response: { verbosity: "final" },
+  };
+}
+
+function buildHiringSignalsPayload(args: Record<string, unknown>): AgentPayload {
+  const companies = String(args.companies || "");
+  const signalType = String(args.signal_type || "all");
+  return {
+    input: `Track hiring signals for these companies: ${companies}. ` +
+      `Signal focus: ${signalType}. For each company: ` +
+      `1. Check their LinkedIn company page for recent job postings. ` +
+      `2. Look for pattern changes in hiring (new departments, senior roles, expansion). ` +
+      `3. Note new job categories or locations. ` +
+      `Return a structured JSON report with company name, total open roles, key departments hiring, ` +
+      `notable positions, growth signals, and hiring velocity assessment.`,
+    urls: ["https://www.linkedin.com"],
+    response: { verbosity: "final" },
+  };
+}
+
+function buildYCStartupJobsPayload(args: Record<string, unknown>): AgentPayload {
+  const role = String(args.role || "");
+  const batch = String(args.batch || "all");
+  const limit = Number(args.limit) || 50;
+  return {
+    input: `Navigate to Y Combinator's Work at a Startup (ycombinator.com/jobs). ` +
+      `${role ? `Search for "${role}" positions. ` : ""}` +
+      `${batch !== "all" ? `Filter by batch: ${batch}. ` : ""}` +
+      `Extract up to ${limit} jobs with: job title, company name, YC batch, company description, ` +
+      `location, job URL, and role type. Return structured JSON.`,
+    urls: ["https://www.ycombinator.com/jobs"],
+    response: { verbosity: "final" },
+  };
+}
+
+function buildBrandMentionScannerPayload(args: Record<string, unknown>): AgentPayload {
+  const brand = String(args.brand || "");
+  const platforms = String(args.platforms || "all");
+  const urls: string[] = [];
+  if (platforms === "all" || platforms === "twitter") urls.push(`https://twitter.com/search?q=${encodeURIComponent(brand)}`);
+  if (platforms === "all" || platforms === "reddit") urls.push(`https://www.reddit.com/search/?q=${encodeURIComponent(brand)}`);
+  if (platforms === "all" || platforms === "hackernews") urls.push(`https://hn.algolia.com/?q=${encodeURIComponent(brand)}`);
+  return {
+    input: `Search for mentions of "${brand}" across ${platforms === "all" ? "Twitter/X, Reddit, and HackerNews" : platforms}. ` +
+      `For each mention extract: platform, author/username, content/text, URL, date/time, sentiment (positive/neutral/negative), ` +
+      `and engagement metrics (likes, comments, shares). Return structured JSON report.`,
+    urls,
+    response: { verbosity: "final" },
+  };
+}
+
+function buildLinkedInConnectPayload(args: Record<string, unknown>): AgentPayload {
+  const profileUrl = String(args.profile_url || args.profileUrl || "");
+  const note = String(args.connection_note || args.connectionNote || "");
+  return {
+    input: `Navigate to this LinkedIn profile and send a connection request. ` +
+      `${note ? `Include this personalized note: "${note.slice(0, 300)}"` : "Do not include a note."}`,
+    urls: [profileUrl],
+    response: { verbosity: "final" },
+  };
+}
+
+function buildGenericAgentPayload(args: Record<string, unknown>): AgentPayload {
+  const instruction = String(args.instruction || "");
+  const url = String(args.url || "");
+  const urls = Array.isArray(args.urls) ? (args.urls as string[]).filter(Boolean) : [];
+  const allUrls = url ? [url, ...urls] : urls;
+  const payload: AgentPayload = {
+    input: instruction,
+    response: { verbosity: "final" },
+  };
+  if (allUrls.length > 0) payload.urls = allUrls;
+  if (args.schema && typeof args.schema === "object") payload.schema = args.schema as Record<string, unknown>;
+  return payload;
+}
+
+function buildScrapePayload(args: Record<string, unknown>): { urls: string[]; response: { verbosity: string } } {
+  const url = String(args.url || "");
+  const urls = Array.isArray(args.urls) ? (args.urls as string[]).filter(Boolean) : [];
+  const allUrls = url ? [url, ...urls] : urls;
+  return {
+    urls: allUrls,
+    response: { verbosity: "final" },
+  };
+}
+
+/**
+ * Map a tool name + args to the RTRVR Cloud API endpoint and payload.
+ */
+function resolveRtrvrRequest(
+  tool: string,
+  args: Record<string, unknown>,
+): { endpoint: string; payload: Record<string, unknown> } {
+  if (SCRAPE_TOOLS.has(tool)) {
+    return { endpoint: `${RTRVR_API_BASE}/scrape`, payload: buildScrapePayload(args) };
+  }
+
+  let agentPayload: AgentPayload;
+  switch (tool) {
+    case "rtrvr_linkedin_job_hunter":
+      agentPayload = buildLinkedInJobHunterPayload(args);
+      break;
+    case "rtrvr_job_aggregator":
+      agentPayload = buildJobAggregatorPayload(args);
+      break;
+    case "rtrvr_hiring_signals":
+      agentPayload = buildHiringSignalsPayload(args);
+      break;
+    case "rtrvr_yc_startup_jobs":
+      agentPayload = buildYCStartupJobsPayload(args);
+      break;
+    case "rtrvr_brand_mention_scanner":
+      agentPayload = buildBrandMentionScannerPayload(args);
+      break;
+    case "rtrvr_linkedin_connect":
+    case "rtrvr_send_linkedin_connection_request":
+      agentPayload = buildLinkedInConnectPayload(args);
+      break;
+    case "rtrvr_list_devices":
+      return {
+        endpoint: `${RTRVR_API_BASE}/agent`,
+        payload: { input: "List all connected browser extension devices.", response: { verbosity: "final" } },
+      };
+    case "rtrvr_capabilities":
+      return {
+        endpoint: `${RTRVR_API_BASE}/agent`,
+        payload: { input: "Return current profile capabilities and available automation features.", response: { verbosity: "final" } },
+      };
+    default:
+      // rtrvr_run, rtrvr_act_on_page, and any unknown tools
+      agentPayload = buildGenericAgentPayload(args);
+      break;
+  }
+
+  return { endpoint: `${RTRVR_API_BASE}/agent`, payload: agentPayload };
+}
+
+/* ---------- Legacy worker support ---------- */
 
 function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes)
@@ -83,6 +268,8 @@ async function signedWorkerHeaders(
   };
 }
 
+/* ---------- Main handler ---------- */
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
   if (req.method === "OPTIONS") {
@@ -129,13 +316,41 @@ serve(async (req) => {
       );
     }
 
+    const rtrvrApiKey = Deno.env.get("RTRVR_API_KEY") || "";
+    const args = body.args && typeof body.args === "object" ? body.args : {};
+
+    // ── Strategy A: RTRVR Cloud API (preferred) ──
+    if (rtrvrApiKey) {
+      const { endpoint, payload } = resolveRtrvrRequest(tool, args);
+      console.log(`rtrvr-tools [cloud] tool=${tool} endpoint=${endpoint}`);
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${rtrvrApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json().catch(async () => ({
+        raw: await response.text().catch(() => ""),
+      }));
+
+      return new Response(JSON.stringify(redact(result)), {
+        status: response.ok ? 200 : response.status,
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      });
+    }
+
+    // ── Strategy B: Legacy automation worker (fallback) ──
     const workerUrl = (Deno.env.get("AUTOMATION_WORKER_URL") || "").replace(/\/$/, "");
     const workerSecret = Deno.env.get("AUTOMATION_WORKER_SECRET") || "";
     if (!workerUrl || !workerSecret) {
       return new Response(
         JSON.stringify({
-          error: "The rtrvr automation worker is not configured.",
-          code: "worker_not_configured",
+          error: "No RTRVR API key or automation worker configured. Set RTRVR_API_KEY in Supabase secrets.",
+          code: "not_configured",
         }),
         {
           status: 503,
@@ -144,9 +359,10 @@ serve(async (req) => {
       );
     }
 
+    console.log(`rtrvr-tools [worker-fallback] tool=${tool}`);
     const workerBody = JSON.stringify({
       tool,
-      args: body.args && typeof body.args === "object" ? body.args : {},
+      args,
       user_id: userData.user.id,
     });
     const response = await fetch(`${workerUrl}/tools/rtrvr`, {
