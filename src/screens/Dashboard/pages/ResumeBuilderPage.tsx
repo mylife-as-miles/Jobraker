@@ -56,7 +56,6 @@ import { useResumeExport } from "@/hooks/useResumeExport";
 import { useResumeHydration } from "@/hooks/useResumeHydration";
 
 const PREVIEW_BASE_WIDTH = 794;
-const PREVIEW_BASE_HEIGHT = 1123;
 
 const SECTION_ICONS: Record<string, any> = {
   education: FileText,
@@ -356,7 +355,6 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const [saveAlertOpen, setSaveAlertOpen] = useState(false);
   const effectivePreviewScale = isMobile ? previewScale : zoom;
   const previewFrameWidth = PREVIEW_BASE_WIDTH * effectivePreviewScale;
-  const previewFrameHeight = PREVIEW_BASE_HEIGHT * effectivePreviewScale;
   const editorStatusLabel = saving
     ? "Saving..."
     : editorState.status === "error"
@@ -774,10 +772,9 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           )}
 
           <div
-            className='shrink-0 transition-[width,min-height] duration-200 bg-white shadow-2xl relative'
+            className='shrink-0 transition-[width] duration-200 bg-white shadow-2xl relative'
             style={{
               width: `${previewFrameWidth}px`,
-              minHeight: `${previewFrameHeight}px`,
             }}
           >
             <div
@@ -785,7 +782,6 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
               className='origin-top-left transition-transform duration-200'
               style={{
                 width: `${PREVIEW_BASE_WIDTH}px`,
-                minHeight: `${PREVIEW_BASE_HEIGHT}px`,
                 transform: `scale(${effectivePreviewScale})`,
               }}
             >
