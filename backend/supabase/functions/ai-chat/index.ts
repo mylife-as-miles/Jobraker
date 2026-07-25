@@ -2397,6 +2397,22 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "rtrvr_linkedin_job_hunter",
+    description: "Run the RTRVR LinkedIn Job Hunter agent to extract up to 50 job listings from LinkedIn based on search query, location, and experience level.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Job title or keywords (e.g., Software Engineer, Product Manager)" },
+        location: { type: "string", description: "Location (e.g., Remote, San Francisco, New York)" },
+        experience_level: { type: "string", enum: ["all", "entry", "mid", "senior", "executive"], description: "Experience level filter" },
+        limit: { type: "number", description: "Maximum number of jobs to extract (default 50)" },
+        target: { type: "string", enum: ["auto", "cloud", "extension"] },
+      },
+      required: ["query"],
+      additionalProperties: true,
+    },
+  },
+  {
     name: "rtrvr_run",
     description: "Run a rtrvr browser agent task. This can mutate pages or submit forms and requires explicit user approval before use.",
     parameters: {
