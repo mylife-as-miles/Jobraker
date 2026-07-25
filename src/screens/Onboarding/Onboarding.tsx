@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
@@ -12,6 +12,19 @@ import {
   FileText,
   Wand2,
   ShieldCheck,
+  User,
+  Briefcase,
+  MapPin,
+  Target,
+  GraduationCap,
+  Zap,
+  Check,
+  Plus,
+  X,
+  Loader2,
+  Building,
+  Award,
+  ArrowRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
@@ -31,7 +44,6 @@ import { sanitizeStructuredPayload } from "@/lib/inputSecurity";
 import { logSecurityEvent } from "@/utils/sessionManagement";
 import { SUBSCRIPTION_MARKETING_PLANS } from "@/lib/subscriptionAccess";
 
-
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -45,54 +57,117 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-interface OnboardingStep {
-  id: number;
-  title: string;
-  subtitle: string;
-  component: React.ReactNode;
+interface EducationItem {
+  school?: string;
+  degree?: string;
+  start?: string;
+  end?: string;
 }
+
+const STEP_DEFINITIONS = [
+  { id: 1, label: "Identity", icon: User },
+  { id: 2, label: "Role", icon: Briefcase },
+  { id: 3, label: "Location", icon: MapPin },
+  { id: 4, label: "Goals", icon: Target },
+  { id: 5, label: "Summary", icon: FileText },
+  { id: 6, label: "Skills", icon: Zap },
+  { id: 7, label: "Education", icon: GraduationCap },
+  { id: 8, label: "Plan", icon: Award },
+];
+
+const SUGGESTED_SKILLS_BY_TITLE: Record<string, string[]> = {
+  default: [
+    "Project Management",
+    "Communication",
+    "Problem Solving",
+    "Data Analysis",
+    "Leadership",
+    "Strategy",
+  ],
+  engineer: [
+    "TypeScript",
+    "React",
+    "Node.js",
+    "Python",
+    "PostgreSQL",
+    "System Design",
+    "Docker",
+    "GraphQL",
+  ],
+  manager: [
+    "Agile / Scrum",
+    "Stakeholder Management",
+    "Product Strategy",
+    "Team Leadership",
+    "Roadmapping",
+    "OKRs",
+  ],
+  designer: [
+    "UI/UX Design",
+    "Figma",
+    "Design Systems",
+    "Prototyping",
+    "User Research",
+    "Wireframing",
+  ],
+  marketer: [
+    "SEO",
+    "Growth Marketing",
+    "Content Strategy",
+    "Google Analytics",
+    "Email Campaigns",
+    "Copywriting",
+  ],
+};
 
 export const Onboarding = (): JSX.Element => {
   const navigate = useNavigate();
   const supabase = useMemo(() => createClient(), []);
   const [currentStep, setCurrentStep] = useState(0);
-  // Onboarding mode: null = not chosen yet, 'manual' | 'resume'
   const [mode, setMode] = useState<null | "manual" | "resume">(null);
+
+  // Resume upload states
   const [uploading, setUploading] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [parsed, setParsed] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Form saving state
+  const [saving, setSaving] = useState(false);
+
+  // Plan states
   const [selectedPlan, setSelectedPlan] = useState<string>(() => {
     return localStorage.getItem("selectedPlan") || "Pro";
   });
   const [selectedBilling, setSelectedBilling] = useState<string>(() => {
     return localStorage.getItem("selectedBilling") || "monthly";
   });
+
+  // Form data state
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
+    phone: "",
     jobTitle: "",
-    experience: "",
+    experience: "3",
     location: "",
-    goals: [] as string[],
+    workPreference: "Remote",
+    goals: ["Find a new job", "Better salary"],
     about: "",
     skills: [] as string[],
-    education: [] as {
-      school?: string;
-      degree?: string;
-      start?: string;
-      end?: string;
-    }[],
+    education: [] as EducationItem[],
   });
 
-  // Load existing profile if any
-  React.useEffect(() => {
+  // Load existing profile if available
+  useEffect(() => {
     let active = true;
     const loadProfile = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) return;
         const { data: profile } = await supabase
           .from("profiles")
@@ -101,192 +176,116 @@ export const Onboarding = (): JSX.Element => {
           .maybeSingle();
         if (!profile || !active) return;
 
-        // Also fetch education, skills if present
-        const { data: edu } = await supabase.from("profile_education").select("*").eq("user_id", user.id);
-        const { data: sks } = await supabase.from("profile_skills").select("*").eq("user_id", user.id);
+        const { data: edu } = await supabase
+          .from("profile_education")
+          .select("*")
+          .eq("user_id", user.id);
+        const { data: sks } = await supabase
+          .from("profile_skills")
+          .select("*")
+          .eq("user_id", user.id);
 
-        setFormData({
-          firstName: profile.first_name || "",
-          lastName: profile.last_name || "",
-          jobTitle: profile.job_title || "",
-          experience: profile.experience_years != null ? String(profile.experience_years) : "",
-          location: profile.location || "",
-          goals: profile.goals || [],
-          about: profile.about || "",
-          skills: sks ? sks.map(s => s.name) : [],
-          education: edu ? edu.map(e => ({
-            school: e.school || "",
-            degree: e.degree || "",
-            start: e.start_date ? e.start_date.split("-")[0] : "",
-            end: e.end_date ? e.end_date.split("-")[0] : "",
-          })) : [],
-        });
+        setFormData((prev) => ({
+          ...prev,
+          firstName: profile.first_name || prev.firstName,
+          lastName: profile.last_name || prev.lastName,
+          phone: profile.phone || prev.phone,
+          jobTitle: profile.job_title || prev.jobTitle,
+          experience:
+            profile.experience_years != null
+              ? String(profile.experience_years)
+              : prev.experience,
+          location: profile.location || prev.location,
+          goals:
+            Array.isArray(profile.goals) && profile.goals.length > 0
+              ? profile.goals
+              : prev.goals,
+          about: profile.about || prev.about,
+          skills: sks && sks.length > 0 ? sks.map((s) => s.name) : prev.skills,
+          education:
+            edu && edu.length > 0
+              ? edu.map((e) => ({
+                  school: e.school || "",
+                  degree: e.degree || "",
+                  start: e.start_date ? e.start_date.split("-")[0] : "",
+                  end: e.end_date ? e.end_date.split("-")[0] : "",
+                }))
+              : prev.education,
+        }));
       } catch (err) {
         console.warn("Failed to load existing profile:", err);
       }
     };
-    loadProfile();
-    return () => { active = false; };
+    void loadProfile();
+    return () => {
+      active = false;
+    };
   }, [supabase]);
 
-
-  const updateFormData = (field: string, value: any) => {
+  const updateFormData = useCallback((field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const toggleGoal = (goal: string) => {
+  const toggleGoal = useCallback((goal: string) => {
     setFormData((prev) => ({
       ...prev,
       goals: prev.goals.includes(goal)
         ? prev.goals.filter((g) => g !== goal)
         : [...prev.goals, goal],
     }));
-  };
+  }, []);
 
-  const steps: OnboardingStep[] = [
-    {
-      id: 1,
-      title: "Welcome to JobRaker",
-      subtitle: "Let's get your profile set up.",
-      component: (
-        <div className='w-full space-y-3 sm:space-y-4'>
-          <Input
-            placeholder='First Name'
-            value={formData.firstName}
-            onChange={(e) => updateFormData("firstName", e.target.value)}
-            className='w-full product-input-surface h-10 sm:h-12 text-sm sm:text-base'
-          />
-          <Input
-            placeholder='Last Name'
-            value={formData.lastName}
-            onChange={(e) => updateFormData("lastName", e.target.value)}
-            className='w-full product-input-surface h-10 sm:h-12 text-sm sm:text-base'
-          />
-        </div>
-      ),
-    },
-    {
-      id: 2,
-      title: "Your Professional Details",
-      subtitle: "Help us understand your career.",
-      component: (
-        <div className='w-full space-y-3 sm:space-y-4'>
-          <Input
-            placeholder='Current Job Title'
-            value={formData.jobTitle}
-            onChange={(e) => updateFormData("jobTitle", e.target.value)}
-            className='w-full product-input-surface h-10 sm:h-12 text-sm sm:text-base'
-          />
-          <Input
-            placeholder='Years of Experience'
-            type='number'
-            value={formData.experience}
-            onChange={(e) => updateFormData("experience", e.target.value)}
-            className='w-full product-input-surface h-10 sm:h-12 text-sm sm:text-base'
-          />
-        </div>
-      ),
-    },
-    {
-      id: 3,
-      title: "Location",
-      subtitle: "Where are you based?",
-      component: (
-        <Input
-          placeholder='City, State, Country'
-          value={formData.location}
-          onChange={(e) => updateFormData("location", e.target.value)}
-          className='w-full product-input-surface h-10 sm:h-12 text-sm sm:text-base'
-        />
-      ),
-    },
-    {
-      id: 4,
-      title: "Your Goals",
-      subtitle: "What are you looking for?",
-      component: (
-        <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full'>
-          {[
-            "Find a new job",
-            "Better salary",
-            "Career growth",
-            "Networking",
-          ].map((goal) => (
-            <Button
-              key={goal}
-              variant={formData.goals.includes(goal) ? "primary" : "outline"}
-              onClick={() => toggleGoal(goal)}
-              className={`h-10 sm:h-12 text-xs sm:text-sm transition-all duration-200 ${
-                formData.goals.includes(goal)
-                  ? "bg-brand text-black hover:bg-brand/90"
-                  : "product-outline-button"
-              }`}
-            >
-              {goal}
-            </Button>
-          ))}
-        </div>
-      ),
-    },
-    {
-      id: 5,
-      title: "About You",
-      subtitle: "Add a short professional summary.",
-      component: (
-        <div className='w-full space-y-3'>
-          <textarea
-            placeholder='e.g. Full-stack engineer with 5+ years building scalable SaaS platforms...'
-            value={formData.about}
-            onChange={(e) => updateFormData("about", e.target.value)}
-            className='w-full min-h-[120px] product-input-surface text-sm p-3 rounded-md'
-          />
-        </div>
-      ),
-    },
-    {
-      id: 6,
-      title: "Core Skills",
-      subtitle: "List a few key skills (press Enter).",
-      component: (
-        <SkillInput
-          values={formData.skills}
-          onChange={(vals) => updateFormData("skills", vals)}
-        />
-      ),
-    },
-    {
-      id: 7,
-      title: "Education",
-      subtitle: "Add at least one entry (optional).",
-      component: (
-        <EducationEditor
-          values={formData.education}
-          onChange={(vals) => updateFormData("education", vals)}
-        />
-      ),
-    },
-    {
-      id: 8,
-      title: "Choose Your Scouting Power",
-      subtitle: "Select a plan that aligns with your monthly job applications.",
-      component: (
-        <PricingSelector
-          selectedPlan={selectedPlan}
-          setSelectedPlan={setSelectedPlan}
-          selectedBilling={selectedBilling}
-          setSelectedBilling={setSelectedBilling}
-        />
-      ),
-    },
-  ];
+  // Suggested skills based on current job title
+  const suggestedSkills = useMemo(() => {
+    const titleLower = formData.jobTitle.toLowerCase();
+    if (titleLower.includes("engineer") || titleLower.includes("developer") || titleLower.includes("code")) {
+      return SUGGESTED_SKILLS_BY_TITLE.engineer;
+    }
+    if (titleLower.includes("manager") || titleLower.includes("lead") || titleLower.includes("director")) {
+      return SUGGESTED_SKILLS_BY_TITLE.manager;
+    }
+    if (titleLower.includes("design") || titleLower.includes("ux") || titleLower.includes("ui")) {
+      return SUGGESTED_SKILLS_BY_TITLE.designer;
+    }
+    if (titleLower.includes("market") || titleLower.includes("growth") || titleLower.includes("seo")) {
+      return SUGGESTED_SKILLS_BY_TITLE.marketer;
+    }
+    return SUGGESTED_SKILLS_BY_TITLE.default;
+  }, [formData.jobTitle]);
 
+  // Profile completion calculation
+  const completionPercentage = useMemo(() => {
+    let score = 0;
+    if (formData.firstName.trim()) score += 15;
+    if (formData.lastName.trim()) score += 10;
+    if (formData.jobTitle.trim()) score += 20;
+    if (formData.location.trim()) score += 15;
+    if (formData.goals.length > 0) score += 10;
+    if (formData.about.trim()) score += 10;
+    if (formData.skills.length > 0) score += 10;
+    if (formData.education.length > 0) score += 10;
+    return Math.min(100, score);
+  }, [formData]);
+
+  // Experience level label helper
+  const experienceLabel = useMemo(() => {
+    const yrs = parseInt(formData.experience || "0", 10);
+    if (yrs <= 2) return "Entry Level (0-2 yrs)";
+    if (yrs <= 5) return "Mid-Level (3-5 yrs)";
+    if (yrs <= 8) return "Senior (6-8 yrs)";
+    if (yrs <= 12) return "Lead / Staff (9-12 yrs)";
+    return "Executive (13+ yrs)";
+  }, [formData.experience]);
+
+  // Handle Resume File Upload & AI Parsing
   const handleResumeFiles = useCallback(
     async (fileList: FileList | null) => {
       if (!fileList || !fileList.length) return;
       const file = fileList[0];
       setUploading(true);
       setParseError(null);
-      setUploadProgress(5);
+      setUploadProgress(10);
+
       try {
         const MAX_MB = 8;
         if (file.size > MAX_MB * 1024 * 1024) {
@@ -298,7 +297,6 @@ export const Onboarding = (): JSX.Element => {
         } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
 
-        // Upload to storage (resumes bucket)
         const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
         const allowedExtensions = /^(pdf|txt|md|rtf)$/;
         if (!allowedExtensions.test(ext)) {
@@ -316,7 +314,7 @@ export const Onboarding = (): JSX.Element => {
         const blob = new Blob([bytes], {
           type: file.type || "application/octet-stream",
         });
-        setUploadProgress(25);
+        setUploadProgress(30);
 
         const { error: upErr } = await (supabase as any).storage
           .from("resumes")
@@ -325,7 +323,7 @@ export const Onboarding = (): JSX.Element => {
             contentType: file.type || undefined,
           });
         if (upErr) throw upErr;
-        setUploadProgress(40);
+        setUploadProgress(50);
 
         const resumeDisplayName = sanitizeStructuredPayload(file.name.replace(/\.[^.]+$/, "")) as string;
         const insertPayload = {
@@ -347,16 +345,15 @@ export const Onboarding = (): JSX.Element => {
           .select("*")
           .single();
         if (insErr) throw insErr;
-        setUploadProgress(50);
+        setUploadProgress(65);
 
-        // Parse PDF/text content (same sources as resume import)
         setParsing(true);
         let rawText = "";
         let lines: string[] = [];
         if (ext === "pdf") {
-          const parsed = await parsePdfFile(file);
-          rawText = parsed.text;
-          lines = parsed.lines;
+          const parsedPdf = await parsePdfFile(file);
+          rawText = parsedPdf.text;
+          lines = parsedPdf.lines;
         } else {
           rawText = await file.text();
           lines = rawText
@@ -366,16 +363,14 @@ export const Onboarding = (): JSX.Element => {
         }
         if (!rawText?.trim()) {
           throw new Error(
-            "Could not read any text from this file. Try a PDF or plain text resume.",
+            "Could not read text from this file. Try a clear PDF or plain text resume.",
           );
         }
-        setUploadProgress(60);
+        setUploadProgress(75);
 
         const analyzed = analyzeResumeText(rawText);
-
         let aiParsedData: ParsedProfileData | null = null;
         try {
-          setUploadProgress(65);
           let pdfBase64: string | undefined = undefined;
           if (ext === "pdf") {
             try {
@@ -385,18 +380,15 @@ export const Onboarding = (): JSX.Element => {
             }
           }
           aiParsedData = await parseResumeWithAI({ resumeText: rawText, pdfBase64 });
-          setUploadProgress(80);
+          setUploadProgress(85);
         } catch (aiErr) {
-          console.warn(
-            "AI parsing failed, using same fallback as resume page:",
-            aiErr,
-          );
+          console.warn("AI parsing failed, using structural fallback:", aiErr);
         }
 
         const effective: ParsedProfileData =
           aiParsedData ??
           buildFallbackParsedProfileData(rawText, resumeDisplayName);
-        setUploadProgress(85);
+        setUploadProgress(90);
 
         try {
           await persistParsedResume({
@@ -422,7 +414,7 @@ export const Onboarding = (): JSX.Element => {
           effective,
           structuredClone(initialResumeState.data),
         );
-        const { error: resumeUpdateErr } = await (supabase as any)
+        await (supabase as any)
           .from("resumes")
           .update({
             data: mappedResumeData,
@@ -433,12 +425,6 @@ export const Onboarding = (): JSX.Element => {
             updated_at: new Date().toISOString(),
           })
           .eq("id", resumeRow.id);
-        if (resumeUpdateErr) {
-          console.warn(
-            "Failed to update resume document data:",
-            resumeUpdateErr,
-          );
-        }
 
         const profileData = {
           first_name: effective.firstName || null,
@@ -446,15 +432,19 @@ export const Onboarding = (): JSX.Element => {
           phone: effective.phone || null,
           location: effective.location || null,
           job_title: effective.jobTitle || null,
-          experience_years: effective.experienceYears != null && !isNaN(Number(effective.experienceYears))
-            ? Math.round(Number(effective.experienceYears))
-            : null,
+          experience_years:
+            effective.experienceYears != null &&
+            !isNaN(Number(effective.experienceYears))
+              ? Math.round(Number(effective.experienceYears))
+              : null,
           about: effective.about || null,
-          onboarding_complete: false, // Maintain false to allow plan confirmation step
+          onboarding_complete: false,
           updated_at: new Date().toISOString(),
         };
 
-        const sanitizedProfileData = sanitizeStructuredPayload(profileData) as typeof profileData;
+        const sanitizedProfileData = sanitizeStructuredPayload(
+          profileData
+        ) as typeof profileData;
 
         if (effective.education?.length > 0) {
           const eduRows = effective.education
@@ -481,52 +471,14 @@ export const Onboarding = (): JSX.Element => {
                   : null,
               gpa: null,
             }));
-
           const sanitizedEduRows = sanitizeStructuredPayload(eduRows) as typeof eduRows;
           if (sanitizedEduRows.length > 0) {
             try {
-              const { error: eduErr } = await (supabase as any)
+              await (supabase as any)
                 .from("profile_education")
                 .insert(sanitizedEduRows);
-              if (eduErr) console.error("Education insert error:", eduErr);
             } catch (eduErr) {
               console.warn("Failed to insert education:", eduErr);
-            }
-          }
-        }
-
-        if (effective.experience?.length > 0) {
-          const parseDate = (dateStr: string | undefined) => {
-            if (!dateStr || dateStr === "Present") return null;
-            if (/^\d{4}-\d{2}$/.test(dateStr)) return `${dateStr}-01`;
-            if (/^\d{4}$/.test(dateStr)) return `${dateStr}-01-01`;
-            return dateStr;
-          };
-
-          const expRows = effective.experience
-            .filter((e) => e.company || e.title)
-            .map((e) => ({
-              user_id: user.id,
-              company: e.company || "",
-              title: e.title || "",
-              location: e.location || "",
-              start_date:
-                parseDate(e.startDate) ||
-                new Date().toISOString().split("T")[0],
-              end_date: parseDate(e.endDate),
-              is_current: !e.endDate || e.endDate === "Present",
-              description: e.description || "",
-            }));
-
-          const sanitizedExpRows = sanitizeStructuredPayload(expRows) as typeof expRows;
-          if (sanitizedExpRows.length > 0) {
-            try {
-              const { error: expErr } = await (supabase as any)
-                .from("profile_experiences")
-                .insert(sanitizedExpRows);
-              if (expErr) console.error("Experience insert error:", expErr);
-            } catch (expErr) {
-              console.warn("Failed to insert experience:", expErr);
             }
           }
         }
@@ -541,772 +493,1019 @@ export const Onboarding = (): JSX.Element => {
               category: "",
             }))
             .filter((r) => r.name);
-
           const sanitizedSkillRows = sanitizeStructuredPayload(skillRows) as typeof skillRows;
           if (sanitizedSkillRows.length > 0) {
             try {
-              const { error: skillErr } = await (supabase as any)
+              await (supabase as any)
                 .from("profile_skills")
                 .insert(sanitizedSkillRows);
-              if (skillErr) console.error("Skills insert error:", skillErr);
             } catch (skillErr) {
               console.warn("Failed to insert skills:", skillErr);
             }
           }
         }
 
-        const { error: profileErr } = await (supabase as any)
+        await (supabase as any)
           .from("profiles")
           .upsert({ id: user.id, ...sanitizedProfileData }, { onConflict: "id" });
-
-        if (profileErr) throw profileErr;
 
         setUploadProgress(100);
         setParsed(true);
         setParsing(false);
       } catch (e: any) {
         const rawMessage = e?.message || String(e);
-        let userMessage = "An unexpected error occurred while parsing your resume. Please try again.";
-        
+        let userMessage =
+          "An unexpected error occurred while parsing your resume. Please try again.";
+
         if (rawMessage.includes("invalid input syntax for type integer")) {
-          userMessage = "Resume parsing encountered invalid format for years of experience. Please check your details.";
-        } else if (rawMessage.includes("File exceeds") || rawMessage.includes("exceeds limit")) {
-          userMessage = "The resume file is too large. Please upload a file smaller than 8MB.";
-        } else if (rawMessage.includes("Not authenticated") || rawMessage.includes("JWT")) {
+          userMessage =
+            "Resume parsing encountered an invalid format for experience years.";
+        } else if (
+          rawMessage.includes("File exceeds") ||
+          rawMessage.includes("exceeds limit")
+        ) {
+          userMessage = "The resume file is too large. Please upload a file under 8MB.";
+        } else if (
+          rawMessage.includes("Not authenticated") ||
+          rawMessage.includes("JWT")
+        ) {
           userMessage = "Your session has expired. Please sign in again.";
-        } else if (rawMessage.includes("Could not extract text") || rawMessage.includes("Failed to extract text")) {
-          userMessage = "We couldn't read the text in this PDF. Please make sure it's not scanned or password-protected.";
-        } else if (rawMessage.includes("rate limit") || rawMessage.includes("limit exceeded") || rawMessage.includes("Subscription")) {
-          userMessage = "You've reached your resume parsing limit. Please check your subscription.";
-        } else if (rawMessage.trim()) {
-          userMessage = rawMessage.length < 80 ? rawMessage : "Unable to parse this resume. Please try another file.";
+        } else if (
+          rawMessage.includes("Could not extract text") ||
+          rawMessage.includes("Failed to extract text")
+        ) {
+          userMessage =
+            "We couldn't read the text in this PDF. Please check that it's not a scanned image.";
+        } else if (rawMessage.length < 90) {
+          userMessage = rawMessage;
         }
         setParseError(userMessage);
       } finally {
         setUploading(false);
         setParsing(false);
-        setTimeout(() => setUploadProgress(0), 1200);
       }
     },
-    [supabase, navigate],
+    [supabase]
   );
 
-  const resumeModeScreen = (
-    <div className='product-page-shell min-h-screen flex flex-col items-center justify-center px-6 py-10 relative overflow-hidden'>
-      <div className='absolute inset-0 pointer-events-none'>
-        <div className='absolute -top-32 -left-24 h-72 w-72 rounded-full bg-brand/10 blur-3xl' />
-        <div className='absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-brand/5 blur-3xl' />
-      </div>
-      <div className='relative max-w-4xl w-full space-y-10'>
-        <div className='text-center space-y-4'>
-          <h1 className='text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-brand bg-clip-text text-transparent'>
-            Welcome – let's set up your profile
-          </h1>
-          <p className='product-helper-text max-w-2xl mx-auto text-sm md:text-base'>
-            Upload your resume for instant AI-powered profile creation, or
-            manually enter your information step by step.
-          </p>
-        </div>
-        <div className='grid gap-6 md:grid-cols-2'>
-          <button
-            onClick={() => setMode("resume")}
-            className='group relative overflow-hidden rounded-2xl border border-brand/30 bg-gradient-to-br from-[#141414] via-background to-black p-8 text-left shadow-[0_0_0_1px_rgba(47,217,104,0.15),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(47,217,104,0.4),0_25px_50px_-12px_rgba(47,217,104,0.15)] transition'
-          >
-            <div className='absolute top-3 right-3 px-2 py-1 rounded-full bg-brand/20 border border-brand/40 text-brand text-[10px] font-semibold uppercase tracking-wide'>
-              Recommended
-            </div>
-            <div className='absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-brand/10 to-transparent transition' />
-            <div className='flex items-center gap-3 mb-6'>
-              <div className='h-12 w-12 rounded-xl bg-brand/15 flex items-center justify-center border border-brand/30'>
-                <UploadCloud className='w-6 h-6 text-brand' />
-              </div>
-              <h2 className='text-xl font-semibold text-foreground'>
-                AI-Powered Setup
-              </h2>
-            </div>
-            <ul className='space-y-2 text-sm product-helper-text'>
-              <li className='flex items-start gap-2'>
-                <Wand2 className='w-4 h-4 text-brand mt-0.5' /> AI extracts all
-                profile information automatically
-              </li>
-              <li className='flex items-start gap-2'>
-                <FileText className='w-4 h-4 text-brand mt-0.5' /> Saves
-                directly to your account - no manual entry
-              </li>
-              <li className='flex items-start gap-2'>
-                <ShieldCheck className='w-4 h-4 text-brand mt-0.5' /> Fast,
-                accurate & editable anytime
-              </li>
-            </ul>
-            <div className='mt-6 inline-flex items-center gap-2 text-brand text-sm font-medium'>
-              Upload Resume <ChevronRight className='w-4 h-4' />
-            </div>
-          </button>
-          <button
-            onClick={() => setMode("manual")}
-            className='group relative overflow-hidden product-section-card p-8 text-left transition hover:border-brand/60 hover:shadow-lg'
-          >
-            <div className='absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-white/5 to-transparent transition' />
-            <div className='flex items-center gap-3 mb-6'>
-              <div className='product-muted-icon-chip h-12 w-12 rounded-xl'>
-                <FileText className='w-6 h-6 text-foreground' />
-              </div>
-              <h2 className='text-xl font-semibold text-foreground'>
-                Manual Setup
-              </h2>
-            </div>
-            <ul className='space-y-2 text-sm text-foreground/60'>
-              <li>Enter details step by step</li>
-              <li>Full control over every field</li>
-              <li>Add skills, education & goals</li>
-            </ul>
-            <div className='mt-6 inline-flex items-center gap-2 text-foreground text-sm font-medium'>
-              Begin manual flow <ChevronRight className='w-4 h-4' />
-            </div>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const resumeUploadScreen = (
-    <div
-      className='product-page-shell min-h-screen flex flex-col items-center justify-center px-6 py-10 relative overflow-hidden'
-      role='main'
-      aria-labelledby='uploadHeading'
-    >
-      <div className='absolute inset-0 pointer-events-none'>
-        <div className='absolute -top-32 -left-24 h-72 w-72 rounded-full bg-brand/10 blur-3xl' />
-        <div className='absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-brand/5 blur-3xl' />
-      </div>
-      <div className='relative max-w-2xl w-full space-y-10'>
-        <div className='text-center space-y-4'>
-          <h1
-            id='uploadHeading'
-            className='text-3xl font-bold tracking-tight text-foreground'
-          >
-            Upload Your Resume
-          </h1>
-          <p className='product-helper-text text-sm md:text-base max-w-xl mx-auto'>
-            We'll use AI to parse your profile information and automatically set
-            up your account. You'll be redirected to your dashboard once
-            complete.
-          </p>
-        </div>
-        <div
-          className='product-section-card p-10 relative overflow-hidden'
-          aria-live='polite'
-        >
-          <div className='absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(47,217,104,0.15),transparent_70%)] opacity-70' />
-          <div className='relative z-10 flex flex-col gap-8'>
-            <div className='flex flex-col lg:flex-row gap-8'>
-              <div className='flex-1 flex flex-col gap-4'>
-                <label
-                  className='w-full cursor-pointer group'
-                  aria-label='Upload resume file'
-                  onDragEnter={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setDragActive(true);
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (!dragActive) setDragActive(true);
-                  }}
-                  onDragLeave={(e) => {
-                    if (e.currentTarget.contains(e.relatedTarget as Node))
-                      return;
-                    setDragActive(false);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setDragActive(false);
-                    const files = e.dataTransfer?.files;
-                    if (files && files.length) handleResumeFiles(files);
-                  }}
-                >
-                  <div
-                    className={`flex flex-col items-center justify-center gap-4 border-2 border-dashed rounded-xl py-12 px-6 relative overflow-hidden transition ${dragActive ? "border-brand bg-brand/10 shadow-[0_0_0_1px_rgba(47,217,104,0.4),0_0_20px_-2px_rgba(47,217,104,0.4)]" : "border-brand/40 group-hover:border-brand bg-brand/5"}`}
-                  >
-                    <div className='absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-brand/10 to-transparent transition' />
-                    <UploadCloud className='w-10 h-10 text-brand' />
-                    <div className='text-center space-y-1'>
-                      <p className='text-foreground font-medium'>
-                        {dragActive
-                          ? "Release to upload"
-                          : "Drop your resume here"}
-                      </p>
-                      <p className='text-foreground/60 text-xs'>
-                        {dragActive
-                          ? "Parsing will begin automatically"
-                          : "Click or drag (PDF / TXT / MD / RTF)"}
-                      </p>
-                    </div>
-                    <p className='text-[10px] tracking-wide text-brand/70 uppercase'>
-                      Secure • Local Parse
-                    </p>
-                  </div>
-                  <input
-                    type='file'
-                    accept='.pdf,.txt,.md,.rtf'
-                    className='hidden'
-                    onChange={(e) => handleResumeFiles(e.target.files)}
-                  />
-                </label>
-                {(uploading || parsing) && (
-                  <div className='w-full space-y-2'>
-                    <div className='flex items-center justify-between text-[11px] text-foreground/60'>
-                      <span>
-                        {parsing
-                          ? "Parsing resume with AI & saving profile"
-                          : "Uploading file"}
-                      </span>
-                      <span>{uploadProgress}%</span>
-                    </div>
-                    <div className='h-2 w-full rounded-full bg-muted overflow-hidden'>
-                      <div
-                        className='h-full bg-gradient-to-r from-brand via-[#fde047] to-brand transition-all duration-300'
-                        style={{ width: `${uploadProgress}%` }}
-                      />
-                    </div>
-                    <div className='flex items-center gap-2 text-[10px] text-foreground/40'>
-                      <div className='h-1.5 w-1.5 rounded-full bg-brand animate-pulse' />
-                      <span>
-                        {parsing
-                          ? "Extracting profile data & creating your account…"
-                          : "Uploading to secure storage…"}
-                      </span>
-                    </div>
-                  </div>
-                )}
-                {parseError && (
-                  <div className='text-xs text-brand bg-brand/10 border border-brand/30 rounded-md px-3 py-2 w-full'>
-                    {parseError}
-                  </div>
-                )}
-                {parsed && !parseError && (
-                  <div className='text-xs text-brand bg-brand/10 border border-brand/30 rounded-md px-3 py-2 w-full flex items-center gap-2'>
-                    <CheckCircle className='w-4 h-4' />
-                    <span>
-                      Profile created successfully! Redirecting to dashboard...
-                    </span>
-                  </div>
-                )}
-                <div className='flex flex-wrap gap-3'>
-                  <button
-                    onClick={() => setMode(null)}
-                    disabled={uploading || parsing}
-                    className='px-4 py-2 rounded-md border border-foreground/20 product-helper-text hover:text-foreground hover:border-foreground/40 text-sm disabled:opacity-50 disabled:cursor-not-allowed'
-                  >
-                    Back
-                  </button>
-                  {parseError && (
-                    <button
-                      onClick={() => setParseError(null)}
-                      className='px-4 py-2 rounded-md bg-brand text-black text-sm font-medium'
-                    >
-                      Try Again
-                    </button>
-                  )}
-                </div>
-              </div>
-              {/* Preview / Extraction Panel */}
-              <div className='flex-1 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-5 flex flex-col gap-4 min-h-[320px]'>
-                {!parsed && !(uploading || parsing) && (
-                  <div className='product-helper-text text-sm leading-relaxed'>
-                    <p className='font-medium mb-2 product-helper-text'>
-                      Automatic Profile Setup
-                    </p>
-                    <ul className='list-disc list-inside space-y-1 text-xs'>
-                      <li>AI extracts name, email, phone & location</li>
-                      <li>Parses professional summary & job title</li>
-                      <li>Identifies skills and calculates experience</li>
-                      <li>Extracts education and work history</li>
-                      <li>Automatically saves to your profile</li>
-                      <li>Redirects to dashboard when complete</li>
-                    </ul>
-                    <div className='mt-4 text-[10px] uppercase tracking-wide text-foreground/30'>
-                      AI-Powered • Secure • Automatic
-                    </div>
-                  </div>
-                )}
-                {(uploading || parsing) && (
-                  <div className='flex flex-col gap-3 animate-pulse'>
-                    <div className='h-4 w-1/2 bg-muted rounded' />
-                    <div className='space-y-2'>
-                      <div className='h-3 w-full bg-muted/50 rounded' />
-                      <div className='h-3 w-5/6 bg-muted/50 rounded' />
-                      <div className='h-3 w-4/6 bg-muted/50 rounded' />
-                    </div>
-                    <div className='flex flex-wrap gap-2 mt-2'>
-                      {Array.from({ length: 6 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className='h-5 w-14 bg-muted/50 rounded-full'
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {parsed && !uploading && !parsing && (
-                  <div className='flex flex-col gap-4'>
-                    <div className='flex items-center gap-2 text-brand'>
-                      <CheckCircle className='w-5 h-5' />
-                      <span className='font-semibold'>
-                        Profile Created Successfully!
-                      </span>
-                    </div>
-                    <div className='text-xs product-helper-text space-y-2'>
-                      <p>Your profile has been automatically created with:</p>
-                      <ul className='list-disc list-inside space-y-1 text-[11px] text-foreground/60 ml-2'>
-                        <li>Personal information</li>
-                        <li>Professional summary</li>
-                        <li>Skills and experience</li>
-                        <li>Education history</li>
-                        <li>Work experience</li>
-                      </ul>
-                      <p className='mt-3 text-[11px] text-brand/80'>
-                        Redirecting you to the dashboard...
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className='grid grid-cols-3 gap-4 text-center text-[10px] text-foreground/40'>
-              <div className='flex flex-col gap-1'>
-                <span className='font-medium text-foreground/60'>Secure</span>
-                <span>AI-powered parsing</span>
-              </div>
-              <div className='flex flex-col gap-1'>
-                <span className='font-medium text-foreground/60'>
-                  Automatic
-                </span>
-                <span>Profile setup</span>
-              </div>
-              <div className='flex flex-col gap-1'>
-                <span className='font-medium text-foreground/60'>Editable</span>
-                <span>Modify anytime</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className='text-center text-xs text-foreground/40'>
-          Your resume is parsed with AI to automatically create your profile.
-          All data can be edited later in settings.
-        </div>
-      </div>
-    </div>
-  );
-
-  const nextStep = async () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) {
-          // If user is not authenticated, send to sign-in route
-          navigate("/signIn");
-          return;
-        }
-        // Upsert profile information and mark onboarding complete
-        const startedAt = (user as any).created_at
-          ? new Date((user as any).created_at).getTime()
-          : undefined;
-        const tier = (selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1).toLowerCase()) as "Free" | "Basics" | "Pro" | "Ultimate";
-        const profilePayload = {
-          id: user.id,
-          first_name: formData.firstName || null,
-          last_name: formData.lastName || null,
-          job_title: formData.jobTitle || null,
-          experience_years: formData.experience && !isNaN(Number(formData.experience))
-            ? Math.round(Number(formData.experience))
-            : null,
-          location: formData.location || null,
-          goals: formData.goals,
-          about: formData.about || null,
-          skills: formData.skills.length ? formData.skills : [],
-          education:
-            formData.education && formData.education.length
-              ? JSON.stringify(formData.education)
-              : null,
-          onboarding_complete: true,
-          subscription_tier: tier,
-          updated_at: new Date().toISOString(),
-        };
-
-        const sanitizedProfilePayload = sanitizeStructuredPayload(profilePayload) as typeof profilePayload;
-
-        const { error } = await supabase.from("profiles").upsert(
-          sanitizedProfilePayload,
-          { onConflict: "id" },
-        );
-        if (error) throw error;
-
-        // Normalize collections into dedicated tables (education, skills). Experience is not collected in onboarding yet.
-        try {
-          // Education: insert rows if user has none yet OR to avoid duplicates use simple uniqueness heuristic
-          if (Array.isArray(formData.education) && formData.education.length) {
-            const { data: existingEdu } = await supabase
-              .from("profile_education")
-              .select("id, degree, school")
-              .eq("user_id", user.id)
-              .limit(1);
-            if (!(existingEdu && existingEdu.length)) {
-              const eduRows = formData.education
-                .filter(
-                  (e) => (e.school || "").trim() || (e.degree || "").trim(),
-                )
-                .map((e) => ({
-                  user_id: user.id,
-                  degree: (e.degree || "").trim(),
-                  school: (e.school || "").trim(),
-                  location: "",
-                  start_date: e.start
-                    ? `${e.start}-01`
-                    : new Date().toISOString(),
-                  end_date: e.end ? `${e.end}-01` : null,
-                  gpa: null,
-                }));
-              const sanitizedEduRows = sanitizeStructuredPayload(eduRows) as typeof eduRows;
-              if (sanitizedEduRows.length) {
-                await supabase.from("profile_education").insert(sanitizedEduRows);
-              }
-            }
-          }
-          // Skills: if table empty for user, seed
-          if (Array.isArray(formData.skills) && formData.skills.length) {
-            const { data: existingSkills } = await supabase
-              .from("profile_skills")
-              .select("id")
-              .eq("user_id", user.id)
-              .limit(1);
-            if (!(existingSkills && existingSkills.length)) {
-              const skillRows = formData.skills
-                .slice(0, 60)
-                .map((name) => ({
-                  user_id: user.id,
-                  name: name.trim(),
-                  level: null,
-                  category: "",
-                }))
-                .filter((r) => r.name);
-              const sanitizedSkillRows = sanitizeStructuredPayload(skillRows) as typeof skillRows;
-              if (sanitizedSkillRows.length) {
-                await supabase.from("profile_skills").insert(sanitizedSkillRows);
-              }
-            }
-          }
-        } catch (normErr) {
-          // Non-fatal: log only; profile core saved already
-          console.warn("Normalization failed (non-blocking):", normErr);
-        }
-
-        // Log completion security event
-        await logSecurityEvent(
-          user.id,
-          "onboarding_complete",
-          `User completed onboarding using manual entry and selected plan: ${tier}`,
-          "low"
-        );
-
-        // Analytics: emit counts for collections normalization
-        try {
-          const elapsed = startedAt ? Date.now() - startedAt : undefined;
-          // Extend existing schema by merging counts if the tracker tolerates extra props
-          events.profileCompleted(elapsed as any);
-          (window as any).__profileCompletedTracked = true;
-        } catch {}
-        navigate("/dashboard/overview");
-      } catch (err: any) {
-        console.error("Failed to save onboarding:", err);
-        const rawMessage = err?.message || String(err);
-        let userMessage = "Failed to save onboarding information. Please try again.";
-        if (rawMessage.includes("invalid input syntax") || rawMessage.includes("violates check constraint")) {
-          userMessage = "Invalid data format. Please verify your experience years or details.";
-        } else if (rawMessage.includes("JWT") || rawMessage.includes("Not authenticated")) {
-          userMessage = "Your session has expired. Please log in again.";
-        } else if (rawMessage.length < 80) {
-          userMessage = rawMessage;
-        }
-        alert(userMessage);
-      }
-    }
-  };
-
-  const prevStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-        staggerChildren: 0.1,
-      },
-    },
-  };
-
-  const stepVariants = {
-    hidden: { opacity: 0, x: 50 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: { duration: 0.5, ease: "easeOut" },
-    },
-    exit: {
-      opacity: 0,
-      x: -50,
-      transition: { duration: 0.3, ease: "easeIn" },
-    },
-  };
-
-  // Mode gating: keep resume flow on this screen until navigation (never fall through to manual steps).
-  const handleResumePricingSubmit = async () => {
+  // Submit and Complete Onboarding (Manual Mode or Resume Pricing Step)
+  const handleCompleteOnboarding = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
-      setUploading(true);
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!user) {
+        navigate("/signIn");
+        return;
+      }
 
-      const tier = (selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1).toLowerCase()) as "Free" | "Basics" | "Pro" | "Ultimate";
-      const { error } = await supabase.from("profiles").update({
+      const startedAt = (user as any).created_at
+        ? new Date((user as any).created_at).getTime()
+        : undefined;
+      const tier = (
+        selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1).toLowerCase()
+      ) as "Free" | "Basics" | "Pro" | "Ultimate";
+
+      const profilePayload = {
+        id: user.id,
+        first_name: formData.firstName.trim() || null,
+        last_name: formData.lastName.trim() || null,
+        phone: formData.phone.trim() || null,
+        job_title: formData.jobTitle.trim() || null,
+        experience_years:
+          formData.experience && !isNaN(Number(formData.experience))
+            ? Math.round(Number(formData.experience))
+            : null,
+        location: formData.location.trim() || null,
+        goals: formData.goals,
+        about: formData.about.trim() || null,
+        skills: formData.skills.length ? formData.skills : [],
+        education:
+          formData.education && formData.education.length
+            ? JSON.stringify(formData.education)
+            : null,
         onboarding_complete: true,
         subscription_tier: tier,
         updated_at: new Date().toISOString(),
-      }).eq("id", user.id);
+      };
 
-      if (error) throw error;
+      const sanitizedProfilePayload = sanitizeStructuredPayload(
+        profilePayload
+      ) as typeof profilePayload;
+
+      const { error: profileErr } = await supabase
+        .from("profiles")
+        .upsert(sanitizedProfilePayload, { onConflict: "id" });
+
+      if (profileErr) throw profileErr;
+
+      // Safely insert normalize tables
+      try {
+        if (Array.isArray(formData.education) && formData.education.length > 0) {
+          const eduRows = formData.education
+            .filter((e) => (e.school || "").trim() || (e.degree || "").trim())
+            .map((e) => ({
+              user_id: user.id,
+              degree: (e.degree || "").trim(),
+              school: (e.school || "").trim(),
+              location: "",
+              start_date: e.start ? `${e.start}-01-01` : new Date().toISOString(),
+              end_date: e.end ? `${e.end}-01-01` : null,
+              gpa: null,
+            }));
+          const sanitizedEduRows = sanitizeStructuredPayload(eduRows) as typeof eduRows;
+          if (sanitizedEduRows.length) {
+            await supabase.from("profile_education").insert(sanitizedEduRows);
+          }
+        }
+
+        if (Array.isArray(formData.skills) && formData.skills.length > 0) {
+          const skillRows = formData.skills.slice(0, 60).map((name) => ({
+            user_id: user.id,
+            name: name.trim(),
+            level: null,
+            category: "",
+          }));
+          const sanitizedSkillRows = sanitizeStructuredPayload(
+            skillRows
+          ) as typeof skillRows;
+          if (sanitizedSkillRows.length) {
+            await supabase.from("profile_skills").insert(sanitizedSkillRows);
+          }
+        }
+      } catch (normErr) {
+        console.warn("Secondary table normalization notice:", normErr);
+      }
 
       await logSecurityEvent(
         user.id,
         "onboarding_complete",
-        `User completed onboarding using resume parsing and selected plan: ${tier}`,
+        `User completed onboarding using ${mode || "manual"} mode and selected plan: ${tier}`,
         "low"
       );
 
+      try {
+        const elapsed = startedAt ? Date.now() - startedAt : undefined;
+        events.profileCompleted(elapsed as any);
+      } catch {}
+
       navigate("/dashboard/overview");
     } catch (err: any) {
-      console.error("Failed to complete onboarding:", err);
+      console.error("Failed to save onboarding profile:", err);
       const rawMessage = err?.message || String(err);
-      let userMessage = "Failed to complete onboarding. Please try again.";
-      if (rawMessage.includes("JWT") || rawMessage.includes("Not authenticated")) {
+      let userMessage =
+        "Failed to save onboarding information. Please try again.";
+      if (
+        rawMessage.includes("JWT") ||
+        rawMessage.includes("Not authenticated")
+      ) {
         userMessage = "Your session has expired. Please log in again.";
       } else if (rawMessage.length < 80) {
         userMessage = rawMessage;
       }
       alert(userMessage);
     } finally {
-      setUploading(false);
+      setSaving(false);
     }
   };
 
-  const resumeSuccessPricingScreen = (
-    <div className='product-page-shell min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 relative overflow-hidden'>
-      <div className='absolute inset-0 pointer-events-none'>
-        <div className='absolute -top-32 -left-24 h-72 w-72 rounded-full bg-brand/10 blur-3xl' />
-        <div className='absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-brand/5 blur-3xl' />
+  const nextStep = () => {
+    if (currentStep < STEP_DEFINITIONS.length - 1) {
+      setCurrentStep((prev) => prev + 1);
+    } else {
+      void handleCompleteOnboarding();
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep((prev) => prev - 1);
+    } else {
+      // Step 0 -> Go back to mode choice screen
+      setMode(null);
+    }
+  };
+
+  // Avatar Initials Helper
+  const avatarInitials = useMemo(() => {
+    const f = formData.firstName.trim().charAt(0).toUpperCase();
+    const l = formData.lastName.trim().charAt(0).toUpperCase();
+    if (f && l) return `${f}${l}`;
+    if (f) return f;
+    return "JR";
+  }, [formData.firstName, formData.lastName]);
+
+  // Render Step Content
+  const renderStepComponent = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70">
+                  First Name <span className="text-brand">*</span>
+                </label>
+                <Input
+                  placeholder="e.g. John"
+                  value={formData.firstName}
+                  onChange={(e) => updateFormData("firstName", e.target.value)}
+                  className="h-11 bg-background/50 border-brand/20 text-foreground placeholder:text-foreground/30 focus:border-brand rounded-xl"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70">
+                  Last Name <span className="text-brand">*</span>
+                </label>
+                <Input
+                  placeholder="e.g. Doe"
+                  value={formData.lastName}
+                  onChange={(e) => updateFormData("lastName", e.target.value)}
+                  className="h-11 bg-background/50 border-brand/20 text-foreground placeholder:text-foreground/30 focus:border-brand rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70">
+                Phone Number (Optional)
+              </label>
+              <Input
+                placeholder="e.g. +1 (555) 019-2834"
+                value={formData.phone}
+                onChange={(e) => updateFormData("phone", e.target.value)}
+                className="h-11 bg-background/50 border-brand/20 text-foreground placeholder:text-foreground/30 focus:border-brand rounded-xl"
+              />
+              <p className="text-[11px] text-foreground/40">
+                Used for recruiter outreach notifications and interview alerts.
+              </p>
+            </div>
+          </div>
+        );
+
+      case 1:
+        return (
+          <div className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70">
+                Current or Target Job Title <span className="text-brand">*</span>
+              </label>
+              <Input
+                placeholder="e.g. Senior Full Stack Engineer, Product Manager"
+                value={formData.jobTitle}
+                onChange={(e) => updateFormData("jobTitle", e.target.value)}
+                className="h-11 bg-background/50 border-brand/20 text-foreground placeholder:text-foreground/30 focus:border-brand rounded-xl"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70">
+                  Years of Professional Experience
+                </label>
+                <span className="rounded-full border border-brand/30 bg-brand/10 px-2.5 py-0.5 font-mono text-xs font-bold text-brand">
+                  {formData.experience} Years ({experienceLabel})
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="15"
+                step="1"
+                value={formData.experience}
+                onChange={(e) => updateFormData("experience", e.target.value)}
+                className="w-full h-2 rounded-lg bg-foreground/10 accent-brand cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] text-foreground/40 font-mono">
+                <span>0 yrs (Entry)</span>
+                <span>5 yrs (Mid)</span>
+                <span>10 yrs (Senior)</span>
+                <span>15+ yrs (Lead)</span>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70">
+                Your Primary Location <span className="text-brand">*</span>
+              </label>
+              <Input
+                placeholder="e.g. New York, NY or London, UK"
+                value={formData.location}
+                onChange={(e) => updateFormData("location", e.target.value)}
+                className="h-11 bg-background/50 border-brand/20 text-foreground placeholder:text-foreground/30 focus:border-brand rounded-xl"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70">
+                Work Location Preference
+              </label>
+              <div className="grid grid-cols-3 gap-2.5">
+                {[
+                  { id: "Remote", label: "Remote 🏠" },
+                  { id: "Hybrid", label: "Hybrid 🏢" },
+                  { id: "On-site", label: "On-site 📍" },
+                ].map((pref) => {
+                  const active = formData.workPreference === pref.id;
+                  return (
+                    <button
+                      key={pref.id}
+                      type="button"
+                      onClick={() => updateFormData("workPreference", pref.id)}
+                      className={`flex items-center justify-center py-2.5 px-3 rounded-xl border text-xs font-semibold transition-all ${
+                        active
+                          ? "border-brand bg-brand/15 text-brand shadow-[0_0_15px_rgba(47,217,104,0.15)]"
+                          : "border-foreground/10 bg-background/40 text-foreground/70 hover:border-foreground/20 hover:text-foreground"
+                      }`}
+                    >
+                      {pref.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-3">
+            <p className="text-xs text-foreground/60 leading-relaxed mb-1">
+              Select one or more goals so JobRaker's AI agents can optimize your auto-apply matches.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {[
+                { id: "Find a new job", icon: RocketIcon, desc: "Land a role quickly" },
+                { id: "Better salary", icon: DollarIcon, desc: "Increase target pay" },
+                { id: "Career growth", icon: TrendingIcon, desc: "Level up title & scope" },
+                { id: "Remote freedom", icon: LaptopIcon, desc: "Work from anywhere" },
+                { id: "Switch industry", icon: RefreshIcon, desc: "Transition domain" },
+                { id: "Executive Search", icon: AwardIcon, desc: "High-impact roles" },
+              ].map((g) => {
+                const selected = formData.goals.includes(g.id);
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => toggleGoal(g.id)}
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                      selected
+                        ? "border-brand bg-brand/15 text-foreground shadow-[0_0_15px_rgba(47,217,104,0.12)]"
+                        : "border-foreground/10 bg-background/40 text-foreground/70 hover:border-foreground/20 hover:text-foreground"
+                    }`}
+                  >
+                    <div
+                      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-xs ${
+                        selected
+                          ? "border-brand bg-brand text-black font-bold"
+                          : "border-foreground/20 bg-foreground/5 text-foreground/40"
+                      }`}
+                    >
+                      {selected ? <Check className="h-3.5 w-3.5 stroke-[3]" /> : <Plus className="h-3.5 w-3.5" />}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-foreground">{g.id}</div>
+                      <div className="text-[11px] text-foreground/50">{g.desc}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70">
+                Professional Bio & Summary
+              </label>
+              <span className="text-[11px] text-foreground/40">
+                {formData.about.length} / 500 chars
+              </span>
+            </div>
+            <textarea
+              placeholder="e.g. Accomplished software engineer with 5+ years of experience building high-scale distributed applications and leading front-end design systems..."
+              value={formData.about}
+              onChange={(e) => updateFormData("about", e.target.value.slice(0, 500))}
+              className="w-full h-32 p-3.5 text-xs sm:text-sm bg-background/50 border border-brand/20 rounded-xl text-foreground placeholder:text-foreground/30 focus:border-brand focus:outline-none resize-none leading-relaxed"
+              autoFocus
+            />
+            {/* Quick Template Prompts */}
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-foreground/50">
+                Quick Prompts (Click to add starter template):
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  "Experienced SaaS developer with a track record of scaling user-facing applications.",
+                  "Results-driven Product Manager specializing in B2B growth and user analytics.",
+                  "Data Analyst skilled in SQL, Python, and translating data into strategic decisions.",
+                ].map((tmpl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => updateFormData("about", tmpl)}
+                    className="text-[10px] border border-brand/20 bg-brand/5 text-brand/80 px-2 py-1 rounded-md hover:bg-brand/15 hover:text-brand transition-all text-left line-clamp-1"
+                  >
+                    "{tmpl.slice(0, 45)}..."
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 5:
+        return (
+          <div className="space-y-4">
+            <SkillInputWidget
+              values={formData.skills}
+              onChange={(vals) => updateFormData("skills", vals)}
+            />
+
+            {/* Suggested Skills */}
+            <div className="space-y-2 pt-1 border-t border-foreground/10">
+              <div className="text-[11px] font-semibold text-foreground/60 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-brand" />
+                Suggested skills for <span className="text-brand font-bold">{formData.jobTitle || "your role"}</span>:
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {suggestedSkills.map((sk) => {
+                  const exists = formData.skills.includes(sk);
+                  return (
+                    <button
+                      key={sk}
+                      type="button"
+                      onClick={() => {
+                        if (!exists) updateFormData("skills", [...formData.skills, sk]);
+                      }}
+                      disabled={exists}
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-all flex items-center gap-1 ${
+                        exists
+                          ? "border-brand/20 bg-brand/10 text-brand/50 cursor-default"
+                          : "border-foreground/15 bg-background/40 text-foreground/80 hover:border-brand hover:text-brand"
+                      }`}
+                    >
+                      <span>{sk}</span>
+                      {!exists && <Plus className="h-3 w-3 text-brand" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 6:
+        return (
+          <EducationEditorWidget
+            values={formData.education}
+            onChange={(vals) => updateFormData("education", vals)}
+          />
+        );
+
+      case 7:
+        return (
+          <PricingSelectorWidget
+            selectedPlan={selectedPlan}
+            setSelectedPlan={setSelectedPlan}
+            selectedBilling={selectedBilling}
+            setSelectedBilling={setSelectedBilling}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  // Choice Screen View (mode === null)
+  const renderChoiceScreen = (
+    <div className="min-h-screen bg-[#08090d] text-foreground flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+      {/* Radial mesh background effects */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[radial-gradient(circle_at_50%_0%,rgba(47,217,104,0.15),transparent_70%)] blur-3xl" />
+        <div className="absolute -bottom-32 left-1/4 w-96 h-96 bg-brand/10 rounded-full blur-3xl" />
       </div>
 
-      <div className='w-full max-w-4xl relative z-10 space-y-6'>
-        <div className='text-center space-y-2'>
-          <h1 className='text-2xl sm:text-3xl font-bold tracking-tight text-foreground'>
-            Resume Parsed Successfully!
+      <div className="relative z-10 max-w-4xl w-full space-y-8 text-center">
+        {/* Header Branding */}
+        <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-brand/30 bg-brand/10 text-brand text-xs font-semibold uppercase tracking-wider shadow-[0_0_15px_rgba(47,217,104,0.15)]">
+            <Sparkles className="w-3.5 h-3.5" /> Welcome to JobRaker
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-white via-white to-brand bg-clip-text text-transparent">
+            Build Your AI Job Hunting Profile
           </h1>
-          <p className='text-foreground/60 text-sm max-w-xl mx-auto'>
-            Your profile details and experiences have been successfully analyzed. Select your scouting plan to unlock the dashboard.
+          <p className="text-foreground/60 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+            Choose how you'd like to set up your account. Upload your resume for instant AI-powered profile creation, or proceed step-by-step.
           </p>
         </div>
 
-        <Card className='product-section-card w-full relative overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl p-6 sm:p-8 bg-background/80 backdrop-blur-md border border-foreground/10'>
-          <div className='absolute inset-0 bg-gradient-to-r from-brand/10 via-transparent to-brand/10 opacity-30 pointer-events-none' />
-          
-          <div className='space-y-6'>
-            <div className='bg-foreground/[0.03] border border-foreground/5 rounded-xl p-4 flex flex-wrap gap-4 justify-around text-center text-xs'>
-              <div>
-                <span className='block text-lg font-bold text-brand'>✓ Profile</span>
-                <span className='text-foreground/50'>Structured & mapped</span>
+        {/* Hero Cards Grid */}
+        <div className="grid gap-5 md:grid-cols-2 text-left">
+          {/* AI Resume Upload Card */}
+          <div
+            onClick={() => setMode("resume")}
+            className="group relative cursor-pointer overflow-hidden rounded-2xl border border-brand/40 bg-gradient-to-br from-card/90 via-card/50 to-card/20 p-6 sm:p-8 shadow-[0_0_30px_rgba(47,217,104,0.1)] hover:border-brand hover:shadow-[0_0_40px_rgba(47,217,104,0.25)] transition-all duration-300 backdrop-blur-xl flex flex-col justify-between"
+          >
+            <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-brand text-black text-[10px] font-extrabold uppercase tracking-wider shadow">
+              ⚡ Recommended
+            </div>
+            <div className="space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-2xl bg-brand/20 border border-brand/40 flex items-center justify-center text-brand group-hover:scale-105 transition-transform">
+                  <UploadCloud className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-foreground group-hover:text-brand transition-colors">
+                    AI-Powered Resume Upload
+                  </h2>
+                  <p className="text-xs text-foreground/50">Instant profile creation</p>
+                </div>
               </div>
-              <div className='h-8 w-px bg-foreground/10 self-center hidden sm:block' />
-              <div>
-                <span className='block text-lg font-bold text-brand'>✓ Skills</span>
-                <span className='text-foreground/50'>Extracted & normalized</span>
-              </div>
-              <div className='h-8 w-px bg-foreground/10 self-center hidden sm:block' />
-              <div>
-                <span className='block text-lg font-bold text-brand'>✓ Work History</span>
-                <span className='text-foreground/50'>Experiences recorded</span>
-              </div>
+
+              <ul className="space-y-2.5 text-xs text-foreground/75">
+                <li className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand/20 text-brand text-[10px] font-bold">✓</span>
+                  AI parses name, title, contact, skills & work history
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand/20 text-brand text-[10px] font-bold">✓</span>
+                  Creates your profile in under 15 seconds
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand/20 text-brand text-[10px] font-bold">✓</span>
+                  Full edit control anytime in Dashboard Settings
+                </li>
+              </ul>
             </div>
 
-            <PricingSelector
-              selectedPlan={selectedPlan}
-              setSelectedPlan={setSelectedPlan}
-              selectedBilling={selectedBilling}
-              setSelectedBilling={setSelectedBilling}
+            <div className="mt-8 flex items-center justify-between border-t border-brand/15 pt-4 text-brand text-xs font-bold">
+              <span>Upload PDF / TXT / MD</span>
+              <span className="flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                Upload Resume <ArrowRight className="w-4 h-4" />
+              </span>
+            </div>
+          </div>
+
+          {/* Manual Guided Card */}
+          <div
+            onClick={() => setMode("manual")}
+            className="group relative cursor-pointer overflow-hidden rounded-2xl border border-foreground/10 bg-card/40 p-6 sm:p-8 hover:border-brand/40 hover:bg-card/70 transition-all duration-300 backdrop-blur-xl flex flex-col justify-between"
+          >
+            <div className="space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-2xl bg-foreground/10 border border-foreground/15 flex items-center justify-center text-foreground group-hover:scale-105 transition-transform">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-foreground group-hover:text-brand transition-colors">
+                    Guided Step-by-Step
+                  </h2>
+                  <p className="text-xs text-foreground/50">Manual interactive setup</p>
+                </div>
+              </div>
+
+              <ul className="space-y-2.5 text-xs text-foreground/60">
+                <li className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground/10 text-foreground text-[10px]">1</span>
+                  Enter details step by step with live preview
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground/10 text-foreground text-[10px]">2</span>
+                  Select career goals, skills & work preferences
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground/10 text-foreground text-[10px]">3</span>
+                  Select your scouting power plan
+                </li>
+              </ul>
+            </div>
+
+            <div className="mt-8 flex items-center justify-between border-t border-foreground/10 pt-4 text-foreground text-xs font-bold group-hover:text-brand transition-colors">
+              <span>8 quick steps (~2 mins)</span>
+              <span className="flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                Start Guided Flow <ArrowRight className="w-4 h-4" />
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Resume Upload View (mode === "resume" && !parsed)
+  const renderResumeUpload = (
+    <div className="min-h-screen bg-[#08090d] text-foreground flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-[radial-gradient(circle_at_50%_0%,rgba(47,217,104,0.15),transparent_70%)] blur-3xl" />
+      </div>
+
+      <div className="relative z-10 max-w-xl w-full space-y-6">
+        <button
+          onClick={() => setMode(null)}
+          disabled={uploading || parsing}
+          className="inline-flex items-center gap-1.5 text-xs text-foreground/60 hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          <ChevronLeft className="w-4 h-4" /> Back to mode choice
+        </button>
+
+        <div className="text-center space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            Upload Your Resume
+          </h1>
+          <p className="text-xs sm:text-sm text-foreground/60 max-w-md mx-auto">
+            JobRaker AI will extract your profile data, skills, and experience to set up your account automatically.
+          </p>
+        </div>
+
+        <Card className="rounded-2xl border border-brand/30 bg-card/60 backdrop-blur-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <label
+            className="w-full cursor-pointer group block"
+            onDragEnter={(e) => {
+              e.preventDefault();
+              setDragActive(true);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (!dragActive) setDragActive(true);
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+              setDragActive(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragActive(false);
+              const files = e.dataTransfer?.files;
+              if (files && files.length) void handleResumeFiles(files);
+            }}
+          >
+            <div
+              className={`flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-xl py-10 px-6 text-center transition-all ${
+                dragActive
+                  ? "border-brand bg-brand/15 shadow-[0_0_25px_rgba(47,217,104,0.2)] scale-[1.01]"
+                  : "border-brand/30 group-hover:border-brand bg-brand/5"
+              }`}
+            >
+              <div className="h-12 w-12 rounded-xl bg-brand/20 border border-brand/40 flex items-center justify-center text-brand">
+                <UploadCloud className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {dragActive ? "Drop resume here to parse" : "Click or drag resume file"}
+                </p>
+                <p className="text-xs text-foreground/50 mt-0.5">
+                  Supports PDF, TXT, MD, RTF (Max 8MB)
+                </p>
+              </div>
+              <span className="rounded-full border border-brand/30 bg-brand/10 px-3 py-0.5 text-[10px] font-bold text-brand uppercase tracking-wider">
+                🔒 Secure Local Extraction
+              </span>
+            </div>
+            <input
+              type="file"
+              accept=".pdf,.txt,.md,.rtf"
+              className="hidden"
+              onChange={(e) => void handleResumeFiles(e.target.files)}
             />
+          </label>
 
-            <div className='pt-2 flex justify-center'>
-              <Button
-                onClick={handleResumePricingSubmit}
-                disabled={uploading}
-                className='w-full max-w-md bg-brand text-black hover:bg-brand/90 transition-all h-11 text-sm font-semibold rounded-lg shadow-[0_0_15px_rgba(47,217,104,0.2)]'
-              >
-                {uploading ? "Completing setup..." : "Activate Account & Go to Dashboard"}
-              </Button>
+          {/* Progress state */}
+          {(uploading || parsing) && (
+            <div className="space-y-3 rounded-xl border border-brand/20 bg-background/50 p-4">
+              <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 text-brand animate-spin" />
+                  {parsing ? "Parsing resume with AI & generating profile..." : "Uploading file to storage..."}
+                </span>
+                <span className="font-mono text-brand">{uploadProgress}%</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-foreground/10 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-brand via-[#2fd968] to-[#80f2a7] transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
             </div>
+          )}
+
+          {parseError && (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs text-rose-300 flex items-start gap-2">
+              <X className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-rose-200">Parse Notice</p>
+                <p className="mt-0.5 leading-relaxed">{parseError}</p>
+              </div>
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+
+  // Resume Upload Success & Plan Selection View (mode === "resume" && parsed)
+  const renderResumeSuccessPricing = (
+    <div className="min-h-screen bg-[#08090d] text-foreground flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+      <div className="relative z-10 max-w-4xl w-full space-y-6">
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-brand/30 bg-brand/10 text-brand text-xs font-bold">
+            <CheckCircle className="w-4 h-4" /> Resume Parsed Successfully!
+          </div>
+          <h1 className="text-2xl sm:text-4xl font-extrabold text-foreground">
+            Activate Your Scouting Power Plan
+          </h1>
+          <p className="text-xs sm:text-sm text-foreground/60 max-w-xl mx-auto">
+            Your candidate profile, work history, and core skills have been parsed and mapped. Select your subscription plan to open your dashboard.
+          </p>
+        </div>
+
+        <Card className="rounded-2xl border border-brand/30 bg-card/60 backdrop-blur-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <PricingSelectorWidget
+            selectedPlan={selectedPlan}
+            setSelectedPlan={setSelectedPlan}
+            selectedBilling={selectedBilling}
+            setSelectedBilling={setSelectedBilling}
+          />
+
+          <div className="pt-2 flex justify-center">
+            <Button
+              onClick={() => void handleCompleteOnboarding()}
+              disabled={saving}
+              className="w-full max-w-md bg-brand text-black hover:bg-brand/90 transition-all h-12 text-sm font-bold rounded-xl shadow-[0_0_20px_rgba(47,217,104,0.25)] flex items-center justify-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Completing Account Setup...
+                </>
+              ) : (
+                <>
+                  Activate Account & Go to Dashboard <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </Button>
           </div>
         </Card>
       </div>
     </div>
   );
 
-  if (mode === null) return resumeModeScreen;
-  if (mode === "resume" && !parsed) return resumeUploadScreen;
-  if (mode === "resume" && parsed) return resumeSuccessPricingScreen;
+  // Return screens based on mode
+  if (mode === null) return renderChoiceScreen;
+  if (mode === "resume" && !parsed) return renderResumeUpload;
+  if (mode === "resume" && parsed) return renderResumeSuccessPricing;
+
+  // Manual Mode Guided Wizard View (mode === "manual")
+  const activeStepMeta = STEP_DEFINITIONS[currentStep];
 
   return (
-    <div className='product-page-shell min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8'>
-      <div className='w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl'>
-        {/* Floating background elements */}
-        <motion.div
-          className='absolute top-4 sm:top-8 left-2 sm:left-4 lg:left-8 bg-gradient-to-r from-brand/20 to-background/20 rounded-full blur-xl w-8 h-8 sm:w-12 sm:h-12 lg:w-16 lg:h-16'
-          animate={{ y: [-10, 10, -10] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className='absolute bottom-4 sm:bottom-8 right-2 sm:right-4 lg:right-8 bg-gradient-to-r from-brand/10 to-background/10 rounded-full blur-xl w-10 h-10 sm:w-16 sm:h-16 lg:w-20 lg:h-20'
-          animate={{ y: [10, -10, 10] }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 2,
-          }}
-        />
+    <div className="min-h-screen bg-[#08090d] text-foreground flex flex-col justify-between p-4 sm:p-6 lg:p-8 relative overflow-hidden">
+      {/* Background Mesh */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[450px] bg-[radial-gradient(circle_at_50%_0%,rgba(47,217,104,0.12),transparent_70%)] blur-3xl" />
+      </div>
 
-        <motion.div
-          className='w-full'
-          variants={containerVariants}
-          initial='hidden'
-          animate='visible'
-        >
-          <Card className='product-section-card w-full relative overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl'>
-            {/* Animated border glow */}
-            <div className='absolute inset-0 bg-gradient-to-r from-brand/20 via-transparent to-brand/20 opacity-50 animate-pulse rounded-xl sm:rounded-2xl' />
+      <div className="relative z-10 max-w-5xl w-full mx-auto space-y-6">
+        {/* Top Stepper Header Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-foreground/10 pb-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={prevStep}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-foreground/15 bg-background/50 text-foreground/70 hover:border-foreground/30 hover:text-foreground transition-all"
+              title="Go Back"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-brand">
+                  Step {currentStep + 1} of {STEP_DEFINITIONS.length}
+                </span>
+                <span className="text-foreground/30">•</span>
+                <span className="text-xs text-foreground/60">{activeStepMeta.label}</span>
+              </div>
+              <h2 className="text-lg font-bold text-foreground tracking-tight">
+                JobRaker Profile Setup
+              </h2>
+            </div>
+          </div>
 
-            <CardContent className='relative z-10 p-4 sm:p-6 lg:p-8 xl:p-10'>
-              {/* Header with logo */}
-              <div className='flex items-center justify-center mb-6 sm:mb-8'>
-                <div className='flex items-center space-x-2 sm:space-x-3'>
-                  <div className='w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-brand to-background rounded-full flex items-center justify-center'>
-                    <Sparkles className='w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-foreground' />
-                  </div>
-                  <span className='text-foreground font-bold text-lg sm:text-xl lg:text-2xl'>
-                    JobRaker
+          {/* Stepper Dots & Icons */}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-1">
+            {STEP_DEFINITIONS.map((s, idx) => {
+              const IconComponent = s.icon;
+              const isDone = idx < currentStep;
+              const isCurrent = idx === currentStep;
+
+              return (
+                <div
+                  key={s.id}
+                  onClick={() => setCurrentStep(idx)}
+                  className={`flex items-center gap-1 cursor-pointer px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-all ${
+                    isCurrent
+                      ? "border-brand bg-brand/20 text-brand shadow-[0_0_12px_rgba(47,217,104,0.15)]"
+                      : isDone
+                        ? "border-brand/30 bg-brand/10 text-brand/80"
+                        : "border-foreground/10 bg-background/30 text-foreground/40 hover:text-foreground/60"
+                  }`}
+                  title={s.label}
+                >
+                  {isDone ? (
+                    <Check className="h-3 w-3 text-brand stroke-[3]" />
+                  ) : (
+                    <IconComponent className="h-3 w-3" />
+                  )}
+                  <span className="hidden md:inline">{s.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Main Dual-Column Workspace */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Form Step Container */}
+          <Card className="lg:col-span-7 rounded-2xl border border-brand/20 bg-card/60 backdrop-blur-2xl p-5 sm:p-7 shadow-2xl space-y-6">
+            <div>
+              <div className="flex items-center gap-2 text-brand text-xs font-bold uppercase tracking-wider mb-1">
+                {React.createElement(activeStepMeta.icon, { className: "w-4 h-4" })}
+                {activeStepMeta.label} Configuration
+              </div>
+              <h3 className="text-xl sm:text-2xl font-extrabold text-foreground">
+                {currentStep === 0 && "Welcome! Let's get your details"}
+                {currentStep === 1 && "Your Role & Career Level"}
+                {currentStep === 2 && "Where are you based?"}
+                {currentStep === 3 && "What are your primary job goals?"}
+                {currentStep === 4 && "Write a short professional summary"}
+                {currentStep === 5 && "Add your core skills"}
+                {currentStep === 6 && "Add your education history"}
+                {currentStep === 7 && "Choose your Scouting Power Plan"}
+              </h3>
+              <p className="text-xs text-foreground/60 mt-1">
+                {currentStep === 0 && "Enter your name and contact details to get started."}
+                {currentStep === 1 && "Help AI agents target relevant openings for your title."}
+                {currentStep === 2 && "Specify location & remote/hybrid work preference."}
+                {currentStep === 3 && "Select goals to optimize AI matching algorithms."}
+                {currentStep === 4 && "Brief summary used for email templates and cover letters."}
+                {currentStep === 5 && "Type and press Enter or pick suggested skill tags."}
+                {currentStep === 6 && "Add school, degree, and graduation dates (optional)."}
+                {currentStep === 7 && "Select your plan to activate account & access Dashboard."}
+              </p>
+            </div>
+
+            {/* Step Body */}
+            <div className="py-2">{renderStepComponent()}</div>
+
+            {/* Navigation Footer Controls */}
+            <div className="flex items-center justify-between border-t border-foreground/10 pt-4">
+              <Button
+                onClick={prevStep}
+                variant="outline"
+                className="border-foreground/15 bg-background/40 text-foreground/80 hover:border-foreground/30 hover:text-foreground text-xs font-semibold h-10 rounded-xl"
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                {currentStep === 0 ? "Back to Mode" : "Back"}
+              </Button>
+
+              <Button
+                onClick={nextStep}
+                disabled={saving}
+                className="bg-brand text-black hover:bg-brand/90 transition-all font-bold text-xs h-10 px-6 rounded-xl shadow-[0_0_15px_rgba(47,217,104,0.2)] flex items-center gap-1.5"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                  </>
+                ) : currentStep === STEP_DEFINITIONS.length - 1 ? (
+                  <>
+                    Activate Account & Finish <ArrowRight className="w-4 h-4" />
+                  </>
+                ) : (
+                  <>
+                    Next Step <ChevronRight className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </Card>
+
+          {/* Right Live Profile Snapshot Card */}
+          <div className="lg:col-span-5 space-y-4">
+            <Card className="rounded-2xl border border-brand/30 bg-gradient-to-br from-card/80 via-card/50 to-card/20 p-5 backdrop-blur-2xl shadow-xl space-y-4">
+              <div className="flex items-center justify-between border-b border-foreground/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-brand animate-pulse" />
+                  <span className="text-xs font-bold text-foreground">
+                    Live Profile Preview
                   </span>
                 </div>
-              </div>
-
-              <AnimatePresence mode='wait'>
-                <motion.div
-                  key={currentStep}
-                  variants={stepVariants}
-                  initial='hidden'
-                  animate='visible'
-                  exit='exit'
-                  className='flex flex-col items-center text-center'
-                >
-                  {/* Step content */}
-                  <div className='mb-6 sm:mb-8'>
-                    <h2 className='text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-2 sm:mb-3'>
-                      {steps[currentStep].title}
-                    </h2>
-                    <p className='product-helper-text text-sm sm:text-base lg:text-lg'>
-                      {steps[currentStep].subtitle}
-                    </p>
-                  </div>
-
-                  {/* Step component */}
-                  <div className='w-full mb-6 sm:mb-8'>
-                    {steps[currentStep].component}
-                  </div>
-                </motion.div>
-              </AnimatePresence>
-
-              {/* Navigation buttons */}
-              <div className='flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0 sm:space-x-4'>
-                <Button
-                  onClick={prevStep}
-                  disabled={currentStep === 0}
-                  variant='ghost'
-                  className='product-outline-button h-10 w-full text-sm order-2 disabled:opacity-50 disabled:cursor-not-allowed sm:h-12 sm:w-auto sm:text-base sm:order-1'
-                >
-                  <ChevronLeft className='mr-1 sm:mr-2 w-4 h-4 sm:w-5 sm:h-5' />
-                  Back
-                </Button>
-
-                <Button
-                  onClick={nextStep}
-                  className='w-full sm:w-auto bg-gradient-to-r from-white to-[#f0f0f0] text-black hover:shadow-lg transition-all h-10 sm:h-12 text-sm sm:text-base font-medium order-1 sm:order-2'
-                >
-                  {currentStep === steps.length - 1 ? "Get Started" : "Next"}
-                  <ChevronRight className='ml-1 sm:ml-2 w-4 h-4 sm:w-5 sm:h-5' />
-                </Button>
-              </div>
-
-              {/* Progress bar */}
-              <div className='w-full bg-foreground/10 rounded-full h-2 sm:h-3 mt-4 sm:mt-6 overflow-hidden'>
-                <motion.div
-                  className='bg-gradient-to-r from-white to-[#f0f0f0] h-full rounded-full'
-                  initial={{ width: 0 }}
-                  animate={{
-                    width: `${((currentStep + 1) / steps.length) * 100}%`,
-                  }}
-                  transition={{ duration: 0.5, ease: "easeInOut" }}
-                />
-              </div>
-
-              {/* Step indicator */}
-              <div className='flex justify-center mt-3 sm:mt-4 space-x-2'>
-                {steps.map((_, index) => (
-                  <div
-                    key={index}
-                    className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 ${
-                      index <= currentStep ? "bg-brand" : "bg-foreground/20"
-                    }`}
-                  />
-                ))}
-              </div>
-
-              {/* Step counter */}
-              <div className='text-center mt-2 sm:mt-3'>
-                <span className='text-xs sm:text-sm text-foreground/40'>
-                  Step {currentStep + 1} of {steps.length}
+                <span className="font-mono text-xs font-bold text-brand">
+                  {completionPercentage}% Complete
                 </span>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+
+              {/* Live Profile Card */}
+              <div className="space-y-4 rounded-xl border border-foreground/10 bg-background/50 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-brand/30 to-brand/10 border border-brand/50 flex items-center justify-center font-bold text-brand text-base shadow-[0_0_15px_rgba(47,217,104,0.2)]">
+                    {avatarInitials}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-foreground leading-tight">
+                      {formData.firstName || formData.lastName
+                        ? `${formData.firstName} ${formData.lastName}`.trim()
+                        : "Candidate Profile"}
+                    </h4>
+                    <p className="text-xs font-medium text-brand mt-0.5">
+                      {formData.jobTitle || "Job Title Not Specified"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 text-[11px] text-foreground/70">
+                  <span className="inline-flex items-center gap-1 rounded-md border border-foreground/10 bg-foreground/5 px-2 py-1">
+                    <MapPin className="h-3 w-3 text-brand" />
+                    {formData.location || "Location not set"}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-md border border-foreground/10 bg-foreground/5 px-2 py-1">
+                    <Briefcase className="h-3 w-3 text-brand" />
+                    {formData.experience} yrs ({formData.workPreference})
+                  </span>
+                </div>
+
+                {/* Goals */}
+                {formData.goals.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-foreground/40">
+                      Target Goals
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {formData.goals.map((g) => (
+                        <span
+                          key={g}
+                          className="rounded-full border border-brand/30 bg-brand/10 px-2 py-0.5 text-[10px] font-semibold text-brand"
+                        >
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Skills */}
+                {formData.skills.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-foreground/40">
+                      Core Skills ({formData.skills.length})
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {formData.skills.slice(0, 8).map((s) => (
+                        <span
+                          key={s}
+                          className="rounded-md border border-foreground/15 bg-background/60 px-2 py-0.5 text-[10px] text-foreground/80"
+                        >
+                          {s}
+                        </span>
+                      ))}
+                      {formData.skills.length > 8 && (
+                        <span className="text-[10px] text-foreground/40 self-center">
+                          +{formData.skills.length - 8} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Onboarding Trust Footer */}
+              <div className="flex items-center justify-around text-[10px] text-foreground/40 pt-1">
+                <span>✓ Verified Supabase Storage</span>
+                <span>•</span>
+                <span>✓ Safe Encryption</span>
+              </div>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-// Lightweight skill input (Enter to add, click to remove)
-const SkillInput = ({
+// Skill Input Component
+const SkillInputWidget = ({
   values,
   onChange,
 }: {
@@ -1319,10 +1518,11 @@ const SkillInput = ({
     if (v && !values.includes(v)) onChange([...values, v]);
     setDraft("");
   };
+
   return (
-    <div className='w-full space-y-2'>
-      <div className='flex gap-2'>
-        <input
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -1331,32 +1531,39 @@ const SkillInput = ({
               add();
             }
           }}
-          placeholder='Type a skill and press Enter'
-          className='product-input-surface flex-1 rounded-md px-3 py-2 text-sm outline-none'
+          placeholder="Type a skill (e.g. React, SQL) and press Enter"
+          className="h-11 bg-background/50 border-brand/20 text-foreground placeholder:text-foreground/30 focus:border-brand rounded-xl text-xs sm:text-sm"
+          autoFocus
         />
-        <button
+        <Button
+          type="button"
           onClick={add}
           disabled={!draft.trim()}
-          className='px-4 py-2 rounded-md bg-brand text-black text-sm font-medium disabled:opacity-50'
+          className="bg-brand text-black hover:bg-brand/90 h-11 px-4 font-bold text-xs rounded-xl disabled:opacity-50"
         >
           Add
-        </button>
+        </Button>
       </div>
-      <div className='flex flex-wrap gap-2'>
+
+      <div className="flex flex-wrap gap-1.5 min-h-[40px]">
         {values.map((s) => (
-          <button
+          <span
             key={s}
-            onClick={() => onChange(values.filter((x) => x !== s))}
-            className='group inline-flex items-center gap-1 rounded-full border border-brand/40 bg-brand/10 px-3 py-1 text-xs text-brand hover:bg-brand/20'
-            title='Remove skill'
+            className="inline-flex items-center gap-1.5 rounded-full border border-brand/40 bg-brand/10 px-3 py-1 text-xs font-semibold text-brand shadow-sm"
           >
             <span>{s}</span>
-            <span className='text-brand/70 group-hover:text-brand'>×</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => onChange(values.filter((x) => x !== s))}
+              className="text-brand/70 hover:text-brand"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
         ))}
         {!values.length && (
-          <span className='text-xs text-foreground/40'>
-            No skills added yet
+          <span className="text-xs text-foreground/40 italic">
+            No skills added yet. Enter custom skills or pick from suggested tags below.
           </span>
         )}
       </div>
@@ -1364,86 +1571,80 @@ const SkillInput = ({
   );
 };
 
-interface EduItem {
-  school?: string;
-  degree?: string;
-  start?: string;
-  end?: string;
-}
-const EducationEditor = ({
+// Education Editor Component
+const EducationEditorWidget = ({
   values,
   onChange,
 }: {
-  values: EduItem[];
-  onChange: (v: EduItem[]) => void;
+  values: EducationItem[];
+  onChange: (v: EducationItem[]) => void;
 }) => {
-  const update = (idx: number, patch: Partial<EduItem>) => {
+  const update = (idx: number, patch: Partial<EducationItem>) => {
     const next = values.map((v, i) => (i === idx ? { ...v, ...patch } : v));
     onChange(next);
   };
   const add = () =>
-    onChange([
-      ...(values || []),
-      { school: "", degree: "", start: "", end: "" },
-    ]);
+    onChange([...(values || []), { school: "", degree: "", start: "", end: "" }]);
   const remove = (idx: number) => onChange(values.filter((_, i) => i !== idx));
+
   return (
-    <div className='space-y-4'>
+    <div className="space-y-3">
       {(values || []).map((e, i) => (
         <div
           key={i}
-          className='grid grid-cols-1 sm:grid-cols-4 gap-2 items-start'
+          className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-center p-3 rounded-xl border border-foreground/10 bg-background/40"
         >
-          <input
+          <Input
             value={e.school || ""}
             onChange={(ev) => update(i, { school: ev.target.value })}
-            placeholder='School'
-            className='product-input-surface rounded-md px-3 py-2 text-xs sm:text-sm outline-none'
+            placeholder="School / University"
+            className="h-10 text-xs bg-background/50 border-brand/20 rounded-lg"
           />
-          <input
+          <Input
             value={e.degree || ""}
             onChange={(ev) => update(i, { degree: ev.target.value })}
-            placeholder='Degree'
-            className='product-input-surface rounded-md px-3 py-2 text-xs sm:text-sm outline-none'
+            placeholder="Degree / Major"
+            className="h-10 text-xs bg-background/50 border-brand/20 rounded-lg"
           />
-          <input
+          <Input
             value={e.start || ""}
             onChange={(ev) => update(i, { start: ev.target.value })}
-            placeholder='Start'
-            className='product-input-surface rounded-md px-3 py-2 text-xs sm:text-sm outline-none'
+            placeholder="Start Year"
+            className="h-10 text-xs bg-background/50 border-brand/20 rounded-lg"
           />
-          <div className='flex gap-2'>
-            <input
+          <div className="flex gap-2">
+            <Input
               value={e.end || ""}
               onChange={(ev) => update(i, { end: ev.target.value })}
-              placeholder='End'
-              className='product-input-surface flex-1 rounded-md px-3 py-2 text-xs sm:text-sm outline-none'
+              placeholder="End Year"
+              className="h-10 text-xs bg-background/50 border-brand/20 rounded-lg flex-1"
             />
             <button
+              type="button"
               onClick={() => remove(i)}
-              className='px-2 rounded-md bg-brand/20 text-brand text-xs hover:bg-brand/30'
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"
+              title="Remove entry"
             >
-              ✕
+              <X className="h-4 w-4" />
             </button>
           </div>
         </div>
       ))}
-      <button
+
+      <Button
+        type="button"
         onClick={add}
-        className='px-4 py-2 rounded-md bg-brand text-black text-sm font-medium'
+        variant="outline"
+        className="w-full border-dashed border-brand/30 bg-brand/5 text-brand hover:bg-brand/10 text-xs font-semibold h-10 rounded-xl"
       >
-        Add Education
-      </button>
-      {!values.length && (
-        <div className='text-xs text-foreground/40'>
-          No education entries yet
-        </div>
-      )}
+        <Plus className="w-4 h-4 mr-1" /> Add Education Entry
+      </Button>
     </div>
   );
 };
 
-const PricingSelector = ({
+// Pricing Selector Widget
+const PricingSelectorWidget = ({
   selectedPlan,
   setSelectedPlan,
   selectedBilling,
@@ -1457,14 +1658,22 @@ const PricingSelector = ({
   const plans = SUBSCRIPTION_MARKETING_PLANS.filter((p) => p.tier !== "Free");
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-5">
       {/* Billing toggle */}
       <div className="flex justify-center items-center gap-3">
-        <span className={`text-sm ${selectedBilling === "monthly" ? "text-foreground font-semibold" : "text-foreground/60"}`}>Monthly</span>
+        <span
+          className={`text-xs font-semibold ${
+            selectedBilling === "monthly" ? "text-foreground" : "text-foreground/50"
+          }`}
+        >
+          Monthly
+        </span>
         <button
           type="button"
-          onClick={() => setSelectedBilling(selectedBilling === "monthly" ? "annual" : "monthly")}
-          className="relative inline-flex h-6 w-11 items-center rounded-full bg-foreground/10 transition-colors focus:outline-none"
+          onClick={() =>
+            setSelectedBilling(selectedBilling === "monthly" ? "annual" : "monthly")
+          }
+          className="relative inline-flex h-6 w-11 items-center rounded-full bg-foreground/15 transition-colors focus:outline-none"
         >
           <span
             className={`${
@@ -1472,89 +1681,135 @@ const PricingSelector = ({
             } inline-block h-4 w-4 transform rounded-full bg-brand transition-transform`}
           />
         </button>
-        <span className={`text-sm ${selectedBilling === "annual" ? "text-foreground font-semibold" : "text-foreground/60"}`}>
-          Annually <span className="text-xs text-brand bg-brand/10 border border-brand/20 px-1.5 py-0.5 rounded ml-1 font-mono font-bold">Save 30%</span>
+        <span
+          className={`text-xs font-semibold ${
+            selectedBilling === "annual" ? "text-foreground" : "text-foreground/50"
+          }`}
+        >
+          Annually{" "}
+          <span className="text-[10px] text-brand bg-brand/10 border border-brand/30 px-1.5 py-0.5 rounded-full font-mono font-bold">
+            Save 30%
+          </span>
         </span>
       </div>
 
       {/* Plan Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 w-full">
         {plans.map((plan) => {
           const isSelected = selectedPlan.toLowerCase() === plan.tier.toLowerCase();
           const isPro = plan.tier === "Pro";
           const price = selectedBilling === "annual" ? plan.yearlyPrice : plan.price;
-          const displayPrice = selectedBilling === "annual" 
-            ? Math.round(Number(price) / 12)
-            : price;
+          const displayPrice =
+            selectedBilling === "annual" ? Math.round(Number(price) / 12) : price;
 
           return (
-            <button
+            <div
               key={plan.tier}
-              type="button"
               onClick={() => setSelectedPlan(plan.tier)}
-              className={`text-left relative flex flex-col p-5 rounded-2xl border transition-all duration-300 ${
+              className={`cursor-pointer relative flex flex-col p-4 rounded-xl border transition-all duration-300 ${
                 isSelected
-                  ? "border-brand bg-brand/5 shadow-[0_0_20px_rgba(47,217,104,0.1)]"
-                  : "border-foreground/10 bg-foreground/[0.02] hover:border-foreground/20 hover:bg-foreground/[0.04]"
-              } ${isPro && !isSelected ? "hover:shadow-[0_0_15px_rgba(255,255,255,0.02)]" : ""}`}
+                  ? "border-brand bg-brand/15 shadow-[0_0_20px_rgba(47,217,104,0.15)]"
+                  : "border-foreground/10 bg-background/30 hover:border-foreground/25 hover:bg-background/50"
+              }`}
             >
               {isPro && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-brand text-black text-[10px] font-bold uppercase tracking-wider shadow">
+                <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-brand text-black text-[9px] font-extrabold uppercase tracking-wider shadow">
                   Most Popular
                 </div>
               )}
-              <div className="mb-4">
-                <h3 className="text-base font-bold text-foreground">{plan.name}</h3>
-                <p className="text-[11px] text-foreground/60 mt-1 line-clamp-2 min-h-[32px]">{plan.description}</p>
+              <div className="mb-2">
+                <h3 className="text-sm font-bold text-foreground">{plan.name}</h3>
+                <p className="text-[10px] text-foreground/50 line-clamp-2 min-h-[28px]">
+                  {plan.description}
+                </p>
               </div>
-              <div className="mb-4 flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-foreground">${displayPrice}</span>
-                <span className="text-xs text-foreground/50">/month</span>
-                {selectedBilling === "annual" && (
-                  <span className="text-[10px] text-brand/80 block mt-1">Billed annually (${price}/yr)</span>
-                )}
+              <div className="mb-3 flex items-baseline gap-1">
+                <span className="text-xl font-extrabold text-foreground">${displayPrice}</span>
+                <span className="text-[10px] text-foreground/50">/month</span>
               </div>
-              <div className="flex-grow space-y-2 mt-2">
-                <div className="text-[10px] font-semibold text-brand tracking-wider uppercase">
+              <div className="space-y-1.5 border-t border-foreground/10 pt-2 text-[10px]">
+                <div className="font-bold text-brand uppercase tracking-wider">
                   {plan.creditsPerMonth} Credits / mo
                 </div>
-                <ul className="space-y-1 text-[11px] text-foreground/75">
+                <ul className="space-y-1 text-foreground/70">
                   {plan.features.slice(0, 3).map((feat, idx) => {
                     const featName = typeof feat === "string" ? feat : feat.name;
                     return (
-                      <li key={idx} className="flex items-start gap-1">
-                        <span className="text-brand mt-0.5">✓</span>
+                      <li key={idx} className="flex items-center gap-1">
+                        <Check className="h-3 w-3 text-brand shrink-0" />
                         <span className="line-clamp-1">{featName}</span>
                       </li>
                     );
                   })}
                 </ul>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
 
-      {/* Free Plan link */}
-      <div className="text-center pt-2">
+      <div className="text-center pt-1">
         <button
           type="button"
           onClick={() => setSelectedPlan("Free")}
-          className={`text-xs ${selectedPlan.toLowerCase() === "free" ? "text-brand underline font-semibold" : "text-foreground/40 hover:text-foreground/60 underline"}`}
+          className={`text-xs underline transition-colors ${
+            selectedPlan.toLowerCase() === "free"
+              ? "text-brand font-bold"
+              : "text-foreground/40 hover:text-foreground/70"
+          }`}
         >
           Or continue with the Free Plan (10 credits/mo, basic tracking)
         </button>
-      </div>
-
-      {/* Trust guarantees */}
-      <div className="flex items-center justify-center gap-4 text-[10px] text-foreground/45 border-t border-foreground/5 pt-4">
-        <span>✓ 14-Day Free Trial</span>
-        <span>•</span>
-        <span>✓ Cancel Anytime</span>
-        <span>•</span>
-        <span>✓ Secure Checkout</span>
       </div>
     </div>
   );
 };
 
+// Icon Helpers
+function RocketIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  );
+}
+
+function DollarIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function TrendingIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+    </svg>
+  );
+}
+
+function LaptopIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function RefreshIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
+  );
+}
+
+function AwardIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+    </svg>
+  );
+}
