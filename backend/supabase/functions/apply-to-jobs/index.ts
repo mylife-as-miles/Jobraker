@@ -924,7 +924,7 @@ Deno.serve(async (req) => {
 
     const maxSteps = resolveMaxStepsOverride(body as Record<string, unknown>);
     const applyUrl = jobUrls[0] || null;
-    const rtrvrEnabled = parseBoolean(Deno.env.get("RTRVR_ENABLED"), false);
+    const rtrvrEnabled = parseBoolean(Deno.env.get("RTRVR_ENABLED"), true);
     const rtrvrRecordingContext = configuredRtrvrRecordingContextForUrl(applyUrl);
     const nowIso = new Date().toISOString();
     const applicationId = crypto.randomUUID();
