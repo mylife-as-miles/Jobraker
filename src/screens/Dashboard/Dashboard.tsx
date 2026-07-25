@@ -28,6 +28,8 @@ import {
   Home,
   ChevronRight as BreadcrumbChevron,
   Briefcase,
+  User2,
+  BriefcaseBusiness,
 
   // CreditCard,
   PanelLeft,
@@ -324,6 +326,7 @@ export const Dashboard = (): JSX.Element => {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showCareerPopup, setShowCareerPopup] = useState(false);
 
   const currentPage = useMemo(() => {
     const segment = (location.pathname.split("/")[2] || "").toLowerCase();
@@ -702,19 +705,10 @@ export const Dashboard = (): JSX.Element => {
   return (
     <TooltipProvider delayDuration={150}>
       <div className='h-screen max-h-screen w-screen overflow-hidden bg-background flex'>
-        {/* Mobile sidebar overlay */}
-        {sidebarOpen && (
-          <div
-            className='fixed inset-0 bg-fore/50 backdrop-blur-sm z-40 lg:hidden'
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Sidebar - Modern & Advanced */}
+        {/* Sidebar - Desktop Only */}
         <div
           className={`
-        fixed inset-y-0 left-0 z-50 bg-card/95 backdrop-blur-xl border-r border-border/40 flex flex-col overflow-hidden transition-all duration-200
-        ${sidebarOpen ? "translate-x-0 w-72" : "-translate-x-full lg:translate-x-0"}
+        fixed inset-y-0 left-0 z-50 bg-card/95 backdrop-blur-xl border-r border-border/40 hidden lg:flex flex-col overflow-hidden transition-all duration-200
         ${isCollapsed && isDesktop ? "lg:w-20" : "lg:w-72"}
       `}
         >
@@ -934,17 +928,7 @@ export const Dashboard = (): JSX.Element => {
                 >
                   <PanelLeft className='w-5 h-5' />
                 </Button>
-                {/* Mobile menu button */}
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  className='lg:hidden text-brand hover:bg-brand/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2'
-                  onClick={() => setSidebarOpen(true)}
-                  title='Open sidebar navigation'
-                  aria-label='Open sidebar'
-                >
-                  <Menu className='w-4 h-4 sm:w-5 sm:h-5' />
-                </Button>
+
 
                 {/* Logo and Brand on mobile */}
                 {currentPage === "overview" ? (
@@ -1145,8 +1129,12 @@ export const Dashboard = (): JSX.Element => {
         {/* Mobile Bottom Tab Bar */}
         {!isDesktop && (
           <div className='fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border/40 px-2 grid grid-cols-5 h-16 select-none shadow-[0_-8px_32px_rgba(0,0,0,0.4)]'>
+            {/* Home Tab */}
             <button
-              onClick={() => navigate("/dashboard/overview")}
+              onClick={() => {
+                setShowCareerPopup(false);
+                navigate("/dashboard/overview");
+              }}
               className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
                 currentPage === "overview"
                   ? "text-brand scale-105"
@@ -1156,41 +1144,86 @@ export const Dashboard = (): JSX.Element => {
               <Home className='w-5 h-5 mb-0.5' />
               <span className='text-[10px] font-semibold'>Home</span>
             </button>
+
+            {/* Account Tab */}
             <button
-              onClick={() => navigate("/dashboard/jobs")}
-              className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
-                currentPage === "jobs"
-                  ? "text-brand scale-105"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Briefcase className='w-5 h-5 mb-0.5' />
-              <span className='text-[10px] font-semibold'>Jobs</span>
-            </button>
-            <button
-              onClick={() => navigate("/dashboard/application")}
-              className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
-                currentPage === "application"
-                  ? "text-brand scale-105"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Users className='w-5 h-5 mb-0.5' />
-              <span className='text-[10px] font-semibold'>Applications</span>
-            </button>
-            <button
-              onClick={() => navigate("/dashboard/account")}
+              onClick={() => {
+                setShowCareerPopup(false);
+                navigate("/dashboard/account");
+              }}
               className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
                 ["account", "resume", "cover-letter"].includes(currentPage)
                   ? "text-brand scale-105"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Folder className='w-5 h-5 mb-0.5' />
-              <span className='text-[10px] font-semibold'>Documents</span>
+              <User2 className='w-5 h-5 mb-0.5' />
+              <span className='text-[10px] font-semibold'>Account</span>
             </button>
+
+            {/* Career Tab (Center highlighted squircle button) */}
+            <div className='relative flex justify-center items-center -mt-6'>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCareerPopup(!showCareerPopup);
+                }}
+                className={`w-12 h-12 rounded-[14px] bg-gradient-to-br from-brand via-brand/90 to-brand/75 flex items-center justify-center text-black shadow-[0_0_20px_rgba(47,217,104,0.45)] active:scale-95 transition-all duration-300 hover:shadow-[0_0_25px_rgba(47,217,104,0.6)] z-50 ${
+                  showCareerPopup ? "rotate-45" : ""
+                }`}
+                title='Career actions'
+                aria-label='Open Career menu'
+              >
+                <BriefcaseBusiness
+                  className={`w-5 h-5 transition-transform duration-300 ${showCareerPopup ? "-rotate-45" : ""}`}
+                />
+              </button>
+
+              {/* Popup Menu */}
+              <AnimatePresence>
+                {showCareerPopup && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 15, scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    className='absolute bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center pointer-events-auto'
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Jobs Pill */}
+                    <button
+                      onClick={() => {
+                        navigate("/dashboard/jobs");
+                        setShowCareerPopup(false);
+                      }}
+                      className='absolute right-2 flex w-32 translate-x-[-18px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(47,217,104,0.1)] shrink-0 text-foreground text-sm font-semibold'
+                    >
+                      <Briefcase className='w-4 h-4 text-brand' />
+                      <span>Jobs</span>
+                    </button>
+
+                    {/* Application Pill */}
+                    <button
+                      onClick={() => {
+                        navigate("/dashboard/application");
+                        setShowCareerPopup(false);
+                      }}
+                      className='absolute left-2 flex w-40 translate-x-[18px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(47,217,104,0.1)] shrink-0 text-foreground text-sm font-semibold'
+                    >
+                      <Users className='w-4 h-4 text-brand' />
+                      <span>Applications</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Chat Tab */}
             <button
-              onClick={() => navigate("/dashboard/chat")}
+              onClick={() => {
+                setShowCareerPopup(false);
+                navigate("/dashboard/chat");
+              }}
               className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
                 currentPage === "chat"
                   ? "text-brand scale-105"
@@ -1198,7 +1231,23 @@ export const Dashboard = (): JSX.Element => {
               }`}
             >
               <MessageSquare className='w-5 h-5 mb-0.5' />
-              <span className='text-[10px] font-semibold'>Assistant</span>
+              <span className='text-[10px] font-semibold'>Chat</span>
+            </button>
+
+            {/* Analytics Tab */}
+            <button
+              onClick={() => {
+                setShowCareerPopup(false);
+                navigate("/dashboard/analytics");
+              }}
+              className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
+                currentPage === "analytics"
+                  ? "text-brand scale-105"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <TrendingUp className='w-5 h-5 mb-0.5' />
+              <span className='text-[10px] font-semibold'>Analytics</span>
             </button>
           </div>
         )}
