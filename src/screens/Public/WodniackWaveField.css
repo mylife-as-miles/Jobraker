@@ -1,0 +1,48 @@
+/**
+ * `a-waves` styles from AntoineW/AW-2025-Portfolio
+ * `src/components/AWaves.astro`, translated from SCSS. The ::before is the
+ * small dot that trails the smoothed cursor position.
+ */
+
+.wdk-waves {
+  --x: -0.5rem;
+  --y: 50%;
+
+  position: relative;
+
+  margin: 0;
+  padding: 0;
+
+  overflow: hidden;
+}
+
+.wdk-waves::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  width: 0.5rem;
+  height: 0.5rem;
+
+  background: var(--wdk-secondary);
+  border-radius: 50%;
+
+  transform: translate3d(calc(var(--x) - 50%), calc(var(--y) - 50%), 0);
+
+  will-change: transform;
+
+  content: "";
+}
+
+.wdk-waves svg {
+  display: block;
+
+  width: 100%;
+  height: 100%;
+}
+
+.wdk-waves__line {
+  fill: none;
+  stroke: var(--wdk-secondary);
+  stroke-width: 1px;
+}

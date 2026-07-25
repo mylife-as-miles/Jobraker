@@ -1,0 +1,117 @@
+/**
+ * `.site-scrollbar` from AntoineW/AW-2025-Portfolio
+ * `src/components/SiteScrollbar.astro`, translated from SCSS.
+ */
+
+.wdk-scrollbar {
+  --border-width: 1rem;
+
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 20;
+
+  width: var(--border-width);
+  height: 100%;
+
+  scale: 1 1;
+
+  transition: scale 0.5s cubic-bezier(0.215, 0.61, 0.355, 1);
+
+  will-change: scale;
+}
+
+.wdk-scrollbar__track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+
+  width: 100%;
+  height: 100%;
+
+  background-color: transparent;
+
+  pointer-events: none;
+}
+
+.wdk-scrollbar__thumb {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 3;
+
+  width: calc(var(--border-width) * 0.5);
+  height: var(--scrollbar-height, 0);
+
+  cursor: grab;
+
+  translate: -50% var(--scrollbar-top) 0;
+  scale: 1 1;
+
+  transition:
+    scale 0.2s cubic-bezier(0.215, 0.61, 0.355, 1),
+    opacity 0.07s linear;
+
+  will-change: opacity, scale, transform;
+}
+
+/* Widened hit area so the thumb is grabbable inside a 1rem frame. */
+.wdk-scrollbar__thumb::before {
+  position: absolute;
+  top: calc(var(--border-width) * -1);
+  left: calc(50% - var(--border-width) * 0.5);
+
+  width: var(--border-width);
+  height: calc(100% + var(--border-width));
+
+  content: "";
+}
+
+.wdk-scrollbar__thumb::after {
+  position: absolute;
+  top: var(--border-width);
+  bottom: var(--border-width);
+  left: 50%;
+
+  width: 100%;
+  height: auto;
+
+  background-color: var(--wdk-primary);
+  border-radius: inherit;
+  translate: -50% 0 0;
+
+  transition:
+    width 0.1s cubic-bezier(0.215, 0.61, 0.355, 1),
+    background-color 0.1s cubic-bezier(0.215, 0.61, 0.355, 1);
+
+  content: "";
+
+  will-change: background, width;
+}
+
+.wdk-scrollbar__thumb:hover::after {
+  width: calc(var(--border-width) - 2px);
+}
+
+.wdk-scrollbar.is-dragging,
+.wdk-scrollbar.is-dragging .wdk-scrollbar__thumb {
+  cursor: grabbing;
+}
+
+.wdk-scrollbar.is-dragging .wdk-scrollbar__thumb::after {
+  width: calc(var(--border-width) - 2px);
+
+  background-color: var(--wdk-white);
+}
+
+html.wdk-scroll-blocked .wdk-scrollbar {
+  scale: 0 1;
+}
+
+@media only screen and (max-width: 767px) and (orientation: landscape),
+  only screen and (max-width: 576px) {
+  .wdk-scrollbar {
+    --border-width: 0.5rem;
+  }
+}

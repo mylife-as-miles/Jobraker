@@ -1,213 +1,271 @@
 import { useEffect, useRef } from "react";
+import { Noise } from "./WodniackNoise";
+import { emitter } from "./WodniackRuntime";
+import "./WodniackWaveField.css";
 
-const LINE_COUNT = 30;
-const POINT_GAP = 28;
+/**
+ * The `<a-waves>` custom element from AntoineW/AW-2025-Portfolio
+ * `src/components/AWaves.astro`, as a React component.
+ *
+ * A grid of SVG polylines displaced by 2D Perlin noise, with a spring-loaded
+ * cursor force pushing points around as the pointer sweeps through. The
+ * constants (gaps, noise scaling, tension, friction, clamp) are the source's
+ * verbatim — they're what gives the field its specific drape.
+ */
+
+type Point = {
+  x: number;
+  y: number;
+  wave: { x: number; y: number };
+  cursor: { x: number; y: number; vx: number; vy: number };
+};
 
 type WodniackWaveFieldProps = {
   className?: string;
-  stroke?: string;
-  dot?: string;
-  interactive?: boolean;
+  /** Scales the cursor force; the reference hero uses 1. */
   strength?: number;
+  /** Respond to the pointer immediately instead of waiting for the intro handoff. */
+  interactive?: boolean;
 };
 
-type Point = { x: number; y: number };
-
-function makePath(points: Point[]) {
-  if (!points.length) return "";
-  return points.reduce(
-    (path, point, index) => `${path}${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)} `,
-    "",
-  );
-}
-
 export function WodniackWaveField({
-  className = "",
-  stroke = "currentColor",
-  dot = "currentColor",
-  interactive = true,
+  className,
   strength = 1,
+  interactive = false,
 }: WodniackWaveFieldProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const pathRefs = useRef<Array<SVGPathElement | null>>([]);
-  const dotRef = useRef<SVGCircleElement | null>(null);
+  const strengthRef = useRef(strength);
+  strengthRef.current = strength;
 
   useEffect(() => {
     const root = rootRef.current;
     const svg = svgRef.current;
     if (!root || !svg) return;
 
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const size = { width: 0, height: 0 };
-    const pointer = {
-      x: -240,
-      y: 0,
-      targetX: -240,
-      targetY: 0,
-      velocity: 0,
-      visible: false,
-    };
-    let frame = 0;
-    let visible = true;
-    let pageVisible = document.visibilityState === "visible";
+    const mouse = { x: -10, y: 0, lx: 0, ly: 0, sx: 0, sy: 0, v: 0, vs: 0, a: 0, set: false };
+    const noise = new Noise(Math.random());
 
-    const measure = () => {
+    let bounding = { left: 0, top: 0, width: 0, height: 0 };
+    let lines: Point[][] = [];
+    let paths: SVGPathElement[] = [];
+    let isInteractive = interactive;
+    let isPaused = true;
+
+    const setSize = () => {
       const rect = root.getBoundingClientRect();
-      size.width = Math.max(1, rect.width);
-      size.height = Math.max(1, rect.height);
-      svg.setAttribute("viewBox", `0 0 ${size.width} ${size.height}`);
+
+      svg.style.width = "";
+      svg.style.height = "";
+
+      bounding = {
+        left: rect.left,
+        top: rect.top + window.scrollY,
+        width: root.clientWidth,
+        height: root.clientHeight,
+      };
+
+      svg.style.width = `${bounding.width}px`;
+      svg.style.height = `${bounding.height}px`;
     };
 
-    const draw = (now: number) => {
-      const { width, height } = size;
-      if (!width || !height) return;
+    const moved = (point: Point, withCursorForce = true) => ({
+      x: Math.round((point.x + point.wave.x + (withCursorForce ? point.cursor.x : 0)) * 10) / 10,
+      y: Math.round((point.y + point.wave.y + (withCursorForce ? point.cursor.y : 0)) * 10) / 10,
+    });
 
-      pointer.x += (pointer.targetX - pointer.x) * 0.085;
-      pointer.y += (pointer.targetY - pointer.y) * 0.085;
-      pointer.velocity *= 0.91;
+    const drawLines = () => {
+      lines.forEach((points, lIndex) => {
+        const first = moved(points[0], false);
 
-      const time = now * 0.001;
-      const xGap = width / Math.max(1, LINE_COUNT - 1);
-      const radius = Math.max(150, Math.min(width, height) * 0.26);
+        let d = `M ${first.x} ${first.y}`;
 
-      pathRefs.current.forEach((path, lineIndex) => {
-        if (!path) return;
+        points.forEach((point, pIndex) => {
+          const isLast = pIndex === points.length - 1;
+          const p1 = moved(point, !isLast);
+
+          d += `L ${p1.x} ${p1.y}`;
+        });
+
+        paths[lIndex]?.setAttribute("d", d);
+      });
+    };
+
+    const setLines = () => {
+      const { width, height } = bounding;
+
+      lines = [];
+      paths.forEach((path) => path.remove());
+      paths = [];
+
+      const xGap = 10;
+      const yGap = 32;
+
+      const oWidth = width + 200;
+      const oHeight = height + 30;
+
+      const totalLines = Math.ceil(oWidth / xGap);
+      const totalPoints = Math.ceil(oHeight / yGap);
+
+      const xStart = (width - xGap * totalLines) / 2;
+      const yStart = (height - yGap * totalPoints) / 2;
+
+      for (let i = 0; i <= totalLines; i++) {
         const points: Point[] = [];
-        const baseX = lineIndex * xGap;
 
-        for (let y = -POINT_GAP; y <= height + POINT_GAP; y += POINT_GAP) {
-          const ambient =
-            Math.sin(y * 0.012 + time * 1.05 + lineIndex * 0.19) * 17 * strength +
-            Math.sin(y * 0.0045 - time * 0.52 + lineIndex * 0.08) * 9 * strength;
-          let x = baseX + ambient;
-          let movedY = y;
-
-          if (interactive && pointer.visible) {
-            const dx = x - pointer.x;
-            const dy = movedY - pointer.y;
-            const distance = Math.max(0.001, Math.hypot(dx, dy));
-            if (distance < radius) {
-              const influence = Math.pow(1 - distance / radius, 2);
-              const force = (42 + pointer.velocity * 0.45) * influence * strength;
-              x += (dx / distance) * force;
-              movedY += (dy / distance) * force * 0.48;
-            }
-          }
-
-          points.push({ x, y: movedY });
+        for (let j = 0; j <= totalPoints; j++) {
+          points.push({
+            x: xStart + xGap * i,
+            y: yStart + yGap * j,
+            wave: { x: 0, y: 0 },
+            cursor: { x: 0, y: 0, vx: 0, vy: 0 },
+          });
         }
 
-        path.setAttribute("d", makePath(points));
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.classList.add("wdk-waves__line");
+
+        svg.appendChild(path);
+        paths.push(path);
+
+        lines.push(points);
+      }
+
+      if (isPaused) drawLines();
+    };
+
+    const movePoints = (time: number) => {
+      lines.forEach((points) => {
+        points.forEach((p) => {
+          // Wave movement
+          const move =
+            noise.perlin2((p.x + time * 0.0125) * 0.002, (p.y + time * 0.005) * 0.0015) * 12;
+          p.wave.x = Math.cos(move) * 32;
+          p.wave.y = Math.sin(move) * 16;
+
+          // Mouse effect
+          if (isInteractive) {
+            const dx = p.x - mouse.sx;
+            const dy = p.y - mouse.sy;
+            const d = Math.hypot(dx, dy);
+            const l = Math.max(175, mouse.vs);
+
+            if (d < l) {
+              const s = 1 - d / l;
+              const f = Math.cos(d * 0.001) * s;
+
+              p.cursor.vx += Math.cos(mouse.a) * f * l * mouse.vs * 0.00065 * strengthRef.current;
+              p.cursor.vy += Math.sin(mouse.a) * f * l * mouse.vs * 0.00065 * strengthRef.current;
+            }
+
+            p.cursor.vx += (0 - p.cursor.x) * 0.005; // String tension
+            p.cursor.vy += (0 - p.cursor.y) * 0.005;
+
+            p.cursor.vx *= 0.925; // Friction/duration
+            p.cursor.vy *= 0.925;
+
+            p.cursor.x += p.cursor.vx * 2; // Strength
+            p.cursor.y += p.cursor.vy * 2;
+
+            p.cursor.x = Math.min(100, Math.max(-100, p.cursor.x)); // Clamp movement
+            p.cursor.y = Math.min(100, Math.max(-100, p.cursor.y));
+          }
+        });
       });
+    };
 
-      if (dotRef.current) {
-        dotRef.current.setAttribute("cx", String(pointer.x));
-        dotRef.current.setAttribute("cy", String(pointer.y));
-        dotRef.current.style.opacity = pointer.visible ? "1" : "0";
+    const tick = (time: number) => {
+      // Smooth mouse movement
+      mouse.sx += (mouse.x - mouse.sx) * 0.1;
+      mouse.sy += (mouse.y - mouse.sy) * 0.1;
+
+      // Mouse velocity
+      const dx = mouse.x - mouse.lx;
+      const dy = mouse.y - mouse.ly;
+      const d = Math.hypot(dx, dy);
+
+      mouse.v = d;
+      mouse.vs += (d - mouse.vs) * 0.1;
+      mouse.vs = Math.min(100, mouse.vs);
+
+      mouse.lx = mouse.x;
+      mouse.ly = mouse.y;
+
+      mouse.a = Math.atan2(dy, dx);
+
+      root.style.setProperty("--x", `${mouse.sx}px`);
+      root.style.setProperty("--y", `${mouse.sy}px`);
+
+      movePoints(time);
+      drawLines();
+    };
+
+    const updateMousePosition = (x: number, y: number) => {
+      mouse.x = x - bounding.left;
+      mouse.y = y - bounding.top + window.scrollY;
+
+      if (!mouse.set) {
+        mouse.sx = mouse.x;
+        mouse.sy = mouse.y;
+        mouse.lx = mouse.x;
+        mouse.ly = mouse.y;
+
+        mouse.set = true;
       }
     };
 
-    const tick = (now: number) => {
-      draw(now);
-      if (!reducedMotion && visible && pageVisible) {
-        frame = requestAnimationFrame(tick);
-      } else {
-        frame = 0;
-      }
+    const onMouseMove = (x: number, y: number) => updateMousePosition(x, y);
+
+    const onTouchMove = (event: TouchEvent) => {
+      event.preventDefault();
+      const touch = event.touches[0];
+      updateMousePosition(touch.clientX, touch.clientY);
     };
 
-    const start = () => {
-      if (frame || reducedMotion || !visible || !pageVisible) return;
-      frame = requestAnimationFrame(tick);
+    const onResize = () => {
+      setSize();
+      setLines();
     };
 
-    const stop = () => {
-      if (frame) cancelAnimationFrame(frame);
-      frame = 0;
+    const onIntersect = (event: Event) => {
+      const detail = (event as CustomEvent<{ isIntersecting: boolean }>).detail;
+      isPaused = !detail.isIntersecting;
+
+      if (isPaused) emitter.off("tick", tick);
+      else emitter.on("tick", tick);
     };
 
-    const onPointerMove = (event: PointerEvent) => {
-      if (!interactive) return;
-      const rect = root.getBoundingClientRect();
-      const nextX = event.clientX - rect.left;
-      const nextY = event.clientY - rect.top;
-      pointer.velocity = Math.min(100, Math.hypot(nextX - pointer.targetX, nextY - pointer.targetY));
-      pointer.targetX = nextX;
-      pointer.targetY = nextY;
-      pointer.visible = true;
-      start();
-    };
+    const onIntroEnd = () => { isInteractive = true; };
 
-    const onPointerLeave = () => {
-      pointer.targetX = -240;
-      pointer.visible = false;
-    };
+    emitter.on("mousemove", onMouseMove);
+    emitter.on("resize", onResize);
+    root.addEventListener("touchmove", onTouchMove);
+    root.addEventListener("intersect", onIntersect);
+    document.addEventListener("wdk:intro", onIntroEnd);
 
-    const onVisibility = () => {
-      pageVisible = document.visibilityState === "visible";
-      if (pageVisible) start();
-      else stop();
-    };
+    setSize();
+    setLines();
 
-    measure();
-    draw(performance.now());
-
-    const resizeObserver = new ResizeObserver(() => {
-      measure();
-      draw(performance.now());
-    });
-    resizeObserver.observe(root);
-
-    const intersectionObserver = new IntersectionObserver(
-      ([entry]) => {
-        visible = entry?.isIntersecting ?? false;
-        if (visible) start();
-        else stop();
-      },
-      { rootMargin: "120px", threshold: 0 },
-    );
-    intersectionObserver.observe(root);
-
-    root.addEventListener("pointermove", onPointerMove, { passive: true });
-    root.addEventListener("pointerenter", onPointerMove, { passive: true });
-    root.addEventListener("pointerleave", onPointerLeave, { passive: true });
-    document.addEventListener("visibilitychange", onVisibility);
-    start();
+    // The shared observer may have already fired before this mounted.
+    if (root.getBoundingClientRect().top < window.innerHeight) {
+      isPaused = false;
+      emitter.on("tick", tick);
+    }
 
     return () => {
-      stop();
-      resizeObserver.disconnect();
-      intersectionObserver.disconnect();
-      root.removeEventListener("pointermove", onPointerMove);
-      root.removeEventListener("pointerenter", onPointerMove);
-      root.removeEventListener("pointerleave", onPointerLeave);
-      document.removeEventListener("visibilitychange", onVisibility);
+      emitter.off("mousemove", onMouseMove);
+      emitter.off("resize", onResize);
+      emitter.off("tick", tick);
+      root.removeEventListener("touchmove", onTouchMove);
+      root.removeEventListener("intersect", onIntersect);
+      document.removeEventListener("wdk:intro", onIntroEnd);
+      paths.forEach((path) => path.remove());
     };
-  }, [interactive, strength]);
+  }, [interactive]);
 
   return (
-    <div ref={rootRef} className={`relative h-full w-full overflow-hidden ${className}`}>
-      <svg ref={svgRef} className="block h-full w-full" aria-hidden>
-        {Array.from({ length: LINE_COUNT }).map((_, index) => (
-          <path
-            key={index}
-            ref={(node: SVGPathElement | null) => {
-              pathRefs.current[index] = node;
-            }}
-            fill="none"
-            stroke={stroke}
-            strokeWidth="1"
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
-        <circle
-          ref={dotRef}
-          r="4"
-          fill={dot}
-          style={{ opacity: 0, transition: "opacity 180ms ease" }}
-        />
-      </svg>
+    <div className={`wdk-waves${className ? ` ${className}` : ""}`} ref={rootRef} data-intersect>
+      <svg ref={svgRef} />
     </div>
   );
 }

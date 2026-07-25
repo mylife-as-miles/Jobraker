@@ -1,12 +1,21 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDown, ArrowUpRight, CalendarDays, GraduationCap, MapPin, Sparkles } from "lucide-react";
+import { ArrowUpRight, CalendarDays, GraduationCap, MapPin, Sparkles } from "lucide-react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Lenis from "lenis";
 import type { EditorialPortfolioProps } from "./EditorialPortfolioTemplate";
 import { WodniackWaveField } from "./WodniackWaveField";
 import { ContactItems, PlayfulArtifacts } from "./WodniackPortfolioPlayground";
-import { FourPointStar, KineticWord, WorkStage, chunkName, initials, splitTitle, yearRange } from "./WodniackPortfolioCore";
+import { FourPointStar, WorkStage, chunkName, initials, splitTitle, yearRange } from "./WodniackPortfolioCore";
 import { WodniackSiteHead } from "./WodniackSiteHead";
+import { WodniackHero } from "./WodniackHero";
+import { WodniackIntro } from "./WodniackIntro";
+import { WodniackScrollbar } from "./WodniackScrollbar";
+import { emitter, observeIntersections, prefersReducedMotion, startRuntime, ticker } from "./WodniackRuntime";
 import "./WodniackPortfolioTemplate.css";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const SOURCE_REPOSITORY = "https://github.com/AntoineW/AW-2025-Portfolio";
 
@@ -18,7 +27,9 @@ export function WodniackPortfolioTemplate({
   skills,
 }: EditorialPortfolioProps) {
   const [contrasted, setContrasted] = useState(true);
-  const [showIntro, setShowIntro] = useState(true);
+  const [showIntro, setShowIntro] = useState(() => !prefersReducedMotion());
+  const rootRef = useRef<HTMLElement | null>(null);
+  const mountRef = useRef<HTMLDivElement | null>(null);
   const accent = typeof site.design?.accent === "string" ? site.design.accent : "#f40c3f";
   const intro = site.intro || profile.about || `${profile.name} is building a career through curiosity, craft, and memorable work.`;
   const email = profile.email || site.contactEmail;
@@ -31,15 +42,43 @@ export function WodniackPortfolioTemplate({
     return groups;
   }, {});
 
+  /**
+   * Shared runtime + Lenis, mirroring the `Site` class in the reference's
+   * index.astro: one gsap ticker drives Lenis, Lenis drives ScrollTrigger, and
+   * every section listens on the same tick/scroll/resize bus.
+   */
   useEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reducedMotion) {
-      setShowIntro(false);
-      return;
+    const stopRuntime = startRuntime();
+
+    let lenis: Lenis | null = null;
+    let rafHandler: ((time: number) => void) | null = null;
+
+    if (!prefersReducedMotion()) {
+      lenis = new Lenis();
+      lenis.on("scroll", ScrollTrigger.update);
+
+      rafHandler = (time: number) => lenis?.raf(time * 1000);
+      gsap.ticker.add(rafHandler);
+      gsap.ticker.lagSmoothing(0);
     }
-    const timeout = window.setTimeout(() => setShowIntro(false), 1600);
-    return () => window.clearTimeout(timeout);
+
+    const stopObserving = rootRef.current ? observeIntersections(rootRef.current) : undefined;
+
+    return () => {
+      stopObserving?.();
+      if (rafHandler) gsap.ticker.remove(rafHandler);
+      gsap.ticker.lagSmoothing(500, 33);
+      lenis?.destroy();
+      stopRuntime();
+    };
   }, []);
+
+  /** The persistent page frame fades in as the intro curtain hands off. */
+  const onIntroDone = () => {
+    setShowIntro(false);
+    if (mountRef.current) gsap.set(mountRef.current, { opacity: 1 });
+    ticker.nextTick(() => emitter.emit("updateViewport"));
+  };
 
   const style = {
     "--wdk-red": accent,
@@ -59,25 +98,8 @@ export function WodniackPortfolioTemplate({
   ];
 
   return (
-    <main className="wdk-root" style={style}>
-      {showIntro ? (
-        <div className="wdk-intro" aria-hidden>
-          <div className="wdk-intro-mark">
-            <span>J</span><span>R</span><span>/</span><span>04</span>
-          </div>
-          <div className="wdk-intro-line wdk-intro-line-top" />
-          <div className="wdk-intro-line wdk-intro-line-left" />
-          <div className="wdk-intro-line wdk-intro-line-right" />
-        </div>
-      ) : null}
-
-      {site.showWatermark !== false ? (
-        <Link to="/" className="wdk-watermark">
-          <span /> Made with JobRaker
-        </Link>
-      ) : null}
-      {site.isPreview ? <div className="wdk-preview">Private preview</div> : null}
-
+    <main className="wdk-root" style={style} ref={rootRef}>
+      <div className="wdk-wrapper">
       <WodniackSiteHead
         site={site}
         profile={profile}
@@ -85,26 +107,11 @@ export function WodniackPortfolioTemplate({
         onToggleContrast={() => setContrasted((value) => !value)}
       />
 
-      <section id="top" className="wdk-hero">
-        <WodniackWaveField className="wdk-hero-waves" stroke="var(--wdk-secondary)" dot="var(--wdk-secondary)" strength={1.05} />
-        <div className="wdk-hero-content">
-          <div className="wdk-separator">
-            {nameChunks.map((chunk, index) => <span key={`${chunk}-${index}`}>{chunk}</span>)}
-          </div>
-
-          <h1 className="wdk-title">
-            <KineticWord value={titleWords[0]} />
-            <FourPointStar className="wdk-title-star" />
-            <KineticWord value={titleWords[1]} />
-          </h1>
-
-          <div className="wdk-separator wdk-separator-bottom">
-            <span>Do</span><span>Things</span><span>Your</span><span>Way</span>
-            <span>{profile.location || "Remote"}</span>
-          </div>
-        </div>
-        <a href="#about" className="wdk-scroll-cue"><ArrowDown className="h-4 w-4" /> Scroll to explore</a>
-      </section>
+      <WodniackHero
+        words={[titleWords[0], titleWords[1]]}
+        nameChunks={nameChunks}
+        footChunks={["Do", "Things", "Your", "Way", profile.location || "Remote"]}
+      />
 
       <section id="about" className="wdk-about">
         <div className="wdk-about-grid" aria-hidden />
@@ -193,7 +200,7 @@ export function WodniackPortfolioTemplate({
 
       <section id="contact" className="wdk-contact">
         <div className="wdk-contact-grid" aria-hidden>
-          <WodniackWaveField stroke="var(--wdk-secondary)" dot="var(--wdk-red)" strength={0.55} />
+          <WodniackWaveField className="wdk-contact-waves" strength={0.55} interactive />
         </div>
         <div className="wdk-contact-inner">
           <div className="wdk-contact-button-wrap">
@@ -221,6 +228,21 @@ export function WodniackPortfolioTemplate({
         </a>
         <span>Original code, fonts, and assets not included</span>
       </footer>
+      </div>{/* .wdk-wrapper */}
+
+      {/* Persistent page frame; the intro's own borders hand off to this. */}
+      <div className="wdk-mount" ref={mountRef} aria-hidden />
+
+      {site.showWatermark !== false ? (
+        <Link to="/" className="wdk-watermark">
+          <span /> Made with JobRaker
+        </Link>
+      ) : null}
+      {site.isPreview ? <div className="wdk-preview">Private preview</div> : null}
+
+      {showIntro ? <WodniackIntro onDone={onIntroDone} /> : null}
+
+      <WodniackScrollbar />
     </main>
   );
 }

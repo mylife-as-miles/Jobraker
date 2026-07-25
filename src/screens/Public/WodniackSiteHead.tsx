@@ -141,7 +141,11 @@ export function WodniackSiteHead({
     .filter((link): link is NonNullable<typeof link> => Boolean(link))
     .slice(0, 2);
 
-  /* Intro — same offsets, durations and eases as the source timeline. */
+  /*
+   * Intro — same offsets, durations and eases as the source timeline, and like
+   * the source it waits for the page curtain's `intro` handoff rather than
+   * starting on its own.
+   */
   useEffect(() => {
     const head = headRef.current;
     if (!head) return;
@@ -152,26 +156,39 @@ export function WodniackSiteHead({
       return;
     }
 
-    const logo = head.querySelector(".wdk-sb-logo");
-    const menuItems = head.querySelectorAll(".wdk-sb-menu .wdk-sb__item");
-    const qr = head.querySelector(".wdk-sb-qr-code");
-    const items = [logo, ...Array.from(menuItems)].filter(Boolean);
+    let tl: gsap.core.Timeline | null = null;
 
-    const tl = gsap.timeline({ delay: introDelay / 1000 });
+    const play = () => {
+      if (tl) return;
 
-    tl.set(head, { opacity: 1 });
-    // fromTo (not from) so a re-mount replays cleanly instead of resolving "back to"
-    // whatever offset a killed tween left behind.
-    tl.fromTo(head, { y: "-100%" }, { y: "0%", duration: 1.5, ease: "expo.inOut" }, 1);
-    tl.fromTo(items, { y: "-100%" }, { y: "0%", duration: 1.5, ease: "expo.out", stagger: 0.1 }, 1.5);
+      const logo = head.querySelector(".wdk-sb-logo");
+      const menuItems = head.querySelectorAll(".wdk-sb-menu .wdk-sb__item");
+      const qr = head.querySelector(".wdk-sb-qr-code");
+      const items = [logo, ...Array.from(menuItems)].filter(Boolean);
 
-    if (qr) {
-      tl.fromTo(qr, { "--bg-p": "0%" }, { "--bg-p": "100%", duration: 1.5, ease: "expo.out" }, 1.75);
-    }
+      tl = gsap.timeline({ delay: introDelay / 1000 });
 
-    tl.call(() => { head.dataset.canWrite = "true"; }, undefined, 1.5);
+      tl.set(head, { opacity: 1 });
+      // fromTo (not from) so a re-mount replays cleanly instead of resolving "back to"
+      // whatever offset a killed tween left behind.
+      tl.fromTo(head, { y: "-100%" }, { y: "0%", duration: 1.5, ease: "expo.inOut" }, 1);
+      tl.fromTo(items, { y: "-100%" }, { y: "0%", duration: 1.5, ease: "expo.out", stagger: 0.1 }, 1.5);
 
-    return () => { tl.kill(); };
+      if (qr) {
+        tl.fromTo(qr, { "--bg-p": "0%" }, { "--bg-p": "100%", duration: 1.5, ease: "expo.out" }, 1.75);
+      }
+
+      tl.call(() => { head.dataset.canWrite = "true"; }, undefined, 1.5);
+    };
+
+    document.addEventListener("wdk:intro", play, { once: true });
+    // If the curtain already ran (remount, or a caller that skips it), don't wait.
+    if (document.documentElement.dataset.wdkIntroDone === "true") play();
+
+    return () => {
+      document.removeEventListener("wdk:intro", play);
+      tl?.kill();
+    };
   }, [introDelay]);
 
   /* Console typewriter — verbatim timing rules, paused while the head is off-screen. */

@@ -1,0 +1,163 @@
+/**
+ * `a-separator` from AntoineW/AW-2025-Portfolio
+ * `src/components/ASeparator.astro`, translated from SCSS.
+ */
+
+.wdk-sep {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+
+  position: relative;
+
+  padding: 0 1rem;
+  width: 100%;
+  height: 2.25rem;
+
+  border-top: 1px solid var(--wdk-secondary);
+  border-bottom: 1px solid var(--wdk-secondary);
+
+  font: 400 8px / 16px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.wdk-sep__triangle {
+  position: absolute;
+  top: 50%;
+
+  border-top: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+  transform: translate3d(0, -40%, 0);
+}
+
+.wdk-sep__triangle:first-child {
+  left: 1rem;
+
+  border-left: 4px solid var(--wdk-secondary);
+}
+
+.wdk-sep__triangle:last-child {
+  right: 1rem;
+
+  border-right: 4px solid var(--wdk-secondary);
+}
+
+.wdk-sep__binaries {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+
+  flex: 1 1 auto;
+  min-width: 0;
+
+  padding: 0 0.7rem;
+}
+
+.wdk-sep__group {
+  display: contents;
+}
+
+.wdk-sep__code {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
+
+  flex-grow: 0;
+  flex-shrink: 0;
+}
+
+/* Two-state glyph: a "01" string wrapped to two rows, slid to reveal one bit. */
+.wdk-sep__char {
+  position: relative;
+
+  display: block;
+  overflow: hidden;
+
+  color: transparent;
+}
+
+.wdk-sep__char::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 2em;
+
+  color: var(--wdk-secondary);
+  word-break: break-all;
+
+  will-change: translate;
+
+  content: "01";
+}
+
+.wdk-sep__char--1::before {
+  translate: 0 -100%;
+}
+
+.wdk-sep__char--blank::before {
+  content: none;
+}
+
+.wdk-sep__stripes {
+  margin: 0 8px;
+  height: 8px;
+
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+
+  text-shadow: 0 0 1px var(--wdk-secondary);
+
+  line-height: 8px;
+}
+
+.wdk-sep__stripes::before {
+  content: "/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////";
+  word-break: break-word;
+}
+
+.wdk-sep__group:last-child .wdk-sep__stripes {
+  display: none;
+}
+
+/* Inverted variant used between the dark sections. */
+.wdk-sep--secondary {
+  background: var(--wdk-secondary);
+
+  color: var(--wdk-primary);
+}
+
+.wdk-sep--secondary .wdk-sep__triangle:first-child {
+  border-left-color: var(--wdk-primary);
+}
+
+.wdk-sep--secondary .wdk-sep__triangle:last-child {
+  border-right-color: var(--wdk-primary);
+}
+
+.wdk-sep--secondary .wdk-sep__char::before {
+  color: var(--wdk-primary);
+}
+
+.wdk-sep--secondary .wdk-sep__stripes {
+  text-shadow: 0 0 1px var(--wdk-primary);
+}
+
+@media only screen and (max-width: 767px) {
+  .wdk-sep__group:nth-child(4n + 2) .wdk-sep__code,
+  .wdk-sep__group:nth-child(4n + 2) .wdk-sep__stripes {
+    display: none;
+  }
+}
+
+@media only screen and (max-width: 767px) and (orientation: landscape),
+  only screen and (max-width: 576px) {
+  .wdk-sep__group:nth-child(3n + 2) .wdk-sep__code,
+  .wdk-sep__group:nth-child(3n + 2) .wdk-sep__stripes {
+    display: none;
+  }
+}

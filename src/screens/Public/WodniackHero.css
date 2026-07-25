@@ -1,0 +1,256 @@
+/**
+ * `.s-hero` from AntoineW/AW-2025-Portfolio `src/components/SHero.astro`,
+ * translated from SCSS.
+ *
+ * The title's vertical offsets (`height` on the word, `top` on the char inner)
+ * are metric-dependent: the reference tunes them for Bigger Display, these are
+ * retuned for the Impact/condensed-sans fallback stack used here.
+ */
+
+.wdk-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+
+  position: relative;
+  z-index: 4;
+
+  min-height: calc(100svh - 7rem - 1px);
+
+  opacity: 0;
+  overflow: hidden;
+}
+
+.wdk-hero__waves {
+  width: 100%;
+  height: 100%;
+
+  flex-grow: 1;
+  flex-shrink: 1;
+}
+
+/* Tall black slab parked below the fold; the intro sweeps it up and back. */
+.wdk-hero__border {
+  position: absolute;
+  top: 100%;
+  left: 0;
+
+  width: 100%;
+  height: 40rem;
+
+  background: var(--wdk-secondary);
+  transform-origin: 50% 0;
+}
+
+.wdk-hero__content {
+  position: relative;
+
+  overflow: hidden;
+  transform-origin: 50% 100%;
+}
+
+.wdk-hero__content::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 1px;
+
+  background: var(--wdk-secondary);
+
+  content: "";
+}
+
+.wdk-hero__title,
+.wdk-hero__separator {
+  flex-grow: 0;
+  flex-shrink: 0;
+}
+
+.wdk-hero__title {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0;
+  padding: 1.5rem 0;
+
+  cursor: default;
+
+  font: 700 min(15vw, 18.5rem) / 0.8 Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  text-transform: uppercase;
+}
+
+.wdk-hero__word {
+  position: relative;
+
+  display: block;
+  /* Must not shrink: if the word is squeezed its inline-block chars wrap and
+     spill a second row out of the fixed-height window. Do NOT use
+     `white-space: nowrap` for this — it inherits into the char pseudo-elements
+     and stops `::after` wrapping into the vertical triple the effect needs. */
+  flex: 0 0 auto;
+  height: 0.8em;
+}
+
+.wdk-hero__star {
+  display: block;
+  margin: 0 2rem;
+  width: 48px;
+  height: 48px;
+
+  color: var(--wdk-secondary);
+}
+
+/* Char window + the triple-glyph inner it slides across. SplitText gives the
+   reference's `.char` an inline-block box; clip-path needs that box to clip to. */
+.wdk-hero__char {
+  position: relative;
+
+  display: inline-block;
+
+  clip-path: inset(0 0.005em);
+
+  color: transparent;
+}
+
+/* `top` must stay a whole multiple of the line box, or the window straddles two
+   copies of the glyph. The reference adds a small optical nudge on top of 0 that
+   is tuned to Bigger Display's baseline; 0 is the correct base for this stack. */
+.wdk-hero__char-inner {
+  position: relative;
+  top: 0;
+
+  display: block;
+
+  color: transparent;
+
+  will-change: transform;
+}
+
+.wdk-hero__char-inner::before {
+  position: absolute;
+  top: 0;
+  left: 50%;
+
+  transform: translate3d(-50%, 0, 0);
+
+  color: var(--wdk-secondary);
+
+  content: attr(data-letter) attr(data-letter) attr(data-letter);
+}
+
+.wdk-hero__char-inner::after {
+  position: absolute;
+  top: 50%;
+  left: 0;
+
+  transform: translate3d(0, -50%, 0);
+
+  color: var(--wdk-secondary);
+  word-break: break-all;
+
+  content: attr(data-letter) attr(data-letter) attr(data-letter);
+}
+
+.wdk-hero__char--t {
+  margin-left: -0.035em;
+}
+
+@keyframes wdk-hero-move-to-left {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(100%, 0, 0); }
+}
+
+@keyframes wdk-hero-move-to-right {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-100%, 0, 0); }
+}
+
+@keyframes wdk-hero-move-to-top {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(0, -100%, 0); }
+}
+
+@keyframes wdk-hero-move-to-bottom {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(0, 100%, 0); }
+}
+
+.to-top .wdk-hero__char-inner {
+  animation: wdk-hero-move-to-top 1s cubic-bezier(0.86, 0, 0.07, 1) 1 forwards;
+}
+
+.to-right .wdk-hero__char-inner {
+  animation: wdk-hero-move-to-right 1s cubic-bezier(0.86, 0, 0.07, 1) 1 forwards;
+}
+
+.to-bottom .wdk-hero__char-inner {
+  animation: wdk-hero-move-to-bottom 1s cubic-bezier(0.86, 0, 0.07, 1) 1 forwards;
+}
+
+.to-left .wdk-hero__char-inner {
+  animation: wdk-hero-move-to-left 1s cubic-bezier(0.86, 0, 0.07, 1) 1 forwards;
+}
+
+@media only screen and (max-width: 1080px) {
+  .wdk-hero__title {
+    font-size: 14vw;
+  }
+}
+
+@media only screen and (max-width: 987px) {
+  .wdk-hero__title {
+    padding: 1rem;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+
+    font-size: calc(31vw - 1rem);
+  }
+
+  .wdk-hero__word {
+    flex-grow: 0;
+    flex-shrink: 0;
+  }
+
+  .wdk-hero__star {
+    margin: 0 0 0 auto;
+    width: 0.375em;
+    height: auto;
+  }
+}
+
+@media only screen and (max-width: 767px) and (orientation: landscape),
+  only screen and (max-width: 576px) {
+  .wdk-hero {
+    min-height: calc(100svh - 4.5rem - 1px);
+  }
+
+  .wdk-hero__title {
+    font-size: calc(31vw - 0.75rem);
+  }
+
+  .wdk-hero__word {
+    height: 0.83em;
+  }
+
+  .wdk-hero__border {
+    height: 20rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wdk-hero {
+    opacity: 1;
+  }
+
+  .to-top .wdk-hero__char-inner,
+  .to-right .wdk-hero__char-inner,
+  .to-bottom .wdk-hero__char-inner,
+  .to-left .wdk-hero__char-inner {
+    animation: none;
+  }
+}
