@@ -301,8 +301,10 @@
     padding: 15vw 10vw;
   }
 
+  /* At 4rem the longest labels ("CAPABILITIES") exceed the 80vw tile and
+     break-word splits them mid-word, e.g. "YEAR / S". */
   .wdk-about__tile-name {
-    font-size: 4rem;
+    font-size: 3.25rem;
   }
 
   .wdk-about__tile-counter {

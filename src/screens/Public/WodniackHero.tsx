@@ -67,7 +67,28 @@ export function WodniackHero({ words, nameChunks, footChunks }: WodniackHeroProp
 
       const wordEls = Array.from(root.querySelectorAll<HTMLElement>(".wdk-hero__word"));
       const wraps = wordEls.length > 1 && wordEls[0].offsetTop !== wordEls[1].offsetTop;
-      if (wraps) return;
+
+      if (wraps) {
+        // Stacked (mobile): the line no longer overflows, but a single long
+        // word still can — a title is arbitrary text, so fit the widest one.
+        // clientWidth includes padding, which the words cannot use.
+        const pad = getComputedStyle(title);
+        const available =
+          title.clientWidth - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight);
+
+        for (let pass = 0; pass < 12; pass++) {
+          const widest = wordEls.reduce((max, el) => Math.max(max, el.scrollWidth), 0);
+          if (widest <= available || widest === 0) break;
+
+          const current = parseFloat(getComputedStyle(title).fontSize);
+          const next = Math.max(16, current * (available / widest) - 0.5);
+
+          if (Math.abs(next - current) < 0.25) break;
+          title.style.fontSize = `${next}px`;
+        }
+
+        return;
+      }
 
       if (title.scrollWidth <= title.clientWidth) return;
 

@@ -227,6 +227,22 @@ export function WodniackCta({ email, label }: WodniackCtaProps) {
       gsap.to(wave, { op: 0, duration: 1, ease: "power3.inOut" });
     };
 
+    /*
+     * Touch devices never fire hover, so the call to action would stay a bare
+     * GO dot. Open it once the section settles in the middle of the viewport
+     * instead, and close it again on the way out.
+     */
+    const coarse = window.matchMedia("(hover: none)").matches;
+    let centreObserver: IntersectionObserver | undefined;
+
+    if (coarse) {
+      centreObserver = new IntersectionObserver(
+        ([entry]) => (entry.isIntersecting ? onEnter() : onLeave()),
+        { threshold: 0.6 },
+      );
+      if (container) centreObserver.observe(container);
+    }
+
     const onResize = () => {
       setSize();
       setGrid();
@@ -252,6 +268,7 @@ export function WodniackCta({ email, label }: WodniackCtaProps) {
     if (root.getBoundingClientRect().top < viewport.height) emitter.on("tick", tick);
 
     return () => {
+      centreObserver?.disconnect();
       hoverTarget?.removeEventListener("mouseenter", onEnter);
       hoverTarget?.removeEventListener("mouseleave", onLeave);
       emitter.off("resize", onResize);

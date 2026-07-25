@@ -327,7 +327,7 @@
   }
 
   .wdk-work__card {
-    width: 80vw;
+    width: 72vw;
 
     transform: rotateY(calc(var(--progress) * -20deg))
       translate3d(
@@ -335,6 +335,20 @@
         calc(var(--y) * 100% - 50%),
         calc(var(--progress) * var(--progress) * -5rem)
       );
+  }
+
+  /* Role titles are arbitrary length; stack the caption so neither half is
+     truncated against the card edge. */
+  .wdk-work__card-caption {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+
+    font-size: 0.5rem;
+  }
+
+  .wdk-work__card-text {
+    max-width: 100%;
   }
 }
 
