@@ -999,25 +999,6 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
             </div>
 
             <div className='relative z-10 mt-4 pt-3 border-t border-foreground/10 flex flex-col gap-2 text-[10px] font-medium'>
-              {intelligenceTasks.length > 0 && (
-                <div className='w-full text-left space-y-1.5 mb-1'>
-                  <div className='text-[9px] font-bold uppercase tracking-wider text-muted-foreground'>
-                    Active & Recent Tasks
-                  </div>
-                  {intelligenceTasks.slice(0, 3).map((t) => (
-                    <div key={t.id} className='flex items-center justify-between gap-2 text-[11px] bg-card/60 border border-border/50 rounded-lg px-2.5 py-1.5'>
-                      <div className='flex items-center gap-1.5 truncate'>
-                        <span className={`h-2 w-2 rounded-full shrink-0 ${t.status === "running" ? "bg-brand animate-pulse" : t.status === "queued" ? "bg-amber-400 animate-pulse" : t.status === "completed" ? "bg-brand/60" : "bg-red-400"}`} />
-                        <span className='font-medium text-foreground truncate'>{t.title}</span>
-                      </div>
-                      <span className='font-mono text-[10px] text-brand/80 shrink-0 font-bold'>
-                        {t.id.slice(0, 6)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
               <div className='flex items-center justify-center gap-1.5 text-foreground/70'>
                 {runActive ? (
                   <>
