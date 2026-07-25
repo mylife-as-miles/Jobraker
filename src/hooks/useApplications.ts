@@ -671,6 +671,52 @@ export function useApplications() {
     }
   }, [supabase, info, toastError, list, applications, userId]);
 
+  const removeAll = useCallback(async (ids?: string[]) => {
+    if (!userId) return;
+    const current = applications;
+    const targetIds = ids && ids.length > 0 ? ids : applications.map((a) => a.id);
+    if (targetIds.length === 0) return;
+
+    try {
+      const targetSet = new Set(targetIds);
+      setApplications((prev) => prev.filter((r) => !targetSet.has(r.id)));
+
+      const { error } = await (supabase as any)
+        .from("applications")
+        .delete()
+        .eq("user_id", userId)
+        .in("id", targetIds);
+
+      if (error) throw error;
+      info(
+        "Applications deleted",
+        `${targetIds.length} application${targetIds.length > 1 ? "s" : ""} removed.`,
+      );
+      if (userId) {
+        createNotification({
+          user_id: userId,
+          type: "system",
+          title: "Applications removed",
+          message: `Deleted ${targetIds.length} application${targetIds.length > 1 ? "s" : ""}`,
+        });
+      }
+    } catch (e: any) {
+      setApplications(current);
+      const msg = e.message || "Failed to delete applications";
+      setError(msg);
+      toastError("Delete failed", msg);
+      await list();
+      if (userId) {
+        createNotification({
+          user_id: userId,
+          type: "system",
+          title: "Bulk delete failed",
+          message: msg,
+        });
+      }
+    }
+  }, [supabase, userId, applications, info, toastError, list]);
+
   const exportCSV = useCallback(() => {
     const headers = [
       "job_title","company","location","applied_date","status","salary","notes","next_step","interview_date","logo"
@@ -751,6 +797,7 @@ export function useApplications() {
     create,
     update,
     remove,
+    removeAll,
     exportCSV,
     syncPendingStatus,
     stats,

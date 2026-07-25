@@ -48,6 +48,7 @@ import {
   Mail,
   Zap,
   Trash2,
+  AlertTriangle,
   Info,
   Clock,
 } from "lucide-react";
@@ -554,6 +555,7 @@ function ApplicationPage() {
     exportCSV,
     update,
     remove,
+    removeAll,
     refresh,
     loading: appsLoading,
   } = useApplications();
@@ -589,6 +591,8 @@ function ApplicationPage() {
   const [detailEvaluationLoading, setDetailEvaluationLoading] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletingApplication, setDeletingApplication] = useState(false);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [interviewAgentOpen, setInterviewAgentOpen] = useState(false);
   const [interviewEmailText, setInterviewEmailText] = useState("");
   const [interviewAgentLoading, setInterviewAgentLoading] = useState(false);
@@ -1128,6 +1132,16 @@ function ApplicationPage() {
             <RefreshCw className='w-4 h-4 mr-2' />
             Refresh
           </Button>
+          {applications.length > 0 ? (
+            <Button
+              variant='outline'
+              className='border-rose-500/40 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300 transition-all duration-200'
+              onClick={() => setBulkDeleteConfirmOpen(true)}
+            >
+              <Trash2 className='w-4 h-4 mr-2' />
+              Delete All
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -2392,6 +2406,55 @@ function ApplicationPage() {
               }}
             >
               {deletingApplication ? "Deleting..." : "Delete application"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Bulk Delete Modal */}
+      <Modal
+        open={bulkDeleteConfirmOpen}
+        onClose={() => {
+          if (!bulkDeleting) setBulkDeleteConfirmOpen(false);
+        }}
+        title='Delete all applications'
+        size='md'
+        side='center'
+      >
+        <div className='space-y-4'>
+          <div className='p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3 text-rose-300 text-xs leading-relaxed'>
+            <AlertTriangle className='w-5 h-5 text-rose-400 shrink-0 mt-0.5' />
+            <div>
+              <p className='font-bold text-rose-200 mb-1'>Warning: Permanent deletion</p>
+              Are you sure you want to delete all{" "}
+              <span className='font-bold text-white'>{applications.length}</span>{" "}
+              application{applications.length !== 1 ? "s" : ""}? This will permanently remove them from your tracker and cannot be undone.
+            </div>
+          </div>
+          <div className='flex justify-end gap-2 pt-2'>
+            <Button
+              variant='outline'
+              className='border-foreground/20 hover:border-foreground/30 hover:bg-foreground/5 text-foreground/70 hover:text-foreground'
+              onClick={() => setBulkDeleteConfirmOpen(false)}
+              disabled={bulkDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              className='bg-rose-600 hover:bg-rose-500 text-white font-medium shadow-lg shadow-rose-600/20'
+              disabled={bulkDeleting || applications.length === 0}
+              onClick={async () => {
+                setBulkDeleting(true);
+                try {
+                  await removeAll();
+                  setBulkDeleteConfirmOpen(false);
+                  setDetailId(null);
+                } finally {
+                  setBulkDeleting(false);
+                }
+              }}
+            >
+              {bulkDeleting ? "Deleting all..." : `Delete all (${applications.length})`}
             </Button>
           </div>
         </div>
