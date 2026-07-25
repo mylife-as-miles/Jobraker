@@ -55,7 +55,7 @@ Both tables use row-level security and are scoped to the authenticated user.
 
 ## Runtime configuration
 
-The existing Firecrawl and Gemini configuration is reused.
+The existing Firecrawl configuration is reused. Recruiter ranking is deterministic so that every returned identity remains tied to an indexed public source.
 
 Optional email-verifier adapter:
 
@@ -69,8 +69,8 @@ Expected verifier request:
 ```json
 {
   "email": "candidate@company.com",
-  "companyDomain": "company.com",
-  "fullName": "Candidate Name"
+  "fullName": "Candidate Name",
+  "company": "Company Name"
 }
 ```
 
