@@ -110,10 +110,12 @@ export function TemplatePreviewDev() {
       try {
         const { iframe, cleanup } = await renderResumePrintFrame(data);
         frameCleanup = cleanup;
-        // Reveal the off-screen print frame inside our comparison slot.
-        iframe.style.cssText =
-          "position:static;width:794px;height:1123px;border:0;opacity:1;display:block";
-        slotRef.current?.appendChild(iframe);
+        // Reveal the print frame IN PLACE — re-parenting an iframe reloads its
+        // document and would wipe the render.
+        iframe.style.left = "826px";
+        iframe.style.top = "48px";
+        iframe.style.opacity = "1";
+        iframe.style.zIndex = "9999";
         setStatus("ready");
       } catch (e) {
         setStatus(`FAILED: ${String(e)}`);

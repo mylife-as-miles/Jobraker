@@ -5,7 +5,7 @@ import { ResumeTemplateRenderer } from "../templates/render-resume-template";
 
 // A4 at 96dpi — the exact size the on-screen preview is rendered at.
 const A4_WIDTH_PX = 794;
-const A4_MIN_HEIGHT_PX = 1123;
+const A4_HEIGHT_PX = 1123;
 
 /**
  * Copy the app's stylesheets / font links into the print frame so the resume
@@ -75,7 +75,7 @@ export async function renderResumePrintFrame(
     "left:-10000px",
     "top:0",
     `width:${A4_WIDTH_PX}px`,
-    `height:${A4_MIN_HEIGHT_PX}px`,
+    `height:${A4_HEIGHT_PX}px`,
     "border:0",
     "opacity:0",
     "pointer-events:none",
@@ -113,19 +113,34 @@ export async function renderResumePrintFrame(
     // The print dialog seeds the "Save as PDF" filename from the title.
     doc.title = `${(resumeData.basics.name || "Resume").replace(/\s+/g, "_")}_Resume`;
 
+    const styleWaits = cloneHeadStyles(document, doc);
+
+    // Appended AFTER the app's stylesheets so these rules win the cascade —
+    // otherwise the app's dark `body { background }` bleeds into the page.
     const baseStyle = doc.createElement("style");
     baseStyle.textContent = `
       @page { size: A4 portrait; margin: 0; }
-      html, body { margin: 0; padding: 0; background: #ffffff; }
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+      }
       *, *::before, *::after {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
-      #print-root { width: ${A4_WIDTH_PX}px; min-height: ${A4_MIN_HEIGHT_PX}px; }
+      /* A definite height (not just min-height) so the templates' h-full /
+         flex-1 rules resolve exactly as they do in the fixed-size on-screen
+         preview. The renderer wraps each template in a shell div, so both
+         levels need it. */
+      #print-root,
+      #print-root > *,
+      #print-root > * > * {
+        width: ${A4_WIDTH_PX}px;
+        height: ${A4_HEIGHT_PX}px;
+      }
     `;
     doc.head.appendChild(baseStyle);
-
-    const styleWaits = cloneHeadStyles(document, doc);
 
     const mount = doc.createElement("div");
     mount.id = "print-root";
