@@ -13,7 +13,12 @@ const READ_ONLY_TOOLS = new Set([
   "rtrvr_yc_startup_jobs",
   "rtrvr_brand_mention_scanner",
 ]);
-const MUTATING_TOOLS = new Set(["rtrvr_run", "rtrvr_act_on_page"]);
+const MUTATING_TOOLS = new Set([
+  "rtrvr_run",
+  "rtrvr_act_on_page",
+  "rtrvr_linkedin_connect",
+  "rtrvr_send_linkedin_connection_request",
+]);
 
 function redact(value: unknown): unknown {
   if (typeof value === "string") {

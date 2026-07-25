@@ -2471,6 +2471,36 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "rtrvr_linkedin_connect",
+    description: "Send a LinkedIn connection request with an optional personalized message note to a target profile URL.",
+    parameters: {
+      type: "object",
+      properties: {
+        profile_url: { type: "string", description: "LinkedIn profile URL (e.g., https://www.linkedin.com/in/target-profile)" },
+        connection_note: { type: "string", description: "Personalized note to attach to the connection invitation (max 300 chars)" },
+        approved: { type: "boolean", description: "User confirmation to send connection request" },
+        target: { type: "string", enum: ["auto", "cloud", "extension"] },
+      },
+      required: ["profile_url"],
+      additionalProperties: true,
+    },
+  },
+  {
+    name: "rtrvr_send_linkedin_connection_request",
+    description: "Navigates to a LinkedIn profile and sends a connection request, optionally including a personalized note.",
+    parameters: {
+      type: "object",
+      properties: {
+        profileUrl: { type: "string", description: "The full URL of the LinkedIn profile to connect with (e.g., 'https://www.linkedin.com/in/hannahsteinhardt/')" },
+        connectionNote: { type: "string", description: "An optional personalized message to include with the connection request (max 300 characters)." },
+        approved: { type: "boolean", description: "User confirmation to send connection request" },
+        target: { type: "string", enum: ["auto", "cloud", "extension"] },
+      },
+      required: ["profileUrl"],
+      additionalProperties: true,
+    },
+  },
+  {
     name: "rtrvr_run",
     description: "Run a rtrvr browser agent task. This can mutate pages or submit forms and requires explicit user approval before use.",
     parameters: {
@@ -4309,7 +4339,10 @@ Edge functions:
                     });
                   } else if (fn.name.startsWith("rtrvr_")) {
                     const mutatingRtrvrTool =
-                      fn.name === "rtrvr_run" || fn.name === "rtrvr_act_on_page";
+                      fn.name === "rtrvr_run" ||
+                      fn.name === "rtrvr_act_on_page" ||
+                      fn.name === "rtrvr_linkedin_connect" ||
+                      fn.name === "rtrvr_send_linkedin_connection_request";
                     result = await invokeEdgeFunctionByName({
                       authHeader: authHeader!,
                       name: "rtrvr-tools",
