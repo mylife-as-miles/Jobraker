@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn, getProxiedLogoUrl } from "../../lib/utils";
@@ -8,6 +9,8 @@ type MarkdownContentProps = {
 };
 
 export function MarkdownContent({ content, className }: MarkdownContentProps) {
+  const navigate = useNavigate();
+
   if (!content?.trim()) {
     return (
       <div className={cn("text-sm text-foreground/45", className)}>
@@ -15,6 +18,31 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
       </div>
     );
   }
+
+  const handleLinkClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    href?: string,
+  ) => {
+    if (!href) return;
+    const isInternal =
+      href.startsWith("/") ||
+      href.startsWith("#") ||
+      href.startsWith("dashboard") ||
+      href.startsWith("./") ||
+      href.includes(window.location.host);
+
+    if (isInternal) {
+      e.preventDefault();
+      let targetRoute = href;
+      if (href.startsWith("#")) {
+        targetRoute = `/dashboard/${href.replace("#", "")}`;
+      } else if (!href.startsWith("/")) {
+        targetRoute = `/dashboard/${href}`;
+      }
+      targetRoute = targetRoute.replace(/\/+/g, "/");
+      navigate(targetRoute);
+    }
+  };
 
   return (
     <div
@@ -38,8 +66,25 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          a: ({ node: _node, ...props }) => (
-            <a {...props} target='_blank' rel='noreferrer' />
+          a: ({ node: _node, href, children, ...props }) => (
+            <a
+              {...props}
+              href={href}
+              onClick={(e) => handleLinkClick(e, href)}
+              target={
+                href?.startsWith("http") && !href.includes(window.location.host)
+                  ? "_blank"
+                  : undefined
+              }
+              rel={
+                href?.startsWith("http") && !href.includes(window.location.host)
+                  ? "noreferrer"
+                  : undefined
+              }
+              className="text-[#6bff4d] hover:text-[#8dff78] underline cursor-pointer"
+            >
+              {children}
+            </a>
           ),
           img: ({ node: _node, src, ...props }) => (
             <img

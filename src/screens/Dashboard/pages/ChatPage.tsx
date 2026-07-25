@@ -3323,6 +3323,46 @@ export const ChatPage = () => {
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
+                                a: ({ node: _node, href, children, ...props }) => (
+                                  <a
+                                    {...props}
+                                    href={href}
+                                    onClick={(e) => {
+                                      if (!href) return;
+                                      const isInternal =
+                                        href.startsWith("/") ||
+                                        href.startsWith("#") ||
+                                        href.startsWith("dashboard") ||
+                                        href.startsWith("./") ||
+                                        href.includes(window.location.host);
+
+                                      if (isInternal) {
+                                        e.preventDefault();
+                                        let targetRoute = href;
+                                        if (href.startsWith("#")) {
+                                          targetRoute = `/dashboard/${href.replace("#", "")}`;
+                                        } else if (!href.startsWith("/")) {
+                                          targetRoute = `/dashboard/${href}`;
+                                        }
+                                        targetRoute = targetRoute.replace(/\/+/g, "/");
+                                        navigate(targetRoute);
+                                      }
+                                    }}
+                                    target={
+                                      href?.startsWith("http") && !href.includes(window.location.host)
+                                        ? "_blank"
+                                        : undefined
+                                    }
+                                    rel={
+                                      href?.startsWith("http") && !href.includes(window.location.host)
+                                        ? "noopener noreferrer"
+                                        : undefined
+                                    }
+                                    className="font-semibold text-brand underline underline-offset-2 hover:text-[#6bff4d] transition-colors cursor-pointer"
+                                  >
+                                    {children}
+                                  </a>
+                                ),
                                 table: ({ node, ...props }) => (
                                   <div className='my-6 overflow-x-auto rounded-xl border border-border'>
                                     <table
