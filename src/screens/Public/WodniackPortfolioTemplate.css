@@ -66,29 +66,6 @@
   .wdk-availability span { display: block; padding-top: 1rem; border-top: 1px solid var(--wdk-secondary); }
   .wdk-availability small { display: block; font: 700 .6rem/1 ui-monospace, monospace; text-transform: uppercase; letter-spacing: .1em; }
   .wdk-availability strong { display: block; margin-top: .65rem; font-size: .9rem; text-transform: capitalize; }
-  .wdk-way { position: relative; min-height: 145svh; overflow: hidden; background: var(--wdk-red); color: var(--wdk-secondary); border-bottom: 1px solid var(--wdk-secondary); }
-  .wdk-way-lines { position: absolute; inset: 0; background: repeating-conic-gradient(from 0deg at 50% 50%, transparent 0 13deg, color-mix(in srgb, var(--wdk-secondary) 32%, transparent) 13.15deg 13.35deg); opacity: .58; }
-  .wdk-way-smiley { position: absolute; left: 50%; top: 50%; width: min(28vw, 25rem); aspect-ratio: 1; border: 2px solid var(--wdk-secondary); border-radius: 50%; transform: translate(-50%, -50%); }
-  .wdk-way-eye { position: absolute; top: 31%; width: 9%; height: 20%; border: 2px solid var(--wdk-secondary); border-radius: 50%; }
-  .wdk-way-eye-left { left: 28%; } .wdk-way-eye-right { right: 28%; }
-  .wdk-way-mouth { position: absolute; left: 20%; right: 20%; top: 43%; height: 35%; border-bottom: 2px solid var(--wdk-secondary); border-radius: 0 0 50% 50%; }
-  .wdk-way-copy { position: relative; z-index: 30; max-width: 92rem; margin: 0 auto; padding: 7rem clamp(1.25rem, 4vw, 4rem); pointer-events: none; }
-  .wdk-way-copy > span { font: 700 .65rem/1 ui-monospace, monospace; text-transform: uppercase; letter-spacing: .14em; }
-  .wdk-way-copy h2 { margin: 2rem 0 0; font: 900 clamp(5rem, 14vw, 16rem)/.72 Impact, sans-serif; letter-spacing: -.06em; text-transform: uppercase; }
-  .wdk-way-copy p { max-width: 26rem; margin: 3rem 0 0 auto; font-size: 1rem; line-height: 1.6; }
-  .wdk-artifacts { position: absolute; inset: 0; z-index: 20; }
-  .wdk-artifact { position: absolute; display: grid; min-width: 8rem; max-width: 15rem; min-height: 5rem; align-content: space-between; padding: .8rem; border: 1px solid var(--wdk-secondary); background: var(--wdk-primary); color: var(--wdk-secondary); box-shadow: .6rem .6rem 0 var(--wdk-secondary); transition: transform .24s cubic-bezier(.16,1,.3,1); animation: wdk-float 5s ease-in-out infinite; animation-delay: var(--delay); }
-  .wdk-artifact strong { font-size: .82rem; line-height: 1.25; }
-  .wdk-artifact-index { font: 700 .58rem/1 ui-monospace, monospace; }
-  .wdk-artifact-goal { border-radius: 50%; min-width: 8rem; aspect-ratio: 1; place-content: center; text-align: center; box-shadow: none; }
-  .wdk-artifact-education { min-width: 12rem; background: var(--wdk-secondary); color: var(--wdk-primary); }
-  .wdk-artifact-portrait { width: 10rem; padding: .45rem .45rem 2rem; background: var(--wdk-primary); }
-  .wdk-artifact-portrait img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; filter: contrast(1.05) saturate(.85); }
-  .wdk-artifact-location { border-radius: 999px; min-height: auto; box-shadow: none; }
-  .wdk-floating-star { position: absolute; width: 2.8rem; color: var(--wdk-secondary); animation: wdk-spin 11s linear infinite; }
-  .wdk-floating-star:nth-of-type(1) { left: 12%; top: 78%; } .wdk-floating-star:nth-of-type(2) { left: 88%; top: 12%; width: 4rem; }
-  .wdk-floating-star:nth-of-type(3) { left: 54%; top: 19%; width: 2rem; } .wdk-floating-star:nth-of-type(4) { left: 33%; top: 89%; width: 5rem; }
-  .wdk-floating-star:nth-of-type(5) { left: 4%; top: 30%; width: 1.8rem; } .wdk-floating-star:nth-of-type(6) { left: 91%; top: 82%; width: 2.4rem; }
   .wdk-contact { position: relative; min-height: 115svh; overflow: hidden; background: var(--wdk-primary); color: var(--wdk-secondary); }
   .wdk-contact-grid { position: absolute; inset: 0; opacity: .35; }
   .wdk-contact-inner { position: relative; z-index: 2; display: grid; grid-template-columns: .9fr 1.1fr; gap: 4rem; align-items: center; min-height: 100svh; max-width: 92rem; margin: 0 auto; padding: 7rem clamp(1.25rem, 4vw, 4rem); }
@@ -122,10 +99,6 @@
     .wdk-work-card { width: 88vw; min-height: 64vh; } .wdk-work-card-visual { min-height: 18rem; }
     .wdk-work-title { font-size: 31vw; } .wdk-work-ruler { display: none; }
     .wdk-details-grid { grid-template-columns: 1fr; } .wdk-details-skills { grid-row: auto; }
-    .wdk-way { min-height: 120svh; } .wdk-way-smiley { width: 52vw; }
-    .wdk-way-copy h2 { font-size: 22vw; } .wdk-way-copy p { margin-left: 0; }
-    .wdk-artifact { min-width: 6rem; max-width: 10rem; min-height: 4rem; padding: .6rem; } .wdk-artifact strong { font-size: .68rem; }
-    .wdk-artifact-portrait { width: 7rem; } .wdk-artifact:nth-child(n+8) { display: none; }
     .wdk-contact-button { width: min(82vw, 26rem); }
     .wdk-contact-links { grid-template-columns: 1fr; }
     .wdk-footer { grid-template-columns: 1fr; text-align: center; } .wdk-footer span:last-child { text-align: center; }

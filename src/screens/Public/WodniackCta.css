@@ -1,0 +1,268 @@
+/**
+ * `.s-cta` from AntoineW/AW-2025-Portfolio `src/components/SCTA.astro`,
+ * translated from SCSS.
+ */
+
+.wdk-cta {
+  position: relative;
+  z-index: 2;
+
+  padding: 55rem 0 0;
+
+  background: var(--wdk-primary);
+  overflow: hidden;
+}
+
+.wdk-cta__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  position: relative;
+  z-index: 3;
+
+  height: calc(100vh - 8rem - 2px);
+}
+
+.wdk-cta__hover {
+  position: relative;
+
+  display: grid;
+  place-items: center;
+}
+
+/* Selector carries the section class so it outranks `.wdk-root a { color: inherit }`. */
+.wdk-cta .wdk-cta__button {
+  position: relative;
+  z-index: 2;
+
+  display: grid;
+  place-items: center;
+
+  width: 6rem;
+  height: 6rem;
+
+  cursor: pointer;
+
+  color: var(--wdk-primary);
+  font: 700 3.75rem / 1 Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-indent: 0.075em;
+  text-transform: uppercase;
+}
+
+.wdk-cta__button-inner {
+  position: absolute;
+  inset: 0;
+
+  background: var(--wdk-secondary);
+  border-radius: 999rem;
+
+  transition: scale 1s cubic-bezier(0.23, 1, 0.32, 1) 0.2s;
+
+  will-change: scale;
+}
+
+.wdk-cta__button-text {
+  position: relative;
+
+  transition: scale 1.2s cubic-bezier(0.23, 1, 0.32, 1) 0.2s;
+
+  will-change: scale;
+}
+
+.wdk-cta__hover.is-active .wdk-cta__button-inner {
+  scale: 1.5;
+
+  transition: scale 0.6s cubic-bezier(0.755, 0.05, 0.855, 0.06) 0s;
+}
+
+.wdk-cta__hover.is-active .wdk-cta__button-text {
+  scale: 2;
+  opacity: 0;
+
+  transition:
+    scale 0.6s cubic-bezier(0.55, 0.055, 0.675, 0.19) 0s,
+    opacity 0.3s linear 0.15s;
+}
+
+/* The full circular call to action the button blows up into. */
+.wdk-cta__cta {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+
+  display: grid;
+  place-items: center;
+  align-content: center;
+
+  width: min(46rem, 82vh, 88vw);
+  aspect-ratio: 1;
+
+  background: var(--wdk-secondary);
+  border-radius: 999rem;
+
+  color: var(--wdk-primary);
+  text-align: center;
+
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.25);
+
+  transition:
+    opacity 0.4s linear,
+    transform 0.9s cubic-bezier(0.23, 1, 0.32, 1);
+
+  will-change: opacity, transform;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.wdk-cta__hover.is-active .wdk-cta__cta {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+
+  pointer-events: auto;
+}
+
+.wdk-cta__line {
+  position: relative;
+  z-index: 2;
+
+  font: 700 clamp(3rem, 11vw, 9rem) / 0.82 Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  text-transform: uppercase;
+}
+
+.wdk-cta__line-text {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Each character is stacked from four clipped slices, as in the reference. */
+.wdk-cta__char {
+  position: relative;
+
+  display: inline-grid;
+}
+
+.wdk-cta__char-slice {
+  grid-area: 1 / 1;
+
+  display: block;
+}
+
+.wdk-cta__char-slice:nth-child(1) { clip-path: inset(0 0 75% 0); }
+.wdk-cta__char-slice:nth-child(2) { clip-path: inset(25% 0 50% 0); }
+.wdk-cta__char-slice:nth-child(3) { clip-path: inset(50% 0 25% 0); }
+.wdk-cta__char-slice:nth-child(4) { clip-path: inset(75% 0 0 0); }
+
+@keyframes wdk-cta-slice {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0.06em, 0, 0); }
+}
+
+.wdk-cta__hover.is-active .wdk-cta__char-slice:nth-child(2) {
+  animation: wdk-cta-slice 1.6s ease-in-out infinite;
+}
+
+.wdk-cta__hover.is-active .wdk-cta__char-slice:nth-child(3) {
+  animation: wdk-cta-slice 1.6s ease-in-out 0.2s infinite reverse;
+}
+
+.wdk-cta .wdk-cta__link {
+  position: relative;
+  z-index: 2;
+
+  margin-top: 1.5rem;
+
+  color: var(--wdk-red);
+  font: 400 0.75rem / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.wdk-cta__link:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.35em;
+}
+
+.wdk-cta__stars {
+  position: absolute;
+  inset: 0;
+
+  pointer-events: none;
+}
+
+.wdk-cta__star {
+  position: absolute;
+
+  width: 1.5rem;
+  height: 1.5rem;
+
+  fill: var(--wdk-primary);
+}
+
+.wdk-cta__star:nth-child(1) { top: 16%; left: 22%; }
+.wdk-cta__star:nth-child(2) { top: 26%; right: 18%; width: 1rem; height: 1rem; }
+.wdk-cta__star:nth-child(3) { bottom: 22%; left: 26%; width: 0.85rem; height: 0.85rem; }
+.wdk-cta__star:nth-child(4) { bottom: 15%; right: 24%; }
+
+.wdk-cta__dots {
+  position: absolute;
+  inset: 0;
+
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--wdk-red) 60%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 14px 14px;
+  opacity: 0.5;
+
+  pointer-events: none;
+}
+
+.wdk-cta__grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+
+  width: 100%;
+  height: 100%;
+
+  pointer-events: none;
+}
+
+.wdk-cta__grid-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.wdk-cta__grid-path {
+  fill: none;
+  stroke: var(--wdk-secondary);
+  stroke-width: 1px;
+}
+
+@media only screen and (max-width: 1680px) { .wdk-cta { padding-top: 48rem; } }
+@media only screen and (max-width: 1530px) { .wdk-cta { padding-top: 41.25rem; } }
+@media only screen and (max-width: 1280px) { .wdk-cta { padding-top: 34.375rem; } }
+@media only screen and (max-width: 987px) { .wdk-cta { padding-top: 36rem; } }
+@media only screen and (max-width: 767px) { .wdk-cta { padding-top: 30rem; } }
+
+@media only screen and (max-width: 767px) and (orientation: landscape),
+  only screen and (max-width: 576px) {
+  .wdk-cta { padding-top: 21.6rem; }
+
+  .wdk-cta__inner { height: calc(100vh - 4.375rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wdk-cta__char-slice {
+    animation: none !important;
+  }
+}

@@ -1,0 +1,347 @@
+/**
+ * `.s-work` from AntoineW/AW-2025-Portfolio `src/components/SWork.astro`
+ * (+ `AWork.astro` card styles), translated from SCSS.
+ */
+
+.wdk-work {
+  --height: 250lvh;
+  --scroll-progress: 0;
+
+  position: relative;
+  z-index: 2;
+
+  height: var(--height);
+
+  background: var(--wdk-primary);
+}
+
+.wdk-work::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+
+  width: 100%;
+  height: 1px;
+
+  background: var(--wdk-secondary);
+
+  content: "";
+}
+
+.wdk-work__outer {
+  position: relative;
+
+  height: var(--height);
+
+  clip-path: inset(0 -1rem);
+}
+
+/* The dark stage. Fixed, so the scaling mask reveals it like an iris. */
+.wdk-work__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 100%;
+
+  background: var(--wdk-secondary);
+  transform: translate3d(0, calc(var(--scroll-progress) * -15%), 0);
+
+  color: var(--wdk-primary);
+
+  will-change: clip-path, transform;
+}
+
+.wdk-work__mask-outer {
+  position: sticky;
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 100lvh;
+
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.wdk-work__mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 100%;
+
+  will-change: scale, transform;
+}
+
+.wdk-work__mask-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.wdk-work__mask-outer-path {
+  fill: var(--wdk-primary);
+  fill-rule: evenodd;
+  stroke: var(--wdk-secondary);
+  stroke-width: 1px;
+}
+
+.wdk-work__mask-inner-path {
+  fill: var(--wdk-primary);
+  fill-rule: evenodd;
+  stroke: var(--wdk-secondary);
+  stroke-width: 1px;
+
+  transform: translate3d(0, calc(var(--scroll-progress) * 48px), 0);
+
+  will-change: transform;
+}
+
+.wdk-work__mask-lines {
+  fill: none;
+  stroke: var(--wdk-secondary);
+  stroke-width: 1px;
+}
+
+/* Invisible: only defines the capsule's position and size. */
+.wdk-work__ruler {
+  --width: min(16.6667%, 19.625rem);
+
+  position: absolute;
+  top: 10lvh;
+  left: calc(50% - var(--width) / 2);
+
+  width: var(--width);
+  height: 80lvh;
+
+  pointer-events: none;
+}
+
+.wdk-work__title,
+.wdk-work__scene {
+  font: 700 min(18.75rem, 25lvh) / 1 Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.wdk-work__title-inner,
+.wdk-work__ghost {
+  line-height: 0.85;
+}
+
+/* Measurement source for the ghosts; never painted. */
+.wdk-work__title {
+  width: 0.7em;
+
+  margin: 0;
+  opacity: 0;
+  word-break: break-all;
+}
+
+.wdk-work__title-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0.075em 0 -0.125em;
+}
+
+.wdk-work__scene {
+  --shadow: var(--wdk-shadow);
+  --progress: 0.5;
+  --state: 0;
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+
+  width: 100%;
+  height: 100%;
+
+  perspective: 40rem;
+
+  will-change: transform;
+}
+
+.wdk-work__ghost {
+  --head: calc((var(--progress) - 0.5) * -2);
+  --ahead: calc(var(--head) * var(--head));
+
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  display: block;
+
+  transform: rotateY(calc(var(--head) * -10deg * var(--state)))
+    translate3d(
+      calc(var(--head) * 50vw * var(--state)),
+      calc(var(--iy) * 50% * var(--ahead) * var(--state)),
+      0
+    );
+
+  pointer-events: none;
+  will-change: transform;
+}
+
+.wdk-work__ghost::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+
+  color: var(--wdk-shadow);
+
+  opacity: min(calc(var(--state) * 2), 1);
+  transform: scale(1.05, 1.02)
+    translate3d(calc(var(--head) * 0.1rem * var(--state) * var(--state)), 0, 0);
+  transform-origin: calc(50% - var(--head) * 50%) -50%;
+
+  will-change: opacity, transform;
+
+  content: attr(data-letter);
+}
+
+.wdk-work__card {
+  --progress: 1;
+  --size: 0.75;
+  --y: 0.5;
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+
+  width: min(34rem, 60vw);
+
+  transform: rotateY(calc(var(--progress) * -20deg))
+    translate3d(
+      calc(var(--progress) * (50vw + 100%) - 50%),
+      calc(var(--y) * 50% - 50%),
+      calc(var(--progress) * var(--progress) * -5rem)
+    )
+    scale(var(--size));
+
+  will-change: transform;
+}
+
+.wdk-work__card-inner {
+  border: 1px solid var(--wdk-primary);
+  background: var(--wdk-secondary);
+}
+
+/* Stands in for the reference's project video. */
+.wdk-work__card-screen {
+  position: relative;
+
+  display: grid;
+  place-items: center;
+
+  aspect-ratio: 1082 / 636;
+
+  background:
+    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--wdk-red) 55%, transparent), transparent 62%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      color-mix(in srgb, var(--wdk-primary) 12%, transparent) 3px,
+      color-mix(in srgb, var(--wdk-primary) 12%, transparent) 4px
+    );
+  border-bottom: 1px solid var(--wdk-primary);
+  overflow: hidden;
+}
+
+.wdk-work__card-mark {
+  font: 700 clamp(2rem, 9vw, 6rem) / 1 Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  letter-spacing: -0.04em;
+  color: var(--wdk-primary);
+}
+
+.wdk-work__card-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  padding: 0.5rem 0.75rem;
+
+  font: 400 0.6rem / 1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+}
+
+.wdk-work__card-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wdk-work__card-key {
+  flex: 0 0 auto;
+  color: var(--wdk-red);
+}
+
+.wdk-work__canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+
+  width: 100%;
+  height: 100%;
+
+  transform: translate3d(0, calc(var(--scroll-progress) * -5%), 0);
+}
+
+@media only screen and (max-width: 987px) {
+  .wdk-work__ruler {
+    --width: 33.3333%;
+  }
+}
+
+@media only screen and (max-width: 767px) and (orientation: landscape),
+  only screen and (max-width: 576px) {
+  .wdk-work__ruler {
+    --width: 50%;
+  }
+
+  .wdk-work__inner,
+  .wdk-work__canvas {
+    transform: none;
+  }
+
+  .wdk-work__card {
+    width: 80vw;
+
+    transform: rotateY(calc(var(--progress) * -20deg))
+      translate3d(
+        calc(var(--progress) * (50vw + 100%) - 50%),
+        calc(var(--y) * 100% - 50%),
+        calc(var(--progress) * var(--progress) * -5rem)
+      );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wdk-work__inner,
+  .wdk-work__canvas,
+  .wdk-work__mask-inner-path {
+    transform: none;
+  }
+}

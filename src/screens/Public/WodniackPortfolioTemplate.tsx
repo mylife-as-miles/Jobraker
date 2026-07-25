@@ -5,12 +5,14 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
 import type { EditorialPortfolioProps } from "./EditorialPortfolioTemplate";
-import { WodniackWaveField } from "./WodniackWaveField";
-import { ContactItems, PlayfulArtifacts } from "./WodniackPortfolioPlayground";
-import { FourPointStar, WorkStage, chunkName, splitTitle, yearRange } from "./WodniackPortfolioCore";
+import { ContactItems } from "./WodniackPortfolioPlayground";
+import { chunkName, splitTitle, yearRange } from "./WodniackPortfolioCore";
 import { WodniackSiteHead } from "./WodniackSiteHead";
 import { WodniackHero } from "./WodniackHero";
 import { WodniackAbout } from "./WodniackAbout";
+import { WodniackWork } from "./WodniackWork";
+import { WodniackMyWay } from "./WodniackMyWay";
+import { WodniackCta } from "./WodniackCta";
 import { WodniackSeparator } from "./WodniackSeparator";
 import { WodniackIntro } from "./WodniackIntro";
 import { WodniackScrollbar } from "./WodniackScrollbar";
@@ -90,6 +92,19 @@ export function WodniackPortfolioTemplate({
     "--wdk-white": "#fff0eb",
   } as CSSProperties;
 
+  const careerStart = experiences.reduce<number | null>((earliest, entry) => {
+    const year = new Date(entry.start_date).getFullYear();
+    if (!Number.isFinite(year)) return earliest;
+    return earliest === null || year < earliest ? year : earliest;
+  }, null);
+
+  const myWayLines = [
+    "Doing it",
+    "my way",
+    "since",
+    String(careerStart ?? new Date().getFullYear() - (profile.experienceYears || 0)),
+  ];
+
   const aboutParagraphs = [intro, profile.about].filter(
     (paragraph, index, all): paragraph is string =>
       Boolean(paragraph) && all.indexOf(paragraph) === index,
@@ -133,7 +148,11 @@ export function WodniackPortfolioTemplate({
 
       <WodniackSeparator variant="secondary" strings={["Do", "Things", "Your", "Way"]} />
 
-      <WorkStage experiences={experiences} accent={accent} />
+      <WodniackWork experiences={experiences} />
+
+      <WodniackSeparator variant="secondary" strings={["Coding", "My", "Own", "Way"]} />
+
+      <WodniackMyWay lines={myWayLines} />
 
       <section className="wdk-profile-details">
         <div className="wdk-details-header">
@@ -173,29 +192,11 @@ export function WodniackPortfolioTemplate({
         </div>
       </section>
 
-      <PlayfulArtifacts profile={profile} skills={skills} education={education} />
+      <WodniackCta email={email} label={site.ctaLabel || "Start a conversation"} />
 
-      <section id="contact" className="wdk-contact">
-        <div className="wdk-contact-grid" aria-hidden>
-          <WodniackWaveField className="wdk-contact-waves" strength={0.55} interactive />
-        </div>
-        <div className="wdk-contact-inner">
-          <div className="wdk-contact-button-wrap">
-            <a href={email ? `mailto:${email}` : "#top"} className="wdk-contact-button">
-              <span className="wdk-contact-go">GO</span>
-              <span className="wdk-contact-rock">LET’S<br />ROCK</span>
-              <FourPointStar className="wdk-contact-star wdk-contact-star-a" />
-              <FourPointStar className="wdk-contact-star wdk-contact-star-b" />
-            </a>
-          </div>
-          <div className="wdk-contact-copy">
-            <p>Have a role, project, or conversation worth exploring?</p>
-            <h2>{site.ctaLabel || "Start a conversation"}</h2>
-            {email ? <a href={`mailto:${email}`}>{email}<ArrowUpRight className="h-5 w-5" /></a> : null}
-          </div>
-          <ContactItems site={site} profile={profile} />
-        </div>
-      </section>
+      <div className="wdk-contact-links-wrap">
+        <ContactItems site={site} profile={profile} />
+      </div>
 
       <footer className="wdk-footer">
         <span>© {new Date().getFullYear()} {profile.name}</span>

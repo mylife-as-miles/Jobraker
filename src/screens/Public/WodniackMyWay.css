@@ -1,0 +1,211 @@
+/**
+ * `.s-my-way` from AntoineW/AW-2025-Portfolio `src/components/SMyWay.astro`,
+ * translated from SCSS (frames/objects layer omitted — no media in this data).
+ */
+
+.wdk-way {
+  --padding: 40rem;
+  --mark-size: 5.625rem;
+  --distortion: 100;
+  --scroll-progress: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  position: relative;
+  z-index: 3;
+
+  padding: calc(var(--padding) * 0.75) 0 calc(var(--padding) * 1.5);
+
+  background: var(--wdk-primary);
+  clip-path: inset(-100vh 0 calc(var(--padding) * -1.375));
+  overflow: hidden;
+}
+
+@keyframes wdk-way-rotate {
+  0% { transform: rotate(0); }
+  100% { transform: rotate(360deg); }
+}
+
+.wdk-way__mark {
+  position: relative;
+  z-index: 2;
+
+  display: block;
+  width: var(--mark-size);
+  height: var(--mark-size);
+
+  background: var(--wdk-primary);
+  border-radius: 999rem;
+
+  animation: wdk-way-rotate 10s linear infinite;
+  will-change: transform;
+}
+
+.wdk-way__mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wdk-way__mark circle {
+  fill: var(--wdk-primary);
+}
+
+.wdk-way__mark path {
+  fill: var(--wdk-secondary);
+}
+
+.wdk-way__svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+
+  width: 100%;
+  height: 100%;
+}
+
+.wdk-way__rays {
+  fill: none;
+  stroke: var(--wdk-secondary);
+  stroke-width: 1px;
+}
+
+/* Two copies of the headline: one lying down into the vanishing point, one
+   standing up past the horizon. */
+.wdk-way__catcher {
+  --amplitude: 50%;
+  --offset: 15%;
+
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+
+  width: 100%;
+  height: calc(var(--padding) * 1.05 + var(--mark-size) / 2);
+
+  perspective: calc(var(--distortion) * 0.85em);
+  user-select: none;
+
+  color: var(--wdk-secondary);
+  font: 700 calc(var(--padding) * 1.2) / 0.82 Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.wdk-way__distorted-wrapper {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+
+  width: 100%;
+  height: calc(var(--padding) * 1.5);
+
+  overflow: hidden;
+  perspective: calc(var(--distortion) * 0.7em);
+}
+
+.wdk-way__distorted {
+  position: absolute;
+  bottom: 0;
+  left: -100%;
+
+  width: 300%;
+  height: calc(var(--padding) * 1.05 + var(--mark-size) / 2);
+
+  transform-origin: 50% 100%;
+  transform: matrix3d(1, 0, 0, 0, 0, 1, var(--distortion), 0, 0, 0, 1, 0, 0, 0, 0, 1);
+}
+
+.wdk-way__normal-wrapper {
+  position: absolute;
+  top: calc(100% - 1px);
+  left: 0;
+
+  width: 100%;
+  height: calc(100% + 100vh);
+
+  overflow: hidden;
+}
+
+.wdk-way__normal {
+  position: absolute;
+  top: 0;
+  left: -100%;
+
+  width: 300%;
+  height: 100%;
+}
+
+.wdk-way__text {
+  position: absolute;
+  left: 0;
+
+  width: 100%;
+
+  will-change: transform;
+}
+
+.wdk-way__text--distorted {
+  bottom: 0;
+
+  transform: translate3d(
+    0,
+    calc(var(--scroll-progress) * var(--amplitude) - var(--offset)),
+    0
+  );
+}
+
+.wdk-way__text--normal {
+  top: 0;
+
+  transform: translate3d(
+    0,
+    calc(var(--scroll-progress) * var(--amplitude) - 100% - var(--offset)),
+    0
+  );
+}
+
+@media only screen and (max-width: 1680px) { .wdk-way { --padding: 35rem; } }
+@media only screen and (max-width: 1530px) { .wdk-way { --padding: 30rem; } }
+@media only screen and (max-width: 1280px) { .wdk-way { --padding: 25rem; } }
+
+@media only screen and (max-width: 987px) {
+  .wdk-way {
+    --padding: 30rem;
+
+    padding: calc(var(--padding) * 0.75) 0 calc(var(--padding) * 1.25);
+
+    clip-path: inset(-100vh 0 calc(var(--padding) * -1.2));
+  }
+
+  .wdk-way__catcher {
+    --amplitude: 75%;
+    --offset: 27.5%;
+
+    perspective: calc(var(--distortion) * 1.05em);
+    font-size: calc(var(--padding) * 0.75);
+  }
+
+  .wdk-way__distorted-wrapper {
+    perspective: calc(var(--distortion) * 0.85em);
+  }
+}
+
+@media only screen and (max-width: 767px) { .wdk-way { --padding: 25rem; } }
+
+@media only screen and (max-width: 767px) and (orientation: landscape),
+  only screen and (max-width: 576px) {
+  .wdk-way { --padding: 18rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wdk-way__mark {
+    animation: none;
+  }
+}
