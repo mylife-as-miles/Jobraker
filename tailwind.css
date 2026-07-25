@@ -36,33 +36,34 @@
    * pitch-black values.
    */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Neutral gray page so white cards read as raised surfaces against it. */
+    --background: 220 14% 96%;
+    --foreground: 221 39% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 221 39% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 221 39% 11%;
     --primary: 140 69% 52%;
     --primary-foreground: 0 0% 0%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 221 39% 11%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 221 39% 11%;
     --destructive: 142 76% 36%;
     --destructive-foreground: 0 0% 0%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
     --ring: 140 69% 52%;
     --radius: 0.5rem;
     --brand: 140 69% 52%;
     --success: 142 76% 36%;
-    --product-page-heading: 222 47% 11%;
-    --product-page-support: 215 17% 43%;
-    --product-surface: 42 32% 97%;
-    --product-surface-muted: 48 24% 94%;
-    --product-soft-border: 42 24% 86%;
+    --product-page-heading: 221 39% 11%;
+    --product-page-support: 220 9% 46%;
+    --product-surface: 0 0% 100%;
+    --product-surface-muted: 220 14% 96%;
+    --product-soft-border: 220 13% 91%;
     --product-gold: 140 69% 52%;
     --product-gold-bg: 142 72% 94%;
     --product-gold-ring: 142 69% 73%;
