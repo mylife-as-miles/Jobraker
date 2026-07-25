@@ -23,6 +23,7 @@ import {
 } from "../../../hooks/useApplications";
 import { useJobIntelligenceTasks } from "../../../hooks/useJobIntelligenceTasks";
 import { Skeleton } from "../../../components/ui/skeleton";
+import { formatTaskMessage } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { useAnalyticsData } from "../../../hooks/useAnalyticsData";
 import { StreakCard } from "../../../components/StreakCard";
@@ -931,7 +932,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                     </div>
                   )}
                   <p className='text-[11px] leading-relaxed text-muted-foreground'>
-                    {activeTask.message || "Running background scout & recruitment search..."}
+                    {formatTaskMessage(activeTask.message) || "Running background scout & recruitment search..."}
                   </p>
                   <div className='flex items-center gap-1.5 text-[10px] font-semibold text-brand pt-0.5'>
                     <span className='h-1.5 w-1.5 rounded-full bg-brand animate-ping' />
