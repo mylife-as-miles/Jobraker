@@ -440,26 +440,36 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
 }
 
 async function searchWeb(apiKey: string, query: string, limit: number): Promise<SearchItem[]> {
-  return await withRetry(async () => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort("firecrawl_timeout"), 25_000);
-    const response = await fetch("https://api.firecrawl.dev/v2/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ query, limit, sources: ["web"] }),
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeout));
-    if (!response.ok) throw new Error(`Search provider failed: ${response.status}`);
-    const payload = await response.json();
-    const rows = Array.isArray(payload?.data) ? payload.data : [];
-    return rows.map((row: any) => ({
-      url: normalizeUrl(row?.url),
-      title: compactText(row?.title, 500),
-      description: compactText(row?.description, 1800),
-      markdown: compactText(row?.markdown, 2400),
-      sourceQuery: query,
-    })).filter((item: SearchItem) => Boolean(item.url));
-  });
+  try {
+    return await withRetry(async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort("firecrawl_timeout"), 25_000);
+      try {
+        const response = await fetch("https://api.firecrawl.dev/v2/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({ query, limit, sources: ["web"] }),
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeout));
+        if (!response.ok) throw new Error(`Search provider failed: ${response.status}`);
+        const payload = await response.json();
+        const rows = Array.isArray(payload?.data) ? payload.data : [];
+        return rows.map((row: any) => ({
+          url: normalizeUrl(row?.url),
+          title: compactText(row?.title, 500),
+          description: compactText(row?.description, 1800),
+          markdown: compactText(row?.markdown, 2400),
+          sourceQuery: query,
+        })).filter((item: SearchItem) => Boolean(item.url));
+      } catch (err) {
+        clearTimeout(timeout);
+        throw err;
+      }
+    }, 3);
+  } catch (error) {
+    console.warn(`[searchWeb] Search provider connectivity error for query "${query}":`, error);
+    return [];
+  }
 }
 
 function parseVerifierResponse(payload: any) {
@@ -733,24 +743,39 @@ serve(async (req) => {
 
     const job = await resolveJob(serviceClient, context.user.id, request, companyName);
     const teamKeywords = extractTeamKeywords(job.description, job.title);
-    const keywordQuery = teamKeywords.slice(0, 3).map((keyword) => `"${keyword}"`).join(" OR ") ||
-      (job.title ? `"${job.title}"` : "team");
-    const officialQuery = `"${job.company}" official website careers jobs`;
+    const isYcCompany = /yc|y combinator|workatastartup|ycombinator/i.test(`${job.company} ${job.title} ${job.description} ${job.applyUrl}`);
+    const officialQuery = isYcCompany
+      ? `site:ycombinator.com/companies/ "${job.company}" OR site:workatastartup.com/companies/ "${job.company}" OR "${job.company}" official website`
+      : `"${job.company}" official website careers jobs`;
     const recruiterQuery = `site:linkedin.com/in/ "${job.company}" (${keywordQuery}) (recruiter OR "talent acquisition" OR "talent partner" OR sourcer)`;
-    const managerQuery = `site:linkedin.com/in/ "${job.company}" (${keywordQuery}) ("hiring manager" OR manager OR lead OR director OR "head of")`;
-    const queries = [officialQuery, recruiterQuery, managerQuery];
+    const managerQuery = `site:linkedin.com/in/ "${job.company}" (${keywordQuery}) ("hiring manager" OR founder OR CEO OR CTO OR manager OR lead OR director OR "head of")`;
+    const ycQuery = `site:ycombinator.com/companies/ "${job.company}" founder team hiring`;
+    const queries = [officialQuery, recruiterQuery, managerQuery, ...(isYcCompany ? [ycQuery] : [])];
     runId = await createRun(serviceClient, context.user.id, job, teamKeywords, queries);
 
     const firecrawlKey = asString(Deno.env.get("FIRECRAWL_API_KEY"));
     if (!firecrawlKey) throw new Error("Search provider API key is not configured.");
-    const [officialItems, recruiterItems, managerItems] = await Promise.all([
+    const searchPromises = [
       searchWeb(firecrawlKey, officialQuery, 7),
       searchWeb(firecrawlKey, recruiterQuery, 8),
       searchWeb(firecrawlKey, managerQuery, 8),
-    ]);
-    const allItems = dedupeSearchItems([...officialItems, ...recruiterItems, ...managerItems]);
-    const officialDomain = officialDomainFrom(officialItems, job.company);
-    const careersPageUrl = careersUrlFrom(officialItems, officialDomain);
+    ];
+    if (isYcCompany) {
+      searchPromises.push(searchWeb(firecrawlKey, ycQuery, 6));
+    }
+    const searchResults = await Promise.all(searchPromises);
+    const officialItems = searchResults[0] || [];
+    const recruiterItems = searchResults[1] || [];
+    const managerItems = searchResults[2] || [];
+    const ycItems = searchResults[3] || [];
+    const allItems = dedupeSearchItems([...officialItems, ...recruiterItems, ...managerItems, ...ycItems]);
+    
+    let officialDomain = officialDomainFrom(officialItems, job.company);
+    if (!officialDomain && isYcCompany) {
+      officialDomain = `${job.company.toLowerCase().replace(/[^a-z0-9]/g, "")}.com`;
+    }
+    const careersPageUrl = careersUrlFrom(officialItems, officialDomain) || 
+      (isYcCompany ? `https://www.ycombinator.com/companies/${job.company.toLowerCase().replace(/[^a-z0-9]/g, "")}` : "");
 
     const contactsByUrl = new Map<string, RecruiterContact>();
     for (const item of allItems) {
