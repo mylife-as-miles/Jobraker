@@ -67,9 +67,9 @@
   }
 
   .dark {
-    --background: 0 0% 0%;
+    --background: 222 30% 6%;
     --foreground: 210 40% 98%;
-    --card: 0 0% 0%;
+    --card: 222 24% 10%;
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
@@ -90,8 +90,8 @@
     --success: 142 76% 36%;
     --product-page-heading: 210 40% 98%;
     --product-page-support: 215 20.2% 65.1%;
-    --product-surface: 0 0% 0%;
-    --product-surface-muted: 217.2 32.6% 17.5%;
+    --product-surface: 222 24% 10%;
+    --product-surface-muted: 222 25% 7%;
     --product-soft-border: 217.2 32.6% 17.5%;
     --product-gold: 140 69% 52%;
     --product-gold-bg: 142 35% 18%;
@@ -207,11 +207,11 @@
   }
 
   .product-section-card {
-    @apply rounded-xl border border-border/40 bg-card shadow-sm;
+    @apply rounded-xl border border-foreground/10 bg-card/90 shadow-sm backdrop-blur-md;
   }
 
   .product-section-card-muted {
-    @apply rounded-xl border border-border/40 bg-muted/50 shadow-sm;
+    @apply rounded-xl border border-foreground/10 bg-muted/40 shadow-sm backdrop-blur-sm;
   }
 
   .product-section-card-highlighted {

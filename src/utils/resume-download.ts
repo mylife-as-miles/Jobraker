@@ -51,15 +51,22 @@ function waitForImages(root: HTMLElement): Promise<void> {
   ).then(() => undefined);
 }
 
+export interface ResumePrintFrame {
+  iframe: HTMLIFrameElement;
+  win: Window;
+  cleanup: () => void;
+}
+
 /**
- * Export a resume to PDF exactly as it appears in the preview.
+ * Render a resume at true A4 size into an isolated, off-screen iframe that
+ * carries the app's stylesheets, so it looks byte-for-byte like the preview.
  *
- * Renders the template at true A4 size into an isolated, off-screen iframe and
- * invokes the browser's native print engine. Unlike a canvas rasteriser, this
- * reproduces gradients, filters, shadows, rotated text and SVG faithfully, and
- * paginates naturally. The user picks "Save as PDF" in the print dialog.
+ * Exported separately from {@link downloadResumePDF} so the rendering can be
+ * exercised without opening a print dialog.
  */
-export const downloadResumePDF = async (resumeData: ResumeData) => {
+export async function renderResumePrintFrame(
+  resumeData: ResumeData,
+): Promise<ResumePrintFrame> {
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
   iframe.title = "Resume print frame";
@@ -103,6 +110,9 @@ export const downloadResumePDF = async (resumeData: ResumeData) => {
     doc.documentElement.className = document.documentElement.className;
     doc.body.className = document.body.className;
 
+    // The print dialog seeds the "Save as PDF" filename from the title.
+    doc.title = `${(resumeData.basics.name || "Resume").replace(/\s+/g, "_")}_Resume`;
+
     const baseStyle = doc.createElement("style");
     baseStyle.textContent = `
       @page { size: A4 portrait; margin: 0; }
@@ -140,18 +150,34 @@ export const downloadResumePDF = async (resumeData: ResumeData) => {
     await waitForImages(mount);
     await new Promise((resolve) => window.setTimeout(resolve, 150));
 
+    return { iframe, win, cleanup };
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
+}
+
+/**
+ * Export a resume to PDF exactly as it appears in the preview.
+ *
+ * Uses the browser's native print engine rather than a canvas rasteriser, so
+ * gradients, filters, shadows, rotated text and SVG reproduce faithfully — and
+ * the resulting PDF contains real, selectable text (which ATS systems can
+ * parse) instead of a flat image. The user picks "Save as PDF" in the dialog.
+ */
+export const downloadResumePDF = async (resumeData: ResumeData) => {
+  try {
+    const { win, cleanup } = await renderResumePrintFrame(resumeData);
+
     // Clean up after the print dialog is dismissed (or a safety timeout).
-    win.addEventListener(
-      "afterprint",
-      () => window.setTimeout(cleanup, 300),
-      { once: true },
-    );
+    win.addEventListener("afterprint", () => window.setTimeout(cleanup, 300), {
+      once: true,
+    });
     window.setTimeout(cleanup, 60000);
 
     win.focus();
     win.print();
   } catch (error) {
-    cleanup();
     console.error("PDF generation failed:", error);
     throw error;
   }
