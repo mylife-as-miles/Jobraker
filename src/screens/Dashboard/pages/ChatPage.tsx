@@ -1868,6 +1868,7 @@ export const ChatPage = () => {
   >(null);
   const [persona, setPersona] = useState<Persona>("analyst");
   const [sessions, setSessions] = useState<ChatSessionState[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -2061,24 +2062,29 @@ export const ChatPage = () => {
   );
 
   const loadSessions = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("chat_sessions")
-      .select("*")
-      .order("updated_at", { ascending: false });
+    setLoadingSessions(true);
+    try {
+      const { data, error } = await supabase
+        .from("chat_sessions")
+        .select("*")
+        .order("updated_at", { ascending: false });
 
-    if (error) {
-      toastError("Could not load chats", error.message);
-      return;
-    }
-    if (data && data.length > 0) {
-      const normalizedSessions = (data as ChatSessionRecord[]).map(
-        normalizeChatSession,
-      );
-      setSessions(normalizedSessions);
-      setActiveSessionId(normalizedSessions[0]?.id || null);
-    } else {
-      // No sessions, create one
-      await createSession(true);
+      if (error) {
+        toastError("Could not load chats", error.message);
+        return;
+      }
+      if (data && data.length > 0) {
+        const normalizedSessions = (data as ChatSessionRecord[]).map(
+          normalizeChatSession,
+        );
+        setSessions(normalizedSessions);
+        setActiveSessionId(normalizedSessions[0]?.id || null);
+      } else {
+        // No sessions, create one
+        await createSession(true);
+      }
+    } finally {
+      setLoadingSessions(false);
     }
   }, [createSession, supabase, toastError]);
 
@@ -2955,7 +2961,25 @@ export const ChatPage = () => {
                   Recent Chats
                 </p>
                 <div className='space-y-1'>
-                  {filteredSessions.length > 0 ? (
+                  {loadingSessions ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <div
+                        key={`session-skeleton-${i}`}
+                        className='w-full flex items-center gap-3 px-3 py-3 rounded-xl border border-transparent animate-pulse'
+                      >
+                        <div className='w-5 h-5 rounded-md bg-muted-foreground/20 shrink-0' />
+                        <div className='min-w-0 flex-1 space-y-1.5'>
+                          <div
+                            className='h-3.5 bg-muted-foreground/20 rounded-md'
+                            style={{
+                              width: `${Math.floor(50 + ((i * 23) % 40))}%`,
+                            }}
+                          />
+                          <div className='h-2.5 bg-muted-foreground/15 rounded-md w-14' />
+                        </div>
+                      </div>
+                    ))
+                  ) : filteredSessions.length > 0 ? (
                     filteredSessions.map((s) => (
                       <div
                         key={s.id}
