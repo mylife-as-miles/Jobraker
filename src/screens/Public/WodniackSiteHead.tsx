@@ -160,8 +160,10 @@ export function WodniackSiteHead({
     const tl = gsap.timeline({ delay: introDelay / 1000 });
 
     tl.set(head, { opacity: 1 });
-    tl.from(head, { y: "-100%", duration: 1.5, ease: "expo.inOut" }, 1);
-    tl.from(items, { y: "-100%", duration: 1.5, ease: "expo.out", stagger: 0.1 }, 1.5);
+    // fromTo (not from) so a re-mount replays cleanly instead of resolving "back to"
+    // whatever offset a killed tween left behind.
+    tl.fromTo(head, { y: "-100%" }, { y: "0%", duration: 1.5, ease: "expo.inOut" }, 1);
+    tl.fromTo(items, { y: "-100%" }, { y: "0%", duration: 1.5, ease: "expo.out", stagger: 0.1 }, 1.5);
 
     if (qr) {
       tl.fromTo(qr, { "--bg-p": "0%" }, { "--bg-p": "100%", duration: 1.5, ease: "expo.out" }, 1.75);
@@ -297,9 +299,11 @@ export function WodniackSiteHead({
                 y="140"
                 textAnchor="middle"
                 dominantBaseline="central"
-                fontFamily="Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif"
                 fontSize="200"
                 letterSpacing="-12"
+                // inline style, not the presentation attribute: the global `*` font rule
+                // in tailwind.css outranks SVG presentation attributes.
+                style={{ fontFamily: "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif", fontWeight: 900 }}
               >
                 {initials(profile.name)}
               </text>
@@ -359,8 +363,7 @@ export function WodniackSiteHead({
               </span>
 
               <span className="wdk-sb__line">
-                <span className="wdk-sb__text">Available for new opportunities →</span>
-
+                <span className="wdk-sb__text">Available for new opportunities →</span>{" "}
                 <a href={mailto} className="wdk-sb__link">
                   {site.ctaLabel || "Hire me"}
                 </a>
@@ -368,11 +371,11 @@ export function WodniackSiteHead({
             </p>
           </aside>
 
-          {qrCode ? (
-            <a href={mailto} className="wdk-sb-qr-code" title="Contact me!">
-              <img src={qrCode} alt="QR Code" width={72} height={72} />
-            </a>
-          ) : null}
+          {/* Rendered unconditionally so the intro timeline can find it — the QR image
+              itself resolves a tick later. */}
+          <a href={mailto} className="wdk-sb-qr-code" title="Contact me!">
+            {qrCode ? <img src={qrCode} alt="QR Code" width={72} height={72} /> : <span style={{ display: "block", width: 72, height: 72 }} />}
+          </a>
         </div>
       </header>
 
