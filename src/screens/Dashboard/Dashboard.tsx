@@ -1157,8 +1157,8 @@ export const Dashboard = (): JSX.Element => {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <User2 className='w-5 h-5 mb-0.5' />
-              <span className='text-[10px] font-semibold'>Account</span>
+              <FileText className='w-5 h-5 mb-0.5' />
+              <span className='text-[10px] font-semibold'>Document</span>
             </button>
 
             {/* Career Tab (Center highlighted squircle button) */}
