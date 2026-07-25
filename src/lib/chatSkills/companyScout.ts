@@ -7,12 +7,12 @@ import type {
 } from "./types";
 
 const SCOUT_PROGRESS = [
-  "Reading request",
-  "Resolving companies from context",
-  "Searching job listings database",
-  "Looking up known hiring channels",
-  "Verifying email contacts",
-  "Ready for review",
+  "Reading the job and company context",
+  "Extracting team and department keywords",
+  "Searching public LinkedIn profile results",
+  "Ranking recruiters and hiring-team members",
+  "Checking source-backed work emails",
+  "Preparing contacts for review",
 ];
 
 const delay = (ms: number) =>
@@ -20,78 +20,124 @@ const delay = (ms: number) =>
     window.setTimeout(resolve, ms);
   });
 
-const KNOWN_SCOUT_CONTACTS: Record<
-  string,
-  {
-    domain: string;
-    careersPageUrl: string;
-    contactEmail: string;
-    publicContactChannels: string[];
-    confidence: "high" | "medium";
-    foundSource: string;
-  }
-> = {
-  "digital virgo": {
-    domain: "digitalvirgo.com",
-    careersPageUrl: "https://www.digitalvirgo.com/careers/",
-    contactEmail: "recruitment@digitalvirgo.com",
-    publicContactChannels: ["LinkedIn", "Official careers portal"],
-    confidence: "high",
-    foundSource: "Official Website Lookup",
-  },
-  "international breweries": {
-    domain: "ab-inbev.com",
-    careersPageUrl: "https://www.ab-inbev.com/careers/",
-    contactEmail: "careers@ab-inbev.com",
-    publicContactChannels: ["AB InBev careers portal", "LinkedIn Talent"],
-    confidence: "high",
-    foundSource: "AB InBev Global Directory",
-  },
-  google: {
-    domain: "google.com",
-    careersPageUrl: "https://careers.google.com",
-    contactEmail: "jobs@google.com",
-    publicContactChannels: ["Google Careers portal", "LinkedIn Recruiter"],
-    confidence: "high",
-    foundSource: "Official Careers portal",
-  },
+const asString = (value: unknown) =>
+  typeof value === "string" ? value.trim() : "";
+
+type RecruiterContact = {
+  fullName: string;
+  title: string;
+  roleKind:
+    | "recruiter"
+    | "hiring_manager"
+    | "team_lead"
+    | "director"
+    | "employee"
+    | "unknown";
+  linkedinUrl: string;
+  workEmail: string;
+  emailStatus:
+    | "source_verified"
+    | "provider_verified"
+    | "domain_valid"
+    | "pattern_only"
+    | "unverified"
+    | "not_found";
+  emailConfidence: number;
+  emailSourceUrl: string;
+  relevanceScore: number;
+  safeToContact: boolean;
 };
 
-const formatCompanyScoutToMarkdown = (results: any[]) => {
-  let md = `### 🔍 Company Scout Results\n`;
-  md += `I investigated **${results.length}** target companies to locate hiring channels:\n\n`;
+type CompanyScoutResponse = {
+  domain: string;
+  careersPageUrl: string;
+  contactEmail: string;
+  publicContactChannels: string[];
+  confidence: "high" | "medium" | "low";
+  foundSource: string;
+  teamKeywords?: string[];
+  recruiterContacts?: RecruiterContact[];
+  verificationPolicy?: Record<string, unknown>;
+  discoveryRunId?: string | null;
+};
 
-  md += `| Company | Careers Page | Contact Email | Confidence | Source |\n`;
-  md += `| :--- | :--- | :--- | :--- | :--- |\n`;
-  for (const r of results) {
-    const pageLink = r.careersPageUrl
-      ? `🔗 [Careers Page](${r.careersPageUrl})`
-      : "N/A";
-    const emailText = r.contactEmail ? `📧 ${r.contactEmail}` : "N/A";
-    const confidenceText =
-      r.confidence === "high"
-        ? "🟢 High"
-        : r.confidence === "medium"
-          ? "🟡 Medium"
-          : "🔴 Low";
-    md += `| **${r.companyName}** | ${pageLink} | ${emailText} | ${confidenceText} | ${r.foundSource} |\n`;
+type CompanyScoutResult = CompanyScoutResponse & {
+  companyName: string;
+  error?: string;
+};
+
+const confidenceLabel = (confidence: CompanyScoutResult["confidence"]) => {
+  if (confidence === "high") return "High";
+  if (confidence === "medium") return "Medium";
+  return "Low";
+};
+
+const formatCompanyScoutToMarkdown = (results: CompanyScoutResult[]) => {
+  let markdown = `### Recruiter and Hiring-Team Discovery\n`;
+  markdown += `I investigated **${results.length}** target ${results.length === 1 ? "company" : "companies"} using public, evidence-backed sources.\n\n`;
+
+  markdown += `| Company | Careers page | Best verified email | Confidence |\n`;
+  markdown += `| :--- | :--- | :--- | :--- |\n`;
+  for (const result of results) {
+    const pageLink = result.careersPageUrl
+      ? `[Open careers page](${result.careersPageUrl})`
+      : "Not found";
+    const emailText = result.contactEmail || "Not verified";
+    markdown += `| **${result.companyName}** | ${pageLink} | ${emailText} | ${confidenceLabel(result.confidence)} |\n`;
   }
 
-  md += `\n**Public Contact Channels:**\n`;
-  for (const r of results) {
-    if (r.publicContactChannels?.length) {
-      md += `- **${r.companyName}**: ${r.publicContactChannels.join(", ")}\n`;
+  for (const result of results) {
+    markdown += `\n#### ${result.companyName}\n`;
+    if (result.teamKeywords?.length) {
+      markdown += `**Job/team keywords:** ${result.teamKeywords.join(", ")}\n\n`;
+    }
+
+    const contacts = Array.isArray(result.recruiterContacts)
+      ? result.recruiterContacts
+      : [];
+    if (!contacts.length) {
+      markdown += `No evidence-backed individual recruiter or hiring-team profile was found.\n`;
+    } else {
+      contacts.forEach((contact, index) => {
+        const title = contact.title || contact.roleKind.replace(/_/g, " ");
+        markdown += `${index + 1}. **${contact.fullName}** — ${title}`;
+        if (contact.linkedinUrl) {
+          markdown += ` — [LinkedIn](${contact.linkedinUrl})`;
+        }
+        markdown += ` — relevance ${contact.relevanceScore}/100`;
+        if (contact.safeToContact && contact.workEmail) {
+          markdown += `\n   Verified work email: **${contact.workEmail}** (${contact.emailStatus.replace(/_/g, " ")})`;
+        } else {
+          markdown += `\n   Work email: not verified. JobRaker will not invent or expose a pattern guess.`;
+        }
+        markdown += `\n`;
+      });
+    }
+
+    if (result.error) {
+      markdown += `\nLookup note: ${result.error}\n`;
+    } else if (result.foundSource) {
+      markdown += `\nSource policy: ${result.foundSource}\n`;
     }
   }
 
-  return md;
+  markdown += `\n**Sending rule:** review the exact recipient and message before JobRaker uses a connected inbox. LinkedIn profile links are provided for manual review because the current LinkedIn integration does not support employee search or direct messages.\n`;
+  return markdown;
 };
 
 export const companyScoutSkill: JobrakerChatSkill = {
   id: "company_scout",
-  name: "Company Scout",
-  aliases: ["@CompanyScout", "/company-scout", "/find-company-emails"],
-  description: "Find companies, career pages, and public hiring contact channels.",
+  name: "Recruiter Scout",
+  aliases: [
+    "@CompanyScout",
+    "@RecruiterScout",
+    "/company-scout",
+    "/recruiter-scout",
+    "/find-company-emails",
+    "/find-hiring-manager",
+  ],
+  description:
+    "Find evidence-backed recruiter and hiring-team LinkedIn profiles, careers pages, and verified work emails for a target job.",
   icon: "search",
   category: "research",
   triggerType: "both",
@@ -99,6 +145,9 @@ export const companyScoutSkill: JobrakerChatSkill = {
     type: "object",
     properties: {
       roleQuery: { type: "string" },
+      jobId: { type: "string" },
+      applicationId: { type: "string" },
+      jobDescription: { type: "string" },
     },
   },
   statusStates: ["queued", "running", "completed", "failed"],
@@ -107,29 +156,28 @@ export const companyScoutSkill: JobrakerChatSkill = {
   ): Promise<SkillExecutionResult<Record<string, unknown>>> => {
     const completedProgress: string[] = [];
 
-    // Run progress animation
     for (const step of SCOUT_PROGRESS) {
       completedProgress.push(step);
       input.progress?.(step);
-      await delay(200);
+      await delay(160);
     }
 
     const targetCompanies = resolveTargetCompanies(input);
     if (!targetCompanies.length) {
       return {
         status: "completed",
-        content: `### 🔍 Company Scout
-Company Scout needs a target company or role to find hiring channels.
+        content: `### Recruiter Scout
+Recruiter Scout needs a company or an application context.
 
-**Try one of these examples:**
-- \`@CompanyScout find contact details for International Breweries\`
-- \`/company-scout look up Digital Virgo\``,
+Try one of these:
+- \`@RecruiterScout find the hiring manager for Google Trust and Safety\`
+- \`/recruiter-scout find verified contacts for my latest application\``,
         output: {
           needsClarification: {
-            reason: "Could not identify target companies from chat context.",
+            reason: "Could not identify a target company from chat or application context.",
             suggestedPrompts: [
-              "@CompanyScout find contact details for International Breweries",
-              "/company-scout look up Digital Virgo",
+              "@RecruiterScout find the hiring manager for Google Trust and Safety",
+              "/recruiter-scout find verified contacts for my latest application",
             ],
           },
           results: [],
@@ -137,72 +185,104 @@ Company Scout needs a target company or role to find hiring channels.
       };
     }
 
-    const results = [];
-    let scoutedCount = 0;
-    const SCOUT_API_LIMIT = 3;
+    const roleQuery =
+      asString(input.args.roleQuery) ||
+      asString(input.args.jobTitle) ||
+      asString(input.args.job_title);
+    const jobId = asString(input.args.jobId) || asString(input.args.job_id);
+    const applicationId =
+      asString(input.args.applicationId) || asString(input.args.application_id);
+    const jobDescription =
+      asString(input.args.jobDescription) ||
+      asString(input.args.job_description);
+    const applyUrl = asString(input.args.applyUrl) || asString(input.args.apply_url);
 
-    for (const companyName of targetCompanies) {
-      const known = KNOWN_SCOUT_CONTACTS[companyName.toLowerCase()];
-      if (known) {
+    const results: CompanyScoutResult[] = [];
+    const liveTargets = targetCompanies.slice(0, 3);
+
+    for (const companyName of liveTargets) {
+      try {
+        const response = await invokeProtectedFunction<CompanyScoutResponse>(
+          "scout-company",
+          {
+            body: {
+              companyName,
+              jobId: jobId || undefined,
+              applicationId: applicationId || undefined,
+              jobTitle: roleQuery || undefined,
+              jobDescription: jobDescription || undefined,
+              applyUrl: applyUrl || undefined,
+              limit: 6,
+            },
+          },
+        );
+
         results.push({
           companyName,
-          domain: known.domain,
-          careersPageUrl: known.careersPageUrl,
-          contactEmail: known.contactEmail,
-          publicContactChannels: known.publicContactChannels,
-          confidence: known.confidence,
-          foundSource: known.foundSource,
+          domain: response?.domain || "",
+          careersPageUrl: response?.careersPageUrl || "",
+          contactEmail: response?.contactEmail || "",
+          publicContactChannels: response?.publicContactChannels || [],
+          confidence: response?.confidence || "low",
+          foundSource:
+            response?.foundSource ||
+            "No evidence-backed contact source was returned.",
+          teamKeywords: response?.teamKeywords || [],
+          recruiterContacts: response?.recruiterContacts || [],
+          verificationPolicy: response?.verificationPolicy || {},
+          discoveryRunId: response?.discoveryRunId || null,
         });
-        continue;
+      } catch (error) {
+        console.error(`Recruiter scouting failed for ${companyName}`, error);
+        results.push({
+          companyName,
+          domain: "",
+          careersPageUrl: "",
+          contactEmail: "",
+          publicContactChannels: [],
+          confidence: "low",
+          foundSource:
+            "The live evidence lookup failed. No domain or email fallback was generated.",
+          teamKeywords: [],
+          recruiterContacts: [],
+          verificationPolicy: {
+            guessedEmailsReturned: false,
+          },
+          discoveryRunId: null,
+          error: error instanceof Error ? error.message : "Live lookup failed.",
+        });
       }
+    }
 
-      // If not known and we haven't hit the live scout API limit, call the scout-company Edge Function
-      if (scoutedCount < SCOUT_API_LIMIT) {
-        try {
-          const res = await invokeProtectedFunction<{
-            domain: string;
-            careersPageUrl: string;
-            contactEmail: string;
-            publicContactChannels: string[];
-            confidence: "high" | "medium" | "low";
-            foundSource: string;
-          }>("scout-company", {
-            body: { companyName },
-          });
-
-          if (res) {
-            results.push({
-              companyName,
-              domain: res.domain,
-              careersPageUrl: res.careersPageUrl,
-              contactEmail: res.contactEmail,
-              publicContactChannels: res.publicContactChannels,
-              confidence: res.confidence,
-              foundSource: res.foundSource,
-            });
-            scoutedCount++;
-            continue;
-          }
-        } catch (error) {
-          console.error(`Live scouting failed for ${companyName}, using heuristic fallback`, error);
-        }
-      }
-
-      // Fallback heuristic if API failed, is skipped, or limit was exceeded
-      const cleanCompany = companyName.replace(/\s+/g, "").toLowerCase();
+    for (const companyName of targetCompanies.slice(3)) {
       results.push({
         companyName,
-        domain: `${cleanCompany}.com`,
-        careersPageUrl: `https://www.${cleanCompany}.com/careers`,
-        contactEmail: `hr@${cleanCompany}.com`,
-        publicContactChannels: ["Contact Form", "LinkedIn Company Page"],
-        confidence: "low" as const,
-        foundSource: "Heuristic domain matching (needs verification)",
+        domain: "",
+        careersPageUrl: "",
+        contactEmail: "",
+        publicContactChannels: [],
+        confidence: "low",
+        foundSource:
+          "Skipped in this run because Recruiter Scout limits live verification to three companies per request. Run a separate scout for this company.",
+        teamKeywords: [],
+        recruiterContacts: [],
+        verificationPolicy: { guessedEmailsReturned: false },
+        discoveryRunId: null,
       });
     }
 
-    const foundEmails = results.filter((r) => r.contactEmail && r.confidence !== "low").length;
-    const needsVerification = results.filter((r) => r.confidence === "low").length;
+    const verifiedEmails = results.reduce(
+      (sum, result) =>
+        sum +
+        (result.recruiterContacts || []).filter(
+          (contact) => contact.safeToContact && contact.workEmail,
+        ).length,
+      0,
+    );
+    const linkedinProfiles = results.reduce(
+      (sum, result) => sum + (result.recruiterContacts || []).length,
+      0,
+    );
 
     return {
       status: "completed",
@@ -211,10 +291,21 @@ Company Scout needs a target company or role to find hiring channels.
         results,
         summary: {
           total: results.length,
-          foundEmails,
-          needsVerification,
+          linkedinProfiles,
+          verifiedEmails,
+          companiesWithEvidence: results.filter(
+            (result) =>
+              result.confidence !== "low" ||
+              Boolean(result.careersPageUrl) ||
+              Boolean(result.recruiterContacts?.length),
+          ).length,
         },
         progress: completedProgress,
+        guardrails: {
+          guessedEmailsReturned: false,
+          automaticSending: false,
+          requiresUserReview: true,
+        },
       },
     };
   },
