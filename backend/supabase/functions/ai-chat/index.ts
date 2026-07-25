@@ -2443,6 +2443,20 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "rtrvr_yc_startup_jobs",
+    description: "Run the RTRVR YC Startup Job Finder agent to extract job listings from Y Combinator companies (ycombinator.com/jobs).",
+    parameters: {
+      type: "object",
+      properties: {
+        role: { type: "string", description: "Role or department (e.g., Engineering, Sales, Product, Design)" },
+        batch: { type: "string", description: "YC batch filter (e.g., all, W25, S24, W24)" },
+        limit: { type: "number", description: "Maximum number of jobs to extract (default 50)" },
+        target: { type: "string", enum: ["auto", "cloud", "extension"] },
+      },
+      additionalProperties: true,
+    },
+  },
+  {
     name: "rtrvr_run",
     description: "Run a rtrvr browser agent task. This can mutate pages or submit forms and requires explicit user approval before use.",
     parameters: {
