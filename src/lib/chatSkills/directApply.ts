@@ -1,3 +1,4 @@
+import { supabase } from "@/lib/supabaseClient";
 import type {
   DirectApplyOutput,
   DirectApplyResult,
@@ -210,7 +211,9 @@ const contextText = (input: SkillExecutionInput) =>
     ...(input.conversationContext || []).map((message) => message.content),
   ].join("\n");
 
-export const resolveTargetCompanies = (input: SkillExecutionInput) => {
+export const resolveTargetCompanies = async (
+  input: SkillExecutionInput,
+): Promise<string[]> => {
   const explicit = extractTargetCompaniesFromText(input.userInstruction);
   if (explicit.length) return explicit;
 
@@ -218,6 +221,43 @@ export const resolveTargetCompanies = (input: SkillExecutionInput) => {
   for (const message of recentMessages) {
     const fromMessage = extractTargetCompaniesFromText(message.content);
     if (fromMessage.length) return fromMessage;
+  }
+
+  // Fallback: check if the prompt or context references an application (e.g. "my latest application", "recent application", "last job")
+  const fullText = [
+    input.userInstruction,
+    ...(input.conversationContext || []).map((message) => message.content),
+  ].join("\n");
+
+  const referencesApplication =
+    /\b(?:latest|recent|last|my|tracked)\b[\s\S]{0,40}\b(?:application|applications|job|apply|role|listing)\b/i.test(
+      fullText,
+    ) ||
+    /\bmy latest\b/i.test(fullText) ||
+    /\blatest application\b/i.test(fullText);
+
+  if (referencesApplication) {
+    try {
+      const { data: userAuth } = await supabase.auth.getUser();
+      const userId = userAuth?.user?.id;
+      if (userId) {
+        // Query user's latest tracked application
+        const { data: latestApp } = await (supabase as any)
+          .from("applications")
+          .select("company, job_title")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestApp?.company) {
+          const sanitized = sanitizeCompanyName(latestApp.company);
+          if (sanitized) return [sanitized];
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch latest application for target company resolution", err);
+    }
   }
 
   return [];
@@ -526,7 +566,7 @@ export const directApplySkill: JobrakerChatSkill = {
     }
 
     const fullContext = contextText(input);
-    const targetCompanies = resolveTargetCompanies(input);
+    const targetCompanies = await resolveTargetCompanies(input);
     const role = inferRoleFromContext(input.args, fullContext, targetCompanies);
     const location = textArg(input.args, "location", "");
     const roleQuery = textArg(input.args, "roleQuery", "");

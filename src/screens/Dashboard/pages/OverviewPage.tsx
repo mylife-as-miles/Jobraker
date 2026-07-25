@@ -10,6 +10,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Inbox,
+  Loader2,
   Minus,
   Pause,
   Play,
@@ -20,6 +21,7 @@ import {
   useApplications,
   ApplicationStatus,
 } from "../../../hooks/useApplications";
+import { useJobIntelligenceTasks } from "../../../hooks/useJobIntelligenceTasks";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { useAnalyticsData } from "../../../hooks/useAnalyticsData";
@@ -359,8 +361,6 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
 
   // --- Live Run (auto apply) ------------------------------------------------
 
-  // The setting toggle is the master switch; a run is only actually "live"
-  // when Auto Apply is on AND there are jobs queued for it to work through.
   const autoApplyEnabled = Boolean(liveProfile?.auto_apply_auto_submit);
 
   const queuedCount = useMemo(
@@ -368,7 +368,15 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
     [applications],
   );
 
-  const runActive = autoApplyEnabled && queuedCount > 0;
+  const { tasks: intelligenceTasks } = useJobIntelligenceTasks(6);
+
+  const activeTask = useMemo(
+    () => intelligenceTasks.find((t) => t.status === "queued" || t.status === "running"),
+    [intelligenceTasks],
+  );
+
+  const isTaskActive = Boolean(activeTask);
+  const runActive = (autoApplyEnabled && queuedCount > 0) || isTaskActive;
 
   const autoSentToday = useMemo(() => {
     const startToday = new Date();
@@ -905,33 +913,62 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
             </div>
 
             <div className='relative z-10 flex-1 flex flex-col items-center justify-center text-center'>
-              <p className='text-xs text-muted-foreground font-medium'>
-                {runActive ? "Session runtime" : "Applications sent"}
-              </p>
-              <div
-                className={`mt-1 text-4xl sm:text-5xl font-bold font-mono tracking-tight tabular-nums ${
-                  runActive ? "text-foreground" : "text-foreground/50"
-                }`}
-              >
-                {runActive
-                  ? runtimeLabel
-                  : String(autoSentToday).padStart(2, "0")}
-              </div>
-              <p className='mt-2 text-[10px] text-muted-foreground'>
-                {runActive ? (
-                  <span className='inline-flex items-center gap-1.5'>
-                    Finding matches
-                    <span className='w-1 h-1 rounded-full bg-brand' />
-                    Customizing
-                    <span className='w-1 h-1 rounded-full bg-brand' />
-                    Applying
-                  </span>
-                ) : autoApplyEnabled ? (
-                  "Waiting for new matches to apply"
-                ) : (
-                  "Resume Auto Apply to keep applying for you"
-                )}
-              </p>
+              {isTaskActive && activeTask ? (
+                <div className='w-full space-y-2 rounded-xl border border-brand/30 bg-brand/10 p-3 text-left my-2'>
+                  <div className='flex items-center justify-between gap-2'>
+                    <span className='text-xs font-semibold text-brand flex items-center gap-1.5'>
+                      <Loader2 className='h-3.5 w-3.5 animate-spin' />
+                      {activeTask.title}
+                    </span>
+                    <span className='rounded-md border border-brand/20 bg-brand/20 px-1.5 py-0.5 font-mono text-[10px] text-brand font-bold'>
+                      taskId: {activeTask.id.slice(0, 8)}
+                    </span>
+                  </div>
+                  {activeTask.params?.company && (
+                    <div className='text-xs font-medium text-foreground'>
+                      🏢 {String(activeTask.params.company)}{" "}
+                      {activeTask.params.role ? `· ${String(activeTask.params.role)}` : ""}
+                    </div>
+                  )}
+                  <p className='text-[11px] leading-relaxed text-muted-foreground'>
+                    {activeTask.message || "Running background scout & recruitment search..."}
+                  </p>
+                  <div className='flex items-center gap-1.5 text-[10px] font-semibold text-brand pt-0.5'>
+                    <span className='h-1.5 w-1.5 rounded-full bg-brand animate-ping' />
+                    <span>Scanning public sources & verified contacts</span>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className='text-xs text-muted-foreground font-medium'>
+                    {runActive ? "Session runtime" : "Applications sent"}
+                  </p>
+                  <div
+                    className={`mt-1 text-4xl sm:text-5xl font-bold font-mono tracking-tight tabular-nums ${
+                      runActive ? "text-foreground" : "text-foreground/50"
+                    }`}
+                  >
+                    {runActive
+                      ? runtimeLabel
+                      : String(autoSentToday).padStart(2, "0")}
+                  </div>
+                  <p className='mt-2 text-[10px] text-muted-foreground'>
+                    {runActive ? (
+                      <span className='inline-flex items-center gap-1.5'>
+                        Finding matches
+                        <span className='w-1 h-1 rounded-full bg-brand' />
+                        Customizing
+                        <span className='w-1 h-1 rounded-full bg-brand' />
+                        Applying
+                      </span>
+                    ) : autoApplyEnabled ? (
+                      "Waiting for new matches to apply"
+                    ) : (
+                      "Resume Auto Apply to keep applying for you"
+                    )}
+                  </p>
+                </>
+              )}
 
               <div className='mt-4 flex items-center gap-3'>
                 <button
@@ -961,22 +998,45 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
               </div>
             </div>
 
-            <div className='relative z-10 mt-4 pt-3 border-t border-foreground/10 flex items-center justify-center gap-1.5 text-[10px] font-medium'>
-              {runActive ? (
-                <>
-                  <CheckCircle2 className='w-3.5 h-3.5 text-brand' />
-                  <span className='text-foreground/70'>
-                    {queuedCount} in queue · AI Agent running smoothly
-                  </span>
-                </>
-              ) : (
-                <span className='text-foreground/40'>
-                  {autoSentToday > 0 ? `${autoSentToday} sent today · ` : ""}
-                  {autoApplyEnabled
-                    ? "Idle — no jobs in the queue"
-                    : "Auto Apply is paused"}
-                </span>
+            <div className='relative z-10 mt-4 pt-3 border-t border-foreground/10 flex flex-col gap-2 text-[10px] font-medium'>
+              {intelligenceTasks.length > 0 && (
+                <div className='w-full text-left space-y-1.5 mb-1'>
+                  <div className='text-[9px] font-bold uppercase tracking-wider text-muted-foreground'>
+                    Active & Recent Tasks
+                  </div>
+                  {intelligenceTasks.slice(0, 3).map((t) => (
+                    <div key={t.id} className='flex items-center justify-between gap-2 text-[11px] bg-card/60 border border-border/50 rounded-lg px-2.5 py-1.5'>
+                      <div className='flex items-center gap-1.5 truncate'>
+                        <span className={`h-2 w-2 rounded-full shrink-0 ${t.status === "running" ? "bg-brand animate-pulse" : t.status === "queued" ? "bg-amber-400 animate-pulse" : t.status === "completed" ? "bg-brand/60" : "bg-red-400"}`} />
+                        <span className='font-medium text-foreground truncate'>{t.title}</span>
+                      </div>
+                      <span className='font-mono text-[10px] text-brand/80 shrink-0 font-bold'>
+                        {t.id.slice(0, 6)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
+
+              <div className='flex items-center justify-center gap-1.5 text-foreground/70'>
+                {runActive ? (
+                  <>
+                    <CheckCircle2 className='w-3.5 h-3.5 text-brand' />
+                    <span>
+                      {isTaskActive
+                        ? `${intelligenceTasks.filter((t) => t.status === "running" || t.status === "queued").length} active background task(s)`
+                        : `${queuedCount} in queue · AI Agent running smoothly`}
+                    </span>
+                  </>
+                ) : (
+                  <span className='text-foreground/40'>
+                    {autoSentToday > 0 ? `${autoSentToday} sent today · ` : ""}
+                    {autoApplyEnabled
+                      ? "Idle — no jobs in the queue"
+                      : "Auto Apply is paused"}
+                  </span>
+                )}
+              </div>
             </div>
           </Card>
         </div>

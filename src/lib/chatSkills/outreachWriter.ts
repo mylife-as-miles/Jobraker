@@ -77,7 +77,7 @@ export const outreachWriterSkill: JobrakerChatSkill = {
     }
 
     // 1. Resolve Target Company & Role
-    const targetCompanies = resolveTargetCompanies(input);
+    const targetCompanies = await resolveTargetCompanies(input);
     const fullContext = [
       input.userInstruction,
       ...(input.conversationContext || []).map((msg) => msg.content),

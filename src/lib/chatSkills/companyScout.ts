@@ -1,4 +1,5 @@
 import { invokeProtectedFunction } from "@/services/supabase/invokeProtectedFunction";
+import { supabase } from "@/lib/supabaseClient";
 import { resolveTargetCompanies } from "./directApply";
 import type {
   JobrakerChatSkill,
@@ -129,10 +130,10 @@ export const companyScoutSkill: JobrakerChatSkill = {
   id: "company_scout",
   name: "Recruiter Scout",
   aliases: [
-    "@CompanyScout",
     "@RecruiterScout",
-    "/company-scout",
+    "@CompanyScout",
     "/recruiter-scout",
+    "/company-scout",
     "/find-company-emails",
     "/find-hiring-manager",
   ],
@@ -162,14 +163,14 @@ export const companyScoutSkill: JobrakerChatSkill = {
       await delay(160);
     }
 
-    const targetCompanies = resolveTargetCompanies(input);
+    const targetCompanies = await resolveTargetCompanies(input);
     if (!targetCompanies.length) {
       return {
         status: "completed",
-        content: `### Recruiter Scout
+        content: `### 🔍 Recruiter Scout
 Recruiter Scout needs a company or an application context.
 
-Try one of these:
+**Try one of these:**
 - \`@RecruiterScout find the hiring manager for Google Trust and Safety\`
 - \`/recruiter-scout find verified contacts for my latest application\``,
         output: {
@@ -185,6 +186,7 @@ Try one of these:
       };
     }
 
+    const primaryCompany = targetCompanies[0] || "Target Company";
     const roleQuery =
       asString(input.args.roleQuery) ||
       asString(input.args.jobTitle) ||
@@ -196,6 +198,34 @@ Try one of these:
       asString(input.args.jobDescription) ||
       asString(input.args.job_description);
     const applyUrl = asString(input.args.applyUrl) || asString(input.args.apply_url);
+
+    // Track task in job_intelligence_tasks for Live Run display
+    let createdTaskId: string | null = null;
+    try {
+      const { data: userAuth } = await supabase.auth.getUser();
+      if (userAuth?.user?.id) {
+        const { data: inserted } = await (supabase as any)
+          .from("job_intelligence_tasks")
+          .insert({
+            user_id: userAuth.user.id,
+            type: "scout_search",
+            title: `Recruiter Scout: ${primaryCompany}`,
+            message: `Scanning for verified contacts and recruiter profiles for ${primaryCompany}${roleQuery ? ` (${roleQuery})` : ""}.`,
+            status: "running",
+            progress_current: 1,
+            progress_total: SCOUT_PROGRESS.length,
+            params: { company: primaryCompany, role: roleQuery },
+            result: {},
+          })
+          .select("id")
+          .single();
+        if (inserted?.id) {
+          createdTaskId = inserted.id;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not insert scout_search task", err);
+    }
 
     const results: CompanyScoutResult[] = [];
     const liveTargets = targetCompanies.slice(0, 3);
@@ -284,10 +314,28 @@ Try one of these:
       0,
     );
 
+    if (createdTaskId) {
+      try {
+        await (supabase as any)
+          .from("job_intelligence_tasks")
+          .update({
+            status: "completed",
+            progress_current: SCOUT_PROGRESS.length,
+            message: `Scout search completed for ${primaryCompany}. Found ${verifiedEmails} verified emails.`,
+            result: { count: results.length, verifiedEmails },
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", createdTaskId);
+      } catch (err) {
+        console.warn("Could not update scout_search task", err);
+      }
+    }
+
     return {
       status: "completed",
       content: formatCompanyScoutToMarkdown(results),
       output: {
+        taskId: createdTaskId ? createdTaskId.slice(0, 8) : undefined,
         results,
         summary: {
           total: results.length,

@@ -83,9 +83,9 @@ const extractArgs = (instruction: string): Record<string, unknown> => {
   const roleQuery = instruction
     .replace(/\b\d{1,2}\b/g, " ")
     .replace(/\b(apply|direct|directly|to|for|find|official|verified)\b/gi, " ")
-    .replace(/\b(companies?|company|channels?|emails?|recruitment)\b/gi, " ")
+    .replace(/\b(companies?|company|channels?|emails?|recruitment|recruiter|recruiters|contacts?|hiring manager)\b/gi, " ")
     .replace(/\b(hiring|roles?|jobs?|openings?|vacancies?)\b/gi, " ")
-    .replace(/\b(these|those|this|that|public|safe|possible)\b/gi, " ")
+    .replace(/\b(these|those|this|that|public|safe|possible|my|latest|recent|last|application)\b/gi, " ")
     .replace(/\b(in|near|around)\s+[a-z][a-z\s-]{1,40}$/i, " ")
     .replace(/\b(lagos|nigeria|remote|fintech)\b/gi, " ")
     .replace(/\s+/g, " ")
