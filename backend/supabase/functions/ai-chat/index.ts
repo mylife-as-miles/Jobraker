@@ -2413,6 +2413,21 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "rtrvr_job_aggregator",
+    description: "Run the RTRVR Ultimate Job Aggregator agent to search, extract, and deduplicate jobs across LinkedIn, Indeed, and Glassdoor.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Job title or keywords (e.g., Software Engineer, Product Manager)" },
+        location: { type: "string", description: "Location (e.g., Remote, San Francisco, New York)" },
+        salary_min: { type: "string", description: "Minimum annual salary filter (e.g., 120000)" },
+        limit: { type: "number", description: "Maximum number of total jobs to extract across all platforms (default 100)" },
+        target: { type: "string", enum: ["auto", "cloud", "extension"] },
+      },
+      required: ["title"],
+      additionalProperties: true,
+    },
+  },
     name: "rtrvr_run",
     description: "Run a rtrvr browser agent task. This can mutate pages or submit forms and requires explicit user approval before use.",
     parameters: {

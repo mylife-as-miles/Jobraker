@@ -8,6 +8,7 @@ const READ_ONLY_TOOLS = new Set([
   "rtrvr_capabilities",
   "rtrvr_extract_from_page",
   "rtrvr_linkedin_job_hunter",
+  "rtrvr_job_aggregator",
 ]);
 const MUTATING_TOOLS = new Set(["rtrvr_run", "rtrvr_act_on_page"]);
 
