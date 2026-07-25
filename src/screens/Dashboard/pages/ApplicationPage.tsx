@@ -10,7 +10,7 @@ import { applyMicro1ReferralToUrl } from "../../../utils/micro1Referral";
 import { APPLICATION_STATUS_OPTIONS } from "@/lib/applicationState";
 
 /** All + pipeline statuses for filters, URL params, and prefs */
-const APPLICATION_STATUS_FILTERS = ["All", ...APPLICATION_STATUS_OPTIONS] as const;
+const APPLICATION_STATUS_FILTERS = ["All", "🤖 AI Tasks", ...APPLICATION_STATUS_OPTIONS] as const;
 import { Skeleton } from "../../../components/ui/skeleton";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
@@ -51,7 +51,16 @@ import {
   AlertTriangle,
   Info,
   Clock,
+  Sparkles,
+  ShieldCheck,
+  Layers,
+  Loader2,
+  Activity,
 } from "lucide-react";
+import {
+  useJobIntelligenceTasks,
+  type JobIntelligenceTask,
+} from "../../../hooks/useJobIntelligenceTasks";
 import {
   KanbanProvider,
   KanbanBoard,
@@ -557,9 +566,24 @@ function ApplicationPage() {
     remove,
     removeAll,
     refresh,
-    loading: appsLoading,
-  } = useApplications();
-  const gamificationHook = useGamification();
+  const { tasks: aiTasks } = useJobIntelligenceTasks(30);
+
+  const getLinkedAiTasks = useCallback(
+    (app: { company?: string; job_title?: string; id?: string }) => {
+      const companyLower = (app.company || "").toLowerCase().trim();
+      const titleLower = (app.job_title || "").toLowerCase().trim();
+      return aiTasks.filter((t) => {
+        const tComp = String(t.params?.company || "").toLowerCase().trim();
+        const tTitle = String(t.title || "").toLowerCase();
+        return (
+          (companyLower && tComp && companyLower.includes(tComp)) ||
+          (companyLower && tTitle.includes(companyLower)) ||
+          (titleLower && tTitle.includes(titleLower))
+        );
+      });
+    },
+    [aiTasks],
+  );
 
   // Debounced search state: raw input updates immediately; searchQuery drives filters.
   const [rawSearch, setRawSearch] = useState("");
@@ -612,6 +636,10 @@ function ApplicationPage() {
     () => applications.find((a) => a.id === detailId) || null,
     [detailId, applications],
   );
+  const detailLinkedTasks = useMemo(() => {
+    if (!detailApp) return [];
+    return getLinkedAiTasks(detailApp);
+  }, [detailApp, getLinkedAiTasks]);
   const aiNotesText = useMemo(
     () => formatAiEvaluationNotes(detailEvaluation),
     [detailEvaluation],
@@ -932,7 +960,11 @@ function ApplicationPage() {
           (v ?? "").toLowerCase().includes(q),
         );
       const matchesStatus =
-        selectedStatus === "All" || a.status === selectedStatus;
+        selectedStatus === "All"
+          ? true
+          : (selectedStatus as string) === "🤖 AI Tasks"
+            ? getLinkedAiTasks(a).length > 0 || Boolean(a.run_id || a.automation_provider)
+            : a.status === selectedStatus;
       return matchesQ && matchesStatus;
     });
     const extractScore = (rec: any): number | null => {
@@ -1144,6 +1176,108 @@ function ApplicationPage() {
           ) : null}
         </div>
       </div>
+
+      {/* AI Agent Tasks & Automation Pipeline Hub */}
+      {aiTasks.length > 0 && (
+        <Card className='relative overflow-hidden rounded-2xl border border-[#2fd968]/30 bg-gradient-to-br from-card/90 via-card/50 to-card/20 p-5 shadow-xl backdrop-blur-xl'>
+          <div className='absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#2fd968]/10 blur-3xl' />
+          <div className='relative z-10 flex flex-col gap-4'>
+            <div className='flex flex-wrap items-center justify-between gap-3 border-b border-[#2fd968]/15 pb-3'>
+              <div className='flex items-center gap-2.5'>
+                <div className='flex h-9 w-9 items-center justify-center rounded-xl border border-[#2fd968]/30 bg-[#2fd968]/10 text-[#2fd968]'>
+                  <Bot className='h-4 w-4' />
+                </div>
+                <div>
+                  <h3 className='text-base font-semibold text-foreground tracking-tight flex items-center gap-2'>
+                    AI Agent Tasks & Automation Pipeline
+                    <span className='rounded-full border border-[#2fd968]/30 bg-[#2fd968]/15 px-2.5 py-0.5 text-[10px] font-bold text-[#2fd968]'>
+                      {aiTasks.length} Task{aiTasks.length === 1 ? "" : "s"} Tracked
+                    </span>
+                  </h3>
+                  <p className='text-xs text-muted-foreground'>
+                    Every scheduled, queued, and active AI search or application task
+                  </p>
+                </div>
+              </div>
+              <Button
+                size='sm'
+                variant='outline'
+                onClick={() => setSelectedStatus("🤖 AI Tasks" as any)}
+                className='border-[#2fd968]/30 bg-[#2fd968]/10 text-[#2fd968] hover:bg-[#2fd968]/20 transition-all text-xs font-semibold'
+              >
+                Filter by AI Tasks ({aiTasks.filter((t) => t.status === "running" || t.status === "queued").length} active)
+              </Button>
+            </div>
+
+            {/* Task Cards horizontal list */}
+            <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+              {aiTasks.slice(0, 6).map((task) => {
+                const targetCompany = String(task.params?.company || "");
+                const matchedApp = applications.find(
+                  (a) =>
+                    targetCompany &&
+                    a.company.toLowerCase().includes(targetCompany.toLowerCase()),
+                );
+
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => {
+                      if (matchedApp) {
+                        setDetailId(matchedApp.id);
+                      } else {
+                        info(
+                          task.title,
+                          task.message || `AI Task ${task.id.slice(0, 8)} (${task.status})`,
+                        );
+                      }
+                    }}
+                    className='group relative flex cursor-pointer flex-col justify-between rounded-xl border border-foreground/10 bg-background/60 p-3.5 transition-all hover:border-[#2fd968]/40 hover:bg-card/80 shadow-sm'
+                  >
+                    <div className='space-y-1.5'>
+                      <div className='flex items-center justify-between gap-2'>
+                        <span className='flex items-center gap-1.5 text-xs font-semibold text-foreground group-hover:text-[#2fd968] transition-colors truncate'>
+                          {task.type === "scout_search" ? (
+                            <Search className='h-3.5 w-3.5 text-[#2fd968] shrink-0' />
+                          ) : task.type === "job_reevaluation" ? (
+                            <Sparkles className='h-3.5 w-3.5 text-amber-400 shrink-0' />
+                          ) : (
+                            <Zap className='h-3.5 w-3.5 text-[#2fd968] shrink-0' />
+                          )}
+                          <span className='truncate'>{task.title}</span>
+                        </span>
+                        <span
+                          className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                            task.status === "running"
+                              ? "bg-[#2fd968]/20 text-[#2fd968] border-[#2fd968]/40 animate-pulse"
+                              : task.status === "queued"
+                                ? "bg-amber-400/20 text-amber-300 border-amber-400/40 animate-pulse"
+                                : task.status === "completed"
+                                  ? "bg-[#2fd968]/10 text-[#2fd968] border-[#2fd968]/20"
+                                  : "bg-rose-400/10 text-rose-400 border-rose-400/20"
+                          }`}
+                        >
+                          {task.status}
+                        </span>
+                      </div>
+                      <p className='text-[11px] leading-relaxed text-muted-foreground line-clamp-2'>
+                        {task.message || "Executing background task step..."}
+                      </p>
+                    </div>
+
+                    <div className='mt-2.5 flex items-center justify-between border-t border-foreground/5 pt-2 font-mono text-[10px] text-muted-foreground'>
+                      <span className='font-bold text-[#2fd968]'>
+                        taskId: {task.id.slice(0, 8)}
+                      </span>
+                      <span>{new Date(task.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Toolbar */}
       <Card className='relative overflow-hidden border-none'>
@@ -1742,6 +1876,86 @@ function ApplicationPage() {
                 )}
               </div>
             )}
+
+            {/* Explainable AI Agent Executions & Task Timeline */}
+            <div className='rounded-2xl border border-[#2fd968]/30 bg-gradient-to-br from-card/80 via-card/50 to-card/20 p-5 space-y-4 backdrop-blur-xl shadow-lg'>
+              <div className='flex items-center justify-between border-b border-[#2fd968]/15 pb-3'>
+                <div className='flex items-center gap-2.5'>
+                  <div className='flex h-9 w-9 items-center justify-center rounded-xl border border-[#2fd968]/30 bg-[#2fd968]/10 text-[#2fd968]'>
+                    <Bot className='h-4 w-4' />
+                  </div>
+                  <div>
+                    <h3 className='text-base font-semibold text-foreground tracking-tight flex items-center gap-2'>
+                      AI Agent Executions & Task Timeline
+                      <span className='rounded-full border border-[#2fd968]/30 bg-[#2fd968]/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#2fd968]'>
+                        Explainable AI
+                      </span>
+                    </h3>
+                    <p className='text-xs text-muted-foreground'>
+                      Every scheduled, queued, or running AI task linked to {detailApp.company}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className='space-y-2.5'>
+                {detailLinkedTasks.length > 0 ? (
+                  detailLinkedTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className='rounded-xl border border-foreground/10 bg-background/50 p-3.5 space-y-2 text-xs transition-all hover:border-[#2fd968]/30'
+                    >
+                      <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-2'>
+                        <div className='flex items-center gap-2 font-semibold text-foreground'>
+                          {task.type === "scout_search" ? (
+                            <Search className='h-4 w-4 text-[#2fd968]' />
+                          ) : task.type === "job_reevaluation" ? (
+                            <Sparkles className='h-4 w-4 text-amber-400' />
+                          ) : (
+                            <Zap className='h-4 w-4 text-[#2fd968]' />
+                          )}
+                          <span>{task.title}</span>
+                        </div>
+                        <div className='flex items-center gap-2'>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                              task.status === "running"
+                                ? "bg-[#2fd968]/20 text-[#2fd968] border-[#2fd968]/40 animate-pulse"
+                                : task.status === "queued"
+                                  ? "bg-amber-400/20 text-amber-300 border-amber-400/40 animate-pulse"
+                                  : task.status === "completed"
+                                    ? "bg-[#2fd968]/10 text-[#2fd968] border-[#2fd968]/20"
+                                    : "bg-rose-400/10 text-rose-400 border-rose-400/20"
+                            }`}
+                          >
+                            {task.status}
+                          </span>
+                          <span className='rounded-md border border-[#2fd968]/20 bg-[#2fd968]/10 px-2 py-0.5 font-mono text-[10px] font-bold text-[#2fd968]'>
+                            taskId: {task.id.slice(0, 8)}
+                          </span>
+                        </div>
+                      </div>
+                      <p className='text-foreground/80 leading-relaxed'>
+                        {task.message || "Executing AI workflow step..."}
+                      </p>
+                      <div className='flex flex-wrap items-center justify-between text-[10px] text-muted-foreground pt-2 border-t border-foreground/5'>
+                        <span>
+                          Target: <strong className='text-foreground'>{detailApp.company}</strong> ({detailApp.job_title})
+                        </span>
+                        <span>Created: {new Date(task.created_at).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className='rounded-xl border border-dashed border-foreground/15 p-4 text-center text-xs text-muted-foreground space-y-1'>
+                    <p className='font-medium text-foreground/80'>No active background task currently linked to this application.</p>
+                    <p className='text-[11px] text-muted-foreground'>
+                      You can queue a <strong className='text-[#2fd968]'>@RecruiterScout</strong> search or launch <strong className='text-[#2fd968]'>Auto Apply</strong> in Chat anytime.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Timeline & Key Dates */}
             <div className='space-y-3'>
