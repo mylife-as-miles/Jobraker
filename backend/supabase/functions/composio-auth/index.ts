@@ -113,22 +113,54 @@ Deno.serve(async (req) => {
       const callbackUrl = buildOAuthCallbackUrl(req, slug, body.oauthRequestId);
       const linkConnection = async (configId: string) => {
         const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-        return await fetch("https://backend.composio.dev/api/v3/connected_accounts/link", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-          },
-          body: JSON.stringify({
-            user_id: userId,
-            auth_config_id: configId,
-            ...(callbackUrl ? { callback_url: callbackUrl } : {}),
-          }),
-        });
+        try {
+          const conn = await composio.connectedAccounts.link(userId, configId, {
+            ...(callbackUrl ? { callbackUrl } : {}),
+          });
+          return {
+            ok: true,
+            status: 200,
+            connectionId: conn.id || (conn as any).connected_account_id || (conn as any).connectionId,
+            redirectUrl: conn.redirectUrl || (conn as any).redirect_url,
+          };
+        } catch (sdkErr: any) {
+          const errStr = String(sdkErr?.message || sdkErr?.cause?.message || sdkErr);
+          console.warn(`SDK link call failed for config ${configId}: ${errStr}. Trying REST v3 link fallback...`);
+
+          const res = await fetch("https://backend.composio.dev/api/v3/link", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": apiKey,
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              auth_config_id: configId,
+              ...(callbackUrl ? { callback_url: callbackUrl } : {}),
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            return {
+              ok: true,
+              status: 200,
+              connectionId: data.id || data.connected_account_id || data.connectionId,
+              redirectUrl: data.redirectUrl || data.redirect_url,
+            };
+          }
+
+          const errorText = await res.text();
+          return {
+            ok: false,
+            status: res.status,
+            errorText: `${errStr} | REST (${res.status}): ${errorText}`,
+          };
+        }
       };
 
       let finalAuthConfigId = authConfigId;
-      let response: Response | null = null;
+      let connectionData: { connectionId?: string; redirectUrl?: string } | null = null;
 
       if (finalAuthConfigId) {
         const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
@@ -154,9 +186,9 @@ Deno.serve(async (req) => {
       if (finalAuthConfigId) {
         const res = await linkConnection(finalAuthConfigId);
         if (res.ok) {
-          response = res;
+          connectionData = res;
         } else {
-          const errorText = await res.text();
+          const errorText = res.errorText || "";
           if (
             (res.status === 400 || res.status === 404) &&
             (errorText.includes("Auth_Config_NotFound") ||
@@ -228,18 +260,15 @@ Deno.serve(async (req) => {
 
         const res = await linkConnection(finalAuthConfigId);
         if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`Composio API error (${res.status}): ${errorText}`);
+          throw new Error(`Composio API error (${res.status}): ${res.errorText}`);
         }
-        response = res;
+        connectionData = res;
       }
-
-      const connectionRequest = await response.json();
 
       return new Response(
         JSON.stringify({
-          connectionId: connectionRequest.id || connectionRequest.connectionId,
-          redirectUrl: connectionRequest.redirectUrl || connectionRequest.redirect_url,
+          connectionId: connectionData?.connectionId,
+          redirectUrl: connectionData?.redirectUrl,
           callbackConfigured: Boolean(callbackUrl),
         }),
         {
@@ -248,25 +277,29 @@ Deno.serve(async (req) => {
         }
       );
     } else if (action === "disconnect" || action === "delete") {
-      if (!connectionId) {
+      if (!connectionId || typeof connectionId !== "string") {
         return new Response(JSON.stringify({ error: "Missing connectionId for disconnect action" }), {
           status: 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
 
-      const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-      const response = await fetch(`https://backend.composio.dev/api/v1/client/auth/connection/${connectionId}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Composio API error (${response.status}): ${errorText}`);
+      try {
+        await composio.connectedAccounts.delete(connectionId);
+      } catch (e: any) {
+        console.warn(`SDK disconnect error for ${connectionId}:`, e);
+        const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+        const response = await fetch(`https://backend.composio.dev/api/v3/connected_accounts/${encodeURIComponent(connectionId)}`, {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+          },
+        });
+        if (!response.ok && response.status !== 404) {
+          const errorText = await response.text();
+          throw new Error(`Composio API error (${response.status}): ${errorText}`);
+        }
       }
 
       return new Response(

@@ -566,6 +566,7 @@ function ApplicationPage() {
     remove,
     removeAll,
     refresh,
+  } = useApplications();
   const { tasks: aiTasks } = useJobIntelligenceTasks(30);
 
   const getLinkedAiTasks = useCallback(
