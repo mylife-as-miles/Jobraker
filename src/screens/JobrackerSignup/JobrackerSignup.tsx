@@ -839,7 +839,7 @@ export const JobrackerSignup = (): JSX.Element => {
         <div className='absolute inset-0 bg-[linear-gradient(rgba(47,217,104,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(47,217,104,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,background_40%,transparent_80%)]' />
 
         {/* 3D Self-Solving Cube */}
-        <div className='absolute inset-0 flex items-center justify-center scale-110 translate-x-12 pointer-events-none'>
+        <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
           <SelfSolvingCube />
         </div>
 
