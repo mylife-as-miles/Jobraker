@@ -8,22 +8,45 @@ const A4_WIDTH_PX = 794;
 const A4_HEIGHT_PX = 1123;
 
 /**
- * Copy the app's stylesheets / font links into the print frame so the resume
- * renders with the exact same styles it has on screen. Returns promises that
- * resolve once external stylesheets have loaded.
+ * Reproduce the app's styles inside the print frame.
+ *
+ * Same-origin stylesheets are inlined as already-parsed CSS text rather than
+ * re-linked: a cloned <link> has to be re-fetched and re-parsed by the frame,
+ * which can lose the race against print() (and leaves the resume completely
+ * unstyled when it does). Cross-origin sheets — Google Fonts — cannot be read,
+ * so those keep the <link> clone and are awaited.
  */
-function cloneHeadStyles(source: Document, target: Document): Promise<void>[] {
+function injectStyles(source: Document, target: Document): Promise<void>[] {
   const waits: Promise<void>[] = [];
-  const nodes = source.querySelectorAll(
-    'style, link[rel="stylesheet"], link[rel="preconnect"], link[href*="fonts.googleapis"], link[href*="fonts.gstatic"]',
-  );
-  nodes.forEach((node) => {
-    const clone = node.cloneNode(true) as HTMLElement;
-    target.head.appendChild(clone);
-    if (
-      clone.tagName === "LINK" &&
-      (clone as HTMLLinkElement).rel === "stylesheet"
-    ) {
+
+  // Keeps relative url() references (fonts, background images) resolvable.
+  const base = target.createElement("base");
+  base.href = source.baseURI;
+  target.head.appendChild(base);
+
+  const cssChunks: string[] = [];
+
+  Array.from(source.styleSheets).forEach((sheet) => {
+    let rules: CSSRuleList | null = null;
+    try {
+      rules = (sheet as CSSStyleSheet).cssRules;
+    } catch {
+      rules = null; // cross-origin — not readable
+    }
+
+    if (rules) {
+      cssChunks.push(
+        Array.from(rules)
+          .map((rule) => rule.cssText)
+          .join("\n"),
+      );
+      return;
+    }
+
+    const owner = sheet.ownerNode as HTMLElement | null;
+    if (owner && owner.tagName === "LINK") {
+      const clone = owner.cloneNode(true) as HTMLLinkElement;
+      target.head.appendChild(clone);
       waits.push(
         new Promise<void>((resolve) => {
           clone.addEventListener("load", () => resolve(), { once: true });
@@ -33,6 +56,16 @@ function cloneHeadStyles(source: Document, target: Document): Promise<void>[] {
       );
     }
   });
+
+  // Preconnect hints help the cross-origin font links above resolve quickly.
+  source
+    .querySelectorAll('link[rel="preconnect"]')
+    .forEach((node) => target.head.appendChild(node.cloneNode(true)));
+
+  const style = target.createElement("style");
+  style.textContent = cssChunks.join("\n");
+  target.head.appendChild(style);
+
   return waits;
 }
 
@@ -113,7 +146,7 @@ export async function renderResumePrintFrame(
     // The print dialog seeds the "Save as PDF" filename from the title.
     doc.title = `${(resumeData.basics.name || "Resume").replace(/\s+/g, "_")}_Resume`;
 
-    const styleWaits = cloneHeadStyles(document, doc);
+    const styleWaits = injectStyles(document, doc);
 
     // Appended AFTER the app's stylesheets so these rules win the cascade —
     // otherwise the app's dark `body { background }` bleeds into the page.
