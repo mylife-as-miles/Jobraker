@@ -456,6 +456,13 @@ function App() {
 
 // Add error logging
 window.addEventListener("error", (event) => {
+  if (
+    event.error?.name === "InvalidNodeTypeError" ||
+    (event.message && String(event.message).includes("selectNode"))
+  ) {
+    event.preventDefault();
+    return;
+  }
   console.error("Global error:", event.error);
 });
 

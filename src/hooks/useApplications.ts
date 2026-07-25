@@ -674,20 +674,36 @@ export function useApplications() {
   const removeAll = useCallback(async (ids?: string[]) => {
     if (!userId) return;
     const current = applications;
+    const isDeletingAll = !ids || ids.length === 0 || ids.length === applications.length;
     const targetIds = ids && ids.length > 0 ? ids : applications.map((a) => a.id);
-    if (targetIds.length === 0) return;
+    if (!isDeletingAll && targetIds.length === 0) return;
 
     try {
-      const targetSet = new Set(targetIds);
-      setApplications((prev) => prev.filter((r) => !targetSet.has(r.id)));
+      if (isDeletingAll) {
+        setApplications([]);
+        const { error } = await (supabase as any)
+          .from("applications")
+          .delete()
+          .eq("user_id", userId);
 
-      const { error } = await (supabase as any)
-        .from("applications")
-        .delete()
-        .eq("user_id", userId)
-        .in("id", targetIds);
+        if (error) throw error;
+      } else {
+        const targetSet = new Set(targetIds);
+        setApplications((prev) => prev.filter((r) => !targetSet.has(r.id)));
 
-      if (error) throw error;
+        // Batch delete in chunks of 50 to prevent PostgREST oversized URL parameter string / 400 Bad Request
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < targetIds.length; i += BATCH_SIZE) {
+          const chunk = targetIds.slice(i, i + BATCH_SIZE);
+          const { error } = await (supabase as any)
+            .from("applications")
+            .delete()
+            .in("id", chunk);
+
+          if (error) throw error;
+        }
+      }
+
       info(
         "Applications deleted",
         `${targetIds.length} application${targetIds.length > 1 ? "s" : ""} removed.`,
