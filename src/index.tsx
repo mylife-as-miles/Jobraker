@@ -71,30 +71,86 @@ function isAdminPublicPath(pathname: string) {
   );
 }
 
-// Error boundary component
+// Error boundary component with interactive recovery actions
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
-  { hasError: boolean }
+  ErrorBoundaryState
 > {
   constructor(props: { children: React.ReactNode }) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(): { hasError: boolean } {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("Application error:", error, errorInfo);
+    console.error("Application Error Boundary caught error:", error, errorInfo);
   }
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: null });
+    window.location.href = "/dashboard";
+  };
+
+  handleReload = () => {
+    window.location.reload();
+  };
 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: "20px", textAlign: "center" }}>
-          <h1>Something went wrong.</h1>
-          <p>Please refresh the page or contact support.</p>
+        <div className="min-h-screen w-full bg-[#08090d] text-foreground flex flex-col items-center justify-center p-6 relative overflow-hidden">
+          {/* Subtle Ambient Radial Glow */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#2fd968]/5 rounded-full blur-[140px] pointer-events-none" />
+
+          <div className="relative z-10 max-w-md w-full rounded-2xl border border-foreground/10 bg-card/60 backdrop-blur-2xl p-6 sm:p-8 shadow-2xl text-center space-y-5">
+            <div className="mx-auto w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+
+            <div className="space-y-1.5">
+              <h1 className="text-xl font-bold text-foreground tracking-tight">
+                Something went wrong
+              </h1>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                JobRaker encountered an unexpected state. You can reload the application or return to your dashboard.
+              </p>
+            </div>
+
+            {this.state.error?.message && (
+              <div className="rounded-xl border border-foreground/10 bg-black/40 p-3 text-left">
+                <p className="font-mono text-[11px] text-red-400/90 break-words leading-relaxed">
+                  {this.state.error.message}
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={this.handleReload}
+                className="w-full sm:flex-1 h-10 rounded-xl bg-brand text-black font-semibold text-xs hover:bg-brand/90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/10 cursor-pointer"
+              >
+                ⚡ Reload Application
+              </button>
+              <button
+                type="button"
+                onClick={this.handleReset}
+                className="w-full sm:flex-1 h-10 rounded-xl border border-foreground/15 bg-foreground/5 text-foreground font-semibold text-xs hover:bg-foreground/10 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                🏠 Return to Dashboard
+              </button>
+            </div>
+          </div>
         </div>
       );
     }
