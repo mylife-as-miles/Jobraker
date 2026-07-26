@@ -319,9 +319,9 @@ Deno.serve(async (req) => {
       // Use v3 API (v1 is deprecated and returns 410)
       const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
 
-      // Fetch connected accounts for this user via v3 API
+      // Fetch connected accounts for this user via v3.1 API
       const accountsResponse = await fetch(
-        `https://backend.composio.dev/api/v3/connected_accounts?user_id=${encodeURIComponent(userId)}`,
+        `https://backend.composio.dev/api/v3.1/connected_accounts?user_id=${encodeURIComponent(userId)}`,
         {
           method: "GET",
           headers: { "x-api-key": apiKey },
