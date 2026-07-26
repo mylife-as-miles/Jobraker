@@ -3057,11 +3057,24 @@ export const JobPage = (): JSX.Element => {
         return false;
       }
 
-      const resumeText = activeResumeText.trim();
+      let resumeText = activeResumeText.trim();
+      if (!resumeText) {
+        // Fallback candidate text built from profile if raw resume text is empty/loading
+        const profileParts = [
+          profileFullName ? `Name: ${profileFullName}` : "",
+          profile?.job_title ? `Title: ${profile.job_title}` : "",
+          profile?.location ? `Location: ${profile.location}` : "",
+          profile?.phone ? `Phone: ${profile.phone}` : "",
+        ].filter(Boolean);
+        if (profileParts.length > 0) {
+          resumeText = profileParts.join("\n");
+        }
+      }
+
       if (!resumeText) {
         safeInfo(
           "Resume required",
-          "Select a resume with readable text before generating an AI draft.",
+          "Select a resume or complete your candidate profile before generating an AI draft.",
         );
         return false;
       }
