@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
           const errStr = String(sdkErr?.message || sdkErr?.cause?.message || sdkErr);
           console.warn(`SDK link call failed for config ${configId}: ${errStr}. Trying REST v3 link fallback...`);
 
-          const res = await fetch("https://backend.composio.dev/api/v3/link", {
+          const res = await fetch("https://backend.composio.dev/api/v3.1/connected_accounts/link", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
