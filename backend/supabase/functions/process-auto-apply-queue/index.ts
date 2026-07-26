@@ -357,6 +357,7 @@ serve(async (req) => {
                 .from("applications")
                 .update({
                   run_id: runId,
+                  status: "Applied",
                   provider_status: "running",
                   canonical_stage: "submitted",
                   automation_provider: "rtrvr",
