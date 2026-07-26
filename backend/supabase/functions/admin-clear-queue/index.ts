@@ -66,17 +66,11 @@ serve(async (req: Request) => {
       return jsonResponse(req, { error: "Admin access required" }, 403);
     }
 
-    // Clear all queued applications
+    // Clear/delete all queued and pending applications
     const { data: updatedApps, error: updateError } = await serviceClient
       .from("applications")
-      .update({
-        canonical_stage: "failed",
-        status: "Failed",
-        provider_status: "cancelled",
-        failure_reason: "Cleared from queue by admin",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("canonical_stage", "queued")
+      .delete()
+      .or("canonical_stage.eq.queued,status.eq.Pending,provider_status.in.(waiting,waiting_worker,launching)")
       .select("id");
 
     if (updateError) {
