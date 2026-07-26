@@ -116,22 +116,32 @@ const StatCard = ({
   const rounded = Math.round(deltaPct);
   const DeltaIcon =
     rounded > 0 ? ArrowUpRight : rounded < 0 ? ArrowDownRight : Minus;
+  const highlightStyle = highlight
+    ? {
+        background:
+          "linear-gradient(135deg, #55e990 0%, #2edb6b 48%, #63c99a 100%)",
+      }
+    : undefined;
+
   return (
     <Card
-      className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 transition-all duration-300 group hover:-translate-y-0.5 ${
+      style={highlightStyle}
+      className={`group relative overflow-hidden border transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 ${
         highlight
-          ? "text-slate-950 border-emerald-300/60 bg-[linear-gradient(135deg,#5cf29a_0%,#2fd968_38%,#17b85f_72%,#0a7a42_100%)] shadow-[0_10px_30px_rgba(47,217,104,0.25)] hover:shadow-[0_15px_40px_rgba(47,217,104,0.4)]"
-          : "bg-card/50 backdrop-blur-xl border-foreground/10 hover:border-brand/30"
+          ? "min-h-[188px] rounded-[20px] border-white/25 p-[26px] text-slate-950 shadow-[0_12px_32px_rgba(24,190,95,0.24)] hover:shadow-[0_16px_38px_rgba(24,190,95,0.32)]"
+          : "rounded-2xl border-foreground/10 bg-card/50 p-4 sm:p-5 backdrop-blur-xl hover:border-brand/30"
       }`}
     >
-      {/* Radial gloss overlay for depth */}
+      {/* Soft highlight preserves the airy, dimensional green reference surface. */}
       {highlight && (
-        <div className='absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.45)_0%,transparent_65%)] pointer-events-none' />
+        <div className='pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_48%)]' />
       )}
       <div className='relative z-10 flex items-start justify-between'>
         <span
-          className={`text-xs sm:text-sm font-semibold tracking-tight ${
-            highlight ? "text-slate-900/90" : "text-foreground"
+          className={`${
+            highlight
+              ? "text-base font-semibold tracking-[-0.035em] text-slate-950"
+              : "text-xs font-semibold tracking-tight text-foreground sm:text-sm"
           }`}
         >
           {label}
@@ -140,18 +150,20 @@ const StatCard = ({
           type='button'
           onClick={onOpen}
           aria-label={`Open ${label}`}
-          className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all duration-200 ${
+          className={`flex items-center justify-center rounded-full border transition-[transform,background-color,border-color,color] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950/40 focus-visible:ring-offset-2 ${
             highlight
-              ? "bg-black/10 border-black/20 text-slate-950 hover:bg-black/20 hover:scale-105"
-              : "bg-foreground/5 border-foreground/10 text-foreground/60 hover:text-brand hover:border-brand/40"
+              ? "h-9 w-9 border-slate-950/20 bg-slate-950/[0.08] text-slate-950 hover:bg-slate-950/[0.14] focus-visible:ring-offset-emerald-300"
+              : "h-7 w-7 border-foreground/10 bg-foreground/5 text-foreground/60 hover:border-brand/40 hover:text-brand focus-visible:ring-brand focus-visible:ring-offset-background"
           }`}
         >
-          <ArrowUpRight className='w-3.5 h-3.5' />
+          <ArrowUpRight className={highlight ? "h-4 w-4" : "h-3.5 w-3.5"} />
         </button>
       </div>
       <div
-        className={`relative z-10 mt-2 text-3xl sm:text-4xl font-bold tracking-tight ${
-          highlight ? "text-slate-950" : "text-foreground"
+        className={`relative z-10 font-bold tracking-[-0.05em] ${
+          highlight
+            ? "mt-6 text-[42px] leading-none text-slate-950"
+            : "mt-2 text-3xl text-foreground sm:text-4xl"
         }`}
       >
         {loading ? (
@@ -162,22 +174,24 @@ const StatCard = ({
           value
         )}
       </div>
-      <div className='relative z-10 mt-3 flex items-center gap-2'>
+      <div className={`relative z-10 flex items-center gap-2 ${highlight ? "mt-5" : "mt-3"}`}>
         <span
-          className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${
+          className={`inline-flex items-center gap-0.5 rounded-md border font-bold ${
             highlight
-              ? "bg-black/10 border-black/20 text-slate-950"
+              ? "border-slate-950/20 bg-slate-950/[0.08] px-2 py-1 text-xs leading-none text-slate-950"
               : rounded < 0
-                ? "bg-red-500/10 border-red-500/30 text-red-400"
-                : "bg-brand/10 border-brand/30 text-brand"
+                ? "border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-[10px] text-red-400"
+                : "border-brand/30 bg-brand/10 px-1.5 py-0.5 text-[10px] text-brand"
           }`}
         >
-          <DeltaIcon className='w-3 h-3' />
+          <DeltaIcon className={highlight ? "h-3.5 w-3.5" : "h-3 w-3"} />
           {Math.abs(rounded)}%
         </span>
         <span
-          className={`text-[10px] font-medium ${
-            highlight ? "text-slate-900/75" : "text-muted-foreground"
+          className={`${
+            highlight
+              ? "text-xs font-medium tracking-[-0.02em] text-slate-950/75"
+              : "text-[10px] font-medium text-muted-foreground"
           }`}
         >
           vs last 7 days
