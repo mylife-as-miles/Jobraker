@@ -119,7 +119,8 @@ const StatCard = ({
   const highlightStyle = highlight
     ? {
         background:
-          "linear-gradient(135deg, #006847 0%, #00583d 52%, #003d30 100%)",
+          "linear-gradient(115deg, #54e990 0%, #2edb6b 42%, #00744d 72%, #003d30 100%)",
+        color: "#06261b",
       }
     : undefined;
 
@@ -128,7 +129,7 @@ const StatCard = ({
       style={highlightStyle}
       className={`group relative overflow-hidden border transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 ${
         highlight
-          ? "aspect-[1.78] rounded-xl border-emerald-200/15 p-3 text-white shadow-[0_8px_20px_rgba(0,78,54,0.24)] hover:shadow-[0_12px_26px_rgba(0,78,54,0.32)]"
+          ? "aspect-[1.78] rounded-xl border-emerald-100/25 p-3 text-slate-950 shadow-[0_8px_20px_rgba(0,78,54,0.24)] hover:shadow-[0_12px_26px_rgba(0,78,54,0.32)]"
           : "rounded-2xl border-foreground/10 bg-card/50 p-4 sm:p-5 backdrop-blur-xl hover:border-brand/30"
       }`}
     >
@@ -158,9 +159,10 @@ const StatCard = ({
       )}
       <div className='relative z-10 flex items-start justify-between'>
         <span
+          style={highlight ? { color: "#06261b" } : undefined}
           className={`${
             highlight
-              ? "text-xs font-semibold tracking-[-0.035em] text-white"
+              ? "text-xs font-semibold tracking-[-0.035em] text-slate-950"
               : "text-xs font-semibold tracking-tight text-foreground sm:text-sm"
           }`}
         >
@@ -172,7 +174,7 @@ const StatCard = ({
           aria-label={`Open ${label}`}
           className={`flex items-center justify-center rounded-full border transition-[transform,background-color,border-color,color] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950/40 focus-visible:ring-offset-2 ${
             highlight
-              ? "h-6 w-6 border-white/60 bg-white text-slate-900 hover:bg-white/90 focus-visible:ring-offset-emerald-800"
+              ? "h-6 w-6 border-slate-950/20 bg-slate-950/[0.08] text-slate-950 hover:bg-slate-950/[0.14] focus-visible:ring-offset-emerald-800"
               : "h-7 w-7 border-foreground/10 bg-foreground/5 text-foreground/60 hover:border-brand/40 hover:text-brand focus-visible:ring-brand focus-visible:ring-offset-background"
           }`}
         >
@@ -180,9 +182,10 @@ const StatCard = ({
         </button>
       </div>
       <div
+        style={highlight ? { color: "#06261b" } : undefined}
         className={`relative z-10 font-bold tracking-[-0.05em] ${
           highlight
-            ? "mt-1 text-[38px] leading-none text-white"
+            ? "mt-1 text-[38px] leading-none text-slate-950"
             : "mt-2 text-3xl text-foreground sm:text-4xl"
         }`}
       >
@@ -196,9 +199,10 @@ const StatCard = ({
       </div>
       <div className={`relative z-10 flex items-center gap-1.5 ${highlight ? "mt-2.5" : "mt-3"}`}>
         <span
+          style={highlight ? { color: "#06261b" } : undefined}
           className={`inline-flex items-center gap-0.5 rounded-md border font-bold ${
             highlight
-              ? "rounded-full border-emerald-300/20 bg-emerald-300/15 px-1.5 py-0.5 text-[8px] leading-none text-emerald-100"
+              ? "rounded-full border-slate-950/20 bg-slate-950/[0.08] px-1.5 py-0.5 text-[8px] leading-none text-slate-950"
               : rounded < 0
                 ? "border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-[10px] text-red-400"
                 : "border-brand/30 bg-brand/10 px-1.5 py-0.5 text-[10px] text-brand"
@@ -208,9 +212,10 @@ const StatCard = ({
           {Math.abs(rounded)}%
         </span>
         <span
+          style={highlight ? { color: "#06261b" } : undefined}
           className={`${
             highlight
-              ? "text-[8px] font-medium tracking-[-0.02em] text-emerald-100/90"
+              ? "text-[8px] font-medium tracking-[-0.02em] text-slate-950/75"
               : "text-[10px] font-medium text-muted-foreground"
           }`}
         >
