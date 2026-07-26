@@ -6553,38 +6553,8 @@ export const JobPage = (): JSX.Element => {
                     </button>
                   </div>
 
-                  <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5 space-y-4'>
-                    <div className='flex flex-wrap items-center justify-between gap-3'>
-                      <div className='flex items-center gap-2 text-sm font-medium text-foreground/80'>
-                        <Briefcase className='w-4 h-4 text-brand' />
-                        Browser execution
-                      </div>
-                      <div className='inline-flex rounded-lg border border-foreground/10 bg-background/50 p-1'>
-                        {[
-                          ["automatic", "Automatic"],
-                          ["jobraker_cloud", "Jobraker Cloud"],
-                        ].map(([value, label]) => (
-                          <button
-                            key={value}
-                            type='button'
-                            onClick={() =>
-                              saveBrowserExecutionPreference(
-                                value as "automatic" | "my_chrome" | "jobraker_cloud",
-                              )
-                            }
-                            className={cn(
-                              "min-h-8 rounded-md px-3 text-xs font-medium transition",
-                              browserExecutionPreference === value
-                                ? "bg-brand/20 text-brand"
-                                : "text-foreground/60 hover:text-foreground hover:bg-foreground/5",
-                            )}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className='flex items-center justify-between gap-4 border-t border-foreground/10 pt-4'>
+                  <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5'>
+                    <div className='flex items-center justify-between gap-4'>
                       <div className='text-sm font-medium text-foreground/80'>
                         Final submit
                       </div>
