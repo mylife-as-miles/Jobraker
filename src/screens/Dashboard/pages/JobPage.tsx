@@ -6553,10 +6553,13 @@ export const JobPage = (): JSX.Element => {
                     </button>
                   </div>
 
-                  <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5'>
+                  <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5 space-y-2.5'>
                     <div className='flex items-center justify-between gap-4'>
-                      <div className='text-sm font-medium text-foreground/80'>
-                        Final submit
+                      <div className='text-sm font-medium text-foreground/80 flex items-center gap-2'>
+                        <span>Final submit</span>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${autoSubmitApplications ? "bg-brand/15 text-brand border border-brand/20" : "bg-foreground/10 text-foreground/70"}`}>
+                          {autoSubmitApplications ? "Autopilot Mode" : "Draft / Review Mode"}
+                        </span>
                       </div>
                       <button
                         type='button'
@@ -6572,6 +6575,17 @@ export const JobPage = (): JSX.Element => {
                         />
                       </button>
                     </div>
+                    <p className='text-xs text-foreground/65 leading-relaxed pt-1 border-t border-foreground/5'>
+                      {autoSubmitApplications ? (
+                        <>
+                          <strong className='text-brand font-medium'>ON (Autopilot):</strong> The AI agent navigates the job page, fills in all form fields (contact info, resume, cover letter, custom screening answers), and automatically submits the application for you.
+                        </>
+                      ) : (
+                        <>
+                          <strong className='text-foreground/90 font-medium'>OFF (Draft / Review Mode):</strong> The AI agent fills out all form fields and pre-populates everything, but stops before clicking Submit so you can review and double-check inputs yourself.
+                        </>
+                      )}
+                    </p>
                   </div>
                 </div>
               )}
