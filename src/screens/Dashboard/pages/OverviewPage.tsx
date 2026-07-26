@@ -119,7 +119,7 @@ const StatCard = ({
   const highlightStyle = highlight
     ? {
         background:
-          "linear-gradient(135deg, #55e990 0%, #2edb6b 48%, #63c99a 100%)",
+          "linear-gradient(135deg, #006847 0%, #00583d 52%, #003d30 100%)",
       }
     : undefined;
 
@@ -128,19 +128,39 @@ const StatCard = ({
       style={highlightStyle}
       className={`group relative overflow-hidden border transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 ${
         highlight
-          ? "min-h-[188px] rounded-[20px] border-white/25 p-[26px] text-slate-950 shadow-[0_12px_32px_rgba(24,190,95,0.24)] hover:shadow-[0_16px_38px_rgba(24,190,95,0.32)]"
+          ? "aspect-[1.78] rounded-xl border-emerald-200/15 p-3 text-white shadow-[0_8px_20px_rgba(0,78,54,0.24)] hover:shadow-[0_12px_26px_rgba(0,78,54,0.32)]"
           : "rounded-2xl border-foreground/10 bg-card/50 p-4 sm:p-5 backdrop-blur-xl hover:border-brand/30"
       }`}
     >
-      {/* Soft highlight preserves the airy, dimensional green reference surface. */}
+      {/* Contour lines are a vector texture so they remain crisp at every card size. */}
       {highlight && (
-        <div className='pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_48%)]' />
+        <>
+          <div className='pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_110%,rgba(0,211,116,0.26),transparent_48%)]' />
+          <svg
+            aria-hidden='true'
+            className='pointer-events-none absolute inset-0 h-full w-full opacity-70'
+            viewBox='0 0 220 124'
+            preserveAspectRatio='none'
+          >
+            <g fill='none' stroke='rgba(119, 255, 183, 0.18)' strokeWidth='0.75'>
+              <path d='M69 132C94 93 115 112 140 99S181 65 226 71' />
+              <path d='M75 136C98 101 118 119 145 105S184 72 226 77' />
+              <path d='M82 140C104 109 122 126 150 112S188 79 226 83' />
+              <path d='M89 144C111 117 128 132 155 119S192 86 226 89' />
+              <path d='M96 148C118 124 134 139 160 126S197 93 226 95' />
+              <path d='M103 152C125 132 140 146 165 133S202 100 226 101' />
+              <path d='M110 156C132 139 146 153 170 140S207 107 226 107' />
+              <path d='M117 160C139 147 152 160 175 147S212 114 226 113' />
+              <path d='M124 164C146 155 158 167 180 154S217 121 226 119' />
+            </g>
+          </svg>
+        </>
       )}
       <div className='relative z-10 flex items-start justify-between'>
         <span
           className={`${
             highlight
-              ? "text-base font-semibold tracking-[-0.035em] text-slate-950"
+              ? "text-xs font-semibold tracking-[-0.035em] text-white"
               : "text-xs font-semibold tracking-tight text-foreground sm:text-sm"
           }`}
         >
@@ -152,17 +172,17 @@ const StatCard = ({
           aria-label={`Open ${label}`}
           className={`flex items-center justify-center rounded-full border transition-[transform,background-color,border-color,color] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950/40 focus-visible:ring-offset-2 ${
             highlight
-              ? "h-9 w-9 border-slate-950/20 bg-slate-950/[0.08] text-slate-950 hover:bg-slate-950/[0.14] focus-visible:ring-offset-emerald-300"
+              ? "h-6 w-6 border-white/60 bg-white text-slate-900 hover:bg-white/90 focus-visible:ring-offset-emerald-800"
               : "h-7 w-7 border-foreground/10 bg-foreground/5 text-foreground/60 hover:border-brand/40 hover:text-brand focus-visible:ring-brand focus-visible:ring-offset-background"
           }`}
         >
-          <ArrowUpRight className={highlight ? "h-4 w-4" : "h-3.5 w-3.5"} />
+          <ArrowUpRight className={highlight ? "h-3.5 w-3.5" : "h-3.5 w-3.5"} />
         </button>
       </div>
       <div
         className={`relative z-10 font-bold tracking-[-0.05em] ${
           highlight
-            ? "mt-6 text-[42px] leading-none text-slate-950"
+            ? "mt-1 text-[38px] leading-none text-white"
             : "mt-2 text-3xl text-foreground sm:text-4xl"
         }`}
       >
@@ -174,23 +194,23 @@ const StatCard = ({
           value
         )}
       </div>
-      <div className={`relative z-10 flex items-center gap-2 ${highlight ? "mt-5" : "mt-3"}`}>
+      <div className={`relative z-10 flex items-center gap-1.5 ${highlight ? "mt-2.5" : "mt-3"}`}>
         <span
           className={`inline-flex items-center gap-0.5 rounded-md border font-bold ${
             highlight
-              ? "border-slate-950/20 bg-slate-950/[0.08] px-2 py-1 text-xs leading-none text-slate-950"
+              ? "rounded-full border-emerald-300/20 bg-emerald-300/15 px-1.5 py-0.5 text-[8px] leading-none text-emerald-100"
               : rounded < 0
                 ? "border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-[10px] text-red-400"
                 : "border-brand/30 bg-brand/10 px-1.5 py-0.5 text-[10px] text-brand"
           }`}
         >
-          <DeltaIcon className={highlight ? "h-3.5 w-3.5" : "h-3 w-3"} />
+          <DeltaIcon className={highlight ? "h-2.5 w-2.5" : "h-3 w-3"} />
           {Math.abs(rounded)}%
         </span>
         <span
           className={`${
             highlight
-              ? "text-xs font-medium tracking-[-0.02em] text-slate-950/75"
+              ? "text-[8px] font-medium tracking-[-0.02em] text-emerald-100/90"
               : "text-[10px] font-medium text-muted-foreground"
           }`}
         >
