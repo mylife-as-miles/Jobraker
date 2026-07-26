@@ -6562,7 +6562,6 @@ export const JobPage = (): JSX.Element => {
                       <div className='inline-flex rounded-lg border border-foreground/10 bg-background/50 p-1'>
                         {[
                           ["automatic", "Automatic"],
-                          ["my_chrome", "My Chrome"],
                           ["jobraker_cloud", "Jobraker Cloud"],
                         ].map(([value, label]) => (
                           <button
