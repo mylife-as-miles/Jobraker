@@ -4009,7 +4009,7 @@ export const JobPage = (): JSX.Element => {
       resumes.length === 0 ||
       Boolean(selectedResumeId));
   const canAutoFixDecisionBoundary = Boolean(
-    jobToAutoApply && activeResumeText.trim(),
+    jobToAutoApply && (activeResumeText.trim() || selectedResumeId || profile),
   );
   const autoApplyPrimaryDisabled =
     loadingTier ||
