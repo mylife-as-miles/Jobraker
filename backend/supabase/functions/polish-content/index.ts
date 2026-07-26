@@ -99,7 +99,7 @@ function normalizePolishResponse(
     ? (parsed as any).suggestions
     : [];
   const normalized = suggestions
-    .slice(0, 2)
+    .slice(0, 3)
     .map((item, index) => normalizeSuggestion(item, index, fallbackContent))
     .filter((item) => item.content.trim().length > 0);
 
@@ -140,25 +140,32 @@ function buildFallbackPolishResponse(content: string): PolishContentResponse {
 }
 
 function buildPrompt(content: string, instruction?: string): string {
-  return `You are an expert career coach and professional copywriter.
-  
-  Your task is to improve the following resume content:
-  "${content}"
+  return `You are a world-class executive resume writer and ATS optimization specialist.
 
-  ${instruction ? `Specific Instruction: ${instruction}` : ''}
+Your task is to transform and polish the following resume content into elite, high-impact bullet points/summaries:
+"${content}"
 
-  Please provide exactly 2 distinct suggestions:
-  1. "Enhancement": Focus on stronger action verbs, quantifiable metrics, and impact.
-  2. "Professional": Focus on formal, corporate-appropriate tone and clarity.
+${instruction ? `Target Context / Special Instruction: ${instruction}` : ''}
 
-  Return the result as a JSON object with a "suggestions" array.
-  Each suggestion must have:
-  - id: A unique string id (e.g. "1", "2")
-  - type: "enhancement" or "professional"
-  - label: A short label like "Stronger Verbs + Metrics" or "More Professional"
-  - content: The rewritten text
-  - isRecommended: true for the "enhancement" suggestion.
-  `;
+Rules for rewriting:
+1. Use Google's XYZ formula: "Accomplished [X], as measured by [Y], by doing [Z]" whenever applicable.
+2. Lead with powerful, high-impact action verbs (e.g., Engineered, Orchestrated, Spearheaded, Accelerated, Maximized, Streamlined).
+3. Insert realistic metric place-holders or quantified impacts (e.g., "+35% efficiency", "reduced latency by 40ms", "$2.5M ARR") if exact numbers aren't specified.
+4. Keep syntax sharp, active, concise, and 100% free of fluff or passive language.
+
+Please provide exactly 3 distinct high-caliber suggestions:
+1. "High Impact & Metrics" (Type: enhancement): Heavily optimized with metrics, strong action verbs, and quantifiable achievements. (isRecommended: true)
+2. "Executive & Leadership Tone" (Type: professional): Tailored for senior leadership, highlighting scope, strategy, cross-functional impact, and governance.
+3. "Targeted ATS Optimization" (Type: correction): Standardized industry keywords, clear ATS-friendly phrasing, and punchy syntax.
+
+Return the result as a JSON object with a "suggestions" array.
+Each suggestion must have:
+- id: String ("1", "2", "3")
+- type: "enhancement", "professional", or "correction"
+- label: Short descriptive label (e.g., "Metrics & Action-Driven", "Executive Leadership", "ATS Keyword Optimized")
+- content: The rewritten high-impact text
+- isRecommended: true ONLY for suggestion "1".
+`;
 }
 
 serve(async (req) => {

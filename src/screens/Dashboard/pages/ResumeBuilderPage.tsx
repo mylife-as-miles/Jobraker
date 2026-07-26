@@ -667,7 +667,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                 </div>
 
                 {expandedSection === "summary" && (
-                  <div className='p-5 pt-0 animate-in slide-in-from-top-2 duration-200'>
+                  <div className='p-5 pt-0 space-y-3 animate-in slide-in-from-top-2 duration-200'>
                     <textarea
                       value={summary.content || ""}
                       onChange={(e) => setSummary(e.target.value)}
@@ -675,6 +675,32 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                       className='product-input-surface w-full rounded-lg px-3 py-2 text-sm outline-none transition-all focus:border-brand focus:ring-1 focus:ring-brand'
                       placeholder='Brief professional summary...'
                     />
+                    <div className='flex items-center justify-between gap-2 pt-1'>
+                      <div className='text-[11px] text-muted-foreground flex items-center gap-1.5'>
+                        <Sparkles className='w-3.5 h-3.5 text-brand' />
+                        <span>AI Executive Polish</span>
+                      </div>
+                      <div className='flex items-center gap-2'>
+                        <button
+                          type='button'
+                          onClick={() => void aiGenerateResume()}
+                          disabled={aiLoading}
+                          className='inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-brand bg-brand/10 hover:bg-brand/20 border border-brand/30 rounded-lg transition-all disabled:opacity-50'
+                        >
+                          <Wand2 className={`w-3.5 h-3.5 ${aiLoading ? "animate-spin" : ""}`} />
+                          <span>AI Generate</span>
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => void aiPolishSummary("Enhance with strong action verbs and quantified impact metrics.")}
+                          disabled={aiLoading || !summary.content?.trim()}
+                          className='inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-brand bg-brand/15 hover:bg-brand/25 border border-brand/40 rounded-lg transition-all disabled:opacity-50 shadow-sm'
+                        >
+                          <Sparkles className={`w-3.5 h-3.5 ${aiLoading ? "animate-spin" : ""}`} />
+                          <span>AI Polish</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
