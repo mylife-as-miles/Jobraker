@@ -530,7 +530,7 @@ Deno.serve(async (req) => {
     );
     const autoSubmit = parseBoolean(
       body?.auto_submit ?? body?.autoSubmit,
-      profileRow?.auto_apply_auto_submit !== false,
+      Boolean(profileRow?.auto_apply_auto_submit),
     );
 
     if (!jobUrls.length) {

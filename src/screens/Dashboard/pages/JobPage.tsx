@@ -1260,7 +1260,7 @@ export const JobPage = (): JSX.Element => {
   const [browserExecutionPreference, setBrowserExecutionPreference] = useState<
     "automatic" | "my_chrome" | "jobraker_cloud"
   >("automatic");
-  const [autoSubmitApplications, setAutoSubmitApplications] = useState(true);
+  const [autoSubmitApplications, setAutoSubmitApplications] = useState(false);
   const [coverLetterLibrary, setCoverLetterLibrary] = useState<
     CoverLetterLibraryEntry[]
   >([]);
@@ -1386,7 +1386,7 @@ export const JobPage = (): JSX.Element => {
     setBrowserExecutionPreference(
       profile.browser_execution_preference || "automatic",
     );
-    setAutoSubmitApplications(profile.auto_apply_auto_submit !== false);
+    setAutoSubmitApplications(Boolean(profile.auto_apply_auto_submit));
   }, [profile?.browser_execution_preference, profile?.auto_apply_auto_submit]);
 
   const saveBrowserExecutionPreference = useCallback(
