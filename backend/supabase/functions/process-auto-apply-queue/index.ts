@@ -344,7 +344,14 @@ serve(async (req) => {
               body: JSON.stringify({
                 input: promptInput,
                 urls: appUrl ? [appUrl] : [],
-                ...(rtrvrWebhookUrl ? { webhookUrl: rtrvrWebhookUrl } : {}),
+                ...(rtrvrWebhookUrl ? {
+                  webhooks: [
+                    {
+                      url: rtrvrWebhookUrl,
+                      events: ["rtrvr.execution.succeeded", "rtrvr.execution.failed"],
+                    },
+                  ],
+                } : {}),
                 response: { verbosity: "final" },
               }),
             });
