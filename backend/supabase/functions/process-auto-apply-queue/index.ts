@@ -111,14 +111,14 @@ async function recoverStaleAutoApplyRows(supabase: any): Promise<{
   failed: number;
 }> {
   const launchingCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-  const workerCutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  const workerCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
   const { data: staleRows, error } = await supabase
     .from("applications")
     .select(
       "id, user_id, job_id, agent_run_id, provider_status, retry_count, updated_at, automation_heartbeat_at",
     )
     .eq("canonical_stage", "queued")
-    .in("provider_status", ["launching", "waiting_worker"])
+    .in("provider_status", ["launching", "waiting_worker", "waiting"])
     .order("updated_at", { ascending: true })
     .limit(200);
 
