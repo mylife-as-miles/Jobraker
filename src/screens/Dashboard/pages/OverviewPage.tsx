@@ -416,7 +416,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
   );
 
   const isTaskActive = Boolean(activeTask);
-  const runActive = (autoApplyEnabled && queuedCount > 0) || isTaskActive;
+  const runActive = isTaskActive;
 
   const autoSentToday = useMemo(() => {
     const startToday = new Date();
@@ -1053,7 +1053,9 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                   <span className='text-foreground/40'>
                     {autoSentToday > 0 ? `${autoSentToday} sent today · ` : ""}
                     {autoApplyEnabled
-                      ? "Idle — no jobs in the queue"
+                      ? queuedCount > 0
+                        ? `${queuedCount} in queue · Auto Apply ready`
+                        : "Idle — no jobs in the queue"
                       : "Auto Apply is paused"}
                   </span>
                 )}
