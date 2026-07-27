@@ -17,6 +17,7 @@ import { ResumeVersionSuccess } from "./ResumeVersionSuccess";
 import { InsightsSection } from "./insights/InsightsSection";
 import type { InsightsData } from "../../hooks/insightsComputations";
 import { PipelineEarningsProjectionCard } from "./PipelineEarningsProjectionCard";
+import { AIAnalyticsIntelligenceCard } from "./AIAnalyticsIntelligenceCard";
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
@@ -102,6 +103,7 @@ export function AnalyticsContent({
 
   return (
     <div className='space-y-4 sm:space-y-6 lg:space-y-8'>
+      <AIAnalyticsIntelligenceCard />
       <PipelineEarningsProjectionCard period={period} />
 
       <div className='grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4'>
