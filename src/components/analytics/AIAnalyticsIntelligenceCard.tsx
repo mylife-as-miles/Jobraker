@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Sparkles, Brain, CheckCircle, AlertTriangle, Lightbulb, Target, RefreshCw, Layers } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { invokeProtectedFunction } from "@/lib/edgeFunctions";
+import { invokeProtectedFunction } from "@/services/supabase/invokeProtectedFunction";
 import { Button } from "@/components/ui/button";
 
 interface AIInsights {
