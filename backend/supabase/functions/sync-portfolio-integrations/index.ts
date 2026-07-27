@@ -91,7 +91,7 @@ serve(async (req) => {
     // 4. Check active connected accounts for this user in Composio via v3 API directly
     const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
     const accountsResponse = await fetch(
-      `https://backend.composio.dev/api/v3/connected_accounts?user_id=${encodeURIComponent(userId)}`,
+      `https://backend.composio.dev/api/v3.1/connected_accounts?user_id=${encodeURIComponent(userId)}`,
       {
         method: "GET",
         headers: { "x-api-key": apiKey },

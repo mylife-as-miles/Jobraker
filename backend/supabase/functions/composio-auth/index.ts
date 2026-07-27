@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
       if (finalAuthConfigId) {
         const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
         try {
-          const configRes = await fetch(`https://backend.composio.dev/api/v3/auth_configs/${finalAuthConfigId}`, {
+          const configRes = await fetch(`https://backend.composio.dev/api/v3.1/auth_configs/${finalAuthConfigId}`, {
             headers: { "x-api-key": apiKey },
           });
           if (configRes.ok) {
@@ -233,7 +233,7 @@ Deno.serve(async (req) => {
           try {
             const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
             const v3Res = await fetch(
-              `https://backend.composio.dev/api/v3/auth_configs?toolkit_slug=${encodeURIComponent(slug)}`,
+              `https://backend.composio.dev/api/v3.1/auth_configs?toolkit_slug=${encodeURIComponent(slug)}`,
               {
                 headers: { "x-api-key": apiKey },
               }
@@ -289,7 +289,7 @@ Deno.serve(async (req) => {
       } catch (e: any) {
         console.warn(`SDK disconnect error for ${connectionId}:`, e);
         const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-        const response = await fetch(`https://backend.composio.dev/api/v3/connected_accounts/${encodeURIComponent(connectionId)}`, {
+        const response = await fetch(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(connectionId)}`, {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
@@ -420,7 +420,7 @@ Deno.serve(async (req) => {
       );
     } else if (action === "debug-configs") {
       const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-      const authConfigsRes = await fetch("https://backend.composio.dev/api/v3/auth_configs", {
+      const authConfigsRes = await fetch("https://backend.composio.dev/api/v3.1/auth_configs", {
         method: "GET",
         headers: { "x-api-key": apiKey },
       });
