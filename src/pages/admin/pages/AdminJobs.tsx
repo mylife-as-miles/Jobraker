@@ -276,7 +276,10 @@ export default function AdminJobs() {
   // Jobs waiting in queue
   const waitingJobs = useMemo(() => {
     return applications.filter(
-      (a) => a.canonical_stage === "queued" && a.provider_status === "waiting"
+      (a) =>
+        a.canonical_stage === "queued" ||
+        a.status === "Pending" ||
+        ["waiting", "waiting_worker", "launching"].includes(a.provider_status || "")
     );
   }, [applications]);
 
