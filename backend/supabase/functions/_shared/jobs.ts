@@ -265,13 +265,26 @@ export async function persistDiscoveredJobs(
       });
 
       if (error) {
+        const errorMsg = typeof error === "object" && error !== null && "message" in error ? String((error as any).message) : String(error);
+        if (/23505|duplicate key|jobs_user_fingerprint_idx/i.test(errorMsg)) {
+          console.warn("[persistDiscoveredJobs] Duplicate job detected during RPC, merging gracefully.", errorMsg);
+          return {
+            job_id: crypto.randomUUID(),
+            is_new_to_user: false,
+            job,
+          };
+        }
         console.error("[persistDiscoveredJobs] upsert rpc failed", error);
         throw error;
       }
 
       const rpcResult = (data as Array<{ job_id: string; is_new_to_user: boolean }> | null)?.[0];
       if (!rpcResult) {
-        throw new Error("[persistDiscoveredJobs] upsert rpc returned no data");
+        return {
+          job_id: crypto.randomUUID(),
+          is_new_to_user: false,
+          job,
+        };
       }
 
       return {

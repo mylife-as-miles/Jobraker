@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { formatTaskMessage } from "@/lib/utils";
 import type {
   JobIntelligenceTask,
   JobTaskStatus,
@@ -167,7 +168,7 @@ export function JobTaskMonitor({
                     </span>
                   </div>
                   {task.message ? (
-                    <p className='text-xs text-foreground/55'>{task.message}</p>
+                    <p className='text-xs text-foreground/55'>{formatTaskMessage(task.message)}</p>
                   ) : null}
                   {updatedCopy ? (
                     <p className='text-[10px] uppercase tracking-wide text-foreground/35'>

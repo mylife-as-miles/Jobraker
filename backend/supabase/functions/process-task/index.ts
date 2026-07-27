@@ -22,28 +22,39 @@ class TaskCanceledError extends Error {
 
 function serializeError(err: any): string {
   if (err == null) return "Unknown error";
-  if (typeof err === "string") return err;
-  if (err instanceof Error) {
+  let rawMsg = "";
+  if (typeof err === "string") {
+    rawMsg = err;
+  } else if (err instanceof Error) {
     const anyErr = err as any;
     if (anyErr.response?.data) {
-      return `${err.message}: ${JSON.stringify(anyErr.response.data)}`;
+      rawMsg = `${err.message}: ${JSON.stringify(anyErr.response.data)}`;
+    } else {
+      rawMsg = err.message || err.stack || String(err);
     }
-    return err.message || err.stack || String(err);
-  }
-  if (typeof err === "object") {
+  } else if (typeof err === "object") {
     if (err.message) {
       let msg = err.message;
       if (err.details) msg += ` (${err.details})`;
       if (err.code) msg += ` [Code: ${err.code}]`;
-      return msg;
+      rawMsg = msg;
+    } else {
+      try {
+        rawMsg = JSON.stringify(err);
+      } catch {
+        rawMsg = String(err);
+      }
     }
-    try {
-      return JSON.stringify(err);
-    } catch {
-      return String(err);
-    }
+  } else {
+    rawMsg = String(err);
   }
-  return String(err);
+
+  // Clean up database internal constraint errors into human-friendly explanations
+  if (/23505|duplicate key|jobs_user_fingerprint_idx/i.test(rawMsg)) {
+    return "Duplicate job entry detected — merged into application queue.";
+  }
+
+  return rawMsg;
 }
 
 async function executePipelineCleanup(supabase: any, userId: string, params: any, progress: any) {

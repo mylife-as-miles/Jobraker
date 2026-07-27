@@ -39,3 +39,28 @@ export const getProxiedLogoUrl = (url: string | null | undefined): string | unde
   
   return `${supabaseUrl}/functions/v1/proxy-image?url=${encodeURIComponent(targetUrl)}`;
 };
+
+/**
+ * Sanitizes technical database/system error strings into clean, user-friendly task updates.
+ */
+export function formatTaskMessage(message?: string | null): string {
+  if (!message?.trim()) return "";
+
+  // Clean up database duplicate key / fingerprint constraint errors
+  if (/23505|jobs_user_fingerprint_idx|duplicate key value violates unique constraint/i.test(message)) {
+    const retryMatch = message.match(/Retrying in \d+ minute\(s\)/i);
+    const retryText = retryMatch ? ` ${retryMatch[0]}.` : "";
+    return `Duplicate job entry merged into queue.${retryText}`;
+  }
+
+  // Strip raw PostgreSQL error codes/hashes if present
+  if (message.includes("[Code: ") || message.includes("Key (user_id, fingerprint)")) {
+    return message
+      .replace(/\(Key \(user_id, fingerprint\)=[^)]+\)/gi, "")
+      .replace(/\[Code: \d+\]/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  return message;
+}

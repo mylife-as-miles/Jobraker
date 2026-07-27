@@ -23,6 +23,7 @@ import {
 
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
+import { formatTaskMessage } from "../../../lib/utils";
 import { Input } from "../../../components/ui/input";
 import {
   Tooltip,
@@ -1938,7 +1939,7 @@ function ApplicationPage() {
                         </div>
                       </div>
                       <p className='text-foreground/80 leading-relaxed'>
-                        {task.message || "Executing AI workflow step..."}
+                        {formatTaskMessage(task.message) || "Executing AI workflow step..."}
                       </p>
                       <div className='flex flex-wrap items-center justify-between text-[10px] text-muted-foreground pt-2 border-t border-foreground/5'>
                         <span>
