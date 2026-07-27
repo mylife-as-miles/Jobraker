@@ -73,7 +73,7 @@ export function findActiveConnectedAccount(
 
   return accounts.find((account) => {
     const normalized = normalizeConnectedAccount(account);
-    const isValidStatus = ["ACTIVE", "INITIALIZED", "INITIATED", "CONNECTED"].includes(normalized.status) || !normalized.status || normalized.status !== "FAILED";
+    const isValidStatus = !normalized.status || ["ACTIVE", "INITIALIZED", "INITIATED", "CONNECTED"].includes(normalized.status);
     if (!isValidStatus) return false;
     const configMatches = Boolean(targetConfigId) &&
       normalized.authConfigId === targetConfigId;
