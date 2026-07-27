@@ -31,7 +31,15 @@ import { createClient } from "@/lib/supabaseClient";
 import type { AdminTransaction } from "../types";
 
 export default function AdminRevenue() {
-  const [timeRange, setTimeRange] = useState<30 | 60 | 90>(30);
+  const [timeRange, setTimeRange] = useState<number>(30);
+  const timeRangeOptions = [
+    { label: "30 Days", value: 30 },
+    { label: "60 Days", value: 60 },
+    { label: "90 Days (3M)", value: 90 },
+    { label: "6 Months", value: 180 },
+    { label: "1 Year", value: 365 },
+    { label: "Lifetime", value: 3650 },
+  ];
   const { data: revenueData, loading } = useRevenueData(timeRange);
   const { transactions, loading: txLoading } = useRecentTransactions(50);
   const [revenueByTier, setRevenueByTier] = useState<{
@@ -165,18 +173,18 @@ export default function AdminRevenue() {
         </div>
 
         {/* Time Range Selector */}
-        <div className='flex gap-2 bg-gradient-to-br from-background via-[#111111] to-background border border-brand/20 rounded-xl p-1'>
-          {[30, 60, 90].map((days) => (
+        <div className='flex items-center gap-1.5 bg-gradient-to-br from-background via-[#111111] to-background border border-brand/20 rounded-xl p-1.5 overflow-x-auto max-w-full'>
+          {timeRangeOptions.map((opt) => (
             <button
-              key={days}
-              onClick={() => setTimeRange(days as any)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                timeRange === days
-                  ? "bg-brand text-black shadow-lg shadow-brand/50"
-                  : "text-gray-400 hover:text-white"
+              key={opt.value}
+              onClick={() => setTimeRange(opt.value)}
+              className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-all ${
+                timeRange === opt.value
+                  ? "bg-brand text-black shadow-lg shadow-brand/40 font-semibold"
+                  : "text-gray-400 hover:text-white hover:bg-white/5"
               }`}
             >
-              {days} Days
+              {opt.label}
             </button>
           ))}
         </div>

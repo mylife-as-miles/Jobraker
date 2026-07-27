@@ -527,10 +527,15 @@ export const useRevenueData = (days: number = 30) => {
       // Fetch all active subscriptions with plan details
       let allSubscriptions: any[] = [];
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('user_subscriptions')
-          .select('created_at, status, subscription_plan_id, subscription_plans(name, price)')
-          .gte('created_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString());
+          .select('created_at, status, subscription_plan_id, subscription_plans(name, price)');
+
+        if (days > 0 && days < 3650) {
+          query = query.gte('created_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString());
+        }
+
+        const { data, error } = await query;
 
         if (!error && data) {
           allSubscriptions = data;
@@ -567,14 +572,15 @@ export const useRevenueData = (days: number = 30) => {
       // Group by date and calculate daily revenue
       const revenueByDate: { [key: string]: RevenueData } = {};
       
-      // Initialize all dates in range with zero values
-      for (let i = 0; i < days; i++) {
+      const numDaysToInit = days >= 3650 ? 365 : Math.min(days, 365);
+      // Initialize dates in range with zero values
+      for (let i = 0; i < numDaysToInit; i++) {
         const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
         const dateStr = date.toISOString().split('T')[0];
         revenueByDate[dateStr] = {
           date: dateStr,
           revenue: 0,
-          mrr: currentMRR, // Use current MRR for all dates (could be historical in future)
+          mrr: currentMRR,
           new_subscriptions: 0,
           churned_subscriptions: 0,
         };
