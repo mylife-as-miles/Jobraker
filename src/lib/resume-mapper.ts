@@ -25,6 +25,7 @@ export function mapParsedDataToResume(parsed: ParsedProfileData, baseState: Resu
     resume.basics.location = '';
     resume.basics.headline = '';
     resume.basics.website = { url: '', label: '' };
+    resume.basics.profiles = [];
     resume.basics.customFields = [];
     resume.summary.content = '';
     
@@ -39,6 +40,15 @@ export function mapParsedDataToResume(parsed: ParsedProfileData, baseState: Resu
     resume.basics.phone = parsed.phone || '';
     resume.basics.location = parsed.location || '';
     resume.basics.headline = parsed.jobTitle || '';
+    resume.basics.website = {
+        url: parsed.website || '',
+        label: parsed.website ? 'Website' : '',
+    };
+    resume.basics.profiles = parsed.profiles.map((profile) => ({
+        network: profile.network,
+        username: profile.username || '',
+        url: profile.url,
+    }));
     
     // 2. Summary
     if (parsed.about) {
@@ -128,7 +138,102 @@ export function mapParsedDataToResume(parsed: ParsedProfileData, baseState: Resu
         resume.sections.certifications.hidden = false;
     }
 
-    // 8. Title
+    // 8. Languages
+    if (parsed.languages.length > 0) {
+        resume.sections.languages.items = parsed.languages.map((language) => ({
+            id: nanoid(),
+            hidden: false,
+            name: language.name,
+            description: language.description || '',
+            columns: 1,
+        }));
+        resume.sections.languages.hidden = false;
+    }
+
+    // 9. Interests
+    if (parsed.interests.length > 0) {
+        resume.sections.interests.items = parsed.interests.map((interest) => ({
+            id: nanoid(),
+            hidden: false,
+            name: interest.name,
+            description: interest.description || '',
+            keywords: interest.keywords || [],
+            columns: 1,
+        }));
+        resume.sections.interests.hidden = false;
+    }
+
+    // 10. Awards
+    if (parsed.awards.length > 0) {
+        resume.sections.awards.items = parsed.awards.map((award) => ({
+            id: nanoid(),
+            hidden: false,
+            name: award.name,
+            title: award.name,
+            issuer: award.issuer || '',
+            company: award.issuer || '',
+            period: award.date || '',
+            date: award.date || '',
+            description: award.description || '',
+            columns: 1,
+        }));
+        resume.sections.awards.hidden = false;
+    }
+
+    // 11. Publications
+    if (parsed.publications.length > 0) {
+        resume.sections.publications.items = parsed.publications.map((publication) => ({
+            id: nanoid(),
+            hidden: false,
+            name: publication.name,
+            title: publication.name,
+            publisher: publication.publisher || '',
+            company: publication.publisher || '',
+            period: publication.date || '',
+            date: publication.date || '',
+            description: publication.description || '',
+            website: {
+                url: publication.url || '',
+                label: publication.url ? 'Publication' : '',
+            },
+            columns: 1,
+        }));
+        resume.sections.publications.hidden = false;
+    }
+
+    // 12. Volunteer work
+    if (parsed.volunteer.length > 0) {
+        resume.sections.volunteer.items = parsed.volunteer.map((entry) => ({
+            id: nanoid(),
+            hidden: false,
+            name: entry.organization,
+            company: entry.organization,
+            position: entry.position || '',
+            title: entry.position || '',
+            location: entry.location || '',
+            period: formatPeriod(entry.startDate, entry.endDate),
+            date: formatPeriod(entry.startDate, entry.endDate),
+            description: entry.description || '',
+            columns: 1,
+        }));
+        resume.sections.volunteer.hidden = false;
+    }
+
+    // 13. References
+    if (parsed.references.length > 0) {
+        resume.sections.references.items = parsed.references.map((reference) => ({
+            id: nanoid(),
+            hidden: false,
+            name: reference.name,
+            description: reference.description || '',
+            email: reference.email || '',
+            phone: reference.phone || '',
+            columns: 1,
+        }));
+        resume.sections.references.hidden = false;
+    }
+
+    // 14. Title
     if (resume.basics.name) {
         resume.title = `${resume.basics.name}'s Resume`;
     }
