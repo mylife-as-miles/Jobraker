@@ -62,6 +62,9 @@ function mergeParsedProfileData(
     experienceYears:
       incoming.experienceYears ?? base.experienceYears ?? null,
     about: incoming.about || base.about,
+    website: incoming.website || base.website,
+    profiles:
+      incoming.profiles.length > 0 ? incoming.profiles : base.profiles,
     skills: incoming.skills.length > 0 ? incoming.skills : base.skills,
     education:
       incoming.education.length > 0 ? incoming.education : base.education,
@@ -73,6 +76,19 @@ function mergeParsedProfileData(
       incoming.certifications.length > 0
         ? incoming.certifications
         : base.certifications,
+    languages:
+      incoming.languages.length > 0 ? incoming.languages : base.languages,
+    interests:
+      incoming.interests.length > 0 ? incoming.interests : base.interests,
+    awards: incoming.awards.length > 0 ? incoming.awards : base.awards,
+    publications:
+      incoming.publications.length > 0
+        ? incoming.publications
+        : base.publications,
+    volunteer:
+      incoming.volunteer.length > 0 ? incoming.volunteer : base.volunteer,
+    references:
+      incoming.references.length > 0 ? incoming.references : base.references,
   };
 }
 
@@ -123,7 +139,15 @@ function snapshotToParsedProfileData(
     Boolean(profileData.jobTitle || profileData.about) ||
     profileData.skills.length > 0 ||
     profileData.education.length > 0 ||
-    profileData.experience.length > 0;
+    profileData.experience.length > 0 ||
+    profileData.projects.length > 0 ||
+    profileData.certifications.length > 0 ||
+    profileData.languages.length > 0 ||
+    profileData.interests.length > 0 ||
+    profileData.awards.length > 0 ||
+    profileData.publications.length > 0 ||
+    profileData.volunteer.length > 0 ||
+    profileData.references.length > 0;
 
   return hasContent ? profileData : null;
 }
