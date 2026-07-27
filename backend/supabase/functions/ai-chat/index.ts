@@ -1978,6 +1978,12 @@ const AGENT_FUNCTION_DECLARATIONS = [
     parameters: { type: "object", properties: {} },
   },
   {
+    name: "get_analytics_insights",
+    description:
+      "Run the Gemini AI Analytics & CRM Diagnostics engine to get deep career insights, rejection root-cause analysis, success drivers, resume/ATS modification tips, CRM next steps, and skill gap analysis.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
     name: "run_job_search",
     description:
       "Search for job listings based on a query and location. This runs asynchronously in the background and returns a taskId immediately, allowing you to tell the user that the search task has been queued and that they can track it using the header/progress UI.",
@@ -4417,6 +4423,12 @@ Edge functions:
                     result = definition
                       ? { success: true, function: definition }
                       : { success: false, error: "Unknown edge function name." };
+                  } else if (fn.name === "get_analytics_insights") {
+                    result = await invokeEdgeFunctionByName({
+                      authHeader: authHeader!,
+                      name: "ai-analytics-insights",
+                      payload: {},
+                    });
                   } else if (fn.name === "invoke_edge_function") {
                     result = await invokeEdgeFunctionByName({
                       authHeader: authHeader!,
