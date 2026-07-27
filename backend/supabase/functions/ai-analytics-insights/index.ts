@@ -1,7 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { createGeminiClient, GEMINI_MODEL, withGeminiRetry } from "../_shared/gemini.ts";
+import {
+  createGeminiClient,
+  createGeminiConfig,
+  extractGeminiText,
+  withModelFallback,
+} from "../_shared/gemini.ts";
 
 function jsonResponse(req: Request, data: Record<string, unknown>, status = 200) {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
@@ -121,22 +126,25 @@ Provide your strategic evaluation in JSON format with the exact following schema
   ]
 }`;
 
-    const gemini = createGeminiClient();
-    const model = gemini.getGenerativeModel({
-      model: GEMINI_MODEL,
-      generationConfig: { responseMimeType: "application/json" },
-    });
+    const ai = createGeminiClient();
+    const { result } = await withModelFallback((model) =>
+      ai.models.generateContent({
+        model,
+        config: createGeminiConfig({
+          systemInstruction:
+            "You are an executive AI career coach. Return ONLY valid JSON matching the requested schema.",
+          responseMimeType: "application/json",
+        }),
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      })
+    );
 
-    const aiResult = await withGeminiRetry(async () => {
-      const res = await model.generateContent(prompt);
-      return res.response.text();
-    });
-
+    const aiText = extractGeminiText(result);
     let parsed = {};
     try {
-      parsed = JSON.parse(aiResult);
+      parsed = JSON.parse(aiText);
     } catch {
-      parsed = { executiveSummary: aiResult };
+      parsed = { executiveSummary: aiText };
     }
 
     return jsonResponse(req, {
@@ -153,3 +161,4 @@ Provide your strategic evaluation in JSON format with the exact following schema
     );
   }
 });
+
