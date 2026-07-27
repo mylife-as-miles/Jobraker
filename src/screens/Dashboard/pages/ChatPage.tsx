@@ -3766,7 +3766,6 @@ export const ChatPage = () => {
                         }}
                         className='w-full bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 py-1.5 px-1.5 resize-none max-h-36 text-base outline-none leading-normal scrollbar-hide'
                         placeholder='Ask your Career Command Center...'
-                        rows={1}
                         style={{ height: "auto", minHeight: "24px" }}
                         onInput={(e) => {
                           const target = e.target as HTMLTextAreaElement;
