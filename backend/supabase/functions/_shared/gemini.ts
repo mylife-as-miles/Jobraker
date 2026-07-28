@@ -104,15 +104,15 @@ export async function withGeminiRetry<T>(
 //   LITE   – cheapest, highest rate limits, best for simple tasks & fallback
 //   MODEL  – standard workhorse for most features
 //   PREMIUM – most capable, costs 2 credits, for advanced reasoning tasks
-export const GEMINI_LITE_MODEL = "gemini-2.5-flash";
-export const GEMINI_MODEL = "gemini-2.5-flash";
+export const GEMINI_LITE_MODEL = "gemini-3-flash-preview";
+export const GEMINI_MODEL = "gemini-3-flash-preview";
 export const GEMINI_FAST_MODEL = GEMINI_LITE_MODEL;
-export const GEMINI_PREMIUM_MODEL = "gemini-2.5-pro";
+export const GEMINI_PREMIUM_MODEL = "gemini-3-flash-preview";
 
 /** Ordered fallback chain: try primary → standard → lite */
 export const MODEL_FALLBACK_CHAIN = [
+  "gemini-3-flash-preview",
   "gemini-2.5-flash",
-  "gemini-2.5-pro",
   "gemini-1.5-flash",
 ] as const;
 
