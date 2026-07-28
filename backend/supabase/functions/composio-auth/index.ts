@@ -7,6 +7,7 @@ import {
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 import {
+  filterConnectedAccountsForUser,
   findActiveConnectedAccount,
   normalizeComposioSlug,
   normalizeConnectedAccount,
@@ -43,6 +44,52 @@ function connectedAccountMatches(
   slug?: string | null,
 ) {
   return Boolean(findActiveConnectedAccount([account], { authConfigId, slug }));
+}
+
+function extractConnectedAccounts(result: unknown): Record<string, unknown>[] {
+  if (Array.isArray(result)) {
+    return result.filter(
+      (item): item is Record<string, unknown> =>
+        item !== null && typeof item === "object" && !Array.isArray(item),
+    );
+  }
+
+  if (result === null || typeof result !== "object") {
+    return [];
+  }
+
+  const record = result as Record<string, unknown>;
+  const candidates = [record.items, record.data];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate.filter(
+        (item): item is Record<string, unknown> =>
+          item !== null && typeof item === "object" && !Array.isArray(item),
+      );
+    }
+  }
+
+  return [];
+}
+
+async function listConnectedAccountsForUser(
+  userId: string,
+): Promise<Record<string, unknown>[]> {
+  const response = await composio.connectedAccounts.list({
+    userIds: [userId],
+  });
+  const accounts = extractConnectedAccounts(response);
+  const ownedAccounts = filterConnectedAccountsForUser(accounts, userId);
+
+  if (ownedAccounts.length !== accounts.length) {
+    console.warn("Composio returned accounts outside the authenticated user scope", {
+      userId,
+      returned: accounts.length,
+      retained: ownedAccounts.length,
+    });
+  }
+
+  return ownedAccounts;
 }
 
 interface RequestedIntegration {
@@ -284,6 +331,20 @@ Deno.serve(async (req) => {
         });
       }
 
+      const accounts = await listConnectedAccountsForUser(userId);
+      const ownsConnection = accounts.some(
+        (account) => normalizeConnectedAccount(account).id === connectionId,
+      );
+      if (!ownsConnection) {
+        return new Response(
+          JSON.stringify({ error: "Connection not found" }),
+          {
+            status: 404,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
+      }
+
       try {
         await composio.connectedAccounts.delete(connectionId);
       } catch (e: any) {
@@ -316,32 +377,8 @@ Deno.serve(async (req) => {
           )
         : [];
 
-      // Use v3 API (v1 is deprecated and returns 410)
-      const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-
-      // Fetch connected accounts for this user via v3.1 API
-      const accountsResponse = await fetch(
-        `https://backend.composio.dev/api/v3.1/connected_accounts?user_id=${encodeURIComponent(userId)}`,
-        {
-          method: "GET",
-          headers: { "x-api-key": apiKey },
-        }
-      );
-      let accounts: Record<string, unknown>[] = [];
-      const filteredResponseText = await accountsResponse.text();
-      let rawApiResponse: unknown = null;
-      try {
-        rawApiResponse = JSON.parse(filteredResponseText);
-        if (accountsResponse.ok) {
-          const parsed = rawApiResponse as Record<string, unknown>;
-          const rawItems = parsed?.items || parsed?.data || parsed;
-          accounts = Array.isArray(rawItems) ? rawItems : [];
-        }
-      } catch (_) {
-        rawApiResponse = filteredResponseText;
-      }
-
-      console.log(`[Status API v3] userId=${userId} count=${accounts.length} (${accountsResponse.status})`);
+      const accounts = await listConnectedAccountsForUser(userId);
+      console.log(`[Status SDK] userId=${userId} count=${accounts.length}`);
 
       if (requested.length > 0) {
         const statuses = requested.map((item) => {
