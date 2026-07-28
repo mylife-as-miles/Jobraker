@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  filterConnectedAccountsForUser,
   findActiveConnectedAccount,
   normalizeConnectedAccount,
 } from "../../backend/supabase/functions/_shared/composio-connected-account";
@@ -30,5 +31,21 @@ describe("Composio connected-account normalization", () => {
   it("does not match inactive accounts", () => {
     const account = { id: "four", app_name: "github", status: "EXPIRED" };
     expect(findActiveConnectedAccount([account], { slug: "github" })).toBeUndefined();
+  });
+
+  it("normalizes supported Composio ownership fields", () => {
+    expect(normalizeConnectedAccount({ user_id: "user-a" }).userId).toBe("user-a");
+    expect(normalizeConnectedAccount({ entityId: "user-b" }).userId).toBe("user-b");
+    expect(normalizeConnectedAccount({ user: { id: "user-c" } }).userId).toBe("user-c");
+  });
+
+  it("keeps only accounts owned by the authenticated user", () => {
+    const owned = { id: "owned", user_id: "user-a", toolkit_slug: "gmail" };
+    const other = { id: "other", user_id: "user-b", toolkit_slug: "github" };
+    const unscoped = { id: "unscoped", toolkit_slug: "notion" };
+
+    expect(
+      filterConnectedAccountsForUser([owned, other, unscoped], "user-a"),
+    ).toEqual([owned]);
   });
 });
