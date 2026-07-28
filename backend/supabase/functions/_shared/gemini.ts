@@ -104,26 +104,27 @@ export async function withGeminiRetry<T>(
 //   LITE   – cheapest, highest rate limits, best for simple tasks & fallback
 //   MODEL  – standard workhorse for most features
 //   PREMIUM – most capable, costs 2 credits, for advanced reasoning tasks
-export const GEMINI_LITE_MODEL = "gemini-3.1-flash-lite";
-export const GEMINI_MODEL = "gemini-3.0-flash-preview";
+export const GEMINI_LITE_MODEL = "gemini-2.5-flash";
+export const GEMINI_MODEL = "gemini-2.5-flash";
 export const GEMINI_FAST_MODEL = GEMINI_LITE_MODEL;
-export const GEMINI_PREMIUM_MODEL = "gemini-3.5-flash";
+export const GEMINI_PREMIUM_MODEL = "gemini-2.5-pro";
 
 /** Ordered fallback chain: try primary → standard → lite */
 export const MODEL_FALLBACK_CHAIN = [
-  GEMINI_MODEL,
-  GEMINI_LITE_MODEL,
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-1.5-flash",
 ] as const;
 
 /**
- * Try `fn` with the given model. On rate-limit, cascade through cheaper
+ * Try `fn` with the given model. On rate-limit or model not found, cascade through
  * fallback models before giving up.
  */
 export async function withModelFallback<T>(
   fn: (model: string) => Promise<T>,
   primaryModel: string = GEMINI_MODEL,
 ): Promise<{ result: T; modelUsed: string }> {
-  const chain = [primaryModel, ...MODEL_FALLBACK_CHAIN.filter((m) => m !== primaryModel)];
+  const chain = [...new Set([primaryModel, ...MODEL_FALLBACK_CHAIN])];
   let lastError: unknown;
   for (const model of chain) {
     try {
@@ -131,10 +132,12 @@ export async function withModelFallback<T>(
       return { result, modelUsed: model };
     } catch (error) {
       lastError = error;
-      if (!isGeminiRateLimitError(error)) {
-        throw error; // non-rate-limit errors propagate immediately
+      const msg = String(error?.message || error).toLowerCase();
+      const isNotFound = msg.includes("not found") || msg.includes("404");
+      if (!isGeminiRateLimitError(error) && !isNotFound) {
+        throw error; // non-retriable errors propagate immediately
       }
-      console.warn(`[Gemini] ${model} rate-limited, falling back…`);
+      console.warn(`[Gemini] ${model} failed (${isNotFound ? "not found" : "rate limited"}), falling back…`);
     }
   }
   throw lastError;
