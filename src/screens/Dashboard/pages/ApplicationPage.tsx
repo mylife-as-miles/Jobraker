@@ -577,12 +577,11 @@ function ApplicationPage() {
       const titleLower = (app.job_title || "").toLowerCase().trim();
       return aiTasks.filter((t) => {
         const tComp = String(t.params?.company || "").toLowerCase().trim();
-        const tTitle = String(t.title || "").toLowerCase();
-        return (
-          (companyLower && tComp && companyLower.includes(tComp)) ||
-          (companyLower && tTitle.includes(companyLower)) ||
-          (titleLower && tTitle.includes(titleLower))
-        );
+        const tAppId = String(t.params?.application_id || t.params?.applicationId || "");
+        const tJobId = String(t.params?.job_id || t.params?.jobId || "");
+        if (app.id && (tAppId === app.id || tJobId === app.id)) return true;
+        if (!companyLower || companyLower === "job openings" || companyLower === "greenhouse" || companyLower === "lever") return false;
+        return tComp && (companyLower === tComp || companyLower.includes(tComp));
       });
     },
     [aiTasks],
@@ -966,7 +965,7 @@ function ApplicationPage() {
         selectedStatus === "All"
           ? true
           : (selectedStatus as string) === "🤖 AI Tasks"
-            ? getLinkedAiTasks(a).length > 0 || Boolean(a.run_id || a.automation_provider)
+            ? (getLinkedAiTasks(a).length > 0 || Boolean(a.run_id || a.automation_provider)) && (a.canonical_stage === "queued" || a.canonical_stage === "draft_ready" || a.status === "Pending" || a.status === "Draft")
             : a.status === selectedStatus;
       return matchesQ && matchesStatus;
     });
