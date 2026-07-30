@@ -178,7 +178,7 @@ serve(async (req) => {
       if (githubConn) {
         try {
           // A. Fetch authenticated GitHub user details
-          const githubUserRes = await runTool("GITHUB_GET_AUTHENTICATED_USER", {});
+          const githubUserRes = await runTool("GITHUB_GET_THE_AUTHENTICATED_USER", {});
           const ghUser = githubUserRes?.output?.data || githubUserRes?.data || githubUserRes?.result?.output?.data || githubUserRes?.result?.data;
           
           if (!ghUser || !ghUser.login) {
@@ -186,7 +186,7 @@ serve(async (req) => {
           }
 
           // B. Fetch public repositories
-          const githubReposRes = await runTool("GITHUB_LIST_USER_REPOSITORIES", { visibility: "public", affiliation: "owner", per_page: 50 });
+          const githubReposRes = await runTool("GITHUB_LIST_REPOSITORIES_FOR_THE_AUTHENTICATED_USER", { visibility: "public", affiliation: "owner", per_page: 50 });
           const reposArray = githubReposRes?.output?.data || githubReposRes?.data || githubReposRes?.result?.output?.data || githubReposRes?.result?.data || [];
 
           // Sort repositories by stars DESC, forks DESC, updated_at DESC
