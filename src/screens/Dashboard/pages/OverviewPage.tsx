@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, startTransition } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
@@ -579,7 +579,12 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
               </h2>
               <select
                 value={chartRange}
-                onChange={(e) => setChartRange(e.target.value as ChartRange)}
+                onChange={(e) => {
+                  const val = e.target.value as ChartRange;
+                  startTransition(() => {
+                    setChartRange(val);
+                  });
+                }}
                 aria-label='Analytics range'
                 className='text-[10px] sm:text-xs font-medium rounded-full border border-foreground/10 bg-foreground/5 text-foreground/80 px-2.5 py-1 outline-none hover:border-brand/40 focus:border-brand/40 transition-colors cursor-pointer'
               >
