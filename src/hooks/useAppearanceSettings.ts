@@ -9,14 +9,12 @@ export interface AppearanceSettings {
   updated_at: string;
 }
 
-// The brand accent changed from a neon lime to green. Existing users have the
-// old lime persisted as their accent_color; map any legacy lime value to the
-// new default green so their UI matches the rest of the app (self-heals on load).
-const LEGACY_ACCENTS = new Set(["#1dff00", "#52ff4b", "#7bffb2", "#22c55e", "#16a34a"]);
+// The brand accent is standardized to signal green (#2fd968). Always enforce
+// the green theme across all user accounts.
 const DEFAULT_ACCENT = "#2fd968";
 
-function normalizeAccent(accent: string): string {
-  return LEGACY_ACCENTS.has((accent || "").toLowerCase()) ? DEFAULT_ACCENT : accent;
+function normalizeAccent(_accent: string): string {
+  return DEFAULT_ACCENT;
 }
 
 function hexToHsl(hex: string): { h: number; s: number; l: number } | null {
