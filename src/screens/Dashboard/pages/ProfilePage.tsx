@@ -148,7 +148,7 @@ const ProfilePage = (): JSX.Element => {
         window.open(redirectUrl, "_blank", "width=560,height=760");
       }
 
-      const connected = await waitForComposioConnection({
+      const outcome = await waitForComposioConnection({
         popup,
         requestId: oauthRequestId,
         provider,
@@ -162,13 +162,16 @@ const ProfilePage = (): JSX.Element => {
                 authConfigId: integration.authConfigId,
               },
             });
-          if (statusError) return false;
-          return Boolean(statusData?.isConnected);
+          if (statusError) return "inactive";
+          if (statusData?.state) return statusData.state;
+          return statusData?.isConnected ? "active" : "inactive";
         },
       });
-      if (!connected) {
+      if (outcome !== "connected") {
         throw new Error(
-          "Authorization was not completed. Reopen the connection and finish the provider flow.",
+          outcome === "timeout"
+            ? "The provider has not confirmed the connection yet. Try again in a moment."
+            : "Authorization was not completed. Reopen the connection and finish the provider flow.",
         );
       }
       await handleSync([provider]);

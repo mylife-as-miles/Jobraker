@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  classifyConnectedAccountStatus,
   filterConnectedAccountsForUser,
   findActiveConnectedAccount,
+  findConnectedAccountsForIntegration,
   normalizeConnectedAccount,
+  resolveIntegrationConnection,
 } from "../../backend/supabase/functions/_shared/composio-connected-account";
 
 describe("Composio connected-account normalization", () => {
@@ -47,5 +50,70 @@ describe("Composio connected-account normalization", () => {
     expect(
       filterConnectedAccountsForUser([owned, other, unscoped], "user-a"),
     ).toEqual([owned]);
+  });
+
+  it("never falls back to other tenants' accounts when the user has none", () => {
+    // The workspace-wide list endpoint returns every account in the org; a
+    // permissive fallback would show them all as the user's own connections.
+    const foreign = [
+      { id: "a", user_id: "user-b", toolkit_slug: "gmail" },
+      { id: "b", user_id: "user-c", toolkit_slug: "github" },
+    ];
+
+    expect(filterConnectedAccountsForUser(foreign, "user-a")).toEqual([]);
+  });
+});
+
+describe("Composio connection state", () => {
+  it("classifies authorization-in-progress records as pending, not connected", () => {
+    for (const status of ["INITIALIZING", "INITIATED", "PENDING"]) {
+      expect(classifyConnectedAccountStatus(status)).toBe("pending");
+    }
+    expect(classifyConnectedAccountStatus("ACTIVE")).toBe("active");
+    expect(classifyConnectedAccountStatus("")).toBe("active");
+    expect(classifyConnectedAccountStatus("EXPIRED")).toBe("inactive");
+  });
+
+  it("does not report a half-finished authorization as connected", () => {
+    const pending = { id: "pending", toolkit_slug: "gmail", status: "INITIATED" };
+
+    expect(findActiveConnectedAccount([pending], { slug: "gmail" })).toBeUndefined();
+    expect(resolveIntegrationConnection([pending], { slug: "gmail" })).toEqual({
+      account: pending,
+      state: "pending",
+    });
+  });
+
+  it("prefers a live account over a leftover pending attempt", () => {
+    const pending = { id: "pending", toolkit_slug: "gmail", status: "INITIALIZING" };
+    const active = { id: "active", toolkit_slug: "gmail", status: "ACTIVE" };
+
+    expect(resolveIntegrationConnection([pending, active], { slug: "gmail" })).toEqual({
+      account: active,
+      state: "active",
+    });
+  });
+
+  it("reports no connection when only unusable accounts exist", () => {
+    const expired = { id: "expired", toolkit_slug: "notion", status: "EXPIRED" };
+
+    expect(resolveIntegrationConnection([expired], { slug: "notion" })).toEqual({
+      account: null,
+      state: "inactive",
+    });
+  });
+
+  it("collects every row for a toolkit so disconnect can clear duplicates", () => {
+    const accounts = [
+      { id: "one", toolkit_slug: "github", status: "ACTIVE" },
+      { id: "two", toolkit_slug: "github", status: "INITIATED" },
+      { id: "three", toolkit_slug: "notion", status: "ACTIVE" },
+    ];
+
+    expect(
+      findConnectedAccountsForIntegration(accounts, { slug: "github" }).map(
+        (account) => account.id,
+      ),
+    ).toEqual(["one", "two"]);
   });
 });
