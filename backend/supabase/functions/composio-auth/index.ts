@@ -75,19 +75,29 @@ function extractConnectedAccounts(result: unknown): Record<string, unknown>[] {
 async function listConnectedAccountsForUser(
   userId: string,
 ): Promise<Record<string, unknown>[]> {
-  let accounts: Record<string, unknown>[] = [];
+  const accountMap = new Map<string, Record<string, unknown>>();
   const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+
+  const addItems = (items: unknown[]) => {
+    const extracted = extractConnectedAccounts(items);
+    for (const item of extracted) {
+      const norm = normalizeConnectedAccount(item);
+      if (norm.id) {
+        accountMap.set(norm.id, item);
+      }
+    }
+  };
 
   try {
     const response = await composio.connectedAccounts.list({
       userIds: [userId],
     });
-    accounts = extractConnectedAccounts(response);
+    addItems(extractConnectedAccounts(response));
   } catch (e) {
     console.warn("SDK connectedAccounts.list failed:", e);
   }
 
-  if (accounts.length === 0 && apiKey) {
+  if (apiKey) {
     const endpoints = [
       `https://backend.composio.dev/api/v3.1/connected_accounts?user_id=${encodeURIComponent(userId)}`,
       `https://backend.composio.dev/api/v3.1/connected_accounts?entity_id=${encodeURIComponent(userId)}`,
@@ -99,11 +109,7 @@ async function listConnectedAccountsForUser(
         if (res.ok) {
           const data = await res.json();
           const items = data.items || data.data || (Array.isArray(data) ? data : []);
-          const extracted = extractConnectedAccounts(items);
-          if (extracted.length > 0) {
-            accounts = extracted;
-            break;
-          }
+          addItems(items);
         }
       } catch (e) {
         console.warn(`REST fetch failed for ${url}:`, e);
@@ -111,7 +117,8 @@ async function listConnectedAccountsForUser(
     }
   }
 
-  const ownedAccounts = filterConnectedAccountsForUser(accounts, userId);
+  const allAccounts = Array.from(accountMap.values());
+  const ownedAccounts = filterConnectedAccountsForUser(allAccounts, userId);
   return ownedAccounts;
 }
 
@@ -360,40 +367,34 @@ Deno.serve(async (req) => {
         });
       }
 
-      const accounts = await listConnectedAccountsForUser(userId);
-      const ownsConnection = accounts.some(
-        (account) => normalizeConnectedAccount(account).id === connectionId,
-      );
-      if (!ownsConnection) {
-        return new Response(
-          JSON.stringify({ error: "Connection not found" }),
-          {
-            status: 404,
-            headers: { "Content-Type": "application/json", ...corsHeaders },
-          },
-        );
-      }
-
+      let deleted = false;
       try {
         await composio.connectedAccounts.delete(connectionId);
+        deleted = true;
       } catch (e: any) {
         console.warn(`SDK disconnect error for ${connectionId}:`, e);
-        const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-        const response = await fetch(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(connectionId)}`, {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-          },
-        });
-        if (!response.ok && response.status !== 404) {
-          const errorText = await response.text();
-          throw new Error(`Composio API error (${response.status}): ${errorText}`);
+      }
+
+      const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+      if (apiKey) {
+        try {
+          const response = await fetch(`https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(connectionId)}`, {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": apiKey,
+            },
+          });
+          if (response.ok || response.status === 404) {
+            deleted = true;
+          }
+        } catch (e: any) {
+          console.warn(`REST disconnect error for ${connectionId}:`, e);
         }
       }
 
       return new Response(
-        JSON.stringify({ success: true, message: "Connection deleted" }),
+        JSON.stringify({ success: true, message: "Connection deleted", deleted }),
         {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders },
