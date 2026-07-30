@@ -86,7 +86,7 @@ import { useComposioIntegrations } from "@/hooks/useComposioIntegrations";
 import { GMAIL_INTEGRATION } from "@/lib/composioIntegrations";
 import { IntegrationsPanel } from "../components/IntegrationsPanel";
 
-type TwoFAStep = "preparing" | "scan" | "verify" | "success";
+type TwoFAStep = "preparing" | "scan" | "verify" | "backup" | "success";
 
 const SignOutDialog = ({
   open,
@@ -344,6 +344,7 @@ export const SettingsPage = (): JSX.Element => {
   const [twoFAStep, setTwoFAStep] = useState<TwoFAStep>("preparing");
   const [totpQrCode, setTotpQrCode] = useState<string | undefined>();
   const [totpSecret, setTotpSecret] = useState<string | undefined>();
+  const [totpUri, setTotpUri] = useState<string | undefined>();
   const [totpFactorId, setTotpFactorId] = useState<string | undefined>();
   const [totpCode, setTotpCode] = useState<string>("");
   const [verifyBusy, setVerifyBusy] = useState(false);
@@ -500,7 +501,7 @@ export const SettingsPage = (): JSX.Element => {
     setEnrollBusy(true);
     try {
       if (!sec) await createSecurity({});
-      const { factorId, qrCode, secret } = await enrollTotp();
+      const { factorId, qrCode, secret, uri } = await enrollTotp();
       if (!factorId || !qrCode) {
         throw new Error(
           "The authenticator service did not return a QR code. Please try again.",
@@ -509,6 +510,7 @@ export const SettingsPage = (): JSX.Element => {
       setTotpFactorId(factorId);
       setTotpQrCode(qrCode);
       setTotpSecret(secret);
+      setTotpUri(uri);
       setTwoFAStep("scan");
     } catch (e: any) {
       setTwoFAError(e?.message || "Failed to start two-factor setup.");
@@ -517,19 +519,26 @@ export const SettingsPage = (): JSX.Element => {
     }
   }, [sec, createSecurity, enrollTotp]);
 
-  const handleVerifyTwoFA = useCallback(async () => {
-    if (!totpFactorId || totpCode.length !== 6 || verifyBusy) return;
+  const handleVerifyTwoFA = useCallback(async (codeToVerify?: string) => {
+    const code = codeToVerify || totpCode;
+    if (!totpFactorId || code.length !== 6 || verifyBusy) return;
     setVerifyBusy(true);
     setTwoFAError(null);
     try {
-      await verifyTotp(totpFactorId, totpCode);
-      setTwoFAStep("success");
+      await verifyTotp(totpFactorId, code);
+      try {
+        const codes = await generateBackupCodes();
+        setGeneratedBackupCodes(codes || []);
+        setTwoFAStep("backup");
+      } catch {
+        setTwoFAStep("success");
+      }
     } catch {
-      setTwoFAError("Incorrect code. Check your authenticator app and try again.");
+      setTwoFAError("Incorrect verification code. Please check your authenticator app.");
     } finally {
       setVerifyBusy(false);
     }
-  }, [totpFactorId, totpCode, verifyBusy, verifyTotp]);
+  }, [totpFactorId, totpCode, verifyBusy, verifyTotp, generateBackupCodes]);
 
   const handleCopyTotpSecret = useCallback(async () => {
     if (!totpSecret) return;
@@ -5574,20 +5583,130 @@ export const SettingsPage = (): JSX.Element => {
     </>
   );
 
-  // 2FA Setup Modal — a guided, multi-step enrollment flow (scan → verify →
-  // success) instead of a single form that silently hung on "Generating QR…"
-  // whenever the QR data never arrived.
+  // Advanced 6-Digit OTP Box Grid Component
+  function SixDigitOtpInput({
+    value,
+    onChange,
+    onComplete,
+    disabled,
+  }: {
+    value: string;
+    onChange: (val: string) => void;
+    onComplete?: (code: string) => void;
+    disabled?: boolean;
+  }) {
+    const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+
+    const digits = useMemo(() => {
+      const chars = value.split("");
+      return Array.from({ length: 6 }, (_, i) => chars[i] || "");
+    }, [value]);
+
+    const handleDigitChange = (index: number, val: string) => {
+      const clean = val.replace(/\D/g, "");
+      if (!clean) {
+        const next = digits.slice();
+        next[index] = "";
+        const updated = next.join("");
+        onChange(updated);
+        return;
+      }
+
+      if (clean.length > 1) {
+        const pasted = clean.slice(0, 6);
+        onChange(pasted);
+        if (pasted.length === 6) {
+          inputsRef.current[5]?.focus();
+          if (onComplete) onComplete(pasted);
+        } else {
+          inputsRef.current[pasted.length]?.focus();
+        }
+        return;
+      }
+
+      const next = digits.slice();
+      next[index] = clean;
+      const updated = next.join("");
+      onChange(updated);
+
+      if (index < 5 && clean) {
+        inputsRef.current[index + 1]?.focus();
+      }
+      if (updated.length === 6 && onComplete) {
+        onComplete(updated);
+      }
+    };
+
+    const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Backspace" && !digits[index] && index > 0) {
+        inputsRef.current[index - 1]?.focus();
+      } else if (e.key === "ArrowLeft" && index > 0) {
+        inputsRef.current[index - 1]?.focus();
+      } else if (e.key === "ArrowRight" && index < 5) {
+        inputsRef.current[index + 1]?.focus();
+      }
+    };
+
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+      e.preventDefault();
+      const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+      if (pasted) {
+        onChange(pasted);
+        inputsRef.current[Math.min(pasted.length, 5)]?.focus();
+        if (pasted.length === 6 && onComplete) {
+          onComplete(pasted);
+        }
+      }
+    };
+
+    return (
+      <div className='flex justify-center gap-2 sm:gap-3 py-3'>
+        {Array.from({ length: 6 }).map((_, idx) => (
+          <input
+            key={idx}
+            ref={(el) => {
+              inputsRef.current[idx] = el;
+            }}
+            type='text'
+            inputMode='numeric'
+            pattern='[0-9]*'
+            maxLength={6}
+            disabled={disabled}
+            value={digits[idx]}
+            onChange={(e) => handleDigitChange(idx, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(idx, e)}
+            onPaste={handlePaste}
+            onFocus={(e) => e.target.select()}
+            className={cn(
+              "w-11 h-14 sm:w-12 sm:h-16 text-center text-2xl font-bold rounded-xl border-2 transition-all outline-none bg-card text-foreground shadow-sm",
+              digits[idx]
+                ? "border-brand bg-brand/5 shadow-brand/10"
+                : "border-border/60 focus:border-brand/70 focus:ring-2 focus:ring-brand/20",
+              disabled && "opacity-50 cursor-not-allowed",
+            )}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // 2FA Setup Modal — Advanced 4-step guided enrollment flow
   function TwoFAModal() {
     const stepTitles: Record<TwoFAStep, string> = {
       preparing: "Set up Two-Factor Authentication",
-      scan: "Step 1 of 2 — Scan the QR code",
-      verify: "Step 2 of 2 — Verify it works",
-      success: "Two-Factor Authentication Enabled",
+      scan: "Step 1 of 3 — Scan QR Code",
+      verify: "Step 2 of 3 — Enter 6-Digit Code",
+      backup: "Step 3 of 3 — Save Emergency Backup Codes",
+      success: "Two-Factor Authentication Active",
     };
 
     const qrImageSrc = totpQrCode
       ? `data:image/svg+xml;utf-8,${encodeURIComponent(totpQrCode)}`
       : undefined;
+
+    const formattedSecret = totpSecret
+      ? totpSecret.match(/.{1,4}/g)?.join(" ") || totpSecret
+      : "";
 
     return (
       <Modal
@@ -5598,12 +5717,15 @@ export const SettingsPage = (): JSX.Element => {
         side='center'
       >
         {twoFAStep === "preparing" && (
-          <div className='flex flex-col items-center gap-4 py-6 text-center'>
+          <div className='flex flex-col items-center gap-4 py-8 text-center'>
             {enrollBusy ? (
               <>
-                <RefreshCw className='w-8 h-8 text-brand animate-spin' aria-hidden />
-                <p className='text-sm text-muted-foreground'>
-                  Preparing secure setup…
+                <RefreshCw className='w-10 h-10 text-brand animate-spin' aria-hidden />
+                <p className='text-sm font-medium text-foreground/90'>
+                  Generating secure authenticator credentials…
+                </p>
+                <p className='text-xs text-muted-foreground max-w-xs'>
+                  Creating a unique TOTP key for your account.
                 </p>
               </>
             ) : (
@@ -5641,19 +5763,29 @@ export const SettingsPage = (): JSX.Element => {
         {twoFAStep === "scan" && (
           <div className='space-y-4'>
             <p className='text-muted-foreground text-sm'>
-              Open your authenticator app (Google Authenticator, Authy, or
-              1Password) and scan the QR code below.
+              Scan the QR code with Google Authenticator, 1Password, or Authy.
             </p>
 
             {qrImageSrc ? (
-              <div className='flex justify-center'>
-                <div className='rounded-xl border border-border/40 bg-white p-3'>
+              <div className='flex flex-col items-center gap-3'>
+                <div className='rounded-2xl border-2 border-brand/30 bg-white p-4 shadow-xl shadow-brand/5'>
                   <img
                     src={qrImageSrc}
                     alt='Scan this QR code with your authenticator app'
                     className='h-[200px] w-[200px]'
                   />
                 </div>
+                {totpUri ? (
+                  <a
+                    href={totpUri}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline'
+                  >
+                    <Smartphone className='w-3.5 h-3.5' />
+                    Open in Authenticator App
+                  </a>
+                ) : null}
               </div>
             ) : (
               <div className='flex justify-center'>
@@ -5667,25 +5799,28 @@ export const SettingsPage = (): JSX.Element => {
               <button
                 type='button'
                 onClick={() => void handleCopyTotpSecret()}
-                className='flex w-full items-center gap-3 rounded-lg border border-border/40 bg-background/50 p-3 text-left transition-all hover:border-brand/30 hover:bg-muted/50'
+                className='flex w-full items-center gap-3 rounded-xl border border-border/40 bg-card p-3.5 text-left transition-all hover:border-brand/40 hover:bg-muted/50 shadow-sm'
               >
                 <div className='min-w-0 flex-1'>
-                  <p className='text-[11px] font-semibold text-muted-foreground'>
-                    Can't scan? Enter this key manually
+                  <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wider'>
+                    Manual Setup Key
                   </p>
-                  <p className='truncate text-sm font-medium tracking-wider text-foreground/90'>
-                    {totpSecret}
+                  <p className='truncate text-sm font-mono font-bold tracking-widest text-foreground/90 mt-0.5'>
+                    {formattedSecret}
                   </p>
                 </div>
                 {secretCopied ? (
-                  <CheckCircle2 className='w-4 h-4 shrink-0 text-brand' aria-hidden />
+                  <span className='inline-flex items-center gap-1 text-xs font-semibold text-brand'>
+                    <CheckCircle2 className='w-4 h-4 shrink-0' aria-hidden />
+                    Copied
+                  </span>
                 ) : (
-                  <Copy className='w-4 h-4 shrink-0 text-muted-foreground' aria-hidden />
+                  <Copy className='w-4 h-4 shrink-0 text-muted-foreground hover:text-brand' aria-hidden />
                 )}
               </button>
             ) : null}
 
-            <div className='flex justify-end gap-2'>
+            <div className='flex justify-end gap-2 pt-2'>
               <Button
                 variant='outline'
                 className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -5699,47 +5834,43 @@ export const SettingsPage = (): JSX.Element => {
                   setTotpCode("");
                   setTwoFAStep("verify");
                 }}
-                className='bg-brand text-black font-medium hover:bg-brand/90'
+                className='bg-brand text-black font-medium hover:bg-brand/90 shadow-md shadow-brand/10'
               >
-                I've scanned it — Next
+                Next — Enter Code
               </Button>
             </div>
           </div>
         )}
 
         {twoFAStep === "verify" && (
-          <div className='space-y-4'>
-            <p className='text-muted-foreground text-sm'>
-              Enter the 6-digit code from your authenticator app to confirm
-              setup is working correctly.
-            </p>
-
-            <div className='flex justify-center'>
-              <Input
-                inputMode='numeric'
-                pattern='[0-9]*'
-                placeholder='000000'
-                autoFocus
-                value={totpCode}
-                onChange={(e) => {
-                  setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6));
-                  setTwoFAError(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void handleVerifyTwoFA();
-                }}
-                className='h-16 w-52 rounded-xl border-2 border-brand/40 bg-card text-center text-3xl font-bold tracking-[0.5em] text-foreground focus:border-brand/70'
-              />
+          <div className='space-y-5 py-1'>
+            <div className='text-center space-y-1'>
+              <p className='text-sm font-medium text-foreground'>
+                Enter the 6-digit verification code
+              </p>
+              <p className='text-xs text-muted-foreground'>
+                From your authenticator app for JobRaker
+              </p>
             </div>
 
+            <SixDigitOtpInput
+              value={totpCode}
+              onChange={(val) => {
+                setTotpCode(val);
+                setTwoFAError(null);
+              }}
+              onComplete={(code) => void handleVerifyTwoFA(code)}
+              disabled={verifyBusy}
+            />
+
             {twoFAError ? (
-              <div className='flex items-center justify-center gap-2 text-rose-400'>
+              <div className='flex items-center justify-center gap-2 text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg text-center'>
                 <AlertTriangle className='w-4 h-4 shrink-0' aria-hidden />
-                <p className='text-xs'>{twoFAError}</p>
+                <p className='text-xs font-medium'>{twoFAError}</p>
               </div>
             ) : null}
 
-            <div className='flex justify-end gap-2'>
+            <div className='flex justify-end gap-2 pt-2'>
               <Button
                 variant='outline'
                 className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -5751,43 +5882,87 @@ export const SettingsPage = (): JSX.Element => {
               <Button
                 onClick={() => void handleVerifyTwoFA()}
                 disabled={totpCode.length < 6 || verifyBusy}
-                className='bg-brand text-black font-medium hover:bg-brand/90 disabled:opacity-50'
+                className='bg-brand text-black font-medium hover:bg-brand/90 disabled:opacity-50 shadow-md shadow-brand/10'
               >
                 {verifyBusy ? (
                   <RefreshCw className='w-4 h-4 mr-2 animate-spin' aria-hidden />
                 ) : null}
-                Verify & Enable
+                Verify & Continue
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {twoFAStep === "backup" && (
+          <div className='space-y-4 py-1'>
+            <div className='flex items-center gap-3 p-3 rounded-xl border border-brand/30 bg-brand/5'>
+              <ShieldCheck className='w-5 h-5 shrink-0 text-brand' aria-hidden />
+              <div>
+                <p className='text-xs font-semibold text-foreground'>
+                  Authenticator Verified Successfully!
+                </p>
+                <p className='text-[11px] text-muted-foreground'>
+                  Save these 10 one-time emergency backup codes in a safe place.
+                </p>
+              </div>
+            </div>
+
+            {generatedBackupCodes && generatedBackupCodes.length > 0 ? (
+              <div className='grid grid-cols-2 gap-2 bg-card border border-border/50 rounded-xl p-3 font-mono text-xs text-center font-bold tracking-widest text-foreground/90'>
+                {generatedBackupCodes.map((code, idx) => (
+                  <div key={idx} className='bg-muted/40 p-2 rounded-lg border border-border/30'>
+                    {code}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className='flex flex-wrap justify-between gap-2 pt-2 border-t border-border/40'>
+              <Button
+                variant='outline'
+                size='sm'
+                className='border-border/40 text-muted-foreground hover:text-foreground'
+                onClick={() => void handleGenerateBackupCodes()}
+              >
+                <Download className='w-3.5 h-3.5 mr-1.5' />
+                Download .TXT
+              </Button>
+              <Button
+                onClick={() => setTwoFAStep("success")}
+                className='bg-brand text-black font-medium hover:bg-brand/90 shadow-md shadow-brand/10'
+              >
+                Done — Finish Setup
               </Button>
             </div>
           </div>
         )}
 
         {twoFAStep === "success" && (
-          <div className='flex flex-col items-center gap-4 py-4 text-center'>
-            <div className='flex h-16 w-16 items-center justify-center rounded-full bg-brand/10 border border-brand/30'>
+          <div className='flex flex-col items-center gap-4 py-6 text-center'>
+            <div className='flex h-16 w-16 items-center justify-center rounded-full bg-brand/10 border-2 border-brand/30 shadow-lg shadow-brand/10'>
               <CheckCircle2 className='w-8 h-8 text-brand' aria-hidden />
             </div>
-            <p className='text-sm text-foreground/90 font-medium'>
-              Your account is now protected with an additional layer of
-              security.
-            </p>
-            <p className='text-xs text-muted-foreground max-w-xs'>
-              You'll need a code from your authenticator app each time you
-              sign in. Save backup codes now in case you lose access to it.
-            </p>
+            <div className='space-y-1'>
+              <p className='text-base font-semibold text-foreground'>
+                Two-Factor Protection Enabled
+              </p>
+              <p className='text-xs text-muted-foreground max-w-xs'>
+                Your JobRaker account is now guarded by TOTP multi-factor security.
+              </p>
+            </div>
             <div className='flex gap-2 mt-2'>
               <Button
-                variant='outline'
-                className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                onClick={() => void handleGenerateBackupCodes()}
-              >
-                <Key className='w-4 h-4 mr-2' aria-hidden />
-                Get backup codes
-              </Button>
-              <Button
                 onClick={handleCloseTwoFAModal}
-                className='bg-brand text-black font-medium hover:bg-brand/90'
+                className='bg-brand text-black font-medium hover:bg-brand/90 px-6'
               >
+                Done
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    );
+  }
                 Done
               </Button>
             </div>
