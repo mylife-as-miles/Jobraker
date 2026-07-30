@@ -122,14 +122,6 @@ const ProfilePage = (): JSX.Element => {
     const integration = PORTFOLIO_INTEGRATIONS[provider];
     const configId = integration.authConfigId;
 
-    if (!configId) {
-      toastError(
-        "Configuration missing",
-        `Please set VITE_COMPOSIO_${provider.toUpperCase()}_CONFIG_ID environment variable.`
-      );
-      return;
-    }
-
     const popup = window.open("about:blank", "_blank", "width=560,height=760");
     const oauthRequestId = createOAuthRequestId();
     setConnectingProvider(provider);
