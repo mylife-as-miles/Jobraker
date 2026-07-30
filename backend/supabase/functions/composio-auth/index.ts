@@ -222,11 +222,10 @@ Deno.serve(async (req) => {
               configData?.toolkit_slug ||
                 configData?.toolkit?.slug ||
                 configData?.app_slug ||
-                configData?.appName ||
                 configData?.app?.slug ||
+                configData?.auth_config?.toolkit_slug ||
                 ""
             );
-            console.log("AuthConfig verification check:", { finalAuthConfigId, requestedSlug: slug, configToolkit, configDataKeys: Object.keys(configData) });
             if (configToolkit && configToolkit !== slug) {
               console.warn(`AuthConfig ${finalAuthConfigId} belongs to '${configToolkit}', not requested '${slug}'. Falling back to default ${slug} config...`);
               finalAuthConfigId = null;
