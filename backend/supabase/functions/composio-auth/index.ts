@@ -464,18 +464,49 @@ Deno.serve(async (req) => {
         });
       }
 
-      const execute = (composio as any)?.tools?.execute;
-      if (typeof execute !== "function") {
-        return new Response(JSON.stringify({ error: "Composio tool execution is not available in this SDK version" }), {
-          status: 501,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+      let result: unknown = null;
+      let executed = false;
+
+      const executeFn = (composio as any)?.tools?.execute;
+      if (typeof executeFn === "function") {
+        try {
+          result = await executeFn.call((composio as any).tools, slug, {
+            userId,
+            arguments: toolArguments ?? args ?? {},
+          });
+          executed = true;
+        } catch (e: any) {
+          console.warn(`SDK tool execution failed for ${slug}:`, e);
+        }
       }
 
-      const result = await execute.call((composio as any).tools, slug, {
-        userId,
-        arguments: toolArguments ?? args ?? {},
-      });
+      if (!executed) {
+        const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+        const res = await fetch(`https://backend.composio.dev/api/v3.1/tools/execute/${encodeURIComponent(slug)}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            arguments: toolArguments ?? args ?? {},
+          }),
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          return new Response(
+            JSON.stringify({ error: `Composio tool execution failed (${res.status}): ${errorText}` }),
+            {
+              status: res.status,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            }
+          );
+        }
+
+        result = await res.json();
+      }
 
       return new Response(
         JSON.stringify({ success: true, result }),
