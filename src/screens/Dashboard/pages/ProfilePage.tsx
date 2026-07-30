@@ -489,7 +489,7 @@ const ProfilePage = (): JSX.Element => {
       <div className='w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8'>
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 items-start'>
           {/* Profile Sidebar */}
-          <div className='lg:col-span-1 space-y-6 lg:sticky lg:top-8 lg:self-start'>
+          <div className='lg:col-span-1 space-y-6 lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-foreground/10 hover:scrollbar-thumb-foreground/30 transition-all'>
             {/* Profile Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
