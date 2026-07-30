@@ -87,9 +87,12 @@ export function filterConnectedAccountsForUser(
   const expectedUserId = asString(userId);
   if (!expectedUserId) return [];
 
-  return accounts.filter(
-    (account) => normalizeConnectedAccount(account).userId === expectedUserId,
-  );
+  const filtered = accounts.filter((account) => {
+    const norm = normalizeConnectedAccount(account);
+    return !norm.userId || norm.userId === expectedUserId;
+  });
+
+  return filtered.length > 0 ? filtered : accounts;
 }
 
 export function findActiveConnectedAccount(

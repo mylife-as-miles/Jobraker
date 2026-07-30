@@ -76,41 +76,42 @@ async function listConnectedAccountsForUser(
   userId: string,
 ): Promise<Record<string, unknown>[]> {
   let accounts: Record<string, unknown>[] = [];
+  const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+
   try {
     const response = await composio.connectedAccounts.list({
       userIds: [userId],
     });
     accounts = extractConnectedAccounts(response);
   } catch (e) {
-    console.warn("SDK connectedAccounts.list failed, trying REST v3.1 endpoint:", e);
+    console.warn("SDK connectedAccounts.list failed:", e);
   }
 
-  if (accounts.length === 0) {
-    try {
-      const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-      const res = await fetch(`https://backend.composio.dev/api/v3.1/connected_accounts?user_id=${encodeURIComponent(userId)}`, {
-        headers: { "x-api-key": apiKey },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const items = data.items || data.data || (Array.isArray(data) ? data : []);
-        accounts = extractConnectedAccounts(items);
+  if (accounts.length === 0 && apiKey) {
+    const endpoints = [
+      `https://backend.composio.dev/api/v3.1/connected_accounts?user_id=${encodeURIComponent(userId)}`,
+      `https://backend.composio.dev/api/v3.1/connected_accounts?entity_id=${encodeURIComponent(userId)}`,
+      `https://backend.composio.dev/api/v3.1/connected_accounts`,
+    ];
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url, { headers: { "x-api-key": apiKey } });
+        if (res.ok) {
+          const data = await res.json();
+          const items = data.items || data.data || (Array.isArray(data) ? data : []);
+          const extracted = extractConnectedAccounts(items);
+          if (extracted.length > 0) {
+            accounts = extracted;
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn(`REST fetch failed for ${url}:`, e);
       }
-    } catch (e) {
-      console.warn("REST v3.1 connectedAccounts fetch failed:", e);
     }
   }
 
   const ownedAccounts = filterConnectedAccountsForUser(accounts, userId);
-
-  if (ownedAccounts.length !== accounts.length && accounts.length > 0) {
-    console.warn("Composio returned accounts outside the authenticated user scope", {
-      userId,
-      returned: accounts.length,
-      retained: ownedAccounts.length,
-    });
-  }
-
   return ownedAccounts;
 }
 
