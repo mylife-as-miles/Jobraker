@@ -3,6 +3,14 @@ import { Link } from "react-router-dom";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "../../../components/ui/dialog";
 import { motion } from "framer-motion";
 import {
   Edit,
@@ -77,14 +85,33 @@ const ProfilePage = (): JSX.Element => {
   const supabase = useMemo(() => createClient(), []);
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
   const [syncingProviders, setSyncingProviders] = useState<string[]>([]);
+  
+  // Human-in-the-loop sync modal state
+  const [pendingSyncProviders, setPendingSyncProviders] = useState<string[] | null>(null);
+  const [syncOptions, setSyncOptions] = useState({
+    updateAvatar: true,
+    updateAbout: true,
+    updateSkills: true,
+  });
 
-  const handleSync = async (providers: string[]) => {
+  const promptSyncConfirmation = (providers: string[]) => {
+    setPendingSyncProviders(providers);
+  };
+
+  const handleSyncConfirmed = async () => {
+    if (!pendingSyncProviders) return;
+    const providers = pendingSyncProviders;
+    setPendingSyncProviders(null);
+
     setSyncingProviders((prev) => [...prev, ...providers]);
     toastSuccess("Portfolio Sync", `Starting sync for ${providers.join(", ")}...`);
 
     try {
       const { data, error } = await supabase.functions.invoke("sync-portfolio-integrations", {
-        body: { providers },
+        body: { 
+          providers,
+          options: syncOptions,
+        },
       });
 
       if (error) throw error;
@@ -2006,7 +2033,7 @@ const ProfilePage = (): JSX.Element => {
                       size='sm'
                       variant='outline'
                       disabled={syncingProviders.length > 0 || connectingProvider !== null}
-                      onClick={() => handleSync(["github", "linkedin"])}
+                      onClick={() => promptSyncConfirmation(["github", "linkedin"])}
                       className='border-foreground/20 text-foreground hover:bg-foreground/10 flex items-center gap-1.5'
                     >
                       <RefreshCw className={`w-3.5 h-3.5 ${syncingProviders.length > 0 ? "animate-spin" : ""}`} />
@@ -2034,7 +2061,7 @@ const ProfilePage = (): JSX.Element => {
                           size='sm'
                           variant='ghost'
                           disabled={syncingProviders.includes("github")}
-                          onClick={() => handleSync(["github"])}
+                          onClick={() => promptSyncConfirmation(["github"])}
                           className='product-helper-text hover:text-foreground text-xs flex items-center gap-1'
                         >
                           <RefreshCw className={`w-3 h-3 ${syncingProviders.includes("github") ? "animate-spin" : ""}`} />
@@ -2209,7 +2236,7 @@ const ProfilePage = (): JSX.Element => {
                           size='sm'
                           variant='ghost'
                           disabled={syncingProviders.includes("linkedin")}
-                          onClick={() => handleSync(["linkedin"])}
+                          onClick={() => promptSyncConfirmation(["linkedin"])}
                           className='product-helper-text hover:text-foreground text-xs flex items-center gap-1'
                         >
                           <RefreshCw className={`w-3 h-3 ${syncingProviders.includes("linkedin") ? "animate-spin" : ""}`} />
@@ -2328,6 +2355,84 @@ const ProfilePage = (): JSX.Element => {
           </div>
         </div>
       </div>
+
+      {/* Human-In-The-Loop Confirmation Modal */}
+      <Dialog open={pendingSyncProviders !== null} onOpenChange={(open) => !open && setPendingSyncProviders(null)}>
+        <DialogContent className='sm:max-w-md bg-zinc-950 border-border/40 text-foreground'>
+          <DialogHeader>
+            <DialogTitle className='flex items-center gap-2 text-lg font-bold text-foreground'>
+              <RefreshCw className='w-5 h-5 text-brand' />
+              Confirm Profile Sync Options
+            </DialogTitle>
+            <DialogDescription className='text-xs text-muted-foreground mt-1'>
+              Select which areas of your main profile you would like to update with data fetched from {pendingSyncProviders?.join(" & ")}:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className='space-y-3 py-3 border-y border-border/20 my-2'>
+            <label className='flex items-start gap-3 p-2.5 rounded-lg border border-border/20 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors'>
+              <input
+                type='checkbox'
+                checked={syncOptions.updateAvatar}
+                onChange={(e) => setSyncOptions((prev) => ({ ...prev, updateAvatar: e.target.checked }))}
+                className='mt-1 rounded border-border/40 text-brand focus:ring-brand'
+              />
+              <div>
+                <span className='text-sm font-semibold text-foreground block'>Profile Picture (Avatar)</span>
+                <span className='text-xs text-muted-foreground/80 block leading-normal'>
+                  Update your account avatar using your synced GitHub or LinkedIn profile picture.
+                </span>
+              </div>
+            </label>
+
+            <label className='flex items-start gap-3 p-2.5 rounded-lg border border-border/20 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors'>
+              <input
+                type='checkbox'
+                checked={syncOptions.updateAbout}
+                onChange={(e) => setSyncOptions((prev) => ({ ...prev, updateAbout: e.target.checked }))}
+                className='mt-1 rounded border-border/40 text-brand focus:ring-brand'
+              />
+              <div>
+                <span className='text-sm font-semibold text-foreground block'>Bio / About Section</span>
+                <span className='text-xs text-muted-foreground/80 block leading-normal'>
+                  Overwrites your profile bio summary with your synced profile headline/summary.
+                </span>
+              </div>
+            </label>
+
+            <label className='flex items-start gap-3 p-2.5 rounded-lg border border-border/20 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors'>
+              <input
+                type='checkbox'
+                checked={syncOptions.updateSkills}
+                onChange={(e) => setSyncOptions((prev) => ({ ...prev, updateSkills: e.target.checked }))}
+                className='mt-1 rounded border-border/40 text-brand focus:ring-brand'
+              />
+              <div>
+                <span className='text-sm font-semibold text-foreground block'>Profile Skills Stack</span>
+                <span className='text-xs text-muted-foreground/80 block leading-normal'>
+                  Automatically add top languages from your repositories into your main Skills list.
+                </span>
+              </div>
+            </label>
+          </div>
+
+          <DialogFooter className='gap-2 sm:gap-0'>
+            <Button
+              variant='outline'
+              onClick={() => setPendingSyncProviders(null)}
+              className='border-border/40 text-muted-foreground hover:text-foreground'
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSyncConfirmed}
+              className='bg-brand text-black hover:bg-brand/90 font-semibold'
+            >
+              Proceed & Sync Data
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

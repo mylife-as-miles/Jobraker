@@ -71,12 +71,25 @@ serve(async (req) => {
     const { user } = await requireAuthenticatedUser(req);
     const userId = user.id;
 
-    // 2. Parse request body to see which providers to sync
+    // 2. Parse request body to see which providers to sync and human-in-the-loop options
     let providers = ["github", "linkedin"];
+    let syncOptions = {
+      updateAvatar: true,
+      updateAbout: true,
+      updateSkills: true,
+    };
+
     try {
       const parsed = await req.json();
       if (parsed && Array.isArray(parsed.providers)) {
         providers = parsed.providers;
+      }
+      if (parsed && parsed.options) {
+        syncOptions = {
+          updateAvatar: parsed.options.updateAvatar ?? true,
+          updateAbout: parsed.options.updateAbout ?? true,
+          updateSkills: parsed.options.updateSkills ?? true,
+        };
       }
     } catch (_) {
       // Use defaults if body is missing/invalid
@@ -241,19 +254,19 @@ serve(async (req) => {
 
           Object.assign(updatedGithubData, githubPayload);
 
-          // Dynamically populate core profile fields if currently empty
+          // Dynamically populate core profile fields if user selected/confirmed
           if (!profileUpdate.github_url && githubPayload.profile_url) {
             profileUpdate.github_url = githubPayload.profile_url;
           }
-          if (!profileUpdate.avatar_url && githubPayload.avatar_url) {
+          if (syncOptions.updateAvatar && (!profileUpdate.avatar_url || syncOptions.updateAvatar) && githubPayload.avatar_url) {
             profileUpdate.avatar_url = githubPayload.avatar_url;
           }
-          if (!profileUpdate.about && githubPayload.bio) {
+          if (syncOptions.updateAbout && (!profileUpdate.about || syncOptions.updateAbout) && githubPayload.bio) {
             profileUpdate.about = githubPayload.bio;
           }
 
-          // Auto-insert missing top languages into user's profile_skills table
-          if (topLanguages.length > 0) {
+          // Auto-insert missing top languages into user's profile_skills table if confirmed
+          if (syncOptions.updateSkills && topLanguages.length > 0) {
             for (const lang of topLanguages) {
               await supabaseAdmin
                 .from("profile_skills")
@@ -321,7 +334,7 @@ serve(async (req) => {
           if (!profileUpdate.linkedin_url && linkedinPayload.profile_url) {
             profileUpdate.linkedin_url = linkedinPayload.profile_url;
           }
-          if (!profileUpdate.about && (linkedinPayload.summary || linkedinPayload.headline)) {
+          if (syncOptions.updateAbout && (linkedinPayload.summary || linkedinPayload.headline)) {
             profileUpdate.about = linkedinPayload.summary || linkedinPayload.headline;
           }
 
