@@ -154,7 +154,7 @@ serve(async (req) => {
     // 5. Fetch current user profile to preserve old data if a sync fails
     const { data: profile, error: profileErr } = await supabaseAdmin
       .from("profiles")
-      .select("github_data, linkedin_data, portfolio_sync_meta")
+      .select("github_data, linkedin_data, portfolio_sync_meta, github_url, linkedin_url, avatar_url, about")
       .eq("id", userId)
       .single();
 
@@ -166,6 +166,7 @@ serve(async (req) => {
     const currentLinkedinData = profile?.linkedin_data || {};
     const currentSyncMeta = profile?.portfolio_sync_meta || {};
 
+    const profileUpdate: Record<string, unknown> = {};
     const updatedGithubData = { ...currentGithubData };
     const updatedLinkedinData = { ...currentLinkedinData };
     const updatedSyncMeta: PortfolioSyncMeta = {
@@ -240,6 +241,30 @@ serve(async (req) => {
 
           Object.assign(updatedGithubData, githubPayload);
 
+          // Dynamically populate core profile fields if currently empty
+          if (!profileUpdate.github_url && githubPayload.profile_url) {
+            profileUpdate.github_url = githubPayload.profile_url;
+          }
+          if (!profileUpdate.avatar_url && githubPayload.avatar_url) {
+            profileUpdate.avatar_url = githubPayload.avatar_url;
+          }
+          if (!profileUpdate.about && githubPayload.bio) {
+            profileUpdate.about = githubPayload.bio;
+          }
+
+          // Auto-insert missing top languages into user's profile_skills table
+          if (topLanguages.length > 0) {
+            for (const lang of topLanguages) {
+              await supabaseAdmin
+                .from("profile_skills")
+                .upsert(
+                  { user_id: userId, name: lang, category: "Engineering / Code", level: "Advanced" },
+                  { onConflict: "user_id,name", ignoreDuplicates: true }
+                )
+                .catch((e) => console.warn(`Failed to insert skill ${lang}:`, e));
+            }
+          }
+
           updatedSyncMeta.github = {
             status: "success",
             synced_at: new Date().toISOString(),
@@ -293,6 +318,13 @@ serve(async (req) => {
 
           Object.assign(updatedLinkedinData, linkedinPayload);
 
+          if (!profileUpdate.linkedin_url && linkedinPayload.profile_url) {
+            profileUpdate.linkedin_url = linkedinPayload.profile_url;
+          }
+          if (!profileUpdate.about && (linkedinPayload.summary || linkedinPayload.headline)) {
+            profileUpdate.about = linkedinPayload.summary || linkedinPayload.headline;
+          }
+
           updatedSyncMeta.linkedin = {
             status: "success",
             synced_at: new Date().toISOString(),
@@ -319,6 +351,7 @@ serve(async (req) => {
     const { error: updateErr } = await supabaseAdmin
       .from("profiles")
       .update({
+        ...profileUpdate,
         github_data: updatedGithubData,
         linkedin_data: updatedLinkedinData,
         portfolio_sync_meta: updatedSyncMeta,
