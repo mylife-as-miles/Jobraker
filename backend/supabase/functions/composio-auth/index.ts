@@ -148,6 +148,7 @@ Deno.serve(async (req) => {
       arguments: toolArguments,
       args,
     } = body as Record<string, unknown>;
+    const reqSlug = normalizeSlug((body.toolkitSlug as string) || (body.integrationSlug as string) || (body.slug as string));
     const authConfigId = resolveAuthConfigId(body as Record<string, unknown>);
 
     // 3. Handle Actions
@@ -218,8 +219,14 @@ Deno.serve(async (req) => {
           if (configRes.ok) {
             const configData = await configRes.json();
             const configToolkit = normalizeSlug(
-              configData?.toolkit?.slug || configData?.toolkit_slug || configData?.app_slug || configData?.appName || configData?.app?.slug
+              configData?.toolkit_slug ||
+                configData?.toolkit?.slug ||
+                configData?.app_slug ||
+                configData?.appName ||
+                configData?.app?.slug ||
+                ""
             );
+            console.log("AuthConfig verification check:", { finalAuthConfigId, requestedSlug: slug, configToolkit, configDataKeys: Object.keys(configData) });
             if (configToolkit && configToolkit !== slug) {
               console.warn(`AuthConfig ${finalAuthConfigId} belongs to '${configToolkit}', not requested '${slug}'. Falling back to default ${slug} config...`);
               finalAuthConfigId = null;
