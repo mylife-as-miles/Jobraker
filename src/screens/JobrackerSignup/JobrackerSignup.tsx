@@ -6,7 +6,13 @@ import {
   ArrowRight,
   CheckCircle2,
   Loader2,
+  ShieldCheck,
+  AlertTriangle,
+  KeyRound,
+  Key,
+  RefreshCw,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import React, {
   useCallback,
@@ -44,6 +50,112 @@ function getOAuthRedirectUrl() {
   return isAdminHost()
     ? `${window.location.origin}/admin`
     : AUTH_REDIRECTS.dashboard();
+}
+
+function SixDigitOtpInput({
+  value,
+  onChange,
+  onComplete,
+  disabled,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onComplete?: (code: string) => void;
+  disabled?: boolean;
+}) {
+  const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+
+  const digits = useMemo(() => {
+    const chars = value.split("");
+    return Array.from({ length: 6 }, (_, i) => chars[i] || "");
+  }, [value]);
+
+  const handleDigitChange = (index: number, val: string) => {
+    const clean = val.replace(/\D/g, "");
+    if (!clean) {
+      const next = digits.slice();
+      next[index] = "";
+      const updated = next.join("");
+      onChange(updated);
+      return;
+    }
+
+    if (clean.length > 1) {
+      const pasted = clean.slice(0, 6);
+      onChange(pasted);
+      if (pasted.length === 6) {
+        inputsRef.current[5]?.focus();
+        if (onComplete) onComplete(pasted);
+      } else {
+        inputsRef.current[pasted.length]?.focus();
+      }
+      return;
+    }
+
+    const next = digits.slice();
+    next[index] = clean;
+    const updated = next.join("");
+    onChange(updated);
+
+    if (index < 5 && clean) {
+      inputsRef.current[index + 1]?.focus();
+    }
+    if (updated.length === 6 && onComplete) {
+      onComplete(updated);
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !digits[index] && index > 0) {
+      inputsRef.current[index - 1]?.focus();
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      inputsRef.current[index - 1]?.focus();
+    } else if (e.key === "ArrowRight" && index < 5) {
+      inputsRef.current[index + 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (pasted) {
+      onChange(pasted);
+      inputsRef.current[Math.min(pasted.length, 5)]?.focus();
+      if (pasted.length === 6 && onComplete) {
+        onComplete(pasted);
+      }
+    }
+  };
+
+  return (
+    <div className='flex justify-center gap-2 sm:gap-3 py-2'>
+      {Array.from({ length: 6 }).map((_, idx) => (
+        <input
+          key={idx}
+          ref={(el) => {
+            inputsRef.current[idx] = el;
+          }}
+          type='text'
+          inputMode='numeric'
+          pattern='[0-9]*'
+          maxLength={6}
+          disabled={disabled}
+          value={digits[idx]}
+          onChange={(e) => handleDigitChange(idx, e.target.value)}
+          onKeyDown={(e) => handleKeyDown(idx, e)}
+          onPaste={handlePaste}
+          onFocus={(e) => e.target.select()}
+          className={cn(
+            "w-11 h-14 sm:w-12 sm:h-16 text-center text-2xl font-bold rounded-xl border-2 transition-all outline-none bg-card text-foreground shadow-sm",
+            digits[idx]
+              ? "border-brand bg-brand/5 shadow-brand/10"
+              : "border-border/60 focus:border-brand/70 focus:ring-2 focus:ring-brand/20",
+            disabled && "opacity-50 cursor-not-allowed",
+          )}
+        />
+      ))}
+    </div>
+  );
 }
 
 export const JobrackerSignup = (): JSX.Element => {
@@ -116,6 +228,110 @@ export const JobrackerSignup = (): JSX.Element => {
     confirmPassword: "",
   });
   const [submitting, setSubmitting] = useState(false);
+
+  // 2FA Challenge Modal State
+  const [showMfaModal, setShowMfaModal] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaError, setMfaError] = useState<string | null>(null);
+  const [mfaVerifying, setMfaVerifying] = useState(false);
+  const [useBackupCode, setUseBackupCode] = useState(false);
+  const [backupCodeInput, setBackupCodeInput] = useState("");
+  const [pendingAuthSession, setPendingAuthSession] = useState<{
+    userId: string;
+    session: any;
+  } | null>(null);
+
+  const handleVerifyMfaChallenge = async (codeToVerify?: string) => {
+    const code = (useBackupCode ? backupCodeInput : (codeToVerify || mfaCode)).trim();
+    if (!code || !pendingAuthSession) return;
+    setMfaVerifying(true);
+    setMfaError(null);
+    try {
+      if (useBackupCode) {
+        const encoder = new TextEncoder();
+        const buf = await crypto.subtle.digest("SHA-256", encoder.encode(code.toUpperCase()));
+        const hex = Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+
+        const { data: codeMatch, error: matchError } = await (supabase as any)
+          .from("security_backup_codes")
+          .select("id, used")
+          .eq("user_id", pendingAuthSession.userId)
+          .eq("code_hash", hex)
+          .eq("used", false)
+          .maybeSingle();
+
+        if (matchError || !codeMatch) {
+          throw new Error("Invalid or previously used emergency backup code.");
+        }
+
+        await (supabase as any)
+          .from("security_backup_codes")
+          .update({ used: true, used_at: new Date().toISOString() })
+          .eq("id", codeMatch.id);
+      } else {
+        if (!mfaFactorId) {
+          throw new Error("2FA Factor ID missing. Please sign in again.");
+        }
+        const { error } = await (supabase as any).auth.mfa.challengeAndVerify({
+          factorId: mfaFactorId,
+          code,
+        });
+        if (error) throw error;
+      }
+
+      const {
+        createActiveSession,
+        enforceMaxSessions,
+        logSecurityEvent,
+      } = await import("../../utils/sessionManagement");
+
+      const expiresAt = pendingAuthSession.session?.expires_at
+        ? new Date(pendingAuthSession.session.expires_at * 1000)
+        : undefined;
+
+      await createActiveSession(
+        pendingAuthSession.userId,
+        pendingAuthSession.session.access_token,
+        expiresAt,
+      );
+
+      const { data: settings } = await supabase
+        .from("security_settings")
+        .select("max_concurrent_sessions")
+        .eq("id", pendingAuthSession.userId)
+        .maybeSingle();
+      const maxSessions = settings?.max_concurrent_sessions || 5;
+      await enforceMaxSessions(pendingAuthSession.userId, maxSessions);
+
+      await logSecurityEvent(
+        pendingAuthSession.userId,
+        "login",
+        `User logged in via 2FA/MFA verification from ${navigator.userAgent}`,
+        "low",
+      );
+
+      setShowMfaModal(false);
+      navigate(getPostSignInPath());
+    } catch (err: any) {
+      console.error("MFA challenge verification error:", err);
+      setMfaError(err?.message || "Verification failed. Check your 2FA code.");
+    } finally {
+      setMfaVerifying(false);
+    }
+  };
+
+  const handleCancelMfa = async () => {
+    setShowMfaModal(false);
+    setPendingAuthSession(null);
+    setMfaCode("");
+    setMfaError(null);
+    setUseBackupCode(false);
+    setBackupCodeInput("");
+    try {
+      await supabase.auth.signOut();
+    } catch {}
+  };
   const passwordCheck = useMemo(
     () => validatePassword(formData.password, formData.email),
     [formData.password, formData.email],
@@ -285,8 +501,6 @@ export const JobrackerSignup = (): JSX.Element => {
         // Track session and enforce security settings
         if (signInData.session && signInData.user) {
           const {
-            createActiveSession,
-            enforceMaxSessions,
             logSecurityEvent,
             checkSecuritySettings,
           } = await import("../../utils/sessionManagement");
@@ -308,7 +522,48 @@ export const JobrackerSignup = (): JSX.Element => {
             return;
           }
 
-          // Create active session
+          // Check if MFA TOTP factors exist or two_factor_enabled is active
+          let is2FAActive = false;
+          let factorIdToChallenge: string | null = null;
+          try {
+            const { data: mfaFactors } = await (supabase as any).auth.mfa.listFactors();
+            const verifiedTotp = ((mfaFactors?.totp ?? []) as Array<{ id: string; status: string }>).find(
+              (f) => f.status === "verified",
+            );
+            if (verifiedTotp) {
+              is2FAActive = true;
+              factorIdToChallenge = verifiedTotp.id;
+            }
+          } catch {}
+
+          if (!is2FAActive) {
+            const { data: secSettings } = await supabase
+              .from("security_settings")
+              .select("two_factor_enabled, require_2fa_for_login")
+              .eq("id", signInData.user.id)
+              .maybeSingle();
+            if (secSettings?.two_factor_enabled || secSettings?.require_2fa_for_login) {
+              is2FAActive = true;
+            }
+          }
+
+          if (is2FAActive) {
+            setMfaFactorId(factorIdToChallenge);
+            setPendingAuthSession({
+              userId: signInData.user.id,
+              session: signInData.session,
+            });
+            setShowMfaModal(true);
+            setSubmitting(false);
+            return; // Intercept sign-in with 2FA Challenge Modal
+          }
+
+          // Create active session if 2FA not required/active
+          const {
+            createActiveSession,
+            enforceMaxSessions,
+          } = await import("../../utils/sessionManagement");
+
           const expiresAt = signInData.session.expires_at
             ? new Date(signInData.session.expires_at * 1000)
             : undefined;
@@ -913,6 +1168,110 @@ export const JobrackerSignup = (): JSX.Element => {
             >
               Go to login
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 2FA Verification Challenge Modal */}
+      <Modal
+        open={showMfaModal}
+        onClose={handleCancelMfa}
+        title='Two-Factor Authentication Required'
+        size='md'
+        side='center'
+      >
+        <div className='space-y-5 py-1'>
+          <div className='flex items-center gap-3 p-3 rounded-xl border border-brand/30 bg-brand/5'>
+            <ShieldCheck className='w-6 h-6 shrink-0 text-brand' aria-hidden />
+            <div>
+              <p className='text-sm font-semibold text-foreground'>
+                Account Protected with 2FA
+              </p>
+              <p className='text-xs text-muted-foreground'>
+                {useBackupCode
+                  ? "Enter one of your emergency recovery backup codes."
+                  : "Enter the 6-digit verification code from your authenticator app."}
+              </p>
+            </div>
+          </div>
+
+          {!useBackupCode ? (
+            <SixDigitOtpInput
+              value={mfaCode}
+              onChange={(val) => {
+                setMfaCode(val);
+                setMfaError(null);
+              }}
+              onComplete={(code) => void handleVerifyMfaChallenge(code)}
+              disabled={mfaVerifying}
+            />
+          ) : (
+            <div className='space-y-2'>
+              <label className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
+                Emergency Backup Code
+              </label>
+              <Input
+                placeholder='e.g. A1B2C3D4'
+                autoFocus
+                value={backupCodeInput}
+                onChange={(e) => {
+                  setBackupCodeInput(e.target.value.toUpperCase().trim());
+                  setMfaError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleVerifyMfaChallenge();
+                }}
+                className='h-12 rounded-xl border-border/60 bg-card font-mono text-center text-lg font-bold tracking-widest text-foreground focus:border-brand/70'
+              />
+            </div>
+          )}
+
+          {mfaError ? (
+            <div className='flex items-center justify-center gap-2 text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg text-center'>
+              <AlertTriangle className='w-4 h-4 shrink-0' aria-hidden />
+              <p className='text-xs font-medium'>{mfaError}</p>
+            </div>
+          ) : null}
+
+          <div className='flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/40'>
+            <Button
+              type='button'
+              variant='link'
+              onClick={() => {
+                setUseBackupCode(!useBackupCode);
+                setMfaError(null);
+              }}
+              className='text-xs text-brand hover:underline p-0 h-auto font-medium'
+            >
+              {useBackupCode
+                ? "← Use Authenticator App Code"
+                : "Use emergency backup code"}
+            </Button>
+            <div className='flex gap-2'>
+              <Button
+                variant='outline'
+                className='border-border/40 text-muted-foreground hover:text-foreground'
+                onClick={() => void handleCancelMfa()}
+                disabled={mfaVerifying}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => void handleVerifyMfaChallenge()}
+                disabled={
+                  mfaVerifying ||
+                  (useBackupCode
+                    ? backupCodeInput.length < 6
+                    : mfaCode.length < 6)
+                }
+                className='bg-brand text-black font-medium hover:bg-brand/90 shadow-md shadow-brand/10 disabled:opacity-50'
+              >
+                {mfaVerifying ? (
+                  <RefreshCw className='w-4 h-4 mr-2 animate-spin' aria-hidden />
+                ) : null}
+                Verify & Sign In
+              </Button>
+            </div>
           </div>
         </div>
       </Modal>
