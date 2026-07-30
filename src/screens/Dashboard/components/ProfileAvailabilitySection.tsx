@@ -430,113 +430,146 @@ export function ProfileAvailabilitySection({
             </div>
 
             {/* Working Hours Box */}
-            <div className='rounded-2xl border border-border/50 bg-[#0a0a0a] p-5 sm:p-6 space-y-4 shadow-inner'>
-              <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border-b border-border/40 pb-4'>
-                <div className='flex items-center gap-3'>
-                  <button
-                    type='button'
-                    onClick={resetBusinessWeek}
-                    className='p-2 rounded-xl border border-brand/30 bg-brand/10 text-brand hover:bg-brand/20 transition-colors'
-                    title='Reset to Mon–Fri 9am–5pm'
-                    aria-label='Reset working hours to weekday default'
-                  >
-                    <RefreshCw className='w-4 h-4' />
-                  </button>
-                  <div>
-                    <h4 className='text-base font-bold text-foreground'>
-                      Working hours
-                    </h4>
-                    <p className='text-xs text-muted-foreground mt-0.5'>
-                      Select when you are typically available to work
-                    </p>
-                  </div>
+            <div className='rounded-2xl border border-border/50 bg-[#0a0a0a] p-5 space-y-4 shadow-inner'>
+              <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/40 pb-3.5'>
+                <div>
+                  <h4 className='text-sm font-bold text-foreground'>
+                    Working hours
+                  </h4>
+                  <p className='text-xs text-muted-foreground mt-0.5'>
+                    Click days below to toggle availability
+                  </p>
                 </div>
+                <button
+                  type='button'
+                  onClick={resetBusinessWeek}
+                  className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-brand/30 bg-brand/10 text-brand text-xs font-semibold hover:bg-brand/20 transition-colors shrink-0'
+                  title='Reset to Mon–Fri 9am–5pm'
+                >
+                  <RefreshCw className='w-3.5 h-3.5' />
+                  Mon–Fri 9–5
+                </button>
               </div>
 
-              <div className='space-y-3 pt-1'>
+              {/* Day Toggle Selector Pills */}
+              <div className='flex items-center gap-2 flex-wrap'>
                 {DAY_INITIALS.map((initial, dayIndex) => {
                   const enabled = dayEnabled(dayIndex);
+                  return (
+                    <button
+                      key={dayIndex}
+                      type='button'
+                      onClick={() => {
+                        if (enabled) {
+                          setDaySlots(dayIndex, []);
+                        } else {
+                          setDaySlots(dayIndex, [{ start: "09:00", end: "17:00" }]);
+                        }
+                      }}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all border ${
+                        enabled
+                          ? "bg-brand text-black border-brand shadow-md shadow-brand/25 scale-105"
+                          : "bg-[#000000] text-muted-foreground/60 border-border/40 hover:border-brand/40 hover:text-foreground"
+                      }`}
+                      title={`Toggle ${initial}`}
+                    >
+                      {initial}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Compact 2-Column Active Days Grid */}
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-3 pt-1'>
+                {DAY_INITIALS.map((initial, dayIndex) => {
+                  const enabled = dayEnabled(dayIndex);
+                  if (!enabled) return null;
                   const slots = weekly[String(dayIndex)] ?? [];
+                  const dayNames = [
+                    "Sunday",
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday",
+                  ];
                   return (
                     <div
                       key={dayIndex}
-                      className='flex flex-wrap items-center gap-3 py-2.5 border-b border-border/30 last:border-0'
+                      className='rounded-xl border border-border/40 bg-[#000000] p-3 space-y-2.5 shadow-inner'
                     >
-                      <div
-                        className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all ${
-                          enabled
-                            ? "bg-brand text-black shadow-lg shadow-brand/25"
-                            : "bg-muted/30 text-muted-foreground/50 border border-border/40"
-                        }`}
-                      >
-                        {initial}
-                      </div>
-                      {!enabled ? (
-                        <>
-                          <span className='text-sm text-muted-foreground flex-1 min-w-[100px]'>
-                            Unavailable
-                          </span>
-                          <button
-                            type='button'
-                            onClick={() => addSlot(dayIndex)}
-                            className='w-8 h-8 rounded-full border border-border/50 bg-[#0d0d0d] flex items-center justify-center text-muted-foreground hover:border-brand hover:text-brand hover:bg-brand/10 transition-colors'
-                            aria-label={`Add hours for day ${dayIndex}`}
-                          >
-                            <Plus className='w-4 h-4' />
-                          </button>
-                        </>
-                      ) : (
-                        <div className='flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 min-w-0'>
-                          <div className='flex flex-col gap-2 flex-1'>
-                            {slots.map((slot, si) => (
-                              <div
-                                key={si}
-                                className='flex flex-wrap items-center gap-2'
-                              >
-                                <input
-                                  type='time'
-                                  value={slot.start}
-                                  onChange={(e) =>
-                                    updateSlot(dayIndex, si, {
-                                      start: e.target.value,
-                                    })
-                                  }
-                                  className='rounded-xl border border-border/50 bg-[#000000] px-3 py-2 text-sm text-foreground focus:border-brand/60 outline-none w-[7.5rem]'
-                                />
-                                <span className='text-muted-foreground/60 text-sm'>
-                                  –
-                                </span>
-                                <input
-                                  type='time'
-                                  value={slot.end}
-                                  onChange={(e) =>
-                                    updateSlot(dayIndex, si, {
-                                      end: e.target.value,
-                                    })
-                                  }
-                                  className='rounded-xl border border-border/50 bg-[#000000] px-3 py-2 text-sm text-foreground focus:border-brand/60 outline-none w-[7.5rem]'
-                                />
-                                <button
-                                  type='button'
-                                  onClick={() => removeSlot(dayIndex, si)}
-                                  className='p-2 rounded-xl text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 transition-colors'
-                                  aria-label='Remove time range'
-                                >
-                                  <X className='w-4 h-4' />
-                                </button>
-                              </div>
-                            ))}
+                      <div className='flex items-center justify-between'>
+                        <div className='flex items-center gap-2'>
+                          <div className='w-6 h-6 rounded-full bg-brand text-black text-[11px] font-extrabold flex items-center justify-center'>
+                            {initial}
                           </div>
+                          <span className='text-xs font-semibold text-foreground'>
+                            {dayNames[dayIndex]}
+                          </span>
+                        </div>
+                        <div className='flex items-center gap-1'>
                           <button
                             type='button'
                             onClick={() => addSlot(dayIndex)}
-                            className='w-8 h-8 rounded-full border border-border/50 bg-[#0d0d0d] flex items-center justify-center text-muted-foreground hover:border-brand hover:text-brand hover:bg-brand/10 transition-colors shrink-0'
-                            aria-label='Add another range'
+                            className='p-1 rounded-lg text-muted-foreground hover:text-brand hover:bg-brand/10 transition-colors'
+                            title='Add another range'
                           >
-                            <Plus className='w-4 h-4' />
+                            <Plus className='w-3.5 h-3.5' />
+                          </button>
+                          <button
+                            type='button'
+                            onClick={() => setDaySlots(dayIndex, [])}
+                            className='p-1 rounded-lg text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 transition-colors'
+                            title='Make unavailable'
+                          >
+                            <X className='w-3.5 h-3.5' />
                           </button>
                         </div>
-                      )}
+                      </div>
+
+                      <div className='space-y-2'>
+                        {slots.map((slot, si) => (
+                          <div
+                            key={si}
+                            className='flex items-center gap-2'
+                          >
+                            <input
+                              type='time'
+                              value={slot.start}
+                              onChange={(e) =>
+                                updateSlot(dayIndex, si, {
+                                  start: e.target.value,
+                                })
+                              }
+                              className='rounded-lg border border-border/40 bg-[#0a0a0a] px-2.5 py-1 text-xs text-foreground focus:border-brand/60 outline-none w-[6.8rem]'
+                            />
+                            <span className='text-muted-foreground/60 text-xs'>
+                              –
+                            </span>
+                            <input
+                              type='time'
+                              value={slot.end}
+                              onChange={(e) =>
+                                updateSlot(dayIndex, si, {
+                                  end: e.target.value,
+                                })
+                              }
+                              className='rounded-lg border border-border/40 bg-[#0a0a0a] px-2.5 py-1 text-xs text-foreground focus:border-brand/60 outline-none w-[6.8rem]'
+                            />
+                            {slots.length > 1 && (
+                              <button
+                                type='button'
+                                onClick={() => removeSlot(dayIndex, si)}
+                                className='p-1 text-muted-foreground hover:text-rose-400'
+                                title='Remove range'
+                              >
+                                <X className='w-3 h-3' />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   );
                 })}
