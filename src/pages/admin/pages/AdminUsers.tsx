@@ -75,6 +75,7 @@ function UserDetailPanel({
   onClose,
   onTopUp,
   onChangePlan,
+  onDisconnectIntegrations,
   onDelete,
   onManageRole,
   isOwner,
@@ -87,6 +88,7 @@ function UserDetailPanel({
   onClose: () => void;
   onTopUp: () => void;
   onChangePlan: () => void;
+  onDisconnectIntegrations: () => void;
   onDelete: () => void;
   onManageRole: () => void;
   isOwner: boolean;
@@ -200,6 +202,12 @@ function UserDetailPanel({
                         icon={<Crown className='w-4 h-4' />}
                         label='Change Subscription'
                         onClick={onChangePlan}
+                        color='accent'
+                      />
+                      <ActionButton
+                        icon={<RefreshCw className='w-4 h-4' />}
+                        label='Disconnect Integrations'
+                        onClick={onDisconnectIntegrations}
                         color='accent'
                       />
                     </>
@@ -1157,6 +1165,32 @@ export default function AdminUsers() {
     }
   };
 
+  const handleDisconnectIntegrations = async (user: any) => {
+    if (!user?.email) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to disconnect and clear all integrations for ${user.email}?`
+    );
+    if (!confirmed) return;
+
+    setActionLoading(true);
+    try {
+      const res = await invokeProtectedFunction<{ success?: boolean; message?: string; error?: string }>(
+        "admin-clear-queue",
+        { target_email: user.email }
+      );
+      if (res.error) {
+        toastError("Disconnect Failed", res.error);
+      } else {
+        toastSuccess("Integrations Disconnected", res.message || `Disconnected all integrations for ${user.email}`);
+        refetch();
+      }
+    } catch (e: any) {
+      toastError("Error", e.message || String(e));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Filter and sort data
   const filteredActivities = activities
     .filter((user) => {
@@ -1614,6 +1648,10 @@ export default function AdminUsers() {
         onChangePlan={() => {
           setShowDetail(false);
           setTimeout(() => openChangePlan(selectedUser), 200);
+        }}
+        onDisconnectIntegrations={() => {
+          setShowDetail(false);
+          setTimeout(() => handleDisconnectIntegrations(selectedUser), 200);
         }}
         onDelete={() => {
           setShowDetail(false);

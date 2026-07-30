@@ -66,6 +66,110 @@ serve(async (req: Request) => {
       return jsonResponse(req, { error: "Admin access required" }, 403);
     }
 
+    // Check if body specifies a target_email to remove integration connections for
+    let targetEmail: string | null = null;
+    try {
+      const body = await req.json();
+      if (body && typeof body.target_email === "string") {
+        targetEmail = body.target_email.trim();
+      }
+    } catch (_) {
+      // Body optional
+    }
+
+    if (targetEmail) {
+      // Find target user by email
+      const { data: targetProfiles, error: findError } = await serviceClient
+        .from("profiles")
+        .select("id, email")
+        .ilike("email", targetEmail);
+
+      if (findError || !targetProfiles || targetProfiles.length === 0) {
+        return jsonResponse(req, { error: `User with email '${targetEmail}' not found.` }, 404);
+      }
+
+      const targetUser = targetProfiles[0];
+      const targetUserId = targetUser.id;
+
+      // 1. Delete Composio connected accounts via Composio REST API
+      const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+      let deletedAccountsCount = 0;
+
+      if (apiKey) {
+        const listEndpoints = [
+          `https://backend.composio.dev/api/v3.1/connected_accounts?user_id=${encodeURIComponent(targetUserId)}`,
+          `https://backend.composio.dev/api/v3.1/connected_accounts?entity_id=${encodeURIComponent(targetUserId)}`,
+        ];
+
+        const accountIds = new Set<string>();
+        for (const url of listEndpoints) {
+          try {
+            const res = await fetch(url, { headers: { "x-api-key": apiKey } });
+            if (res.ok) {
+              const data = await res.json();
+              const items = data.items || data.data || (Array.isArray(data) ? data : []);
+              for (const item of items) {
+                if (item?.id) accountIds.add(item.id);
+              }
+            }
+          } catch (e) {
+            console.warn(`Failed to list accounts for ${url}:`, e);
+          }
+        }
+
+        for (const accountId of accountIds) {
+          try {
+            const delRes = await fetch(
+              `https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(accountId)}`,
+              {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+              }
+            );
+            if (delRes.ok || delRes.status === 404) {
+              deletedAccountsCount++;
+            }
+          } catch (e) {
+            console.warn(`Failed to delete Composio account ${accountId}:`, e);
+          }
+        }
+      }
+
+      // 2. Delete native Gmail connections if any exist in DB
+      await serviceClient
+        .from("gmail_connections")
+        .delete()
+        .eq("user_id", targetUserId)
+        .catch(() => {});
+
+      // 3. Clear profile integration data
+      const { error: profileUpdateError } = await serviceClient
+        .from("profiles")
+        .update({
+          github_data: {},
+          linkedin_data: {},
+          portfolio_sync_meta: {
+            github: { status: "not_connected", synced_at: null, error: null },
+            linkedin: { status: "not_connected", synced_at: null, error: null },
+          },
+          github_url: null,
+          linkedin_url: null,
+        })
+        .eq("id", targetUserId);
+
+      if (profileUpdateError) {
+        return jsonResponse(req, { error: `Failed to update target profile: ${profileUpdateError.message}` }, 500);
+      }
+
+      return jsonResponse(req, {
+        success: true,
+        target_email: targetEmail,
+        target_user_id: targetUserId,
+        deleted_composio_accounts: deletedAccountsCount,
+        message: `Successfully disconnected and cleared all integrations for ${targetEmail}.`,
+      });
+    }
+
     // Clear/delete all queued and pending applications
     const { data: updatedApps, error: updateError } = await serviceClient
       .from("applications")
