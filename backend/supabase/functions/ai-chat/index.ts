@@ -3182,9 +3182,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
-    const canUseEmailIntegrations =
-      typeof user.email === "string" &&
-      user.email.trim().toLowerCase() === EMAIL_INTEGRATION_ALLOWED_EMAIL;
+    const canUseEmailIntegrations = typeof user.email === "string" && user.email.trim().length > 0;
     const agentFunctionDeclarations = canUseEmailIntegrations
       ? AGENT_FUNCTION_DECLARATIONS
       : AGENT_FUNCTION_DECLARATIONS.filter(

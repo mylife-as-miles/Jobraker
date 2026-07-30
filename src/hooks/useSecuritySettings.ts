@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "../lib/supabaseClient";
 import { useToast } from "../components/ui/toast";
 
@@ -94,6 +94,9 @@ export function useSecuritySettings() {
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
   const [auditLogs, setAuditLogs] = useState<SecurityAuditLog[]>([]);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  /** Mirrors `settings` so async helpers avoid acting on a stale closure. */
+  const settingsRef = useRef<SecuritySettings | null>(null);
+  settingsRef.current = settings;
 
   useEffect(() => {
     let mounted = true;
@@ -307,31 +310,123 @@ export function useSecuritySettings() {
   }, [supabase, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // MFA helpers (TOTP)
+
+  /**
+   * Removes any unverified TOTP factors left behind by an abandoned setup
+   * attempt (closed tab, cancelled modal, expired code). Supabase caps the
+   * number of factors per user and never expires unverified ones on its own,
+   * so without this cleanup repeated "Enable 2FA" clicks eventually fail.
+   */
+  const clearUnverifiedTotpFactors = useCallback(async () => {
+    try {
+      const { data, error } = await (supabase as any).auth.mfa.listFactors();
+      if (error) throw error;
+      const stale = ((data?.totp ?? []) as Array<{ id: string; status: string }>).filter(
+        (factor) => factor.status !== 'verified',
+      );
+      await Promise.all(
+        stale.map((factor) =>
+          (supabase as any).auth.mfa.unenroll({ factorId: factor.id }).catch(() => undefined),
+        ),
+      );
+    } catch {
+      // Best effort — enrollment can proceed even if cleanup fails.
+    }
+  }, [supabase]);
+
   const enrollTotp = useCallback(async () => {
-    // Create a new TOTP factor; returns id and uri for QR
-    const { data, error } = await (supabase as any).auth.mfa.enroll({ factorType: 'totp' });
+    await clearUnverifiedTotpFactors();
+
+    const { data, error } = await (supabase as any).auth.mfa.enroll({
+      factorType: 'totp',
+      issuer: 'JobRaker',
+    });
     if (error) throw error;
-    const { id, type, totp } = data?.factor ?? {};
-    const uri = totp?.uri as string | undefined;
+
+    // Supabase returns { id, type, totp: { qr_code, secret, uri } } directly —
+    // there is no `factor` wrapper. Destructuring `data.factor` here silently
+    // produced `undefined` for every field, which is why the setup modal used
+    // to hang on "Generating QR..." forever.
+    const { id, type, totp } = data ?? {};
     if (userId) await updateSecurity({ factor_id: id as string });
-    return { factorId: id as string, uri, type } as { factorId: string; uri?: string; type?: string };
-  }, [supabase, updateSecurity, userId]);
+    return {
+      factorId: id as string,
+      type: type as string | undefined,
+      // Ready-to-render SVG markup; the caller only needs to URI-encode it
+      // into a data: URL. No client-side QR rendering library required.
+      qrCode: totp?.qr_code as string | undefined,
+      secret: totp?.secret as string | undefined,
+      uri: totp?.uri as string | undefined,
+    };
+  }, [clearUnverifiedTotpFactors, supabase, updateSecurity, userId]);
 
   const verifyTotp = useCallback(async (factorId: string, code: string) => {
     const { error } = await (supabase as any).auth.mfa.challengeAndVerify({ factorId, code });
     if (error) throw error;
-    await updateSecurity({ two_factor_enabled: true });
+    await updateSecurity({ two_factor_enabled: true, factor_id: factorId });
     success('Two-factor authentication enabled');
   }, [supabase, updateSecurity, success]);
 
   const disableTotp = useCallback(async () => {
-    if (!settings?.factor_id) { await updateSecurity({ two_factor_enabled: false }); return; }
     try {
-      await (supabase as any).auth.mfa.unenroll({ factorId: settings.factor_id });
-    } catch { /* ignore if already removed */ }
+      // Unenroll every TOTP factor Supabase actually has for this user, not
+      // just the id cached in `security_settings` — if the two ever drifted,
+      // relying solely on the cached id would leave a live factor behind.
+      const { data } = await (supabase as any).auth.mfa.listFactors();
+      const factors = (data?.totp ?? []) as Array<{ id: string }>;
+      await Promise.all(
+        factors.map((factor) =>
+          (supabase as any).auth.mfa.unenroll({ factorId: factor.id }).catch(() => undefined),
+        ),
+      );
+    } catch {
+      /* ignore if already removed */
+    }
     await updateSecurity({ two_factor_enabled: false, factor_id: null });
     success('Two-factor authentication disabled');
-  }, [supabase, settings?.factor_id, updateSecurity, success]);
+  }, [supabase, updateSecurity, success]);
+
+  /**
+   * Reconciles the cached `two_factor_enabled` flag against Supabase's actual
+   * factor state. The two can drift (a factor removed from another device, a
+   * verify that succeeded upstream but failed to save locally), and trusting
+   * the cached flag blindly is what let the Composio integrations panel show
+   * stale connection state — same class of bug, so the same fix applies here.
+   */
+  const syncTotpStatus = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const { data, error } = await (supabase as any).auth.mfa.listFactors();
+      if (error) throw error;
+      const verified = ((data?.totp ?? []) as Array<{ id: string; status: string }>).find(
+        (factor) => factor.status === 'verified',
+      );
+      const actuallyEnabled = Boolean(verified);
+      const nextFactorId = verified?.id ?? null;
+
+      const current = settingsRef.current;
+      if (!current) return; // Nothing local to reconcile against yet.
+      const changed =
+        current.two_factor_enabled !== actuallyEnabled ||
+        (current.factor_id ?? null) !== nextFactorId;
+      if (!changed) return;
+
+      setSettings((prev) =>
+        prev ? { ...prev, two_factor_enabled: actuallyEnabled, factor_id: nextFactorId } : prev,
+      );
+
+      await supabase
+        .from('security_settings')
+        .update({
+          two_factor_enabled: actuallyEnabled,
+          factor_id: nextFactorId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+    } catch (e) {
+      console.error('Failed to sync 2FA status:', e);
+    }
+  }, [supabase, userId]);
 
   // Active Sessions
   const listActiveSessions = useCallback(async () => {
@@ -523,6 +618,7 @@ export function useSecuritySettings() {
     enrollTotp,
     verifyTotp,
     disableTotp,
+    syncTotpStatus,
     // Backup codes
     backupCodes,
     listBackupCodes,

@@ -69,6 +69,11 @@ import {
   XCircle,
   Key,
   Lock,
+  ShieldCheck,
+  ShieldOff,
+  Smartphone,
+  Copy,
+  KeyRound,
 } from "lucide-react";
 import { encryptSymmetric } from "../../../utils/crypto";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
@@ -80,6 +85,8 @@ import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidge
 import { useComposioIntegrations } from "@/hooks/useComposioIntegrations";
 import { GMAIL_INTEGRATION } from "@/lib/composioIntegrations";
 import { IntegrationsPanel } from "../components/IntegrationsPanel";
+
+type TwoFAStep = "preparing" | "scan" | "verify" | "success";
 
 const SignOutDialog = ({
   open,
@@ -145,14 +152,6 @@ const SignOutDialog = ({
     </Modal>
   );
 };
-
-// Lazy-load qrcode to avoid bundler resolution issues during build
-let QRCodeLib: any | null = null;
-async function getQRCode() {
-  if (QRCodeLib) return QRCodeLib;
-  QRCodeLib = await import("qrcode");
-  return QRCodeLib;
-}
 
 export const SettingsPage = (): JSX.Element => {
   const location = useLocation();
@@ -291,6 +290,7 @@ export const SettingsPage = (): JSX.Element => {
     enrollTotp,
     verifyTotp,
     disableTotp,
+    syncTotpStatus,
     // extras
     backupCodes,
     generateBackupCodes,
@@ -341,10 +341,16 @@ export const SettingsPage = (): JSX.Element => {
 
   // 2FA modal state
   const [open2FA, setOpen2FA] = useState(false);
-  const [qrDataUrl, setQrDataUrl] = useState<string | undefined>();
+  const [twoFAStep, setTwoFAStep] = useState<TwoFAStep>("preparing");
+  const [totpQrCode, setTotpQrCode] = useState<string | undefined>();
+  const [totpSecret, setTotpSecret] = useState<string | undefined>();
   const [totpFactorId, setTotpFactorId] = useState<string | undefined>();
   const [totpCode, setTotpCode] = useState<string>("");
   const [verifyBusy, setVerifyBusy] = useState(false);
+  const [enrollBusy, setEnrollBusy] = useState(false);
+  const [twoFAError, setTwoFAError] = useState<string | null>(null);
+  const [secretCopied, setSecretCopied] = useState(false);
+  const [showDisable2FAConfirm, setShowDisable2FAConfirm] = useState(false);
   // API Key state
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [newApiKeyName, setNewApiKeyName] = useState("");
@@ -463,6 +469,91 @@ export const SettingsPage = (): JSX.Element => {
     () => void composio.connect(GMAIL_INTEGRATION),
     [composio],
   );
+
+  const handleGenerateBackupCodes = useCallback(async () => {
+    try {
+      const codes = await generateBackupCodes(10);
+      if (codes && codes.length > 0) {
+        setGeneratedBackupCodes(codes);
+        setShowBackupCodesModal(true);
+        const blob = new Blob([codes.join("\n")], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `jobraker-backup-codes-${new Date().toISOString().split("T")[0]}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (e: any) {
+      toastError("Failed to generate codes", e.message);
+    }
+  }, [generateBackupCodes, toastError]);
+
+  const handleStartTwoFAEnrollment = useCallback(async () => {
+    setTwoFAError(null);
+    setTotpCode("");
+    setSecretCopied(false);
+    setTwoFAStep("preparing");
+    setOpen2FA(true);
+    setEnrollBusy(true);
+    try {
+      if (!sec) await createSecurity({});
+      const { factorId, qrCode, secret } = await enrollTotp();
+      if (!factorId || !qrCode) {
+        throw new Error(
+          "The authenticator service did not return a QR code. Please try again.",
+        );
+      }
+      setTotpFactorId(factorId);
+      setTotpQrCode(qrCode);
+      setTotpSecret(secret);
+      setTwoFAStep("scan");
+    } catch (e: any) {
+      setTwoFAError(e?.message || "Failed to start two-factor setup.");
+    } finally {
+      setEnrollBusy(false);
+    }
+  }, [sec, createSecurity, enrollTotp]);
+
+  const handleVerifyTwoFA = useCallback(async () => {
+    if (!totpFactorId || totpCode.length !== 6 || verifyBusy) return;
+    setVerifyBusy(true);
+    setTwoFAError(null);
+    try {
+      await verifyTotp(totpFactorId, totpCode);
+      setTwoFAStep("success");
+    } catch {
+      setTwoFAError("Incorrect code. Check your authenticator app and try again.");
+    } finally {
+      setVerifyBusy(false);
+    }
+  }, [totpFactorId, totpCode, verifyBusy, verifyTotp]);
+
+  const handleCopyTotpSecret = useCallback(async () => {
+    if (!totpSecret) return;
+    try {
+      await navigator.clipboard.writeText(totpSecret);
+      setSecretCopied(true);
+      window.setTimeout(() => setSecretCopied(false), 2000);
+    } catch {
+      toastError("Copy failed", "Select and copy the key manually.");
+    }
+  }, [totpSecret, toastError]);
+
+  const handleCloseTwoFAModal = useCallback(() => {
+    setOpen2FA(false);
+  }, []);
+
+  const handleConfirmDisableTwoFA = useCallback(async () => {
+    setShowDisable2FAConfirm(false);
+    try {
+      await disableTotp();
+    } catch (e: any) {
+      toastError("Failed to disable 2FA", e.message);
+    }
+  }, [disableTotp, toastError]);
 
   const initials = useMemo(() => {
     const a = (formData.firstName || "").trim();
@@ -655,6 +746,17 @@ export const SettingsPage = (): JSX.Element => {
     // ensure settings exist lazily on first toggle
     void refreshSec();
   }, [refreshSec]);
+
+  // Reconcile the cached 2FA flag against Supabase's actual factor state
+  // whenever the Security tab is visible, and again if the user comes back
+  // to this tab (e.g. after enabling/removing a factor from another device).
+  useEffect(() => {
+    if (activeTab !== "security") return;
+    void syncTotpStatus();
+    const onFocus = () => void syncTotpStatus();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [activeTab, syncTotpStatus]);
 
   // Load job source domain settings when job-sources tab is active
   useEffect(() => {
@@ -1959,55 +2061,50 @@ export const SettingsPage = (): JSX.Element => {
 
             {/* Two-Factor Authentication */}
             <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between mb-4'>
-                <div>
-                  <h3 className='text-base font-medium text-foreground/95'>
-                    Two-Factor Authentication
-                  </h3>
-                  <p className='text-xs text-muted-foreground mt-1'>
-                    Add an extra layer of security to your account
-                  </p>
+              <div className='flex items-center justify-between mb-4 gap-4'>
+                <div className='flex items-start gap-3 min-w-0'>
+                  <div
+                    className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${
+                      sec?.two_factor_enabled
+                        ? "border-brand/30 bg-brand/10 text-brand"
+                        : "border-border/40 bg-muted/40 text-muted-foreground"
+                    }`}
+                  >
+                    {sec?.two_factor_enabled ? (
+                      <ShieldCheck className='w-5 h-5' aria-hidden />
+                    ) : (
+                      <ShieldOff className='w-5 h-5' aria-hidden />
+                    )}
+                  </div>
+                  <div className='min-w-0'>
+                    <h3 className='text-base font-medium text-foreground/95'>
+                      Two-Factor Authentication
+                    </h3>
+                    <p className='text-xs text-muted-foreground mt-1'>
+                      {sec?.two_factor_enabled
+                        ? "Your account requires a 6-digit code on each sign-in."
+                        : "Add an extra layer of security to your account"}
+                    </p>
+                  </div>
                 </div>
-                <div className='flex items-center gap-3'>
+                <div className='flex shrink-0 items-center gap-3'>
                   <span
-                    className={`text-sm px-3 py-1 rounded ${sec?.two_factor_enabled ? "bg-brand/20 text-brand" : "bg-muted/50 text-muted-foreground"}`}
+                    className={`text-sm px-3 py-1 rounded-full font-medium ${sec?.two_factor_enabled ? "bg-brand/10 text-brand border border-brand/30" : "bg-muted/50 text-muted-foreground border border-border/40"}`}
                   >
                     {sec?.two_factor_enabled ? "Enabled" : "Disabled"}
                   </span>
                   <Button
                     variant={sec?.two_factor_enabled ? "outline" : "default"}
-                    onClick={async () => {
-                      try {
-                        if (sec?.two_factor_enabled) {
-                          if (
-                            !confirm(
-                              "Disable two-factor authentication? This will reduce your account security.",
-                            )
-                          )
-                            return;
-                          await disableTotp();
-                          return;
-                        }
-                        if (!sec) await createSecurity({});
-                        const { factorId, uri } = await enrollTotp();
-                        setTotpFactorId(factorId);
-                        if (uri) {
-                          try {
-                            const QR = await getQRCode();
-                            setQrDataUrl(await QR.toDataURL(uri));
-                          } catch {
-                            setQrDataUrl(undefined);
-                          }
-                        }
-                        setTotpCode("");
-                        setOpen2FA(true);
-                      } catch (e: any) {
-                        toastError("2FA setup failed", e.message);
+                    onClick={() => {
+                      if (sec?.two_factor_enabled) {
+                        setShowDisable2FAConfirm(true);
+                        return;
                       }
+                      void handleStartTwoFAEnrollment();
                     }}
                     className={
                       sec?.two_factor_enabled
-                        ? "border-border/40 text-muted-foreground hover:bg-muted/50"
+                        ? "border-rose-500/35 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-400/50"
                         : "bg-brand text-black hover:bg-[#e6c200] shadow-lg shadow-brand/20"
                     }
                   >
@@ -2017,6 +2114,12 @@ export const SettingsPage = (): JSX.Element => {
               </div>
               {sec?.two_factor_enabled && (
                 <div className='space-y-3 pt-4 border-t border-border/40 mt-4'>
+                  <div className='flex items-center gap-3 p-4 bg-background/50 border border-border/40 rounded-lg'>
+                    <Smartphone className='w-4 h-4 shrink-0 text-brand' aria-hidden />
+                    <p className='text-sm font-medium text-foreground/90'>
+                      Authenticator app connected
+                    </p>
+                  </div>
                   <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'>
                     <div className='flex-1'>
                       <p className='text-sm font-medium text-foreground/90'>
@@ -2245,29 +2348,7 @@ export const SettingsPage = (): JSX.Element => {
                   variant='outline'
                   size='sm'
                   className='border-border/40 text-muted-foreground hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm'
-                  onClick={async () => {
-                    try {
-                      const codes = await generateBackupCodes(10);
-                      if (codes && codes.length > 0) {
-                        setGeneratedBackupCodes(codes);
-                        setShowBackupCodesModal(true);
-                        // Also download as backup
-                        const blob = new Blob([codes.join("\n")], {
-                          type: "text/plain",
-                        });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = `jobraker-backup-codes-${new Date().toISOString().split("T")[0]}.txt`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      }
-                    } catch (e: any) {
-                      toastError("Failed to generate codes", e.message);
-                    }
-                  }}
+                  onClick={() => void handleGenerateBackupCodes()}
                 >
                   <Plus className='w-4 h-4 mr-2' />
                   Generate New Codes
@@ -4789,6 +4870,7 @@ export const SettingsPage = (): JSX.Element => {
       </div>
       {/* 2FA Setup Modal */}
       <TwoFAModal />
+      <DisableTwoFAModal />
       {/* Backup Codes Display Modal */}
       <Modal
         open={showBackupCodesModal}
@@ -5492,69 +5574,265 @@ export const SettingsPage = (): JSX.Element => {
     </>
   );
 
-  // 2FA Setup Modal
+  // 2FA Setup Modal — a guided, multi-step enrollment flow (scan → verify →
+  // success) instead of a single form that silently hung on "Generating QR…"
+  // whenever the QR data never arrived.
   function TwoFAModal() {
+    const stepTitles: Record<TwoFAStep, string> = {
+      preparing: "Set up Two-Factor Authentication",
+      scan: "Step 1 of 2 — Scan the QR code",
+      verify: "Step 2 of 2 — Verify it works",
+      success: "Two-Factor Authentication Enabled",
+    };
+
+    const qrImageSrc = totpQrCode
+      ? `data:image/svg+xml;utf-8,${encodeURIComponent(totpQrCode)}`
+      : undefined;
+
     return (
       <Modal
         open={open2FA}
-        onClose={() => setOpen2FA(false)}
-        title='Set up Two-Factor Authentication'
+        onClose={handleCloseTwoFAModal}
+        title={stepTitles[twoFAStep]}
+        size='md'
+        side='center'
+      >
+        {twoFAStep === "preparing" && (
+          <div className='flex flex-col items-center gap-4 py-6 text-center'>
+            {enrollBusy ? (
+              <>
+                <RefreshCw className='w-8 h-8 text-brand animate-spin' aria-hidden />
+                <p className='text-sm text-muted-foreground'>
+                  Preparing secure setup…
+                </p>
+              </>
+            ) : (
+              <>
+                <div className='flex h-14 w-14 items-center justify-center rounded-full bg-rose-500/10 border border-rose-500/25'>
+                  <AlertTriangle className='w-6 h-6 text-rose-400' aria-hidden />
+                </div>
+                <p className='text-sm text-foreground/90 font-medium'>
+                  Couldn't start setup
+                </p>
+                <p className='text-xs text-muted-foreground max-w-xs'>
+                  {twoFAError}
+                </p>
+                <div className='flex gap-2 mt-2'>
+                  <Button
+                    variant='outline'
+                    className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    onClick={handleCloseTwoFAModal}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => void handleStartTwoFAEnrollment()}
+                    className='bg-brand text-black font-medium hover:bg-brand/90'
+                  >
+                    <RefreshCw className='w-4 h-4 mr-2' aria-hidden />
+                    Retry
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {twoFAStep === "scan" && (
+          <div className='space-y-4'>
+            <p className='text-muted-foreground text-sm'>
+              Open your authenticator app (Google Authenticator, Authy, or
+              1Password) and scan the QR code below.
+            </p>
+
+            {qrImageSrc ? (
+              <div className='flex justify-center'>
+                <div className='rounded-xl border border-border/40 bg-white p-3'>
+                  <img
+                    src={qrImageSrc}
+                    alt='Scan this QR code with your authenticator app'
+                    className='h-[200px] w-[200px]'
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className='flex justify-center'>
+                <div className='flex h-[200px] w-[200px] items-center justify-center rounded-xl border border-border/40 bg-muted/30'>
+                  <KeyRound className='w-8 h-8 text-muted-foreground' aria-hidden />
+                </div>
+              </div>
+            )}
+
+            {totpSecret ? (
+              <button
+                type='button'
+                onClick={() => void handleCopyTotpSecret()}
+                className='flex w-full items-center gap-3 rounded-lg border border-border/40 bg-background/50 p-3 text-left transition-all hover:border-brand/30 hover:bg-muted/50'
+              >
+                <div className='min-w-0 flex-1'>
+                  <p className='text-[11px] font-semibold text-muted-foreground'>
+                    Can't scan? Enter this key manually
+                  </p>
+                  <p className='truncate text-sm font-medium tracking-wider text-foreground/90'>
+                    {totpSecret}
+                  </p>
+                </div>
+                {secretCopied ? (
+                  <CheckCircle2 className='w-4 h-4 shrink-0 text-brand' aria-hidden />
+                ) : (
+                  <Copy className='w-4 h-4 shrink-0 text-muted-foreground' aria-hidden />
+                )}
+              </button>
+            ) : null}
+
+            <div className='flex justify-end gap-2'>
+              <Button
+                variant='outline'
+                className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                onClick={handleCloseTwoFAModal}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setTwoFAError(null);
+                  setTotpCode("");
+                  setTwoFAStep("verify");
+                }}
+                className='bg-brand text-black font-medium hover:bg-brand/90'
+              >
+                I've scanned it — Next
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {twoFAStep === "verify" && (
+          <div className='space-y-4'>
+            <p className='text-muted-foreground text-sm'>
+              Enter the 6-digit code from your authenticator app to confirm
+              setup is working correctly.
+            </p>
+
+            <div className='flex justify-center'>
+              <Input
+                inputMode='numeric'
+                pattern='[0-9]*'
+                placeholder='000000'
+                autoFocus
+                value={totpCode}
+                onChange={(e) => {
+                  setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  setTwoFAError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleVerifyTwoFA();
+                }}
+                className='h-16 w-52 rounded-xl border-2 border-brand/40 bg-card text-center text-3xl font-bold tracking-[0.5em] text-foreground focus:border-brand/70'
+              />
+            </div>
+
+            {twoFAError ? (
+              <div className='flex items-center justify-center gap-2 text-rose-400'>
+                <AlertTriangle className='w-4 h-4 shrink-0' aria-hidden />
+                <p className='text-xs'>{twoFAError}</p>
+              </div>
+            ) : null}
+
+            <div className='flex justify-end gap-2'>
+              <Button
+                variant='outline'
+                className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                onClick={() => setTwoFAStep("scan")}
+                disabled={verifyBusy}
+              >
+                Back
+              </Button>
+              <Button
+                onClick={() => void handleVerifyTwoFA()}
+                disabled={totpCode.length < 6 || verifyBusy}
+                className='bg-brand text-black font-medium hover:bg-brand/90 disabled:opacity-50'
+              >
+                {verifyBusy ? (
+                  <RefreshCw className='w-4 h-4 mr-2 animate-spin' aria-hidden />
+                ) : null}
+                Verify & Enable
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {twoFAStep === "success" && (
+          <div className='flex flex-col items-center gap-4 py-4 text-center'>
+            <div className='flex h-16 w-16 items-center justify-center rounded-full bg-brand/10 border border-brand/30'>
+              <CheckCircle2 className='w-8 h-8 text-brand' aria-hidden />
+            </div>
+            <p className='text-sm text-foreground/90 font-medium'>
+              Your account is now protected with an additional layer of
+              security.
+            </p>
+            <p className='text-xs text-muted-foreground max-w-xs'>
+              You'll need a code from your authenticator app each time you
+              sign in. Save backup codes now in case you lose access to it.
+            </p>
+            <div className='flex gap-2 mt-2'>
+              <Button
+                variant='outline'
+                className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                onClick={() => void handleGenerateBackupCodes()}
+              >
+                <Key className='w-4 h-4 mr-2' aria-hidden />
+                Get backup codes
+              </Button>
+              <Button
+                onClick={handleCloseTwoFAModal}
+                className='bg-brand text-black font-medium hover:bg-brand/90'
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    );
+  }
+
+  function DisableTwoFAModal() {
+    return (
+      <Modal
+        open={showDisable2FAConfirm}
+        onClose={() => setShowDisable2FAConfirm(false)}
+        title='Remove Two-Factor Authentication?'
         size='md'
         side='center'
       >
         <div className='space-y-4'>
-          <p className='text-muted-foreground text-sm'>
-            Scan the QR code in your authenticator app (e.g., Google
-            Authenticator, Authy), then enter the 6-digit code below.
-          </p>
-          {qrDataUrl ? (
-            <div className='flex justify-center'>
-              <img
-                src={qrDataUrl}
-                alt='TOTP QR'
-                className='rounded border border-primary/30'
-              />
+          <div className='flex items-start gap-3 rounded-lg border border-rose-500/25 bg-rose-500/10 p-4'>
+            <ShieldOff className='w-5 h-5 shrink-0 mt-0.5 text-rose-400' aria-hidden />
+            <div>
+              <p className='text-sm font-medium text-rose-300'>
+                This will make your account less secure.
+              </p>
+              <p className='text-xs text-rose-300/80 mt-1'>
+                You'll only need your password to sign in. You can re-enable
+                two-factor authentication at any time.
+              </p>
             </div>
-          ) : (
-            <div className='text-muted-foreground text-sm'>Generating QR…</div>
-          )}
-          <div>
-            <label className='block text-sm font-medium text-muted-foreground mb-1'>
-              Authentication code
-            </label>
-            <Input
-              inputMode='numeric'
-              pattern='[0-9]*'
-              placeholder='123456'
-              value={totpCode}
-              onChange={(e) => setTotpCode(e.target.value)}
-              className='bg-card border-border/40 text-foreground focus:border-brand/50 hover:border-border/60 transition-all duration-300'
-            />
           </div>
           <div className='flex justify-end gap-2'>
             <Button
               variant='outline'
               className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              onClick={() => setOpen2FA(false)}
+              onClick={() => setShowDisable2FAConfirm(false)}
             >
-              Cancel
+              Keep it enabled
             </Button>
             <Button
-              onClick={async () => {
-                try {
-                  if (!totpFactorId || !totpCode || verifyBusy) return;
-                  setVerifyBusy(true);
-                  await verifyTotp(totpFactorId, totpCode);
-                  setOpen2FA(false);
-                } catch (e: any) {
-                  toastError("Verification failed", e.message);
-                } finally {
-                  setVerifyBusy(false);
-                }
-              }}
-              className='bg-brand text-black font-medium hover:bg-brand/90 transition-all hover:scale-105'
+              onClick={() => void handleConfirmDisableTwoFA()}
+              className='bg-rose-600 text-white hover:bg-rose-700'
             >
-              Verify & Enable
+              <ShieldOff className='w-4 h-4 mr-2' aria-hidden />
+              Yes, remove 2FA
             </Button>
           </div>
         </div>
