@@ -75,13 +75,35 @@ function extractConnectedAccounts(result: unknown): Record<string, unknown>[] {
 async function listConnectedAccountsForUser(
   userId: string,
 ): Promise<Record<string, unknown>[]> {
-  const response = await composio.connectedAccounts.list({
-    userIds: [userId],
-  });
-  const accounts = extractConnectedAccounts(response);
+  let accounts: Record<string, unknown>[] = [];
+  try {
+    const response = await composio.connectedAccounts.list({
+      userIds: [userId],
+    });
+    accounts = extractConnectedAccounts(response);
+  } catch (e) {
+    console.warn("SDK connectedAccounts.list failed, trying REST v3.1 endpoint:", e);
+  }
+
+  if (accounts.length === 0) {
+    try {
+      const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+      const res = await fetch(`https://backend.composio.dev/api/v3.1/connected_accounts?user_id=${encodeURIComponent(userId)}`, {
+        headers: { "x-api-key": apiKey },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const items = data.items || data.data || (Array.isArray(data) ? data : []);
+        accounts = extractConnectedAccounts(items);
+      }
+    } catch (e) {
+      console.warn("REST v3.1 connectedAccounts fetch failed:", e);
+    }
+  }
+
   const ownedAccounts = filterConnectedAccountsForUser(accounts, userId);
 
-  if (ownedAccounts.length !== accounts.length) {
+  if (ownedAccounts.length !== accounts.length && accounts.length > 0) {
     console.warn("Composio returned accounts outside the authenticated user scope", {
       userId,
       returned: accounts.length,
