@@ -561,12 +561,12 @@ const ProfilePage = (): JSX.Element => {
                   </div>
 
                   <div className='flex justify-center space-x-2 mt-4'>
-                    {profile?.linkedin_url ? (
+                    {profile?.linkedin_url || profile?.linkedin_data?.profile_url ? (
                       <a
                         href={
-                          profile.linkedin_url.startsWith("http")
-                            ? profile.linkedin_url
-                            : `https://${profile.linkedin_url}`
+                          (profile.linkedin_url || profile.linkedin_data.profile_url).startsWith("http")
+                            ? (profile.linkedin_url || profile.linkedin_data.profile_url)
+                            : `https://${profile.linkedin_url || profile.linkedin_data.profile_url}`
                         }
                         target='_blank'
                         rel='noopener noreferrer'
@@ -584,12 +584,12 @@ const ProfilePage = (): JSX.Element => {
                         Add LinkedIn
                       </Link>
                     )}
-                    {profile?.github_url ? (
+                    {profile?.github_url || profile?.github_data?.profile_url ? (
                       <a
                         href={
-                          profile.github_url.startsWith("http")
-                            ? profile.github_url
-                            : `https://${profile.github_url}`
+                          (profile.github_url || profile.github_data.profile_url).startsWith("http")
+                            ? (profile.github_url || profile.github_data.profile_url)
+                            : `https://${profile.github_url || profile.github_data.profile_url}`
                         }
                         target='_blank'
                         rel='noopener noreferrer'

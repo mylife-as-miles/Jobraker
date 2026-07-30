@@ -698,8 +698,8 @@ export const SettingsPage = (): JSX.Element => {
         phone: (profile as any)?.phone || "",
         location: (profile as any)?.location || "",
         avatar_url: (profile as any)?.avatar_url || "",
-        linkedin_url: (profile as any)?.linkedin_url || "",
-        github_url: (profile as any)?.github_url || "",
+        linkedin_url: (profile as any)?.linkedin_url || (profile as any)?.linkedin_data?.profile_url || "",
+        github_url: (profile as any)?.github_url || (profile as any)?.github_data?.profile_url || "",
       }));
     })();
   }, [profile, supabase]);
