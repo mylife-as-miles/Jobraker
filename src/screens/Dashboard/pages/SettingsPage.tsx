@@ -5963,14 +5963,6 @@ export const SettingsPage = (): JSX.Element => {
       </Modal>
     );
   }
-                Done
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-    );
-  }
 
   function DisableTwoFAModal() {
     return (
