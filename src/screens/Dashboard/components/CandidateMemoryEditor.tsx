@@ -214,105 +214,114 @@ export function CandidateMemoryEditor({
   };
 
   return (
-    <Card className='product-section-card p-6 hover:border-brand/60 hover:shadow-lg transition-all duration-300 mb-20'>
-      <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
-        <div className='space-y-2'>
-          <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-brand/80'>
-            <BrainCircuit className='h-3.5 w-3.5' />
-            Candidate Memory
+    <div className='relative rounded-3xl border border-brand/35 bg-[#050505] p-6 sm:p-8 shadow-2xl shadow-brand/10 transition-all duration-300 space-y-6'>
+      {/* Ambient Green Corner Glow */}
+      <div className='absolute -top-12 -right-12 h-48 w-48 bg-brand/10 rounded-full blur-3xl pointer-events-none' />
+
+      {/* Header & Stat Cards */}
+      <div className='flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between relative z-10'>
+        <div className='space-y-2 max-w-2xl'>
+          <div className='inline-flex items-center gap-2 text-xs font-mono font-semibold uppercase tracking-[0.25em] text-brand'>
+            <BrainCircuit className='h-4 w-4' />
+            CANDIDATE MEMORY
           </div>
-          <h3 className='text-lg font-semibold text-foreground'>
+          <h2 className='text-2xl sm:text-3xl font-bold text-foreground tracking-tight'>
             Career ops context
-          </h3>
-          <p className='product-helper-text max-w-2xl'>
+          </h2>
+          <p className='text-sm text-muted-foreground leading-relaxed'>
             These notes ground discovery, evaluations, and tailoring in your
             strongest proof points instead of generic resume text.
           </p>
         </div>
-        <div className='grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[360px]'>
-          <div className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-3'>
-            <div className='text-[10px] uppercase tracking-wide text-foreground/40'>
-              Narratives
+
+        {/* 4 Stat Badges matching screenshot */}
+        <div className='grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:min-w-[420px] shrink-0'>
+          <div className='rounded-2xl border border-border/50 bg-[#0d0d0d] px-4 py-3 text-center shadow-inner'>
+            <div className='text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground'>
+              NARRATIVES
             </div>
-            <div className='mt-1 text-lg font-semibold text-foreground'>
+            <div className='mt-1 text-xl font-extrabold text-foreground'>
               {splitLines(preferredNarrativesText).length}
             </div>
           </div>
-          <div className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-3'>
-            <div className='text-[10px] uppercase tracking-wide text-foreground/40'>
-              Proof points
+          <div className='rounded-2xl border border-border/50 bg-[#0d0d0d] px-4 py-3 text-center shadow-inner'>
+            <div className='text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground'>
+              PROOF POINTS
             </div>
-            <div className='mt-1 text-lg font-semibold text-foreground'>
+            <div className='mt-1 text-xl font-extrabold text-foreground'>
               {proofPointCount}
             </div>
           </div>
-          <div className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-3'>
-            <div className='text-[10px] uppercase tracking-wide text-foreground/40'>
-              Story bank
+          <div className='rounded-2xl border border-border/50 bg-[#0d0d0d] px-4 py-3 text-center shadow-inner'>
+            <div className='text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground'>
+              STORY BANK
             </div>
-            <div className='mt-1 text-lg font-semibold text-foreground'>
+            <div className='mt-1 text-xl font-extrabold text-foreground'>
               {storyCount}
             </div>
           </div>
-          <div className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-3'>
-            <div className='text-[10px] uppercase tracking-wide text-foreground/40'>
-              Tracked companies
+          <div className='rounded-2xl border border-border/50 bg-[#0d0d0d] px-4 py-3 text-center shadow-inner'>
+            <div className='text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground'>
+              TRACKED COMPANIES
             </div>
-            <div className='mt-1 text-lg font-semibold text-foreground'>
+            <div className='mt-1 text-xl font-extrabold text-foreground'>
               {trackedCompanies.filter((item) => item.name.trim()).length}
             </div>
           </div>
         </div>
       </div>
 
-      <div className='mt-6 grid gap-4 xl:grid-cols-3'>
-        <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
-          <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
+      {/* 3 Text Card Grid: Preferred Narratives, Red Flags, Target Archetypes */}
+      <div className='grid gap-5 xl:grid-cols-3 relative z-10'>
+        <div className='rounded-2xl border border-border/60 bg-[#0a0a0a] p-5 space-y-3.5 hover:border-brand/30 transition-all'>
+          <div className='inline-flex items-center gap-2 text-sm font-semibold text-foreground'>
             <Sparkles className='h-4 w-4 text-brand' />
             Preferred narratives
           </div>
           <textarea
             value={preferredNarrativesText}
             onChange={(event) => setPreferredNarrativesText(event.target.value)}
-            rows={8}
-            className='product-input-surface min-h-[180px] w-full rounded-xl px-3 py-3 text-sm'
+            rows={7}
+            className='w-full min-h-[170px] rounded-xl border border-border/40 bg-[#000000] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 focus:ring-1 focus:ring-brand/30 outline-none transition-all resize-y'
             placeholder='One narrative per line. Example: I thrive in customer-facing product roles where I can translate technical complexity into adoption.'
           />
         </div>
 
-        <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
-          <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
+        <div className='rounded-2xl border border-border/60 bg-[#0a0a0a] p-5 space-y-3.5 hover:border-brand/30 transition-all'>
+          <div className='inline-flex items-center gap-2 text-sm font-semibold text-foreground'>
             <Flag className='h-4 w-4 text-brand' />
             Red flags
           </div>
           <textarea
             value={redFlagsText}
             onChange={(event) => setRedFlagsText(event.target.value)}
-            rows={8}
-            className='product-input-surface min-h-[180px] w-full rounded-xl px-3 py-3 text-sm'
+            rows={7}
+            className='w-full min-h-[170px] rounded-xl border border-border/40 bg-[#000000] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 focus:ring-1 focus:ring-brand/30 outline-none transition-all resize-y'
             placeholder='One red flag per line. Example: Recruiter asks for relocation despite a remote listing.'
           />
         </div>
 
-        <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
-          <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
+        <div className='rounded-2xl border border-border/60 bg-[#0a0a0a] p-5 space-y-3.5 hover:border-brand/30 transition-all'>
+          <div className='inline-flex items-center gap-2 text-sm font-semibold text-foreground'>
             <Briefcase className='h-4 w-4 text-brand' />
             Target archetypes
           </div>
           <textarea
             value={targetArchetypesText}
             onChange={(event) => setTargetArchetypesText(event.target.value)}
-            rows={8}
-            className='product-input-surface min-h-[180px] w-full rounded-xl px-3 py-3 text-sm'
+            rows={7}
+            className='w-full min-h-[170px] rounded-xl border border-border/40 bg-[#000000] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 focus:ring-1 focus:ring-brand/30 outline-none transition-all resize-y'
             placeholder='One archetype per line. Example: Solutions engineer, forward deployed engineer, AI product operator.'
           />
         </div>
       </div>
 
-      <div className='mt-6 grid gap-4 xl:grid-cols-2'>
-        <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
+      {/* 2-Column Grid: Proof Points & Interview Story Bank */}
+      <div className='grid gap-5 xl:grid-cols-2 relative z-10'>
+        {/* Proof Points */}
+        <div className='rounded-2xl border border-border/60 bg-[#0a0a0a] p-5 space-y-4 hover:border-brand/30 transition-all'>
           <div className='flex items-center justify-between gap-3'>
-            <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
+            <div className='inline-flex items-center gap-2 text-sm font-semibold text-foreground'>
               <Bookmark className='h-4 w-4 text-brand' />
               Proof points
             </div>
@@ -320,7 +329,7 @@ export function CandidateMemoryEditor({
               type='button'
               size='sm'
               variant='outline'
-              className='border-brand/30 text-brand hover:bg-brand/10'
+              className='border-brand/40 bg-brand/5 text-brand hover:bg-brand/15 hover:border-brand/60 rounded-xl text-xs font-semibold'
               onClick={() =>
                 setProofPoints((prev) => [
                   ...prev,
@@ -328,13 +337,14 @@ export function CandidateMemoryEditor({
                 ])
               }
             >
-              <Plus className='mr-2 h-4 w-4' />
+              <Plus className='mr-1.5 h-3.5 w-3.5' />
               Add proof point
             </Button>
           </div>
+
           <div className='space-y-3'>
             {proofPoints.length === 0 ? (
-              <div className='rounded-xl border border-dashed border-foreground/12 bg-foreground/[0.02] px-4 py-4 text-sm text-foreground/45'>
+              <div className='rounded-xl border border-dashed border-border/40 bg-[#000000]/60 p-4 text-center text-sm text-muted-foreground/70'>
                 Add quantified wins, customer outcomes, or delivery highlights
                 you want future evaluations to reuse.
               </div>
@@ -342,7 +352,7 @@ export function CandidateMemoryEditor({
             {proofPoints.map((item, index) => (
               <div
                 key={`proof-point-${index}`}
-                className='rounded-xl border border-foreground/10 bg-foreground/5 p-4 space-y-3'
+                className='rounded-xl border border-border/50 bg-[#000000] p-4 space-y-3 shadow-inner'
               >
                 <div className='grid gap-3 md:grid-cols-2'>
                   <input
@@ -351,7 +361,7 @@ export function CandidateMemoryEditor({
                       updateProofPoint(index, { title: event.target.value })
                     }
                     placeholder='Proof point title'
-                    className='product-input-surface rounded-xl px-3 py-2 text-sm'
+                    className='rounded-xl border border-border/40 bg-[#0a0a0a] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 outline-none'
                   />
                   <input
                     value={item.metric ?? ""}
@@ -359,7 +369,7 @@ export function CandidateMemoryEditor({
                       updateProofPoint(index, { metric: event.target.value })
                     }
                     placeholder='Metric or outcome'
-                    className='product-input-surface rounded-xl px-3 py-2 text-sm'
+                    className='rounded-xl border border-border/40 bg-[#0a0a0a] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 outline-none'
                   />
                 </div>
                 <textarea
@@ -369,34 +379,34 @@ export function CandidateMemoryEditor({
                   }
                   rows={3}
                   placeholder='What happened, what you owned, and what changed?'
-                  className='product-input-surface w-full rounded-xl px-3 py-3 text-sm'
+                  className='w-full rounded-xl border border-border/40 bg-[#0a0a0a] p-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 outline-none'
                 />
-                <input
-                  value={(item.tags || []).join(", ")}
-                  onChange={(event) =>
-                    updateProofPoint(index, {
-                      tags: event.target.value
-                        .split(",")
-                        .map((entry) => entry.trim())
-                        .filter(Boolean),
-                    })
-                  }
-                  placeholder='Tags, comma separated'
-                  className='product-input-surface rounded-xl px-3 py-2 text-sm'
-                />
-                <div className='flex justify-end'>
+                <div className='flex items-center justify-between gap-3'>
+                  <input
+                    value={(item.tags || []).join(", ")}
+                    onChange={(event) =>
+                      updateProofPoint(index, {
+                        tags: event.target.value
+                          .split(",")
+                          .map((entry) => entry.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                    placeholder='Tags, comma separated'
+                    className='flex-1 rounded-xl border border-border/40 bg-[#0a0a0a] px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 outline-none'
+                  />
                   <Button
                     type='button'
                     size='sm'
                     variant='ghost'
-                    className='text-brand hover:bg-brand/10 hover:text-brand'
+                    className='text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 h-8 px-2.5 text-xs'
                     onClick={() =>
                       setProofPoints((prev) =>
                         prev.filter((_, itemIndex) => itemIndex !== index),
                       )
                     }
                   >
-                    <Trash2 className='mr-2 h-4 w-4' />
+                    <Trash2 className='mr-1.5 h-3.5 w-3.5' />
                     Remove
                   </Button>
                 </div>
@@ -405,9 +415,10 @@ export function CandidateMemoryEditor({
           </div>
         </div>
 
-        <div className='rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
+        {/* Interview Story Bank */}
+        <div className='rounded-2xl border border-border/60 bg-[#0a0a0a] p-5 space-y-4 hover:border-brand/30 transition-all'>
           <div className='flex items-center justify-between gap-3'>
-            <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
+            <div className='inline-flex items-center gap-2 text-sm font-semibold text-foreground'>
               <Sparkles className='h-4 w-4 text-brand' />
               Interview story bank
             </div>
@@ -415,7 +426,7 @@ export function CandidateMemoryEditor({
               type='button'
               size='sm'
               variant='outline'
-              className='border-brand/30 text-brand hover:bg-brand/10'
+              className='border-brand/40 bg-brand/5 text-brand hover:bg-brand/15 hover:border-brand/60 rounded-xl text-xs font-semibold'
               onClick={() =>
                 setStories((prev) => [
                   ...prev,
@@ -423,13 +434,14 @@ export function CandidateMemoryEditor({
                 ])
               }
             >
-              <Plus className='mr-2 h-4 w-4' />
+              <Plus className='mr-1.5 h-3.5 w-3.5' />
               Add story
             </Button>
           </div>
+
           <div className='space-y-3'>
             {stories.length === 0 ? (
-              <div className='rounded-xl border border-dashed border-foreground/12 bg-foreground/[0.02] px-4 py-4 text-sm text-foreground/45'>
+              <div className='rounded-xl border border-dashed border-border/40 bg-[#000000]/60 p-4 text-center text-sm text-muted-foreground/70'>
                 Saved stories will feed future evaluations and tailoring
                 suggestions automatically.
               </div>
@@ -437,7 +449,7 @@ export function CandidateMemoryEditor({
             {stories.map((item, index) => (
               <div
                 key={`story-${index}`}
-                className='rounded-xl border border-foreground/10 bg-foreground/5 p-4 space-y-3'
+                className='rounded-xl border border-border/50 bg-[#000000] p-4 space-y-3 shadow-inner'
               >
                 <div className='grid gap-3 md:grid-cols-2'>
                   <input
@@ -446,7 +458,7 @@ export function CandidateMemoryEditor({
                       updateStory(index, { title: event.target.value })
                     }
                     placeholder='Story title'
-                    className='product-input-surface rounded-xl px-3 py-2 text-sm'
+                    className='rounded-xl border border-border/40 bg-[#0a0a0a] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 outline-none'
                   />
                   <input
                     value={item.relevance ?? ""}
@@ -454,7 +466,7 @@ export function CandidateMemoryEditor({
                       updateStory(index, { relevance: event.target.value })
                     }
                     placeholder='Why this story matters'
-                    className='product-input-surface rounded-xl px-3 py-2 text-sm'
+                    className='rounded-xl border border-border/40 bg-[#0a0a0a] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 outline-none'
                   />
                 </div>
                 <textarea
@@ -464,29 +476,29 @@ export function CandidateMemoryEditor({
                   }
                   rows={3}
                   placeholder='Situation / action summary'
-                  className='product-input-surface w-full rounded-xl px-3 py-3 text-sm'
+                  className='w-full rounded-xl border border-border/40 bg-[#0a0a0a] p-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 outline-none'
                 />
-                <input
-                  value={item.outcome ?? ""}
-                  onChange={(event) =>
-                    updateStory(index, { outcome: event.target.value })
-                  }
-                  placeholder='Outcome or reflection'
-                  className='product-input-surface rounded-xl px-3 py-2 text-sm'
-                />
-                <div className='flex justify-end'>
+                <div className='flex items-center justify-between gap-3'>
+                  <input
+                    value={item.outcome ?? ""}
+                    onChange={(event) =>
+                      updateStory(index, { outcome: event.target.value })
+                    }
+                    placeholder='Outcome or reflection'
+                    className='flex-1 rounded-xl border border-border/40 bg-[#0a0a0a] px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 outline-none'
+                  />
                   <Button
                     type='button'
                     size='sm'
                     variant='ghost'
-                    className='text-brand hover:bg-brand/10 hover:text-brand'
+                    className='text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 h-8 px-2.5 text-xs'
                     onClick={() =>
                       setStories((prev) =>
                         prev.filter((_, itemIndex) => itemIndex !== index),
                       )
                     }
                   >
-                    <Trash2 className='mr-2 h-4 w-4' />
+                    <Trash2 className='mr-1.5 h-3.5 w-3.5' />
                     Remove
                   </Button>
                 </div>
@@ -496,9 +508,10 @@ export function CandidateMemoryEditor({
         </div>
       </div>
 
-      <div className='mt-6 rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-5 space-y-4'>
+      {/* Tracked Companies Section */}
+      <div className='rounded-2xl border border-border/60 bg-[#0a0a0a] p-5 space-y-4 relative z-10 hover:border-brand/30 transition-all'>
         <div className='flex items-center justify-between gap-3'>
-          <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
+          <div className='inline-flex items-center gap-2 text-sm font-semibold text-foreground'>
             <Briefcase className='h-4 w-4 text-brand' />
             Tracked companies
           </div>
@@ -506,7 +519,7 @@ export function CandidateMemoryEditor({
             type='button'
             size='sm'
             variant='outline'
-            className='border-brand/30 text-brand hover:bg-brand/10'
+            className='border-brand/40 bg-brand/5 text-brand hover:bg-brand/15 hover:border-brand/60 rounded-xl text-xs font-semibold'
             onClick={() =>
               setTrackedCompanies((prev) => [
                 ...prev,
@@ -514,13 +527,14 @@ export function CandidateMemoryEditor({
               ])
             }
           >
-            <Plus className='mr-2 h-4 w-4' />
+            <Plus className='mr-1.5 h-3.5 w-3.5' />
             Add company
           </Button>
         </div>
+
         <div className='space-y-3'>
           {trackedCompanies.length === 0 ? (
-            <div className='rounded-xl border border-dashed border-foreground/12 bg-foreground/[0.02] px-4 py-4 text-sm text-foreground/45'>
+            <div className='rounded-xl border border-dashed border-border/40 bg-[#000000]/60 p-4 text-center text-sm text-muted-foreground/70'>
               Add companies you care about most so hybrid discovery can
               prioritize them first.
             </div>
@@ -528,7 +542,7 @@ export function CandidateMemoryEditor({
           {trackedCompanies.map((item, index) => (
             <div
               key={`tracked-company-${index}`}
-              className='rounded-xl border border-foreground/10 bg-foreground/5 p-4 space-y-3'
+              className='rounded-xl border border-border/50 bg-[#000000] p-4 space-y-3 shadow-inner'
             >
               <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-4'>
                 <input
@@ -537,7 +551,7 @@ export function CandidateMemoryEditor({
                     updateTrackedCompany(index, { name: event.target.value })
                   }
                   placeholder='Company name'
-                  className='product-input-surface rounded-xl px-3 py-2 text-sm'
+                  className='rounded-xl border border-border/40 bg-[#0a0a0a] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 outline-none'
                 />
                 <input
                   value={item.domain ?? ""}
@@ -545,7 +559,7 @@ export function CandidateMemoryEditor({
                     updateTrackedCompany(index, { domain: event.target.value })
                   }
                   placeholder='Domain'
-                  className='product-input-surface rounded-xl px-3 py-2 text-sm'
+                  className='rounded-xl border border-border/40 bg-[#0a0a0a] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 outline-none'
                 />
                 <input
                   value={item.careers_url ?? ""}
@@ -555,7 +569,7 @@ export function CandidateMemoryEditor({
                     })
                   }
                   placeholder='Careers URL'
-                  className='product-input-surface rounded-xl px-3 py-2 text-sm'
+                  className='rounded-xl border border-border/40 bg-[#0a0a0a] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 outline-none'
                 />
                 <input
                   value={item.source_hint ?? ""}
@@ -565,7 +579,7 @@ export function CandidateMemoryEditor({
                     })
                   }
                   placeholder='ATS hint (Greenhouse, Lever...)'
-                  className='product-input-surface rounded-xl px-3 py-2 text-sm'
+                  className='rounded-xl border border-border/40 bg-[#0a0a0a] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 outline-none'
                 />
               </div>
               <div className='flex justify-end'>
@@ -573,14 +587,14 @@ export function CandidateMemoryEditor({
                   type='button'
                   size='sm'
                   variant='ghost'
-                  className='text-brand hover:bg-brand/10 hover:text-brand'
+                  className='text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 h-8 px-2.5 text-xs'
                   onClick={() =>
                     setTrackedCompanies((prev) =>
                       prev.filter((_, itemIndex) => itemIndex !== index),
                     )
                   }
                 >
-                  <Trash2 className='mr-2 h-4 w-4' />
+                  <Trash2 className='mr-1.5 h-3.5 w-3.5' />
                   Remove
                 </Button>
               </div>
@@ -589,14 +603,15 @@ export function CandidateMemoryEditor({
         </div>
       </div>
 
-      <div className='mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-        <p className='product-helper-text'>
+      {/* Save Action Footer */}
+      <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-border/40 relative z-10'>
+        <p className='text-xs text-muted-foreground'>
           Saved memory powers the evaluation layer, hybrid company discovery,
           and reusable interview prep.
         </p>
         <Button
           type='button'
-          className='bg-brand text-black flex items-center hover:bg-brand/90'
+          className='bg-brand text-black font-semibold hover:bg-brand/90 px-6 py-2.5 rounded-xl shadow-lg shadow-brand/20 transition-all disabled:opacity-50'
           onClick={() => void handleSave()}
           disabled={loading || saving}
         >
@@ -604,6 +619,6 @@ export function CandidateMemoryEditor({
           {saving ? "Saving memory..." : "Save candidate memory"}
         </Button>
       </div>
-    </Card>
+    </div>
   );
 }

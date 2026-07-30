@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, BarChart2, BrainCircuit } from "lucide-react";
 import { AnalyticsContent } from "../../../components/analytics/AnalyticsContent";
 import { useAnalyticsData } from "../../../hooks/useAnalyticsData";
 import { useInsightsData } from "../../../hooks/useInsightsData";
@@ -10,11 +10,16 @@ import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 import { RouteLoadingFallback } from "@/components/system/RouteLoadingFallback";
+import { useProfileSettings } from "../../../hooks/useProfileSettings";
+import { CandidateMemoryEditor } from "../components/CandidateMemoryEditor";
+import { cn } from "@/lib/utils";
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 type Granularity = "day" | "week" | "month";
+type ActiveTab = "analytics" | "candidate-memory";
 
 export function AnalyticsPage() {
+  const [activeTab, setActiveTab] = useState<ActiveTab>("analytics");
   const [period, setPeriod] = useState<Period>("30d");
   const [granularity, setGranularity] = useState<Granularity>(
     (localStorage.getItem("analytics:granularity") as Granularity) || "day",
@@ -29,16 +34,29 @@ export function AnalyticsPage() {
     enabled: hasAnalyticsAccess,
   });
 
+  const { profile, loadingProfile, updateProfile } = useProfileSettings();
+
   // Initialize from URL (deep links inside dashboard context)
   useEffect(() => {
     try {
       const usp = new URLSearchParams(window.location.search);
       const p = usp.get("period") as Period | null;
       const g = usp.get("g") as Granularity | null;
+      const tab = usp.get("tab") as ActiveTab | null;
       if (p && ["7d", "30d", "90d", "ytd", "12m"].includes(p)) setPeriod(p);
       if (g && ["day", "week", "month"].includes(g)) setGranularity(g);
+      if (tab && ["analytics", "candidate-memory"].includes(tab)) setActiveTab(tab);
     } catch {}
   }, []);
+
+  const setTabAndPersist = (t: ActiveTab) => {
+    setActiveTab(t);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", t);
+      window.history.replaceState({}, "", url.toString());
+    } catch {}
+  };
 
   const setPeriodAndPersist = (p: Period) => {
     setPeriod(p);
@@ -100,14 +118,14 @@ export function AnalyticsPage() {
   return (
     <div className='relative min-h-full '>
       {/* Ambient Background Glow */}
-      <div className='fixed top-20 right-0 h-96 w-96 bg-foreground/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10'></div>
-      <div className='fixed bottom-0 left-0 h-96 w-96 bg-foreground/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10'></div>
+      <div className='fixed top-20 right-0 h-96 w-96 bg-brand/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10'></div>
+      <div className='fixed bottom-0 left-0 h-96 w-96 bg-brand/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10'></div>
 
       <div className='relative space-y-6 p-4 sm:p-6 lg:p-8 mx-auto max-w-7xl'>
         {loadingTier ? <RouteLoadingFallback/> : !hasAnalyticsAccess ? (
           <UpgradePrompt
             title='Advanced Analytics'
-            description='Unlock conversion trends, exports, match-score reporting, and deeper pipeline insight.'
+            description='Unlock conversion trends, exports, match-score reporting, and candidate memory intelligence.'
             requiredTier='Pro'
             features={[
               {
@@ -116,142 +134,188 @@ export function AnalyticsPage() {
                   "Track applications, interviews, and source quality over time.",
               },
               {
-                title: "Exports",
-                description: "Download your analytics as CSV or JSON.",
+                title: "Candidate Memory Intelligence",
+                description:
+                  "Ground evaluations in preferred narratives, proof points & story bank.",
               },
               {
-                title: "Match-score reporting",
-                description:
-                  "Compare where your strongest opportunities are coming from.",
+                title: "Exports",
+                description: "Download your analytics as CSV or JSON.",
               },
             ]}
           />
         ) : (
           <>
-            {/* Page Header */}
-            <div className='space-y-1 mb-6 sm:mb-8'>
-              <h1 className='text-3xl sm:text-4xl font-bold text-foreground bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text'>
-                Analytics
-              </h1>
-              <p className='text-sm sm:text-base text-foreground/50'>
-                Track your job search performance and insights
-              </p>
+            {/* Header & Sub-navigation Tabs */}
+            <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8 border-b border-border/40 pb-5'>
+              <div className='space-y-1'>
+                <h1 className='text-3xl sm:text-4xl font-bold text-foreground bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text'>
+                  Analytics & Memory
+                </h1>
+                <p className='text-sm sm:text-base text-muted-foreground'>
+                  Track pipeline outcomes, conversion velocity, and career ops memory
+                </p>
+              </div>
+
+              {/* Navigation Pill Switcher */}
+              <div className='flex items-center gap-1.5 p-1 bg-[#090909] border border-brand/30 rounded-2xl shrink-0 shadow-lg shadow-brand/5'>
+                <button
+                  onClick={() => setTabAndPersist("analytics")}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all",
+                    activeTab === "analytics"
+                      ? "bg-brand text-black shadow-md shadow-brand/20 font-bold"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  )}
+                >
+                  <BarChart2 className='w-4 h-4' />
+                  Performance Funnel
+                </button>
+                <button
+                  onClick={() => setTabAndPersist("candidate-memory")}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all",
+                    activeTab === "candidate-memory"
+                      ? "bg-brand text-black shadow-md shadow-brand/20 font-bold"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  )}
+                >
+                  <BrainCircuit className='w-4 h-4' />
+                  Candidate Memory
+                </button>
+              </div>
             </div>
 
-            {/* Controls Card */}
-            <Card
-              className='relative overflow-hidden border border-foreground/10 p-5 sm:p-6 rounded-2xl '
-              id='analytics-controls'
-              data-tour='analytics-controls'
-            >
-              <div className='relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4'>
-                <div className='flex flex-wrap items-center gap-3'>
-                  <span className='text-xs uppercase tracking-wider text-brand/80 font-semibold'>
-                    Granularity:
-                  </span>
-                  {(["day", "week", "month"] as const).map((g) => (
-                    <button
-                      key={g}
-                      onClick={() => setGranularityAndPersist(g)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 ${
-                        granularity === g
-                          ? "bg-gradient-to-br from-brand/20 to-brand/10 text-brand border-foreground/10"
-                          : "border-foreground/20 text-foreground/70 hover:bg-foreground/10 hover:border-foreground/30"
-                      }`}
-                    >
-                      {g.charAt(0).toUpperCase() + g.slice(1)}
-                    </button>
-                  ))}
-                  <span className='ml-3 text-xs uppercase tracking-wider text-brand/80 font-semibold'>
-                    Period:
-                  </span>
-                  {["7d", "30d", "90d", "ytd", "12m"].map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => setPeriodAndPersist(p as Period)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                        period === p
-                          ? "bg-gradient-to-br from-foreground/20 to-foreground/10 text-foreground border-foreground/40 shadow-[0_0_10px_rgba(255,255,255,0.15)]"
-                          : "border-foreground/15 text-foreground/60 hover:bg-foreground/10"
-                      }`}
-                    >
-                      {p.toUpperCase()}
-                    </button>
-                  ))}
-                  <span className='text-xs text-foreground/50 ml-2 hidden sm:inline font-medium'>
-                    {periodLabel}
-                  </span>
-                </div>
-                <div className='flex items-center gap-3'>
-                  <Button
-                    variant='outline'
-                    className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-foreground/10 transition-all duration-200 hover:shadow-[0_0_20px_rgba(47,217,104,0.15)]'
-                    onClick={() => analytics.refresh?.({ bypassCache: true })}
-                  >
-                    <RefreshCw
-                      className={`w-4 h-4 mr-2 ${analytics.loading ? "animate-spin" : ""}`}
-                    />
-                    {analytics.loading ? "Refreshing" : "Refresh"}
-                  </Button>
-                  <Button
-                    variant='outline'
-                    className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-foreground/10 transition-all duration-200 hover:shadow-[0_0_20px_rgba(47,217,104,0.15)]'
-                    disabled={analytics.loading}
-                    onClick={() => analytics.exportCSV?.()}
-                  >
-                    <svg
-                      className='w-4 h-4 mr-2'
-                      fill='none'
-                      viewBox='0 0 24 24'
-                      stroke='currentColor'
-                    >
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        strokeWidth={2}
-                        d='M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
-                      />
-                    </svg>
-                    CSV
-                  </Button>
-                  <Button
-                    variant='outline'
-                    className='border-brand/30 bg-gradient-to-br from-brand/5 to-transparent text-foreground hover:bg-brand/10 hover:border-foreground/10 transition-all duration-200 hover:shadow-[0_0_20px_rgba(47,217,104,0.15)]'
-                    disabled={analytics.loading}
-                    onClick={() => analytics.exportJSON?.()}
-                  >
-                    <svg
-                      className='w-4 h-4 mr-2'
-                      fill='none'
-                      viewBox='0 0 24 24'
-                      stroke='currentColor'
-                    >
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        strokeWidth={2}
-                        d='M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4'
-                      />
-                    </svg>
-                    JSON
-                  </Button>
+            {/* TAB 1: Analytics Performance */}
+            {activeTab === "analytics" && (
+              <div className="space-y-6">
+                {/* Controls Card */}
+                <Card
+                  className='relative overflow-hidden border border-border/50 bg-[#080808] p-5 sm:p-6 rounded-2xl shadow-xl'
+                  id='analytics-controls'
+                  data-tour='analytics-controls'
+                >
+                  <div className='relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4'>
+                    <div className='flex flex-wrap items-center gap-3'>
+                      <span className='text-xs uppercase tracking-wider text-brand font-semibold font-mono'>
+                        Granularity:
+                      </span>
+                      {(["day", "week", "month"] as const).map((g) => (
+                        <button
+                          key={g}
+                          onClick={() => setGranularityAndPersist(g)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                            granularity === g
+                              ? "bg-brand/20 text-brand border-brand/50 shadow-[0_0_12px_rgba(47,217,104,0.2)] font-semibold"
+                              : "border-border/40 text-muted-foreground hover:bg-muted/20 hover:text-foreground"
+                          }`}
+                        >
+                          {g.charAt(0).toUpperCase() + g.slice(1)}
+                        </button>
+                      ))}
+                      <span className='ml-3 text-xs uppercase tracking-wider text-brand font-semibold font-mono'>
+                        Period:
+                      </span>
+                      {["7d", "30d", "90d", "ytd", "12m"].map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => setPeriodAndPersist(p as Period)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                            period === p
+                              ? "bg-brand/20 text-brand border-brand/50 shadow-[0_0_12px_rgba(47,217,104,0.2)] font-semibold"
+                              : "border-border/40 text-muted-foreground hover:bg-muted/20 hover:text-foreground"
+                          }`}
+                        >
+                          {p.toUpperCase()}
+                        </button>
+                      ))}
+                      <span className='text-xs text-muted-foreground ml-2 hidden sm:inline font-medium'>
+                        {periodLabel}
+                      </span>
+                    </div>
+                    <div className='flex items-center gap-3'>
+                      <Button
+                        variant='outline'
+                        className='border-brand/30 bg-brand/5 text-foreground hover:bg-brand/15 hover:border-brand/60 transition-all duration-200 shadow-sm'
+                        onClick={() => analytics.refresh?.({ bypassCache: true })}
+                      >
+                        <RefreshCw
+                          className={`w-4 h-4 mr-2 text-brand ${analytics.loading ? "animate-spin" : ""}`}
+                        />
+                        {analytics.loading ? "Refreshing" : "Refresh"}
+                      </Button>
+                      <Button
+                        variant='outline'
+                        className='border-brand/30 bg-brand/5 text-foreground hover:bg-brand/15 hover:border-brand/60 transition-all duration-200 shadow-sm'
+                        disabled={analytics.loading}
+                        onClick={() => analytics.exportCSV?.()}
+                      >
+                        <svg
+                          className='w-4 h-4 mr-2 text-brand'
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          stroke='currentColor'
+                        >
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            strokeWidth={2}
+                            d='M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+                          />
+                        </svg>
+                        CSV
+                      </Button>
+                      <Button
+                        variant='outline'
+                        className='border-brand/30 bg-brand/5 text-foreground hover:bg-brand/15 hover:border-brand/60 transition-all duration-200 shadow-sm'
+                        disabled={analytics.loading}
+                        onClick={() => analytics.exportJSON?.()}
+                      >
+                        <svg
+                          className='w-4 h-4 mr-2 text-brand'
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          stroke='currentColor'
+                        >
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            strokeWidth={2}
+                            d='M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4'
+                          />
+                        </svg>
+                        JSON
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+
+                {analytics.error && (
+                  <Card className='bg-rose-500/10 border-rose-500/30 rounded-2xl p-4'>
+                    <div className='text-sm text-rose-400'>{analytics.error}</div>
+                  </Card>
+                )}
+
+                <div id='analytics-main-card' data-tour='analytics-main-card'>
+                  <AnalyticsContent
+                    period={period}
+                    data={analytics}
+                    insights={insights}
+                  />
                 </div>
               </div>
-            </Card>
-
-            {analytics.error && (
-              <Card className='bg-gradient-to-br from-brand/20 to-brand/20 border-foreground/10 rounded-2xl p-4'>
-                <div className='text-sm text-brand'>{analytics.error}</div>
-              </Card>
             )}
 
-            <div id='analytics-main-card' data-tour='analytics-main-card'>
-              <AnalyticsContent
-                period={period}
-                data={analytics}
-                insights={insights}
+            {/* TAB 2: Candidate Memory */}
+            {activeTab === "candidate-memory" && (
+              <CandidateMemoryEditor
+                profile={profile}
+                loading={loadingProfile}
+                onSave={async (patch) => {
+                  await updateProfile(patch as any);
+                }}
               />
-            </div>
+            )}
           </>
         )}
       </div>
