@@ -88,26 +88,68 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // 4. Check active connected accounts for this user in Composio via v3 API directly
+    // 4. Check active connected accounts for this user in Composio
     const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-    const accountsResponse = await fetch(
-      `https://backend.composio.dev/api/v3.1/connected_accounts?user_id=${encodeURIComponent(userId)}`,
-      {
-        method: "GET",
-        headers: { "x-api-key": apiKey },
-      }
-    );
     let accounts: any[] = [];
-    if (accountsResponse.ok) {
-      const parsed = await accountsResponse.json();
-      const rawItems = parsed?.items || parsed?.data || parsed;
-      accounts = Array.isArray(rawItems) ? rawItems : [];
-    } else {
-      console.warn(`[Sync Portfolio] Failed to fetch accounts from Composio: status=${accountsResponse.status}`);
+    if (apiKey) {
+      const endpoints = [
+        `https://backend.composio.dev/api/v3.1/connected_accounts?user_id=${encodeURIComponent(userId)}`,
+        `https://backend.composio.dev/api/v3.1/connected_accounts?entity_id=${encodeURIComponent(userId)}`,
+        `https://backend.composio.dev/api/v3.1/connected_accounts`,
+      ];
+      for (const url of endpoints) {
+        try {
+          const res = await fetch(url, { headers: { "x-api-key": apiKey } });
+          if (res.ok) {
+            const data = await res.json();
+            const items = data.items || data.data || (Array.isArray(data) ? data : []);
+            if (Array.isArray(items) && items.length > 0) {
+              accounts = items;
+              break;
+            }
+          }
+        } catch (e) {
+          console.warn(`[Sync Portfolio] Fetch error for ${url}:`, e);
+        }
+      }
     }
 
     const githubConn = findActiveConnectedAccount(accounts, { slug: "github" });
     const linkedinConn = findActiveConnectedAccount(accounts, { slug: "linkedin" });
+
+    // Helper to execute Composio tool via SDK or REST v3.1 fallback
+    const runTool = async (slug: string, args: Record<string, unknown> = {}) => {
+      const executeFn = (composio as any)?.tools?.execute;
+      if (typeof executeFn === "function") {
+        try {
+          return await executeFn.call((composio as any).tools, slug, {
+            userId,
+            arguments: args,
+          });
+        } catch (e: any) {
+          console.warn(`[Sync Portfolio] SDK execute failed for ${slug}:`, e);
+        }
+      }
+
+      if (!apiKey) throw new Error("COMPOSIO_API_KEY is missing");
+      const res = await fetch(`https://backend.composio.dev/api/v3.1/tools/execute/${encodeURIComponent(slug)}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          arguments: args,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Composio tool ${slug} failed (${res.status}): ${errText}`);
+      }
+      return await res.json();
+    };
 
     // 5. Fetch current user profile to preserve old data if a sync fails
     const { data: profile, error: profileErr } = await supabaseAdmin
@@ -131,20 +173,12 @@ serve(async (req) => {
       linkedin: { status: "not_connected", synced_at: null, error: null, ...currentSyncMeta.linkedin },
     };
 
-    const execute = (composio as any)?.tools?.execute;
-    if (typeof execute !== "function") {
-      throw new Error("Composio SDK execute function not found.");
-    }
-
     // 6. Sync GitHub if requested
     if (providers.includes("github")) {
       if (githubConn) {
         try {
           // A. Fetch authenticated GitHub user details
-          const githubUserRes = await execute.call((composio as any).tools, "GITHUB_GET_AUTHENTICATED_USER", {
-            userId,
-            arguments: {},
-          });
+          const githubUserRes = await runTool("GITHUB_GET_AUTHENTICATED_USER", {});
           const ghUser = githubUserRes?.output?.data || githubUserRes?.data || githubUserRes?.result?.output?.data || githubUserRes?.result?.data;
           
           if (!ghUser || !ghUser.login) {
@@ -152,10 +186,7 @@ serve(async (req) => {
           }
 
           // B. Fetch public repositories
-          const githubReposRes = await execute.call((composio as any).tools, "GITHUB_LIST_USER_REPOSITORIES", {
-            userId,
-            arguments: { visibility: "public", affiliation: "owner", per_page: 50 },
-          });
+          const githubReposRes = await runTool("GITHUB_LIST_USER_REPOSITORIES", { visibility: "public", affiliation: "owner", per_page: 50 });
           const reposArray = githubReposRes?.output?.data || githubReposRes?.data || githubReposRes?.result?.output?.data || githubReposRes?.result?.data || [];
 
           // Sort repositories by stars DESC, forks DESC, updated_at DESC
@@ -236,10 +267,7 @@ serve(async (req) => {
       if (linkedinConn) {
         try {
           // A. Fetch LinkedIn profile details
-          const linkedinUserRes = await execute.call((composio as any).tools, "LINKEDIN_GET_MY_INFO", {
-            userId,
-            arguments: {},
-          });
+          const linkedinUserRes = await runTool("LINKEDIN_GET_MY_INFO", {});
           const liUser = linkedinUserRes?.output?.data || linkedinUserRes?.data || linkedinUserRes?.result?.output?.data || linkedinUserRes?.result?.data;
 
           if (!liUser) {
