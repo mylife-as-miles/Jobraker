@@ -4,6 +4,7 @@ import { getCorsHeaders, resolveAllowedOrigin } from "../_shared/cors.ts";
 import {
   SubscriptionAccessError,
   requireAuthenticatedUser,
+  resolveSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 import {
@@ -18,8 +19,14 @@ const composio = new Composio({
   apiKey: Deno.env.get("COMPOSIO_API_KEY") || "",
 });
 
+const PAID_ACTIONS = new Set(["initiate", "execute", "debug-configs"]);
+
 function asString(val: unknown): string {
   return typeof val === "string" ? val : "";
+}
+
+function requiresPaidPlan(action: unknown): boolean {
+  return typeof action === "string" && PAID_ACTIONS.has(action);
 }
 
 const normalizeSlug = normalizeComposioSlug;
@@ -230,7 +237,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { user } = await requireAuthenticatedUser(req);
+    const { user, serviceClient } = await requireAuthenticatedUser(req);
     const userId = user.id;
 
     let body;
@@ -254,6 +261,17 @@ Deno.serve(async (req) => {
       arguments: toolArguments,
       args,
     } = body as Record<string, unknown>;
+
+    if (requiresPaidPlan(action)) {
+      const subscriptionTier = await resolveSubscriptionTier(userId, serviceClient);
+      if (subscriptionTier === "Free") {
+        throw new SubscriptionAccessError(
+          403,
+          "Connected integrations require the Basics plan or higher.",
+        );
+      }
+    }
+
     const reqSlug = normalizeSlug((body.toolkitSlug as string) || (body.integrationSlug as string) || (body.slug as string));
     const authConfigId = resolveAuthConfigId(body as Record<string, unknown>);
 
