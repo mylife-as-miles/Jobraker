@@ -41,7 +41,7 @@ export type ComposioIntegration = {
   /** Tailwind classes for the icon tile; keeps each provider recognisable. */
   accentClass: string;
   iconClass: string;
-  /** Gated behind the Pro email-integration entitlement. */
+  /** Gated behind an active paid subscription. */
   requiresEmailAccess?: boolean;
 };
 
@@ -88,6 +88,7 @@ export const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     icon: Github,
     accentClass: "from-zinc-500/20 to-zinc-500/5 border-zinc-500/30",
     iconClass: "text-foreground/80",
+    requiresEmailAccess: true,
   },
   {
     slug: "linkedin",
@@ -101,6 +102,7 @@ export const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     icon: Linkedin,
     accentClass: "from-blue-500/20 to-blue-500/5 border-blue-500/30",
     iconClass: "text-blue-400",
+    requiresEmailAccess: true,
   },
   {
     slug: "googledrive",
@@ -113,6 +115,7 @@ export const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     icon: Database,
     accentClass: "from-emerald-500/20 to-emerald-500/5 border-emerald-500/30",
     iconClass: "text-emerald-300",
+    requiresEmailAccess: true,
   },
   {
     slug: "googledocs",
@@ -126,6 +129,7 @@ export const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     icon: FileText,
     accentClass: "from-sky-500/20 to-sky-500/5 border-sky-500/30",
     iconClass: "text-sky-300",
+    requiresEmailAccess: true,
   },
   {
     slug: "notion",
@@ -139,6 +143,7 @@ export const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     icon: Database,
     accentClass: "from-stone-500/20 to-stone-500/5 border-stone-500/30",
     iconClass: "text-foreground/80",
+    requiresEmailAccess: true,
   },
   {
     slug: "googlecalendar",
@@ -152,6 +157,7 @@ export const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     icon: Calendar,
     accentClass: "from-blue-500/20 to-blue-500/5 border-blue-500/30",
     iconClass: "text-blue-300",
+    requiresEmailAccess: true,
   },
   {
     slug: "cal",
@@ -164,6 +170,7 @@ export const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     icon: Calendar,
     accentClass: "from-teal-500/20 to-teal-500/5 border-teal-500/30",
     iconClass: "text-teal-300",
+    requiresEmailAccess: true,
   },
   {
     slug: "reddit",
@@ -176,6 +183,7 @@ export const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
     icon: Globe,
     accentClass: "from-orange-500/20 to-orange-500/5 border-orange-500/30",
     iconClass: "text-orange-300",
+    requiresEmailAccess: true,
   },
 ];
 
