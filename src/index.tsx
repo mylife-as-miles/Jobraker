@@ -21,6 +21,7 @@ import { InputSecurityGuard } from "./components/system/InputSecurityGuard";
 import { AnimatePresence } from "framer-motion";
 import { PageTransition } from "./components/transitions";
 import posthog, { initPostHog } from "./lib/posthog";
+import { initSentry, Sentry } from "./lib/sentry";
 import { PostHogProvider } from "posthog-js/react";
 import { HelmetProvider } from "react-helmet-async";
 import { usePostHogAuthBridge } from "./hooks/usePostHogAuthBridge";
@@ -59,6 +60,7 @@ const AdminJobs = lazyWithRetry(() => import("./pages/admin/pages/AdminJobs"));
 const AdminSubscriptions = lazyWithRetry(() => import("./pages/admin/pages/AdminSubscriptions"));
 
 const APP_ORIGIN = "https://app.jobraker.io";
+initSentry();
 initPostHog();
 
 function isAdminPublicPath(pathname: string) {
@@ -92,6 +94,7 @@ class ErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Application Error Boundary caught error:", error, errorInfo);
+    Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
   }
 
   handleReset = () => {
