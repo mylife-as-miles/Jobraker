@@ -321,6 +321,9 @@ export default function AdminJobs() {
           case "Basics":
             maxSlots = 2;
             break;
+          case "Starter":
+            maxSlots = 0;
+            break;
           default:
             maxSlots = 1;
         }
@@ -711,6 +714,7 @@ export default function AdminJobs() {
                     <option value='Ultimate'>Ultimate</option>
                     <option value='Pro'>Pro</option>
                     <option value='Basics'>Basics</option>
+                    <option value='Starter'>Starter</option>
                     <option value='Free'>Free</option>
                   </select>
                   <ChevronDown className='absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none' />

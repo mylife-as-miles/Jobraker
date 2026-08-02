@@ -352,12 +352,12 @@ export const useUserActivities = () => {
         const credits_consumed = userCredits?.lifetime_spent || 0;
 
         // Subscription
-        let subscription_tier: 'Free' | 'Basics' | 'Pro' | 'Ultimate' = 'Free';
+        let subscription_tier: 'Free' | 'Starter' | 'Basics' | 'Pro' | 'Ultimate' = 'Free';
         let total_spent = 0;
         const sub = subscriptionMap.get(user.id);
         if (sub && sub.subscription_plans) {
              const plan = Array.isArray(sub.subscription_plans) ? sub.subscription_plans[0] : sub.subscription_plans;
-             if (plan && ['Free', 'Basics', 'Pro', 'Ultimate'].includes(plan.name)) {
+             if (plan && ['Free', 'Starter', 'Basics', 'Pro', 'Ultimate'].includes(plan.name)) {
                  subscription_tier = plan.name as any;
              }
              total_spent = plan?.price || 0;

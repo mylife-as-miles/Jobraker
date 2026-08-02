@@ -106,7 +106,7 @@ interface PageLink {
   path: string;
 }
 
-type SubscriptionTier = "Free" | "Basics" | "Pro" | "Ultimate";
+type SubscriptionTier = "Free" | "Starter" | "Basics" | "Pro" | "Ultimate";
 
 function SidebarPlanCardSkeleton({ isCollapsed }: { isCollapsed?: boolean }) {
   return (

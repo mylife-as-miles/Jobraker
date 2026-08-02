@@ -428,6 +428,8 @@ export default function AdminSubscriptions() {
         return <Zap className='w-5 h-5 text-blue-400' />;
       case "basics":
         return <Star className='w-5 h-5 text-brand' />;
+      case "starter":
+        return <Sparkles className='w-5 h-5 text-sky-400' />;
       default:
         return <User className='w-5 h-5 text-gray-400' />;
     }
@@ -441,6 +443,8 @@ export default function AdminSubscriptions() {
         return "from-blue-500/20 to-brand/20 border-blue-500/30";
       case "basics":
         return "from-brand/20 to-brand/20 border-brand/30";
+      case "starter":
+        return "from-sky-500/20 to-blue-500/20 border-sky-500/30";
       default:
         return "from-gray-500/20 to-gray-600/20 border-gray-500/30";
     }
@@ -1664,6 +1668,8 @@ function getPlanBadgeClass(name: string) {
       return "bg-brand/20 text-brand border-brand/30";
     case "Basics":
       return "bg-brand/20 text-brand border-brand/30";
+    case "Starter":
+      return "bg-sky-500/20 text-sky-400 border-sky-500/30";
     default:
       return "bg-gray-500/20 text-gray-400 border-gray-500/30";
   }
@@ -1677,6 +1683,8 @@ function getPlanBadgeIcon(name: string) {
       return <Zap className='w-4 h-4 text-blue-400' />;
     case "Basics":
       return <Star className='w-4 h-4 text-brand' />;
+    case "Starter":
+      return <Sparkles className='w-4 h-4 text-sky-400' />;
     default:
       return <User className='w-4 h-4 text-gray-400' />;
   }
@@ -1779,6 +1787,7 @@ function SubscriberChangePlanDialog({
 
   const planIcons: Record<string, React.ReactNode> = {
     Free: <User className='w-5 h-5 text-gray-400' />,
+    Starter: <Sparkles className='w-5 h-5 text-sky-400' />,
     Basics: <Star className='w-5 h-5 text-brand' />,
     Pro: <Zap className='w-5 h-5 text-blue-400' />,
     Ultimate: <Crown className='w-5 h-5 text-purple-400' />,

@@ -1,16 +1,18 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-export type SubscriptionTier = "Free" | "Basics" | "Pro" | "Ultimate";
+export type SubscriptionTier = "Free" | "Starter" | "Basics" | "Pro" | "Ultimate";
 
 const TIER_RANK: Record<SubscriptionTier, number> = {
   Free: 0,
-  Basics: 1,
-  Pro: 2,
-  Ultimate: 3,
+  Starter: 1,
+  Basics: 2,
+  Pro: 3,
+  Ultimate: 4,
 };
 
 export const JOB_SEARCH_RESULT_CAPS: Record<SubscriptionTier, number> = {
   Free: 10,
+  Starter: 15,
   Basics: 20,
   Pro: 50,
   Ultimate: 100,
@@ -29,9 +31,11 @@ export class SubscriptionAccessError extends Error {
 export function normalizeSubscriptionTier(tier?: string | null): SubscriptionTier {
   const normalized = (tier || "").trim();
   switch (normalized) {
+    case "Starter":
+    case "Starter Plan":
+      return "Starter";
     case "Basics":
     case "Basic":
-    case "Starter":
       return "Basics";
     case "Pro":
     case "Professional":

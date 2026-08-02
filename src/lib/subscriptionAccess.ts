@@ -1,6 +1,6 @@
 import { BILLING_PLAN_DEFINITIONS } from "@/lib/billingCatalog";
 
-export type SubscriptionTier = "Free" | "Basics" | "Pro" | "Ultimate";
+export type SubscriptionTier = "Free" | "Starter" | "Basics" | "Pro" | "Ultimate";
 
 export type UpgradePromptTier = SubscriptionTier | "Pro/Ultimate";
 
@@ -50,6 +50,7 @@ export interface SubscriptionMarketingPlan {
 
 export const SUBSCRIPTION_TIER_ORDER: SubscriptionTier[] = [
   "Free",
+  "Starter",
   "Basics",
   "Pro",
   "Ultimate",
@@ -57,9 +58,10 @@ export const SUBSCRIPTION_TIER_ORDER: SubscriptionTier[] = [
 
 export const SUBSCRIPTION_TIER_RANK: Record<SubscriptionTier, number> = {
   Free: 0,
-  Basics: 1,
-  Pro: 2,
-  Ultimate: 3,
+  Starter: 1,
+  Basics: 2,
+  Pro: 3,
+  Ultimate: 4,
 };
 
 export const PRODUCT_FEATURE_MIN_TIER: Record<
@@ -69,11 +71,11 @@ export const PRODUCT_FEATURE_MIN_TIER: Record<
   application_tracking: "Free",
   basic_match_score: "Free",
   manual_job_feedback: "Free",
-  bulk_pipeline_tools: "Basics",
-  csv_export: "Basics",
-  basic_job_quality_filter: "Basics",
-  resume_tailoring: "Basics",
-  cover_letter_generation: "Basics",
+  bulk_pipeline_tools: "Starter",
+  csv_export: "Starter",
+  basic_job_quality_filter: "Starter",
+  resume_tailoring: "Starter",
+  cover_letter_generation: "Starter",
   advanced_job_quality_gate: "Pro",
   feedback_learning_ranking: "Pro",
   explainable_score_breakdown: "Pro",
@@ -125,14 +127,17 @@ export const SUBSCRIPTION_MARKETING_PLANS: SubscriptionMarketingPlan[] =
     features: plan.marketingFeatures,
   }));
 
-const UPGRADEABLE_TIERS: SubscriptionTier[] = ["Basics", "Pro", "Ultimate"];
+const UPGRADEABLE_TIERS: SubscriptionTier[] = ["Starter", "Basics", "Pro", "Ultimate"];
 
 export function normalizeSubscriptionTier(
   tier?: string | null,
 ): SubscriptionTier {
   switch ((tier || "").trim()) {
-    case "Basics":
     case "Starter":
+    case "Starter Plan":
+      return "Starter";
+    case "Basics":
+    case "Basic":
       return "Basics";
     case "Pro":
     case "Professional":
@@ -175,6 +180,7 @@ export function getFeatureUpgradeLabel(feature: ProductFeatureKey): string {
 }
 
 export function getPromptBadgeLabel(requiredTier: UpgradePromptTier): string {
+  if (requiredTier === "Starter") return "Starter Feature";
   if (requiredTier === "Basics") return "Basics Feature";
   if (requiredTier === "Pro") return "Pro Feature";
   if (requiredTier === "Ultimate") return "Ultimate Feature";

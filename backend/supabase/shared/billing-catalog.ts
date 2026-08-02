@@ -1,4 +1,4 @@
-export type SharedSubscriptionTier = "Free" | "Basics" | "Pro" | "Ultimate";
+export type SharedSubscriptionTier = "Free" | "Starter" | "Basics" | "Pro" | "Ultimate";
 
 export interface SharedSubscriptionPlanDefinition {
   tier: SharedSubscriptionTier;
@@ -54,6 +54,33 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
       "Manual job feedback labels",
       "Resume builder, storage, import, and parsing",
       "Application tracking to start your pipeline",
+    ],
+  },
+  {
+    tier: "Starter",
+    name: "Starter",
+    monthlyPriceUsd: 9,
+    yearlyPriceUsd: 86,
+    creditsPerMonth: 75,
+    autoApplyRunsPerMonth: 0,
+    autoApplyConcurrency: 0,
+    description:
+      "Designed for job seekers who want AI assistance but prefer to apply manually.",
+    isPopular: false,
+    marketingFeatures: [
+      "75 monthly credits",
+      "AI job search",
+      "AI Chat assistant",
+      "Resume analysis",
+      "Resume builder",
+      "AI resume polishing",
+      "Cover-letter generation",
+      "Job match scores",
+      "Application tracking",
+      "Recruiter outreach message generation",
+      "Manual application workflow",
+      "No auto-apply",
+      "No Skyvern usage",
     ],
   },
   {

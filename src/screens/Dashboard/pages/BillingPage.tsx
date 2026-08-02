@@ -1555,7 +1555,7 @@ export const BillingPage = () => {
                 </div>
               </div>
 
-              <div className='grid w-full grid-cols-1 gap-6 md:grid-cols-2 md:gap-8 2xl:grid-cols-4 2xl:gap-6'>
+              <div className='grid w-full grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'>
                 {plans.map((plan, index) => {
                   const cycleForCurrent =
                     activeSubscriptionBillingCycle ?? "monthly";

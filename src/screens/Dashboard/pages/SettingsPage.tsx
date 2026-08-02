@@ -4408,9 +4408,11 @@ export const SettingsPage = (): JSX.Element => {
                         ? "bg-blue-500/20 text-blue-400"
                         : billingSubscriptionTier === "Basics"
                           ? "bg-brand/20 text-brand"
-                          : billingSubscriptionTier === "Ultimate"
-                            ? "bg-purple-500/20 text-purple-400"
-                            : "bg-brand/20 text-brand"
+                          : billingSubscriptionTier === "Starter"
+                            ? "bg-sky-500/20 text-sky-400"
+                            : billingSubscriptionTier === "Ultimate"
+                              ? "bg-purple-500/20 text-purple-400"
+                              : "bg-brand/20 text-brand"
                     }`}
                   >
                     {billingSubscriptionTier.toUpperCase()}

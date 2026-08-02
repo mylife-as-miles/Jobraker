@@ -549,6 +549,7 @@ function ChangePlanDialog({
 
   const planIcons: Record<string, React.ReactNode> = {
     Free: <User className='w-5 h-5 text-gray-400' />,
+    Starter: <Sparkles className='w-5 h-5 text-sky-400' />,
     Basics: <Star className='w-5 h-5 text-brand' />,
     Pro: <Zap className='w-5 h-5 text-blue-400' />,
     Ultimate: <Crown className='w-5 h-5 text-purple-400' />,
@@ -1060,6 +1061,8 @@ function getTierIcon(tier: string) {
       return <Zap className='w-4 h-4 text-blue-400' />;
     case "Basics":
       return <Star className='w-4 h-4 text-brand' />;
+    case "Starter":
+      return <Sparkles className='w-4 h-4 text-sky-400' />;
     default:
       return <User className='w-4 h-4 text-gray-400' />;
   }
@@ -1073,6 +1076,8 @@ function getTierBadgeClass(tier: string) {
       return "bg-brand/20 text-brand border-brand/30";
     case "Basics":
       return "bg-brand/20 text-brand border-brand/30";
+    case "Starter":
+      return "bg-sky-500/20 text-sky-400 border-sky-500/30";
     default:
       return "bg-gray-500/20 text-gray-400 border-gray-500/30";
   }
@@ -1103,7 +1108,7 @@ export default function AdminUsers() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTier, setFilterTier] = useState<
-    "all" | "Free" | "Basics" | "Pro" | "Ultimate"
+    "all" | "Free" | "Starter" | "Basics" | "Pro" | "Ultimate"
   >("all");
   const [filterStatus, setFilterStatus] = useState<
     "all" | "active" | "inactive"
@@ -1386,6 +1391,7 @@ export default function AdminUsers() {
               >
                 <option value='all'>All Tiers</option>
                 <option value='Free'>Free</option>
+                <option value='Starter'>Starter</option>
                 <option value='Basics'>Basics</option>
                 <option value='Pro'>Pro</option>
                 <option value='Ultimate'>Ultimate</option>
