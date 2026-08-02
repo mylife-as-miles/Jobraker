@@ -81,6 +81,16 @@ import type {
   SkillExecutionInput,
 } from "@/lib/chatSkills/types";
 import {
+  IntegrationPermissionModal,
+  type PendingPermissionRequest,
+} from "@/components/chat/IntegrationPermissionModal";
+import {
+  fetchUserPermissions,
+  saveUserPermission,
+  resolveIntegrationFromTool,
+  type PermissionScope,
+} from "@/lib/integrationPermissions";
+import {
   MessageSquare,
   Wand2,
   Target,
@@ -1473,6 +1483,36 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
               });
               await waitForAgentProgressPaint();
             } else if (currentEvent === "tool_start") {
+              const integration = resolveIntegrationFromTool(data.name, data.args);
+              if (integration) {
+                const currentGrant = permissionGrants[integration.slug];
+                if (!currentGrant) {
+                  const decision = await new Promise<PermissionScope>((resolve) => {
+                    setPendingPermissionRequest({
+                      integrationSlug: integration.slug,
+                      integrationName: integration.name,
+                      toolName: data.name,
+                      toolSummary: data.name.replace(/_/g, " "),
+                      resolve,
+                    });
+                  });
+
+                  setPendingPermissionRequest(null);
+                  const { data: userData } = await supabase.auth.getUser();
+                  if (userData.user?.id) {
+                    await saveUserPermission(supabase, userData.user.id, integration.slug, decision);
+                  }
+                  setPermissionGrants((prev) => ({
+                    ...prev,
+                    [integration.slug]: decision,
+                  }));
+
+                  if (decision === "deny") {
+                    console.warn(`User denied first-use access to ${integration.name}`);
+                  }
+                }
+              }
+
               const toolEntry: ToolCallEntry = {
                 id: data.id || nanoid(),
                 name: data.name,
@@ -2019,6 +2059,16 @@ export const ChatPage = () => {
   }, [requestElapsedMs]);
   const isChatBusy = status === "in_progress" || skillStatus === "in_progress";
   const [proTipIndex, setProTipIndex] = useState(0);
+  const [permissionGrants, setPermissionGrants] = useState<Record<string, PermissionScope>>({});
+  const [pendingPermissionRequest, setPendingPermissionRequest] = useState<PendingPermissionRequest | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.id) {
+        fetchUserPermissions(supabase, data.user.id).then(setPermissionGrants);
+      }
+    });
+  }, [supabase]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -4000,6 +4050,12 @@ export const ChatPage = () => {
             <div className='fixed top-24 left-96 w-64 h-64 bg-brand/5 rounded-full blur-[100px] pointer-events-none'></div>
           </main>
 
+          <IntegrationPermissionModal
+            request={pendingPermissionRequest}
+            onRespond={(decision) => {
+              pendingPermissionRequest?.resolve(decision);
+            }}
+          />
         </>
       )}
     </div>
