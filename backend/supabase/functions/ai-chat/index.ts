@@ -3144,15 +3144,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    let normalizedMessages: { role: string; content: string; images?: { mimeType: string; data: string }[] }[];
+    let normalizedMessages: {
+      role: string;
+      content: string;
+      toolCalls?: any[];
+      images?: { mimeType: string; data: string }[];
+    }[];
     try {
       normalizedMessages = messages.map((m: any, i: number) => {
         const role = m?.role === "assistant" ? "assistant" : "user";
         const content = typeof m?.content === "string" ? m.content : "";
+        const toolCalls = Array.isArray(m?.toolCalls) ? m.toolCalls : undefined;
         const isLast = i === messages.length - 1;
         const images =
           isLast && role === "user" ? normalizeChatImages(m?.images) : undefined;
-        return { role, content, images };
+        return { role, content, toolCalls, images };
       });
     } catch (e: any) {
       return new Response(JSON.stringify({ error: e?.message || "Invalid image payload" }), {
@@ -3572,10 +3578,43 @@ Edge functions:
       chatConfig.tools = [{ googleSearch: {} }];
     }
 
-    const history = normalizedMessages.slice(0, -1).map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    }));
+    const history: Array<{ role: string; parts: any[] }> = [];
+    const priorMessages = normalizedMessages.slice(0, -1);
+    for (const m of priorMessages) {
+      if (m.role === "user") {
+        history.push({
+          role: "user",
+          parts: [{ text: m.content || "Proceed" }],
+        });
+      } else {
+        const assistantParts: any[] = [];
+        if (m.toolCalls && m.toolCalls.length > 0) {
+          const fnCalls = m.toolCalls.map((tc) => ({
+            functionCall: {
+              name: tc.name,
+              args: isRecord(tc.args) ? tc.args : {},
+            },
+          }));
+          const fnResponses = m.toolCalls.map((tc) => ({
+            functionResponse: {
+              name: tc.name,
+              response: isRecord(tc.result) ? tc.result : { success: true },
+            },
+          }));
+          if (m.content) {
+            assistantParts.push({ text: m.content });
+          }
+          assistantParts.push(...fnCalls);
+          history.push({ role: "model", parts: assistantParts });
+          history.push({ role: "user", parts: fnResponses });
+        } else {
+          history.push({
+            role: "model",
+            parts: [{ text: m.content || "Ready" }],
+          });
+        }
+      }
+    }
     const lastUserParts = buildGeminiUserParts(
       normalizedMessages[normalizedMessages.length - 1].content,
       normalizedMessages[normalizedMessages.length - 1].images,
