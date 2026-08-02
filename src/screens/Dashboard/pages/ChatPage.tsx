@@ -106,6 +106,8 @@ import {
   AlertTriangle,
   ListChecks,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Mic,
   Loader2,
 } from "lucide-react";
@@ -2016,6 +2018,14 @@ export const ChatPage = () => {
     return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
   }, [requestElapsedMs]);
   const isChatBusy = status === "in_progress" || skillStatus === "in_progress";
+  const [proTipIndex, setProTipIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setProTipIndex((prev) => (prev + 1) % 4);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (status !== "in_progress") return;
@@ -3254,30 +3264,109 @@ export const ChatPage = () => {
                         Personalizing your AI starter prompts...
                       </p>
                     ) : (
-                      <div className='glass-panel mt-6 p-4 rounded-xl text-left w-full border border-brand/20 bg-brand/5 backdrop-blur-md max-w-2xl flex gap-3.5 items-start mx-auto'>
-                        <div className='p-2 rounded-lg bg-brand/10 text-brand border border-brand/20 shrink-0 mt-0.5'>
-                          <Sparkles size={16} />
-                        </div>
-                        <div className='flex-1 min-w-0'>
-                          <h4 className='text-xs font-semibold text-foreground/95 mb-1 flex items-center gap-1.5'>
-                            Pro Tip: Direct Outreach for Sales & Marketing
-                          </h4>
-                          <p className='text-xs text-muted-foreground leading-relaxed'>
-                            Are you in Sales or Marketing? You can use the{" "}
-                            <button
-                              type='button'
-                              onClick={() => {
-                                setText("/direct-apply ");
-                                if (textareaRef.current) textareaRef.current.focus();
-                              }}
-                              className='font-mono font-bold text-brand hover:underline bg-brand/10 px-1.5 py-0.5 rounded transition-all text-[11px]'
-                            >
-                              /direct-apply
-                            </button>{" "}
-                            command to scrape for target companies, retrieve verified contact details, and draft cold outreach emails automatically.
-                          </p>
-                        </div>
-                      </div>
+                      {(() => {
+                        const proTips = [
+                          {
+                            title: "Pro Tip: Recruiter & Hiring Manager Scout",
+                            command: "/recruiter-scout",
+                            prompt: "/recruiter-scout ",
+                            description: "Want to bypass automated job portals? Use the ",
+                            descriptionSuffix: " command to find verified recruiter & hiring manager contact emails for target companies or your latest application.",
+                          },
+                          {
+                            title: "Pro Tip: Direct Outreach for Sales & Marketing",
+                            command: "/direct-apply",
+                            prompt: "/direct-apply ",
+                            description: "Are you in Sales or Marketing? You can use the ",
+                            descriptionSuffix: " command to scrape for target companies, retrieve verified contact details, and draft cold outreach emails automatically.",
+                          },
+                          {
+                            title: "Pro Tip: AI Resume Tailor",
+                            command: "/resume-tailor",
+                            prompt: "/resume-tailor ",
+                            description: "Tailor your resume for any role! Use the ",
+                            descriptionSuffix: " command to analyze job requirements, match keywords, and optimize your resume for high ATS pass rates.",
+                          },
+                          {
+                            title: "Pro Tip: Application Follow-up Assistant",
+                            command: "/follow-up",
+                            prompt: "/follow-up ",
+                            description: "Applied to a job recently? Use the ",
+                            descriptionSuffix: " command to draft personalized follow-up messages and check application status with recruiters.",
+                          },
+                        ];
+
+                        const currentTip = proTips[proTipIndex % proTips.length];
+
+                        return (
+                          <div className='glass-panel mt-6 p-4 rounded-xl text-left w-full border border-brand/20 bg-brand/5 backdrop-blur-md max-w-2xl flex gap-3.5 items-start mx-auto relative group'>
+                            <div className='p-2 rounded-lg bg-brand/10 text-brand border border-brand/20 shrink-0 mt-0.5'>
+                              <Sparkles size={16} />
+                            </div>
+
+                            <div className='flex-1 min-w-0 pr-14'>
+                              <h4 className='text-xs font-semibold text-foreground/95 mb-1 flex items-center gap-1.5'>
+                                {currentTip.title}
+                              </h4>
+                              <p className='text-xs text-muted-foreground leading-relaxed'>
+                                {currentTip.description}
+                                <button
+                                  type='button'
+                                  onClick={() => {
+                                    setText(currentTip.prompt);
+                                    if (textareaRef.current) textareaRef.current.focus();
+                                  }}
+                                  className='font-mono font-bold text-brand hover:underline bg-brand/10 px-1.5 py-0.5 rounded transition-all text-[11px] inline-flex items-center gap-1'
+                                >
+                                  {currentTip.command}
+                                </button>
+                                {currentTip.descriptionSuffix}
+                              </p>
+
+                              {/* Carousel Dots */}
+                              <div className='flex items-center gap-1.5 mt-2.5'>
+                                {proTips.map((_, idx) => (
+                                  <button
+                                    key={idx}
+                                    type='button'
+                                    onClick={() => setProTipIndex(idx)}
+                                    aria-label={`Go to slide ${idx + 1}`}
+                                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                                      idx === proTipIndex % proTips.length
+                                        ? "w-5 bg-brand"
+                                        : "w-1.5 bg-brand/20 hover:bg-brand/40"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Carousel Navigation Buttons */}
+                            <div className='flex items-center gap-1 shrink-0 self-center absolute right-3 top-3.5 opacity-80 group-hover:opacity-100 transition-opacity'>
+                              <button
+                                type='button'
+                                onClick={() =>
+                                  setProTipIndex((prev) => (prev === 0 ? proTips.length - 1 : prev - 1))
+                                }
+                                aria-label='Previous Pro Tip'
+                                className='p-1 rounded-md bg-brand/10 hover:bg-brand/20 text-brand border border-brand/20 transition-all'
+                              >
+                                <ChevronLeft size={13} />
+                              </button>
+                              <button
+                                type='button'
+                                onClick={() =>
+                                  setProTipIndex((prev) => (prev + 1) % proTips.length)
+                                }
+                                aria-label='Next Pro Tip'
+                                className='p-1 rounded-md bg-brand/10 hover:bg-brand/20 text-brand border border-brand/20 transition-all'
+                              >
+                                <ChevronRight size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     )}
                   </div>
                 </div>
