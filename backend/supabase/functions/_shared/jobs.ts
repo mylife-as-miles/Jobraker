@@ -9,6 +9,7 @@ import {
   createGeminiClient,
   extractGeminiText,
   withGeminiRetry,
+  runMeteredAiCall,
 } from "./gemini.ts";
 import { parseStructuredJson } from "./structured-json.ts";
 
@@ -17,16 +18,18 @@ interface FormattedJobInfo {
   description: string;
 }
 
-export async function formatJobTitleAndDescriptionWithAi(
+export async function cleanJobDescriptionWithAI(
   title: string,
   description: string,
+  model = "gemini-3-flash-preview",
+  userId?: string,
 ): Promise<FormattedJobInfo> {
-  const model = Deno.env.get("SUPPORT_AI_MODEL") || "gemma-4-31b-it";
   const ai = createGeminiClient();
 
-  const systemInstruction = `You are a professional recruiting assistant. Your task is to clean, normalize, and format a job title and description to make them clean, recruiter-ready, and well-structured.
+  const systemInstruction = `You are an expert AI job posting parser and editor.
+Clean and reformat raw job title and description text.
 
-Formatting Rules:
+Rules:
 1. Job Title:
 - Remove bracketed text, emojis, salary information, location information, employment type, or system codes (e.g., "Software Engineer (Remote) - 100% Remote" -> "Software Engineer").
 - Keep only the actual title. Do not include team names or company names (e.g. "Operations Manager - Growth Team" -> "Operations Manager").
@@ -47,19 +50,49 @@ Return only a valid JSON object matching this schema:
   const prompt = `Raw Title: ${title}\n\nRaw Description:\n${description}`;
 
   try {
-    const response = await withGeminiRetry(() =>
-      ai.models.generateContent({
+    let response: any;
+    if (userId) {
+      const metered = await runMeteredAiCall({
+        userId,
+        featureKey: "clean_job_description",
         model,
-        config: {
-          systemInstruction: {
-            role: "system",
-            parts: [{ text: systemInstruction }],
-          },
-          responseMimeType: "application/json",
+        promptTextLength: prompt.length,
+        execute: async () => {
+          const rawRes = await withGeminiRetry(() =>
+            ai.models.generateContent({
+              model,
+              config: {
+                systemInstruction: {
+                  role: "system",
+                  parts: [{ text: systemInstruction }],
+                },
+                responseMimeType: "application/json",
+              },
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+            })
+          );
+          return {
+            result: rawRes,
+            usageMetadata: (rawRes as any)?.usageMetadata,
+          };
         },
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      })
-    );
+      });
+      response = metered.result;
+    } else {
+      response = await withGeminiRetry(() =>
+        ai.models.generateContent({
+          model,
+          config: {
+            systemInstruction: {
+              role: "system",
+              parts: [{ text: systemInstruction }],
+            },
+            responseMimeType: "application/json",
+          },
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+        })
+      );
+    }
 
     const rawText = extractGeminiText(response);
     const parsed = parseStructuredJson<FormattedJobInfo>(rawText);

@@ -7,6 +7,7 @@ import {
   GEMINI_MODEL,
   withGeminiRetry,
   withModelFallback,
+  runMeteredAiCall,
 } from "../_shared/gemini.ts";
 import {
   SubscriptionAccessError,
@@ -124,20 +125,33 @@ Jobs JSON:
 ${JSON.stringify(jobPayload)}`;
 
     const ai = createGeminiClient();
-    const { result: response } = await withModelFallback((model) =>
-      ai.models.generateContent({
-        model,
-        config: createGeminiConfig({
-          systemInstruction:
-            "You output only JSON. Never include markdown fences. Be conservative—prefer fewer high-confidence matches.",
-          responseMimeType: "application/json",
-          thinkingLevel: "LOW",
-        }, model),
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      })
-    );
+    const metered = await runMeteredAiCall({
+      userId: user.id,
+      featureKey: "referrals_agent",
+      model: GEMINI_MODEL,
+      promptTextLength: prompt.length,
+      execute: async () => {
+        const { result: rawResponse, modelUsed } = await withModelFallback((model) =>
+          ai.models.generateContent({
+            model,
+            config: createGeminiConfig({
+              systemInstruction:
+                "You output only JSON. Never include markdown fences. Be conservative—prefer fewer high-confidence matches.",
+              responseMimeType: "application/json",
+              thinkingLevel: "LOW",
+            }, model),
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+          })
+        );
+        return {
+          result: rawResponse,
+          usageMetadata: (rawResponse as any)?.usageMetadata,
+          modelUsed,
+        };
+      },
+    });
 
-    const text = extractGeminiText(response);
+    const text = extractGeminiText(metered.result);
     const parsed = JSON.parse(text) as {
       matches?: Array<{ ci: number; ji: number; fit_score: number; rationale: string }>;
     };

@@ -8,7 +8,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createGeminiClient, GEMINI_MODEL } from "../_shared/gemini.ts";
+import { createGeminiClient, GEMINI_MODEL, runMeteredAiCall } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
@@ -292,16 +292,29 @@ ${targetRole ? `- Tailor the resume for the target role: ${targetRole}` : ""}
 
     const ai = createGeminiClient();
 
-    const response = await ai.models.generateContent({
+    const metered = await runMeteredAiCall({
+      userId: user.id,
+      featureKey: "generate_resume",
       model: GEMINI_MODEL,
-      config: {
-        thinkingConfig: { thinkingLevel: "HIGH" },
-        systemInstruction: systemPrompt,
-        responseMimeType: "application/json",
+      promptTextLength: userPrompt.length,
+      execute: async () => {
+        const rawResponse = await ai.models.generateContent({
+          model: GEMINI_MODEL,
+          config: {
+            thinkingConfig: { thinkingLevel: "HIGH" },
+            systemInstruction: systemPrompt,
+            responseMimeType: "application/json",
+          },
+          contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+        });
+        return {
+          result: rawResponse,
+          usageMetadata: (rawResponse as any)?.usageMetadata,
+        };
       },
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
     });
 
+    const response = metered.result;
     const text = (typeof response.text === 'function' ? response.text() : response.text)?.trim() || "";
 
     // Parse and validate the JSON

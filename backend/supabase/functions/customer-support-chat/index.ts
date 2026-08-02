@@ -9,6 +9,7 @@ import {
   isGeminiAccessDeniedError,
   withGeminiRetry,
   withModelFallback,
+  runMeteredAiCall,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -466,25 +467,64 @@ The array should be shaped like: { "label": string, "route": string | null, "kin
     let rawText = "";
 
     try {
-      if (DEFAULT_SUPPORT_MODEL !== GEMINI_MODEL) {
-        try {
-          const response = await generateForModel(DEFAULT_SUPPORT_MODEL);
-          rawText = extractGeminiText(response);
-        } catch (error) {
-          if (isGeminiAccessDeniedError(error)) throw error;
-          console.warn(`[CustomerSupport] Default model ${DEFAULT_SUPPORT_MODEL} failed, trying Gemini fallback chain...`, error);
+      if (user?.id) {
+        const metered = await runMeteredAiCall({
+          userId: user.id,
+          featureKey: "customer_support_chat",
+          model: DEFAULT_SUPPORT_MODEL,
+          promptTextLength: systemInstruction.length,
+          execute: async () => {
+            let response: any;
+            let modelUsed = DEFAULT_SUPPORT_MODEL;
+            if (DEFAULT_SUPPORT_MODEL !== GEMINI_MODEL) {
+              try {
+                response = await generateForModel(DEFAULT_SUPPORT_MODEL);
+              } catch (error) {
+                if (isGeminiAccessDeniedError(error)) throw error;
+                const fallback = await withModelFallback(
+                  (model) => generateForModel(model),
+                  GEMINI_MODEL
+                );
+                response = fallback.result;
+                modelUsed = fallback.modelUsed;
+              }
+            } else {
+              const fallback = await withModelFallback(
+                (model) => generateForModel(model),
+                GEMINI_MODEL
+              );
+              response = fallback.result;
+              modelUsed = fallback.modelUsed;
+            }
+            return {
+              result: response,
+              usageMetadata: (response as any)?.usageMetadata,
+              modelUsed,
+            };
+          },
+        });
+        rawText = extractGeminiText(metered.result);
+      } else {
+        if (DEFAULT_SUPPORT_MODEL !== GEMINI_MODEL) {
+          try {
+            const response = await generateForModel(DEFAULT_SUPPORT_MODEL);
+            rawText = extractGeminiText(response);
+          } catch (error) {
+            if (isGeminiAccessDeniedError(error)) throw error;
+            console.warn(`[CustomerSupport] Default model ${DEFAULT_SUPPORT_MODEL} failed, trying Gemini fallback chain...`, error);
+            const { result: response } = await withModelFallback(
+              (model) => generateForModel(model),
+              GEMINI_MODEL
+            );
+            rawText = extractGeminiText(response);
+          }
+        } else {
           const { result: response } = await withModelFallback(
             (model) => generateForModel(model),
             GEMINI_MODEL
           );
           rawText = extractGeminiText(response);
         }
-      } else {
-        const { result: response } = await withModelFallback(
-          (model) => generateForModel(model),
-          GEMINI_MODEL
-        );
-        rawText = extractGeminiText(response);
       }
     } catch (error) {
       if (isGeminiAccessDeniedError(error)) {

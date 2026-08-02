@@ -278,6 +278,26 @@ export const generateGeminiDescription = async (
   }
 };
 
+import {
+  runMeteredAiCall,
+  calculateAiCostNanos,
+  estimatePreflightReservationNanos,
+  reserveAiUsage,
+  settleAiUsage,
+  releaseAiUsage,
+  MeteredAiLimitError,
+} from "./metered-ai.ts";
+
+export {
+  runMeteredAiCall,
+  calculateAiCostNanos,
+  estimatePreflightReservationNanos,
+  reserveAiUsage,
+  settleAiUsage,
+  releaseAiUsage,
+  MeteredAiLimitError,
+};
+
 export async function generateGeminiContent(
   prompt: string,
   options: {
@@ -285,25 +305,70 @@ export async function generateGeminiContent(
     response_mime_type?: string;
     responseMimeType?: string;
     model?: string;
+    userId?: string;
+    featureKey?: string;
+    requestId?: string;
   } = {},
 ): Promise<string> {
   const ai = createGeminiClient();
   const responseMimeType = options.responseMimeType || options.response_mime_type;
+  const targetModel = options.model || GEMINI_MODEL;
+
+  if (options.userId) {
+    const metered = await runMeteredAiCall({
+      userId: options.userId,
+      featureKey: options.featureKey || "general_ai",
+      requestId: options.requestId,
+      model: targetModel,
+      promptTextLength: prompt.length,
+      execute: async () => {
+        const { result: rawResponse, modelUsed } = await withModelFallback(
+          (model) =>
+            ai.models.generateContent({
+              model,
+              config: {
+                ...createGeminiConfig(
+                  {
+                    responseMimeType: responseMimeType || "text/plain",
+                  },
+                  model,
+                ),
+                ...(typeof options.temperature === "number"
+                  ? { temperature: options.temperature }
+                  : {}),
+              },
+              contents: prompt,
+            }),
+          targetModel,
+        );
+        return {
+          result: rawResponse,
+          usageMetadata: (rawResponse as any)?.usageMetadata,
+          modelUsed,
+        };
+      },
+    });
+    return extractGeminiText(metered.result);
+  }
+
   const { result } = await withModelFallback(
     (model) =>
       ai.models.generateContent({
         model,
         config: {
-          ...createGeminiConfig({
-            responseMimeType: responseMimeType || "text/plain",
-          }, model),
+          ...createGeminiConfig(
+            {
+              responseMimeType: responseMimeType || "text/plain",
+            },
+            model,
+          ),
           ...(typeof options.temperature === "number"
             ? { temperature: options.temperature }
             : {}),
         },
         contents: prompt,
       }),
-    options.model || GEMINI_MODEL,
+    targetModel,
   );
 
   return extractGeminiText(result);

@@ -6,6 +6,7 @@ import {
   extractGeminiText,
   GEMINI_MODEL,
   withModelFallback,
+  runMeteredAiCall,
 } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
@@ -86,18 +87,31 @@ serve(async (req) => {
         Do not include quotes in the output. Just the title text.
       `;
 
-      const { result: response } = await withModelFallback((model) =>
-        ai.models.generateContent({
-          model,
-          config: createGeminiConfig({
-            systemInstruction: systemPrompt,
-            responseMimeType: "text/plain",
-          }),
-          contents: [{ role: "user", parts: [{ text: message }] }],
-        })
-      );
+      const metered = await runMeteredAiCall({
+        userId: user.id,
+        featureKey: "generate_title",
+        model: GEMINI_MODEL,
+        promptTextLength: message.length,
+        execute: async () => {
+          const { result: rawResponse, modelUsed } = await withModelFallback((model) =>
+            ai.models.generateContent({
+              model,
+              config: createGeminiConfig({
+                systemInstruction: systemPrompt,
+                responseMimeType: "text/plain",
+              }),
+              contents: [{ role: "user", parts: [{ text: message }] }],
+            })
+          );
+          return {
+            result: rawResponse,
+            usageMetadata: (rawResponse as any)?.usageMetadata,
+            modelUsed,
+          };
+        },
+      });
 
-      title = extractGeminiText(response)?.trim() || title;
+      title = extractGeminiText(metered.result)?.trim() || title;
     } catch (error) {
       console.warn("generate-title fallback", error);
     }

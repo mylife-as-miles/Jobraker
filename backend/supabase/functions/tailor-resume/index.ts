@@ -7,6 +7,7 @@ import {
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
   withModelFallback,
+  runMeteredAiCall,
 } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
@@ -122,19 +123,32 @@ serve(async (req) => {
     let tailoredResume = resumeText.trim();
     try {
       const ai = createGeminiClient();
-      const { result } = await withModelFallback(
-        (model) => ai.models.generateContent({
-          model,
-          config: createGeminiConfig({
-            systemInstruction:
-              "You are an expert resume writer. Return ONLY the tailored resume in clean markdown format.",
-            responseMimeType: "text/plain",
-          }),
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-        }),
-      );
+      const metered = await runMeteredAiCall({
+        userId: user.id,
+        featureKey: "tailor_resume",
+        model: GEMINI_MODEL,
+        promptTextLength: prompt.length,
+        execute: async () => {
+          const { result: rawResponse, modelUsed } = await withModelFallback(
+            (model) => ai.models.generateContent({
+              model,
+              config: createGeminiConfig({
+                systemInstruction:
+                  "You are an expert resume writer. Return ONLY the tailored resume in clean markdown format.",
+                responseMimeType: "text/plain",
+              }),
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+            }),
+          );
+          return {
+            result: rawResponse,
+            usageMetadata: (rawResponse as any)?.usageMetadata,
+            modelUsed,
+          };
+        },
+      });
 
-      const text = extractGeminiText(result);
+      const text = extractGeminiText(metered.result);
       if (!text) throw new Error("Empty response from AI");
       tailoredResume = text.trim();
     } catch (error: any) {

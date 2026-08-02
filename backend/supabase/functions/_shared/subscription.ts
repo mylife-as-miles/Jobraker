@@ -248,6 +248,14 @@ export function subscriptionErrorResponse(
   error: unknown,
   corsHeaders: Record<string, string>,
 ) {
+  if (error && typeof error === "object" && "payload" in error) {
+    const payload = (error as any).payload;
+    return new Response(JSON.stringify(payload), {
+      status: 429,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const status =
     error instanceof SubscriptionAccessError ? error.status : 500;
   const message =

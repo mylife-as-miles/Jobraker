@@ -9,6 +9,7 @@ import {
   isGeminiAccessDeniedError,
   withGeminiRetry,
   withModelFallback,
+  runMeteredAiCall,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -197,16 +198,29 @@ serve(async (req) => {
 
     try {
       const ai = createGeminiClient();
-      const { result } = await withModelFallback((model) => ai.models.generateContent({
-        model,
-        config: createGeminiConfig({ 
-            systemInstruction: "You are a resume polishing assistant. Return ONLY valid JSON matching the requested schema.",
-            responseMimeType: "application/json"
-        }),
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
-      }));
+      const metered = await runMeteredAiCall({
+        userId: user.id,
+        featureKey: "polish_content",
+        model: GEMINI_MODEL,
+        promptTextLength: prompt.length,
+        execute: async () => {
+          const { result: rawResponse, modelUsed } = await withModelFallback((model) => ai.models.generateContent({
+            model,
+            config: createGeminiConfig({ 
+                systemInstruction: "You are a resume polishing assistant. Return ONLY valid JSON matching the requested schema.",
+                responseMimeType: "application/json"
+            }),
+            contents: [{ role: 'user', parts: [{ text: prompt }] }]
+          }));
+          return {
+            result: rawResponse,
+            usageMetadata: (rawResponse as any)?.usageMetadata,
+            modelUsed,
+          };
+        },
+      });
 
-      const text = extractGeminiText(result);
+      const text = extractGeminiText(metered.result);
       if (!text) throw new Error("Empty response from AI");
       parsed = parseStructuredJson(text);
     } catch (error: any) {

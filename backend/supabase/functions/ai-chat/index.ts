@@ -7,6 +7,11 @@ import {
   GEMINI_PREMIUM_MODEL,
   withGeminiRetry,
   isGeminiRateLimitError,
+  reserveAiUsage,
+  settleAiUsage,
+  releaseAiUsage,
+  estimatePreflightReservationNanos,
+  MeteredAiLimitError,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { fetchUserContext, formatUserContextForPrompt } from "../_shared/user-context.ts";
@@ -1845,55 +1850,110 @@ async function streamAgentModelStep(opts: {
   message: unknown;
   round: number;
   enqueueEvent: (ev: string, data: any) => Promise<void>;
+  userId?: string;
+  requestId?: string;
 }) {
   let lastChunk: any = null;
   let accumulatedVisibleText = "";
   let lastThoughtSummary = "";
   const accumulatedParts: unknown[] = [];
 
-  const stream = await withGeminiRetry(() =>
-    opts.chat.sendMessageStream({ message: opts.message }),
-  );
+  const stepRequestId = opts.requestId || crypto.randomUUID();
 
-  for await (const chunk of stream) {
-    lastChunk = chunk;
-    const parts = candidatePartsFromChunk(chunk);
-    for (const part of parts) {
-      if (isRecord(part) && isRecord(part.functionCall) && typeof part.functionCall.name === "string") {
-        part.functionCall.name = part.functionCall.name.replace(/^(default_api|mcp_default_api):/, "");
-      }
-      accumulatedParts.push(part);
-    }
+  if (opts.userId) {
+    const reservation = await reserveAiUsage({
+      userId: opts.userId,
+      requestId: stepRequestId,
+      featureKey: "ai_chat",
+      provider: "gemini",
+      model: opts.chat?.model || "gemini-3-flash-preview",
+      estimatedCostNanos: estimatePreflightReservationNanos(
+        JSON.stringify(opts.message || "").length,
+        4096,
+      ),
+    });
 
-    const thoughtSummary = extractThoughtSummary(parts);
-    if (thoughtSummary && thoughtSummary !== lastThoughtSummary) {
-      lastThoughtSummary = thoughtSummary;
-      await opts.enqueueEvent("agent_activity", {
-        kind: "thinking",
-        status: "running",
-        title: "Thinking",
-        detail: thoughtSummary,
-        created_at: Date.now(),
-        round: opts.round,
+    if (reservation && reservation.success === false) {
+      throw new MeteredAiLimitError({
+        error: "AI_USAGE_LIMIT_REACHED",
+        window: reservation.window || "rolling_24h",
+        message: reservation.message || "You’ve reached your AI usage limit for this period.",
+        resetsAt: reservation.resetsAt || null,
+        resetsGradually: Boolean(reservation.resetsGradually),
       });
-    }
-
-    const text = streamChunkText(chunk);
-    if (text) {
-      accumulatedVisibleText += text;
-      await opts.enqueueEvent("message", { delta: text });
     }
   }
 
-  return {
-    candidates: [
-      {
-        content: {
-          parts: accumulatedParts,
+  try {
+    const stream = await withGeminiRetry(() =>
+      opts.chat.sendMessageStream({ message: opts.message }),
+    );
+
+    for await (const chunk of stream) {
+      lastChunk = chunk;
+      const parts = candidatePartsFromChunk(chunk);
+      for (const part of parts) {
+        if (isRecord(part) && isRecord(part.functionCall) && typeof part.functionCall.name === "string") {
+          part.functionCall.name = part.functionCall.name.replace(/^(default_api|mcp_default_api):/, "");
+        }
+        accumulatedParts.push(part);
+      }
+
+      const thoughtSummary = extractThoughtSummary(parts);
+      if (thoughtSummary && thoughtSummary !== lastThoughtSummary) {
+        lastThoughtSummary = thoughtSummary;
+        await opts.enqueueEvent("agent_activity", {
+          kind: "thinking",
+          status: "running",
+          title: "Thinking",
+          detail: thoughtSummary,
+          created_at: Date.now(),
+          round: opts.round,
+        });
+      }
+
+      const text = streamChunkText(chunk);
+      if (text) {
+        accumulatedVisibleText += text;
+        await opts.enqueueEvent("message", { delta: text });
+      }
+    }
+
+    if (opts.userId) {
+      const usage = lastChunk?.usageMetadata;
+      const inputTokens = Math.max(0, Number(usage?.promptTokenCount || 0));
+      const outputTokens = Math.max(
+        0,
+        Number(usage?.candidatesTokenCount || 0) + Number(usage?.thinkingTokenCount || 0),
+      );
+      await settleAiUsage({
+        userId: opts.userId,
+        requestId: stepRequestId,
+        inputTokens,
+        outputTokens,
+        billable: true,
+      });
+    }
+
+    return {
+      candidates: [
+        {
+          content: {
+            parts: accumulatedParts,
+          },
         },
-      },
-    ],
-  };
+      ],
+    };
+  } catch (err) {
+    if (opts.userId) {
+      await releaseAiUsage({
+        userId: opts.userId,
+        requestId: stepRequestId,
+        reason: String((err as any)?.message || "stream_error"),
+      });
+    }
+    throw err;
+  }
 }
 
 /** Gemini multimodal user turn */
@@ -3673,6 +3733,7 @@ Edge functions:
                   message: lastUserParts,
                   round: 0,
                   enqueueEvent,
+                  userId,
                 });
                 break; // success — stop trying models
               } catch (e) {
@@ -5364,6 +5425,7 @@ Edge functions:
                 message: { role: "user", parts: toolResults },
                 round: toolRounds,
                 enqueueEvent,
+                userId,
               });
             }
 
@@ -5381,6 +5443,29 @@ Edge functions:
             let streamSuccess = false;
             for (let mi = 0; mi < fallbackModels.length; mi++) {
               const askModel = fallbackModels[mi];
+              const askRequestId = crypto.randomUUID();
+              const reservation = await reserveAiUsage({
+                userId,
+                requestId: askRequestId,
+                featureKey: "ai_chat",
+                provider: "gemini",
+                model: askModel,
+                estimatedCostNanos: estimatePreflightReservationNanos(
+                  JSON.stringify(lastUserParts || "").length,
+                  2048,
+                ),
+              });
+
+              if (reservation && reservation.success === false) {
+                throw new MeteredAiLimitError({
+                  error: "AI_USAGE_LIMIT_REACHED",
+                  window: reservation.window || "rolling_24h",
+                  message: reservation.message || "You’ve reached your AI usage limit for this period.",
+                  resetsAt: reservation.resetsAt || null,
+                  resetsGradually: Boolean(reservation.resetsGradually),
+                });
+              }
+
               try {
                 if (mi > 0) {
                   console.warn(`[ai-chat ask] Falling back to ${askModel}`);
@@ -5390,16 +5475,36 @@ Edge functions:
                   config: chatConfig,
                   history,
                 });
+                let lastAskChunk: any = null;
                 const stream = await withGeminiRetry(() =>
                   chat.sendMessageStream({ message: lastUserParts }),
                 );
                 for await (const chunk of stream) {
+                  lastAskChunk = chunk;
                   const text = streamChunkText(chunk);
                   if (text) await enqueueEvent("message", { delta: text });
                 }
+                const usage = lastAskChunk?.usageMetadata;
+                const inputTokens = Math.max(0, Number(usage?.promptTokenCount || 0));
+                const outputTokens = Math.max(
+                  0,
+                  Number(usage?.candidatesTokenCount || 0) + Number(usage?.thinkingTokenCount || 0),
+                );
+                await settleAiUsage({
+                  userId,
+                  requestId: askRequestId,
+                  inputTokens,
+                  outputTokens,
+                  billable: true,
+                });
                 streamSuccess = true;
                 break;
               } catch (e) {
+                await releaseAiUsage({
+                  userId,
+                  requestId: askRequestId,
+                  reason: String((e as any)?.message || "ask_stream_error"),
+                });
                 if (!isGeminiRateLimitError(e) || mi === fallbackModels.length - 1) {
                   throw e;
                 }

@@ -85,6 +85,7 @@ import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidge
 import { useComposioIntegrations } from "@/hooks/useComposioIntegrations";
 import { GMAIL_INTEGRATION } from "@/lib/composioIntegrations";
 import { IntegrationsPanel } from "../components/IntegrationsPanel";
+import { AiUsageLimitsPanel } from "../components/AiUsageLimitsPanel";
 
 type TwoFAStep = "preparing" | "scan" | "verify" | "backup" | "success";
 
@@ -198,6 +199,11 @@ export const SettingsPage = (): JSX.Element => {
         id: "job-sources",
         label: "Job Sources",
         icon: <SettingsIcon className='w-4 h-4' />,
+      },
+      {
+        id: "usage",
+        label: "Usage",
+        icon: <Activity className='w-4 h-4' />,
       },
       {
         id: "billing",
@@ -4364,6 +4370,9 @@ export const SettingsPage = (): JSX.Element => {
             loadingEmailIntegrationAccess={loadingEmailIntegrationAccess}
           />
         );
+
+      case "usage":
+        return <AiUsageLimitsPanel />;
 
       case "billing":
         return (

@@ -15,6 +15,7 @@ import {
   extractGeminiText,
   GEMINI_MODEL,
   withModelFallback,
+  runMeteredAiCall,
 } from "../_shared/gemini.ts";
 import {
   evaluateAndPersistJobFit,
@@ -258,11 +259,13 @@ const normalizeExtractedPosting = (
   };
 };
 
-const extractStructuredPosting = async (
+const extractJobDataWithGemini = async (
   url: string,
-  metadata: Record<string, unknown>,
   markdown: string,
-): Promise<ExtractedJobPosting> => {
+  metadata: Record<string, unknown>,
+  fallback: ExtractedPostingData,
+  userId?: string,
+): Promise<ExtractedPostingData> => {
   const { title: fallbackTitle, company: fallbackCompany } = deriveTitleAndCompany(
     url,
     asString(metadata.title) ||
@@ -325,20 +328,50 @@ ${clipText(markdown, 18_000)}
 `;
 
   try {
-    const { result: response } = await withModelFallback((model) =>
-      ai.models.generateContent({
-        model,
-        config: createGeminiConfig({
-          systemInstruction:
-            "You are a structured extraction engine for job postings. Respond with JSON only.",
-          includeTools: false,
-          thinkingLevel: "LOW",
-        }, model),
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      })
-    );
+    let raw = "";
+    if (userId) {
+      const metered = await runMeteredAiCall({
+        userId,
+        featureKey: "intake_job_url",
+        model: GEMINI_MODEL,
+        promptTextLength: prompt.length,
+        execute: async () => {
+          const { result: rawResponse, modelUsed } = await withModelFallback((model) =>
+            ai.models.generateContent({
+              model,
+              config: createGeminiConfig({
+                systemInstruction:
+                  "You are a structured extraction engine for job postings. Respond with JSON only.",
+                includeTools: false,
+                thinkingLevel: "LOW",
+              }, model),
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+            })
+          );
+          return {
+            result: rawResponse,
+            usageMetadata: (rawResponse as any)?.usageMetadata,
+            modelUsed,
+          };
+        },
+      });
+      raw = extractGeminiText(metered.result);
+    } else {
+      const { result: response } = await withModelFallback((model) =>
+        ai.models.generateContent({
+          model,
+          config: createGeminiConfig({
+            systemInstruction:
+              "You are a structured extraction engine for job postings. Respond with JSON only.",
+            includeTools: false,
+            thinkingLevel: "LOW",
+          }, model),
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+        })
+      );
+      raw = extractGeminiText(response);
+    }
 
-    const raw = extractGeminiText(response);
     const parsed = parseJsonObject(raw);
     return normalizeExtractedPosting(parsed, fallback);
   } catch (error) {

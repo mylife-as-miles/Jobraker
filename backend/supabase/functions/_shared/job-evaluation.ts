@@ -5,6 +5,7 @@ import {
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
   withModelFallback,
+  runMeteredAiCall,
 } from "./gemini.ts";
 import {
   type CandidateMemory,
@@ -637,20 +638,50 @@ export async function evaluateAndPersistJobFit(
 
   try {
     const ai = createGeminiClient();
-    const { result: response } = await withModelFallback(
-      (model) => ai.models.generateContent({
-        model,
-        config: createGeminiConfig({
-          systemInstruction:
-            "You are Jobraker's structured evaluation engine. Reply with JSON only.",
-          includeTools: false,
-          thinkingLevel: "HIGH",
-        }, model),
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      }),
-    );
+    let rawText = "";
 
-    const rawText = extractGeminiText(response);
+    if (args.userId) {
+      const metered = await runMeteredAiCall({
+        userId: args.userId,
+        featureKey: "evaluate_job_fit",
+        promptTextLength: prompt.length,
+        execute: async () => {
+          const { result: rawResponse, modelUsed } = await withModelFallback(
+            (model) => ai.models.generateContent({
+              model,
+              config: createGeminiConfig({
+                systemInstruction:
+                  "You are Jobraker's structured evaluation engine. Reply with JSON only.",
+                includeTools: false,
+                thinkingLevel: "HIGH",
+              }, model),
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+            }),
+          );
+          return {
+            result: rawResponse,
+            usageMetadata: (rawResponse as any)?.usageMetadata,
+            modelUsed,
+          };
+        },
+      });
+      rawText = extractGeminiText(metered.result);
+    } else {
+      const { result: response } = await withModelFallback(
+        (model) => ai.models.generateContent({
+          model,
+          config: createGeminiConfig({
+            systemInstruction:
+              "You are Jobraker's structured evaluation engine. Reply with JSON only.",
+            includeTools: false,
+            thinkingLevel: "HIGH",
+          }, model),
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+        }),
+      );
+      rawText = extractGeminiText(response);
+    }
+
     if (!rawText) {
       throw new Error("Empty response from AI job evaluation.");
     }

@@ -5,7 +5,9 @@ import {
   createGeminiClient,
   createGeminiConfig,
   extractGeminiText,
+  GEMINI_MODEL,
   withModelFallback,
+  runMeteredAiCall,
 } from "../_shared/gemini.ts";
 
 function jsonResponse(req: Request, data: Record<string, unknown>, status = 200) {
@@ -127,19 +129,32 @@ Provide your strategic evaluation in JSON format with the exact following schema
 }`;
 
     const ai = createGeminiClient();
-    const { result } = await withModelFallback((model) =>
-      ai.models.generateContent({
-        model,
-        config: createGeminiConfig({
-          systemInstruction:
-            "You are an executive AI career coach. Return ONLY valid JSON matching the requested schema.",
-          responseMimeType: "application/json",
-        }),
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      })
-    );
+    const metered = await runMeteredAiCall({
+      userId: user.id,
+      featureKey: "ai_analytics_insights",
+      model: GEMINI_MODEL,
+      promptTextLength: prompt.length,
+      execute: async () => {
+        const { result: rawResponse, modelUsed } = await withModelFallback((model) =>
+          ai.models.generateContent({
+            model,
+            config: createGeminiConfig({
+              systemInstruction:
+                "You are an executive AI career coach. Return ONLY valid JSON matching the requested schema.",
+              responseMimeType: "application/json",
+            }),
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+          })
+        );
+        return {
+          result: rawResponse,
+          usageMetadata: (rawResponse as any)?.usageMetadata,
+          modelUsed,
+        };
+      },
+    });
 
-    const aiText = extractGeminiText(result);
+    const aiText = extractGeminiText(metered.result);
     let parsed = {};
     try {
       parsed = JSON.parse(aiText);

@@ -7,6 +7,7 @@ import {
   extractGeminiText,
   withGeminiRetry,
   withModelFallback,
+  runMeteredAiCall,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -290,20 +291,33 @@ serve(async (req) => {
     const ai = createGeminiClient();
     const prompt = buildPrompt(resumeText.slice(0, 60000));
 
-    const { result } = await withModelFallback(
-      (model) => withGeminiRetry(() => ai.models.generateContent({
-          model,
-          config: createGeminiConfig({
-            systemInstruction: "You are a lossless resume parser. Extract, preserve detail, and return only valid JSON.",
-            responseMimeType: "application/json",
-            includeTools: false,
-            thinkingLevel: "LOW",
-          }, model),
-          contents: [{ role: 'user', parts: [{ text: prompt }] }]
-      })),
-    );
+    const metered = await runMeteredAiCall({
+      userId: user.id,
+      featureKey: "parse_resume",
+      model: GEMINI_MODEL,
+      promptTextLength: prompt.length,
+      execute: async () => {
+        const { result: rawResponse, modelUsed } = await withModelFallback(
+          (model) => withGeminiRetry(() => ai.models.generateContent({
+              model,
+              config: createGeminiConfig({
+                systemInstruction: "You are a lossless resume parser. Extract, preserve detail, and return only valid JSON.",
+                responseMimeType: "application/json",
+                includeTools: false,
+                thinkingLevel: "LOW",
+              }, model),
+              contents: [{ role: 'user', parts: [{ text: prompt }] }]
+          })),
+        );
+        return {
+          result: rawResponse,
+          usageMetadata: (rawResponse as any)?.usageMetadata,
+          modelUsed,
+        };
+      },
+    });
 
-    const text = extractGeminiText(result);
+    const text = extractGeminiText(metered.result);
     if (!text) throw new Error("Empty response from AI");
 
     let parsed: unknown;

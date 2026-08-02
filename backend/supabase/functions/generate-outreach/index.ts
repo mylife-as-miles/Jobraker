@@ -6,6 +6,7 @@ import {
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
   withModelFallback,
+  runMeteredAiCall,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -160,19 +161,31 @@ serve(async (req) => {
     let outreach: OutreachResponse;
     try {
       const ai = createGeminiClient();
-      const { result } = await withModelFallback((model) =>
-        ai.models.generateContent({
-          model,
-          config: createGeminiConfig({
-            systemInstruction:
-              "You are an expert recruiter outreach assistant. Return ONLY valid JSON matching the requested schema.",
-            responseMimeType: "application/json",
-          }),
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-        })
-      );
+      const metered = await runMeteredAiCall({
+        userId: user.id,
+        featureKey: "generate_outreach",
+        promptTextLength: prompt.length,
+        execute: async () => {
+          const { result: rawResponse, modelUsed } = await withModelFallback((model) =>
+            ai.models.generateContent({
+              model,
+              config: createGeminiConfig({
+                systemInstruction:
+                  "You are an expert recruiter outreach assistant. Return ONLY valid JSON matching the requested schema.",
+                responseMimeType: "application/json",
+              }),
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+            })
+          );
+          return {
+            result: rawResponse,
+            usageMetadata: (rawResponse as any)?.usageMetadata,
+            modelUsed,
+          };
+        },
+      });
 
-      const text = extractGeminiText(result);
+      const text = extractGeminiText(metered.result);
       if (!text) throw new Error("Empty response from AI");
       const parsed = parseStructuredJson(text) as Record<string, unknown>;
 

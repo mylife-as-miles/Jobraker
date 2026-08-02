@@ -2,8 +2,10 @@ import {
   createGeminiClient,
   createGeminiConfig,
   extractGeminiText,
+  GEMINI_MODEL,
   withGeminiRetry,
   withModelFallback,
+  runMeteredAiCall,
 } from "./gemini.ts";
 import { parseStructuredJson } from "./structured-json.ts";
 import {
@@ -341,28 +343,62 @@ ${coverLetterSummary || "None"}
 `.trim();
 }
 
-async function generateEntriesWithGemini(
+export async function generateAnswerBankEntriesWithAi(
   context: Awaited<ReturnType<typeof loadAnswerBankContext>>,
   themes: AnswerTheme[],
   limit: number,
+  userId?: string,
 ): Promise<AnswerBankEntryInput[]> {
   const ai = createGeminiClient();
-  const { result: response } = await withModelFallback(
-    (model) => withGeminiRetry(() =>
-      ai.models.generateContent({
-        model,
-        config: createGeminiConfig({
-          systemInstruction:
-            "You create structured reusable candidate knowledge snippets for a job-search assistant. Return only valid JSON.",
-          responseMimeType: "application/json",
-        }),
-        contents: [{ role: "user", parts: [{ text: buildGenerationPrompt(context, themes, limit) }] }],
-      }),
-    ),
-  );
+  const promptText = buildGenerationPrompt(context, themes, limit);
+  let rawText = "";
 
-  const text = extractGeminiText(response);
-  const parsed = parseStructuredJson<{ entries?: unknown[] }>(text);
+  if (userId) {
+    const metered = await runMeteredAiCall({
+      userId,
+      featureKey: "answer_bank",
+      model: GEMINI_MODEL,
+      promptTextLength: promptText.length,
+      execute: async () => {
+        const { result: rawResponse, modelUsed } = await withModelFallback(
+          (model) => withGeminiRetry(() =>
+            ai.models.generateContent({
+              model,
+              config: createGeminiConfig({
+                systemInstruction:
+                  "You create structured reusable candidate knowledge snippets for a job-search assistant. Return only valid JSON.",
+                responseMimeType: "application/json",
+              }),
+              contents: [{ role: "user", parts: [{ text: promptText }] }],
+            }),
+          ),
+        );
+        return {
+          result: rawResponse,
+          usageMetadata: (rawResponse as any)?.usageMetadata,
+          modelUsed,
+        };
+      },
+    });
+    rawText = extractGeminiText(metered.result);
+  } else {
+    const { result: response } = await withModelFallback(
+      (model) => withGeminiRetry(() =>
+        ai.models.generateContent({
+          model,
+          config: createGeminiConfig({
+            systemInstruction:
+              "You create structured reusable candidate knowledge snippets for a job-search assistant. Return only valid JSON.",
+            responseMimeType: "application/json",
+          }),
+          contents: [{ role: "user", parts: [{ text: promptText }] }],
+        }),
+      ),
+    );
+    rawText = extractGeminiText(response);
+  }
+
+  const parsed = parseStructuredJson<{ entries?: unknown[] }>(rawText);
   const rawEntries = Array.isArray(parsed.entries) ? parsed.entries : [];
   const usedSlugs = new Set<string>();
   return rawEntries
