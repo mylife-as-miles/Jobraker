@@ -3264,7 +3264,7 @@ export const ChatPage = () => {
                         Personalizing your AI starter prompts...
                       </p>
                     ) : (
-                      {(() => {
+                      (() => {
                         const proTips = [
                           {
                             title: "Pro Tip: Recruiter & Hiring Manager Scout",
@@ -3366,7 +3366,7 @@ export const ChatPage = () => {
                             </div>
                           </div>
                         );
-                      })()}
+                      })()
                     )}
                   </div>
                 </div>
