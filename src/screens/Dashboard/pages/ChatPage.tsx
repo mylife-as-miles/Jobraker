@@ -2088,9 +2088,13 @@ export const ChatPage = () => {
   const sessionsRef = useRef(sessions);
   sessionsRef.current = sessions;
 
+  const personaRef = useRef(persona);
+  personaRef.current = persona;
+
   const createSession = useCallback(
     async (activate = true) => {
-      const sessionMode: ChatMode = persona === "analyst" ? "agent" : "ask";
+      const currentPersona = personaRef.current;
+      const sessionMode: ChatMode = currentPersona === "analyst" ? "agent" : "ask";
       const { data, error } = await supabase
         .from("chat_sessions")
         .insert({
@@ -2114,12 +2118,17 @@ export const ChatPage = () => {
               new Date(a.updated_at || 0).getTime(),
           ),
         );
-        if (activate) setActiveSessionId(normalized.id);
+        if (activate) {
+          setActiveSessionId(normalized.id);
+          try {
+            localStorage.setItem("jobraker_active_chat_session_id", normalized.id);
+          } catch {}
+        }
         return normalized.id;
       }
       return null;
     },
-    [persona, supabase, toastError],
+    [supabase, toastError],
   );
 
   const loadSessions = useCallback(async () => {
@@ -2139,7 +2148,27 @@ export const ChatPage = () => {
           normalizeChatSession,
         );
         setSessions(normalizedSessions);
-        setActiveSessionId(normalizedSessions[0]?.id || null);
+
+        let savedSessionId: string | null = null;
+        try {
+          savedSessionId =
+            new URLSearchParams(window.location.search).get("session") ||
+            localStorage.getItem("jobraker_active_chat_session_id");
+        } catch {}
+
+        const targetSession =
+          normalizedSessions.find((s) => s.id === savedSessionId) ||
+          normalizedSessions[0];
+
+        if (targetSession) {
+          setActiveSessionId(targetSession.id);
+          try {
+            localStorage.setItem(
+              "jobraker_active_chat_session_id",
+              targetSession.id,
+            );
+          } catch {}
+        }
       } else {
         // No sessions, create one
         await createSession(true);
@@ -2151,11 +2180,35 @@ export const ChatPage = () => {
 
   useEffect(() => {
     loadSessions();
-  }, [loadSessions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handlePersonaChange = useCallback(
+    (newPersona: Persona) => {
+      setPersona(newPersona);
+      const newMode: ChatMode = newPersona === "analyst" ? "agent" : "ask";
+      if (activeSessionId) {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === activeSessionId ? { ...s, persona: newMode } : s,
+          ),
+        );
+        void supabase
+          .from("chat_sessions")
+          .update({ persona: newMode })
+          .eq("id", activeSessionId);
+      }
+    },
+    [activeSessionId, supabase],
+  );
 
   const prevSessionIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!activeSessionId) return;
+    try {
+      localStorage.setItem("jobraker_active_chat_session_id", activeSessionId);
+    } catch {}
+
     if (status === "in_progress") return;
     if (activeSessionId === prevSessionIdRef.current) return;
     prevSessionIdRef.current = activeSessionId;
@@ -3974,7 +4027,7 @@ export const ChatPage = () => {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setPersona("concise");
+                                  handlePersonaChange("concise");
                                   setDropdownOpen(false);
                                 }}
                                 className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
@@ -3988,7 +4041,7 @@ export const ChatPage = () => {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setPersona("analyst");
+                                  handlePersonaChange("analyst");
                                   setDropdownOpen(false);
                                 }}
                                 className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
