@@ -1859,6 +1859,9 @@ async function streamAgentModelStep(opts: {
     lastChunk = chunk;
     const parts = candidatePartsFromChunk(chunk);
     for (const part of parts) {
+      if (isRecord(part) && isRecord(part.functionCall) && typeof part.functionCall.name === "string") {
+        part.functionCall.name = part.functionCall.name.replace(/^(default_api|mcp_default_api):/, "");
+      }
       accumulatedParts.push(part);
     }
 
@@ -3591,13 +3594,13 @@ Edge functions:
         if (m.toolCalls && m.toolCalls.length > 0) {
           const fnCalls = m.toolCalls.map((tc) => ({
             functionCall: {
-              name: tc.name,
+              name: String(tc.name).replace(/^(default_api|mcp_default_api):/, ""),
               args: isRecord(tc.args) ? tc.args : {},
             },
           }));
           const fnResponses = m.toolCalls.map((tc) => ({
             functionResponse: {
-              name: tc.name,
+              name: String(tc.name).replace(/^(default_api|mcp_default_api):/, ""),
               response: isRecord(tc.result) ? tc.result : { success: true },
             },
           }));
@@ -3685,6 +3688,11 @@ Edge functions:
 
             while (true) {
               const parts = response.candidates?.[0]?.content?.parts || [];
+              for (const p of parts) {
+                if (isRecord(p) && isRecord(p.functionCall) && typeof p.functionCall.name === "string") {
+                  p.functionCall.name = p.functionCall.name.replace(/^(default_api|mcp_default_api):/, "");
+                }
+              }
               const functionCalls = parts.filter((p) => p.functionCall);
               let textDelta = "";
               for (const p of parts) {
@@ -5300,8 +5308,9 @@ Edge functions:
                   failedToolCredits += toolCharge;
                 }
 
-                completedToolResults.push({ name: fn.name, args, result });
-                toolResults.push({ functionResponse: { name: fn.name, response: result } });
+                const cleanFnName = String(fn.name).replace(/^(default_api|mcp_default_api):/, "");
+                completedToolResults.push({ name: cleanFnName, args, result });
+                toolResults.push({ functionResponse: { name: cleanFnName, response: result } });
                 await enqueueEvent("tool_call", {
                   id: toolCallId,
                   name: fn.name,
