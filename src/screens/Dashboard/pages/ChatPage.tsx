@@ -2677,6 +2677,7 @@ export const ChatPage = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const skillPaletteTrigger = useMemo(() => {
+    if (!text || (!text.includes("/") && !text.includes("@"))) return null;
     const normalizedCaretPosition = Math.min(
       Math.max(caretPosition, 0),
       text.length,
@@ -3799,21 +3800,23 @@ export const ChatPage = () => {
                         ref={textareaRef}
                         value={text}
                         onChange={(e) => {
-                          setText(e.target.value);
-                          setCaretPosition(e.currentTarget.selectionStart);
+                          const val = e.target.value;
+                          const sel = e.target.selectionStart;
+                          setText(val);
+                          setCaretPosition((prev) => (prev === sel ? prev : sel));
                         }}
-                        onClick={(e) =>
-                          setCaretPosition(e.currentTarget.selectionStart)
-                        }
-                        onFocus={(e) =>
-                          setCaretPosition(e.currentTarget.selectionStart)
-                        }
-                        onKeyUp={(e) =>
-                          setCaretPosition(e.currentTarget.selectionStart)
-                        }
-                        onSelect={(e) =>
-                          setCaretPosition(e.currentTarget.selectionStart)
-                        }
+                        onClick={(e) => {
+                          const sel = e.currentTarget.selectionStart;
+                          setCaretPosition((prev) => (prev === sel ? prev : sel));
+                        }}
+                        onKeyUp={(e) => {
+                          const sel = e.currentTarget.selectionStart;
+                          setCaretPosition((prev) => (prev === sel ? prev : sel));
+                        }}
+                        onSelect={(e) => {
+                          const sel = e.currentTarget.selectionStart;
+                          setCaretPosition((prev) => (prev === sel ? prev : sel));
+                        }}
                         onPaste={handlePasteImage}
                         onKeyDown={(e) => {
                           if (skillPaletteOpen) {
@@ -3859,9 +3862,10 @@ export const ChatPage = () => {
                         style={{ height: "auto", minHeight: "24px" }}
                         onInput={(e) => {
                           const target = e.target as HTMLTextAreaElement;
-                          setCaretPosition(target.selectionStart);
-                          target.style.height = "auto";
-                          target.style.height = `${target.scrollHeight}px`;
+                          window.requestAnimationFrame(() => {
+                            target.style.height = "auto";
+                            target.style.height = `${target.scrollHeight}px`;
+                          });
                         }}
                       />
                     </div>
