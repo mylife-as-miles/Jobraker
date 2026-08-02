@@ -3549,7 +3549,6 @@ Edge functions:
         role: "system",
         parts: [{ text: systemInstruction }],
       },
-      thinkingConfig: { thinkingLevel: "MEDIUM", includeThoughts: true },
     };
     if (mode === "agent") {
       chatConfig.tools = webSearch
