@@ -333,7 +333,7 @@ function normalizeForPhraseMatch(text: string) {
 }
 
 function looksLikeMarketingOffer(text: string) {
-  return /\b(discount|promo|coupon|sale|black friday|limited time offer|subscription offer|special offer|renewal offer|upgrade offer)\b/i
+  return /\b(discount|promo|coupon|sale|black friday|limited time offer|subscription offer|special offer|renewal offer|upgrade offer|newsletter|digest|welcome to|account created|what's new|new since|weekly update|monthly update|community update|release notes|feature update|webinar|unsubscribe)\b/i
     .test(text);
 }
 
