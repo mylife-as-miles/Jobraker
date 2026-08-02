@@ -88,6 +88,7 @@ import {
   fetchUserPermissions,
   saveUserPermission,
   resolveIntegrationFromTool,
+  getLocalPermissions,
   type PermissionScope,
 } from "@/lib/integrationPermissions";
 import {
@@ -1485,7 +1486,9 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             } else if (currentEvent === "tool_start") {
               const integration = resolveIntegrationFromTool(data.name, data.args);
               if (integration) {
-                const currentGrant = permissionGrants[integration.slug];
+                const currentGrant =
+                  permissionGrantsRef.current[integration.slug] ||
+                  getLocalPermissions()[integration.slug];
                 if (!currentGrant) {
                   const decision = await new Promise<PermissionScope>((resolve) => {
                     setPendingPermissionRequest({
@@ -2090,6 +2093,9 @@ export const ChatPage = () => {
 
   const personaRef = useRef(persona);
   personaRef.current = persona;
+
+  const permissionGrantsRef = useRef(permissionGrants);
+  permissionGrantsRef.current = permissionGrants;
 
   const createSession = useCallback(
     async (activate = true) => {

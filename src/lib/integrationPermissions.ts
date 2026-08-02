@@ -74,21 +74,32 @@ export function resolveIntegrationFromTool(
   toolName: string,
   args?: Record<string, unknown>,
 ): IntegrationInfo | null {
-  const name = toolName.toLowerCase();
-  
-  if (name.includes("gmail")) {
-    return KNOWN_INTEGRATIONS.gmail;
-  }
+  const name = (toolName || "").toLowerCase();
 
-  const composioSlug = typeof args?.tool_slug === "string" ? args.tool_slug.toLowerCase() : "";
-  const target = composioSlug || name;
+  const composioSlug =
+    typeof args?.tool_slug === "string"
+      ? args.tool_slug.toLowerCase()
+      : typeof args?.toolSlug === "string"
+      ? args.toolSlug.toLowerCase()
+      : typeof args?.tool === "string"
+      ? args.tool.toLowerCase()
+      : typeof args?.integration === "string"
+      ? args.integration.toLowerCase()
+      : "";
 
-  for (const [key, info] of Object.entries(KNOWN_INTEGRATIONS)) {
-    if (key === "gmail") continue;
-    if (target.startsWith(key)) {
-      return info;
-    }
-  }
+  const argsString = JSON.stringify(args || {}).toLowerCase();
+  const combined = `${name} ${composioSlug} ${argsString}`;
+
+  if (combined.includes("gmail")) return KNOWN_INTEGRATIONS.gmail;
+  if (combined.includes("github") || combined.includes("git_hub")) return KNOWN_INTEGRATIONS.github;
+  if (combined.includes("googledrive") || combined.includes("google_drive") || combined.includes("gdrive")) return KNOWN_INTEGRATIONS.googledrive;
+  if (combined.includes("googledocs") || combined.includes("google_docs") || combined.includes("gdocs")) return KNOWN_INTEGRATIONS.googledocs;
+  if (combined.includes("googlecalendar") || combined.includes("google_calendar") || combined.includes("gcalendar")) return KNOWN_INTEGRATIONS.googlecalendar;
+  if (combined.includes("cal.com") || combined.includes("cal_com") || combined.includes("calcom") || name.startsWith("cal_") || composioSlug.startsWith("cal_")) return KNOWN_INTEGRATIONS.cal;
+  if (combined.includes("reddit")) return KNOWN_INTEGRATIONS.reddit;
+  if (combined.includes("hackernews") || combined.includes("hacker_news")) return KNOWN_INTEGRATIONS.hackernews;
+  if (combined.includes("notion")) return KNOWN_INTEGRATIONS.notion;
+  if (combined.includes("linkedin")) return KNOWN_INTEGRATIONS.linkedin;
 
   return null;
 }
