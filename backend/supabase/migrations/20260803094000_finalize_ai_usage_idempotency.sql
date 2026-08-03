@@ -20,25 +20,38 @@ BEGIN
 END;
 $$;
 
+-- Preserve pre-existing settled usage when the dual-accounting columns were added after events existed.
 UPDATE public.ai_usage_events
 SET
+    billable_cost_nanos = CASE
+        WHEN status = 'settled' AND billable AND billable_cost_nanos = 0
+            THEN GREATEST(0, total_cost_nanos)
+        ELSE billable_cost_nanos
+    END,
     usage_source = CASE
-        WHEN COALESCE((metadata->>'usage_source'), '') = 'estimated' THEN 'estimated'
+        WHEN COALESCE(metadata->>'usage_source', '') = 'estimated' THEN 'estimated'
         ELSE 'provider'
     END,
+    provider_cost_nanos = CASE
+        WHEN COALESCE(metadata->>'usage_source', '') <> 'estimated'
+             AND status IN ('settled', 'failed')
+             AND provider_cost_nanos = 0
+            THEN GREATEST(0, input_cost_nanos + output_cost_nanos)
+        ELSE provider_cost_nanos
+    END,
     provider_usage_confirmed = CASE
-        WHEN COALESCE((metadata->>'usage_source'), '') = 'estimated' THEN false
-        WHEN status IN ('settled', 'failed') AND provider_cost_nanos > 0 THEN true
+        WHEN COALESCE(metadata->>'usage_source', '') = 'estimated' THEN false
+        WHEN status IN ('settled', 'failed')
+             AND GREATEST(provider_cost_nanos, input_cost_nanos + output_cost_nanos) > 0
+            THEN true
         ELSE provider_usage_confirmed
     END,
     estimated_provider_cost_nanos = CASE
-        WHEN COALESCE((metadata->>'usage_source'), '') = 'estimated'
+        WHEN COALESCE(metadata->>'usage_source', '') = 'estimated'
             THEN GREATEST(0, input_cost_nanos + output_cost_nanos)
         ELSE estimated_provider_cost_nanos
     END;
 
--- Reservation creation is serialized per user and never treats an existing request ID as
--- permission to execute the provider again.
 CREATE OR REPLACE FUNCTION public.reserve_ai_usage(
     p_user_id UUID,
     p_request_id UUID,
@@ -61,11 +74,9 @@ DECLARE
     v_24h_start TIMESTAMPTZ := v_now - INTERVAL '24 hours';
     v_ttl_seconds INTEGER := 900;
     v_expires_at TIMESTAMPTZ;
-
     v_monthly_used BIGINT := 0;
     v_weekly_used BIGINT := 0;
     v_rolling_24h_used BIGINT := 0;
-
     v_monthly_avail BIGINT;
     v_weekly_avail BIGINT;
     v_rolling_24h_avail BIGINT;
@@ -82,7 +93,8 @@ BEGIN
             MESSAGE = 'INVALID_RESERVATION_INPUT: estimated cost must be non-negative';
     END IF;
 
-    -- Serialize every reservation and settlement for this user.
+    -- Consistent lock order for reserve, settle, and release.
+    PERFORM pg_advisory_xact_lock(hashtextextended(p_user_id::TEXT, 0));
     PERFORM 1 FROM public.profiles WHERE id = p_user_id FOR UPDATE;
 
     SELECT * INTO v_existing
@@ -116,7 +128,6 @@ BEGIN
                 );
             END IF;
 
-            -- The existing status constraint permits released, not expired. Record expiry in metadata.
             UPDATE public.ai_usage_events
             SET
                 status = 'released',
@@ -234,55 +245,21 @@ BEGIN
     END IF;
 
     INSERT INTO public.ai_usage_events (
-        user_id,
-        request_id,
-        feature_key,
-        provider,
-        model,
-        input_tokens,
-        output_tokens,
-        total_tokens,
-        input_cost_nanos,
-        output_cost_nanos,
-        total_cost_nanos,
-        provider_cost_nanos,
-        estimated_provider_cost_nanos,
-        billable_cost_nanos,
-        reserved_cost_nanos,
-        billable,
-        status,
-        parent_request_id,
-        payload_hash,
-        usage_source,
-        provider_usage_confirmed,
-        metadata,
-        reservation_expires_at,
-        created_at
+        user_id, request_id, feature_key, provider, model,
+        input_tokens, output_tokens, total_tokens,
+        input_cost_nanos, output_cost_nanos, total_cost_nanos,
+        provider_cost_nanos, estimated_provider_cost_nanos, billable_cost_nanos,
+        reserved_cost_nanos, billable, status, parent_request_id, payload_hash,
+        usage_source, provider_usage_confirmed, metadata,
+        reservation_expires_at, created_at
     ) VALUES (
-        p_user_id,
-        p_request_id,
-        p_feature_key,
-        p_provider,
-        p_model,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        p_estimated_cost_nanos,
-        true,
-        'reserved',
-        p_parent_request_id,
-        p_payload_hash,
-        'provider',
-        false,
-        p_metadata,
-        v_expires_at,
-        v_now
+        p_user_id, p_request_id, p_feature_key, p_provider, p_model,
+        0, 0, 0,
+        0, 0, 0,
+        0, 0, 0,
+        p_estimated_cost_nanos, true, 'reserved', p_parent_request_id, p_payload_hash,
+        'provider', false, p_metadata,
+        v_expires_at, v_now
     );
 
     RETURN jsonb_build_object(
@@ -297,7 +274,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
--- Settlement preserves confirmed provider cost separately from estimated fallback cost.
 CREATE OR REPLACE FUNCTION public.settle_ai_usage(
     p_user_id UUID,
     p_request_id UUID,
@@ -318,7 +294,6 @@ DECLARE
     v_billable_cost BIGINT := 0;
     v_usage_source TEXT := 'provider';
     v_provider_usage_confirmed BOOLEAN := true;
-
     v_tier TEXT;
     v_monthly_limit BIGINT;
     v_weekly_limit BIGINT;
@@ -343,6 +318,10 @@ BEGIN
             ERRCODE = '22003',
             MESSAGE = 'TOKEN_INPUT_OVERFLOW: combined AI usage cost exceeds bigint accounting limits';
     END IF;
+
+    -- Same lock order as reservation creation.
+    PERFORM pg_advisory_xact_lock(hashtextextended(p_user_id::TEXT, 0));
+    PERFORM 1 FROM public.profiles WHERE id = p_user_id FOR UPDATE;
 
     SELECT * INTO v_existing
     FROM public.ai_usage_events
@@ -370,7 +349,6 @@ BEGIN
         v_estimated_provider_cost := v_computed_cost;
     END IF;
 
-    -- Exact replays of both successful and failed settlements are idempotent.
     IF v_existing.status IN ('settled', 'failed') THEN
         IF v_existing.input_tokens = p_input_tokens
            AND v_existing.output_tokens = p_output_tokens
@@ -403,8 +381,6 @@ BEGIN
     END IF;
 
     IF p_billable THEN
-        PERFORM 1 FROM public.profiles WHERE id = p_user_id FOR UPDATE;
-
         v_tier := public.get_user_tier(p_user_id);
         SELECT monthly_allowance_nanos, weekly_allowance_nanos, rolling_24h_allowance_nanos
         INTO v_monthly_limit, v_weekly_limit, v_rolling_24h_limit
@@ -502,6 +478,8 @@ DECLARE
     v_existing RECORD;
     v_now TIMESTAMPTZ := NOW();
 BEGIN
+    PERFORM pg_advisory_xact_lock(hashtextextended(p_user_id::TEXT, 0));
+
     SELECT * INTO v_existing
     FROM public.ai_usage_events
     WHERE user_id = p_user_id
