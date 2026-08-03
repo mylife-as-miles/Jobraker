@@ -213,19 +213,11 @@ function calculateAgentToolCreditCharge(
   toolName: string,
   args: Record<string, unknown>,
 ): AgentToolCharge {
-  if (toolName === "list_composio_integrations") {
-    return { toolName, credits: 0 };
-  }
-
   const toolSlug = toolName === "invoke_composio_tool"
     ? asString(args.tool_slug)?.toUpperCase() || null
     : null;
 
-  if (toolSlug === "BROWSER_TOOL_CREATE_TASK") {
-    return { toolName, toolSlug, credits: 10 };
-  }
-
-  return { toolName, toolSlug, credits: 2 };
+  return { toolName, toolSlug, credits: 0 };
 }
 
 function summarizeCount(value: unknown, fallback = 0) {

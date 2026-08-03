@@ -2985,17 +2985,6 @@ export const ChatPage = () => {
                       </span>
                     </button>
                   )}
-                  {chatQuota && chatQuota.credit_balance > 0 && (
-                    <div
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0"
-                      title="Web automation tool credits"
-                    >
-                      <Coins size={12} className="text-brand shrink-0" />
-                      <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
-                        {chatQuota.credit_balance} credits
-                      </span>
-                    </div>
-                  )}
                   <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand"></div>
                     <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
@@ -3245,17 +3234,6 @@ export const ChatPage = () => {
                         {aiLimits.rolling24h.percentLeft}% AI Capacity
                       </span>
                     </button>
-                  )}
-                  {chatQuota && chatQuota.credit_balance > 0 && (
-                    <div
-                      className='flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0'
-                      title="Web automation tool credits"
-                    >
-                      <Coins size={14} className='text-brand shrink-0' />
-                      <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
-                        {chatQuota.credit_balance} tool credits
-                      </span>
-                    </div>
                   )}
                   <div
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0`}
