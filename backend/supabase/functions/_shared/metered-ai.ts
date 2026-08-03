@@ -1,255 +1,184 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SubscriptionAccessError } from "./subscription.ts";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-export const INPUT_COST_NANOS_PER_TOKEN = 500n;   // $0.50 per 1,000,000 tokens
-export const OUTPUT_COST_NANOS_PER_TOKEN = 3000n;  // $3.00 per 1,000,000 tokens
-export const ONE_USD_NANOS = 1_000_000_000n;
-
-export function calculateAiCostNanos(
-  inputTokens: number | bigint,
-  outputTokens: number | bigint,
-): bigint {
-  const input = BigInt(Math.max(0, Math.floor(Number(inputTokens) || 0)));
-  const output = BigInt(Math.max(0, Math.floor(Number(outputTokens) || 0)));
-  return input * INPUT_COST_NANOS_PER_TOKEN + output * OUTPUT_COST_NANOS_PER_TOKEN;
-}
-
-export function estimatePreflightReservationNanos(
-  promptTextLength: number = 0,
-  maxOutputTokens: number = 2048,
-): bigint {
-  const estimatedInputTokens = Math.max(100, Math.ceil(promptTextLength / 3));
-  const estimatedOutputTokens = Math.max(250, maxOutputTokens);
-  return calculateAiCostNanos(estimatedInputTokens, estimatedOutputTokens);
-}
-
-function createServiceClient() {
-  return createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    { auth: { persistSession: false } },
-  );
-}
-
-export interface MeteredUsageMetadata {
-  promptTokenCount?: number;
-  candidatesTokenCount?: number;
-  thinkingTokenCount?: number;
-  totalTokenCount?: number;
-}
-
-export interface RunMeteredAiCallOptions<T> {
+export interface MeteredAiOptions {
   userId: string;
-  subscriptionTier?: string | null;
   featureKey: string;
-  requestId?: string;
-  parentRequestId?: string;
   provider?: string;
   model?: string;
-  promptTextLength?: number;
+  estimatedInputTokens?: number;
+  estimatedOutputTokens?: number;
   maxOutputTokens?: number;
-  estimatedCostNanos?: bigint | number;
-  metadata?: Record<string, unknown>;
-  execute: (context: {
-    requestId: string;
-    model: string;
-  }) => Promise<{
-    result: T;
-    usageMetadata?: MeteredUsageMetadata | null;
-    modelUsed?: string;
-  }>;
-}
-
-export interface MeteredAiLimitErrorPayload {
-  error: "AI_USAGE_LIMIT_REACHED";
-  window: "rolling_24h" | "weekly" | "monthly";
-  message: string;
-  resetsAt: string | null;
-  resetsGradually: boolean;
-}
-
-export class MeteredAiLimitError extends SubscriptionAccessError {
-  payload: MeteredAiLimitErrorPayload;
-
-  constructor(payload: MeteredAiLimitErrorPayload) {
-    super(429, payload.message);
-    this.name = "MeteredAiLimitError";
-    this.payload = payload;
-  }
-}
-
-export async function reserveAiUsage(options: {
-  userId: string;
-  requestId: string;
-  featureKey: string;
-  provider?: string;
-  model?: string;
-  estimatedCostNanos: bigint;
   parentRequestId?: string;
-  metadata?: Record<string, unknown>;
-  serviceClient?: any;
-}) {
-  const serviceClient = options.serviceClient || createServiceClient();
-  const { data, error } = await serviceClient.rpc("reserve_ai_usage", {
-    p_user_id: options.userId,
-    p_request_id: options.requestId,
-    p_feature_key: options.featureKey,
-    p_provider: options.provider || "gemini",
-    p_model: options.model || "gemini-3-flash-preview",
-    p_estimated_cost_nanos: Number(options.estimatedCostNanos),
-    p_parent_request_id: options.parentRequestId || null,
-    p_metadata: options.metadata || {},
-  });
-
-  if (error) {
-    console.error("[metered-ai] reserve_ai_usage RPC error:", error);
-    return { success: true, fallback: true };
-  }
-
-  return data;
+  payload?: any;
+  metadata?: Record<string, any>;
 }
 
-export async function settleAiUsage(options: {
-  userId: string;
-  requestId: string;
+export class MeteredAiLimitError extends Error {
+  public window: "rolling_24h" | "weekly" | "monthly";
+  public resetsAt: string | null;
+  public resetsGradually: boolean;
+
+  constructor(
+    message: string,
+    window: "rolling_24h" | "weekly" | "monthly",
+    resetsAt: string | null,
+    resetsGradually: boolean,
+  ) {
+    super(message);
+    this.name = "MeteredAiLimitError";
+    this.window = window;
+    this.resetsAt = resetsAt;
+    this.resetsGradually = resetsGradually;
+  }
+}
+
+// Compute SHA-256 payload hash server-side
+export async function hashPayload(payload: any): Promise<string> {
+  const str = typeof payload === "string" ? payload : JSON.stringify(payload || {});
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// Extract provider token usage metadata from Gemini response object
+export function extractProviderTokenUsage(response: any): {
   inputTokens: number;
   outputTokens: number;
-  billable?: boolean;
-  metadata?: Record<string, unknown>;
-  serviceClient?: any;
-}) {
-  const serviceClient = options.serviceClient || createServiceClient();
-  const { data, error } = await serviceClient.rpc("settle_ai_usage", {
-    p_user_id: options.userId,
-    p_request_id: options.requestId,
-    p_input_tokens: options.inputTokens,
-    p_output_tokens: options.outputTokens,
-    p_billable: options.billable ?? true,
-    p_metadata: options.metadata || {},
-  });
+  totalTokens: number;
+} {
+  const usage = response?.usageMetadata || response?.response?.usageMetadata || {};
 
-  if (error) {
-    console.error("[metered-ai] settle_ai_usage RPC error:", error);
-  }
+  const promptTokenCount = Number(usage.promptTokenCount || 0);
+  const cachedContentTokenCount = Number(usage.cachedContentTokenCount || 0);
+  
+  const candidatesTokenCount = Number(usage.candidatesTokenCount || 0);
+  const thoughtsTokenCount = Number(
+    usage.thoughtsTokenCount || usage.thinkingTokenCount || 0,
+  );
+  
+  const totalTokenCount = Number(usage.totalTokenCount || 0);
 
-  return data;
-}
+  // Classification under internal pricing rules:
+  // Input: Prompt tokens + Cached content tokens ($0.50 / 1M => 500 nanos)
+  // Output: Candidate output tokens + Thinking/Thoughts tokens ($3.00 / 1M => 3000 nanos)
+  const inputTokens = promptTokenCount + cachedContentTokenCount;
+  const outputTokens = candidatesTokenCount + thoughtsTokenCount;
+  const computedTotal = inputTokens + outputTokens;
 
-export async function releaseAiUsage(options: {
-  userId: string;
-  requestId: string;
-  reason?: string;
-  serviceClient?: any;
-}) {
-  const serviceClient = options.serviceClient || createServiceClient();
-  const { data, error } = await serviceClient.rpc("release_ai_usage", {
-    p_user_id: options.userId,
-    p_request_id: options.requestId,
-    p_reason: options.reason || "cancelled",
-  });
-
-  if (error) {
-    console.error("[metered-ai] release_ai_usage RPC error:", error);
-  }
-
-  return data;
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: totalTokenCount > 0 ? totalTokenCount : computedTotal,
+  };
 }
 
 export async function runMeteredAiCall<T>(
-  options: RunMeteredAiCallOptions<T>,
-): Promise<{ result: T; requestId: string; modelUsed: string }> {
-  const serviceClient = createServiceClient();
-  const requestId = options.requestId || crypto.randomUUID();
+  supabase: SupabaseClient,
+  options: MeteredAiOptions,
+  callFn: (meta: { requestId: string; maxOutputTokens: number }) => Promise<T>,
+): Promise<T> {
+  const requestId = crypto.randomUUID();
+  const provider = options.provider || "gemini";
   const model = options.model || "gemini-3-flash-preview";
 
-  const estimatedCostNanos =
-    options.estimatedCostNanos !== undefined
-      ? BigInt(options.estimatedCostNanos)
-      : estimatePreflightReservationNanos(
-          options.promptTextLength || 0,
-          options.maxOutputTokens || 2048,
-        );
+  const estInput = options.estimatedInputTokens || 1000;
+  const estOutput = options.estimatedOutputTokens || options.maxOutputTokens || 1024;
 
-  console.log(
-    `[Telemetry] AI reservation created | requestId=${requestId} | user=${options.userId} | feature=${options.featureKey} | model=${model}`,
-  );
+  // Nanodollar pricing calculation: Input $0.50/M (500 nanos), Output $3.00/M (3000 nanos)
+  const estimatedCostNanos = BigInt(estInput * 500 + estOutput * 3000);
+  const payloadHash = options.payload ? await hashPayload(options.payload) : null;
 
-  const reservation = await reserveAiUsage({
-    userId: options.userId,
-    requestId,
-    featureKey: options.featureKey,
-    provider: options.provider || "gemini",
-    model,
-    estimatedCostNanos,
-    parentRequestId: options.parentRequestId,
-    metadata: options.metadata,
-    serviceClient,
+  // 1. Atomic Reservation via RPC
+  const { data: resData, error: resErr } = await supabase.rpc("reserve_ai_usage", {
+    p_user_id: options.userId,
+    p_request_id: requestId,
+    p_feature_key: options.featureKey,
+    p_provider: provider,
+    p_model: model,
+    p_estimated_cost_nanos: Number(estimatedCostNanos),
+    p_parent_request_id: options.parentRequestId || null,
+    p_payload_hash: payloadHash,
+    p_metadata: options.metadata || {},
   });
 
-  if (reservation && reservation.success === false) {
-    console.log(
-      `[Telemetry] AI reservation denied | requestId=${requestId} | user=${options.userId} | window=${reservation.window}`,
-    );
-    throw new MeteredAiLimitError({
-      error: "AI_USAGE_LIMIT_REACHED",
-      window: reservation.window || "rolling_24h",
-      message: reservation.message || "You’ve reached your AI usage limit for this period.",
-      resetsAt: reservation.resetsAt || null,
-      resetsGradually: Boolean(reservation.resetsGradually),
-    });
+  if (resErr) {
+    console.error("[metered-ai] RPC reserve error:", resErr);
+    throw new Error(`AI usage reservation failed: ${resErr.message}`);
   }
 
-  try {
-    const executed = await options.execute({ requestId, model });
-    const modelUsed = executed.modelUsed || model;
-    const usage = executed.usageMetadata;
-
-    const inputTokens = Math.max(0, Number(usage?.promptTokenCount || 0));
-    const outputTokens = Math.max(
-      0,
-      Number(usage?.candidatesTokenCount || 0) + Number(usage?.thinkingTokenCount || 0),
-    );
-
-    if (!usage || (inputTokens === 0 && outputTokens === 0)) {
-      console.warn(
-        `[Telemetry] Missing or zero usage metadata | requestId=${requestId} | feature=${options.featureKey}`,
+  if (!resData || !resData.success) {
+    if (resData?.error === "AI_USAGE_LIMIT_REACHED") {
+      throw new MeteredAiLimitError(
+        resData.message || "You’ve reached your AI usage limit for this period.",
+        resData.window || "rolling_24h",
+        resData.resetsAt || null,
+        Boolean(resData.resetsGradually),
       );
     }
+    throw new Error(resData?.message || "AI usage reservation rejected");
+  }
 
-    const settledCostNanos = calculateAiCostNanos(inputTokens, outputTokens);
+  // 2. Dynamic Output Token Clamping
+  let effectiveMaxOutputTokens = options.maxOutputTokens || estOutput;
+  if (typeof resData.available_nanos === "number" && resData.available_nanos > 0) {
+    const maxAffordableOutput = Math.floor(resData.available_nanos / 3000);
+    if (maxAffordableOutput < 50) {
+      // Release reservation & throw limit error
+      await supabase.rpc("release_ai_usage", {
+        p_user_id: options.userId,
+        p_request_id: requestId,
+        p_reason: "insufficient_capacity_for_min_output",
+      });
+      throw new MeteredAiLimitError(
+        "You’ve reached your AI usage limit for this period.",
+        "rolling_24h",
+        null,
+        true,
+      );
+    }
+    effectiveMaxOutputTokens = Math.min(effectiveMaxOutputTokens, maxAffordableOutput);
+  }
 
-    await settleAiUsage({
-      userId: options.userId,
+  // 3. Execute Model Call & Settle Provider Usage
+  try {
+    const result = await callFn({
       requestId,
-      inputTokens,
-      outputTokens,
-      billable: true,
-      metadata: {
-        model_used: modelUsed,
-        thinking_tokens: usage?.thinkingTokenCount || 0,
+      maxOutputTokens: effectiveMaxOutputTokens,
+    });
+
+    const tokenUsage = extractProviderTokenUsage(result);
+
+    // Settle actual tokens atomically
+    await supabase.rpc("settle_ai_usage", {
+      p_user_id: options.userId,
+      p_request_id: requestId,
+      p_input_tokens: tokenUsage.inputTokens > 0 ? tokenUsage.inputTokens : estInput,
+      p_output_tokens: tokenUsage.outputTokens > 0 ? tokenUsage.outputTokens : estOutput,
+      p_billable: true,
+      p_metadata: {
+        ...(options.metadata || {}),
+        settled_model: model,
+        extracted_usage: tokenUsage,
       },
-      serviceClient,
     });
 
-    console.log(
-      `[Telemetry] AI reservation settled | requestId=${requestId} | user=${options.userId} | costNanos=${settledCostNanos} | feature=${options.featureKey}`,
-    );
-
-    return {
-      result: executed.result,
-      requestId,
-      modelUsed,
-    };
-  } catch (error) {
-    console.warn(
-      `[Telemetry] AI execution failed, releasing reservation | requestId=${requestId} | user=${options.userId} | error=${error?.message || error}`,
-    );
-    await releaseAiUsage({
-      userId: options.userId,
-      requestId,
-      reason: String(error?.message || "execution_failed"),
-      serviceClient,
+    return result;
+  } catch (err: any) {
+    // Settle failed attempt as non-billable event (retains operational provider cost record)
+    await supabase.rpc("settle_ai_usage", {
+      p_user_id: options.userId,
+      p_request_id: requestId,
+      p_input_tokens: estInput,
+      p_output_tokens: 0,
+      p_billable: false,
+      p_metadata: {
+        ...(options.metadata || {}),
+        error: err?.message || String(err),
+      },
     });
-    throw error;
+    throw err;
   }
 }

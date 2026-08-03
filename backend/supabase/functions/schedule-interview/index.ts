@@ -28,13 +28,35 @@ Respond *only* in the following JSON format:
 `;
 };
 
+
+export const buildPrompt = (emailText: string, applicantName: string, companyName: string): string => {
+  return `You are an AI Interview Scheduling Assistant helping "${applicantName}" respond to a recruiter from "${companyName}".
+
+Here is the email from the recruiter:
+"""
+${emailText}
+"""
+
+Your task:
+1. Extract any direct calendar booking links (e.g., Calendly, Google Calendar appointment, Hubspot) present in the email.
+2. If there are NO booking links, draft a polite, professional reply offering the applicant's availability. State placeholders like "[Insert your available times here]" for the applicant to fill in.
+3. If there IS a booking link, point it out clearly and also provide a short, polite confirmation reply the applicant can send after booking.
+
+Respond *only* in the following JSON format:
+{
+  "booking_link": "URL or null if none found",
+  "suggested_reply": "String containing the drafted reply"
+}
+`;
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    await requireSubscriptionTier(
+    const userId = await requireSubscriptionTier(
       req,
       "Basics",
       "Interview scheduling assistant",
@@ -52,7 +74,10 @@ Deno.serve(async (req) => {
     const prompt = buildPrompt(emailText, applicantName || "the applicant", companyName || "the company");
 
     const jsonResponseText = await generateGeminiContent(prompt, {
-      temperature: 0.2, // Low temperature for more deterministic/factual extraction
+      userId,
+      featureKey: "schedule_interview",
+      maxOutputTokens: 2048,
+      temperature: 0.2, // Low temperature for deterministic extraction
       response_mime_type: "application/json"
     });
 

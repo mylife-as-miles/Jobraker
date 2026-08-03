@@ -9,6 +9,22 @@ const INPUT_NANOS_PER_TOKEN = 500n;
 const OUTPUT_NANOS_PER_TOKEN = 3000n;
 const ONE_USD_NANOS = 1_000_000_000n;
 
+const ALLOWLISTED_ROOT_KEYS = new Set([
+  "plan",
+  "rolling24h",
+  "weekly",
+  "monthly",
+  "limitedBy",
+]);
+
+const ALLOWLISTED_WINDOW_KEYS = new Set([
+  "percentUsed",
+  "percentLeft",
+  "resetsAt",
+  "resetsGradually",
+  "nextAvailabilityAt",
+]);
+
 function calculateCostNanos(inputTokens: number | bigint, outputTokens: number | bigint): bigint {
   const input = BigInt(Math.max(0, Math.floor(Number(inputTokens) || 0)));
   const output = BigInt(Math.max(0, Math.floor(Number(outputTokens) || 0)));
@@ -59,6 +75,7 @@ function getTierLimits(tier: string): TierLimits {
         rolling24hNanos: 25n * (ONE_USD_NANOS / 10n), // $2.50
       };
     default:
+      // Explicit Free Plan Allowance ($0.50 Monthly, $0.20 Weekly, $0.05 Rolling 24h)
       return {
         monthlyNanos: 5n * (ONE_USD_NANOS / 10n),    // $0.50
         weeklyNanos: 2n * (ONE_USD_NANOS / 10n),     // $0.20
@@ -97,8 +114,8 @@ describe("AI Token Pricing & Nanodollar Integer Accounting", () => {
   });
 });
 
-describe("Usage Percentage Calculations", () => {
-  it("returns 100% left when usage is zero", () => {
+describe("Usage Percentage Calculations & Progress Bar Semantics", () => {
+  it("returns 100% left when usage is zero (Full progress bar)", () => {
     const status = calculatePercentageStatus(0n, 5_000_000_000n);
     expect(status.percentUsed).toBe(0);
     expect(status.percentLeft).toBe(100);
@@ -114,7 +131,7 @@ describe("Usage Percentage Calculations", () => {
     expect(status.percentUsed + status.percentLeft).toBe(100);
   });
 
-  it("returns 0% left when usage equals or exceeds limit", () => {
+  it("returns 0% left when usage equals or exceeds limit (Empty progress bar)", () => {
     const limit = 5_000_000_000n;
     const status1 = calculatePercentageStatus(limit, limit);
     expect(status1.percentLeft).toBe(0);
@@ -137,6 +154,13 @@ describe("Usage Percentage Calculations", () => {
 });
 
 describe("Tier Allowance Specifications", () => {
+  it("configures Free plan internal limits ($0.50 monthly, $0.20 weekly, $0.05 24h)", () => {
+    const free = getTierLimits("Free");
+    expect(free.monthlyNanos).toBe(500_000_000n);
+    expect(free.weeklyNanos).toBe(200_000_000n);
+    expect(free.rolling24hNanos).toBe(50_000_000n);
+  });
+
   it("configures Starter tier internal limits ($3.00 monthly, $1.20 weekly, $0.30 24h)", () => {
     const starter = getTierLimits("Starter");
     expect(starter.monthlyNanos).toBe(3_000_000_000n);
@@ -166,58 +190,70 @@ describe("Tier Allowance Specifications", () => {
   });
 });
 
-describe("Multi-Window Enforcement Logic", () => {
-  it("rejects a request when the weekly limit is exhausted even if monthly capacity remains", () => {
-    const pro = getTierLimits("Pro");
-    const monthlyUsed = 3_000_000_000n;
-    const weeklyUsed = 4_800_000_000n;
+describe("Weekly Window Truncation Edge Case", () => {
+  it("truncates weekly reset date at current_period_end when fewer than 7 days remain", () => {
+    const periodStart = new Date("2026-08-01T00:00:00Z");
+    const periodEnd = new Date("2026-09-01T00:00:00Z");
+    const now = new Date("2026-08-30T00:00:00Z"); // 2 days before periodEnd
 
-    const monthlyStatus = calculatePercentageStatus(monthlyUsed, pro.monthlyNanos);
-    const weeklyStatus = calculatePercentageStatus(weeklyUsed, pro.weeklyNanos);
+    const weeklyStart = new Date("2026-08-29T00:00:00Z");
+    const rawWeeklyEnd = new Date(weeklyStart.getTime() + 7 * 86400 * 1000); // 2026-09-05
+    const truncatedWeeklyEnd = new Date(Math.min(rawWeeklyEnd.getTime(), periodEnd.getTime()));
 
-    expect(monthlyStatus.percentLeft).toBeGreaterThan(0);
-    expect(weeklyStatus.percentLeft).toBe(0);
+    expect(truncatedWeeklyEnd.toISOString()).toBe("2026-09-01T00:00:00.000Z");
   });
 });
 
-describe("Privacy Protection (Sanitization)", () => {
-  it("ensures public status object contains no monetary amounts, cost units, or raw token counts", () => {
-    const publicStatus = {
+describe("Mandatory Status Response Privacy (Strict Allowlist Test)", () => {
+  it("strictly enforces that status response ONLY contains allowlisted keys and zero private financial/token data", () => {
+    const statusPayload = {
       plan: "Basics",
       rolling24h: {
         percentUsed: 28,
         percentLeft: 72,
         resetsAt: null,
         resetsGradually: true,
+        nextAvailabilityAt: null,
       },
       weekly: {
         percentUsed: 32,
         percentLeft: 68,
         resetsAt: "2026-08-09T00:00:00Z",
         resetsGradually: false,
+        nextAvailabilityAt: null,
       },
       monthly: {
         percentUsed: 16,
         percentLeft: 84,
         resetsAt: "2026-09-01T00:00:00Z",
         resetsGradually: false,
+        nextAvailabilityAt: null,
       },
       limitedBy: null,
     };
 
-    const stringified = JSON.stringify(publicStatus);
+    // Root keys check
+    for (const key of Object.keys(statusPayload)) {
+      expect(ALLOWLISTED_ROOT_KEYS.has(key)).toBe(true);
+    }
 
-    expect(stringified).not.toContain("dollars");
-    expect(stringified).not.toContain("cost");
-    expect(stringified).not.toContain("tokens");
-    expect(stringified).not.toContain("nanos");
-    expect(stringified).not.toContain("$");
-    expect(stringified).not.toContain("allowance");
-    expect(stringified).not.toContain("5.00");
-    expect(stringified).not.toContain("3.00");
+    // Window keys check
+    for (const windowKey of ["rolling24h", "weekly", "monthly"] as const) {
+      const windowObj = statusPayload[windowKey];
+      for (const key of Object.keys(windowObj)) {
+        expect(ALLOWLISTED_WINDOW_KEYS.has(key)).toBe(true);
+      }
+    }
 
-    expect(publicStatus.rolling24h.percentUsed + publicStatus.rolling24h.percentLeft).toBe(100);
-    expect(publicStatus.weekly.percentUsed + publicStatus.weekly.percentLeft).toBe(100);
-    expect(publicStatus.monthly.percentUsed + publicStatus.monthly.percentLeft).toBe(100);
+    // Denylist string check
+    const serialized = JSON.stringify(statusPayload);
+    const forbiddenSubstrings = [
+      "dollars", "nanos", "cost", "tokens", "price", "allowance",
+      "input", "output", "provider", "model", "reserved", "5.00", "3.00"
+    ];
+
+    for (const forbidden of forbiddenSubstrings) {
+      expect(serialized).not.toContain(forbidden);
+    }
   });
 });

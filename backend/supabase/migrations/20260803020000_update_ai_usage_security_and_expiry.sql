@@ -1,53 +1,20 @@
--- Migration: Production-grade AI Usage Metering & Limit System (Revised with Security & Stale Cleanup)
+-- Migration: Update AI Usage Ledger Schema, Security, and Expired Reservation Handling
 
--- 1. Create public.ai_usage_events ledger table
-CREATE TABLE IF NOT EXISTS public.ai_usage_events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    request_id UUID NOT NULL,
-    feature_key TEXT NOT NULL,
-    provider TEXT NOT NULL,
-    model TEXT NOT NULL,
-    input_tokens BIGINT NOT NULL DEFAULT 0,
-    output_tokens BIGINT NOT NULL DEFAULT 0,
-    total_tokens BIGINT NOT NULL DEFAULT 0,
-    input_cost_nanos BIGINT NOT NULL DEFAULT 0,
-    output_cost_nanos BIGINT NOT NULL DEFAULT 0,
-    total_cost_nanos BIGINT NOT NULL DEFAULT 0,
-    reserved_cost_nanos BIGINT NOT NULL DEFAULT 0,
-    billable BOOLEAN NOT NULL DEFAULT true,
-    status TEXT NOT NULL CHECK (status IN ('reserved', 'settled', 'released', 'failed')),
-    parent_request_id UUID NULL,
-    payload_hash TEXT NULL,
-    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-    reservation_expires_at TIMESTAMPTZ NULL,
-    settled_at TIMESTAMPTZ NULL,
-    released_at TIMESTAMPTZ NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+DROP FUNCTION IF EXISTS public.reserve_ai_usage(uuid, uuid, text, text, text, bigint, uuid, jsonb);
+DROP FUNCTION IF EXISTS public.reserve_ai_usage(uuid, uuid, text, text, text, bigint, uuid, text, jsonb);
 
--- Unique index for request_id per user (idempotency)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_usage_events_user_request ON public.ai_usage_events(user_id, request_id);
+-- 1. Alter public.ai_usage_events to add new mandatory fields
+ALTER TABLE public.ai_usage_events
+    ADD COLUMN IF NOT EXISTS reserved_cost_nanos BIGINT NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS reservation_expires_at TIMESTAMPTZ NULL,
+    ADD COLUMN IF NOT EXISTS settled_at TIMESTAMPTZ NULL,
+    ADD COLUMN IF NOT EXISTS released_at TIMESTAMPTZ NULL,
+    ADD COLUMN IF NOT EXISTS payload_hash TEXT NULL;
 
--- Index for payload hash idempotency per user & feature
 CREATE INDEX IF NOT EXISTS idx_ai_usage_events_hash ON public.ai_usage_events(user_id, feature_key, payload_hash) WHERE payload_hash IS NOT NULL;
-
--- Performance indexes for window queries
-CREATE INDEX IF NOT EXISTS idx_ai_usage_events_user_created ON public.ai_usage_events(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_usage_events_user_status_expires ON public.ai_usage_events(user_id, status, reservation_expires_at) WHERE status = 'reserved';
 
--- Enable RLS and restrict direct client access
-ALTER TABLE public.ai_usage_events ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "No client direct access to ai_usage_events" ON public.ai_usage_events;
-CREATE POLICY "No client direct access to ai_usage_events" ON public.ai_usage_events
-    FOR ALL USING (false);
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.ai_usage_events TO service_role;
-REVOKE ALL ON public.ai_usage_events FROM authenticated, anon;
-
-
--- 2. Helper function to get internal nanodollar allowances for a subscription tier
+-- 2. Update public.get_ai_tier_limits to include explicit Free Plan allowances
 CREATE OR REPLACE FUNCTION public.get_ai_tier_limits(p_tier TEXT)
 RETURNS TABLE (
     monthly_allowance_nanos BIGINT,
@@ -85,8 +52,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql IMMUTABLE SECURITY DEFINER SET search_path = public, pg_temp;
 
-
--- 3. Helper function to resolve active user billing period & weekly window (with truncated final week)
+-- 3. Update public.get_user_billing_period to truncate weekly window at current_period_end
 CREATE OR REPLACE FUNCTION public.get_user_billing_period(p_user_id UUID)
 RETURNS TABLE (
     current_period_start TIMESTAMPTZ,
@@ -136,8 +102,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
 
-
--- 4. Atomic reservation RPC: reserve_ai_usage
+-- 4. Override reserve_ai_usage with security search_path, payload_hash, and 5-min TTL expiry
 CREATE OR REPLACE FUNCTION public.reserve_ai_usage(
     p_user_id UUID,
     p_request_id UUID,
@@ -338,8 +303,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
-
--- 5. Settle reservation RPC: settle_ai_usage
+-- 5. Override settle_ai_usage
 CREATE OR REPLACE FUNCTION public.settle_ai_usage(
     p_user_id UUID,
     p_request_id UUID,
@@ -409,8 +373,6 @@ BEGIN
         );
     END IF;
 
-    -- Mandatory Correction: If actual cost <= reserved amount, release difference.
-    -- If actual cost > reserved amount, update directly (overage accepted for completed provider call).
     UPDATE public.ai_usage_events
     SET
         input_tokens = GREATEST(0, p_input_tokens),
@@ -435,8 +397,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
-
--- 6. Release reservation RPC: release_ai_usage
+-- 6. Override release_ai_usage
 CREATE OR REPLACE FUNCTION public.release_ai_usage(
     p_user_id UUID,
     p_request_id UUID,
@@ -466,150 +427,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
+-- 7. Mandatory Security Revokes & Grants
+REVOKE ALL ON FUNCTION public.reserve_ai_usage(uuid, uuid, text, text, text, bigint, uuid, text, jsonb) FROM PUBLIC, authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.reserve_ai_usage(uuid, uuid, text, text, text, bigint, uuid, text, jsonb) TO service_role;
 
--- 7. Protected User Usage Status RPC: get_ai_usage_status
-CREATE OR REPLACE FUNCTION public.get_ai_usage_status(p_user_id UUID DEFAULT auth.uid())
-RETURNS JSONB AS $$
-DECLARE
-    v_effective_user_id UUID;
-    v_tier TEXT;
-    v_monthly_limit BIGINT;
-    v_weekly_limit BIGINT;
-    v_rolling_24h_limit BIGINT;
-    v_period RECORD;
-    v_now TIMESTAMPTZ := NOW();
-    v_24h_start TIMESTAMPTZ := v_now - INTERVAL '24 hours';
+REVOKE ALL ON FUNCTION public.settle_ai_usage(uuid, uuid, bigint, bigint, boolean, jsonb) FROM PUBLIC, authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.settle_ai_usage(uuid, uuid, bigint, bigint, boolean, jsonb) TO service_role;
 
-    v_monthly_used BIGINT := 0;
-    v_weekly_used BIGINT := 0;
-    v_rolling_24h_used BIGINT := 0;
-
-    v_r24h_pct_used INT;
-    v_r24h_pct_left INT;
-    
-    v_weekly_pct_used INT;
-    v_weekly_pct_left INT;
-
-    v_monthly_pct_used INT;
-    v_monthly_pct_left INT;
-
-    v_limited_by TEXT := NULL;
-    v_earliest_avail TIMESTAMPTZ := NULL;
-BEGIN
-    -- Mandatory Correction: Derive user ID from auth.uid() if authenticated client call
-    v_effective_user_id := COALESCE(auth.uid(), p_user_id);
-
-    IF v_effective_user_id IS NULL THEN
-        RAISE EXCEPTION 'Unauthenticated call to get_ai_usage_status';
-    END IF;
-
-    v_tier := public.get_user_tier(v_effective_user_id);
-
-    SELECT monthly_allowance_nanos, weekly_allowance_nanos, rolling_24h_allowance_nanos
-    INTO v_monthly_limit, v_weekly_limit, v_rolling_24h_limit
-    FROM public.get_ai_tier_limits(v_tier);
-
-    SELECT * INTO v_period FROM public.get_user_billing_period(v_effective_user_id);
-
-    -- Calculate usage in Monthly window
-    SELECT COALESCE(SUM(
-        CASE WHEN status = 'settled' THEN total_cost_nanos ELSE reserved_cost_nanos END
-    ), 0) INTO v_monthly_used
-    FROM public.ai_usage_events
-    WHERE user_id = v_effective_user_id
-      AND billable = true
-      AND (status = 'settled' OR (status = 'reserved' AND reservation_expires_at > v_now))
-      AND created_at >= v_period.current_period_start
-      AND created_at < v_period.current_period_end;
-
-    -- Calculate usage in Weekly window
-    SELECT COALESCE(SUM(
-        CASE WHEN status = 'settled' THEN total_cost_nanos ELSE reserved_cost_nanos END
-    ), 0) INTO v_weekly_used
-    FROM public.ai_usage_events
-    WHERE user_id = v_effective_user_id
-      AND billable = true
-      AND (status = 'settled' OR (status = 'reserved' AND reservation_expires_at > v_now))
-      AND created_at >= v_period.weekly_window_start
-      AND created_at < v_period.weekly_window_end;
-
-    -- Calculate usage in Rolling 24h window
-    SELECT COALESCE(SUM(
-        CASE WHEN status = 'settled' THEN total_cost_nanos ELSE reserved_cost_nanos END
-    ), 0) INTO v_rolling_24h_used
-    FROM public.ai_usage_events
-    WHERE user_id = v_effective_user_id
-      AND billable = true
-      AND (status = 'settled' OR (status = 'reserved' AND reservation_expires_at > v_now))
-      AND created_at >= v_24h_start;
-
-    -- Compute integer percentages (clamped 0 to 100)
-    v_r24h_pct_used := LEAST(100, GREATEST(0, ROUND((v_rolling_24h_used::NUMERIC / GREATEST(1, v_rolling_24h_limit)::NUMERIC) * 100))::INT);
-    v_r24h_pct_left := 100 - v_r24h_pct_used;
-
-    v_weekly_pct_used := LEAST(100, GREATEST(0, ROUND((v_weekly_used::NUMERIC / GREATEST(1, v_weekly_limit)::NUMERIC) * 100))::INT);
-    v_weekly_pct_left := 100 - v_weekly_pct_used;
-
-    v_monthly_pct_used := LEAST(100, GREATEST(0, ROUND((v_monthly_used::NUMERIC / GREATEST(1, v_monthly_limit)::NUMERIC) * 100))::INT);
-    v_monthly_pct_left := 100 - v_monthly_pct_used;
-
-    -- Identify bottleneck limit if any
-    IF v_r24h_pct_left = 0 THEN
-        v_limited_by := 'rolling_24h';
-        SELECT (created_at + INTERVAL '24 hours') INTO v_earliest_avail
-        FROM public.ai_usage_events
-        WHERE user_id = v_effective_user_id
-          AND billable = true
-          AND (status = 'settled' OR (status = 'reserved' AND reservation_expires_at > v_now))
-          AND created_at >= v_24h_start
-        ORDER BY created_at ASC
-        LIMIT 1;
-    ELSIF v_weekly_pct_left = 0 THEN
-        v_limited_by := 'weekly';
-    ELSIF v_monthly_pct_left = 0 THEN
-        v_limited_by := 'monthly';
-    END IF;
-
-    -- Strictly Privacy-Safe Output (Allowlisted keys ONLY)
-    RETURN jsonb_build_object(
-        'plan', public.normalize_tier(v_tier),
-        'rolling24h', jsonb_build_object(
-            'percentUsed', v_r24h_pct_used,
-            'percentLeft', v_r24h_pct_left,
-            'resetsAt', NULL,
-            'resetsGradually', true,
-            'nextAvailabilityAt', CASE WHEN v_earliest_avail IS NOT NULL THEN to_char(v_earliest_avail AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') ELSE NULL END
-        ),
-        'weekly', jsonb_build_object(
-            'percentUsed', v_weekly_pct_used,
-            'percentLeft', v_weekly_pct_left,
-            'resetsAt', to_char(v_period.weekly_window_end AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
-            'resetsGradually', false
-        ),
-        'monthly', jsonb_build_object(
-            'percentUsed', v_monthly_pct_used,
-            'percentLeft', v_monthly_pct_left,
-            'resetsAt', to_char(v_period.current_period_end AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
-            'resetsGradually', false
-        ),
-        'limitedBy', v_limited_by
-    );
-END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
-
-
--- 8. Mandatory Security Revokes & Grants
-REVOKE ALL ON FUNCTION public.reserve_ai_usage FROM PUBLIC, authenticated, anon;
-GRANT EXECUTE ON FUNCTION public.reserve_ai_usage TO service_role;
-
-REVOKE ALL ON FUNCTION public.settle_ai_usage FROM PUBLIC, authenticated, anon;
-GRANT EXECUTE ON FUNCTION public.settle_ai_usage TO service_role;
-
-REVOKE ALL ON FUNCTION public.release_ai_usage FROM PUBLIC, authenticated, anon;
-GRANT EXECUTE ON FUNCTION public.release_ai_usage TO service_role;
-
-GRANT EXECUTE ON FUNCTION public.get_ai_tier_limits(text) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.get_user_billing_period(uuid) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.get_ai_usage_status(uuid) TO authenticated, service_role;
-
-COMMENT ON FUNCTION public.get_ai_usage_status(uuid) IS 'Retrieve privacy-safe AI usage status percentages and window reset timestamps for a user.';
+REVOKE ALL ON FUNCTION public.release_ai_usage(uuid, uuid, text) FROM PUBLIC, authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.release_ai_usage(uuid, uuid, text) TO service_role;

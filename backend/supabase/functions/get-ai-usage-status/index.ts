@@ -1,53 +1,56 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { requireAuthenticatedUser } from "../_shared/subscription.ts";
 
-serve(async (req: Request) => {
+serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { user, serviceClient } = await requireAuthenticatedUser(req);
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
-    const { data, error } = await serviceClient.rpc("get_ai_usage_status", {
-      p_user_id: user.id,
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+
+    // Authenticated user Supabase client
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
     });
+
+    // Invoke get_ai_usage_status RPC (derives target user ID strictly from auth.uid())
+    const { data, error } = await supabase.rpc("get_ai_usage_status");
 
     if (error) {
       console.error("[get-ai-usage-status] RPC error:", error);
       return new Response(
-        JSON.stringify({ error: "Failed to retrieve AI usage status" }),
-        {
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-            "Cache-Control": "private, no-cache, no-store, must-revalidate",
-          },
-        },
+        JSON.stringify({ error: error.message || "Failed to fetch usage status" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
+    // Return strictly privacy-safe allowlisted output with no-store headers
     return new Response(JSON.stringify(data), {
       status: 200,
       headers: {
         ...corsHeaders,
         "Content-Type": "application/json",
         "Cache-Control": "private, no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
       },
     });
   } catch (err: any) {
-    const status = typeof err?.status === "number" ? err.status : 500;
-    const message = err?.message || "Internal server error";
-
-    return new Response(JSON.stringify({ error: message }), {
-      status,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-        "Cache-Control": "private, no-cache, no-store, must-revalidate",
-      },
-    });
+    console.error("[get-ai-usage-status] Internal error:", err);
+    return new Response(
+      JSON.stringify({ error: err.message || "Internal server error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 });

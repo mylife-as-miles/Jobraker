@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { fetchAiUsageLimits, AiUsageLimitsData } from "../services/aiUsageService";
+import { subscribeAiUsageChanged } from "../lib/aiUsageEvents";
 
 export function useAiUsageLimits() {
   const [data, setData] = useState<AiUsageLimitsData | null>(null);
@@ -22,18 +23,24 @@ export function useAiUsageLimits() {
   useEffect(() => {
     refresh();
 
+    // Subscribe to real-time AI usage event notifications
+    const unsubscribe = subscribeAiUsageChanged(() => {
+      refresh();
+    });
+
     // Refresh when window regains focus
     const onFocus = () => {
       refresh();
     };
     window.addEventListener("focus", onFocus);
 
-    // Background refresh every 60 seconds
+    // Background refresh timer every 60 seconds
     const timer = setInterval(() => {
       refresh();
     }, 60_000);
 
     return () => {
+      unsubscribe();
       window.removeEventListener("focus", onFocus);
       clearInterval(timer);
     };
