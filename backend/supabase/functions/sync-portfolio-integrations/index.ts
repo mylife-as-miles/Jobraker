@@ -4,6 +4,7 @@ import { Composio } from "npm:@composio/core@0.13.1";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAuthenticatedUser } from "../_shared/subscription.ts";
 import { findActiveConnectedAccount } from "../_shared/composio-connected-account.ts";
+import { runMeteredComposioCall } from "../_shared/metered-composio.ts";
 
 const composio = new Composio({ apiKey: Deno.env.get("COMPOSIO_API_KEY") });
 
@@ -132,36 +133,46 @@ serve(async (req) => {
 
     // Helper to execute Composio tool via SDK or REST v3.1 fallback
     const runTool = async (slug: string, args: Record<string, unknown> = {}) => {
-      const executeFn = (composio as any)?.tools?.execute;
-      if (typeof executeFn === "function") {
-        try {
-          return await executeFn.call((composio as any).tools, slug, {
-            userId,
-            arguments: args,
+      const toolkitSlug = slug.split("_")[0]?.toLowerCase() || "portfolio";
+      return await runMeteredComposioCall({
+        serviceClient: supabaseAdmin,
+        userId,
+        toolkitSlug,
+        toolSlug: slug,
+        payload: args,
+        execute: async () => {
+          const executeFn = (composio as any)?.tools?.execute;
+          if (typeof executeFn === "function") {
+            try {
+              return await executeFn.call((composio as any).tools, slug, {
+                userId,
+                arguments: args,
+              });
+            } catch (e: any) {
+              console.warn(`[Sync Portfolio] SDK execute failed for ${slug}:`, e);
+            }
+          }
+
+          if (!apiKey) throw new Error("COMPOSIO_API_KEY is missing");
+          const res = await fetch(`https://backend.composio.dev/api/v3.1/tools/execute/${encodeURIComponent(slug)}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": apiKey,
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              arguments: args,
+            }),
           });
-        } catch (e: any) {
-          console.warn(`[Sync Portfolio] SDK execute failed for ${slug}:`, e);
-        }
-      }
 
-      if (!apiKey) throw new Error("COMPOSIO_API_KEY is missing");
-      const res = await fetch(`https://backend.composio.dev/api/v3.1/tools/execute/${encodeURIComponent(slug)}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Composio tool ${slug} failed (${res.status}): ${errText}`);
+          }
+          return await res.json();
         },
-        body: JSON.stringify({
-          user_id: userId,
-          arguments: args,
-        }),
       });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`Composio tool ${slug} failed (${res.status}): ${errText}`);
-      }
-      return await res.json();
     };
 
     // 5. Fetch current user profile to preserve old data if a sync fails

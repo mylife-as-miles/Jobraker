@@ -14,6 +14,7 @@ import {
   normalizeConnectedAccount,
   resolveIntegrationConnection,
 } from "../_shared/composio-connected-account.ts";
+import { runMeteredComposioCall } from "../_shared/metered-composio.ts";
 
 const composio = new Composio({
   apiKey: Deno.env.get("COMPOSIO_API_KEY") || "",
@@ -635,49 +636,57 @@ Deno.serve(async (req) => {
         });
       }
 
-      let result: unknown = null;
-      let executed = false;
+      const toolkitSlug = slug.split("_")[0]?.toLowerCase() || "composio";
+      const payloadArgs = (toolArguments ?? args ?? {}) as Record<string, unknown>;
 
-      const executeFn = (composio as any)?.tools?.execute;
-      if (typeof executeFn === "function") {
-        try {
-          result = await executeFn.call((composio as any).tools, slug, {
-            userId,
-            arguments: toolArguments ?? args ?? {},
-          });
-          executed = true;
-        } catch (e: any) {
-          console.warn(`SDK tool execution failed for ${slug}:`, e);
-        }
-      }
+      const result = await runMeteredComposioCall({
+        serviceClient,
+        userId,
+        toolkitSlug,
+        toolSlug: slug,
+        payload: payloadArgs,
+        execute: async () => {
+          let resVal: unknown = null;
+          let executed = false;
 
-      if (!executed) {
-        const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-        const res = await fetch(`https://backend.composio.dev/api/v3.1/tools/execute/${encodeURIComponent(slug)}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-          },
-          body: JSON.stringify({
-            user_id: userId,
-            arguments: toolArguments ?? args ?? {},
-          }),
-        });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          return new Response(
-            JSON.stringify({ error: `Composio tool execution failed (${res.status}): ${errorText}` }),
-            {
-              status: res.status,
-              headers: { "Content-Type": "application/json", ...corsHeaders },
+          const executeFn = (composio as any)?.tools?.execute;
+          if (typeof executeFn === "function") {
+            try {
+              resVal = await executeFn.call((composio as any).tools, slug, {
+                userId,
+                arguments: payloadArgs,
+              });
+              executed = true;
+            } catch (e: any) {
+              console.warn(`SDK tool execution failed for ${slug}:`, e);
             }
-          );
-        }
+          }
 
-        result = await res.json();
-      }
+          if (!executed) {
+            const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+            const res = await fetch(`https://backend.composio.dev/api/v3.1/tools/execute/${encodeURIComponent(slug)}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": apiKey,
+              },
+              body: JSON.stringify({
+                user_id: userId,
+                arguments: payloadArgs,
+              }),
+            });
+
+            if (!res.ok) {
+              const errorText = await res.text();
+              throw new Error(`Composio tool execution failed (${res.status}): ${errorText}`);
+            }
+
+            resVal = await res.json();
+          }
+
+          return resVal;
+        },
+      });
 
       return new Response(
         JSON.stringify({ success: true, result }),

@@ -98,6 +98,9 @@ export const AiUsageLimitsPanel: React.FC = () => {
         <h3 className="text-lg font-semibold text-foreground tracking-tight">
           General usage limits
         </h3>
+        <p className="text-xs text-muted-foreground mt-1">
+          AI usage includes AI responses and actions performed through connected tools.
+        </p>
       </div>
 
       <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm divide-y divide-border/40">

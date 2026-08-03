@@ -11,6 +11,8 @@
  */
 
 import { Composio } from "npm:@composio/core@0.13.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { runMeteredComposioCall } from "./metered-composio.ts";
 import {
   normalizeConnectedAccount,
   resolveIntegrationConnection,
@@ -97,64 +99,80 @@ export async function executeComposioTool(
   userId: string,
   slug: string,
   args: Record<string, unknown>,
+  options?: { serviceClient?: any; requestId?: string; parentRequestId?: string },
 ): Promise<Record<string, unknown>> {
-  let sdkError: unknown = null;
-
-  const executeFn = (client() as unknown as {
-    tools?: { execute?: (...a: unknown[]) => Promise<unknown> };
-  })?.tools?.execute;
-
-  if (typeof executeFn === "function") {
-    try {
-      const result = await executeFn.call(
-        (client() as unknown as { tools: unknown }).tools,
-        slug,
-        { userId, arguments: args },
-      );
-      return unwrapToolData(result);
-    } catch (error) {
-      sdkError = error;
-      console.warn(`[composio-gmail] SDK execute failed for ${slug}:`, error);
-    }
-  }
-
-  const key = apiKey();
-  if (!key) {
-    throw new ComposioGmailError(
-      "COMPOSIO_API_KEY is not configured",
-      "composio_not_configured",
-    );
-  }
-
-  const response = await fetch(
-    `${COMPOSIO_REST_BASE}/tools/execute/${encodeURIComponent(slug)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": key },
-      body: JSON.stringify({ user_id: userId, arguments: args }),
-    },
+  const serviceClient = options?.serviceClient || createClient(
+    Deno.env.get("SUPABASE_URL") || "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
   );
 
-  if (!response.ok) {
-    const text = await response.text();
-    // 401/403 from Composio means the user's Gmail grant is missing or expired.
-    const code = response.status === 401 || response.status === 403
-      ? "gmail_unauthorized"
-      : "composio_gmail_error";
-    throw new ComposioGmailError(
-      `Composio ${slug} failed (${response.status}): ${text.slice(0, 400)}`,
-      code,
-    );
-  }
+  return await runMeteredComposioCall({
+    serviceClient,
+    userId,
+    requestId: options?.requestId,
+    parentRequestId: options?.parentRequestId,
+    toolkitSlug: GMAIL_TOOLKIT_SLUG,
+    toolSlug: slug,
+    payload: args,
+    execute: async () => {
+      let sdkError: unknown = null;
 
-  try {
-    return unwrapToolData(await response.json());
-  } catch (error) {
-    if (error instanceof Error && sdkError) {
-      throw new ComposioGmailError(error.message, "composio_gmail_error");
-    }
-    throw error;
-  }
+      const executeFn = (client() as unknown as {
+        tools?: { execute?: (...a: unknown[]) => Promise<unknown> };
+      })?.tools?.execute;
+
+      if (typeof executeFn === "function") {
+        try {
+          const result = await executeFn.call(
+            (client() as unknown as { tools: unknown }).tools,
+            slug,
+            { userId, arguments: args },
+          );
+          return unwrapToolData(result);
+        } catch (error) {
+          sdkError = error;
+          console.warn(`[composio-gmail] SDK execute failed for ${slug}:`, error);
+        }
+      }
+
+      const key = apiKey();
+      if (!key) {
+        throw new ComposioGmailError(
+          "COMPOSIO_API_KEY is not configured",
+          "composio_not_configured",
+        );
+      }
+
+      const response = await fetch(
+        `${COMPOSIO_REST_BASE}/tools/execute/${encodeURIComponent(slug)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-api-key": key },
+          body: JSON.stringify({ user_id: userId, arguments: args }),
+        },
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        const code = response.status === 401 || response.status === 403
+          ? "gmail_unauthorized"
+          : "composio_gmail_error";
+        throw new ComposioGmailError(
+          `Composio ${slug} failed (${response.status}): ${text.slice(0, 400)}`,
+          code,
+        );
+      }
+
+      try {
+        return unwrapToolData(await response.json());
+      } catch (error) {
+        if (error instanceof Error && sdkError) {
+          throw new ComposioGmailError(error.message, "composio_gmail_error");
+        }
+        throw error;
+      }
+    },
+  });
 }
 
 /* ------------------------------ connection state ---------------------------- */
