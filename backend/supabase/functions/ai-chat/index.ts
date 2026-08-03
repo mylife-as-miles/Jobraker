@@ -1852,6 +1852,7 @@ async function streamAgentModelStep(opts: {
   enqueueEvent: (ev: string, data: any) => Promise<void>;
   userId?: string;
   requestId?: string;
+  serviceClient?: SupabaseLikeClient;
 }) {
   let lastChunk: any = null;
   let accumulatedVisibleText = "";
@@ -1860,28 +1861,19 @@ async function streamAgentModelStep(opts: {
 
   const stepRequestId = opts.requestId || crypto.randomUUID();
 
-  if (opts.userId) {
-    const reservation = await reserveAiUsage({
+  if (opts.userId && opts.serviceClient) {
+    const estInput = Math.max(1, Math.ceil(JSON.stringify(opts.message || "").length / 4));
+    await reserveAiUsage({
+      serviceClient: opts.serviceClient,
       userId: opts.userId,
       requestId: stepRequestId,
       featureKey: "ai_chat",
       provider: "gemini",
       model: opts.chat?.model || "gemini-3-flash-preview",
-      estimatedCostNanos: estimatePreflightReservationNanos(
-        JSON.stringify(opts.message || "").length,
-        4096,
-      ),
+      estimatedInputTokens: estInput,
+      maxOutputTokens: 4096,
+      payload: opts.message,
     });
-
-    if (reservation && reservation.success === false) {
-      throw new MeteredAiLimitError({
-        error: "AI_USAGE_LIMIT_REACHED",
-        window: reservation.window || "rolling_24h",
-        message: reservation.message || "You’ve reached your AI usage limit for this period.",
-        resetsAt: reservation.resetsAt || null,
-        resetsGradually: Boolean(reservation.resetsGradually),
-      });
-    }
   }
 
   try {
@@ -1919,14 +1911,19 @@ async function streamAgentModelStep(opts: {
       }
     }
 
-    if (opts.userId) {
+    if (opts.userId && opts.serviceClient) {
       const usage = lastChunk?.usageMetadata;
-      const inputTokens = Math.max(0, Number(usage?.promptTokenCount || 0));
+      const inputTokens = Math.max(
+        0,
+        Number(usage?.promptTokenCount || 0) + Number(usage?.cachedContentTokenCount || 0),
+      );
       const outputTokens = Math.max(
         0,
-        Number(usage?.candidatesTokenCount || 0) + Number(usage?.thinkingTokenCount || 0),
+        Number(usage?.candidatesTokenCount || 0) +
+          Number(usage?.thoughtsTokenCount || usage?.thinkingTokenCount || 0),
       );
       await settleAiUsage({
+        serviceClient: opts.serviceClient,
         userId: opts.userId,
         requestId: stepRequestId,
         inputTokens,
@@ -1945,8 +1942,9 @@ async function streamAgentModelStep(opts: {
       ],
     };
   } catch (err) {
-    if (opts.userId) {
+    if (opts.userId && opts.serviceClient) {
       await releaseAiUsage({
+        serviceClient: opts.serviceClient,
         userId: opts.userId,
         requestId: stepRequestId,
         reason: String((err as any)?.message || "stream_error"),
@@ -3279,62 +3277,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // --- Credit / quota consumption ---
-    const { data: consumeResult, error: consumeError } = await serviceClient.rpc(
-      "consume_chat_message",
-      { p_user_id: userId },
-    );
-    if (consumeError) {
-      console.error("consume_chat_message RPC error:", consumeError);
-      return new Response(
-        JSON.stringify({
-          error: "Could not verify chat billing. Please try again.",
-          code: "billing_error",
-        }),
-        {
-          status: 503,
-          headers: { ...cors, "Content-Type": "application/json" },
-        },
-      );
-    }
-    const consumed = consumeResult as Record<string, unknown> | null;
-    if (!consumed || consumed.success !== true) {
-      const c = consumed || {};
-      return new Response(
-        JSON.stringify({
-          error: (c.message as string) || "Chat billing failed.",
-          code: (c.reason as string) || "insufficient_credits",
-          balance: c.balance,
-          free_remaining: c.free_remaining,
-        }),
-        {
-          status: 402,
-          headers: { ...cors, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    let baseChatTurnRefunded = false;
-    const refundBaseChatTurn = async (reason: string, metadata: Record<string, unknown> = {}) => {
-      if (baseChatTurnRefunded) return;
-      baseChatTurnRefunded = true;
-      try {
-        await refundAiChatTurn({
-          serviceClient,
-          userId,
-          consumed,
-          reason,
-          metadata: {
-            refund_key: `${turnRefundKey}:base`,
-            mode,
-            requested_model: requestedModel || "default",
-            ...metadata,
-          },
-        });
-      } catch (refundError) {
-        console.error("AI chat base turn refund failed:", refundError);
-      }
-    };
+    // Model turns are metered strictly by token consumption via reserveAiUsage / settleAiUsage.
+    const refundBaseChatTurn = async (_reason?: string, _metadata?: Record<string, unknown>) => {};
 
     const genAI = createGeminiClient();
 
@@ -3734,6 +3678,7 @@ Edge functions:
                   round: 0,
                   enqueueEvent,
                   userId,
+                  serviceClient,
                 });
                 break; // success — stop trying models
               } catch (e) {
@@ -5426,6 +5371,7 @@ Edge functions:
                 round: toolRounds,
                 enqueueEvent,
                 userId,
+                serviceClient,
               });
             }
 
@@ -5444,27 +5390,18 @@ Edge functions:
             for (let mi = 0; mi < fallbackModels.length; mi++) {
               const askModel = fallbackModels[mi];
               const askRequestId = crypto.randomUUID();
-              const reservation = await reserveAiUsage({
+              const estInput = Math.max(1, Math.ceil(JSON.stringify(lastUserParts || "").length / 4));
+              await reserveAiUsage({
+                serviceClient,
                 userId,
                 requestId: askRequestId,
                 featureKey: "ai_chat",
                 provider: "gemini",
                 model: askModel,
-                estimatedCostNanos: estimatePreflightReservationNanos(
-                  JSON.stringify(lastUserParts || "").length,
-                  2048,
-                ),
+                estimatedInputTokens: estInput,
+                maxOutputTokens: 2048,
+                payload: lastUserParts,
               });
-
-              if (reservation && reservation.success === false) {
-                throw new MeteredAiLimitError({
-                  error: "AI_USAGE_LIMIT_REACHED",
-                  window: reservation.window || "rolling_24h",
-                  message: reservation.message || "You’ve reached your AI usage limit for this period.",
-                  resetsAt: reservation.resetsAt || null,
-                  resetsGradually: Boolean(reservation.resetsGradually),
-                });
-              }
 
               try {
                 if (mi > 0) {
@@ -5485,12 +5422,17 @@ Edge functions:
                   if (text) await enqueueEvent("message", { delta: text });
                 }
                 const usage = lastAskChunk?.usageMetadata;
-                const inputTokens = Math.max(0, Number(usage?.promptTokenCount || 0));
+                const inputTokens = Math.max(
+                  0,
+                  Number(usage?.promptTokenCount || 0) + Number(usage?.cachedContentTokenCount || 0),
+                );
                 const outputTokens = Math.max(
                   0,
-                  Number(usage?.candidatesTokenCount || 0) + Number(usage?.thinkingTokenCount || 0),
+                  Number(usage?.candidatesTokenCount || 0) +
+                    Number(usage?.thoughtsTokenCount || usage?.thinkingTokenCount || 0),
                 );
                 await settleAiUsage({
+                  serviceClient,
                   userId,
                   requestId: askRequestId,
                   inputTokens,
@@ -5501,6 +5443,7 @@ Edge functions:
                 break;
               } catch (e) {
                 await releaseAiUsage({
+                  serviceClient,
                   userId,
                   requestId: askRequestId,
                   reason: String((e as any)?.message || "ask_stream_error"),

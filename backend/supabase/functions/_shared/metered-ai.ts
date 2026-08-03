@@ -1,17 +1,35 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-export interface MeteredAiOptions {
+export interface MeteredAiReserveOptions {
+  serviceClient: SupabaseClient;
   userId: string;
   featureKey: string;
+  requestId?: string;
   provider?: string;
   model?: string;
   estimatedInputTokens?: number;
   estimatedOutputTokens?: number;
   maxOutputTokens?: number;
   parentRequestId?: string;
-  requestId?: string;
   payload?: any;
   metadata?: Record<string, any>;
+}
+
+export interface MeteredAiSettleOptions {
+  serviceClient: SupabaseClient;
+  userId: string;
+  requestId: string;
+  inputTokens: number;
+  outputTokens: number;
+  billable?: boolean;
+  metadata?: Record<string, any>;
+}
+
+export interface MeteredAiReleaseOptions {
+  serviceClient: SupabaseClient;
+  userId: string;
+  requestId: string;
+  reason?: string;
 }
 
 export class MeteredAiLimitError extends Error {
@@ -44,9 +62,7 @@ export async function hashPayload(payload: any): Promise<string> {
     .join("");
 }
 
-// Compute nanodollar preflight reservation cost
-// Input tokens: $0.50 per 1M (500 nanos/token)
-// Output tokens: $3.00 per 1M (3000 nanos/token)
+// Compute nanodollar preflight reservation cost ($0.50/1M input => 500 nanos, $3.00/1M output => 3000 nanos)
 export function estimatePreflightReservationNanos(
   inputTokens = 1000,
   outputTokens = 1024,
@@ -83,10 +99,9 @@ export function extractProviderTokenUsage(response: any): {
   };
 }
 
-// Exported reservation helper for manual/streaming calls
+// Unified Object-Based Reserve API
 export async function reserveAiUsage(
-  supabase: SupabaseClient,
-  options: MeteredAiOptions,
+  options: MeteredAiReserveOptions,
 ): Promise<{
   requestId: string;
   availableNanos: number;
@@ -100,7 +115,7 @@ export async function reserveAiUsage(
   const estimatedCostNanos = estimatePreflightReservationNanos(estInput, estOutput);
   const payloadHash = options.payload ? await hashPayload(options.payload) : null;
 
-  const { data: resData, error: resErr } = await supabase.rpc("reserve_ai_usage", {
+  const { data: resData, error: resErr } = await options.serviceClient.rpc("reserve_ai_usage", {
     p_user_id: options.userId,
     p_request_id: requestId,
     p_feature_key: options.featureKey,
@@ -135,19 +150,11 @@ export async function reserveAiUsage(
   };
 }
 
-// Exported settlement helper for manual/streaming calls
+// Unified Object-Based Settle API
 export async function settleAiUsage(
-  supabase: SupabaseClient,
-  options: {
-    userId: string;
-    requestId: string;
-    inputTokens: number;
-    outputTokens: number;
-    billable?: boolean;
-    metadata?: Record<string, any>;
-  },
+  options: MeteredAiSettleOptions,
 ): Promise<void> {
-  const { error } = await supabase.rpc("settle_ai_usage", {
+  const { error } = await options.serviceClient.rpc("settle_ai_usage", {
     p_user_id: options.userId,
     p_request_id: options.requestId,
     p_input_tokens: options.inputTokens,
@@ -158,19 +165,15 @@ export async function settleAiUsage(
 
   if (error) {
     console.error("[metered-ai] RPC settle error:", error);
+    throw new Error(`AI usage settlement failed: ${error.message}`);
   }
 }
 
-// Exported release helper for cancelled/failed calls
+// Unified Object-Based Release API
 export async function releaseAiUsage(
-  supabase: SupabaseClient,
-  options: {
-    userId: string;
-    requestId: string;
-    reason?: string;
-  },
+  options: MeteredAiReleaseOptions,
 ): Promise<void> {
-  const { error } = await supabase.rpc("release_ai_usage", {
+  const { error } = await options.serviceClient.rpc("release_ai_usage", {
     p_user_id: options.userId,
     p_request_id: options.requestId,
     p_reason: options.reason || "cancelled",
@@ -181,20 +184,67 @@ export async function releaseAiUsage(
   }
 }
 
-// Unified runMeteredAiCall helper
-export async function runMeteredAiCall<T>(
-  supabase: SupabaseClient,
-  options: MeteredAiOptions,
-  callFn: (meta: { requestId: string; maxOutputTokens: number }) => Promise<T>,
+// Explicitly Named Internal Unmetered System Call (for reviewed background system tasks ONLY)
+export async function runInternalUnmeteredAiCall<T>(
+  reason: string,
+  callFn: () => Promise<T>,
 ): Promise<T> {
+  console.info(`[metered-ai] System call bypassing metering: ${reason}`);
+  return await callFn();
+}
+
+// Unified runMeteredAiCall wrapper supporting object options or positional args
+export async function runMeteredAiCall<T>(
+  arg1: any,
+  arg2?: any,
+  arg3?: any,
+): Promise<T> {
+  let supabase: SupabaseClient;
+  let options: Omit<MeteredAiReserveOptions, "serviceClient">;
+  let callFn: (meta: { requestId: string; maxOutputTokens: number }) => Promise<T>;
+
+  if (arg1 && typeof arg1.rpc === "function") {
+    // Positional signature: (supabase, options, callFn)
+    supabase = arg1;
+    options = arg2;
+    callFn = arg3;
+  } else {
+    // Options object signature: ({ serviceClient, userId, featureKey, callFn, execute, promptTextLength, ... })
+    const opts = arg1;
+    supabase = opts.serviceClient;
+    options = {
+      userId: opts.userId,
+      featureKey: opts.featureKey,
+      provider: opts.provider,
+      model: opts.model,
+      estimatedInputTokens: opts.estimatedInputTokens || (opts.promptTextLength ? Math.ceil(opts.promptTextLength / 4) : 1000),
+      estimatedOutputTokens: opts.estimatedOutputTokens,
+      maxOutputTokens: opts.maxOutputTokens,
+      parentRequestId: opts.parentRequestId,
+      payload: opts.payload,
+      metadata: opts.metadata,
+    };
+    callFn = opts.callFn || (async (meta: any) => {
+      if (typeof opts.execute === "function") {
+        const execRes = await opts.execute(meta);
+        return execRes;
+      }
+      throw new Error("callFn or execute function required for runMeteredAiCall");
+    });
+  }
+
   const estOutput = options.estimatedOutputTokens || options.maxOutputTokens || 1024;
-  const { requestId, availableNanos } = await reserveAiUsage(supabase, options);
+  const { requestId, availableNanos } = await reserveAiUsage({
+    ...options,
+    serviceClient: supabase,
+  });
 
   let effectiveMaxOutputTokens = options.maxOutputTokens || estOutput;
   if (availableNanos > 0) {
     const maxAffordableOutput = Math.floor(availableNanos / 3000);
     if (maxAffordableOutput < 50) {
-      await releaseAiUsage(supabase, {
+      await releaseAiUsage({
+        serviceClient: supabase,
         userId: options.userId,
         requestId,
         reason: "insufficient_capacity_for_min_output",
@@ -210,15 +260,16 @@ export async function runMeteredAiCall<T>(
   }
 
   try {
-    const result = await callFn({
+    const rawResult = await callFn({
       requestId,
       maxOutputTokens: effectiveMaxOutputTokens,
     });
 
-    const tokenUsage = extractProviderTokenUsage(result);
+    const tokenUsage = extractProviderTokenUsage(rawResult);
     const estInput = options.estimatedInputTokens || 1000;
 
-    await settleAiUsage(supabase, {
+    await settleAiUsage({
+      serviceClient: supabase,
       userId: options.userId,
       requestId,
       inputTokens: tokenUsage.inputTokens > 0 ? tokenUsage.inputTokens : estInput,
@@ -231,10 +282,11 @@ export async function runMeteredAiCall<T>(
       },
     });
 
-    return result;
+    return rawResult as T;
   } catch (err: any) {
     const estInput = options.estimatedInputTokens || 1000;
-    await settleAiUsage(supabase, {
+    await settleAiUsage({
+      serviceClient: supabase,
       userId: options.userId,
       requestId,
       inputTokens: estInput,

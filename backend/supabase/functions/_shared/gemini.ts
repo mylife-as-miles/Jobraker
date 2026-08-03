@@ -163,6 +163,7 @@ export const createGeminiConfig = (
     responseMimeType?: string;
     includeTools?: boolean;
     thinkingLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+    maxOutputTokens?: number;
   },
   modelName?: string
 ) => {
@@ -187,6 +188,9 @@ export const createGeminiConfig = (
         role: "system",
         parts: [{ text: options.systemInstruction }]
       }
+    } : {}),
+    ...(typeof options?.maxOutputTokens === "number" && options.maxOutputTokens > 0 ? {
+      maxOutputTokens: options.maxOutputTokens
     } : {}),
   };
 };
@@ -297,6 +301,7 @@ import {
 
 export {
   runMeteredAiCall,
+  runInternalUnmeteredAiCall,
   estimatePreflightReservationNanos,
   reserveAiUsage,
   settleAiUsage,
@@ -325,16 +330,14 @@ export async function generateGeminiContent(
 
   if (options.userId) {
     const supabaseAdmin = getAdminSupabaseClient();
-    const result = await runMeteredAiCall(
-      supabaseAdmin,
-      {
-        userId: options.userId,
-        featureKey: options.featureKey || "general_ai",
-        model: targetModel,
-        maxOutputTokens: options.maxOutputTokens || 2048,
-        payload: { prompt },
-      },
-      async (meta) => {
+    const result = await runMeteredAiCall({
+      serviceClient: supabaseAdmin,
+      userId: options.userId,
+      featureKey: options.featureKey || "general_ai",
+      model: targetModel,
+      maxOutputTokens: options.maxOutputTokens || 2048,
+      payload: { prompt },
+      callFn: async (meta) => {
         const { result: rawResponse } = await withModelFallback(
           (model) =>
             ai.models.generateContent({
@@ -357,7 +360,7 @@ export async function generateGeminiContent(
         );
         return rawResponse;
       },
-    );
+    });
     return extractGeminiText(result);
   }
 
@@ -385,13 +388,22 @@ export async function generateGeminiContent(
 }
 
 export async function generateGeminiDescription(
-  jobData: any,
-  options: { userId?: string; featureKey?: string } = {},
+  jobTitle: string,
+  companyName: string,
+  location: string,
+  jobType: string,
+  options: { userId?: string; featureKey?: string; maxOutputTokens?: number } = {},
 ): Promise<string> {
-  const prompt = `Generate a concise job description for the following position: ${JSON.stringify(jobData)}`;
+  const prompt = `Write a professional, comprehensive job description for a ${jobTitle} position at ${companyName} located in ${location} (${jobType}).
+Include:
+- Role summary
+- Key responsibilities
+- Required qualifications & skills
+- Preferred qualifications`;
+
   return generateGeminiContent(prompt, {
     userId: options.userId,
     featureKey: options.featureKey || "job_description",
-    maxOutputTokens: 2048,
+    maxOutputTokens: options.maxOutputTokens || 2048,
   });
 }
