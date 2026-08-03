@@ -1,6 +1,14 @@
 
-import { GoogleGenAI } from "npm:@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "npm:@google/genai";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  runMeteredAiCall,
+  estimatePreflightReservationNanos,
+  reserveAiUsage,
+  settleAiUsage,
+  releaseAiUsage,
+  MeteredAiLimitError,
+} from "./metered-ai.ts";
 
 export const resolveGeminiApiKey = (): string => {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
@@ -139,7 +147,7 @@ export async function withModelFallback<T>(
       return { result, modelUsed: model };
     } catch (error) {
       lastError = error;
-      const msg = String(error?.message || error).toLowerCase();
+      const msg = String(error instanceof Error ? error.message : error).toLowerCase();
       const isNotFound = msg.includes("not found") || msg.includes("404");
       if (!isGeminiRateLimitError(error) && !isNotFound) {
         throw error; // non-retriable errors propagate immediately
@@ -167,6 +175,9 @@ export const createGeminiConfig = (
   },
   modelName?: string
 ) => {
+  const thinkingLevel = options?.thinkingLevel
+    ? ThinkingLevel[options.thinkingLevel]
+    : undefined;
   const supportsThinking = modelName ? (
     modelName.toLowerCase().includes("thinking") ||
     modelName.toLowerCase().includes("gemini-3") ||
@@ -176,9 +187,9 @@ export const createGeminiConfig = (
   ) : false;
 
   return {
-    ...(options?.thinkingLevel && supportsThinking ? {
+    ...(thinkingLevel && supportsThinking ? {
       thinkingConfig: {
-        thinkingLevel: options.thinkingLevel,
+        thinkingLevel,
       }
     } : {}),
     ...(options?.includeTools ? { tools: GEMINI_TOOLS } : {}),
@@ -235,11 +246,19 @@ export interface AiDescriptionResponse {
   technologies?: string[];
 }
 
+export interface GenerateGeminiDescriptionOptions {
+  /** The authenticated user that initiated the job-search enrichment. */
+  userId: string;
+  featureKey?: string;
+  maxOutputTokens?: number;
+}
+
 export const generateGeminiDescription = async (
   rawHtml: string,
   rawMarkdown: string,
   fallbackDescription: string,
   jobTitle: string,
+  options: GenerateGeminiDescriptionOptions,
 ): Promise<AiDescriptionResponse> => {
   const ai = createGeminiClient();
 
@@ -265,39 +284,45 @@ export const generateGeminiDescription = async (
   `;
 
   try {
-     const { result: response } = await withModelFallback(
-       (model) => ai.models.generateContent({
-          model,
-          config: createGeminiConfig({ systemInstruction: systemPrompt }),
-          contents: [
+    const response = await runMeteredAiCall({
+      serviceClient: getAdminSupabaseClient(),
+      userId: options.userId,
+      featureKey: options.featureKey || "job_search_enrichment",
+      model: GEMINI_MODEL,
+      promptTextLength: combinedContent.length,
+      maxOutputTokens: options.maxOutputTokens || 2_048,
+      payload: { jobTitle, rawHtml, rawMarkdown, fallbackDescription },
+      execute: async ({ maxOutputTokens }) => {
+        const { result } = await withModelFallback(
+          (model) => ai.models.generateContent({
+            model,
+            config: createGeminiConfig({
+              systemInstruction: systemPrompt,
+              responseMimeType: "application/json",
+              maxOutputTokens,
+            }, model),
+            contents: [
               {
-                  role: 'user',
-                  parts: [{ text: combinedContent }]
-              }
-          ]
-       }),
-     );
+                role: "user",
+                parts: [{ text: combinedContent }],
+              },
+            ],
+          }),
+          GEMINI_MODEL,
+        );
+        return result;
+      },
+    });
 
-     const text = extractGeminiText(response);
-     if (!text) throw new Error("Empty response from Gemini");
-     
-     return JSON.parse(text) as AiDescriptionResponse;
-
+    const text = extractGeminiText(response);
+    if (!text) throw new Error("Empty response from Gemini");
+    return JSON.parse(text) as AiDescriptionResponse;
   } catch (error) {
     console.error("Error calling Gemini API:", error);
-    throw new Error(`Failed to generate Gemini description: ${error.message}`);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to generate Gemini description: ${message}`);
   }
 };
-
-import {
-  runMeteredAiCall,
-  calculateAiCostNanos,
-  estimatePreflightReservationNanos,
-  reserveAiUsage,
-  settleAiUsage,
-  releaseAiUsage,
-  MeteredAiLimitError,
-} from "./metered-ai.ts";
 
 export {
   runMeteredAiCall,
@@ -337,7 +362,7 @@ export async function generateGeminiContent(
       model: targetModel,
       maxOutputTokens: options.maxOutputTokens || 2048,
       payload: { prompt },
-      callFn: async (meta) => {
+      execute: async (meta) => {
         const { result: rawResponse } = await withModelFallback(
           (model) =>
             ai.models.generateContent({
@@ -385,25 +410,4 @@ export async function generateGeminiContent(
   );
 
   return extractGeminiText(result);
-}
-
-export async function generateGeminiDescription(
-  jobTitle: string,
-  companyName: string,
-  location: string,
-  jobType: string,
-  options: { userId?: string; featureKey?: string; maxOutputTokens?: number } = {},
-): Promise<string> {
-  const prompt = `Write a professional, comprehensive job description for a ${jobTitle} position at ${companyName} located in ${location} (${jobType}).
-Include:
-- Role summary
-- Key responsibilities
-- Required qualifications & skills
-- Preferred qualifications`;
-
-  return generateGeminiContent(prompt, {
-    userId: options.userId,
-    featureKey: options.featureKey || "job_description",
-    maxOutputTokens: options.maxOutputTokens || 2048,
-  });
 }

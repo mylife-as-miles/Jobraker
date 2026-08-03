@@ -338,7 +338,13 @@ Deno.serve(async (req) => {
     const jobsToInsert = await Promise.all(filtered.map(async (item) => {
       let aiData;
       try {
-        aiData = await generateGeminiDescription(item.html, item.markdown, item.description, item.title || rawQuery);
+        aiData = await generateGeminiDescription(
+          item.html,
+          item.markdown,
+          item.description,
+          item.title || rawQuery,
+          { userId, featureKey: "job_search_enrichment" },
+        );
       } catch (e) {
         console.error('AI enrichment failed', e);
         const fallbackDescription = cleanJobDescription(item.markdown || item.description || '');
@@ -346,7 +352,7 @@ Deno.serve(async (req) => {
       }
 
       const rawTitle = item.title || rawQuery;
-      const formatted = await formatJobTitleAndDescriptionWithAi(rawTitle, aiData.description);
+      const formatted = await formatJobTitleAndDescriptionWithAi(rawTitle, aiData.description, userId);
 
       let expiresAt = null;
       if (item.deadline) {

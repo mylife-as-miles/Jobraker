@@ -1,4 +1,4 @@
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export interface MeteredAiReserveOptions {
   serviceClient: SupabaseClient;
@@ -11,8 +11,8 @@ export interface MeteredAiReserveOptions {
   estimatedOutputTokens?: number;
   maxOutputTokens?: number;
   parentRequestId?: string;
-  payload?: any;
-  metadata?: Record<string, any>;
+  payload?: unknown;
+  metadata?: Record<string, unknown>;
 }
 
 export interface MeteredAiSettleOptions {
@@ -22,7 +22,7 @@ export interface MeteredAiSettleOptions {
   inputTokens: number;
   outputTokens: number;
   billable?: boolean;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface MeteredAiReleaseOptions {
@@ -30,6 +30,39 @@ export interface MeteredAiReleaseOptions {
   userId: string;
   requestId: string;
   reason?: string;
+}
+
+export interface MeteredAiCallContext {
+  requestId: string;
+  maxOutputTokens: number;
+}
+
+/** The only supported public contract for a metered provider call. */
+export interface MeteredAiCallOptions<T> {
+  serviceClient?: SupabaseClient;
+  userId: string;
+  featureKey: string;
+  requestId?: string;
+  provider?: string;
+  model?: string;
+  estimatedInputTokens?: number;
+  estimatedOutputTokens?: number;
+  maxOutputTokens?: number;
+  promptTextLength?: number;
+  parentRequestId?: string;
+  payload?: unknown;
+  metadata?: Record<string, unknown>;
+  execute: (context: MeteredAiCallContext) => Promise<T>;
+}
+
+export class AiUsageSettlementError extends Error {
+  constructor(
+    message: string,
+    public readonly requestId: string,
+  ) {
+    super(message);
+    this.name = "AiUsageSettlementError";
+  }
 }
 
 export class MeteredAiLimitError extends Error {
@@ -52,7 +85,7 @@ export class MeteredAiLimitError extends Error {
 }
 
 // Compute SHA-256 payload hash server-side
-export async function hashPayload(payload: any): Promise<string> {
+export async function hashPayload(payload: unknown): Promise<string> {
   const str = typeof payload === "string" ? payload : JSON.stringify(payload || {});
   const encoder = new TextEncoder();
   const data = encoder.encode(str);
@@ -153,8 +186,8 @@ export async function reserveAiUsage(
 // Unified Object-Based Settle API
 export async function settleAiUsage(
   options: MeteredAiSettleOptions,
-): Promise<void> {
-  const { error } = await options.serviceClient.rpc("settle_ai_usage", {
+): Promise<Record<string, unknown>> {
+  const { data, error } = await options.serviceClient.rpc("settle_ai_usage", {
     p_user_id: options.userId,
     p_request_id: options.requestId,
     p_input_tokens: options.inputTokens,
@@ -165,8 +198,25 @@ export async function settleAiUsage(
 
   if (error) {
     console.error("[metered-ai] RPC settle error:", error);
-    throw new Error(`AI usage settlement failed: ${error.message}`);
+    throw new AiUsageSettlementError(
+      `AI usage settlement failed: ${error.message}`,
+      options.requestId,
+    );
   }
+
+  const result = data && typeof data === "object"
+    ? data as Record<string, unknown>
+    : null;
+  if (!result || result.success !== true) {
+    throw new AiUsageSettlementError(
+      typeof result?.message === "string"
+        ? `AI usage settlement rejected: ${result.message}`
+        : "AI usage settlement rejected",
+      options.requestId,
+    );
+  }
+
+  return result;
 }
 
 // Unified Object-Based Release API
@@ -193,53 +243,48 @@ export async function runInternalUnmeteredAiCall<T>(
   return await callFn();
 }
 
-// Unified runMeteredAiCall wrapper supporting object options or positional args
-export async function runMeteredAiCall<T>(
-  arg1: any,
-  arg2?: any,
-  arg3?: any,
-): Promise<T> {
-  let supabase: SupabaseClient;
-  let options: Omit<MeteredAiReserveOptions, "serviceClient">;
-  let callFn: (meta: { requestId: string; maxOutputTokens: number }) => Promise<T>;
+function getServiceClient(serviceClient?: SupabaseClient): SupabaseClient {
+  if (serviceClient) return serviceClient;
 
-  if (arg1 && typeof arg1.rpc === "function") {
-    // Positional signature: (supabase, options, callFn)
-    supabase = arg1;
-    options = arg2;
-    callFn = arg3;
-  } else {
-    // Options object signature: ({ serviceClient, userId, featureKey, callFn, execute, promptTextLength, ... })
-    const opts = arg1;
-    supabase = opts.serviceClient;
-    options = {
-      userId: opts.userId,
-      featureKey: opts.featureKey,
-      provider: opts.provider,
-      model: opts.model,
-      estimatedInputTokens: opts.estimatedInputTokens || (opts.promptTextLength ? Math.ceil(opts.promptTextLength / 4) : 1000),
-      estimatedOutputTokens: opts.estimatedOutputTokens,
-      maxOutputTokens: opts.maxOutputTokens,
-      parentRequestId: opts.parentRequestId,
-      payload: opts.payload,
-      metadata: opts.metadata,
-    };
-    callFn = opts.callFn || (async (meta: any) => {
-      if (typeof opts.execute === "function") {
-        const execRes = await opts.execute(meta);
-        return execRes;
-      }
-      throw new Error("callFn or execute function required for runMeteredAiCall");
-    });
+  const url = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !serviceRoleKey) {
+    throw new Error("Missing Supabase service credentials for AI usage metering.");
   }
+  return createClient(url, serviceRoleKey);
+}
 
-  const estOutput = options.estimatedOutputTokens || options.maxOutputTokens || 1024;
+function logCriticalReconciliation(details: Record<string, unknown>): void {
+  console.error(
+    "[metered-ai] CRITICAL_RECONCILIATION_REQUIRED",
+    JSON.stringify({ event: "ai_usage_reconciliation_required", ...details }),
+  );
+}
+
+// Unified, object-only metering wrapper. Provider and ledger failures are deliberately separate.
+export async function runMeteredAiCall<T>(
+  options: MeteredAiCallOptions<T>,
+): Promise<T> {
+  const supabase = getServiceClient(options.serviceClient);
+  const estimatedInputTokens = options.estimatedInputTokens
+    ?? (options.promptTextLength !== undefined ? Math.ceil(options.promptTextLength / 4) : 1000);
+  const estOutput = options.estimatedOutputTokens ?? options.maxOutputTokens ?? 1024;
   const { requestId, availableNanos } = await reserveAiUsage({
-    ...options,
     serviceClient: supabase,
+    userId: options.userId,
+    featureKey: options.featureKey,
+    requestId: options.requestId,
+    provider: options.provider,
+    model: options.model,
+    estimatedInputTokens,
+    estimatedOutputTokens: options.estimatedOutputTokens,
+    maxOutputTokens: options.maxOutputTokens,
+    parentRequestId: options.parentRequestId,
+    payload: options.payload,
+    metadata: options.metadata,
   });
 
-  let effectiveMaxOutputTokens = options.maxOutputTokens || estOutput;
+  let effectiveMaxOutputTokens = options.maxOutputTokens ?? estOutput;
   if (availableNanos > 0) {
     const maxAffordableOutput = Math.floor(availableNanos / 3000);
     if (maxAffordableOutput < 50) {
@@ -259,44 +304,77 @@ export async function runMeteredAiCall<T>(
     effectiveMaxOutputTokens = Math.min(effectiveMaxOutputTokens, maxAffordableOutput);
   }
 
+  let rawResult: T;
   try {
-    const rawResult = await callFn({
+    rawResult = await options.execute({
       requestId,
       maxOutputTokens: effectiveMaxOutputTokens,
     });
-
-    const tokenUsage = extractProviderTokenUsage(rawResult);
-    const estInput = options.estimatedInputTokens || 1000;
-
+  } catch (providerError) {
     await settleAiUsage({
       serviceClient: supabase,
       userId: options.userId,
       requestId,
-      inputTokens: tokenUsage.inputTokens > 0 ? tokenUsage.inputTokens : estInput,
-      outputTokens: tokenUsage.outputTokens > 0 ? tokenUsage.outputTokens : estOutput,
-      billable: true,
-      metadata: {
-        ...(options.metadata || {}),
-        settled_model: options.model || "gemini-3-flash-preview",
-        extracted_usage: tokenUsage,
-      },
-    });
-
-    return rawResult as T;
-  } catch (err: any) {
-    const estInput = options.estimatedInputTokens || 1000;
-    await settleAiUsage({
-      serviceClient: supabase,
-      userId: options.userId,
-      requestId,
-      inputTokens: estInput,
+      inputTokens: estimatedInputTokens,
       outputTokens: 0,
       billable: false,
       metadata: {
-        ...(options.metadata || {}),
-        error: err?.message || String(err),
+        ...(options.metadata ?? {}),
+        provider_error: providerError instanceof Error
+          ? providerError.message
+          : String(providerError),
+      },
+    }).catch((settlementError) => {
+      logCriticalReconciliation({
+        request_id: requestId,
+        user_id: options.userId,
+        feature_key: options.featureKey,
+        provider_succeeded: false,
+        settlement_error: settlementError instanceof Error
+          ? settlementError.message
+          : String(settlementError),
+      });
+    });
+    throw providerError;
+  }
+
+  const tokenUsage = extractProviderTokenUsage(rawResult);
+  const inputTokens = tokenUsage.inputTokens > 0 ? tokenUsage.inputTokens : estimatedInputTokens;
+  const outputTokens = tokenUsage.outputTokens > 0 ? tokenUsage.outputTokens : estOutput;
+
+  try {
+    await settleAiUsage({
+      serviceClient: supabase,
+      userId: options.userId,
+      requestId,
+      inputTokens,
+      outputTokens,
+      billable: true,
+      metadata: {
+        ...(options.metadata ?? {}),
+        settled_model: options.model ?? "gemini-3-flash-preview",
+        extracted_usage: tokenUsage,
       },
     });
-    throw err;
+  } catch (settlementError) {
+    // Explicit policy: fail the user-visible operation and emit a durable structured log for reconciliation.
+    // Never write a second, non-billable settlement after a successful provider call.
+    logCriticalReconciliation({
+      request_id: requestId,
+      user_id: options.userId,
+      feature_key: options.featureKey,
+      provider_succeeded: true,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      settlement_error: settlementError instanceof Error
+        ? settlementError.message
+        : String(settlementError),
+    });
+    throw new AiUsageSettlementError(
+      "AI provider completed but usage settlement failed; reconciliation is required.",
+      requestId,
+    );
   }
+
+  return rawResult;
 }
