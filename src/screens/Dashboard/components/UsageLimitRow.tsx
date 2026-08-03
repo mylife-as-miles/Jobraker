@@ -7,20 +7,55 @@ interface UsageLimitRowProps {
   status: WindowUsageStatus;
 }
 
-export const formatResetDate = (isoString: string | null, isRolling: boolean): string => {
-  if (isRolling) return "Resets gradually";
-  if (!isoString) return "Resets next period";
+export const formatResetDate = (
+  isoString: string | null,
+  isRolling: boolean,
+  nextAvailabilityAt?: string | null,
+): string => {
+  const targetIso = nextAvailabilityAt || isoString;
+  if (!targetIso) {
+    return isRolling ? "Resets gradually" : "Resets next period";
+  }
 
   try {
-    const d = new Date(isoString);
-    if (isNaN(d.getTime())) return "Resets next period";
+    const targetDate = new Date(targetIso);
+    const now = new Date();
+    const diffMs = targetDate.getTime() - now.getTime();
 
-    // Format like "9 Aug" or "1 Sep"
-    const day = d.getDate();
-    const month = d.toLocaleDateString(undefined, { month: "short" });
-    return `Resets ${day} ${month}`;
+    if (isNaN(targetDate.getTime())) {
+      return isRolling ? "Resets gradually" : "Resets next period";
+    }
+
+    if (diffMs > 0) {
+      const diffMins = Math.ceil(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMins / 60);
+      const remainingMins = diffMins % 60;
+
+      if (diffHours >= 24 * 7) {
+        const day = targetDate.getDate();
+        const month = targetDate.toLocaleDateString(undefined, { month: "short" });
+        return `Resets ${day} ${month}`;
+      } else if (diffHours >= 24) {
+        const days = Math.ceil(diffHours / 24);
+        return `Resets in ${days} day${days > 1 ? "s" : ""}`;
+      } else if (diffHours > 0) {
+        if (remainingMins > 0 && diffHours < 5) {
+          return `Resets in ${diffHours}h ${remainingMins}m`;
+        }
+        return `Resets in ${diffHours} hour${diffHours > 1 ? "s" : ""}`;
+      } else {
+        return `Resets in ${diffMins} min${diffMins > 1 ? "s" : ""}`;
+      }
+    } else {
+      if (!isRolling) {
+        const day = targetDate.getDate();
+        const month = targetDate.toLocaleDateString(undefined, { month: "short" });
+        return `Resets ${day} ${month}`;
+      }
+      return "Resets gradually";
+    }
   } catch {
-    return "Resets next period";
+    return isRolling ? "Resets gradually" : "Resets next period";
   }
 };
 
@@ -30,7 +65,13 @@ export const UsageLimitRow: React.FC<UsageLimitRowProps> = ({
   status,
 }) => {
   const percentLeft = Math.min(100, Math.max(0, status.percentLeft));
-  const subtitle = subtitleFallback || formatResetDate(status.resetsAt, status.resetsGradually);
+  const isRolling = Boolean(status.resetsGradually);
+  const calculatedSubtitle = formatResetDate(
+    status.resetsAt,
+    isRolling,
+    status.nextAvailabilityAt,
+  );
+  const subtitle = subtitleFallback || calculatedSubtitle;
 
   return (
     <div className="py-4 border-b border-border/40 last:border-b-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

@@ -1,6 +1,6 @@
 import React from "react";
 import { useAiUsageLimits } from "../../../hooks/useAiUsageLimits";
-import { UsageLimitRow } from "./UsageLimitRow";
+import { UsageLimitRow, formatResetDate } from "./UsageLimitRow";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Button } from "../../../components/ui/button";
 import { RefreshCw, AlertCircle } from "lucide-react";
@@ -103,7 +103,6 @@ export const AiUsageLimitsPanel: React.FC = () => {
       <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm divide-y divide-border/40">
         <UsageLimitRow
           label="24-hour usage limit"
-          subtitleFallback="Resets gradually"
           status={rolling}
         />
         <UsageLimitRow
@@ -121,17 +120,17 @@ export const AiUsageLimitsPanel: React.FC = () => {
           <p className="font-semibold">Limit Reached</p>
           {rolling.percentLeft === 0 && (
             <p>
-              Your 24-hour rolling usage limit is currently exhausted. Capacity becomes available gradually as earlier usage leaves the 24-hour window.
+              Your 24-hour rolling usage limit is currently exhausted. Capacity becomes available gradually ({formatResetDate(rolling.resetsAt, true, rolling.nextAvailabilityAt).toLowerCase()}).
             </p>
           )}
           {weekly.percentLeft === 0 && (
             <p>
-              Your weekly usage limit is exhausted. Usage will reset at the start of your next weekly billing window.
+              Your weekly usage limit is exhausted. Usage will reset at the start of your next weekly billing window ({formatResetDate(weekly.resetsAt, false).toLowerCase()}).
             </p>
           )}
           {monthly.percentLeft === 0 && (
             <p>
-              Your monthly usage limit is exhausted. Usage will reset at the start of your next monthly billing cycle.
+              Your monthly usage limit is exhausted. Usage will reset at the start of your next monthly billing cycle ({formatResetDate(monthly.resetsAt, false).toLowerCase()}).
             </p>
           )}
         </div>
