@@ -77,7 +77,7 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Basics", "AI resume optimization");
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Free", "AI resume optimization");
     await enforceFeatureRateLimit({
       userId: user.id,
       featureKey: "tailor_resume",

@@ -150,7 +150,7 @@ export const CoverLetterBuilderPage = () => {
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasCoverLetterAiAccess = hasSubscriptionAccess(
     subscriptionTier,
-    "Basics",
+    "Free",
   );
   const [exportOpen, setExportOpen] = useState(false);
   const [exportBusy, setExportBusy] = useState<string | null>(null);

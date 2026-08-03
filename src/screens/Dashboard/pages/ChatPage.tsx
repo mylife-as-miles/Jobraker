@@ -1974,7 +1974,7 @@ export const ChatPage = () => {
     };
   }, [attachmentPreviewUrls]);
 
-  const hasChatAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
+  const hasChatAccess = hasSubscriptionAccess(subscriptionTier, "Free");
 
   const [chatQuota, setChatQuota] = useState<{
     free_remaining: number;

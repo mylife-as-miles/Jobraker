@@ -77,7 +77,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const navigate = useNavigate();
   const { success, error: toastError, info } = useToast();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
-  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
+  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Free");
   const { save: persistResume } = useResumePersistence(resumeId);
   const { downloadPdf, exporting } = useResumeExport((message) => {
     toastError("PDF export failed", message);

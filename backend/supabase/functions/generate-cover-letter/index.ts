@@ -135,7 +135,7 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Basics", "AI cover letter generation");
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Free", "AI cover letter generation");
     await enforceFeatureRateLimit({
       userId: user.id,
       featureKey: "generate_cover_letter",

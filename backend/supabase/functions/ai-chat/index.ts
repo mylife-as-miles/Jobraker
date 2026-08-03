@@ -3196,7 +3196,7 @@ Deno.serve(async (req) => {
       model: requestedModel,
       webSearch = false,
     } = body;
-    const { authHeader, user, subscriptionTier } = await requireSubscriptionTier(req, "Pro", "AI chat");
+    const { authHeader, user, subscriptionTier } = await requireSubscriptionTier(req, "Free", "AI chat");
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "Messages are required" }), {

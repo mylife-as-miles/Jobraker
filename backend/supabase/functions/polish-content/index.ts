@@ -177,7 +177,7 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Basics", "AI writing tools");
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Free", "AI writing tools");
     await enforceFeatureRateLimit({
       userId: user.id,
       featureKey: "polish_content",
