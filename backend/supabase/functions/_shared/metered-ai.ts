@@ -13,6 +13,7 @@ export interface MeteredAiReserveOptions {
   parentRequestId?: string;
   payload?: unknown;
   metadata?: Record<string, unknown>;
+  reservationTtlSeconds?: number;
 }
 
 export interface MeteredAiSettleOptions {
@@ -37,7 +38,6 @@ export interface MeteredAiCallContext {
   maxOutputTokens: number;
 }
 
-/** The only supported public contract for a metered provider call. */
 export interface MeteredAiCallOptions<T> {
   serviceClient?: SupabaseClient;
   userId: string;
@@ -52,7 +52,16 @@ export interface MeteredAiCallOptions<T> {
   parentRequestId?: string;
   payload?: unknown;
   metadata?: Record<string, unknown>;
+  reservationTtlSeconds?: number;
   execute: (context: MeteredAiCallContext) => Promise<T>;
+}
+
+export interface ProviderTokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  hasProviderUsage: boolean;
+  usageSource: "provider" | "missing";
 }
 
 export class AiUsageSettlementError extends Error {
@@ -62,6 +71,18 @@ export class AiUsageSettlementError extends Error {
   ) {
     super(message);
     this.name = "AiUsageSettlementError";
+  }
+}
+
+export class AiUsageIdempotencyError extends Error {
+  constructor(
+    message: string,
+    public readonly requestId: string,
+    public readonly code: string,
+    public readonly status: string | null,
+  ) {
+    super(message);
+    this.name = "AiUsageIdempotencyError";
   }
 }
 
@@ -84,18 +105,18 @@ export class MeteredAiLimitError extends Error {
   }
 }
 
-// Compute SHA-256 payload hash server-side
 export async function hashPayload(payload: unknown): Promise<string> {
-  const str = typeof payload === "string" ? payload : JSON.stringify(payload || {});
+  const serialized = typeof payload === "string"
+    ? payload
+    : JSON.stringify(payload ?? {});
   const encoder = new TextEncoder();
-  const data = encoder.encode(str);
+  const data = encoder.encode(serialized);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
 }
 
-// Compute nanodollar preflight reservation cost ($0.50/1M input => 500 nanos, $3.00/1M output => 3000 nanos)
 export function estimatePreflightReservationNanos(
   inputTokens = 1000,
   outputTokens = 1024,
@@ -105,85 +126,169 @@ export function estimatePreflightReservationNanos(
   return input * 500n + output * 3000n;
 }
 
-// Extract provider token usage metadata from Gemini response object
-export function extractProviderTokenUsage(response: any): {
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-} {
-  const usage = response?.usageMetadata || response?.response?.usageMetadata || {};
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object"
+    ? value as Record<string, unknown>
+    : null;
+}
 
-  const promptTokenCount = Number(usage.promptTokenCount || 0);
-  const cachedContentTokenCount = Number(usage.cachedContentTokenCount || 0);
-  const candidatesTokenCount = Number(usage.candidatesTokenCount || 0);
-  const thoughtsTokenCount = Number(
-    usage.thoughtsTokenCount || usage.thinkingTokenCount || 0,
+function readFiniteNonNegativeNumber(
+  source: Record<string, unknown>,
+  key: string,
+): number {
+  const value = Number(source[key] ?? 0);
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+export function extractProviderTokenUsage(response: unknown): ProviderTokenUsage {
+  const responseRecord = asRecord(response);
+  const nestedResponse = asRecord(responseRecord?.response);
+  const usage = asRecord(responseRecord?.usageMetadata)
+    ?? asRecord(nestedResponse?.usageMetadata);
+
+  if (!usage) {
+    return {
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      hasProviderUsage: false,
+      usageSource: "missing",
+    };
+  }
+
+  const knownUsageKeys = [
+    "promptTokenCount",
+    "cachedContentTokenCount",
+    "candidatesTokenCount",
+    "thoughtsTokenCount",
+    "thinkingTokenCount",
+    "totalTokenCount",
+  ];
+  const hasProviderUsage = knownUsageKeys.some((key) => key in usage);
+
+  const promptTokenCount = readFiniteNonNegativeNumber(usage, "promptTokenCount");
+  const cachedContentTokenCount = readFiniteNonNegativeNumber(
+    usage,
+    "cachedContentTokenCount",
   );
-  const totalTokenCount = Number(usage.totalTokenCount || 0);
+  const candidatesTokenCount = readFiniteNonNegativeNumber(
+    usage,
+    "candidatesTokenCount",
+  );
+  const thoughtsTokenCount = Math.max(
+    readFiniteNonNegativeNumber(usage, "thoughtsTokenCount"),
+    readFiniteNonNegativeNumber(usage, "thinkingTokenCount"),
+  );
+  const totalTokenCount = readFiniteNonNegativeNumber(usage, "totalTokenCount");
 
-  const inputTokens = promptTokenCount + cachedContentTokenCount;
-  const outputTokens = candidatesTokenCount + thoughtsTokenCount;
+  const inputTokens = Math.floor(promptTokenCount + cachedContentTokenCount);
+  const outputTokens = Math.floor(candidatesTokenCount + thoughtsTokenCount);
   const computedTotal = inputTokens + outputTokens;
 
   return {
     inputTokens,
     outputTokens,
-    totalTokens: totalTokenCount > 0 ? totalTokenCount : computedTotal,
+    totalTokens: Math.floor(totalTokenCount > 0 ? totalTokenCount : computedTotal),
+    hasProviderUsage,
+    usageSource: hasProviderUsage ? "provider" : "missing",
   };
 }
 
-// Unified Object-Based Reserve API
 export async function reserveAiUsage(
   options: MeteredAiReserveOptions,
 ): Promise<{
   requestId: string;
   availableNanos: number;
+  idempotent: boolean;
+  status: string;
 }> {
-  const requestId = options.requestId || crypto.randomUUID();
-  const provider = options.provider || "gemini";
-  const model = options.model || "gemini-3-flash-preview";
+  const requestId = options.requestId ?? crypto.randomUUID();
+  const provider = options.provider ?? "gemini";
+  const model = options.model ?? "gemini-3-flash-preview";
+  const estimatedInputTokens = options.estimatedInputTokens ?? 1000;
+  const estimatedOutputTokens = options.estimatedOutputTokens
+    ?? options.maxOutputTokens
+    ?? 1024;
+  const estimatedCostNanos = estimatePreflightReservationNanos(
+    estimatedInputTokens,
+    estimatedOutputTokens,
+  );
+  const payloadHash = options.payload === undefined
+    ? null
+    : await hashPayload(options.payload);
+  const metadata: Record<string, unknown> = {
+    ...(options.metadata ?? {}),
+  };
+  if (options.reservationTtlSeconds !== undefined) {
+    metadata.reservation_ttl_seconds = options.reservationTtlSeconds;
+  }
 
-  const estInput = options.estimatedInputTokens || 1000;
-  const estOutput = options.estimatedOutputTokens || options.maxOutputTokens || 1024;
-  const estimatedCostNanos = estimatePreflightReservationNanos(estInput, estOutput);
-  const payloadHash = options.payload ? await hashPayload(options.payload) : null;
-
-  const { data: resData, error: resErr } = await options.serviceClient.rpc("reserve_ai_usage", {
+  const { data, error } = await options.serviceClient.rpc("reserve_ai_usage", {
     p_user_id: options.userId,
     p_request_id: requestId,
     p_feature_key: options.featureKey,
     p_provider: provider,
     p_model: model,
     p_estimated_cost_nanos: Number(estimatedCostNanos),
-    p_parent_request_id: options.parentRequestId || null,
+    p_parent_request_id: options.parentRequestId ?? null,
     p_payload_hash: payloadHash,
-    p_metadata: options.metadata || {},
+    p_metadata: metadata,
   });
 
-  if (resErr) {
-    console.error("[metered-ai] RPC reserve error:", resErr);
-    throw new Error(`AI usage reservation failed: ${resErr.message}`);
+  if (error) {
+    console.error("[metered-ai] RPC reserve error:", error);
+    throw new Error(`AI usage reservation failed: ${error.message}`);
   }
 
-  if (!resData || !resData.success) {
-    if (resData?.error === "AI_USAGE_LIMIT_REACHED") {
+  const result = asRecord(data);
+  if (!result || result.success !== true) {
+    const code = typeof result?.error === "string"
+      ? result.error
+      : "AI_USAGE_RESERVATION_REJECTED";
+    const message = typeof result?.message === "string"
+      ? result.message
+      : "AI usage reservation rejected";
+
+    if (code === "AI_USAGE_LIMIT_REACHED") {
+      const rawWindow = typeof result?.window === "string"
+        ? result.window
+        : "rolling_24h";
+      const window = rawWindow === "weekly" || rawWindow === "monthly"
+        ? rawWindow
+        : "rolling_24h";
       throw new MeteredAiLimitError(
-        resData.message || "You’ve reached your AI usage limit for this period.",
-        resData.window || "rolling_24h",
-        resData.resetsAt || null,
-        Boolean(resData.resetsGradually),
+        message,
+        window,
+        typeof result?.resetsAt === "string" ? result.resetsAt : null,
+        Boolean(result?.resetsGradually),
       );
     }
-    throw new Error(resData?.message || "AI usage reservation rejected");
+
+    if (
+      code === "AI_REQUEST_IN_PROGRESS"
+      || code === "AI_REQUEST_ALREADY_COMPLETED"
+      || code === "AI_REQUEST_EXPIRED"
+      || code === "INVALID_REQUEST_ID_REUSE"
+    ) {
+      throw new AiUsageIdempotencyError(
+        message,
+        requestId,
+        code,
+        typeof result?.status === "string" ? result.status : null,
+      );
+    }
+
+    throw new Error(message);
   }
 
   return {
     requestId,
-    availableNanos: Number(resData.available_nanos ?? 0),
+    availableNanos: Number(result.available_nanos ?? 0),
+    idempotent: result.idempotent === true,
+    status: typeof result.status === "string" ? result.status : "reserved",
   };
 }
 
-// Unified Object-Based Settle API
 export async function settleAiUsage(
   options: MeteredAiSettleOptions,
 ): Promise<Record<string, unknown>> {
@@ -193,7 +298,7 @@ export async function settleAiUsage(
     p_input_tokens: options.inputTokens,
     p_output_tokens: options.outputTokens,
     p_billable: options.billable ?? true,
-    p_metadata: options.metadata || {},
+    p_metadata: options.metadata ?? {},
   });
 
   if (error) {
@@ -204,9 +309,7 @@ export async function settleAiUsage(
     );
   }
 
-  const result = data && typeof data === "object"
-    ? data as Record<string, unknown>
-    : null;
+  const result = asRecord(data);
   if (!result || result.success !== true) {
     throw new AiUsageSettlementError(
       typeof result?.message === "string"
@@ -219,22 +322,26 @@ export async function settleAiUsage(
   return result;
 }
 
-// Unified Object-Based Release API
 export async function releaseAiUsage(
   options: MeteredAiReleaseOptions,
 ): Promise<void> {
-  const { error } = await options.serviceClient.rpc("release_ai_usage", {
+  const { data, error } = await options.serviceClient.rpc("release_ai_usage", {
     p_user_id: options.userId,
     p_request_id: options.requestId,
-    p_reason: options.reason || "cancelled",
+    p_reason: options.reason ?? "cancelled",
   });
 
   if (error) {
     console.error("[metered-ai] RPC release error:", error);
+    throw new Error(`AI usage release failed: ${error.message}`);
+  }
+
+  const result = asRecord(data);
+  if (!result || result.success !== true) {
+    throw new Error("AI usage release was rejected");
   }
 }
 
-// Explicitly Named Internal Unmetered System Call (for reviewed background system tasks ONLY)
 export async function runInternalUnmeteredAiCall<T>(
   reason: string,
   callFn: () => Promise<T>,
@@ -261,16 +368,20 @@ function logCriticalReconciliation(details: Record<string, unknown>): void {
   );
 }
 
-// Unified, object-only metering wrapper. Provider and ledger failures are deliberately separate.
 export async function runMeteredAiCall<T>(
   options: MeteredAiCallOptions<T>,
 ): Promise<T> {
-  const supabase = getServiceClient(options.serviceClient);
+  const serviceClient = getServiceClient(options.serviceClient);
   const estimatedInputTokens = options.estimatedInputTokens
-    ?? (options.promptTextLength !== undefined ? Math.ceil(options.promptTextLength / 4) : 1000);
-  const estOutput = options.estimatedOutputTokens ?? options.maxOutputTokens ?? 1024;
-  const { requestId, availableNanos } = await reserveAiUsage({
-    serviceClient: supabase,
+    ?? (options.promptTextLength !== undefined
+      ? Math.max(1, Math.ceil(options.promptTextLength / 4))
+      : 1000);
+  const estimatedOutputTokens = options.estimatedOutputTokens
+    ?? options.maxOutputTokens
+    ?? 1024;
+
+  const reservation = await reserveAiUsage({
+    serviceClient,
     userId: options.userId,
     featureKey: options.featureKey,
     requestId: options.requestId,
@@ -282,88 +393,157 @@ export async function runMeteredAiCall<T>(
     parentRequestId: options.parentRequestId,
     payload: options.payload,
     metadata: options.metadata,
+    reservationTtlSeconds: options.reservationTtlSeconds,
   });
 
-  let effectiveMaxOutputTokens = options.maxOutputTokens ?? estOutput;
-  if (availableNanos > 0) {
-    const maxAffordableOutput = Math.floor(availableNanos / 3000);
-    if (maxAffordableOutput < 50) {
+  if (reservation.idempotent || reservation.status !== "reserved") {
+    throw new AiUsageIdempotencyError(
+      `AI request ${reservation.requestId} is already in ${reservation.status} state.`,
+      reservation.requestId,
+      "AI_REQUEST_ALREADY_EXISTS",
+      reservation.status,
+    );
+  }
+
+  const estimatedInputCostNanos = estimatedInputTokens * 500;
+  const affordableOutputBudgetNanos = Math.max(
+    0,
+    reservation.availableNanos - estimatedInputCostNanos,
+  );
+  const maxAffordableOutputTokens = Math.floor(affordableOutputBudgetNanos / 3000);
+  let effectiveMaxOutputTokens = options.maxOutputTokens ?? estimatedOutputTokens;
+
+  if (maxAffordableOutputTokens < 50) {
+    try {
       await releaseAiUsage({
-        serviceClient: supabase,
+        serviceClient,
         userId: options.userId,
-        requestId,
+        requestId: reservation.requestId,
         reason: "insufficient_capacity_for_min_output",
       });
-      throw new MeteredAiLimitError(
-        "You’ve reached your AI usage limit for this period.",
-        "rolling_24h",
-        null,
-        true,
-      );
+    } catch (releaseError) {
+      logCriticalReconciliation({
+        request_id: reservation.requestId,
+        user_id: options.userId,
+        feature_key: options.featureKey,
+        provider_succeeded: false,
+        release_error: releaseError instanceof Error
+          ? releaseError.message
+          : String(releaseError),
+      });
     }
-    effectiveMaxOutputTokens = Math.min(effectiveMaxOutputTokens, maxAffordableOutput);
+    throw new MeteredAiLimitError(
+      "You’ve reached your AI usage limit for this period.",
+      "rolling_24h",
+      null,
+      true,
+    );
   }
+  effectiveMaxOutputTokens = Math.min(
+    effectiveMaxOutputTokens,
+    maxAffordableOutputTokens,
+  );
 
   let rawResult: T;
   try {
     rawResult = await options.execute({
-      requestId,
+      requestId: reservation.requestId,
       maxOutputTokens: effectiveMaxOutputTokens,
     });
   } catch (providerError) {
-    await settleAiUsage({
-      serviceClient: supabase,
-      userId: options.userId,
-      requestId,
-      inputTokens: estimatedInputTokens,
-      outputTokens: 0,
-      billable: false,
-      metadata: {
-        ...(options.metadata ?? {}),
-        provider_error: providerError instanceof Error
-          ? providerError.message
-          : String(providerError),
-      },
-    }).catch((settlementError) => {
+    const failedUsage = extractProviderTokenUsage(providerError);
+    try {
+      if (
+        failedUsage.hasProviderUsage
+        && (failedUsage.inputTokens > 0 || failedUsage.outputTokens > 0)
+      ) {
+        await settleAiUsage({
+          serviceClient,
+          userId: options.userId,
+          requestId: reservation.requestId,
+          inputTokens: failedUsage.inputTokens,
+          outputTokens: failedUsage.outputTokens,
+          billable: false,
+          metadata: {
+            ...(options.metadata ?? {}),
+            usage_source: "provider",
+            provider_usage_confirmed: true,
+            provider_succeeded: false,
+            provider_error: providerError instanceof Error
+              ? providerError.message
+              : String(providerError),
+          },
+        });
+      } else {
+        await releaseAiUsage({
+          serviceClient,
+          userId: options.userId,
+          requestId: reservation.requestId,
+          reason: providerError instanceof Error
+            ? providerError.message
+            : "provider_error_without_usage_metadata",
+        });
+      }
+    } catch (ledgerError) {
       logCriticalReconciliation({
-        request_id: requestId,
+        request_id: reservation.requestId,
         user_id: options.userId,
         feature_key: options.featureKey,
         provider_succeeded: false,
-        settlement_error: settlementError instanceof Error
-          ? settlementError.message
-          : String(settlementError),
+        provider_usage_confirmed: failedUsage.hasProviderUsage,
+        ledger_error: ledgerError instanceof Error
+          ? ledgerError.message
+          : String(ledgerError),
       });
-    });
+    }
     throw providerError;
   }
 
   const tokenUsage = extractProviderTokenUsage(rawResult);
-  const inputTokens = tokenUsage.inputTokens > 0 ? tokenUsage.inputTokens : estimatedInputTokens;
-  const outputTokens = tokenUsage.outputTokens > 0 ? tokenUsage.outputTokens : estOutput;
+  const providerUsageConfirmed = tokenUsage.hasProviderUsage;
+  const inputTokens = providerUsageConfirmed
+    ? tokenUsage.inputTokens
+    : estimatedInputTokens;
+  const outputTokens = providerUsageConfirmed
+    ? tokenUsage.outputTokens
+    : effectiveMaxOutputTokens;
+
+  if (!providerUsageConfirmed) {
+    logCriticalReconciliation({
+      request_id: reservation.requestId,
+      user_id: options.userId,
+      feature_key: options.featureKey,
+      provider_succeeded: true,
+      provider_usage_confirmed: false,
+      estimated_input_tokens: inputTokens,
+      estimated_output_tokens: outputTokens,
+      reason: "provider_usage_metadata_missing",
+    });
+  }
 
   try {
     await settleAiUsage({
-      serviceClient: supabase,
+      serviceClient,
       userId: options.userId,
-      requestId,
+      requestId: reservation.requestId,
       inputTokens,
       outputTokens,
       billable: true,
       metadata: {
         ...(options.metadata ?? {}),
         settled_model: options.model ?? "gemini-3-flash-preview",
+        usage_source: providerUsageConfirmed ? "provider" : "estimated",
+        provider_usage_confirmed: providerUsageConfirmed,
         extracted_usage: tokenUsage,
       },
     });
   } catch (settlementError) {
-    // Explicit policy: fail the user-visible operation and emit a durable structured log for reconciliation.
-    // Never write a second, non-billable settlement after a successful provider call.
     logCriticalReconciliation({
-      request_id: requestId,
+      request_id: reservation.requestId,
       user_id: options.userId,
       feature_key: options.featureKey,
       provider_succeeded: true,
+      provider_usage_confirmed: providerUsageConfirmed,
       input_tokens: inputTokens,
       output_tokens: outputTokens,
       settlement_error: settlementError instanceof Error
@@ -372,7 +552,7 @@ export async function runMeteredAiCall<T>(
     });
     throw new AiUsageSettlementError(
       "AI provider completed but usage settlement failed; reconciliation is required.",
-      requestId,
+      reservation.requestId,
     );
   }
 
