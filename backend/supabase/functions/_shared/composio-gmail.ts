@@ -94,7 +94,10 @@ export class ComposioGmailError extends Error {
   }
 }
 
-/** Executes a Composio tool as `userId`, preferring the SDK and falling back to REST. */
+const isReadOnlyGmailTool = (slug: string): boolean =>
+  /^(GMAIL_(FETCH|GET|LIST|SEARCH|READ)_)/.test(slug);
+
+/** Executes a Composio tool as `userId`. Writes never retry through REST after an ambiguous SDK failure. */
 export async function executeComposioTool(
   userId: string,
   slug: string,
@@ -132,6 +135,12 @@ export async function executeComposioTool(
         } catch (error) {
           sdkError = error;
           console.warn(`[composio-gmail] SDK execute failed for ${slug}:`, error);
+          if (!isReadOnlyGmailTool(slug)) {
+            throw new ComposioGmailError(
+              `Composio ${slug} may have executed; refusing an unsafe REST retry.`,
+              "composio_ambiguous_write",
+            );
+          }
         }
       }
 

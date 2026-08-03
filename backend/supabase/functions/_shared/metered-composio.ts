@@ -12,6 +12,8 @@ export interface MeteredComposioCallOptions<T> {
   sessionId?: string;
   payload?: unknown;
   metadata?: Record<string, unknown>;
+  /** Only pass a provider-confirmed expense from Composio metadata; never use a product allowance weight here. */
+  providerCostNanos?: number;
   execute: () => Promise<T>;
 }
 
@@ -68,6 +70,18 @@ export async function runMeteredComposioCall<T>(
     );
   }
 
+  // A reservation may only execute the provider once. Any replay or unexpected state is fail-closed.
+  if (reserveResult.idempotent === true || reserveResult.status !== "reserved") {
+    const errorCode = typeof reserveResult.error === "string"
+      ? reserveResult.error
+      : "COMPOSIO_REQUEST_NOT_EXECUTABLE";
+    throw new Error(
+      typeof reserveResult.message === "string"
+        ? reserveResult.message
+        : `Composio request cannot execute again (${errorCode}).`,
+    );
+  }
+
   // 2. Execute provider call
   let executionResult: T;
   let providerFailed = false;
@@ -102,8 +116,12 @@ export async function runMeteredComposioCall<T>(
         p_composio_log_id: logId,
         p_session_id: options.sessionId ?? null,
         p_connected_account_id: options.connectedAccountId ?? null,
-        p_call_class: options.metadata?.call_class || "standard",
-        p_provider_cost_nanos: 0,
+        // Classification and the allowance weight are resolved by the server registry.
+        p_call_class: null,
+        p_provider_cost_nanos: Number.isSafeInteger(options.providerCostNanos) &&
+            (options.providerCostNanos ?? 0) >= 0
+          ? options.providerCostNanos
+          : 0,
         p_billable: isSuccessful,
         p_failure_owner: failureOwner,
         p_metadata: options.metadata ?? {},
