@@ -1,5 +1,6 @@
 
 import { GoogleGenAI } from "npm:@google/genai";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export const resolveGeminiApiKey = (): string => {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
@@ -12,6 +13,12 @@ export const resolveGeminiApiKey = (): string => {
 export const createGeminiClient = () => {
     const apiKey = resolveGeminiApiKey();
     return new GoogleGenAI({ apiKey });
+}
+
+function getAdminSupabaseClient() {
+  const url = Deno.env.get("SUPABASE_URL") || "";
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  return createClient(url, key);
 }
 
 const readNestedErrorMessage = (value: unknown): string => {
@@ -290,13 +297,14 @@ import {
 
 export {
   runMeteredAiCall,
-  calculateAiCostNanos,
   estimatePreflightReservationNanos,
   reserveAiUsage,
   settleAiUsage,
   releaseAiUsage,
   MeteredAiLimitError,
-};
+  hashPayload,
+  extractProviderTokenUsage,
+} from "./metered-ai.ts";
 
 export async function generateGeminiContent(
   prompt: string,
@@ -308,6 +316,7 @@ export async function generateGeminiContent(
     userId?: string;
     featureKey?: string;
     requestId?: string;
+    maxOutputTokens?: number;
   } = {},
 ): Promise<string> {
   const ai = createGeminiClient();
@@ -315,14 +324,18 @@ export async function generateGeminiContent(
   const targetModel = options.model || GEMINI_MODEL;
 
   if (options.userId) {
-    const metered = await runMeteredAiCall({
-      userId: options.userId,
-      featureKey: options.featureKey || "general_ai",
-      requestId: options.requestId,
-      model: targetModel,
-      promptTextLength: prompt.length,
-      execute: async () => {
-        const { result: rawResponse, modelUsed } = await withModelFallback(
+    const supabaseAdmin = getAdminSupabaseClient();
+    const result = await runMeteredAiCall(
+      supabaseAdmin,
+      {
+        userId: options.userId,
+        featureKey: options.featureKey || "general_ai",
+        model: targetModel,
+        maxOutputTokens: options.maxOutputTokens || 2048,
+        payload: { prompt },
+      },
+      async (meta) => {
+        const { result: rawResponse } = await withModelFallback(
           (model) =>
             ai.models.generateContent({
               model,
@@ -330,6 +343,7 @@ export async function generateGeminiContent(
                 ...createGeminiConfig(
                   {
                     responseMimeType: responseMimeType || "text/plain",
+                    maxOutputTokens: meta.maxOutputTokens,
                   },
                   model,
                 ),
@@ -341,14 +355,10 @@ export async function generateGeminiContent(
             }),
           targetModel,
         );
-        return {
-          result: rawResponse,
-          usageMetadata: (rawResponse as any)?.usageMetadata,
-          modelUsed,
-        };
+        return rawResponse;
       },
-    });
-    return extractGeminiText(metered.result);
+    );
+    return extractGeminiText(result);
   }
 
   const { result } = await withModelFallback(
@@ -372,4 +382,16 @@ export async function generateGeminiContent(
   );
 
   return extractGeminiText(result);
+}
+
+export async function generateGeminiDescription(
+  jobData: any,
+  options: { userId?: string; featureKey?: string } = {},
+): Promise<string> {
+  const prompt = `Generate a concise job description for the following position: ${JSON.stringify(jobData)}`;
+  return generateGeminiContent(prompt, {
+    userId: options.userId,
+    featureKey: options.featureKey || "job_description",
+    maxOutputTokens: 2048,
+  });
 }

@@ -9,6 +9,7 @@ export interface MeteredAiOptions {
   estimatedOutputTokens?: number;
   maxOutputTokens?: number;
   parentRequestId?: string;
+  requestId?: string;
   payload?: any;
   metadata?: Record<string, any>;
 }
@@ -43,6 +44,18 @@ export async function hashPayload(payload: any): Promise<string> {
     .join("");
 }
 
+// Compute nanodollar preflight reservation cost
+// Input tokens: $0.50 per 1M (500 nanos/token)
+// Output tokens: $3.00 per 1M (3000 nanos/token)
+export function estimatePreflightReservationNanos(
+  inputTokens = 1000,
+  outputTokens = 1024,
+): bigint {
+  const input = BigInt(Math.max(0, Math.floor(inputTokens)));
+  const output = BigInt(Math.max(0, Math.floor(outputTokens)));
+  return input * 500n + output * 3000n;
+}
+
 // Extract provider token usage metadata from Gemini response object
 export function extractProviderTokenUsage(response: any): {
   inputTokens: number;
@@ -53,17 +66,12 @@ export function extractProviderTokenUsage(response: any): {
 
   const promptTokenCount = Number(usage.promptTokenCount || 0);
   const cachedContentTokenCount = Number(usage.cachedContentTokenCount || 0);
-  
   const candidatesTokenCount = Number(usage.candidatesTokenCount || 0);
   const thoughtsTokenCount = Number(
     usage.thoughtsTokenCount || usage.thinkingTokenCount || 0,
   );
-  
   const totalTokenCount = Number(usage.totalTokenCount || 0);
 
-  // Classification under internal pricing rules:
-  // Input: Prompt tokens + Cached content tokens ($0.50 / 1M => 500 nanos)
-  // Output: Candidate output tokens + Thinking/Thoughts tokens ($3.00 / 1M => 3000 nanos)
   const inputTokens = promptTokenCount + cachedContentTokenCount;
   const outputTokens = candidatesTokenCount + thoughtsTokenCount;
   const computedTotal = inputTokens + outputTokens;
@@ -75,23 +83,23 @@ export function extractProviderTokenUsage(response: any): {
   };
 }
 
-export async function runMeteredAiCall<T>(
+// Exported reservation helper for manual/streaming calls
+export async function reserveAiUsage(
   supabase: SupabaseClient,
   options: MeteredAiOptions,
-  callFn: (meta: { requestId: string; maxOutputTokens: number }) => Promise<T>,
-): Promise<T> {
-  const requestId = crypto.randomUUID();
+): Promise<{
+  requestId: string;
+  availableNanos: number;
+}> {
+  const requestId = options.requestId || crypto.randomUUID();
   const provider = options.provider || "gemini";
   const model = options.model || "gemini-3-flash-preview";
 
   const estInput = options.estimatedInputTokens || 1000;
   const estOutput = options.estimatedOutputTokens || options.maxOutputTokens || 1024;
-
-  // Nanodollar pricing calculation: Input $0.50/M (500 nanos), Output $3.00/M (3000 nanos)
-  const estimatedCostNanos = BigInt(estInput * 500 + estOutput * 3000);
+  const estimatedCostNanos = estimatePreflightReservationNanos(estInput, estOutput);
   const payloadHash = options.payload ? await hashPayload(options.payload) : null;
 
-  // 1. Atomic Reservation via RPC
   const { data: resData, error: resErr } = await supabase.rpc("reserve_ai_usage", {
     p_user_id: options.userId,
     p_request_id: requestId,
@@ -121,16 +129,75 @@ export async function runMeteredAiCall<T>(
     throw new Error(resData?.message || "AI usage reservation rejected");
   }
 
-  // 2. Dynamic Output Token Clamping
+  return {
+    requestId,
+    availableNanos: Number(resData.available_nanos ?? 0),
+  };
+}
+
+// Exported settlement helper for manual/streaming calls
+export async function settleAiUsage(
+  supabase: SupabaseClient,
+  options: {
+    userId: string;
+    requestId: string;
+    inputTokens: number;
+    outputTokens: number;
+    billable?: boolean;
+    metadata?: Record<string, any>;
+  },
+): Promise<void> {
+  const { error } = await supabase.rpc("settle_ai_usage", {
+    p_user_id: options.userId,
+    p_request_id: options.requestId,
+    p_input_tokens: options.inputTokens,
+    p_output_tokens: options.outputTokens,
+    p_billable: options.billable ?? true,
+    p_metadata: options.metadata || {},
+  });
+
+  if (error) {
+    console.error("[metered-ai] RPC settle error:", error);
+  }
+}
+
+// Exported release helper for cancelled/failed calls
+export async function releaseAiUsage(
+  supabase: SupabaseClient,
+  options: {
+    userId: string;
+    requestId: string;
+    reason?: string;
+  },
+): Promise<void> {
+  const { error } = await supabase.rpc("release_ai_usage", {
+    p_user_id: options.userId,
+    p_request_id: options.requestId,
+    p_reason: options.reason || "cancelled",
+  });
+
+  if (error) {
+    console.error("[metered-ai] RPC release error:", error);
+  }
+}
+
+// Unified runMeteredAiCall helper
+export async function runMeteredAiCall<T>(
+  supabase: SupabaseClient,
+  options: MeteredAiOptions,
+  callFn: (meta: { requestId: string; maxOutputTokens: number }) => Promise<T>,
+): Promise<T> {
+  const estOutput = options.estimatedOutputTokens || options.maxOutputTokens || 1024;
+  const { requestId, availableNanos } = await reserveAiUsage(supabase, options);
+
   let effectiveMaxOutputTokens = options.maxOutputTokens || estOutput;
-  if (typeof resData.available_nanos === "number" && resData.available_nanos > 0) {
-    const maxAffordableOutput = Math.floor(resData.available_nanos / 3000);
+  if (availableNanos > 0) {
+    const maxAffordableOutput = Math.floor(availableNanos / 3000);
     if (maxAffordableOutput < 50) {
-      // Release reservation & throw limit error
-      await supabase.rpc("release_ai_usage", {
-        p_user_id: options.userId,
-        p_request_id: requestId,
-        p_reason: "insufficient_capacity_for_min_output",
+      await releaseAiUsage(supabase, {
+        userId: options.userId,
+        requestId,
+        reason: "insufficient_capacity_for_min_output",
       });
       throw new MeteredAiLimitError(
         "You’ve reached your AI usage limit for this period.",
@@ -142,7 +209,6 @@ export async function runMeteredAiCall<T>(
     effectiveMaxOutputTokens = Math.min(effectiveMaxOutputTokens, maxAffordableOutput);
   }
 
-  // 3. Execute Model Call & Settle Provider Usage
   try {
     const result = await callFn({
       requestId,
@@ -150,31 +216,31 @@ export async function runMeteredAiCall<T>(
     });
 
     const tokenUsage = extractProviderTokenUsage(result);
+    const estInput = options.estimatedInputTokens || 1000;
 
-    // Settle actual tokens atomically
-    await supabase.rpc("settle_ai_usage", {
-      p_user_id: options.userId,
-      p_request_id: requestId,
-      p_input_tokens: tokenUsage.inputTokens > 0 ? tokenUsage.inputTokens : estInput,
-      p_output_tokens: tokenUsage.outputTokens > 0 ? tokenUsage.outputTokens : estOutput,
-      p_billable: true,
-      p_metadata: {
+    await settleAiUsage(supabase, {
+      userId: options.userId,
+      requestId,
+      inputTokens: tokenUsage.inputTokens > 0 ? tokenUsage.inputTokens : estInput,
+      outputTokens: tokenUsage.outputTokens > 0 ? tokenUsage.outputTokens : estOutput,
+      billable: true,
+      metadata: {
         ...(options.metadata || {}),
-        settled_model: model,
+        settled_model: options.model || "gemini-3-flash-preview",
         extracted_usage: tokenUsage,
       },
     });
 
     return result;
   } catch (err: any) {
-    // Settle failed attempt as non-billable event (retains operational provider cost record)
-    await supabase.rpc("settle_ai_usage", {
-      p_user_id: options.userId,
-      p_request_id: requestId,
-      p_input_tokens: estInput,
-      p_output_tokens: 0,
-      p_billable: false,
-      p_metadata: {
+    const estInput = options.estimatedInputTokens || 1000;
+    await settleAiUsage(supabase, {
+      userId: options.userId,
+      requestId,
+      inputTokens: estInput,
+      outputTokens: 0,
+      billable: false,
+      metadata: {
         ...(options.metadata || {}),
         error: err?.message || String(err),
       },
