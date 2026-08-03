@@ -13,20 +13,25 @@ import {
 
 const BILLING_FAQ_ITEMS: { question: string; answer: string }[] = [
   {
-    question: "What are credits and what spends them?",
+    question: "How do AI Usage Limits work?",
     answer:
-      "Credits power search, AI evaluation, resume and cover-letter drafting, chat, and other metered features. Each action deducts credits according to the live Credit Costs list on this page. Governed auto-apply uses separate monthly run allowances on paid plans, not credits, unless a flow explicitly charges credits.",
+      "All AI-powered features—including AI Chat (Ask and Agent modes), Resume Analysis, Cover Letter Generation, Resume Tailoring, and AI Content Polishing—are metered strictly by model token consumption against your subscription tier's AI Usage Limits. You receive Rolling 24-hour, Weekly, and Monthly usage allowances that automatically refresh based on your plan.",
+  },
+  {
+    question: "What are Credits and what uses them?",
+    answer:
+      "Tool credits are used for non-AI and external web automation tools (such as Skyvern browser tasks and Firecrawl web scrapers). AI Chat turns and model generations consume your plan's AI Usage Limits instead of deducting credits.",
   },
   {
     question:
       "What is the difference between a subscription and a credit pack?",
     answer:
-      "A subscription sets your tier (Basics, Pro, or Ultimate), your monthly credit allowance, governed auto-apply runs, and your billing cadence. Credit packs are one-time top-ups that add to your balance immediately and never change your tier or automation limits.",
+      "A subscription sets your tier (Starter, Basics, Pro, or Ultimate), your AI Usage Limits, monthly web automation tool credits, governed auto-apply runs, and billing cadence. Credit packs are one-time top-ups for web automation tools that add to your balance immediately without expiring.",
   },
   {
     question: "How do monthly, quarterly, and annual billing work?",
     answer:
-      "Monthly charges you each month. Quarterly (Pro and Ultimate only) bills every three months at a discount versus three separate monthly payments. Annual bills once per year at the lowest effective monthly rate. Basics supports monthly and annual only. Features are the same; only the payment schedule and price differ.",
+      "Monthly charges you each month. Quarterly (Pro and Ultimate only) bills every three months at a discount versus three separate monthly payments. Annual bills once per year at the lowest effective monthly rate. Basics and Starter support monthly and annual. Features are the same; only the payment schedule and price differ.",
   },
   {
     question:

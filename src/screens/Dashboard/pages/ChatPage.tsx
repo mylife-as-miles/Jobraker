@@ -54,6 +54,7 @@ import {
 } from "recharts";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createClient } from "../../../lib/supabaseClient";
+import { useAiUsageLimits } from "@/hooks/useAiUsageLimits";
 import {
   cacheChatAttachments,
   getChatAttachment,
@@ -1846,6 +1847,7 @@ export const ChatPage = () => {
   const { error: toastError } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const { data: aiLimits } = useAiUsageLimits();
   // UI state
   const [text, setText] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -2918,7 +2920,7 @@ export const ChatPage = () => {
                 icon: <MessageSquare className='h-5 w-5' />,
                 title: "AI Conversations",
                 description:
-                  "50 free messages/month on Pro, 200 on Ultimate, then 1 credit each",
+                  "Metered by your tier's AI Usage Limits (Rolling 24h, Weekly & Monthly allowances)",
               },
               {
                 icon: <Wand2 className='h-5 w-5' />,
@@ -2970,13 +2972,27 @@ export const ChatPage = () => {
                 </div>
                 
                 <div className="flex items-center gap-2 overflow-hidden min-w-0">
-                  {chatQuota && (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0">
+                  {aiLimits?.rolling24h && (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/dashboard/settings")}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border hover:border-brand/40 transition-colors shrink-0"
+                      title="AI Usage Limits (Rolling 24h capacity). Click to manage in Settings."
+                    >
+                      <Zap size={12} className="text-brand shrink-0" />
+                      <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
+                        {aiLimits.rolling24h.percentLeft}% AI Limit
+                      </span>
+                    </button>
+                  )}
+                  {chatQuota && chatQuota.credit_balance > 0 && (
+                    <div
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0"
+                      title="Web automation tool credits"
+                    >
                       <Coins size={12} className="text-brand shrink-0" />
                       <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
-                        {chatQuota.free_remaining > 0
-                          ? `${chatQuota.free_remaining}/${chatQuota.free_total} (+${chatQuota.credit_balance})`
-                          : `${chatQuota.credit_balance} paid`}
+                        {chatQuota.credit_balance} credits
                       </span>
                     </div>
                   )}
@@ -3217,25 +3233,27 @@ export const ChatPage = () => {
                   </span>
                 </div>
                 <div className='flex items-center gap-2 sm:gap-4 overflow-hidden min-w-0 justify-end'>
-                  {chatQuota && (
-                    <div className='flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0'>
+                  {aiLimits?.rolling24h && (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/dashboard/settings")}
+                      className='flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border hover:border-brand/40 transition-colors shrink-0'
+                      title="AI Usage Limits (Rolling 24h capacity). Click to manage in Settings."
+                    >
+                      <Zap size={14} className='text-brand shrink-0' />
+                      <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
+                        {aiLimits.rolling24h.percentLeft}% AI Capacity
+                      </span>
+                    </button>
+                  )}
+                  {chatQuota && chatQuota.credit_balance > 0 && (
+                    <div
+                      className='flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0'
+                      title="Web automation tool credits"
+                    >
                       <Coins size={14} className='text-brand shrink-0' />
                       <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
-                        {chatQuota.free_remaining > 0
-                          ? isMobile
-                            ? `${chatQuota.free_remaining}/${chatQuota.free_total}${
-                                chatQuota.credit_balance > 0
-                                  ? ` (+${chatQuota.credit_balance})`
-                                  : ""
-                              }`
-                            : `${chatQuota.free_remaining}/${chatQuota.free_total} free${
-                                chatQuota.credit_balance > 0
-                                  ? ` + ${chatQuota.credit_balance} paid`
-                                  : ""
-                              }`
-                          : isMobile
-                            ? `${chatQuota.credit_balance} paid`
-                            : `${chatQuota.credit_balance} paid credits`}
+                        {chatQuota.credit_balance} tool credits
                       </span>
                     </div>
                   )}

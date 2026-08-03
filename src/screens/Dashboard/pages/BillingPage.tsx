@@ -2383,12 +2383,10 @@ export const BillingPage = () => {
             >
               <div className='text-center'>
                 <h2 className='text-3xl font-bold text-foreground mb-3'>
-                  Credit Costs
+                  Feature Metering & Tool Costs
                 </h2>
                 <p className='text-muted-foreground max-w-2xl mx-auto'>
-                  See how many credits each feature uses. Some AI features
-                  include a free monthly allowance on paid plans before credits
-                  are deducted.
+                  All AI model features (AI Chat, Resume Analysis, Cover Letters, Content Polishing) consume your plan&apos;s AI Usage Limits based on model token usage. Tool credits are used exclusively for external web automation tools.
                 </p>
               </div>
 
@@ -2400,67 +2398,40 @@ export const BillingPage = () => {
                       <div className='p-2 rounded-lg bg-purple-500/10 border border-purple-500/20'>
                         <Sparkles className='w-4 h-4 text-purple-400' />
                       </div>
-                      AI Features
+                      AI Features & Metering
                     </CardTitle>
                     <CardDescription className='text-muted-foreground'>
-                      Chat, cover letters, resume analysis, and more
+                      Chat, cover letters, resume analysis, and AI polishing
                     </CardDescription>
                   </CardHeader>
                   <CardContent className='p-0'>
                     <div className='divide-y divide-foreground/5'>
                       {[
-                        ...((): Array<{
-                          label: string;
-                          cost: number;
-                          note: string;
-                        }> => {
-                          const chatBase = creditCosts.find(
-                            (c) =>
-                              c.feature_type === "ai_chat" &&
-                              c.feature_name === "chat_message",
-                          );
-                          const chatAgent = creditCosts.find(
-                            (c) =>
-                              c.feature_type === "ai_chat" &&
-                              c.feature_name === "agent_tool_round",
-                          );
-                          const rows: Array<{
-                            label: string;
-                            cost: number;
-                            note: string;
-                          }> = [
-                            {
-                              label: "AI chat — base message (Ask or Agent)",
-                              cost: chatBase?.cost ?? 1,
-                              note: "Pro: 50 free/mo, Ultimate: 200 free/mo, then 1 credit each (Ask uses this only)",
-                            },
-                            {
-                              label: "Agent mode - tool use",
-                              cost: chatAgent?.cost ?? 1,
-                              note: "+1 credit per tool the agent runs after the base message credit",
-                            },
-                          ];
-                          return rows;
-                        })(),
-                        ...creditCosts
-                          .filter(
-                            (c) =>
-                              (c.feature_type === "cover_letter" ||
-                                c.feature_type === "analysis" ||
-                                c.feature_type === "job_search") &&
-                              c.feature_name !== "search" &&
-                              c.feature_name !== "auto_apply",
-                          )
-                          .map((c) => ({
-                            label:
-                              c.description.split("(")[0].trim() ||
-                              `${c.feature_type} / ${c.feature_name}`,
-                            cost: c.cost,
-                            note:
-                              c.cost === 0
-                                ? "Included with Basics+ plan"
-                                : `${c.cost} credit${c.cost !== 1 ? "s" : ""} per use`,
-                          })),
+                        {
+                          label: "AI Chat — Ask & Agent Reasoning",
+                          cost: "AI LIMITS",
+                          note: "Metered by token consumption against your plan's Rolling 24h, Weekly & Monthly limits (0 tool credits)",
+                        },
+                        {
+                          label: "Agent Mode — External Web Automation",
+                          cost: "CREDITS",
+                          note: "Uses tool credits per external tool execution (e.g. Skyvern tasks & browser automations)",
+                        },
+                        {
+                          label: "Resume Analysis & Tailoring",
+                          cost: "AI LIMITS",
+                          note: "Metered by token consumption against your plan's AI Usage Limits (0 tool credits)",
+                        },
+                        {
+                          label: "Cover Letter Generation",
+                          cost: "AI LIMITS",
+                          note: "Metered by token consumption against your plan's AI Usage Limits (0 tool credits)",
+                        },
+                        {
+                          label: "AI Content Polishing",
+                          cost: "AI LIMITS",
+                          note: "Metered by token consumption against your plan's AI Usage Limits (0 tool credits)",
+                        },
                       ].map((item, idx) => (
                         <div
                           key={idx}
@@ -2475,14 +2446,9 @@ export const BillingPage = () => {
                             </p>
                           </div>
                           <div className='flex items-center gap-1.5 pl-4 flex-shrink-0 pt-0.5'>
-                            <span
-                              className={`text-lg font-bold font-mono ${item.cost === 0 ? "text-brand" : "text-foreground"}`}
-                            >
-                              {item.cost === 0 ? "FREE" : item.cost}
+                            <span className='text-xs font-bold font-mono text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full'>
+                              {item.cost}
                             </span>
-                            {item.cost > 0 && (
-                              <Coins className='w-3.5 h-3.5 text-brand' />
-                            )}
                           </div>
                         </div>
                       ))}
