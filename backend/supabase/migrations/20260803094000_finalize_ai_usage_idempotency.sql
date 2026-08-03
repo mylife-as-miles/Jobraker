@@ -37,8 +37,8 @@ SET
         ELSE estimated_provider_cost_nanos
     END;
 
--- Reservation creation is serialized per user and never treats an existing request ID as permission
--- to execute the provider again.
+-- Reservation creation is serialized per user and never treats an existing request ID as
+-- permission to execute the provider again.
 CREATE OR REPLACE FUNCTION public.reserve_ai_usage(
     p_user_id UUID,
     p_request_id UUID,
@@ -116,20 +116,24 @@ BEGIN
                 );
             END IF;
 
+            -- The existing status constraint permits released, not expired. Record expiry in metadata.
             UPDATE public.ai_usage_events
             SET
-                status = 'expired',
+                status = 'released',
                 billable = false,
                 reserved_cost_nanos = 0,
                 reservation_expires_at = NULL,
                 released_at = v_now,
-                metadata = metadata || jsonb_build_object('expired_at', v_now)
+                metadata = metadata || jsonb_build_object(
+                    'release_reason', 'reservation_expired',
+                    'expired_at', v_now
+                )
             WHERE id = v_existing.id;
 
             RETURN jsonb_build_object(
                 'success', false,
                 'error', 'AI_REQUEST_EXPIRED',
-                'status', 'expired',
+                'status', 'released',
                 'request_id', p_request_id,
                 'message', 'This AI request ID has expired and cannot be reused.'
             );
@@ -308,6 +312,7 @@ DECLARE
     v_input_cost BIGINT;
     v_output_cost BIGINT;
     v_computed_cost BIGINT;
+    v_computed_cost_numeric NUMERIC;
     v_provider_cost BIGINT := 0;
     v_estimated_provider_cost BIGINT := 0;
     v_billable_cost BIGINT := 0;
@@ -331,10 +336,12 @@ BEGIN
             MESSAGE = 'NEGATIVE_TOKEN_INPUT: AI usage settlement requires non-negative token counts';
     END IF;
 
-    IF p_input_tokens > 18446744073709551 OR p_output_tokens > 3074457345618258 THEN
+    v_computed_cost_numeric :=
+        (p_input_tokens::NUMERIC * 500) + (p_output_tokens::NUMERIC * 3000);
+    IF v_computed_cost_numeric > 9223372036854775807::NUMERIC THEN
         RAISE EXCEPTION USING
             ERRCODE = '22003',
-            MESSAGE = 'TOKEN_INPUT_OVERFLOW: AI usage token counts exceed safe bigint accounting limits';
+            MESSAGE = 'TOKEN_INPUT_OVERFLOW: combined AI usage cost exceeds bigint accounting limits';
     END IF;
 
     SELECT * INTO v_existing
@@ -353,9 +360,9 @@ BEGIN
     END;
     v_provider_usage_confirmed := v_usage_source = 'provider';
 
-    v_input_cost := p_input_tokens * 500;
-    v_output_cost := p_output_tokens * 3000;
-    v_computed_cost := v_input_cost + v_output_cost;
+    v_input_cost := (p_input_tokens::NUMERIC * 500)::BIGINT;
+    v_output_cost := (p_output_tokens::NUMERIC * 3000)::BIGINT;
+    v_computed_cost := v_computed_cost_numeric::BIGINT;
 
     IF v_usage_source = 'provider' THEN
         v_provider_cost := v_computed_cost;
