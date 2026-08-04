@@ -33,34 +33,63 @@ type AutomationEmailPayload = {
   actionUrl: string;
 };
 
-function hasValidWebhookSecret(req: Request): boolean {
-  const expectedSecrets = [
-    Deno.env.get("SKYVERN_WEBHOOK_SECRET"),
-    Deno.env.get("SKYVERN_API_KEY"),
-  ]
-    .map((secret) => String(secret || "").trim())
-    .filter(Boolean);
-  if (expectedSecrets.length === 0) return false;
-
-  let querySecret = "";
-  try {
-    querySecret = new URL(req.url).searchParams.get("token")?.trim() || "";
-  } catch {
-    querySecret = "";
+async function verifySkyvernWebhook(req: Request, rawBody: string): Promise<{ valid: boolean; reason?: string }> {
+  const webhookSecret = Deno.env.get("SKYVERN_WEBHOOK_SECRET")?.trim();
+  if (!webhookSecret) {
+    return { valid: false, reason: "webhook_secret_not_configured" };
   }
 
-  const headerSecret = String(
-    req.headers.get("x-jobraker-webhook-secret") ||
-      req.headers.get("x-skyvern-webhook-secret") ||
-      "",
-  ).trim();
-  const authSecret = String(req.headers.get("authorization") || "")
-    .replace(/^Bearer\s+/i, "")
-    .trim();
+  const timestampHeader = req.headers.get("x-skyvern-timestamp") || req.headers.get("x-jobraker-webhook-timestamp");
+  const signatureHeader = req.headers.get("x-skyvern-signature") || req.headers.get("x-jobraker-webhook-signature");
+  const authHeader = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
 
-  return [querySecret, headerSecret, authSecret].some((provided) =>
-    expectedSecrets.includes(provided)
+  // If explicit Bearer token matches dedicated secret
+  if (authHeader && authHeader === webhookSecret) {
+    return { valid: true };
+  }
+
+  if (!signatureHeader) {
+    return { valid: false, reason: "missing_signature_header" };
+  }
+
+  if (timestampHeader) {
+    const timestamp = parseInt(timestampHeader, 10);
+    if (!Number.isNaN(timestamp)) {
+      const now = Math.floor(Date.now() / 1000);
+      if (Math.abs(now - timestamp) > 300) {
+        return { valid: false, reason: "webhook_timestamp_expired" };
+      }
+    }
+  }
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(webhookSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
   );
+  const calculatedSig = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(rawBody),
+  );
+  const hexSig = Array.from(new Uint8Array(calculatedSig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  const expectedSig = signatureHeader.replace(/^sha256=/i, "").trim();
+  if (hexSig.length !== expectedSig.length) {
+    return { valid: false, reason: "signature_length_mismatch" };
+  }
+
+  let match = 0;
+  for (let i = 0; i < hexSig.length; i++) {
+    match |= hexSig.charCodeAt(i) ^ expectedSig.charCodeAt(i);
+  }
+
+  return { valid: match === 0, reason: match === 0 ? undefined : "invalid_signature" };
 }
 
 const mapProviderStatusToDisplay = (status: string | null | undefined) => {
