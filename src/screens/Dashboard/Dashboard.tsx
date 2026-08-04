@@ -57,6 +57,7 @@ import useMediaQuery from "../../hooks/use-media-query";
 
 import { ExperienceFeedbackPrompt } from "./components/ExperienceFeedbackPrompt";
 import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
+import { TextSelectionToolbar } from "@/components/chat/TextSelectionToolbar";
 import { useProductTour } from "@/providers/TourProvider";
 
 import { lazyWithRetry } from "@/utils/lazyWithRetry";
@@ -501,6 +502,18 @@ export const Dashboard = (): JSX.Element => {
       clearInterval(id);
     };
   }, [supabase, (profile as any)?.avatar_url]);
+
+  useEffect(() => {
+    const handleAddToChatNav = () => {
+      if (location.pathname !== "/dashboard/chat") {
+        navigate("/dashboard/chat");
+      }
+    };
+    window.addEventListener("jobraker:add-to-chat", handleAddToChatNav);
+    return () => {
+      window.removeEventListener("jobraker:add-to-chat", handleAddToChatNav);
+    };
+  }, [location.pathname, navigate]);
 
   const allDashboardPages = useMemo((): PageLink[] => {
     const base: PageLink[] = [
@@ -1268,6 +1281,7 @@ export const Dashboard = (): JSX.Element => {
           />
         )}
         <ExperienceFeedbackPrompt />
+        <TextSelectionToolbar />
       </div>
     </TooltipProvider>
   );

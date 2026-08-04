@@ -65,6 +65,7 @@ import {
   type ChatStarterSuggestion,
 } from "../../../services/ai/generateChatStarters";
 import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
+import { TextSelectionToolbar } from "@/components/chat/TextSelectionToolbar";
 import {
   executeChatSkill,
   getPrimarySkillAlias,
@@ -2042,6 +2043,38 @@ export const ChatPage = () => {
   useEffect(() => {
     if (hasChatAccess) fetchChatQuota();
   }, [hasChatAccess, fetchChatQuota]);
+
+  useEffect(() => {
+    const handleAddToChat = (e: Event) => {
+      const customEvt = e as CustomEvent<{ text: string; mode?: "quote" | "explain" | "summarize" }>;
+      const { text: selectedText, mode = "quote" } = customEvt.detail || {};
+      if (!selectedText) return;
+
+      let formatted = "";
+      if (mode === "explain") {
+        formatted = `Explain this:\n> ${selectedText.trim()}\n\n`;
+      } else if (mode === "summarize") {
+        formatted = `Summarize this:\n> ${selectedText.trim()}\n\n`;
+      } else {
+        formatted = `> ${selectedText.trim()}\n\n`;
+      }
+
+      setText((prev) => (prev ? `${prev}\n\n${formatted}` : formatted));
+
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.selectionStart = textareaRef.current.value.length;
+          textareaRef.current.selectionEnd = textareaRef.current.value.length;
+        }
+      }, 50);
+    };
+
+    window.addEventListener("jobraker:add-to-chat", handleAddToChat);
+    return () => {
+      window.removeEventListener("jobraker:add-to-chat", handleAddToChat);
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasChatAccess) {
@@ -4154,6 +4187,8 @@ export const ChatPage = () => {
               pendingPermissionRequest?.resolve(decision);
             }}
           />
+
+          <TextSelectionToolbar />
         </>
       )}
     </div>
