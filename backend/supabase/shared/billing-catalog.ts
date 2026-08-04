@@ -62,7 +62,7 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     name: "Starter",
     monthlyPriceUsd: 9,
     yearlyPriceUsd: 86,
-    creditsPerMonth: 75,
+    creditsPerMonth: 150,
     autoApplyRunsPerMonth: 0,
     autoApplyConcurrency: 0,
     description:
@@ -70,7 +70,7 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     isPopular: false,
     marketingFeatures: [
       "AI Usage Limits for AI Chat & Resume tools",
-      "75 monthly web automation tool credits",
+      "150 monthly web automation tool credits",
       "AI job search & match scores",
       "AI Chat assistant",
       "Resume analysis & builder",
@@ -112,14 +112,14 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     quarterlyPriceUsd: 159,
     /** 30% off vs 12× monthly (rounded). */
     yearlyPriceUsd: 496,
-    creditsPerMonth: 1200,
+    creditsPerMonth: 600,
     autoApplyRunsPerMonth: 50,
     autoApplyConcurrency: 4,
     description: "Run a serious job search engine with deeper personalization, higher capacity, and steadier pipeline movement.",
     isPopular: true,
     marketingFeatures: [
       "Pro AI Usage Limits for AI Chat & Resume tools",
-      "1,200 web automation tool credits each month",
+      "600 web automation tool credits each month",
       "50 governed auto-apply runs each month",
       "Explainable score breakdowns and interview stories",
       "ATS keyword coverage for generated drafts",
@@ -135,14 +135,14 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     quarterlyPriceUsd: 379,
     /** 30% off vs 12× monthly (rounded). */
     yearlyPriceUsd: 1252,
-    creditsPerMonth: 3500,
+    creditsPerMonth: 1250,
     autoApplyRunsPerMonth: 150,
     autoApplyConcurrency: 8,
     description: "Run a high-volume job-search campaign with the capacity, support, and intelligence serious pipelines need.",
     isPopular: false,
     marketingFeatures: [
       "Ultimate AI Usage Limits for AI Chat & Resume tools",
-      "3,500 web automation tool credits each month",
+      "1,250 web automation tool credits each month",
       "150 governed auto-apply runs each month",
       "Scout Mode background discovery summaries",
       "Auto re-evaluation and ready-to-tailor queues",
@@ -157,7 +157,7 @@ export const SHARED_CREDIT_PACKS: SharedCreditPackDefinition[] = [
   {
     sku: "search_150",
     name: "Starter Pack",
-    description: "Emergency fuel for targeted search bursts and a few extra AI drafts.",
+    description: "Emergency fuel for targeted job discovery, browser automation, and application runs.",
     priceUsd: 15,
     credits: 150,
     bonusCredits: 0,
@@ -166,7 +166,7 @@ export const SHARED_CREDIT_PACKS: SharedCreditPackDefinition[] = [
   {
     sku: "search_600",
     name: "Growth Pack",
-    description: "A strong top-up when your pipeline is moving and you need more evaluations or drafts.",
+    description: "A strong top-up for job discovery, browser automation, and application runs.",
     priceUsd: 49,
     credits: 600,
     bonusCredits: 75,
@@ -175,7 +175,7 @@ export const SHARED_CREDIT_PACKS: SharedCreditPackDefinition[] = [
   {
     sku: "search_1500",
     name: "Pro Pack",
-    description: "For heavy search weeks with lots of tailored application materials.",
+    description: "For heavy search weeks requiring extensive job discovery and automated application runs.",
     priceUsd: 99,
     credits: 1500,
     bonusCredits: 250,
@@ -184,7 +184,7 @@ export const SHARED_CREDIT_PACKS: SharedCreditPackDefinition[] = [
   {
     sku: "search_4000",
     name: "Scale Pack",
-    description: "Best for sustained high-volume search research and campaign-style workflows.",
+    description: "Best for sustained high-volume job discovery, web automation, and application campaigns.",
     priceUsd: 229,
     credits: 4000,
     bonusCredits: 1000,

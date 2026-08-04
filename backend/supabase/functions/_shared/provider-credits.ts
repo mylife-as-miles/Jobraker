@@ -366,8 +366,21 @@ async function recordSkyvernUsageFromOutput(
   }
 
   const stepCount = extractSkyvernStepCount(output);
-  if (stepCount <= 0) {
-    return { recorded: false, reason: "missing_step_count", status };
+  const confirmedUnits = typeof output?.credits_used === "number"
+    ? output.credits_used
+    : stepCount;
+
+  if (runId) {
+    await serviceClient.rpc("settle_external_provider_credits", {
+      p_request_id: runId,
+      p_confirmed_units: confirmedUnits,
+      p_provider_run_id: runId,
+      p_status: String(status || "completed"),
+      p_metadata: {
+        ...metadata,
+        step_count: stepCount,
+      },
+    }).catch(() => {});
   }
 
   const { data, error } = await serviceClient.rpc("record_provider_credit_usage", {
