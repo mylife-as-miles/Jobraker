@@ -161,6 +161,46 @@ const waitForAgentProgressPaint = () =>
     window.requestAnimationFrame(() => resolve());
   });
 
+const cleanErrorMessage = (raw: unknown): string => {
+  if (!raw) return "An unexpected error occurred. Please try again.";
+  let str = typeof raw === "string" ? raw : (raw as any)?.message || String(raw);
+
+  if (str.trim().startsWith("{") || str.includes('"message"') || str.includes('"error"')) {
+    try {
+      let parsed = typeof raw === "object" && raw !== null ? raw : JSON.parse(str);
+      while (typeof parsed === "string" && (parsed.trim().startsWith("{") || parsed.includes("{"))) {
+        parsed = JSON.parse(parsed);
+      }
+      if (parsed?.error?.message) {
+        str = typeof parsed.error.message === "string" ? parsed.error.message : String(parsed.error.message);
+      } else if (parsed?.message) {
+        str = typeof parsed.message === "string" ? parsed.message : String(parsed.message);
+      }
+    } catch {
+      // Keep original string if JSON parsing fails
+    }
+  }
+
+  const lower = str.toLowerCase();
+  if (
+    lower.includes("high demand") ||
+    lower.includes("503") ||
+    lower.includes("unavailable") ||
+    lower.includes("service unavailable")
+  ) {
+    return "Our AI service is currently experiencing high demand. Spikes in demand are usually temporary — please try again in a moment.";
+  }
+  if (
+    lower.includes("rate limit") ||
+    lower.includes("resource_exhausted") ||
+    lower.includes("quota")
+  ) {
+    return "Our AI service is temporarily busy. Please try again in a minute.";
+  }
+
+  return str.replace(/^Error:\s*/i, "").trim();
+};
+
 const parseSseFrame = (frame: string) => {
   let event = "message";
   const dataLines: string[] = [];
@@ -1423,7 +1463,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 setResponseId(data.response_id);
               }
             } else if (currentEvent === "error") {
-              const errorText = `Error: ${data.error}`;
+              const errorText = `Error: ${cleanErrorMessage(data.error)}`;
               flushSync(() => {
                 setMessages((prev) =>
                   prev.map((msg) =>
@@ -1717,7 +1757,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           setRequestStartedAt(null);
           return;
         }
-        const errorText = `Fetch Error: ${err.message || "Could not connect to the chat function."}`;
+        const errorText = `Error: ${cleanErrorMessage(err)}`;
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantId

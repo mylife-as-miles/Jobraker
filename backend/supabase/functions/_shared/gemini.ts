@@ -73,10 +73,54 @@ export const isGeminiRateLimitError = (error: unknown): boolean => {
 
   return (
     status === 429 ||
+    status === 503 ||
+    status === 502 ||
+    status === 504 ||
     message.includes("resource_exhausted") ||
     message.includes("rate limit") ||
-    message.includes("quota")
+    message.includes("quota") ||
+    message.includes("503") ||
+    message.includes("unavailable") ||
+    message.includes("high demand") ||
+    message.includes("service unavailable") ||
+    message.includes("overloaded")
   );
+};
+
+export const formatGeminiErrorMessage = (error: unknown): string => {
+  if (isGeminiRateLimitError(error)) {
+    return "Our AI service is currently experiencing high demand. Please try again in a moment.";
+  }
+  if (isGeminiAccessDeniedError(error)) {
+    return "The AI service is temporarily unavailable due to model maintenance. Please try again shortly.";
+  }
+
+  let rawMsg = readNestedErrorMessage(error);
+  if (!rawMsg) {
+    rawMsg = typeof error === "string" ? error : (error as any)?.message || String(error || "Unknown error");
+  }
+
+  if (rawMsg.includes("{") && rawMsg.includes("}")) {
+    try {
+      const match = rawMsg.match(/\{[\s\S]*\}/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        const innerMsg = parsed?.error?.message || parsed?.message;
+        if (typeof innerMsg === "string" && innerMsg.trim()) {
+          rawMsg = innerMsg;
+        }
+      }
+    } catch {
+      // Ignore JSON parse failure
+    }
+  }
+
+  const lower = rawMsg.toLowerCase();
+  if (lower.includes("high demand") || lower.includes("503") || lower.includes("unavailable") || lower.includes("service unavailable")) {
+    return "Our AI service is currently experiencing high demand. Please try again in a moment.";
+  }
+
+  return rawMsg.replace(/^Error:\s*/i, "").trim();
 };
 
 function parseRetryDelay(error: unknown): number | null {

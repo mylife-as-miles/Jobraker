@@ -7,6 +7,7 @@ import {
   GEMINI_PREMIUM_MODEL,
   withGeminiRetry,
   isGeminiRateLimitError,
+  formatGeminiErrorMessage,
   reserveAiUsage,
   settleAiUsage,
   releaseAiUsage,
@@ -5453,9 +5454,7 @@ Edge functions:
           await refundBaseChatTurn("AI chat response failed before completion", {
             error: e?.message || "Unknown stream error",
           });
-          const userMessage = isGeminiRateLimitError(e)
-            ? "Our AI service is temporarily busy across all models. Please try again in a minute."
-            : e.message;
+          const userMessage = formatGeminiErrorMessage(e);
           await enqueueEvent("error", { error: userMessage });
           controller.close();
         }
