@@ -57,6 +57,8 @@ import {
   Layers,
   Loader2,
   Activity,
+  FileText,
+  CheckCircle2,
 } from "lucide-react";
 import {
   useJobIntelligenceTasks,
@@ -226,6 +228,76 @@ function CompanyMark({
     </div>
   );
 }
+
+const ReceiptCard: React.FC<{
+  url: string;
+  title: string;
+  badgeLabel: string;
+  iconType?: "receipt" | "success";
+}> = ({ url, title, badgeLabel, iconType = "receipt" }) => {
+  const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="group relative block overflow-hidden rounded-xl border border-foreground/10 bg-slate-950/80 transition-all hover:border-[#2fd968]/50 hover:shadow-[0_0_20px_rgba(47,217,104,0.15)] aspect-[4/3]"
+    >
+      {/* Background Graphic / Fallback UI when image is loading or fails */}
+      {(!imgLoaded || imgError) && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950/40 text-center z-0">
+          <div className="w-10 h-10 rounded-full bg-[#2fd968]/10 border border-[#2fd968]/30 flex items-center justify-center mb-2 text-[#2fd968] group-hover:scale-110 transition-transform">
+            {iconType === "success" ? (
+              <CheckCircle2 className="w-5 h-5 text-[#2fd968]" />
+            ) : (
+              <FileText className="w-5 h-5 text-[#2fd968]" />
+            )}
+          </div>
+          <span className="text-xs font-semibold text-slate-200 group-hover:text-white transition-colors">
+            {title}
+          </span>
+          <span className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+            <ExternalLink className="w-3 h-3 text-[#2fd968]" /> View Details & Receipt
+          </span>
+        </div>
+      )}
+
+      {/* Image tag (only rendered if not errored) */}
+      {!imgError && (
+        <img
+          src={url}
+          alt={title}
+          onLoad={() => setImgLoaded(true)}
+          onError={() => setImgError(true)}
+          className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+            imgLoaded ? "opacity-80" : "opacity-0"
+          }`}
+        />
+      )}
+
+      {/* Overlay gradient & bottom bar */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between pointer-events-none">
+        <span
+          className={`text-xs font-medium ${
+            iconType === "success" ? "text-[#2fd968]" : "text-foreground"
+          }`}
+        >
+          {badgeLabel}
+        </span>
+        <svg className={`w-4 h-4 ${iconType === "success" ? "text-[#2fd968]" : "text-foreground"} opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0`} fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+          {iconType === "success" ? (
+            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' />
+          ) : (
+            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' />
+          )}
+        </svg>
+      </div>
+    </a>
+  );
+};
 
 function getApplicationStatusColor(status: ApplicationStatus) {
   if (status === "Draft") return "#2dd4bf";
@@ -2248,46 +2320,20 @@ function ApplicationPage() {
                 </h3>
                 <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                   {detailApp.receipt_url && (
-                    <a
-                      href={detailApp.receipt_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className='group relative block overflow-hidden rounded-xl border border-foreground/10 bg-foreground/5 transition-all hover:border-[#2fd968]/50 hover:shadow-[0_0_20px_rgba(47,217,104,0.15)] aspect-[4/3]'
-                    >
-                      <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10' />
-                      <img
-                        src={detailApp.receipt_url}
-                        alt="Application Form Receipt"
-                        className='absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80'
-                      />
-                      <div className='absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between'>
-                        <span className='text-xs font-medium text-foreground'>View Form Data</span>
-                        <svg className='w-4 h-4 text-foreground opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' />
-                        </svg>
-                      </div>
-                    </a>
+                    <ReceiptCard
+                      url={detailApp.receipt_url}
+                      title="Application Form Receipt"
+                      badgeLabel="View Form Data"
+                      iconType="receipt"
+                    />
                   )}
                   {detailApp.success_url && (
-                    <a
-                      href={detailApp.success_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className='group relative block overflow-hidden rounded-xl border border-foreground/10 bg-foreground/5 transition-all hover:border-[#2fd968]/50 hover:shadow-[0_0_20px_rgba(47,217,104,0.15)] aspect-[4/3]'
-                    >
-                      <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10' />
-                      <img
-                        src={detailApp.success_url}
-                        alt="Success Confirmation"
-                        className='absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80'
-                      />
-                      <div className='absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between'>
-                        <span className='text-xs font-medium focus:text-foreground text-[#2fd968]'>Success Screenshot</span>
-                        <svg className='w-4 h-4 focus:text-foreground text-[#2fd968] opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' />
-                        </svg>
-                      </div>
-                    </a>
+                    <ReceiptCard
+                      url={detailApp.success_url}
+                      title="Success Confirmation"
+                      badgeLabel="Success Screenshot"
+                      iconType="success"
+                    />
                   )}
                 </div>
               </div>
