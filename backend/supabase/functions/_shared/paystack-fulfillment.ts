@@ -407,8 +407,14 @@ export async function fulfillVerifiedPaystackPayment({
       return { ok: true, status: "already_fulfilled", orderId: order.id };
     }
 
-    const creditsToAdd = Number(metadata.credits || 0);
-    const bonusCredits = Number(metadata.bonus_credits || 0);
+    // Resolve credit quantity from canonical server catalog instead of trusting client metadata
+    const { SHARED_CREDIT_PACKS } = await import("../shared/billing-catalog.ts");
+    const matchedPack = SHARED_CREDIT_PACKS.find(
+      (p) => p.sku === metadata.sku || p.name.toLowerCase() === String(metadata.pack_name || "").toLowerCase()
+    );
+
+    const creditsToAdd = matchedPack ? matchedPack.credits : Number(metadata.credits || 0);
+    const bonusCredits = matchedPack ? matchedPack.bonusCredits : Number(metadata.bonus_credits || 0);
     const totalCredits = creditsToAdd + bonusCredits;
 
     if (totalCredits <= 0) {
@@ -425,13 +431,13 @@ export async function fulfillVerifiedPaystackPayment({
       {
         p_user_id: userId,
         p_amount: totalCredits,
-        p_description: `Purchased ${String(metadata.pack_name || "credit pack")} (${creditsToAdd} + ${bonusCredits} bonus)`,
+        p_description: `Purchased ${matchedPack ? matchedPack.name : String(metadata.pack_name || "credit pack")} (${creditsToAdd} + ${bonusCredits} bonus)`,
         p_reference_type: "order",
         p_reference_id: order.id,
         p_metadata: {
           order_id: order.id,
           paystack_ref: reference,
-          sku: metadata.sku,
+          sku: matchedPack ? matchedPack.sku : metadata.sku,
         },
       },
     );

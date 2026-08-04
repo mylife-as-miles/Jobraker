@@ -405,11 +405,28 @@ export const EDGE_FUNCTIONS: EdgeFunctionDefinition[] = [
   },
 ];
 
+export const HARDCODED_SAFE_EDGE_FUNCTIONS_ALLOWLIST = new Set([
+  "jobs-search",
+  "calculate-match-score",
+  "tailor-resume",
+  "generate-cover-letter",
+  "analyze-resume",
+]);
+
+export function isEdgeFunctionAllowedForAgent(name: string): boolean {
+  if (!name) return false;
+  const normalized = name.trim().toLowerCase();
+  return HARDCODED_SAFE_EDGE_FUNCTIONS_ALLOWLIST.has(normalized);
+}
+
 export function getEdgeFunctionDefinition(
   name: string | null | undefined,
 ): EdgeFunctionDefinition | null {
   if (!name) return null;
   const normalized = name.trim().toLowerCase();
+  if (!isEdgeFunctionAllowedForAgent(normalized)) {
+    return null;
+  }
   return (
     EDGE_FUNCTIONS.find((entry) => entry.name.toLowerCase() === normalized) ||
     null
