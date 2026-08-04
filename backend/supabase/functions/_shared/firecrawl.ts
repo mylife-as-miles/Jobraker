@@ -40,6 +40,12 @@ async function resolveFirecrawlApiKey(): Promise<string> {
   throw new Error('Search provider API key is not configured.');
 }
 
+function getAdminSupabaseClient() {
+  const url = Deno.env.get("SUPABASE_URL") || "";
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  return createClient(url, key);
+}
+
 // Centralized Firecrawl API call function
 async function firecrawlFetch(
   path: string,
@@ -48,48 +54,81 @@ async function firecrawlFetch(
   userId?: string,
   timeoutMs = 20000,
 ) {
-  const url = `https://api.firecrawl.dev/v2${path}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort("firecrawl_timeout"), timeoutMs);
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(body),
-    signal: controller.signal,
-  }).finally(() => clearTimeout(timeout));
+  const operationKey = path.includes("search")
+    ? "search"
+    : path.includes("scrape")
+      ? "scrape"
+      : path.includes("map")
+        ? "map"
+        : path.includes("crawl")
+          ? "crawl"
+          : "search";
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    const err = new Error(`Search provider failed: ${res.status} ${text}`) as any;
-    (err as any).status = res.status;
-    (err as any).body = text;
-    // Attach retry-after seconds if present in header or body
-    const hdr = res.headers.get('retry-after');
-    if (hdr) {
-      const secs = parseInt(hdr, 10);
-      if (!Number.isNaN(secs)) (err as any).retryAfterSeconds = secs;
-    }
-    // Try parsing seconds from body message pattern "retry after 55s"
-    if (!(err as any).retryAfterSeconds && text) {
-      const m = text.match(/retry after\s+(\d+)s/i);
-      if (m && m[1]) {
-        const secs = parseInt(m[1], 10);
+  const executeCall = async () => {
+    const url = `https://api.firecrawl.dev/v2${path}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort("firecrawl_timeout"), timeoutMs);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      const err = new Error(`Search provider failed: ${res.status} ${text}`) as any;
+      (err as any).status = res.status;
+      (err as any).body = text;
+      const hdr = res.headers.get('retry-after');
+      if (hdr) {
+        const secs = parseInt(hdr, 10);
         if (!Number.isNaN(secs)) (err as any).retryAfterSeconds = secs;
       }
+      if (!(err as any).retryAfterSeconds && text) {
+        const m = text.match(/retry after\s+(\d+)s/i);
+        if (m && m[1]) {
+          const secs = parseInt(m[1], 10);
+          if (!Number.isNaN(secs)) (err as any).retryAfterSeconds = secs;
+        }
+      }
+      if (res.status === 401) {
+        console.error(`firecrawl.unauthorized`, { user_id: userId, path });
+      }
+      throw err;
     }
-    if (res.status === 401) {
-      console.error(`firecrawl.unauthorized`, { user_id: userId, path });
+    const json = await res.json().catch(() => null);
+    if (json && typeof json.success === 'boolean' && json.success === false) {
+      const code = json.error || json.message || 'request_failed';
+      const err = new Error(`Search provider error: ${code}`) as any;
+      err.firecrawlError = code;
+      throw err;
     }
-    throw err;
+
+    const confirmedUnits = typeof json?.creditsUsed === 'number'
+      ? json.creditsUsed
+      : typeof json?.metadata?.creditsUsed === 'number'
+        ? json.metadata.creditsUsed
+        : 1;
+
+    return { result: json, confirmedUnits };
+  };
+
+  if (userId) {
+    const { runMeteredFirecrawlCall } = await import("./metered-provider-credits.ts");
+    const serviceClient = getAdminSupabaseClient();
+    return runMeteredFirecrawlCall({
+      serviceClient,
+      userId,
+      operationKey,
+      endpoint: path,
+      payload: body,
+      execute: executeCall,
+    });
   }
-  const json = await res.json().catch(() => null);
-  if (json && typeof json.success === 'boolean' && json.success === false) {
-    const code = json.error || json.message || 'request_failed';
-    const err = new Error(`Search provider error: ${code}`) as any;
-    err.firecrawlError = code;
-    throw err;
-  }
-  return json;
+
+  const { result } = await executeCall();
+  return result;
 }
 
 async function getFirecrawlCreditUsage(apiKey: string, timeoutMs = 15000) {

@@ -504,6 +504,16 @@ export async function settleJobSearchRunCredits(
       searchStartedAt: options.searchStartedAt,
     });
 
+  const firecrawlMeteringMode = (Deno.env.get("FIRECRAWL_CREDIT_METERING_MODE") || "enforce").toLowerCase().trim();
+  if (firecrawlMeteringMode === "enforce") {
+    console.log("[settleJobSearchRunCredits] Firecrawl credit metering is enforce mode. Skipping legacy flat job-search deduction.");
+    return {
+      displayableJobCount: 0,
+      creditsCharged: 0,
+      currentBalance: undefined,
+    };
+  }
+
   const creditsCharged = options.searchFailed
     ? 0
     : resolveJobSearchCreditsToCharge(displayableJobCount, options.maxCredits);

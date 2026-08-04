@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { runMeteredRtrvrCall } from "../_shared/metered-provider-credits.ts";
 
 const RTRVR_API_BASE = "https://api.rtrvr.ai";
 
@@ -318,68 +319,101 @@ serve(async (req) => {
 
     const rtrvrApiKey = Deno.env.get("RTRVR_API_KEY") || "";
     const args = body.args && typeof body.args === "object" ? body.args : {};
+    const operationClass = SCRAPE_TOOLS.has(tool) ? "scrape" : MUTATING_TOOLS.has(tool) ? "act" : "run";
 
-    // ── Strategy A: RTRVR Cloud API (preferred) ──
-    if (rtrvrApiKey) {
-      const { endpoint, payload } = resolveRtrvrRequest(tool, args);
-      console.log(`rtrvr-tools [cloud] tool=${tool} endpoint=${endpoint}`);
+    const executeRtrvr = async () => {
+      // ── Strategy A: RTRVR Cloud API (preferred) ──
+      if (rtrvrApiKey) {
+        const { endpoint, payload } = resolveRtrvrRequest(tool, args);
+        console.log(`rtrvr-tools [cloud] tool=${tool} endpoint=${endpoint}`);
 
-      const response = await fetch(endpoint, {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${rtrvrApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const result = await response.json().catch(async () => ({
+          raw: await response.text().catch(() => ""),
+        }));
+
+        const confirmedUnits = typeof result?.credits_used === "number"
+          ? result.credits_used
+          : typeof result?.usage?.credits === "number"
+            ? result.usage.credits
+            : 1;
+
+        return {
+          result: new Response(JSON.stringify(redact(result)), {
+            status: response.ok ? 200 : response.status,
+            headers: { ...corsHeaders, "content-type": "application/json" },
+          }),
+          confirmedUnits,
+          providerRunId: result?.id || result?.run_id || undefined,
+        };
+      }
+
+      // ── Strategy B: Legacy automation worker (fallback) ──
+      const workerUrl = (Deno.env.get("AUTOMATION_WORKER_URL") || "").replace(/\/$/, "");
+      const workerSecret = Deno.env.get("AUTOMATION_WORKER_SECRET") || "";
+      if (!workerUrl || !workerSecret) {
+        return {
+          result: new Response(
+            JSON.stringify({
+              error: "No RTRVR API key or automation worker configured. Set RTRVR_API_KEY in Supabase secrets.",
+              code: "not_configured",
+            }),
+            {
+              status: 503,
+              headers: { ...corsHeaders, "content-type": "application/json" },
+            },
+          ),
+          confirmedUnits: 0,
+        };
+      }
+
+      console.log(`rtrvr-tools [worker-fallback] tool=${tool}`);
+      const workerBody = JSON.stringify({
+        tool,
+        args,
+        user_id: userData.user.id,
+      });
+      const response = await fetch(`${workerUrl}/tools/rtrvr`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${rtrvrApiKey}`,
-          "Content-Type": "application/json",
+          "content-type": "application/json",
+          ...await signedWorkerHeaders(workerSecret, workerBody),
         },
-        body: JSON.stringify(payload),
+        body: workerBody,
       });
-
       const result = await response.json().catch(async () => ({
         raw: await response.text().catch(() => ""),
       }));
 
-      return new Response(JSON.stringify(redact(result)), {
-        status: response.ok ? 200 : response.status,
-        headers: { ...corsHeaders, "content-type": "application/json" },
-      });
-    }
+      const confirmedUnits = typeof result?.credits_used === "number"
+        ? result.credits_used
+        : 1;
 
-    // ── Strategy B: Legacy automation worker (fallback) ──
-    const workerUrl = (Deno.env.get("AUTOMATION_WORKER_URL") || "").replace(/\/$/, "");
-    const workerSecret = Deno.env.get("AUTOMATION_WORKER_SECRET") || "";
-    if (!workerUrl || !workerSecret) {
-      return new Response(
-        JSON.stringify({
-          error: "No RTRVR API key or automation worker configured. Set RTRVR_API_KEY in Supabase secrets.",
-          code: "not_configured",
-        }),
-        {
-          status: 503,
+      return {
+        result: new Response(JSON.stringify(redact(result)), {
+          status: response.status,
           headers: { ...corsHeaders, "content-type": "application/json" },
-        },
-      );
-    }
+        }),
+        confirmedUnits,
+        providerRunId: result?.id || result?.run_id || undefined,
+      };
+    };
 
-    console.log(`rtrvr-tools [worker-fallback] tool=${tool}`);
-    const workerBody = JSON.stringify({
-      tool,
-      args,
-      user_id: userData.user.id,
-    });
-    const response = await fetch(`${workerUrl}/tools/rtrvr`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...await signedWorkerHeaders(workerSecret, workerBody),
-      },
-      body: workerBody,
-    });
-    const result = await response.json().catch(async () => ({
-      raw: await response.text().catch(() => ""),
-    }));
-
-    return new Response(JSON.stringify(redact(result)), {
-      status: response.status,
-      headers: { ...corsHeaders, "content-type": "application/json" },
+    return runMeteredRtrvrCall({
+      serviceClient,
+      userId: userData.user.id,
+      operationClass,
+      featureKey: tool,
+      payload: args,
+      execute: executeRtrvr,
     });
   } catch (error) {
     console.error("rtrvr-tools error", redact(error));
