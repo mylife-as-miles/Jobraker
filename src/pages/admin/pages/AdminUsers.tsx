@@ -74,6 +74,7 @@ function UserDetailPanel({
   isOpen,
   onClose,
   onTopUp,
+  onResetAiUsage,
   onChangePlan,
   onDisconnectIntegrations,
   onDelete,
@@ -87,6 +88,7 @@ function UserDetailPanel({
   isOpen: boolean;
   onClose: () => void;
   onTopUp: () => void;
+  onResetAiUsage: () => void;
   onChangePlan: () => void;
   onDisconnectIntegrations: () => void;
   onDelete: () => void;
@@ -197,6 +199,12 @@ function UserDetailPanel({
                         label='Top Up Credits'
                         onClick={onTopUp}
                         color='green'
+                      />
+                      <ActionButton
+                        icon={<RefreshCw className='w-4 h-4' />}
+                        label='Reset AI Usage'
+                        onClick={onResetAiUsage}
+                        color='accent'
                       />
                       <ActionButton
                         icon={<Crown className='w-4 h-4' />}
@@ -944,10 +952,116 @@ function ManageRoleDialog({
   );
 }
 
+// ─── Reset AI Usage Dialog ────────────────────────────────────────────────
+function ResetAiUsageDialog({
+  user,
+  isOpen,
+  onClose,
+  onConfirm,
+  loading,
+}: {
+  user: any;
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (window: "daily" | "weekly" | "monthly" | "all") => void;
+  loading: boolean;
+}) {
+  const [selectedWindow, setSelectedWindow] = useState<"daily" | "weekly" | "monthly" | "all">("daily");
+
+  if (!isOpen || !user) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className='fixed inset-0 bg-background/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4'
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          onClick={(e) => e.stopPropagation()}
+          className='bg-gradient-to-br from-background via-[#111111] to-background border border-brand/30 rounded-2xl w-full max-w-md shadow-2xl shadow-brand/10'
+        >
+          {/* Header */}
+          <div className='px-6 pt-6 pb-4 border-b border-brand/20'>
+            <div className='flex items-center gap-3 mb-2'>
+              <div className='w-10 h-10 rounded-xl bg-brand/20 flex items-center justify-center'>
+                <RefreshCw className='w-5 h-5 text-brand' />
+              </div>
+              <div>
+                <h3 className='text-lg font-bold text-white'>Reset AI Usage Limit</h3>
+                <p className='text-sm text-gray-400'>{user.email}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className='p-6 space-y-4'>
+            <p className='text-xs text-gray-400'>
+              Select which AI usage limit window to reset for this user. Resetting will restore their usage allowance for that window immediately.
+            </p>
+            <div className='grid grid-cols-2 gap-3'>
+              {[
+                { id: "daily", label: "24-Hour Rolling", desc: "Reset 24h limit" },
+                { id: "weekly", label: "Weekly Window", desc: "Reset week limit" },
+                { id: "monthly", label: "Monthly Period", desc: "Reset month limit" },
+                { id: "all", label: "Reset All", desc: "Reset all windows" },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setSelectedWindow(opt.id as any)}
+                  className={`p-3.5 rounded-xl text-left border transition-all ${
+                    selectedWindow === opt.id
+                      ? "bg-brand/20 border-brand text-white font-semibold"
+                      : "bg-gray-800/50 border-gray-700 text-gray-400 hover:border-brand/30 hover:text-gray-200"
+                  }`}
+                >
+                  <p className="text-sm font-bold text-white">{opt.label}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className='px-6 pb-6 flex gap-3'>
+            <button
+              onClick={onClose}
+              className='flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-gray-600 transition-all'
+            >
+              Cancel
+            </button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onConfirm(selectedWindow)}
+              disabled={loading}
+              className='flex-1 px-4 py-3 bg-brand text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-brand/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2'
+            >
+              {loading ? (
+                <Loader2 className='w-4 h-4 animate-spin' />
+              ) : (
+                <RefreshCw className='w-4 h-4' />
+              )}
+              Confirm Reset
+            </motion.button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 // ─── Row Actions Dropdown ─────────────────────────────────────────────────
 function RowActions({
   onView,
   onTopUp,
+  onResetAiUsage,
   onChangePlan,
   onDelete,
   onManageRole,
@@ -956,6 +1070,7 @@ function RowActions({
 }: {
   onView: () => void;
   onTopUp: () => void;
+  onResetAiUsage: () => void;
   onChangePlan: () => void;
   onDelete: () => void;
   onManageRole: () => void;
@@ -1008,6 +1123,15 @@ function RowActions({
                     className='w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all'
                   >
                     <Plus className='w-4 h-4 text-brand' /> Top Up Credits
+                  </button>
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      onResetAiUsage();
+                    }}
+                    className='w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all'
+                  >
+                    <RefreshCw className='w-4 h-4 text-brand' /> Reset AI Usage
                   </button>
                   <button
                     onClick={() => {
@@ -1104,6 +1228,7 @@ export default function AdminUsers() {
     updateUserRole,
     fetchPlans,
     fetchUserTransactions,
+    resetAiUsage,
   } = useAdminActions();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -1120,6 +1245,7 @@ export default function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showTopUp, setShowTopUp] = useState(false);
+  const [showResetAiUsage, setShowResetAiUsage] = useState(false);
   const [showChangePlan, setShowChangePlan] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showManageRole, setShowManageRole] = useState(false);
@@ -1236,6 +1362,12 @@ export default function AdminUsers() {
     setShowTopUp(true);
   };
 
+  // Open reset AI usage dialog
+  const openResetAiUsage = (user: any) => {
+    setSelectedUser(user);
+    setShowResetAiUsage(true);
+  };
+
   // Open change plan dialog
   const openChangePlan = async (user: any) => {
     setSelectedUser(user);
@@ -1260,6 +1392,19 @@ export default function AdminUsers() {
     setActionLoading(false);
     if (result.success) {
       setShowTopUp(false);
+      setShowDetail(false);
+      refetch();
+    }
+  };
+
+  // Handle reset AI usage confirm
+  const handleResetAiUsageConfirm = async (window: "daily" | "weekly" | "monthly" | "all") => {
+    if (!selectedUser) return;
+    setActionLoading(true);
+    const result = await resetAiUsage(selectedUser.id, window);
+    setActionLoading(false);
+    if (result.success) {
+      setShowResetAiUsage(false);
       setShowDetail(false);
       refetch();
     }
@@ -1620,6 +1765,7 @@ export default function AdminUsers() {
                     <RowActions
                       onView={() => openUserDetail(user)}
                       onTopUp={() => openTopUp(user)}
+                      onResetAiUsage={() => openResetAiUsage(user)}
                       onChangePlan={() => openChangePlan(user)}
                       onDelete={() => openDelete(user)}
                       onManageRole={() => openManageRole(user)}
@@ -1651,6 +1797,10 @@ export default function AdminUsers() {
           setShowDetail(false);
           setTimeout(() => openTopUp(selectedUser), 200);
         }}
+        onResetAiUsage={() => {
+          setShowDetail(false);
+          setTimeout(() => openResetAiUsage(selectedUser), 200);
+        }}
         onChangePlan={() => {
           setShowDetail(false);
           setTimeout(() => openChangePlan(selectedUser), 200);
@@ -1678,6 +1828,14 @@ export default function AdminUsers() {
         isOpen={showTopUp}
         onClose={() => setShowTopUp(false)}
         onConfirm={handleTopUpConfirm}
+        loading={actionLoading}
+      />
+
+      <ResetAiUsageDialog
+        user={selectedUser}
+        isOpen={showResetAiUsage}
+        onClose={() => setShowResetAiUsage(false)}
+        onConfirm={handleResetAiUsageConfirm}
         loading={actionLoading}
       />
 

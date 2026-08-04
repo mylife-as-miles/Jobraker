@@ -263,6 +263,28 @@ export function useAdminActions() {
     }
   }, [supabase]);
 
+  /**
+   * Reset a user's daily, weekly, monthly or all AI usage allowance.
+   */
+  const resetAiUsage = useCallback(async (userId: string, window: 'daily' | 'weekly' | 'monthly' | 'all') => {
+    try {
+      const { data, error } = await supabase.rpc('admin_reset_user_ai_usage', {
+        p_user_id: userId,
+        p_window: window,
+      });
+
+      if (error) throw error;
+
+      const windowLabel = window === 'all' ? 'All' : window.charAt(0).toUpperCase() + window.slice(1);
+      success(`Successfully reset ${windowLabel} AI usage limit for user.`);
+      return { success: true, data };
+    } catch (err: any) {
+      console.error('Error resetting AI usage:', err);
+      showError(err.message || 'Failed to reset AI usage');
+      return { success: false, error: err.message };
+    }
+  }, [supabase, success, showError]);
+
   return {
     topUpCredits,
     changeSubscription,
@@ -271,5 +293,6 @@ export function useAdminActions() {
     removeUserRole,
     fetchPlans,
     fetchUserTransactions,
+    resetAiUsage,
   };
 }

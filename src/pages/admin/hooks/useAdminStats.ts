@@ -259,20 +259,26 @@ export const useUserActivities = () => {
       setLoading(true);
       setError(null);
 
-      // 1. Fetch all users from Auth (via Edge Function)
+      // 1. Fetch all users from Auth (prefer RPC for real emails, fallback to Edge Function)
       let authUsers: any[] = [];
       try {
-        const { data, error } = await supabase.functions.invoke('list-users');
-        if (error) throw error;
-        authUsers = data || [];
+        const { data: rpcUsers, error: rpcErr } = await supabase.rpc('get_all_users_for_admin');
+        if (!rpcErr && rpcUsers && Array.isArray(rpcUsers) && rpcUsers.length > 0) {
+          authUsers = rpcUsers;
+        } else {
+          const { data, error } = await supabase.functions.invoke('list-users');
+          if (!error && data) {
+            authUsers = data || [];
+          }
+        }
       } catch (e) {
-        console.warn('Failed to fetch auth users via edge function', e);
+        console.warn('Failed to fetch auth users via RPC / edge function', e);
       }
 
       // 2. Fetch profiles
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, updated_at, avatar_url');
+        .select('id, email, first_name, last_name, updated_at, avatar_url');
 
       if (profileError) {
         console.error('Error fetching profiles:', profileError);
@@ -285,7 +291,7 @@ export const useUserActivities = () => {
       // 3. Determine the base list of users to iterate over
       const baseUsers = authUsers.length > 0 ? authUsers : (profiles || []).map((p: any) => ({
         id: p.id,
-        email: `user-${p.id.substring(0, 8)}@jobraker.com`,
+        email: p.email || (p.first_name ? `${p.first_name.toLowerCase()}@jobraker.com` : `user-${p.id.substring(0, 8)}@jobraker.com`),
         created_at: new Date().toISOString(),
         last_sign_in_at: new Date().toISOString(),
       }));
@@ -331,8 +337,8 @@ export const useUserActivities = () => {
       const userActivities: UserActivity[] = baseUsers.map((user: any) => {
         const profile = profileMap.get(user.id);
         
-        // Basic Info - Prefer Auth email, fallback to constructed or unknown
-        const email = user.email || (profile ? `user-${user.id.substring(0, 8)}@jobraker.com` : 'Unknown');
+        // Basic Info - Prefer Auth email, fallback to profile email or constructed
+        const email = user.email || profile?.email || (profile ? `user-${user.id.substring(0, 8)}@jobraker.com` : 'Unknown');
         
         // Name Resolution
         let full_name = null;
