@@ -1990,7 +1990,10 @@ export const ChatPage = () => {
       const { data } = await supabase.rpc("get_chat_quota_status", {
         p_user_id: userData.user.id,
       });
-      if (data) setChatQuota(data);
+      if (data) {
+        setChatQuota(data);
+        window.dispatchEvent(new CustomEvent("jobraker:credits-updated"));
+      }
     } catch {
       // Quota display is non-critical
     }
