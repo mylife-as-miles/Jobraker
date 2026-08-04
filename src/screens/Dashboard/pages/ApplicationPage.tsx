@@ -1921,11 +1921,98 @@ function ApplicationPage() {
                     </div>
                   ))
                 ) : (
-                  <div className='rounded-xl border border-dashed border-foreground/15 p-4 text-center text-xs text-muted-foreground space-y-1'>
+                  <div className='rounded-xl border border-dashed border-foreground/15 p-4 text-center text-xs text-muted-foreground space-y-3'>
                     <p className='font-medium text-foreground/80'>No active background task currently linked to this application.</p>
                     <p className='text-[11px] text-muted-foreground'>
-                      You can queue a <strong className='text-[#2fd968]'>@RecruiterScout</strong> search or launch <strong className='text-[#2fd968]'>Auto Apply</strong> in Chat anytime.
+                      You can queue a{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent("jobraker:add-to-chat", {
+                              detail: {
+                                text: `@RecruiterScout find the hiring manager and verified recruiter contacts for ${detailApp.job_title} at ${detailApp.company}`,
+                                mode: "quote",
+                              },
+                            })
+                          );
+                        }}
+                        className='font-bold text-[#2fd968] hover:underline underline-offset-2 hover:brightness-125 transition-all cursor-pointer inline-flex items-center gap-1 bg-[#2fd968]/10 px-2 py-0.5 rounded border border-[#2fd968]/30'
+                      >
+                        <Bot className="w-3 h-3" /> @RecruiterScout
+                      </button>{" "}
+                      search or launch{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent("jobraker:add-to-chat", {
+                              detail: {
+                                text: `/direct-apply ${detailApp.job_title} at ${detailApp.company}`,
+                                mode: "quote",
+                              },
+                            })
+                          );
+                        }}
+                        className='font-bold text-[#2fd968] hover:underline underline-offset-2 hover:brightness-125 transition-all cursor-pointer inline-flex items-center gap-1 bg-[#2fd968]/10 px-2 py-0.5 rounded border border-[#2fd968]/30'
+                      >
+                        <Zap className="w-3 h-3" /> Auto Apply
+                      </button>{" "}
+                      in Chat anytime.
                     </p>
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-2 border-t border-foreground/5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent("jobraker:add-to-chat", {
+                              detail: {
+                                text: `@RecruiterScout find the hiring manager and recruiter contacts for ${detailApp.job_title} at ${detailApp.company}`,
+                                mode: "quote",
+                              },
+                            })
+                          );
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2fd968]/10 hover:bg-[#2fd968]/20 border border-[#2fd968]/30 text-[#2fd968] text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                      >
+                        <Bot className="w-3.5 h-3.5" />
+                        Run @RecruiterScout
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent("jobraker:add-to-chat", {
+                              detail: {
+                                text: `/direct-apply ${detailApp.job_title} at ${detailApp.company}`,
+                                mode: "quote",
+                              },
+                            })
+                          );
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2fd968]/10 hover:bg-[#2fd968]/20 border border-[#2fd968]/30 text-[#2fd968] text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                      >
+                        <Zap className="w-3.5 h-3.5" />
+                        Launch Auto Apply
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent("jobraker:add-to-chat", {
+                              detail: {
+                                text: `@OutreachWriter draft cold outreach email to hiring manager for ${detailApp.job_title} at ${detailApp.company}`,
+                                mode: "quote",
+                              },
+                            })
+                          );
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Draft Outreach
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
