@@ -503,7 +503,20 @@ export function ApplicationsListView({
                                 >
                                   {a.job_title}
                                 </h3>
-                                <MatchScoreBadge score={a.match_score} />
+                                <MatchScoreBadge
+                                  score={a.match_score}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.dispatchEvent(
+                                      new CustomEvent("jobraker:add-to-chat", {
+                                        detail: {
+                                          text: `Evaluate my resume fit and calculate a match score for ${a.job_title} at ${a.company || "target company"}`,
+                                          mode: "quote",
+                                        },
+                                      })
+                                    );
+                                  }}
+                                />
                               </div>
                               <div className='mt-1 truncate text-sm font-medium text-foreground/60'>
                                 {a.company}
@@ -1666,7 +1679,20 @@ function ApplicationPage() {
                                   </div>
                                 </div>
                                 <div className='mt-0.5 shrink-0'>
-                                  <MatchScoreBadge score={a.match_score} />
+                                  <MatchScoreBadge
+                                    score={a.match_score}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.dispatchEvent(
+                                        new CustomEvent("jobraker:add-to-chat", {
+                                          detail: {
+                                            text: `Evaluate my resume fit and calculate a match score for ${a.job_title} at ${a.company || "target company"}`,
+                                            mode: "quote",
+                                          },
+                                        })
+                                      );
+                                    }}
+                                  />
                                 </div>
                               </div>
                               <div className='mt-3 flex flex-wrap items-center gap-2 border-t border-foreground/5 pt-3 text-[11px] text-foreground/50'>
@@ -3351,7 +3377,23 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           </div>
         ),
         accessorFn: (row) => row.match_score ?? null,
-        cell: (info) => <MatchScoreBadge score={info.getValue<number | null>()} />,
+        cell: (info) => (
+          <MatchScoreBadge
+            score={info.getValue<number | null>()}
+            onClick={(e) => {
+              e.stopPropagation();
+              const app = info.row.original;
+              window.dispatchEvent(
+                new CustomEvent("jobraker:add-to-chat", {
+                  detail: {
+                    text: `Evaluate my resume fit and calculate a match score for ${app.job_title} at ${app.company || "target company"}`,
+                    mode: "quote",
+                  },
+                })
+              );
+            }}
+          />
+        ),
         sortingFn: (a, b, columnId) => {
           const scoreA = a.getValue<number | null>(columnId);
           const scoreB = b.getValue<number | null>(columnId);
