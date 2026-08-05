@@ -169,7 +169,7 @@ export const TextSelectionToolbar: React.FC<TextSelectionToolbarProps> = ({ cont
         {/* Add to Chat Button */}
         <button
           onClick={(e) => handleAction("quote", e)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-all shadow-md shadow-cyan-600/20 active:scale-95 cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand hover:bg-brand/90 text-primary-foreground font-semibold transition-all shadow-md shadow-brand/25 active:scale-95 cursor-pointer"
           title="Add quoted text into AI Chat prompt"
         >
           <MessageSquarePlus className="w-3.5 h-3.5" />
