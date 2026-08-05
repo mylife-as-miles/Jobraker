@@ -1,25 +1,15 @@
 import React from "react";
-import { motion } from "framer-motion";
+import { ThinkingOrb, OrbState } from "thinking-orbs";
 
 export const TypingIndicator: React.FC<{
   className?: string;
-  dots?: number;
-}> = ({ className = "", dots = 3 }) => {
+  state?: OrbState;
+  text?: string;
+}> = ({ className = "", state = "composing", text = "AI is thinking..." }) => {
   return (
-    <div className={`flex items-center gap-1 ${className}`}>
-      {Array.from({ length: dots }).map((_, i) => (
-        <motion.span
-          key={i}
-          className='w-2 h-2 rounded-full bg-brand'
-          animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
-          transition={{
-            duration: 0.8,
-            repeat: Infinity,
-            delay: i * 0.15,
-            ease: "easeInOut",
-          }}
-        />
-      ))}
+    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/60 shadow-lg text-xs font-medium text-slate-200 backdrop-blur-md ${className}`}>
+      <ThinkingOrb state={state} size={20} theme="dark" />
+      <span className="text-brand-300 font-medium">{text}</span>
     </div>
   );
 };

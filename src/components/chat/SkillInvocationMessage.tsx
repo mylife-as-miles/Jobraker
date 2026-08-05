@@ -1,4 +1,5 @@
 import { AlertCircle, Bot, CheckCircle2, Loader2 } from "lucide-react";
+import { ThinkingOrb, OrbState } from "thinking-orbs";
 import { DirectApplySkillCard } from "./DirectApplySkillCard";
 import { OutreachWriterSkillCard } from "./OutreachWriterSkillCard";
 import { CompanyScoutSkillCard } from "./CompanyScoutSkillCard";
@@ -29,6 +30,13 @@ const isDirectApplyOutput = (
   });
 };
 
+const getSkillOrbState = (skillId: string): OrbState => {
+  if (skillId.includes("scout") || skillId.includes("search")) return "searching";
+  if (skillId.includes("apply") || skillId.includes("connect")) return "connecting";
+  if (skillId.includes("writer") || skillId.includes("draft")) return "weaving";
+  return "working";
+};
+
 export const SkillInvocationMessage = ({ skillCall, onRunPrompt }: Props) => {
   const progress = skillCall.progress || [];
   const running = skillCall.status === "running" || skillCall.status === "queued";
@@ -43,7 +51,7 @@ export const SkillInvocationMessage = ({ skillCall, onRunPrompt }: Props) => {
         <div className='flex items-start gap-3'>
           <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-brand/20 bg-brand/10 text-brand'>
             {running ? (
-              <Loader2 className='h-4 w-4 animate-spin' />
+              <ThinkingOrb state={getSkillOrbState(skillCall.skillId)} size={20} theme="dark" />
             ) : failed ? (
               <AlertCircle className='h-4 w-4' />
             ) : (

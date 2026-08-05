@@ -66,6 +66,7 @@ import {
 } from "../../../services/ai/generateChatStarters";
 import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
 import { TextSelectionToolbar } from "@/components/chat/TextSelectionToolbar";
+import { ThinkingOrb } from "thinking-orbs";
 import {
   executeChatSkill,
   getPrimarySkillAlias,
@@ -3906,6 +3907,35 @@ export const ChatPage = () => {
                   </div>
                 )}
 
+                {isListening && (
+                  <div className="mb-3 flex items-center justify-between p-3.5 rounded-2xl bg-slate-900/95 border border-[#2fd968]/40 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 z-30">
+                    <div className="flex items-center gap-3.5">
+                      <div className="shrink-0 flex items-center justify-center p-1 rounded-xl bg-slate-950/80 border border-[#2fd968]/20">
+                        <ThinkingOrb state="listening" size={64} theme="dark" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-white flex items-center gap-2">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2fd968] opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2fd968]"></span>
+                          </span>
+                          Listening to your voice...
+                        </div>
+                        <p className="text-[11px] text-slate-300 mt-0.5">
+                          Speak your query clearly. Your speech is transcribed into prompt text automatically.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleListening}
+                      className="px-3.5 py-1.5 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-semibold border border-rose-500/40 transition-all cursor-pointer shrink-0"
+                    >
+                      Stop Listening
+                    </button>
+                  </div>
+                )}
+
                 <div
                   className={`relative rounded-[32px] border border-border shadow-2xl overflow-visible transition-all duration-300 ${
                     text.trim() || attachments.length
@@ -4141,12 +4171,16 @@ export const ChatPage = () => {
                         onClick={toggleListening}
                         className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
                           isListening
-                            ? "bg-brand/15 text-brand animate-pulse hover:bg-brand/25"
+                            ? "bg-[#2fd968]/20 text-[#2fd968] ring-2 ring-[#2fd968]/40 hover:bg-[#2fd968]/30"
                             : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                         }`}
                         title={isListening ? "Listening... Click to stop" : "Voice input"}
                       >
-                        <Mic size={18} />
+                        {isListening ? (
+                          <ThinkingOrb state="listening" size={20} theme="dark" />
+                        ) : (
+                          <Mic size={18} />
+                        )}
                       </button>
 
                       {/* Send Button */}
