@@ -127,5 +127,16 @@ popups
 launch
 ```
 
+## Interface Review Skills
+The `jakubkrehel/skills` collection is installed in `.agents/skills/` and has been audited as documentation-only. It includes seven coordinated interface skills: `better-interface`, `better-accessibility`, `better-layout`, `better-writing`, `better-typography`, `better-colors`, and `better-ui`.
+
+Use `better-interface` for a holistic interface review; it coordinates the other six skills. Use the individual `better-*` skill when the task is limited to that discipline. Invoke the review explicitly with `$better-interface` (optionally followed by `quick` or `full` and a screen, flow, or feature).
+
+The audited source is `jakubkrehel/skills`; the project install is tracked in `skills-lock.json`. Refresh it with:
+
+```bash
+npx skills update better-interface better-accessibility better-layout better-writing better-typography better-colors better-ui
+```
+
 ## Model and Stack Restrictions
 - **CRITICAL**: Never change any model name (e.g., `gemini-embedding-2`), model configurations, or tech stack components (libraries, databases, architecture) without explicit user permission or telling the user first.
