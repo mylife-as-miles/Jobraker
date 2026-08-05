@@ -151,3 +151,8 @@ npx skills update emil-design-eng review-animations improve-animations find-anim
 
 ## Model and Stack Restrictions
 - **CRITICAL**: Never change any model name (e.g., `gemini-embedding-2`), model configurations, or tech stack components (libraries, databases, architecture) without explicit user permission or telling the user first.
+
+## Environment and Credential Handling
+- For Supabase work, read the project-specific `JOBBREAKER_SUPABASE_ACCESS_TOKEN` and expose it only in-process as `SUPABASE_ACCESS_TOKEN` for the command that requires it.
+- Never print, persist, commit, or store the token value in logs, shell history, source files, documentation examples, or generated artifacts.
+- For GitHub merges and repository operations, prefer the connected GitHub integration and never expose or store a GitHub access token in the repository.
