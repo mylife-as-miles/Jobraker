@@ -139,14 +139,14 @@ npx skills update better-interface better-accessibility better-layout better-wri
 ```
 
 ## Emil Kowalski Design Skills
-The `emilkowalski/skills` collection is installed in `.agents/skills/` and has been audited as documentation-only. It includes `emil-design-eng`, `review-animations`, `improve-animations`, `find-animation-opportunities`, `animation-vocabulary`, `apple-design`, `pick-ui-library`, and `prototype`.
+The `emilkowalski/skills` collection is installed in `.agents/skills/` and has been audited as documentation-only. It includes `animate`, `emil-design-eng`, `review-animations`, `improve-animations`, `find-animation-opportunities`, `animation-vocabulary`, `apple-design`, `pick-ui-library`, and `prototype`.
 
 Use `emil-design-eng` for general design-engineering guidance. Invoke `review-animations`, `improve-animations`, `find-animation-opportunities`, `animation-vocabulary`, `pick-ui-library`, or `prototype` explicitly when that specialized workflow is requested. `prototype` must remain isolated until a specific variant is selected for promotion.
 
 The audited source is `emilkowalski/skills`; the project install is tracked in `skills-lock.json`. Refresh it with:
 
 ```bash
-npx skills update emil-design-eng review-animations improve-animations find-animation-opportunities animation-vocabulary apple-design pick-ui-library prototype
+  npx skills add emilkowalski/skills --copy -y
 ```
 
 ## Taste Skill v2 (Experimental)
