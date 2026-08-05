@@ -7,14 +7,14 @@ import {
   syncFirecrawlCreditUsage,
 } from "../_shared/provider-credits.ts";
 
-const PROVIDERS = new Set(["firecrawl", "skyvern"]);
+const PROVIDERS = new Set(["firecrawl", "rtrvr", "skyvern"]);
 
-function asProvider(value: unknown): "firecrawl" | "skyvern" {
+function asProvider(value: unknown): "firecrawl" | "rtrvr" | "skyvern" {
   const provider = String(value || "").trim().toLowerCase();
   if (!PROVIDERS.has(provider)) {
     throw new Error("Unsupported provider");
   }
-  return provider as "firecrawl" | "skyvern";
+  return provider as "firecrawl" | "rtrvr" | "skyvern";
 }
 
 function asNonNegativeInteger(value: unknown, fallback = 0): number {

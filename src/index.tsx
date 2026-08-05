@@ -52,6 +52,8 @@ const AdminChat = lazyWithRetry(() => import("./pages/admin/pages/AdminChat"));
 const AdminRevenue = lazyWithRetry(() => import("./pages/admin/pages/AdminRevenue"));
 const AdminCredits = lazyWithRetry(() => import("./pages/admin/pages/AdminCredits"));
 const AdminProviderCredits = lazyWithRetry(() => import("./pages/admin/pages/AdminProviderCredits"));
+const AdminUserUsage = lazyWithRetry(() => import("./pages/admin/pages/AdminUserUsage"));
+const AdminCostAllocation = lazyWithRetry(() => import("./pages/admin/pages/AdminCostAllocation"));
 const AdminActivity = lazyWithRetry(() => import("./pages/admin/pages/AdminActivity"));
 const AdminDatabase = lazyWithRetry(() => import("./pages/admin/pages/AdminDatabase"));
 const AdminPerformance = lazyWithRetry(() => import("./pages/admin/pages/AdminPerformance"));
@@ -368,6 +370,8 @@ function AnimatedRoutes() {
           <Route path='revenue' element={<AdminRevenue />} />
           <Route path='credits' element={<AdminCredits />} />
           <Route path='provider-credits' element={<AdminProviderCredits />} />
+          <Route path='user-usage' element={<AdminUserUsage />} />
+          <Route path='cost-allocation' element={<AdminCostAllocation />} />
           <Route path='activity' element={<AdminActivity />} />
           <Route path='database' element={<AdminDatabase />} />
           <Route path='performance' element={<AdminPerformance />} />
