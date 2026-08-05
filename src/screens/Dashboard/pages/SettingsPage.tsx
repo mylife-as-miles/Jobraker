@@ -1942,13 +1942,56 @@ export const SettingsPage = (): JSX.Element => {
           <div
             id='settings-tab-security'
             data-tour='settings-tab-security'
-            className='space-y-6 mb-20'
+            className='space-y-4 mb-20'
           >
+            <div className='relative overflow-hidden rounded-xl border border-brand/25 bg-gradient-to-br from-brand/[0.09] via-card to-card px-4 py-5 shadow-sm ring-1 ring-brand/10 sm:px-6'>
+              <div className='pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-brand/10 blur-3xl' />
+              <div className='relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+                <div className='flex min-w-0 items-start gap-3'>
+                  <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand/30 bg-brand/10 text-brand'>
+                    <ShieldCheck className='h-5 w-5' aria-hidden />
+                  </div>
+                  <div>
+                    <p className='text-[10px] font-semibold uppercase tracking-[0.22em] text-brand/80'>
+                      Account · Security
+                    </p>
+                    <h2 className='mt-1 text-lg font-medium tracking-tight text-foreground'>
+                      Keep your Jobraker account protected
+                    </h2>
+                    <p className='mt-1 max-w-2xl text-sm text-muted-foreground'>
+                      Manage your sign-in methods, trusted devices, active sessions, and recovery options.
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                    sec?.two_factor_enabled
+                      ? "border-brand/30 bg-brand/10 text-brand"
+                      : "border-border/50 bg-muted/40 text-muted-foreground"
+                  }`}
+                >
+                  {sec?.two_factor_enabled ? <CheckCircle2 className='h-3 w-3' /> : <ShieldOff className='h-3 w-3' />}
+                  {sec?.two_factor_enabled ? "2FA protected" : "2FA not enabled"}
+                </span>
+              </div>
+            </div>
+
             {/* Change Password */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <h3 className='text-base font-medium text-foreground mb-6'>
-                Change Password
-              </h3>
+            <div className='overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm ring-1 ring-foreground/5'>
+              <div className='flex items-start gap-3 border-b border-border/40 px-4 py-4 sm:px-6'>
+                <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
+                  <Lock className='h-4 w-4' aria-hidden />
+                </div>
+                <div>
+                  <h3 className='text-base font-medium text-foreground'>
+                    Change password
+                  </h3>
+                  <p className='mt-0.5 text-xs text-muted-foreground'>
+                    Use a unique password that you do not use anywhere else.
+                  </p>
+                </div>
+              </div>
+              <div className='p-4 sm:p-6'>
               <div className='space-y-4'>
                 <div>
                   <label className='block text-xs font-bold text-muted-foreground/80 mb-2 uppercase tracking-wider'>
@@ -2068,11 +2111,13 @@ export const SettingsPage = (): JSX.Element => {
                   </Button>
                 </div>
               </div>
+              </div>
             </div>
 
             {/* Two-Factor Authentication */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between mb-4 gap-4'>
+            <div className='overflow-hidden rounded-xl border border-brand/25 bg-gradient-to-br from-brand/[0.07] via-card to-card shadow-sm ring-1 ring-brand/10'>
+              <div className='p-4 sm:p-5'>
+              <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
                 <div className='flex items-start gap-3 min-w-0'>
                   <div
                     className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${
@@ -2098,7 +2143,7 @@ export const SettingsPage = (): JSX.Element => {
                     </p>
                   </div>
                 </div>
-                <div className='flex shrink-0 items-center gap-3'>
+                <div className='flex shrink-0 flex-wrap items-center gap-2'>
                   <span
                     className={`text-sm px-3 py-1 rounded-full font-medium ${sec?.two_factor_enabled ? "bg-brand/10 text-brand border border-brand/30" : "bg-muted/50 text-muted-foreground border border-border/40"}`}
                   >
@@ -2213,14 +2258,21 @@ export const SettingsPage = (): JSX.Element => {
                   </div>
                 </div>
               )}
+              </div>
             </div>
 
             {/* Sign-in Alerts */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <h3 className='text-base font-medium text-foreground mb-4'>
-                Security Alerts
-              </h3>
-              <div className='space-y-3'>
+            <div className='overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm ring-1 ring-foreground/5'>
+              <div className='flex items-start gap-3 border-b border-border/40 px-4 py-4 sm:px-6'>
+                <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
+                  <Bell className='h-4 w-4' aria-hidden />
+                </div>
+                <div>
+                  <h3 className='text-base font-medium text-foreground'>Security alerts</h3>
+                  <p className='mt-0.5 text-xs text-muted-foreground'>Get notified when something needs your attention.</p>
+                </div>
+              </div>
+              <div className='space-y-3 p-4 sm:p-5'>
                 <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'>
                   <div className='flex-1'>
                     <p className='text-sm font-medium text-foreground/90'>
@@ -2345,15 +2397,20 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Backup Codes */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between mb-4'>
-                <div>
+            <div className='overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm ring-1 ring-foreground/5'>
+              <div className='flex flex-col gap-4 border-b border-border/40 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6'>
+                <div className='flex items-start gap-3'>
+                  <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
+                    <KeyRound className='h-4 w-4' aria-hidden />
+                  </div>
+                  <div>
                   <h3 className='text-base font-medium text-foreground/95'>
                     Backup Codes
                   </h3>
                   <p className='text-xs text-muted-foreground mt-1'>
                     One-time use codes for account recovery
                   </p>
+                  </div>
                 </div>
                 <Button
                   variant='outline'
@@ -2365,7 +2422,7 @@ export const SettingsPage = (): JSX.Element => {
                   Generate New Codes
                 </Button>
               </div>
-              <div className='space-y-2'>
+              <div className='space-y-2 p-4 sm:p-6'>
                 {backupCodes && backupCodes.length > 0 ? (
                   <div className='border border-border/40 rounded-lg overflow-hidden bg-muted/50 shadow-inner'>
                     <div className='grid grid-cols-3 text-xs font-bold uppercase tracking-wider text-muted-foreground/80 bg-muted/50 py-2 px-4 border-b border-border/40'>
@@ -2412,11 +2469,21 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Trusted Devices */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between mb-3'>
-                <h3 className='text-base font-medium text-foreground/95'>
-                  Trusted Devices
-                </h3>
+            <div className='overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm ring-1 ring-foreground/5'>
+              <div className='flex flex-col gap-4 border-b border-border/40 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6'>
+                <div className='flex items-start gap-3'>
+                  <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
+                    <Smartphone className='h-4 w-4' aria-hidden />
+                  </div>
+                  <div>
+                    <h3 className='text-base font-medium text-foreground/95'>
+                      Trusted Devices
+                    </h3>
+                    <p className='mt-1 text-xs text-muted-foreground'>
+                      Trusted devices skip some security prompts. Revoke lost or old devices.
+                    </p>
+                  </div>
+                </div>
                 <Button
                   variant='outline'
                   size='sm'
@@ -2436,11 +2503,7 @@ export const SettingsPage = (): JSX.Element => {
                   Trust This Device
                 </Button>
               </div>
-              <p className='text-xs text-muted-foreground mb-4'>
-                Trusted devices skip some security prompts. Revoke lost or old
-                devices.
-              </p>
-              <div className='mt-3 border border-border/40 rounded-lg overflow-hidden bg-muted/50 shadow-inner'>
+              <div className='m-4 overflow-hidden rounded-lg border border-border/40 bg-muted/50 shadow-inner sm:m-6'>
                 <div className='grid grid-cols-4 text-xs font-bold uppercase tracking-wider text-muted-foreground/80 bg-muted/50 py-2 px-3 border-b border-border/40'>
                   <div>Device</div>
                   <div>Device ID</div>
@@ -2498,15 +2561,20 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Active Sessions */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between mb-4'>
-                <div>
+            <div className='overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm ring-1 ring-foreground/5'>
+              <div className='flex flex-col gap-4 border-b border-border/40 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6'>
+                <div className='flex items-start gap-3'>
+                  <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
+                    <Activity className='h-4 w-4' aria-hidden />
+                  </div>
+                  <div>
                   <h3 className='text-base font-medium text-foreground/95'>
                     Active Sessions
                   </h3>
                   <p className='text-xs text-muted-foreground mt-1'>
                     Manage your active login sessions
                   </p>
+                  </div>
                 </div>
                 {activeSessions && activeSessions.length > 1 && (
                   <Button
@@ -2527,11 +2595,11 @@ export const SettingsPage = (): JSX.Element => {
                     }}
                     className='border-border/40 text-muted-foreground hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm'
                   >
-                    Revoke All Others
-                  </Button>
-                )}
+                  Revoke All Others
+                </Button>
+              )}
               </div>
-              <div className='space-y-2'>
+              <div className='space-y-2 p-4 sm:p-5'>
                 {activeSessions && activeSessions.length > 0 ? (
                   activeSessions.map((session: any) => (
                     <div
@@ -2596,15 +2664,20 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Security Audit Log */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between mb-4'>
-                <div>
+            <div className='overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm ring-1 ring-foreground/5'>
+              <div className='flex flex-col gap-4 border-b border-border/40 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6'>
+                <div className='flex items-start gap-3'>
+                  <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
+                    <History className='h-4 w-4' aria-hidden />
+                  </div>
+                  <div>
                   <h3 className='text-base font-medium text-foreground/95'>
                     Security Audit Log
                   </h3>
                   <p className='text-xs text-muted-foreground mt-1'>
                     View your account security events
                   </p>
+                  </div>
                 </div>
                 <Button
                   variant='outline'
@@ -2616,7 +2689,7 @@ export const SettingsPage = (): JSX.Element => {
                   Refresh
                 </Button>
               </div>
-              <div className='space-y-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent'>
+              <div className='max-h-[400px] space-y-2 overflow-y-auto p-4 pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent sm:p-5 sm:pr-3'>
                 {auditLogs && auditLogs.length > 0 ? (
                   auditLogs.map((log: any) => (
                     <div
