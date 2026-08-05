@@ -302,7 +302,6 @@ interface BasicMessage {
   content: string;
   parts?: { type: "text"; text: string }[];
   streaming?: boolean;
-  backgroundTaskId?: string;
   createdAt: number;
   meta?: { persona?: Persona; parent?: string };
   toolCalls?: ToolCallEntry[];
@@ -407,15 +406,37 @@ const CHAT_STARTER_ICONS: Record<
   strategy: Bolt,
 };
 
-const normalizeBasicMessage = (message: any): BasicMessage => ({
+const isLegacyQueuedAssistant = (message: any) =>
+  message?.role === "assistant" &&
+  Boolean(message?.streaming) &&
+  !String(message?.content || "").trim() &&
+  Array.isArray(message?.agentEvents) &&
+  message.agentEvents.some(
+    (event: any) =>
+      event?.title === "Queued in the background" ||
+      String(event?.detail || "").includes("continue chatting while this request runs"),
+  );
+
+const normalizeBasicMessage = (message: any): BasicMessage => {
+  const legacyQueuedAssistant = isLegacyQueuedAssistant(message);
+  const legacyQueueMessage =
+    "This request did not complete. Send it again to receive a streamed response.";
+
+  return {
   id: typeof message?.id === "string" ? message.id : nanoid(),
   role:
     message?.role === "assistant" || message?.role === "skill"
       ? message.role
       : "user",
-  content: typeof message?.content === "string" ? message.content : "",
+  content: legacyQueuedAssistant
+    ? legacyQueueMessage
+    : typeof message?.content === "string"
+      ? message.content
+      : "",
   parts:
-    Array.isArray(message?.parts) && message.parts.length > 0
+    legacyQueuedAssistant
+      ? [{ type: "text" as const, text: legacyQueueMessage }]
+      : Array.isArray(message?.parts) && message.parts.length > 0
       ? message.parts
       : [
           {
@@ -423,11 +444,7 @@ const normalizeBasicMessage = (message: any): BasicMessage => ({
             text: typeof message?.content === "string" ? message.content : "",
           },
         ],
-  streaming: Boolean(message?.streaming),
-  backgroundTaskId:
-    typeof message?.backgroundTaskId === "string"
-      ? message.backgroundTaskId
-      : undefined,
+  streaming: legacyQueuedAssistant ? false : Boolean(message?.streaming),
   createdAt:
     typeof message?.createdAt === "number" ? message.createdAt : Date.now(),
   meta:
@@ -466,7 +483,9 @@ const normalizeBasicMessage = (message: any): BasicMessage => ({
               : undefined,
         }))
     : undefined,
-  agentEvents: Array.isArray(message?.agentEvents)
+  agentEvents: legacyQueuedAssistant
+    ? undefined
+    : Array.isArray(message?.agentEvents)
     ? message.agentEvents
         .filter(
           (entry: any) =>
@@ -516,7 +535,8 @@ const normalizeBasicMessage = (message: any): BasicMessage => ({
     typeof message?.attachmentCount === "number"
       ? message.attachmentCount
       : undefined,
-});
+  };
+};
 
 const toolDisplayName = (
   name: string,
@@ -1863,224 +1883,10 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
 
   const append = useCallback(
     (m: ChatUserPayload, chatOpts?: ChatRequestOptions) => {
-      const queueMessage = async () => {
-        const textContent = m.content.trim();
-        const userMessage: BasicMessage = {
-          id: nanoid(),
-          role: "user",
-          content: textContent,
-          hasPastedImage: Boolean(m.images?.length),
-          attachmentCount: m.images?.length || 0,
-          createdAt: Date.now(),
-          parts: [{ type: "text", text: textContent || (m.images?.length ? " " : "") }],
-        };
-        const assistantId = nanoid();
-        const assistantMessage: BasicMessage = {
-          id: assistantId,
-          role: "assistant",
-          content: "",
-          createdAt: Date.now(),
-          parts: [{ type: "text", text: "" }],
-          streaming: true,
-          agentEvents: [{
-            id: nanoid(),
-            kind: "status",
-            title: "Queued in the background",
-            detail: "You can continue chatting while this request runs.",
-            status: "running",
-            createdAt: Date.now(),
-          }],
-        };
-        const history = [...messages, userMessage];
-        const supabase = createClient();
-        try {
-          const { data: task, error } = await supabase
-            .from("job_intelligence_tasks")
-            .insert({
-              type: "chat_completion",
-              title: textContent.slice(0, 80) || "Chat request",
-              message: "Queued for processing.",
-              progress_total: 3,
-              params: {
-                messages: buildChatRequestMessages(history, m),
-                model: chatOpts?.model || DEFAULT_CHAT_MODEL,
-                mode: chatOpts?.mode || "ask",
-                webSearch: chatOpts?.webSearch ?? false,
-                system: chatOpts?.system,
-                client_assistant_id: assistantId,
-              },
-            })
-            .select("id")
-            .single();
-          if (error || !task?.id) throw error || new Error("Failed to queue chat request.");
-          assistantMessage.backgroundTaskId = task.id;
-          setMessages((previous) => [...previous, userMessage, assistantMessage]);
-
-          // Do not rely solely on the database trigger: it can be unavailable when
-          // pg_net or the vault configuration is incomplete. The task endpoint
-          // validates that this signed-in user owns the task before starting it.
-          void supabase.functions
-            .invoke("process-task", { body: { taskId: task.id } })
-            .then(({ error: dispatchError }) => {
-              if (dispatchError) {
-                console.error("[ai-chat] Failed to dispatch queued chat task", {
-                  taskId: task.id,
-                  error: dispatchError,
-                });
-              }
-            });
-        } catch (error) {
-          console.warn("[ai-chat] Background queue unavailable; using live chat", error);
-          void sendMessage(messages, m, chatOpts, responseId);
-        }
-      };
-      void queueMessage();
+      void sendMessage(messages, m, chatOpts, responseId);
     },
     [messages, responseId, sendMessage],
   );
-
-  useEffect(() => {
-    const supabase = createClient();
-    let channel: ReturnType<typeof supabase.channel> | undefined;
-
-    const subscribeToQueuedChat = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      channel = supabase
-        .channel(`queued-chat:${user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "job_intelligence_tasks",
-            filter: `user_id=eq.${user.id}`,
-          },
-          (payload: any) => {
-            const task = payload.new;
-            if (task?.type !== "chat_completion") return;
-            const assistantId = task.params?.client_assistant_id;
-            if (typeof assistantId !== "string") return;
-
-            const terminal =
-              task.status === "completed" ||
-              task.status === "failed" ||
-              task.status === "canceled";
-            const content =
-              task.status === "completed"
-                ? String(task.result?.content || "I completed this request, but no response text was returned.")
-                : task.status === "failed"
-                  ? `Error: ${String(task.message || "The background request failed.")}`
-                  : task.status === "canceled"
-                    ? "Request stopped."
-                    : "";
-            const detail = String(
-              task.message ||
-                (task.status === "running"
-                  ? "Working in the background."
-                  : "Queued for processing."),
-            );
-
-            setMessages((previous) =>
-              previous.map((message) =>
-                message.id !== assistantId
-                  ? message
-                  : {
-                      ...message,
-                      content: content || message.content,
-                      parts: content
-                        ? [{ type: "text", text: content }]
-                        : message.parts,
-                      streaming: !terminal,
-                      agentEvents: [
-                        {
-                          id: `background:${task.id}:${task.updated_at}`,
-                          kind: "status",
-                          title:
-                            task.status === "completed"
-                              ? "Background request completed"
-                              : task.status === "failed"
-                                ? "Background request failed"
-                                : task.status === "canceled"
-                                  ? "Background request stopped"
-                                  : "Working in the background",
-                          detail,
-                          status:
-                            task.status === "failed"
-                              ? "error"
-                              : terminal
-                                ? "done"
-                                : "running",
-                          createdAt: Date.now(),
-                        },
-                      ],
-                    },
-              ),
-            );
-          },
-        )
-        .subscribe();
-
-      const { data: completedTasks } = await supabase
-        .from("job_intelligence_tasks")
-        .select("id, status, message, result, params")
-        .eq("user_id", user.id)
-        .eq("type", "chat_completion")
-        .in("status", ["completed", "failed", "canceled"])
-        .order("updated_at", { ascending: false })
-        .limit(50);
-      if (completedTasks) {
-        setMessages((previous) =>
-          previous.map((message) => {
-            const task = completedTasks.find(
-              (candidate: any) => candidate.params?.client_assistant_id === message.id,
-            ) as any;
-            if (!task) return message;
-            const content =
-              task.status === "completed"
-                ? String(task.result?.content || "I completed this request, but no response text was returned.")
-                : task.status === "canceled"
-                  ? "Request stopped."
-                  : `Error: ${String(task.message || "The background request failed.")}`;
-            return {
-              ...message,
-              content,
-              parts: [{ type: "text", text: content }],
-              streaming: false,
-            };
-          }),
-        );
-      }
-
-      // Recover chat tasks created before the browser could explicitly dispatch
-      // them. This only touches tasks that are due and still queued; once the
-      // worker accepts a task it moves it to running before returning.
-      const { data: queuedTasks } = await supabase
-        .from("job_intelligence_tasks")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("type", "chat_completion")
-        .eq("status", "queued")
-        .lte("run_at", new Date().toISOString())
-        .limit(20);
-      if (queuedTasks?.length) {
-        void Promise.allSettled(
-          queuedTasks.map((task: { id: string }) =>
-            supabase.functions.invoke("process-task", { body: { taskId: task.id } }),
-          ),
-        );
-      }
-    };
-
-    void subscribeToQueuedChat();
-    return () => {
-      if (channel) void supabase.removeChannel(channel);
-    };
-  }, []);
-
   const regenerate = () => {
     if (status === "in_progress" || !lastTurnRef.current) return;
     const lastTurn = lastTurnRef.current;
