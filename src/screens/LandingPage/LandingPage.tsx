@@ -7,6 +7,8 @@ import { ROUTES } from "@/routes";
 
 import { Button } from "../../components/ui/button";
 
+import { ShimmerText } from "@/components/ui/ShimmerText";
+
 // New Components
 import { HeroSection } from "./components/HeroSection";
 import { DashboardPreview } from "./components/DashboardPreview";
@@ -63,9 +65,9 @@ export const LandingPage = () => {
                   className='object-cover'
                 />
               </div>
-              <span className='text-foreground font-bold text-xl tracking-tighter'>
+              <ShimmerText className='font-bold text-xl tracking-tighter'>
                 JOBRAKER
-              </span>
+              </ShimmerText>
             </div>
 
             <div className='flex items-center space-x-4'>

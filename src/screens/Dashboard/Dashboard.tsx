@@ -58,6 +58,7 @@ import useMediaQuery from "../../hooks/use-media-query";
 import { ExperienceFeedbackPrompt } from "./components/ExperienceFeedbackPrompt";
 import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
 import { TextSelectionToolbar } from "@/components/chat/TextSelectionToolbar";
+import { ShimmerText } from "@/components/ui/ShimmerText";
 import { useProductTour } from "@/providers/TourProvider";
 
 import { lazyWithRetry } from "@/utils/lazyWithRetry";
@@ -746,9 +747,9 @@ export const Dashboard = (): JSX.Element => {
                   animate={{ opacity: 1 }}
                   className='flex flex-col min-w-0'
                 >
-                  <span className='font-bold text-lg leading-none tracking-tight text-foreground truncate'>
+                  <ShimmerText className='font-bold text-lg leading-none tracking-tight truncate'>
                     JobRaker
-                  </span>
+                  </ShimmerText>
                 </motion.div>
               )}
 
@@ -953,9 +954,9 @@ export const Dashboard = (): JSX.Element => {
                         alt='JobRaker logo'
                       />
                     </div>
-                    <span className='text-foreground font-bold text-lg leading-none tracking-tight'>
+                    <ShimmerText className='font-bold text-lg leading-none tracking-tight'>
                       JobRaker
-                    </span>
+                    </ShimmerText>
                   </div>
                 ) : (
                   <span className='sm:hidden text-foreground font-bold text-lg leading-none tracking-tight truncate max-w-[14rem]'>

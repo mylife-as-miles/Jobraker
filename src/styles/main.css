@@ -103,7 +103,7 @@ body {
 }
 
 .wysiwyg {
-  @apply prose-foreground prose max-w-none prose-headings:mb-2 prose-headings:mt-0 prose-p:mb-2 prose-p:mt-0 prose-p:leading-normal prose-a:break-all prose-ol:mb-2 prose-ol:mt-0 prose-ul:mb-2 prose-ul:mt-0 prose-li:mb-2 prose-li:mt-0 prose-li:leading-normal prose-img:mb-2 prose-img:mt-0 prose-hr:mb-2 prose-hr:mt-0;
+  @apply text-foreground prose max-w-none prose-headings:mb-2 prose-headings:mt-0 prose-p:mb-2 prose-p:mt-0 prose-p:leading-normal prose-a:break-all prose-ol:mb-2 prose-ol:mt-0 prose-ul:mb-2 prose-ul:mt-0 prose-li:mb-2 prose-li:mt-0 prose-li:leading-normal prose-img:mb-2 prose-img:mt-0 prose-hr:mb-2 prose-hr:mt-0;
 }
 
 /* Skeleton shimmer animation */
@@ -417,5 +417,96 @@ body {
   }
   100% {
     transform: translate(6%, 4%) rotate(8deg) scale(1.3);
+  }
+}
+
+/* ==========================================================================
+   GRADIENT SHIMMER TEXT (Pure CSS light band flow across clipped gradient text)
+   ========================================================================== */
+
+.shimmer-text {
+  background: linear-gradient(
+    110deg,
+    rgba(255, 255, 255, 0.7) 0%,
+    rgba(255, 255, 255, 0.75) 30%,
+    #ffffff 50%,
+    rgba(255, 255, 255, 0.75) 70%,
+    rgba(255, 255, 255, 0.7) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  animation: text-shimmer 3s linear infinite;
+  display: inline-block;
+}
+
+.shimmer-text-brand {
+  background: linear-gradient(
+    110deg,
+    #10b981 0%,
+    #10b981 35%,
+    #a7f3d0 50%,
+    #10b981 65%,
+    #10b981 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.shimmer-text-emerald {
+  background: linear-gradient(
+    110deg,
+    #34d399 0%,
+    #059669 35%,
+    #ffffff 50%,
+    #059669 65%,
+    #34d399 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.shimmer-text-silver {
+  background: linear-gradient(
+    110deg,
+    #94a3b8 0%,
+    #cbd5e1 35%,
+    #ffffff 50%,
+    #cbd5e1 65%,
+    #94a3b8 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.shimmer-text-gold {
+  background: linear-gradient(
+    110deg,
+    #d97706 0%,
+    #f59e0b 35%,
+    #fef08a 50%,
+    #f59e0b 65%,
+    #d97706 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@keyframes text-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
   }
 }
