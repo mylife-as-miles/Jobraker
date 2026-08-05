@@ -2,6 +2,13 @@ import { directApplySkill } from "./directApply";
 import { outreachWriterSkill } from "./outreachWriter";
 import { companyScoutSkill } from "./companyScout";
 import { heartbeatCheckupSkill } from "./heartbeatCheckup";
+import {
+  addPortalSkill,
+  htmlReportSkill,
+  interviewPrepSkill,
+  outcomeSkill,
+  upskillSkill,
+} from "./careerCommands";
 import type {
   JobrakerChatSkill,
   SkillExecutionInput,
@@ -38,6 +45,11 @@ export const jobrakerChatSkills: JobrakerChatSkill[] = [
   companyScoutSkill,
   outreachWriterSkill,
   heartbeatCheckupSkill,
+  interviewPrepSkill,
+  outcomeSkill,
+  addPortalSkill,
+  upskillSkill,
+  htmlReportSkill,
   createPlaceholderSkill({
     id: "resume_tailor",
     name: "Resume Tailor",
