@@ -556,7 +556,7 @@ Deno.serve(async (req) => {
 
     // Mark task as running
     const nowIso = new Date().toISOString();
-    const { error: runError } = await supabase
+    const { data: startedTask, error: runError } = await supabase
       .from("job_intelligence_tasks")
       .update({
         status: "running",
@@ -564,11 +564,17 @@ Deno.serve(async (req) => {
         updated_at: nowIso,
         message: "Starting execution...",
       })
-      .eq("id", taskId);
+      .eq("id", taskId)
+      .eq("status", "queued")
+      .select("id")
+      .maybeSingle();
 
     if (runError) {
       console.error(`[process-task] Failed to mark task running ${taskId}`, runError);
       return new Response("Failed to start task", { status: 500, headers: corsHeaders });
+    }
+    if (!startedTask) {
+      return new Response("Task is already being processed", { status: 200, headers: corsHeaders });
     }
 
     const progressHelper = {

@@ -2032,27 +2032,47 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         .in("status", ["completed", "failed", "canceled"])
         .order("updated_at", { ascending: false })
         .limit(50);
-      if (!completedTasks) return;
-      setMessages((previous) =>
-        previous.map((message) => {
-          const task = completedTasks.find(
-            (candidate: any) => candidate.params?.client_assistant_id === message.id,
-          ) as any;
-          if (!task) return message;
-          const content =
-            task.status === "completed"
-              ? String(task.result?.content || "I completed this request, but no response text was returned.")
-              : task.status === "canceled"
-                ? "Request stopped."
-                : `Error: ${String(task.message || "The background request failed.")}`;
-          return {
-            ...message,
-            content,
-            parts: [{ type: "text", text: content }],
-            streaming: false,
-          };
-        }),
-      );
+      if (completedTasks) {
+        setMessages((previous) =>
+          previous.map((message) => {
+            const task = completedTasks.find(
+              (candidate: any) => candidate.params?.client_assistant_id === message.id,
+            ) as any;
+            if (!task) return message;
+            const content =
+              task.status === "completed"
+                ? String(task.result?.content || "I completed this request, but no response text was returned.")
+                : task.status === "canceled"
+                  ? "Request stopped."
+                  : `Error: ${String(task.message || "The background request failed.")}`;
+            return {
+              ...message,
+              content,
+              parts: [{ type: "text", text: content }],
+              streaming: false,
+            };
+          }),
+        );
+      }
+
+      // Recover chat tasks created before the browser could explicitly dispatch
+      // them. This only touches tasks that are due and still queued; once the
+      // worker accepts a task it moves it to running before returning.
+      const { data: queuedTasks } = await supabase
+        .from("job_intelligence_tasks")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("type", "chat_completion")
+        .eq("status", "queued")
+        .lte("run_at", new Date().toISOString())
+        .limit(20);
+      if (queuedTasks?.length) {
+        void Promise.allSettled(
+          queuedTasks.map((task: { id: string }) =>
+            supabase.functions.invoke("process-task", { body: { taskId: task.id } }),
+          ),
+        );
+      }
     };
 
     void subscribeToQueuedChat();
