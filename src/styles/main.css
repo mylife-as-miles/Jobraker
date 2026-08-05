@@ -559,3 +559,74 @@ body {
   background-color: rgba(47, 217, 104, 0.35);
   color: #ffffff;
 }
+
+/* ==========================================================================
+   TRANSITIONS.DEV — INPUT CLEAR WITH DISSOLVE
+   ========================================================================== */
+:root {
+  --clear-dur: 1000ms;
+  --clear-out-dur: 400ms;
+  --clear-in-dur: 400ms;
+  --clear-out-fly: 12px;
+  --clear-in-fly: 12px;
+  --clear-out-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --clear-in-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --clear-blur: 2px;
+  --glow-delay: 50ms;
+  --glow-peak-at: 0.15;
+  --glow-opacity: 0.85;
+  --glow-spread: 1.5;
+}
+
+.t-clear {
+  position: relative;
+  overflow: hidden;
+}
+
+.t-clear-mirror,
+.t-clear-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  z-index: 2;
+  will-change: transform, opacity, filter;
+}
+
+.t-clear-mirror {
+  opacity: 0;
+}
+
+.t-clear.has-value .t-clear-mirror,
+.t-clear.is-clearing .t-clear-mirror {
+  opacity: 1;
+}
+
+.t-clear.has-value > input,
+.t-clear.is-clearing > input {
+  -webkit-text-fill-color: transparent;
+  color: transparent !important;
+}
+
+.t-clear.has-value .t-clear-placeholder {
+  opacity: 0;
+}
+
+.t-clear-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 3;
+  mix-blend-mode: screen;
+  will-change: opacity, background;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-clear-glow {
+    opacity: 0 !important;
+  }
+}
