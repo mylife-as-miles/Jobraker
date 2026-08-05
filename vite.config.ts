@@ -1,11 +1,11 @@
 import react from "@vitejs/plugin-react";
-import tailwind from "tailwindcss";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import path from "path";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [tailwindcss(), react()],
   // Use absolute base so assets resolve from root on deep routes (Vercel)
   base: "/",
   define: {
@@ -17,11 +17,6 @@ export default defineConfig({
   },
   // Vite automatically loads VITE_ prefixed variables from .env files for development
   envPrefix: ["VITE_"],
-  css: {
-    postcss: {
-      plugins: [tailwind()],
-    },
-  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

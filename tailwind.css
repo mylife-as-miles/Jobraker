@@ -1,8 +1,8 @@
 /* Theme tokens are defined inline below */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@config "./tailwind.config.js";
+@import "tailwindcss";
+@import "gradient-border-plugin";
 
 @layer components {
   .all-\[unset\] {
@@ -472,6 +472,16 @@
     border-color: hsl(var(--product-gold-ring));
     color: hsl(var(--product-gold));
   }
+}
+
+@utility jobraker-gradient-border {
+  @apply gradient-border;
+  --gradient-border: linear-gradient(
+    135deg,
+    hsl(var(--brand) / 0.72) 0%,
+    hsl(var(--brand) / 0.2) 48%,
+    hsl(var(--border) / 0.9) 100%
+  );
 }
 
 @layer utilities {
