@@ -3979,6 +3979,7 @@ export const ChatPage = () => {
                         </div>
                       )}
                       <div
+                        data-ai-message={m.role !== "user" ? "true" : undefined}
                         className={`rounded-2xl shadow-sm ${
                           m.role === "user"
                             ? "max-w-[85%] bg-brand text-primary-foreground font-medium rounded-tr-sm p-4 select-text"

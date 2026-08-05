@@ -54,6 +54,19 @@ export const TextSelectionToolbar: React.FC<TextSelectionToolbarProps> = ({ cont
       }
     }
 
+    // Only show toolbar when highlighting text from AI responses (not user messages)
+    const isNodeInsideAiMessage = (node: Node | null): boolean => {
+      if (!node) return false;
+      const element = node.nodeType === Node.ELEMENT_NODE ? (node as HTMLElement) : node.parentElement;
+      return Boolean(element?.closest('[data-ai-message="true"]'));
+    };
+
+    if (!isNodeInsideAiMessage(selection.anchorNode) && !isNodeInsideAiMessage(selection.focusNode)) {
+      setSelectedText("");
+      setPosition(null);
+      return;
+    }
+
     try {
       const range = selection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
