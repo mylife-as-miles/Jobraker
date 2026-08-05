@@ -41,6 +41,7 @@ import {
 import { useToast } from "../../../components/ui/toast";
 import { EmptyState } from "../../../components/ui/empty-state";
 import { Skeleton } from "../../../components/ui/skeleton";
+import { HashvatarAvatar } from "@/components/ui/hashvatar-avatar";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import type {
   ProfileEducationRecord as TProfileEducation,
@@ -244,14 +245,6 @@ const ProfilePage = (): JSX.Element => {
     "Free" | "Basics" | "Pro" | "Ultimate"
   >("Free");
   const gamification = useGamification();
-  const initials = useMemo(() => {
-    const a = (profile?.first_name || "").trim();
-    const b = (profile?.last_name || "").trim();
-    const i =
-      `${a.charAt(0) || ""}${b.charAt(0) || ""}` || email.charAt(0) || "U";
-    return i.toUpperCase();
-  }, [profile?.first_name, profile?.last_name, email]);
-
   // hydrate auth email
   useEffect(() => {
     (async () => {
@@ -519,7 +512,7 @@ const ProfilePage = (): JSX.Element => {
                               className='w-full h-full object-cover'
                             />
                           ) : (
-                            <span>{initials}</span>
+                            <HashvatarAvatar seed={profile?.id || email} />
                           )}
                         </div>
                         <label className='absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-brand text-black hover:bg-brand/90 hover:scale-110 transition-all duration-300 p-0 flex items-center justify-center cursor-pointer'>

@@ -48,6 +48,7 @@ import {
   clearPendingReferralCode,
 } from "@/lib/referralAttribution";
 import { Skeleton } from "../../components/ui/skeleton";
+import { HashvatarAvatar } from "@/components/ui/hashvatar-avatar";
 import { createClient } from "../../lib/supabaseClient";
 import { updateSessionActivity } from "../../utils/sessionManagement";
 import { isCurrentUserAdmin } from "@/lib/adminUtils";
@@ -380,14 +381,6 @@ export const Dashboard = (): JSX.Element => {
     () => recentNotifications.filter((n) => !n.read).length,
     [recentNotifications],
   );
-  const initials = useMemo(() => {
-    const a = (profile?.first_name || "").trim();
-    const b = (profile?.last_name || "").trim();
-    const i =
-      `${a.charAt(0) || ""}${b.charAt(0) || ""}` || email.charAt(0) || "U";
-    return i.toUpperCase();
-  }, [profile?.first_name, profile?.last_name, email]);
-
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
@@ -1070,9 +1063,7 @@ export const Dashboard = (): JSX.Element => {
                           className='w-full h-full object-cover'
                         />
                       ) : (
-                        <span className='text-foreground font-bold text-xs sm:text-sm lg:text-base'>
-                          {initials}
-                        </span>
+                        <HashvatarAvatar seed={profile?.id || email} />
                       )}
                     </div>
                     <div className='text-right hidden lg:block max-w-[200px] overflow-hidden'>
@@ -1105,9 +1096,7 @@ export const Dashboard = (): JSX.Element => {
                         className='w-full h-full object-cover'
                       />
                     ) : (
-                      <span className='text-foreground font-bold text-xs'>
-                        {initials}
-                      </span>
+                      <HashvatarAvatar seed={profile?.id || email} />
                     )}
                   </div>
                 </Button>

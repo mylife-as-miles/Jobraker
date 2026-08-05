@@ -6,6 +6,7 @@ import {
   useRegisterCoachMarks,
 } from "../../../providers/TourProvider";
 import { Skeleton } from "../../../components/ui/skeleton";
+import { HashvatarAvatar } from "@/components/ui/hashvatar-avatar";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
@@ -569,15 +570,6 @@ export const SettingsPage = (): JSX.Element => {
       toastError("Failed to disable 2FA", e.message);
     }
   }, [disableTotp, toastError]);
-
-  const initials = useMemo(() => {
-    const a = (formData.firstName || "").trim();
-    const b = (formData.lastName || "").trim();
-    if (a || b)
-      return `${a.charAt(0) || ""}${b.charAt(0) || ""}`.toUpperCase() || "U";
-    const email = formData.email || "";
-    return (email.charAt(0) || "U").toUpperCase();
-  }, [formData.firstName, formData.lastName, formData.email]);
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   // const [groupEnabledFirst, setGroupEnabledFirst] = useState(true); // Unused
@@ -1468,7 +1460,11 @@ export const SettingsPage = (): JSX.Element => {
                       className='w-full h-full object-cover'
                     />
                   ) : (
-                    <span>{initials}</span>
+                    <HashvatarAvatar
+                      seed={
+                        formData.email || `${formData.firstName} ${formData.lastName}`
+                      }
+                    />
                   )}
                 </div>
                 <div className='flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-3'>
