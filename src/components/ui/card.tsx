@@ -8,11 +8,11 @@ const Card = React.forwardRef<
   }
 >(({ className, variant = "default", ...props }, ref) => {
   const variantClasses = {
-  default: "jobraker-gradient-border bg-card/70 border border-border backdrop-blur-sm ",
-  glass: "jobraker-gradient-border bg-card/60 border border-border backdrop-blur-md hover:bg-card/70 ",
-  minimal: "jobraker-gradient-border bg-transparent border border-border",
-  glow: "jobraker-gradient-border bg-card/60 border border-brand/30 hover:border-brand ",
-  neo: "jobraker-gradient-border glass-black border border-brand/30"
+  default: "bg-card/70 border border-border backdrop-blur-sm ",
+  glass: "bg-card/60 border border-border backdrop-blur-md hover:bg-card/70 ",
+  minimal: "bg-transparent border border-border",
+  glow: "bg-card/60 border border-brand/30 hover:border-brand ",
+  neo: "glass-black border border-brand/30"
   }
 
   return (

@@ -19,7 +19,7 @@ const SelectTrigger = React.forwardRef<
       // Base layout
       "group flex h-10 w-full items-center justify-between rounded-xl px-3 py-2 text-sm [&>span]:line-clamp-1",
       // Theme surface
-      "jobraker-gradient-border border border-foreground/15 bg-foreground/10 text-foreground placeholder:text-foreground/50 backdrop-blur-sm",
+      "border border-foreground/15 bg-foreground/10 text-foreground placeholder:text-foreground/50 backdrop-blur-sm",
       // Hover / focus / open accents
       "transition-all duration-300 hover:border-foreground/30 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/60",
       "data-[state=open]:border-brand/60 data-[state=open]:ring-2 data-[state=open]:ring-brand/30",
@@ -85,7 +85,7 @@ const SelectContent = React.forwardRef<
         ref={ref}
         className={cn(
           // Container and surface
-          "jobraker-gradient-border z-50 max-h-96 min-w-[8rem] overflow-y-auto rounded-xl border bg-background/80 text-foreground backdrop-blur-md",
+          "z-50 max-h-96 min-w-[8rem] overflow-y-auto rounded-xl border bg-background/80 text-foreground backdrop-blur-md",
           "border-foreground/15 shadow-[0_10px_30px_-10px_rgba(47,217,104,0.25)]",
           // Animations
           "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",

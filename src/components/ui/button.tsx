@@ -23,10 +23,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const variantClasses = {
       primary: "bg-brand text-primary-foreground hover:opacity-95 shadow-sm",
       secondary: "bg-secondary text-secondary-foreground hover:bg-accent",
-      outline: "jobraker-gradient-border border border-border bg-transparent text-foreground hover:bg-accent",
+      outline: "border border-border bg-transparent text-foreground hover:bg-accent",
       ghost: "bg-transparent hover:bg-accent",
       destructive: "bg-destructive text-destructive-foreground hover:opacity-95",
-      neo: "jobraker-gradient-border bg-brand text-black hover:opacity-95 shadow-[0_0_18px_hsla(var(--brand)/0.35)] border border-brand/40",
+      neo: "bg-brand text-black hover:opacity-95 shadow-[0_0_18px_hsla(var(--brand)/0.35)] border border-brand/40",
       link: "bg-transparent text-brand hover:underline underline-offset-4 px-0 h-auto",
     }[resolvedVariant];
 

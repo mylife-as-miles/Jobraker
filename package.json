@@ -90,7 +90,6 @@
     "docx": "^9.0.3",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^10.16.16",
-    "gradient-border-plugin": "^1.1.3",
     "gsap": "^3.13.0",
     "hashvatar": "^0.1.2",
     "immer": "^10.1.1",

@@ -5,6 +5,10 @@ import {
   getCreditPressureStats,
   readSnoozeUntil,
 } from "@/components/LowCreditsPromoModal";
+import {
+  CreditsExhaustedUpgradeDialog,
+  readExhaustedCreditsSnoozeUntil,
+} from "@/components/CreditsExhaustedUpgradeDialog";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import {
@@ -57,6 +61,7 @@ import { CreditDisplay } from "../../components/CreditDisplay";
 import useMediaQuery from "../../hooks/use-media-query";
 
 import { ExperienceFeedbackPrompt } from "./components/ExperienceFeedbackPrompt";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
 import { TextSelectionToolbar } from "@/components/chat/TextSelectionToolbar";
 import { ShimmerText } from "@/components/ui/ShimmerText";
@@ -369,6 +374,8 @@ export const Dashboard = (): JSX.Element => {
 
   const { balance: creditBalance, loading: creditsLoading } = useCredits();
   const [lowCreditModalOpen, setLowCreditModalOpen] = useState(false);
+  const [creditsExhaustedModalOpen, setCreditsExhaustedModalOpen] =
+    useState(false);
   const [sidebarSubscriptionTier, setSidebarSubscriptionTier] =
     useState<SubscriptionTier | null>(null);
 
@@ -376,13 +383,26 @@ export const Dashboard = (): JSX.Element => {
     if (creditsLoading) return;
     if (currentPage === "billing") {
       setLowCreditModalOpen(false);
+      setCreditsExhaustedModalOpen(false);
       return;
     }
     if (!creditBalance) return;
-    if (!getCreditPressureStats(creditBalance).shouldAlert) {
+    const creditPressure = getCreditPressureStats(creditBalance);
+    if (!creditPressure.shouldAlert) {
       setLowCreditModalOpen(false);
+      setCreditsExhaustedModalOpen(false);
       return;
     }
+    const creditsExhausted = Math.max(0, Number(creditBalance.balance) || 0) <= 0;
+    if (creditsExhausted) {
+      setLowCreditModalOpen(false);
+      const snoozeUntil = readExhaustedCreditsSnoozeUntil();
+      if (!snoozeUntil || Date.now() >= snoozeUntil) {
+        setCreditsExhaustedModalOpen(true);
+      }
+      return;
+    }
+    setCreditsExhaustedModalOpen(false);
     const snoozeUntil = readSnoozeUntil();
     if (snoozeUntil && Date.now() < snoozeUntil) return;
     setLowCreditModalOpen(true);
@@ -1288,6 +1308,21 @@ export const Dashboard = (): JSX.Element => {
             navigate("/dashboard/billing?promo=LOWCREDIT_RESCUE")
           }
         />
+        <CreditsExhaustedUpgradeDialog
+          open={creditsExhaustedModalOpen}
+          onOpenChange={setCreditsExhaustedModalOpen}
+          balance={creditBalance}
+          currentPlan={sidebarSubscriptionTier}
+          onExplorePlans={() => navigate("/dashboard/billing?tab=subscription")}
+          onExplorePacks={() => navigate("/dashboard/billing?tab=packs")}
+        />
+        {currentPage === "overview" && (
+          <OnboardingChecklist
+            profile={profile}
+            skillsCount={profileSkills.data.length}
+            onNavigate={navigate}
+          />
+        )}
         {currentPage !== "chat" && (
           <SupportFloatingWidget
             currentPageId={currentPage}
