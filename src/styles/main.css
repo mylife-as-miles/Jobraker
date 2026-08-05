@@ -324,3 +324,57 @@ body {
   color: #FF5C5C !important;
   animation: shake-x 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both !important;
 }
+
+/* ==========================================================================
+   BORDER BEAM ANIMATION (A light sweeps the border via a masked conic gradient)
+   ========================================================================== */
+
+.beam {
+  position: relative;
+  padding: 1.5px;
+  overflow: hidden;
+  border-radius: 32px;
+}
+
+.beam::before {
+  content: '';
+  position: absolute;
+  inset: -200%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 72%,
+    #2fd968 84%,
+    #ffffff 90%,
+    transparent 96%
+  );
+  animation: border-beam-spin 3s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.beam-amber::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 72%,
+    #FF8A00 84%,
+    #EDE9E0 90%,
+    transparent 96%
+  );
+}
+
+.beam-inner {
+  position: relative;
+  border-radius: 30.5px;
+  background: #000000;
+  z-index: 1;
+}
+
+@keyframes border-beam-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.animate-spin-beam {
+  animation: border-beam-spin 3s linear infinite;
+}

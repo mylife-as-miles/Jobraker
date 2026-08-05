@@ -3991,11 +3991,11 @@ export const ChatPage = () => {
                 )}
 
                 <div
-                  className={`relative rounded-[32px] border shadow-2xl overflow-visible transition-all duration-300 ${
+                  className={`beam relative rounded-[32px] border shadow-2xl overflow-visible transition-all duration-300 ${
                     isListening
                       ? "bg-black border-[#2fd968]/60 ring-2 ring-[#2fd968]/40 shadow-black"
-                      : text.trim() || attachments.length
-                        ? "bg-card border-brand/50 ring-1 ring-brand/50"
+                      : isChatBusy || text.trim()
+                        ? "beam-amber border-brand/50 shadow-[0_0_25px_rgba(47,217,104,0.15)]"
                         : "bg-card/85 border-border backdrop-blur-xl"
                   }`}
                 >
