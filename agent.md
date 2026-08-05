@@ -247,6 +247,17 @@ browser captures. Refresh with:
 npx skills add addyosmani/agent-skills --copy -y
 ```
 
+## Reverse Skill Collection Safety Note
+
+`zhaoxuya520/reverse-skill` was audited but is intentionally not installed or
+committed. Its installer reported Critical Risk for the router and critical
+Snyk findings, and the collection includes credential dumping, exploit and C2
+playbooks, EDR/AMSI/ETW bypass, privilege escalation, and offensive scanning
+guidance. Do not enable or sync it globally. Any future use requires explicit
+scope, authorization, and a narrowly selected defensive/research skill after
+fresh review; never use the offensive workflows against Jobraker or third-party
+systems.
+
 ## Model and Stack Restrictions
 - **CRITICAL**: Never change any model name (e.g., `gemini-embedding-2`), model configurations, or tech stack components (libraries, databases, architecture) without explicit user permission or telling the user first.
 
