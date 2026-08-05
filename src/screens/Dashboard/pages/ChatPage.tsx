@@ -371,6 +371,30 @@ const CHAT_TIMEOUT_MS = 30 * 60_000;
 
 // Fallback starters removed in favor of dynamic AI suggestions and skeleton loaders.
 
+const isPlaceholderChatTitle = (title?: string | null) =>
+  !title || title.trim().toLowerCase() === "new chat";
+
+const deriveChatTitle = (messages: BasicMessage[]): string | null => {
+  const firstUserMessage = messages.find(
+    (message) => message.role === "user" && message.content.trim(),
+  );
+  if (!firstUserMessage) return null;
+
+  const cleaned = firstUserMessage.content
+    .replace(/^>\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return null;
+
+  const words = cleaned.split(" ").slice(0, 7).join(" ");
+  return words.length > 50 ? `${words.slice(0, 47)}...` : words;
+};
+
+const getChatSessionTitle = (session: ChatSessionState): string =>
+  isPlaceholderChatTitle(session.title)
+    ? deriveChatTitle(session.messages) || "New Chat"
+    : session.title;
+
 const CHAT_STARTER_ICONS: Record<
   ChatStarterIcon,
   React.ComponentType<{ className?: string }>
@@ -1891,6 +1915,20 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           if (error || !task?.id) throw error || new Error("Failed to queue chat request.");
           assistantMessage.backgroundTaskId = task.id;
           setMessages((previous) => [...previous, userMessage, assistantMessage]);
+
+          // Do not rely solely on the database trigger: it can be unavailable when
+          // pg_net or the vault configuration is incomplete. The task endpoint
+          // validates that this signed-in user owns the task before starting it.
+          void supabase.functions
+            .invoke("process-task", { body: { taskId: task.id } })
+            .then(({ error: dispatchError }) => {
+              if (dispatchError) {
+                console.error("[ai-chat] Failed to dispatch queued chat task", {
+                  taskId: task.id,
+                  error: dispatchError,
+                });
+              }
+            });
         } catch (error) {
           console.warn("[ai-chat] Background queue unavailable; using live chat", error);
           void sendMessage(messages, m, chatOpts, responseId);
@@ -2531,10 +2569,31 @@ export const ChatPage = () => {
         return;
       }
       if (data && data.length > 0) {
-        const normalizedSessions = (data as ChatSessionRecord[]).map(
-          normalizeChatSession,
-        );
+        const normalizedSessions = (data as ChatSessionRecord[])
+          .map(normalizeChatSession)
+          .map((session) => {
+            const title = getChatSessionTitle(session);
+            return isPlaceholderChatTitle(session.title) && title !== "New Chat"
+              ? { ...session, title }
+              : session;
+          });
         setSessions(normalizedSessions);
+        void Promise.all(
+          normalizedSessions
+            .filter((session) =>
+              isPlaceholderChatTitle(
+                (data as ChatSessionRecord[]).find((row) => row.id === session.id)
+                  ?.title,
+              ),
+            )
+            .filter((session) => session.title !== "New Chat")
+            .map((session) =>
+              supabase
+                .from("chat_sessions")
+                .update({ title: session.title })
+                .eq("id", session.id),
+            ),
+        );
 
         let savedSessionId: string | null = null;
         try {
@@ -3114,7 +3173,7 @@ export const ChatPage = () => {
 
           if (response.ok) {
             const { title } = await response.json();
-            if (title) {
+            if (typeof title === "string" && !isPlaceholderChatTitle(title)) {
               setSessions((prev) =>
                 prev.map((s) => (s.id === sessionId ? { ...s, title } : s)),
               );
@@ -3276,7 +3335,7 @@ export const ChatPage = () => {
     const query = searchQuery.toLowerCase();
     return sessions.filter(
       (s) =>
-        s.title.toLowerCase().includes(query) ||
+        getChatSessionTitle(s).toLowerCase().includes(query) ||
         s.messages.some((m) => m.content.toLowerCase().includes(query)),
     );
   }, [sessions, searchQuery]);
@@ -3540,7 +3599,7 @@ export const ChatPage = () => {
                             />
                           ) : (
                             <p className='text-sm font-medium truncate text-foreground'>
-                              {s.title || "New Chat"}
+                              {getChatSessionTitle(s)}
                             </p>
                           )}
                           <p className='text-[11px] text-muted-foreground mt-0.5'>
@@ -3560,7 +3619,7 @@ export const ChatPage = () => {
                               startRenamingSession(s);
                             }}
                             className='p-1 hover:text-brand text-foreground/60 rounded'
-                            aria-label={`Rename ${s.title || "chat"}`}
+                            aria-label={`Rename ${getChatSessionTitle(s) || "chat"}`}
                             title='Rename chat'
                           >
                             <Edit2 size={12} />
@@ -3572,7 +3631,7 @@ export const ChatPage = () => {
                               deleteSession(s.id);
                             }}
                             className='p-1 hover:text-brand text-foreground/60 rounded'
-                            aria-label={`Delete ${s.title || "chat"}`}
+                            aria-label={`Delete ${getChatSessionTitle(s) || "chat"}`}
                             title='Delete chat'
                           >
                             <Trash2 size={12} />

@@ -503,11 +503,25 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("authorization");
-    const token = authHeader?.replace(/^Bearer\s+/i, "");
+    const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
 
-    if (!token || (token !== serviceRoleKey && token !== "SYSTEM_TRIGGER")) {
+    if (!token || !serviceRoleKey || !supabaseUrl) {
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+    }
+
+    const isSystemTrigger = token === serviceRoleKey || token === "SYSTEM_TRIGGER";
+    let requestingUserId: string | null = null;
+    if (!isSystemTrigger) {
+      const authClient = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { persistSession: false },
+      });
+      const { data, error } = await authClient.auth.getUser(token);
+      if (error || !data.user) {
+        return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+      }
+      requestingUserId = data.user.id;
     }
 
     const { taskId } = await req.json().catch(() => ({}));
@@ -516,8 +530,8 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      supabaseUrl,
+      serviceRoleKey,
       { auth: { persistSession: false } }
     );
 
@@ -530,6 +544,10 @@ Deno.serve(async (req) => {
     if (loadError || !task) {
       console.error(`[process-task] Failed to load task ${taskId}`, loadError);
       return new Response("Task not found", { status: 404, headers: corsHeaders });
+    }
+
+    if (requestingUserId && task.user_id !== requestingUserId) {
+      return new Response("Forbidden", { status: 403, headers: corsHeaders });
     }
 
     if (task.status === "completed" || task.status === "failed" || task.status === "canceled") {
