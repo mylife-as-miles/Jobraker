@@ -1,6 +1,13 @@
 -- Admin-only financial usage rollups. Browser roles are intentionally denied.
-CREATE INDEX IF NOT EXISTS idx_external_provider_usage_user_created
-  ON public.external_provider_usage_events (user_id, created_at DESC);
+-- The provider-cost ledger was introduced by a prior migration.  Development
+-- and recovered environments may not have it yet, so the admin migration must
+-- remain installable and surface an empty provider bucket until it exists.
+DO $$ BEGIN
+  IF to_regclass('public.external_provider_usage_events') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_external_provider_usage_user_created
+      ON public.external_provider_usage_events (user_id, created_at DESC);
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_composio_usage_user_created
   ON public.composio_usage_events (user_id, created_at DESC);
 
@@ -18,13 +25,50 @@ GROUP BY user_id, date_trunc('day', created_at)::date;
 
 CREATE OR REPLACE VIEW public.admin_user_provider_usage_daily_v1
 WITH (security_invoker = false) AS
-SELECT user_id, provider, date_trunc('day', created_at)::date AS day,
-  sum(provider_units) AS provider_units, sum(provider_cost_nanos) AS provider_cost_nanos,
-  sum(user_credit_cost) AS user_credit_cost, sum(reserved_user_credits) AS reserved_user_credits,
-  bool_or(reconciliation_required) AS reconciliation_required,
-  bool_or(usage_source NOT IN ('confirmed', 'provider_reported')) AS has_estimated_usage
-FROM public.external_provider_usage_events
-GROUP BY user_id, provider, date_trunc('day', created_at)::date;
+SELECT NULL::uuid AS user_id, NULL::text AS provider, NULL::date AS day,
+  0::numeric AS provider_units, 0::numeric AS provider_cost_nanos,
+  0::integer AS user_credit_cost, 0::integer AS reserved_user_credits,
+  false AS reconciliation_required, false AS has_estimated_usage WHERE false;
+
+CREATE OR REPLACE VIEW public.admin_external_user_rollup_v1
+WITH (security_invoker = false) AS
+SELECT NULL::uuid AS user_id, 0::integer AS credits_consumed, 0::integer AS credits_reserved,
+  0::numeric AS provider_cost_nanos, false AS reconciliation_required,
+  false AS estimated_usage WHERE false;
+
+CREATE OR REPLACE VIEW public.admin_provider_cost_summary_v1
+WITH (security_invoker = false) AS
+SELECT NULL::text AS provider, 0::numeric AS units, 0::numeric AS provider_cost_nanos,
+  0::integer AS credits_charged, 'unavailable'::text AS usage_source WHERE false;
+
+DO $$ BEGIN
+  IF to_regclass('public.external_provider_usage_events') IS NOT NULL THEN
+    EXECUTE $views$
+      CREATE OR REPLACE VIEW public.admin_user_provider_usage_daily_v1 WITH (security_invoker = false) AS
+      SELECT user_id, provider, date_trunc('day', created_at)::date AS day,
+        sum(provider_units) AS provider_units, sum(provider_cost_nanos) AS provider_cost_nanos,
+        sum(user_credit_cost) AS user_credit_cost, sum(reserved_user_credits) AS reserved_user_credits,
+        bool_or(reconciliation_required) AS reconciliation_required,
+        bool_or(usage_source NOT IN ('confirmed', 'provider_reported')) AS has_estimated_usage
+      FROM public.external_provider_usage_events GROUP BY user_id, provider, date_trunc('day', created_at)::date
+    $views$;
+    EXECUTE $views$
+      CREATE OR REPLACE VIEW public.admin_external_user_rollup_v1 WITH (security_invoker = false) AS
+      SELECT user_id, sum(user_credit_cost)::integer AS credits_consumed,
+        coalesce(sum(reserved_user_credits) FILTER (WHERE status = 'reserved'), 0)::integer AS credits_reserved,
+        sum(provider_cost_nanos) AS provider_cost_nanos, bool_or(reconciliation_required) AS reconciliation_required,
+        bool_or(usage_source NOT IN ('confirmed', 'provider_reported')) AS estimated_usage
+      FROM public.external_provider_usage_events WHERE created_at >= now() - interval '90 days' GROUP BY user_id
+    $views$;
+    EXECUTE $views$
+      CREATE OR REPLACE VIEW public.admin_provider_cost_summary_v1 WITH (security_invoker = false) AS
+      SELECT provider, sum(provider_units) AS units, sum(provider_cost_nanos) AS provider_cost_nanos,
+        sum(user_credit_cost)::integer AS credits_charged,
+        CASE WHEN bool_or(usage_source NOT IN ('confirmed', 'provider_reported')) THEN 'estimated' ELSE 'confirmed' END AS usage_source
+      FROM public.external_provider_usage_events WHERE created_at >= now() - interval '90 days' GROUP BY provider
+    $views$;
+  END IF;
+END $$;
 
 CREATE OR REPLACE VIEW public.admin_user_usage_summary_v1
 WITH (security_invoker = false) AS
@@ -42,7 +86,7 @@ WITH subscription AS (
   SELECT user_id, sum(user_credit_cost) AS credits_consumed, sum(reserved_user_credits) FILTER (WHERE status = 'reserved') AS credits_reserved,
     sum(provider_cost_nanos) AS provider_cost_nanos, bool_or(reconciliation_required) AS reconciliation_required,
     bool_or(usage_source NOT IN ('confirmed', 'provider_reported')) AS estimated_usage
-  FROM public.external_provider_usage_events WHERE created_at >= now() - interval '90 days' GROUP BY user_id
+  FROM public.admin_external_user_rollup_v1
 )
 SELECT COALESCE(subscription.user_id, ai.user_id, providers.user_id) AS user_id,
   COALESCE(subscription.plan, 'Free') AS plan, subscription.status AS subscription_status, subscription.current_period_end,
@@ -65,13 +109,6 @@ SELECT plan, count(*) AS active_subscribers, sum(subscription_revenue_nanos) AS 
   sum(subscription_revenue_nanos - ai_provider_cost_nanos - provider_cost_nanos) AS contribution_nanos
 FROM public.admin_user_usage_summary_v1 GROUP BY plan;
 
-CREATE OR REPLACE VIEW public.admin_provider_cost_summary_v1
-WITH (security_invoker = false) AS
-SELECT provider, sum(provider_units) AS units, sum(provider_cost_nanos) AS provider_cost_nanos,
-  sum(user_credit_cost) AS credits_charged,
-  CASE WHEN bool_or(usage_source NOT IN ('confirmed', 'provider_reported')) THEN 'estimated' ELSE 'confirmed' END AS usage_source
-FROM public.external_provider_usage_events WHERE created_at >= now() - interval '90 days' GROUP BY provider;
-
 CREATE OR REPLACE VIEW public.admin_usage_anomalies_v1
 WITH (security_invoker = false) AS
 SELECT user_id, 'allocation_over_80_percent'::text AS anomaly, ai_consumed_nanos, ai_allocation_nanos
@@ -79,5 +116,5 @@ FROM public.admin_user_usage_summary_v1 WHERE ai_consumed_nanos >= ai_allocation
 UNION ALL SELECT user_id, 'expired_subscription_with_usage', ai_consumed_nanos, ai_allocation_nanos FROM public.admin_user_usage_summary_v1
 WHERE current_period_end < now() AND ai_consumed_nanos > 0;
 
-REVOKE ALL ON public.admin_user_usage_summary_v1, public.admin_user_ai_usage_daily_v1, public.admin_user_provider_usage_daily_v1, public.admin_plan_cost_summary_v1, public.admin_provider_cost_summary_v1, public.admin_usage_anomalies_v1 FROM PUBLIC, anon, authenticated;
-GRANT SELECT ON public.admin_user_usage_summary_v1, public.admin_user_ai_usage_daily_v1, public.admin_user_provider_usage_daily_v1, public.admin_plan_cost_summary_v1, public.admin_provider_cost_summary_v1, public.admin_usage_anomalies_v1 TO service_role;
+REVOKE ALL ON public.admin_user_usage_summary_v1, public.admin_user_ai_usage_daily_v1, public.admin_user_provider_usage_daily_v1, public.admin_external_user_rollup_v1, public.admin_plan_cost_summary_v1, public.admin_provider_cost_summary_v1, public.admin_usage_anomalies_v1 FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.admin_user_usage_summary_v1, public.admin_user_ai_usage_daily_v1, public.admin_user_provider_usage_daily_v1, public.admin_external_user_rollup_v1, public.admin_plan_cost_summary_v1, public.admin_provider_cost_summary_v1, public.admin_usage_anomalies_v1 TO service_role;
