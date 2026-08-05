@@ -138,5 +138,21 @@ The audited source is `jakubkrehel/skills`; the project install is tracked in `s
 npx skills update better-interface better-accessibility better-layout better-writing better-typography better-colors better-ui
 ```
 
+## Emil Kowalski Design Skills
+The `emilkowalski/skills` collection is installed in `.agents/skills/` and has been audited as documentation-only. It includes `emil-design-eng`, `review-animations`, `improve-animations`, `find-animation-opportunities`, `animation-vocabulary`, `apple-design`, `pick-ui-library`, and `prototype`.
+
+Use `emil-design-eng` for general design-engineering guidance. Invoke `review-animations`, `improve-animations`, `find-animation-opportunities`, `animation-vocabulary`, `pick-ui-library`, or `prototype` explicitly when that specialized workflow is requested. `prototype` must remain isolated until a specific variant is selected for promotion.
+
+The audited source is `emilkowalski/skills`; the project install is tracked in `skills-lock.json`. Refresh it with:
+
+```bash
+npx skills update emil-design-eng review-animations improve-animations find-animation-opportunities animation-vocabulary apple-design pick-ui-library prototype
+```
+
 ## Model and Stack Restrictions
 - **CRITICAL**: Never change any model name (e.g., `gemini-embedding-2`), model configurations, or tech stack components (libraries, databases, architecture) without explicit user permission or telling the user first.
+
+## Environment and Credential Handling
+- For Supabase work, read the project-specific `JOBBREAKER_SUPABASE_ACCESS_TOKEN` and expose it only in-process as `SUPABASE_ACCESS_TOKEN` for the command that requires it.
+- Never print, persist, commit, or store the token value in logs, shell history, source files, documentation examples, or generated artifacts.
+- For GitHub merges and repository operations, prefer the connected GitHub integration and never expose or store a GitHub access token in the repository.
