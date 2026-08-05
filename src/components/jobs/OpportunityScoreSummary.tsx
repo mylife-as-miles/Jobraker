@@ -94,8 +94,23 @@ export function OpportunityScoreSummary({
         </div>
       </button>
 
-      {isOpen ? (
-        <>
+      <div
+        className={`spring-grid-expandable overflow-hidden transition-all ${
+          isOpen ? "expanded" : ""
+        }`}
+        style={{
+          display: "grid",
+          gridTemplateRows: isOpen ? "1fr" : "0fr",
+          transition: "grid-template-rows 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        }}
+      >
+        <div
+          className='spring-grid-inner min-h-0 overflow-hidden space-y-3 pt-1'
+          style={{
+            opacity: isOpen ? 1 : 0,
+            transition: "opacity 0.35s ease 0.15s",
+          }}
+        >
           <div className='grid grid-cols-3 gap-2'>
             {[
               { label: "Lead", value: opportunity.leadQualityScore, icon: ShieldCheck },
@@ -308,8 +323,8 @@ export function OpportunityScoreSummary({
               Recommended action: {getRecommendedActionLabel(opportunity.recommendedAction)}
             </div>
           ) : null}
-        </>
-      ) : null}
+        </div>
+      </div>
     </div>
   );
 }

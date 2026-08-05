@@ -3158,7 +3158,7 @@ export const BillingPage = () => {
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: "auto", opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
-                                    transition={{ duration: 0.2 }}
+                                    transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
                                     className="overflow-hidden bg-foreground/[0.01] border-t border-foreground/5"
                                   >
                                     <div className="p-4 sm:p-6 pl-12 sm:pl-16 space-y-4">

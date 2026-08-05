@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAiReservationErrorMessage } from "./ai-usage-errors.ts";
 
 export interface MeteredAiReserveOptions {
   serviceClient: SupabaseClient;
@@ -245,9 +246,7 @@ export async function reserveAiUsage(
     const code = typeof result?.error === "string"
       ? result.error
       : "AI_USAGE_RESERVATION_REJECTED";
-    const message = typeof result?.message === "string"
-      ? result.message
-      : "AI usage reservation rejected";
+    const message = getAiReservationErrorMessage(code, result?.message);
 
     if (code === "AI_USAGE_LIMIT_REACHED") {
       const rawWindow = typeof result?.window === "string"

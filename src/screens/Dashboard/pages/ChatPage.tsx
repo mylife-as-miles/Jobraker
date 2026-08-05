@@ -60,11 +60,29 @@ import {
   getChatAttachment,
 } from "../../../lib/chatAttachmentIdb";
 import {
+  isUserVisibleAgentActivity,
+  type UserVisibleAgentActivityKind,
+} from "@/lib/chat/agentActivity";
+import {
+  getAiCapacityErrorMessage,
+  isAiCapacityExhausted,
+} from "@/lib/chat/aiCapacityMessages";
+import {
+  commitVoiceInterimTranscript,
+  mergeVoiceTranscript,
+} from "@/lib/chat/voiceTranscript";
+import {
   generateChatStarters,
   type ChatStarterIcon,
   type ChatStarterSuggestion,
 } from "../../../services/ai/generateChatStarters";
 import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import { ThinkingOrb } from "thinking-orbs";
 import { TokenStream } from "@/components/chat/TokenStream";
@@ -116,7 +134,6 @@ import {
   X,
   Coins,
   History,
-  Brain,
   ReceiptText,
   AlertTriangle,
   ListChecks,
@@ -124,7 +141,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Mic,
-  Loader2,
 } from "lucide-react";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
@@ -185,6 +201,8 @@ const cleanErrorMessage = (raw: unknown): string => {
   }
 
   const lower = str.toLowerCase();
+  const aiCapacityMessage = getAiCapacityErrorMessage(str);
+  if (aiCapacityMessage) return aiCapacityMessage;
   if (
     lower.includes("high demand") ||
     lower.includes("503") ||
@@ -268,14 +286,7 @@ interface ToolCallEntry {
 }
 interface AgentActivityEntry {
   id: string;
-  kind:
-    | "thinking"
-    | "tool_batch"
-    | "tool_result"
-    | "billing"
-    | "limit"
-    | "status"
-    | "error";
+  kind: UserVisibleAgentActivityKind;
   title: string;
   detail?: string;
   status: "running" | "done" | "error";
@@ -428,11 +439,15 @@ const normalizeBasicMessage = (message: any): BasicMessage => ({
     : undefined,
   agentEvents: Array.isArray(message?.agentEvents)
     ? message.agentEvents
-        .filter((entry: any) => entry && typeof entry.title === "string")
+        .filter(
+          (entry: any) =>
+            entry &&
+            typeof entry.title === "string" &&
+            isUserVisibleAgentActivity(entry.kind),
+        )
         .map((entry: any) => ({
           id: typeof entry.id === "string" ? entry.id : nanoid(),
           kind:
-            entry.kind === "thinking" ||
             entry.kind === "tool_batch" ||
             entry.kind === "tool_result" ||
             entry.kind === "billing" ||
@@ -870,7 +885,7 @@ const AgentWorkTimeline = ({
     : [
         ...agentEvents
           .filter((event) =>
-            ["thinking", "billing", "limit", "error"].includes(event.kind),
+            ["status", "billing", "limit", "error"].includes(event.kind),
           )
           .map((event) => ({
             id: event.id,
@@ -880,11 +895,9 @@ const AgentWorkTimeline = ({
             label:
               event.kind === "billing"
                 ? [event.title, event.detail].filter(Boolean).join(" - ")
-                : event.kind === "thinking" && event.detail
-                  ? `Thinking: ${event.detail}`
-                  : event.detail
-                    ? `${event.title} - ${event.detail}`
-                    : event.title,
+                : event.detail
+                  ? `${event.title} - ${event.detail}`
+                  : event.title,
           })),
         ...toolCalls
           .filter((tool) => !isInternalToolFailure(tool))
@@ -932,6 +945,7 @@ const AgentWorkTimeline = ({
     ? `Connecting to JobRaker agent (${elapsedLabel})`
     : "Connecting to JobRaker agent";
   const summaryLabel = latestRow?.label || fallbackLabel;
+  const timelineOrbState = timelineRows.length ? "working" : "connecting";
   const stepLabel =
     totalStepCount > 0
       ? `${totalStepCount} step${totalStepCount === 1 ? "" : "s"}`
@@ -946,10 +960,14 @@ const AgentWorkTimeline = ({
       return <AlertTriangle className='h-3.5 w-3.5 shrink-0 text-red-400' />;
     }
     if (row.status === "running") {
-      return <Loader2 className='h-3.5 w-3.5 shrink-0 animate-spin text-brand' />;
-    }
-    if (row.kind === "thinking") {
-      return <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />;
+      return (
+        <ThinkingOrb
+          state={row.kind === "tool" ? "searching" : "working"}
+          size={20}
+          className='shrink-0'
+          aria-label='JobRaker is working'
+        />
+      );
     }
     if (row.kind === "billing") {
       return <ReceiptText className='h-3.5 w-3.5 shrink-0 text-brand' />;
@@ -968,7 +986,16 @@ const AgentWorkTimeline = ({
         className={`${rowClass} w-full text-left transition-colors hover:bg-brand/[0.09]`}
         aria-expanded={expanded}
       >
-        <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
+        {isStreaming ? (
+          <ThinkingOrb
+            state={timelineOrbState}
+            size={20}
+            className='shrink-0'
+            aria-label='JobRaker is working'
+          />
+        ) : (
+          <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
+        )}
         <span className='shrink-0 font-medium text-foreground/80'>
           Working process
         </span>
@@ -1046,7 +1073,12 @@ const AgentWorkTimeline = ({
 
       {expanded && isStreaming && timelineRows.length === 0 && (
         <div className={rowClass}>
-          <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />
+          <ThinkingOrb
+            state='connecting'
+            size={20}
+            className='shrink-0'
+            aria-label='Connecting to JobRaker'
+          />
           <span className='truncate'>{fallbackLabel}</span>
         </div>
       )}
@@ -1353,9 +1385,9 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             ? [
                 {
                   id: nanoid(),
-                  kind: "thinking",
-                  title: "Starting agent",
-                  detail: "Connecting to JobRaker and preparing the first step.",
+                  kind: "status",
+                  title: "Working on your request",
+                  detail: "Preparing the first step.",
                   status: "running",
                   createdAt: Date.now(),
                   round: 0,
@@ -1490,7 +1522,9 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 );
               });
               await waitForAgentProgressPaint();
+              return true;
             } else if (currentEvent === "agent_activity") {
+              if (!isUserVisibleAgentActivity(data.kind)) return false;
               const activity: AgentActivityEntry = {
                 id: data.id || nanoid(),
                 kind: data.kind || "status",
@@ -1709,6 +1743,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
               const shouldStop = await handleSsePayload(currentEvent, dataStr);
               if (shouldStop) {
                 streamFinished = true;
+                await reader.cancel().catch(() => undefined);
                 break;
               }
             }
@@ -1899,13 +1934,23 @@ export const ChatPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: aiLimits } = useAiUsageLimits();
+  const aiCapacityExhausted = isAiCapacityExhausted(
+    aiLimits?.rolling24h.percentLeft,
+  );
+  const aiCapacityLabel = aiCapacityExhausted
+    ? "AI allowance used"
+    : `${aiLimits?.rolling24h.percentLeft ?? 0}% AI Capacity`;
+  const aiCapacityTitle = aiCapacityExhausted
+    ? "Your AI allowance is used for now. Capacity becomes available gradually over the next 24 hours. Open Settings for details."
+    : "AI Usage Limits (rolling 24-hour capacity). Open Settings for details.";
   // UI state
   const [text, setText] = useState("");
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const isListeningRef = useRef(false);
   const baseTextRef = useRef("");
+  const finalizedTranscriptRef = useRef("");
+  const interimTranscriptRef = useRef("");
 
   const toggleListening = useCallback(() => {
     if (isListening) {
@@ -1927,6 +1972,8 @@ export const ChatPage = () => {
       }
 
       baseTextRef.current = text;
+      finalizedTranscriptRef.current = "";
+      interimTranscriptRef.current = "";
       isListeningRef.current = true;
 
       const recognition = new SpeechRecognition();
@@ -1957,6 +2004,11 @@ export const ChatPage = () => {
 
       recognition.onend = () => {
         if (isListeningRef.current) {
+          finalizedTranscriptRef.current = commitVoiceInterimTranscript(
+            finalizedTranscriptRef.current,
+            interimTranscriptRef.current,
+          );
+          interimTranscriptRef.current = "";
           try {
             recognition.start();
           } catch (_) {
@@ -1982,10 +2034,16 @@ export const ChatPage = () => {
           }
         }
 
-        const initialText = baseTextRef.current;
-        const speechOutput = (finalTranscript + " " + interimTranscript).trim();
-        if (speechOutput) {
-          setText(initialText ? `${initialText} ${speechOutput}` : speechOutput);
+        const nextTranscript = mergeVoiceTranscript({
+          baseText: baseTextRef.current,
+          finalizedTranscript: finalizedTranscriptRef.current,
+          newFinalTranscript: finalTranscript,
+          interimTranscript,
+        });
+        finalizedTranscriptRef.current = nextTranscript.finalizedTranscript;
+        interimTranscriptRef.current = interimTranscript;
+        if (nextTranscript.draft) {
+          setText(nextTranscript.draft);
         }
       };
 
@@ -3113,19 +3171,34 @@ export const ChatPage = () => {
                     <button
                       type="button"
                       onClick={() => navigate("/dashboard/settings")}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border hover:border-brand/40 transition-colors shrink-0"
-                      title="AI Usage Limits (Rolling 24h capacity). Click to manage in Settings."
+                      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 transition-colors ${
+                        aiCapacityExhausted
+                          ? "border-amber-400/35 bg-amber-400/10 hover:border-amber-300/60"
+                          : "border-border bg-card/70 hover:border-brand/40"
+                      }`}
+                      title={aiCapacityTitle}
                     >
-                      <Zap size={12} className="text-brand shrink-0" />
+                      <Zap
+                        size={12}
+                        className={`shrink-0 ${
+                          aiCapacityExhausted ? "text-amber-300" : "text-brand"
+                        }`}
+                      />
                       <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
-                        {aiLimits.rolling24h.percentLeft}% AI Limit
+                        {aiCapacityExhausted
+                          ? "AI allowance used"
+                          : `${aiLimits.rolling24h.percentLeft}% AI Limit`}
                       </span>
                     </button>
                   )}
                   <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0">
-                    <div className="w-1.5 h-1.5 rounded-full bg-brand"></div>
+                    <div
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        aiCapacityExhausted ? "bg-amber-300" : "bg-brand"
+                      }`}
+                    />
                     <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
-                      Ready
+                      {aiCapacityExhausted ? "Allowance used" : "Ready"}
                     </span>
                   </div>
                 </div>
@@ -3363,12 +3436,21 @@ export const ChatPage = () => {
                     <button
                       type="button"
                       onClick={() => navigate("/dashboard/settings")}
-                      className='flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border hover:border-brand/40 transition-colors shrink-0'
-                      title="AI Usage Limits (Rolling 24h capacity). Click to manage in Settings."
+                      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 transition-colors ${
+                        aiCapacityExhausted
+                          ? "border-amber-400/35 bg-amber-400/10 hover:border-amber-300/60"
+                          : "border-border bg-card/70 hover:border-brand/40"
+                      }`}
+                      title={aiCapacityTitle}
                     >
-                      <Zap size={14} className='text-brand shrink-0' />
+                      <Zap
+                        size={14}
+                        className={`shrink-0 ${
+                          aiCapacityExhausted ? "text-amber-300" : "text-brand"
+                        }`}
+                      />
                       <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
-                        {aiLimits.rolling24h.percentLeft}% AI Capacity
+                        {aiCapacityLabel}
                       </span>
                     </button>
                   )}
@@ -3376,8 +3458,14 @@ export const ChatPage = () => {
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0`}
                   >
                     <div
-                      className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${isChatBusy ? "bg-brand animate-pulse" : "bg-brand"} `}
-                    ></div>
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2 ${
+                        aiCapacityExhausted
+                          ? "bg-amber-300"
+                          : isChatBusy
+                            ? "bg-brand animate-pulse"
+                            : "bg-brand"
+                      }`}
+                    />
                     <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
                       {status === "in_progress"
                         ? showExtendedWait
@@ -3385,7 +3473,9 @@ export const ChatPage = () => {
                           : "Generating..."
                         : skillStatus === "in_progress"
                           ? "Running skill..."
-                          : "Ready"}
+                          : aiCapacityExhausted
+                            ? "Allowance used"
+                            : "Ready"}
                     </span>
                   </div>
                   {status === "in_progress" && (
@@ -3984,7 +4074,7 @@ export const ChatPage = () => {
                           Listening to your voice...
                         </div>
                         <p className="text-[11px] text-slate-300 mt-0.5">
-                          Speak your query clearly. Your speech is transcribed into prompt text automatically.
+                          Pause naturally and continue speaking. Your draft keeps growing until you stop listening.
                         </p>
                       </div>
                     </div>
@@ -4179,56 +4269,46 @@ export const ChatPage = () => {
                           : "row-start-2 md:row-start-1"
                       }`}
                     >
-                      {/* Custom Dropdown */}
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setDropdownOpen((prev) => !prev)}
-                          className="flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-semibold bg-foreground/5 text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-all border border-border"
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className="group flex items-center gap-1 rounded-full border border-border bg-foreground/5 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
+                          >
+                            <span>
+                              {persona === "concise" ? "Ask: plan" : "Agent: do work"}
+                            </span>
+                            <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          side="top"
+                          align="end"
+                          sideOffset={8}
+                          className="z-[70] w-40"
                         >
-                          <span>{persona === "concise" ? "Ask: plan" : "Agent: do work"}</span>
-                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} />
-                        </button>
-
-                        {dropdownOpen && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-40"
-                              onClick={() => setDropdownOpen(false)}
-                            />
-                            <div className="absolute right-0 bottom-full mb-2 z-50 w-36 rounded-xl border border-border bg-card/95 p-1 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  handlePersonaChange("concise");
-                                  setDropdownOpen(false);
-                                }}
-                                className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                                  persona === "concise"
-                                    ? "text-brand bg-brand/10"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                                }`}
-                              >
-                                Ask: plan
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  handlePersonaChange("analyst");
-                                  setDropdownOpen(false);
-                                }}
-                                className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                                  persona === "analyst"
-                                    ? "text-brand bg-brand/10"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                                }`}
-                              >
-                                Agent: do work
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                          <DropdownMenuItem
+                            onSelect={() => handlePersonaChange("concise")}
+                            className={`px-3 py-2 text-xs font-semibold ${
+                              persona === "concise"
+                                ? "bg-brand/10 text-brand"
+                                : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                            }`}
+                          >
+                            Ask: plan
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => handlePersonaChange("analyst")}
+                            className={`px-3 py-2 text-xs font-semibold ${
+                              persona === "analyst"
+                                ? "bg-brand/10 text-brand"
+                                : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                            }`}
+                          >
+                            Agent: do work
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
 
                       {/* Voice Mic Button */}
                       <button

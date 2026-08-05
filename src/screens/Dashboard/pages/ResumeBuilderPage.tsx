@@ -633,15 +633,32 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                   <ChevronDown className='w-4 h-4 product-helper-text' />
                 )}
               </div>
-              {expandedSection === "personal" && (
-                <PersonalDetailsEditor
-                  hasProfileAvatar={Boolean(profile?.avatar_url)}
-                  profileAvatarUrl={profileAvatarUrl}
-                  syncingProfilePhoto={syncingProfilePhoto}
-                  onUseProfileImage={useProfileImage}
-                  onRefreshProfileImage={refreshProfileImage}
-                />
-              )}
+              <div
+                className={`spring-grid-expandable overflow-hidden transition-all ${
+                  expandedSection === "personal" ? "expanded" : ""
+                }`}
+                style={{
+                  display: "grid",
+                  gridTemplateRows: expandedSection === "personal" ? "1fr" : "0fr",
+                  transition: "grid-template-rows 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                }}
+              >
+                <div
+                  className='spring-grid-inner min-h-0 overflow-hidden'
+                  style={{
+                    opacity: expandedSection === "personal" ? 1 : 0,
+                    transition: "opacity 0.35s ease 0.15s",
+                  }}
+                >
+                  <PersonalDetailsEditor
+                    hasProfileAvatar={Boolean(profile?.avatar_url)}
+                    profileAvatarUrl={profileAvatarUrl}
+                    syncingProfilePhoto={syncingProfilePhoto}
+                    onUseProfileImage={useProfileImage}
+                    onRefreshProfileImage={refreshProfileImage}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Summary Section */}
@@ -666,43 +683,55 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                   )}
                 </div>
 
-                {expandedSection === "summary" && (
-                  <div className='p-5 pt-0 space-y-3 animate-in slide-in-from-top-2 duration-200'>
-                    <textarea
-                      value={summary.content || ""}
-                      onChange={(e) => setSummary(e.target.value)}
-                      rows={4}
-                      className='product-input-surface w-full rounded-lg px-3 py-2 text-sm outline-none transition-all focus:border-brand focus:ring-1 focus:ring-brand'
-                      placeholder='Brief professional summary...'
-                    />
-                    <div className='flex items-center justify-between gap-2 pt-1'>
-                      <div className='text-[11px] text-muted-foreground flex items-center gap-1.5'>
-                        <Sparkles className='w-3.5 h-3.5 text-brand' />
-                        <span>AI Executive Polish</span>
-                      </div>
-                      <div className='flex items-center gap-2'>
-                        <button
-                          type='button'
-                          onClick={() => void aiGenerateResume()}
-                          disabled={aiLoading}
-                          className='inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-brand bg-brand/10 hover:bg-brand/20 border border-brand/30 rounded-lg transition-all disabled:opacity-50'
+                <div
+                  className={`spring-grid-expandable overflow-hidden transition-all ${
+                    expandedSection === "summary" ? "expanded" : ""
+                  }`}
+                  style={{
+                    display: "grid",
+                    gridTemplateRows: expandedSection === "summary" ? "1fr" : "0fr",
+                    transition: "grid-template-rows 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                  }}
+                >
+                  <div
+                    className='spring-grid-inner min-h-0 overflow-hidden'
+                    style={{
+                      opacity: expandedSection === "summary" ? 1 : 0,
+                      transition: "opacity 0.35s ease 0.15s",
+                    }}
+                  >
+                    <div className='p-5 pt-0 space-y-3'>
+                      <textarea
+                        value={summary.content || ""}
+                        onChange={(e) => setSummary(e.target.value)}
+                        rows={4}
+                        className='product-input-surface w-full rounded-lg px-3 py-2 text-sm outline-none transition-all focus:border-brand focus:ring-1 focus:ring-brand'
+                        placeholder='Brief professional summary...'
+                      />
+                      <div className='flex items-center justify-between gap-2 pt-1'>
+                        <div className='text-[11px] text-muted-foreground flex items-center gap-1.5'>
+                          <Sparkles className='w-3.5 h-3.5 text-brand' />
+                          <span>AI Assistant ready to refine summary</span>
+                        </div>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={() => generateAISummary()}
+                          disabled={generatingField === "summary"}
+                          className='h-7 text-xs text-brand hover:text-brand hover:bg-brand/10 gap-1.5'
                         >
-                          <Wand2 className={`w-3.5 h-3.5 ${aiLoading ? "animate-spin" : ""}`} />
-                          <span>AI Generate</span>
-                        </button>
-                        <button
-                          type='button'
-                          onClick={() => void aiPolishSummary("Enhance with strong action verbs and quantified impact metrics.")}
-                          disabled={aiLoading || !summary.content?.trim()}
-                          className='inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-brand bg-brand/15 hover:bg-brand/25 border border-brand/40 rounded-lg transition-all disabled:opacity-50 shadow-sm'
-                        >
-                          <Sparkles className={`w-3.5 h-3.5 ${aiLoading ? "animate-spin" : ""}`} />
-                          <span>AI Polish</span>
-                        </button>
+                          {generatingField === "summary" ? (
+                            <>Generating...</>
+                          ) : (
+                            <>
+                              <Sparkles className='w-3 h-3' /> Enhance with AI
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
 
@@ -747,15 +776,32 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                     </div>
                   </div>
 
-                  {expandedSection === sectionId && (
-                    <div className='p-5 pt-0'>
-                      {section.type === "list" ? (
-                        <ListEditor sectionId={sectionId} />
-                      ) : (
-                        <SectionEditor sectionId={sectionId} />
-                      )}
+                  <div
+                    className={`spring-grid-expandable overflow-hidden transition-all ${
+                      expandedSection === sectionId ? "expanded" : ""
+                    }`}
+                    style={{
+                      display: "grid",
+                      gridTemplateRows: expandedSection === sectionId ? "1fr" : "0fr",
+                      transition: "grid-template-rows 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                    }}
+                  >
+                    <div
+                      className='spring-grid-inner min-h-0 overflow-hidden'
+                      style={{
+                        opacity: expandedSection === sectionId ? 1 : 0,
+                        transition: "opacity 0.35s ease 0.15s",
+                      }}
+                    >
+                      <div className='p-5 pt-0'>
+                        {section.type === "list" ? (
+                          <ListEditor sectionId={sectionId} />
+                        ) : (
+                          <SectionEditor sectionId={sectionId} />
+                        )}
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}

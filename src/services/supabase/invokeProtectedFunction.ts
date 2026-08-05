@@ -107,36 +107,88 @@ function buildFunctionRequest(functionName: string, options: InvokeProtectedFunc
   };
 }
 
+const DEFAULT_TIMEOUT_MS = 90_000;
+const MAX_NETWORK_RETRIES = 1;
+const RETRY_DELAY_MS = 2_000;
+
+function isTransientNetworkError(err: unknown): boolean {
+  if (!(err instanceof TypeError)) return false;
+  const msg = err.message.toLowerCase();
+  return (
+    msg.includes("failed to fetch") ||
+    msg.includes("network request failed") ||
+    msg.includes("load failed") ||
+    msg.includes("networkerror")
+  );
+}
+
 export async function invokeProtectedFunction<T>(
   functionName: string,
   options: InvokeProtectedFunctionOptions = {},
 ): Promise<T> {
-  const accessToken = await getFreshAccessToken();
-  const request = buildFunctionRequest(functionName, options);
-  request.headers.set("Authorization", `Bearer ${accessToken}`);
+  let lastError: unknown;
 
-  const response = await fetch(request.url, {
-    method: "POST",
-    headers: request.headers,
-    body: request.body,
-  });
-
-  const raw = await response.text();
-  let payload: unknown = null;
-
-  if (raw) {
+  for (let attempt = 0; attempt <= MAX_NETWORK_RETRIES; attempt++) {
     try {
-      payload = JSON.parse(raw);
-    } catch {
-      payload = raw;
+      const accessToken = await getFreshAccessToken();
+      const request = buildFunctionRequest(functionName, options);
+      request.headers.set("Authorization", `Bearer ${accessToken}`);
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+      let response: Response;
+      try {
+        response = await fetch(request.url, {
+          method: "POST",
+          headers: request.headers,
+          body: request.body,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+
+      const raw = await response.text();
+      let payload: unknown = null;
+
+      if (raw) {
+        try {
+          payload = JSON.parse(raw);
+        } catch {
+          payload = raw;
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          extractFunctionErrorMessage(payload, functionName, response.status),
+        );
+      }
+
+      return payload as T;
+    } catch (err) {
+      lastError = err;
+
+      // Only retry on transient network errors (connection drops, DNS timeouts)
+      if (
+        isTransientNetworkError(err) &&
+        attempt < MAX_NETWORK_RETRIES
+      ) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+        continue;
+      }
+
+      // Rethrow AbortError as a friendlier timeout message
+      if (err instanceof DOMException && err.name === "AbortError") {
+        throw new Error(
+          `Request to ${functionName} timed out after ${DEFAULT_TIMEOUT_MS / 1000}s. Check your connection and try again.`,
+        );
+      }
+
+      throw err;
     }
   }
 
-  if (!response.ok) {
-    throw new Error(
-      extractFunctionErrorMessage(payload, functionName, response.status),
-    );
-  }
-
-  return payload as T;
+  throw lastError;
 }
