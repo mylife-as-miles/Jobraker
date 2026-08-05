@@ -29,6 +29,7 @@ import {
   Download,
   Shield,
   Infinity,
+  Mail,
   Target,
   Loader2,
   Receipt,
@@ -1343,7 +1344,9 @@ export const BillingPage = () => {
                         {plans.find((p) => p.name === subscriptionTier)
                           ?.auto_apply_monthly_limit
                           ? ` + ${plans.find((p) => p.name === subscriptionTier)?.auto_apply_monthly_limit} auto-apply runs/mo`
-                          : " / manual only"}
+                          : subscriptionTier === "Starter"
+                            ? " + cold outreach email drafts"
+                            : " + application support"}
                       </p>
                     </div>
                   </CardContent>
@@ -1811,7 +1814,7 @@ export const BillingPage = () => {
                                   </div>
                                   <div className='flex min-h-[5rem] items-start gap-3 rounded-xl border border-foreground/5 bg-foreground/5 p-3.5 transition-colors group-hover:bg-foreground/10 sm:min-h-[5.5rem]'>
                                     <div className='p-1.5 rounded-lg bg-background/40 shrink-0 mt-0.5'>
-                                      <Target
+                                      <Mail
                                         className={`w-4 h-4 ${
                                           plan.name === "Pro"
                                             ? "text-blue-400"
@@ -1854,16 +1857,16 @@ export const BillingPage = () => {
                                           <p
                                             className={`text-base font-bold leading-tight ${textColors.primary}`}
                                           >
-                                            Manual only
+                                            Cold outreach
                                           </p>
                                           <div className='space-y-0.5'>
                                             <p
                                               className={`text-[10px] font-semibold uppercase tracking-wider ${textColors.muted} leading-tight`}
                                             >
-                                              No automation
+                                              Tailored email drafts
                                             </p>
                                             <p className='text-[9px] text-muted-foreground/75 leading-snug'>
-                                              You apply yourself
+                                              For recruiter outreach
                                             </p>
                                           </div>
                                         </>
@@ -1884,6 +1887,19 @@ export const BillingPage = () => {
                                             : [feature.name, feature.value]
                                                 .filter(Boolean)
                                                 .join(" • ");
+                                        if (
+                                          plan.name === "Starter" &&
+                                          /recruiter outreach message generation/i.test(
+                                            featureName,
+                                          )
+                                        ) {
+                                          featureName = "Cold outreach email drafts";
+                                        } else if (
+                                          plan.name === "Starter" &&
+                                          /manual application workflow/i.test(featureName)
+                                        ) {
+                                          featureName = "Flexible application workflow";
+                                        }
                                         if (isUltimate) {
                                           if (
                                             typeof feature === "string" &&

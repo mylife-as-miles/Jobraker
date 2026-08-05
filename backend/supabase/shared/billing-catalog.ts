@@ -66,7 +66,7 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
     autoApplyRunsPerMonth: 0,
     autoApplyConcurrency: 0,
     description:
-      "Designed for job seekers who want AI assistance but prefer to apply manually.",
+      "Build a focused search with AI tools and tailored cold-outreach email drafts.",
     isPopular: false,
     marketingFeatures: [
       "AI Usage Limits for AI Chat & Resume tools",
@@ -77,10 +77,8 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
       "AI resume polishing",
       "Cover-letter generation",
       "Application tracking",
-      "Recruiter outreach message generation",
-      "Manual application workflow",
-      "No auto-apply",
-      "No Skyvern usage",
+      "Cold outreach email drafts",
+      "Flexible application workflow",
     ],
   },
   {
