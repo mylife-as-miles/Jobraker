@@ -65,7 +65,7 @@ import {
   type ChatStarterSuggestion,
 } from "../../../services/ai/generateChatStarters";
 import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
-import { TextSelectionToolbar } from "@/components/chat/TextSelectionToolbar";
+
 import { ThinkingOrb } from "thinking-orbs";
 import { TokenStream } from "@/components/chat/TokenStream";
 import {
@@ -4278,7 +4278,6 @@ export const ChatPage = () => {
             }}
           />
 
-          <TextSelectionToolbar />
         </>
       )}
     </div>
