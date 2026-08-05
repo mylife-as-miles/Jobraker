@@ -54,6 +54,20 @@ function getOAuthRedirectUrl() {
     : AUTH_REDIRECTS.dashboard();
 }
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: number | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+  }
+}
+
 function SixDigitOtpInput({
   value,
   onChange,
@@ -300,6 +314,41 @@ export const JobrackerSignup = (): JSX.Element => {
     };
   }, [beginMfaChallenge, searchParams, showMfaModal, supabase, toastError]);
 
+  const recordVerifiedMfaSession = useCallback((userId: string, session: any) => {
+    void (async () => {
+      try {
+        const {
+          createActiveSession,
+          enforceMaxSessions,
+          logSecurityEvent,
+        } = await import("../../utils/sessionManagement");
+        const expiresAt = session?.expires_at
+          ? new Date(session.expires_at * 1000)
+          : undefined;
+
+        await createActiveSession(userId, session.access_token, expiresAt);
+        const { data: settings } = await supabase
+          .from("security_settings")
+          .select("max_concurrent_sessions")
+          .eq("id", userId)
+          .maybeSingle();
+        const maxSessions = settings?.max_concurrent_sessions || 5;
+
+        await Promise.all([
+          enforceMaxSessions(userId, maxSessions),
+          logSecurityEvent(
+            userId,
+            "login",
+            `User logged in via 2FA/MFA verification from ${navigator.userAgent}`,
+            "low",
+          ),
+        ]);
+      } catch (error) {
+        console.warn("[auth] Post-MFA session bookkeeping failed:", error);
+      }
+    })();
+  }, [supabase]);
+
   const handleVerifyMfaChallenge = async (codeToVerify?: string) => {
     const code = (useBackupCode ? backupCodeInput : (codeToVerify || mfaCode)).trim();
     if (!code || !pendingAuthSession) return;
@@ -331,52 +380,30 @@ export const JobrackerSignup = (): JSX.Element => {
         if (!mfaFactorId) {
           throw new Error("2FA Factor ID missing. Please sign in again.");
         }
-        const { error } = await (supabase as any).auth.mfa.challengeAndVerify({
-          factorId: mfaFactorId,
-          code,
-        });
+        const { error } = await withTimeout(
+          (supabase as any).auth.mfa.challengeAndVerify({
+            factorId: mfaFactorId,
+            code,
+          }),
+          15_000,
+          "Verification is taking too long. Please check your connection and try again.",
+        );
         if (error) throw error;
       }
 
       const {
         data: { session: elevatedSession },
-      } = await supabase.auth.getSession();
+      } = await withTimeout(
+        supabase.auth.getSession(),
+        5_000,
+        "Your verified session could not be refreshed. Please try again.",
+      );
       const verifiedSession = elevatedSession ?? pendingAuthSession.session;
       if (!verifiedSession?.access_token) {
         throw new Error("Your verified session could not be refreshed. Please sign in again.");
       }
 
-      const {
-        createActiveSession,
-        enforceMaxSessions,
-        logSecurityEvent,
-      } = await import("../../utils/sessionManagement");
-
-      const expiresAt = verifiedSession?.expires_at
-        ? new Date(verifiedSession.expires_at * 1000)
-        : undefined;
-
-      await createActiveSession(
-        pendingAuthSession.userId,
-        verifiedSession.access_token,
-        expiresAt,
-      );
-
-      const { data: settings } = await supabase
-        .from("security_settings")
-        .select("max_concurrent_sessions")
-        .eq("id", pendingAuthSession.userId)
-        .maybeSingle();
-      const maxSessions = settings?.max_concurrent_sessions || 5;
-      await enforceMaxSessions(pendingAuthSession.userId, maxSessions);
-
-      await logSecurityEvent(
-        pendingAuthSession.userId,
-        "login",
-        `User logged in via 2FA/MFA verification from ${navigator.userAgent}`,
-        "low",
-      );
-
+      recordVerifiedMfaSession(pendingAuthSession.userId, verifiedSession);
       setShowMfaModal(false);
       navigate(getPostSignInPath());
     } catch (err: any) {
