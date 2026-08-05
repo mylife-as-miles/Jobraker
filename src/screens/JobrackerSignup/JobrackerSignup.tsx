@@ -10,7 +10,9 @@ import {
   AlertTriangle,
   KeyRound,
   Key,
+  LifeBuoy,
   RefreshCw,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
@@ -128,31 +130,33 @@ function SixDigitOtpInput({
   };
 
   return (
-    <div className='flex justify-center gap-2 sm:gap-3 py-2'>
+    <div className='flex justify-center gap-1.5 py-2 sm:gap-2'>
       {Array.from({ length: 6 }).map((_, idx) => (
-        <input
-          key={idx}
-          ref={(el) => {
-            inputsRef.current[idx] = el;
-          }}
-          type='text'
-          inputMode='numeric'
-          pattern='[0-9]*'
-          maxLength={6}
-          disabled={disabled}
-          value={digits[idx]}
-          onChange={(e) => handleDigitChange(idx, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(idx, e)}
-          onPaste={handlePaste}
-          onFocus={(e) => e.target.select()}
-          className={cn(
-            "w-11 h-14 sm:w-12 sm:h-16 text-center text-2xl font-bold rounded-xl border-2 transition-all outline-none bg-card text-foreground shadow-sm",
-            digits[idx]
-              ? "border-brand bg-brand/5 shadow-brand/10"
-              : "border-border/60 focus:border-brand/70 focus:ring-2 focus:ring-brand/20",
-            disabled && "opacity-50 cursor-not-allowed",
-          )}
-        />
+        <React.Fragment key={idx}>
+          {idx === 3 ? <span aria-hidden className='mx-1 h-6 w-px bg-border/70' /> : null}
+          <input
+            ref={(el) => {
+              inputsRef.current[idx] = el;
+            }}
+            type='text'
+            inputMode='numeric'
+            pattern='[0-9]*'
+            maxLength={6}
+            disabled={disabled}
+            value={digits[idx]}
+            onChange={(e) => handleDigitChange(idx, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(idx, e)}
+            onPaste={handlePaste}
+            onFocus={(e) => e.target.select()}
+            className={cn(
+              "h-12 w-10 rounded-lg border text-center font-mono text-lg font-semibold text-foreground outline-none transition-[border-color,background-color,box-shadow] sm:h-14 sm:w-11",
+              digits[idx]
+                ? "border-brand bg-brand/5 shadow-[0_0_0_1px_rgba(47,217,104,0.12)]"
+                : "border-border/60 bg-background focus:border-brand/70 focus:ring-2 focus:ring-brand/20",
+              disabled && "cursor-not-allowed opacity-50",
+            )}
+          />
+        </React.Fragment>
       ))}
     </div>
   );
@@ -241,6 +245,7 @@ export const JobrackerSignup = (): JSX.Element => {
     userId: string;
     session: any;
   } | null>(null);
+  const mfaResumeAttemptedRef = useRef(false);
 
   const requiresMfaChallenge = useCallback(async () => {
     const { data, error } = await (supabase as any).auth.mfa.getAuthenticatorAssuranceLevel();
@@ -262,6 +267,38 @@ export const JobrackerSignup = (): JSX.Element => {
     setPendingAuthSession({ userId, session });
     setShowMfaModal(true);
   }, [supabase]);
+
+  useEffect(() => {
+    if (searchParams.get("mfa") !== "required") {
+      mfaResumeAttemptedRef.current = false;
+      return;
+    }
+    if (mfaResumeAttemptedRef.current || showMfaModal) return;
+
+    mfaResumeAttemptedRef.current = true;
+    let active = true;
+
+    const resumeMfaChallenge = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!active || !session?.user) return;
+        await beginMfaChallenge(session.user.id, session);
+      } catch (error: any) {
+        if (!active) return;
+        toastError(
+          "Two-factor authentication required",
+          error?.message || "Please sign in again to continue.",
+        );
+      }
+    };
+
+    void resumeMfaChallenge();
+    return () => {
+      active = false;
+    };
+  }, [beginMfaChallenge, searchParams, showMfaModal, supabase, toastError]);
 
   const handleVerifyMfaChallenge = async (codeToVerify?: string) => {
     const code = (useBackupCode ? backupCodeInput : (codeToVerify || mfaCode)).trim();
@@ -1176,23 +1213,36 @@ export const JobrackerSignup = (): JSX.Element => {
       <Modal
         open={showMfaModal}
         onClose={handleCancelMfa}
-        title='Two-Factor Authentication Required'
-        size='md'
+        size='sm'
         side='center'
+        panelClassName='border-border/70 bg-card shadow-[0_24px_80px_rgba(0,0,0,0.45)]'
+        contentClassName='p-0'
       >
-        <div className='space-y-5 py-1'>
-          <div className='flex items-center gap-3 p-3 rounded-xl border border-brand/30 bg-brand/5'>
-            <ShieldCheck className='w-6 h-6 shrink-0 text-brand' aria-hidden />
-            <div>
-              <p className='text-sm font-semibold text-foreground'>
-                Account Protected with 2FA
-              </p>
-              <p className='text-xs text-muted-foreground'>
-                {useBackupCode
-                  ? "Enter one of your emergency recovery backup codes."
-                  : "Enter the 6-digit verification code from your authenticator app."}
-              </p>
-            </div>
+        <div className='relative space-y-5 px-6 py-6'>
+          <button
+            type='button'
+            aria-label='Cancel two-factor authentication'
+            onClick={() => void handleCancelMfa()}
+            disabled={mfaVerifying}
+            className='absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50'
+          >
+            <X className='h-4 w-4' />
+          </button>
+          <div className='mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-brand/30 bg-brand/10 text-brand'>
+            <ShieldCheck className='h-5 w-5' aria-hidden />
+          </div>
+          <div className='text-center'>
+            <p className='font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground'>
+              Step 2 of 2
+            </p>
+            <h2 className='mt-2 text-xl font-semibold tracking-tight text-foreground'>
+              Two-factor authentication
+            </h2>
+            <p className='mx-auto mt-2 max-w-xs text-sm leading-6 text-muted-foreground'>
+              {useBackupCode
+                ? "Enter one of your one-time recovery codes."
+                : "Open your authenticator app and enter the 6-digit code."}
+            </p>
           </div>
 
           {!useBackupCode ? (
@@ -1207,12 +1257,14 @@ export const JobrackerSignup = (): JSX.Element => {
             />
           ) : (
             <div className='space-y-2'>
-              <label className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
-                Emergency Backup Code
+              <label htmlFor='mfa-recovery-code' className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
+                Recovery code
               </label>
               <Input
-                placeholder='e.g. A1B2C3D4'
+                id='mfa-recovery-code'
+                placeholder='XXXXX-XXXXX'
                 autoFocus
+                autoComplete='one-time-code'
                 value={backupCodeInput}
                 onChange={(e) => {
                   setBackupCodeInput(e.target.value.toUpperCase().trim());
@@ -1221,7 +1273,7 @@ export const JobrackerSignup = (): JSX.Element => {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void handleVerifyMfaChallenge();
                 }}
-                className='h-12 rounded-xl border-border/60 bg-card font-mono text-center text-lg font-bold tracking-widest text-foreground focus:border-brand/70'
+                className='h-12 rounded-lg border-border/60 bg-background px-3 font-mono text-center text-base font-semibold tracking-[0.18em] text-foreground focus:border-brand/70 focus:ring-2 focus:ring-brand/15'
               />
             </div>
           )}
@@ -1233,7 +1285,7 @@ export const JobrackerSignup = (): JSX.Element => {
             </div>
           ) : null}
 
-          <div className='flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/40'>
+          <div className='flex flex-col gap-4 border-t border-border/60 pt-5'>
             <Button
               type='button'
               variant='link'
@@ -1241,21 +1293,13 @@ export const JobrackerSignup = (): JSX.Element => {
                 setUseBackupCode(!useBackupCode);
                 setMfaError(null);
               }}
-              className='text-xs text-brand hover:underline p-0 h-auto font-medium'
+              className='order-2 h-auto w-full p-0 text-sm font-medium text-muted-foreground hover:text-brand hover:underline'
             >
               {useBackupCode
                 ? "← Use Authenticator App Code"
                 : "Use emergency backup code"}
             </Button>
-            <div className='flex gap-2'>
-              <Button
-                variant='outline'
-                className='border-border/40 text-muted-foreground hover:text-foreground'
-                onClick={() => void handleCancelMfa()}
-                disabled={mfaVerifying}
-              >
-                Cancel
-              </Button>
+            <div className='order-1 w-full'>
               <Button
                 onClick={() => void handleVerifyMfaChallenge()}
                 disabled={
@@ -1264,15 +1308,22 @@ export const JobrackerSignup = (): JSX.Element => {
                     ? backupCodeInput.length < 6
                     : mfaCode.length < 6)
                 }
-                className='bg-brand text-black font-medium hover:bg-brand/90 shadow-md shadow-brand/10 disabled:opacity-50'
+                className='h-11 w-full rounded-lg bg-brand font-semibold text-background transition-[background-color,transform] hover:bg-brand/90 active:scale-[0.96] disabled:opacity-50'
               >
                 {mfaVerifying ? (
                   <RefreshCw className='w-4 h-4 mr-2 animate-spin' aria-hidden />
                 ) : null}
-                Verify & Sign In
+                Verify and continue
               </Button>
             </div>
           </div>
+          <p className='order-3 flex items-center justify-center gap-1.5 border-t border-border/60 pt-4 text-xs text-muted-foreground'>
+            <LifeBuoy className='h-3.5 w-3.5' aria-hidden />
+            Lost access?
+            <a href='mailto:support@jobraker.io' className='underline underline-offset-2 hover:text-foreground'>
+              Contact support
+            </a>
+          </p>
         </div>
       </Modal>
     </div>
