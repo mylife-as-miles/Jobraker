@@ -10,6 +10,7 @@ import { HashvatarAvatar } from "@/components/ui/hashvatar-avatar";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
+import QRCode from "qrcode";
 import {
   LogOut,
   User,
@@ -349,7 +350,8 @@ export const SettingsPage = (): JSX.Element => {
   // 2FA modal state
   const [open2FA, setOpen2FA] = useState(false);
   const [twoFAStep, setTwoFAStep] = useState<TwoFAStep>("preparing");
-  const [totpQrCode, setTotpQrCode] = useState<string | undefined>();
+  const [totpQrImageSrc, setTotpQrImageSrc] = useState<string | undefined>();
+  const [totpQrUnavailable, setTotpQrUnavailable] = useState(false);
   const [totpSecret, setTotpSecret] = useState<string | undefined>();
   const [totpUri, setTotpUri] = useState<string | undefined>();
   const [totpFactorId, setTotpFactorId] = useState<string | undefined>();
@@ -503,19 +505,44 @@ export const SettingsPage = (): JSX.Element => {
     setTwoFAError(null);
     setTotpCode("");
     setSecretCopied(false);
+    setTotpQrImageSrc(undefined);
+    setTotpQrUnavailable(false);
     setTwoFAStep("preparing");
     setOpen2FA(true);
     setEnrollBusy(true);
     try {
       if (!sec) await createSecurity({});
       const { factorId, qrCode, secret, uri } = await enrollTotp();
-      if (!factorId || !qrCode) {
+      if (!factorId || (!qrCode && !uri)) {
         throw new Error(
           "The authenticator service did not return a QR code. Please try again.",
         );
       }
+
+      // `uri` is the actual TOTP provisioning payload from Supabase. Encoding
+      // it here guarantees the image is a scannable QR code instead of relying
+      // on the format of Supabase's optional SVG preview string.
+      let imageSrc: string | undefined;
+      if (uri) {
+        imageSrc = await QRCode.toDataURL(uri, {
+          errorCorrectionLevel: "M",
+          margin: 2,
+          width: 320,
+          color: { dark: "#080b09", light: "#ffffff" },
+        });
+      } else if (qrCode?.trim().startsWith("data:image/")) {
+        imageSrc = qrCode.trim();
+      } else if (qrCode?.trim().startsWith("<svg")) {
+        imageSrc = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(qrCode.trim())}`;
+      }
+
+      if (!imageSrc) {
+        throw new Error(
+          "The authenticator service returned an unreadable QR code. Please try again.",
+        );
+      }
       setTotpFactorId(factorId);
-      setTotpQrCode(qrCode);
+      setTotpQrImageSrc(imageSrc);
       setTotpSecret(secret);
       setTotpUri(uri);
       setTwoFAStep("scan");
@@ -2396,61 +2423,61 @@ export const SettingsPage = (): JSX.Element => {
               </div>
             </div>
 
-            {/* Backup Codes */}
-            <div className='overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex flex-col gap-4 border-b border-border/40 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6'>
+            {/* Recovery codes */}
+            <div className='overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-[0_12px_32px_-24px_rgba(0,0,0,0.8)]'>
+              <div className='flex flex-col gap-4 border-b border-border/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between'>
                 <div className='flex items-start gap-3'>
-                  <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
+                  <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground ring-1 ring-inset ring-foreground/[0.04]'>
                     <KeyRound className='h-4 w-4' aria-hidden />
                   </div>
                   <div>
-                  <h3 className='text-base font-medium text-foreground/95'>
-                    Backup Codes
-                  </h3>
-                  <p className='text-xs text-muted-foreground mt-1'>
-                    One-time use codes for account recovery
-                  </p>
+                    <h3 className='text-base font-semibold text-foreground'>
+                      Recovery codes
+                    </h3>
+                    <p className='mt-1 text-xs text-muted-foreground'>
+                      One-time codes for account recovery. They are only shown when generated.
+                    </p>
                   </div>
                 </div>
                 <Button
                   variant='outline'
                   size='sm'
-                  className='border-border/40 text-muted-foreground hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm'
+                  className='shrink-0 border-border/60 bg-background/40 text-foreground/80 transition-colors hover:border-brand/30 hover:bg-brand/10 hover:text-brand'
                   onClick={() => void handleGenerateBackupCodes()}
                 >
-                  <Plus className='w-4 h-4 mr-2' />
-                  Generate New Codes
+                  <Plus className='mr-2 h-4 w-4' />
+                  Generate new codes
                 </Button>
               </div>
-              <div className='space-y-2 p-4 sm:p-6'>
+              <div className='p-5'>
                 {backupCodes && backupCodes.length > 0 ? (
-                  <div className='border border-border/40 rounded-lg overflow-hidden bg-muted/50 shadow-inner'>
-                    <div className='grid grid-cols-3 text-xs font-bold uppercase tracking-wider text-muted-foreground/80 bg-muted/50 py-2 px-4 border-b border-border/40'>
+                  <div className='overflow-hidden rounded-xl border border-border/50 bg-background/30'>
+                    <div className='grid grid-cols-3 border-b border-border/50 bg-foreground/[0.025] px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground'>
                       <div>ID</div>
                       <div>Status</div>
                       <div>Created</div>
                     </div>
-                    <div className='divide-y divide-border/20'>
+                    <div className='divide-y divide-border/40'>
                       {backupCodes.map((bc: any) => (
                         <div
                           key={bc.id}
-                          className='grid grid-cols-3 items-center text-sm py-2 px-4 hover:bg-muted/30 transition-colors'
+                          className='grid grid-cols-3 items-center px-4 py-2.5 text-sm transition-colors hover:bg-foreground/[0.02]'
                         >
-                          <div className='text-foreground/90 font-mono text-xs'>
-                            #{bc.id}
+                          <div className='font-mono text-xs text-foreground/90'>
+                            #{String(bc.id).padStart(2, "0")}
                           </div>
                           <div>
                             <span
-                              className={`text-xs px-2 py-1 rounded font-medium tracking-wide ${
+                              className={`inline-flex rounded-md px-2 py-1 text-[11px] font-medium ${
                                 bc.used
-                                  ? "bg-brand/20 text-brand"
-                                  : "bg-brand/20 text-brand"
+                                  ? "bg-foreground/[0.06] text-muted-foreground"
+                                  : "bg-brand/10 text-brand"
                               }`}
                             >
                               {bc.used ? "Used" : "Unused"}
                             </span>
                           </div>
-                          <div className='text-xs text-muted-foreground/80'>
+                          <div className='text-xs text-muted-foreground'>
                             {bc.created_at
                               ? new Date(bc.created_at).toLocaleDateString()
                               : "N/A"}
@@ -2460,23 +2487,25 @@ export const SettingsPage = (): JSX.Element => {
                     </div>
                   </div>
                 ) : (
-                  <div className='text-sm text-muted-foreground py-8 text-center border border-border/40 rounded-lg bg-muted/50'>
-                    No backup codes generated yet. Click "Generate New Codes" to
-                    create your first set.
+                  <div className='rounded-xl border border-dashed border-border/60 bg-foreground/[0.015] px-4 py-8 text-center'>
+                    <p className='text-sm font-medium text-foreground/85'>No recovery codes yet</p>
+                    <p className='mt-1 text-xs text-muted-foreground'>
+                      Generate a set and store it somewhere safe before you need it.
+                    </p>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Trusted Devices */}
-            <div className='overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex flex-col gap-4 border-b border-border/40 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6'>
+            <div className='overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-[0_12px_32px_-24px_rgba(0,0,0,0.8)]'>
+              <div className='flex flex-col gap-4 border-b border-border/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between'>
                 <div className='flex items-start gap-3'>
                   <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
                     <Smartphone className='h-4 w-4' aria-hidden />
                   </div>
                   <div>
-                    <h3 className='text-base font-medium text-foreground/95'>
+                    <h3 className='text-base font-semibold text-foreground'>
                       Trusted Devices
                     </h3>
                     <p className='mt-1 text-xs text-muted-foreground'>
@@ -2487,7 +2516,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Button
                   variant='outline'
                   size='sm'
-                  className='border-border/40 text-muted-foreground hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm'
+                  className='shrink-0 border-border/60 bg-background/40 text-foreground/80 transition-colors hover:border-brand/30 hover:bg-brand/10 hover:text-brand'
                   onClick={async () => {
                     try {
                       const deviceId = crypto
@@ -2503,40 +2532,40 @@ export const SettingsPage = (): JSX.Element => {
                   Trust This Device
                 </Button>
               </div>
-              <div className='m-4 overflow-hidden rounded-lg border border-border/40 bg-muted/50 shadow-inner sm:m-6'>
-                <div className='grid grid-cols-4 text-xs font-bold uppercase tracking-wider text-muted-foreground/80 bg-muted/50 py-2 px-3 border-b border-border/40'>
+              <div className='m-5 overflow-hidden rounded-xl border border-border/50 bg-background/30'>
+                <div className='grid grid-cols-4 border-b border-border/50 bg-foreground/[0.025] px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground'>
                   <div>Device</div>
                   <div>Device ID</div>
                   <div>Last seen</div>
                   <div className='text-right'>Actions</div>
                 </div>
-                <div className='divide-y divide-border/20'>
+                <div className='divide-y divide-border/40'>
                   {devices && devices.length > 0 ? (
                     devices.map((d: any) => (
                       <div
                         key={d.device_id}
-                        className='grid grid-cols-4 items-center text-sm py-2 px-3 hover:bg-muted/30 transition-colors'
+                        className='grid grid-cols-4 items-center px-4 py-3 text-sm transition-colors hover:bg-foreground/[0.02]'
                       >
                         <div
-                          className='truncate text-foreground/90 font-medium text-xs'
+                          className='truncate font-medium text-xs text-foreground/90'
                           title={d.device_name || d.device_id}
                         >
                           {d.device_name || "Unnamed device"}
                         </div>
                         <div
-                          className='truncate text-muted-foreground/80 text-xs font-mono'
+                          className='truncate font-mono text-xs text-muted-foreground'
                           title={d.device_id}
                         >
                           {String(d.device_id).slice(0, 10)}…
                         </div>
-                        <div className='text-xs text-muted-foreground/80'>
+                        <div className='text-xs text-muted-foreground'>
                           {new Date(d.last_seen_at).toLocaleString()}
                         </div>
                         <div className='text-right'>
                           <Button
                             variant='ghost'
                             size='sm'
-                            className='text-brand hover:text-brand hover:bg-brand/10 h-7 px-2 text-xs'
+                            className='h-7 px-2 text-xs text-brand hover:bg-brand/10 hover:text-brand'
                             onClick={async () => {
                               if (!confirm("Revoke this device?")) return;
                               try {
@@ -2552,7 +2581,7 @@ export const SettingsPage = (): JSX.Element => {
                       </div>
                     ))
                   ) : (
-                    <div className='text-sm text-muted-foreground py-6 text-center italic'>
+                    <div className='px-4 py-7 text-center text-sm text-muted-foreground'>
                       No trusted devices yet.
                     </div>
                   )}
@@ -2561,14 +2590,14 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Active Sessions */}
-            <div className='overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex flex-col gap-4 border-b border-border/40 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6'>
+            <div className='overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-[0_12px_32px_-24px_rgba(0,0,0,0.8)]'>
+              <div className='flex flex-col gap-4 border-b border-border/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between'>
                 <div className='flex items-start gap-3'>
                   <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
                     <Activity className='h-4 w-4' aria-hidden />
                   </div>
                   <div>
-                  <h3 className='text-base font-medium text-foreground/95'>
+                  <h3 className='text-base font-semibold text-foreground'>
                     Active Sessions
                   </h3>
                   <p className='text-xs text-muted-foreground mt-1'>
@@ -2593,46 +2622,41 @@ export const SettingsPage = (): JSX.Element => {
                         toastError("Failed to revoke sessions", e.message);
                       }
                     }}
-                    className='border-border/40 text-muted-foreground hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm'
+                    className='border-destructive/40 bg-background/40 text-destructive hover:bg-destructive/10 hover:text-destructive'
                   >
-                  Revoke All Others
-                </Button>
-              )}
+                    <LogOut className='mr-2 h-4 w-4' />
+                    Sign out of all other sessions
+                  </Button>
+                )}
               </div>
-              <div className='space-y-2 p-4 sm:p-5'>
+              <div className='space-y-2 p-3 sm:p-4'>
                 {activeSessions && activeSessions.length > 0 ? (
                   activeSessions.map((session: any) => (
                     <div
                       key={session.id}
-                      className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'
+                      className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 transition-colors ${
+                        session.is_current
+                          ? "border-brand/30 bg-brand/[0.06]"
+                          : "border-transparent hover:border-border/40 hover:bg-foreground/[0.02]"
+                      }`}
                     >
-                      <div className='flex-1'>
-                        <div className='flex items-center gap-2 mb-1'>
-                          <p className='text-sm font-medium text-foreground/90'>
+                      <div className='min-w-0 flex-1'>
+                        <div className='mb-1 flex flex-wrap items-center gap-2'>
+                          <p className='text-sm font-medium text-foreground'>
                             {session.device_name ||
                               session.device_type ||
                               "Unknown Device"}
                           </p>
                           {session.is_current && (
-                            <span className='text-xs px-2 py-0.5 rounded bg-brand/20 text-brand'>
-                              Current
+                            <span className='rounded-md bg-brand/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-brand'>
+                              This device
                             </span>
                           )}
                         </div>
-                        <div className='text-xs text-muted-foreground/80 space-y-0.5'>
-                          {session.browser && <p>Browser: {session.browser}</p>}
-                          {session.os && <p>OS: {session.os}</p>}
-                          {session.ip_address && (
-                            <p>IP: {session.ip_address}</p>
-                          )}
-                          {session.location && (
-                            <p>Location: {session.location}</p>
-                          )}
-                          <p>
-                            Last active:{" "}
-                            {new Date(
-                              session.last_activity_at,
-                            ).toLocaleString()}
+                        <div className='space-y-0.5 text-xs text-muted-foreground'>
+                          <p>{[session.browser, session.os].filter(Boolean).join(" · ") || "Session details unavailable"}</p>
+                          <p className='font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/75'>
+                            {session.ip_address || "IP unavailable"} · {session.is_current ? "Active now" : new Date(session.last_activity_at).toLocaleString()}
                           </p>
                         </div>
                       </div>
@@ -2648,7 +2672,7 @@ export const SettingsPage = (): JSX.Element => {
                               toastError("Failed to revoke session", e.message);
                             }
                           }}
-                          className='text-brand hover:text-brand hover:bg-brand/10'
+                          className='border border-border/60 px-2 text-xs text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive'
                         >
                           Revoke
                         </Button>
@@ -2656,7 +2680,7 @@ export const SettingsPage = (): JSX.Element => {
                     </div>
                   ))
                 ) : (
-                  <p className='text-sm text-foreground/50 py-4 text-center border border-border/40 rounded-lg bg-muted/50'>
+                  <p className='rounded-xl border border-dashed border-border/60 bg-foreground/[0.015] py-7 text-center text-sm text-muted-foreground'>
                     No active sessions found
                   </p>
                 )}
@@ -4967,12 +4991,12 @@ export const SettingsPage = (): JSX.Element => {
           setShowBackupCodesModal(false);
           setGeneratedBackupCodes(null);
         }}
-        title='Your Backup Codes'
+        title='Recovery codes'
         size='lg'
         side='center'
       >
         {generatedBackupCodes && generatedBackupCodes.length > 0 ? (
-          <div className='space-y-4'>
+          <div className='space-y-5'>
             <div className='bg-brand/10 border border-brand/20 rounded-lg p-4'>
               <p className='text-sm text-brand font-medium mb-2'>
                 ⚠️ Important: Save these codes now
@@ -4983,12 +5007,12 @@ export const SettingsPage = (): JSX.Element => {
                 downloaded to your device.
               </p>
             </div>
-            <div className='bg-foreground/[0.05] border border-foreground/[0.1] rounded-lg p-4'>
-              <div className='grid grid-cols-2 gap-3'>
+            <div className='rounded-xl border border-border/50 bg-foreground/[0.015] p-3'>
+              <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
                 {generatedBackupCodes.map((code, index) => (
                   <div
                     key={index}
-                    className='flex items-center justify-between p-2 bg-muted/50 border border-foreground/[0.1] rounded font-mono text-sm text-foreground/90'
+                    className='flex items-center justify-between rounded-lg border border-border/50 bg-background/60 px-3 py-2.5 font-mono text-sm tracking-wider text-foreground/90'
                   >
                     <span>{code}</span>
                     <Button
@@ -4998,32 +5022,43 @@ export const SettingsPage = (): JSX.Element => {
                         navigator.clipboard.writeText(code);
                         success(`Code ${index + 1} copied`);
                       }}
-                      className='h-6 w-6 p-0 text-foreground/50 hover:text-foreground hover:bg-foreground/[0.1]'
+                      className='h-7 w-7 p-0 text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground'
                     >
-                      <Download className='w-3 h-3' />
+                      <Copy className='h-3.5 w-3.5' />
                     </Button>
                   </div>
                 ))}
               </div>
             </div>
-            <div className='flex gap-3'>
+            <div className='flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3.5 sm:flex-row sm:items-center sm:justify-between'>
+              <div className='flex items-start gap-2.5'>
+                <AlertTriangle className='mt-0.5 h-4 w-4 shrink-0 text-amber-500' />
+                <p className='text-xs leading-relaxed text-amber-100/90'>
+                  Generating another set invalidates these codes. Copy and store this set before closing.
+                </p>
+              </div>
               <Button
+                size='sm'
+                variant='outline'
                 onClick={() => {
                   const allCodes = generatedBackupCodes.join("\n");
                   navigator.clipboard.writeText(allCodes);
                   success("All codes copied to clipboard");
                 }}
-                className='flex-1 bg-brand text-black hover:bg-brand/90'
+                className='shrink-0 border-amber-500/40 text-amber-100 hover:bg-amber-500/10 hover:text-amber-50'
               >
-                Copy All Codes
+                <Copy className='mr-2 h-4 w-4' />
+                Copy all
               </Button>
+            </div>
+            <div className='flex justify-end'>
               <Button
                 variant='outline'
                 onClick={() => {
                   setShowBackupCodesModal(false);
                   setGeneratedBackupCodes(null);
                 }}
-                className='border-foreground/[0.1] text-foreground/70 hover:bg-foreground/[0.05]'
+                className='border-border/60 text-foreground/80 hover:bg-foreground/[0.05]'
               >
                 I've Saved Them
               </Button>
@@ -5780,10 +5815,6 @@ export const SettingsPage = (): JSX.Element => {
       success: "Two-Factor Authentication Active",
     };
 
-    const qrImageSrc = totpQrCode
-      ? `data:image/svg+xml;utf-8,${encodeURIComponent(totpQrCode)}`
-      : undefined;
-
     const formattedSecret = totpSecret
       ? totpSecret.match(/.{1,4}/g)?.join(" ") || totpSecret
       : "";
@@ -5846,13 +5877,14 @@ export const SettingsPage = (): JSX.Element => {
               Scan the QR code with Google Authenticator, 1Password, or Authy.
             </p>
 
-            {qrImageSrc ? (
+            {totpQrImageSrc && !totpQrUnavailable ? (
               <div className='flex flex-col items-center gap-3'>
                 <div className='rounded-2xl border-2 border-brand/30 bg-white p-4 shadow-xl shadow-brand/5'>
                   <img
-                    src={qrImageSrc}
+                    src={totpQrImageSrc}
                     alt='Scan this QR code with your authenticator app'
                     className='h-[200px] w-[200px]'
+                    onError={() => setTotpQrUnavailable(true)}
                   />
                 </div>
                 {totpUri ? (
@@ -5869,8 +5901,14 @@ export const SettingsPage = (): JSX.Element => {
               </div>
             ) : (
               <div className='flex justify-center'>
-                <div className='flex h-[200px] w-[200px] items-center justify-center rounded-xl border border-border/40 bg-muted/30'>
-                  <KeyRound className='w-8 h-8 text-muted-foreground' aria-hidden />
+                <div className='flex h-[200px] w-[200px] flex-col items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-5 text-center'>
+                  <KeyRound className='w-8 h-8 text-amber-400' aria-hidden />
+                  <p className='text-xs font-medium text-foreground'>
+                    QR code unavailable
+                  </p>
+                  <p className='text-[11px] leading-relaxed text-muted-foreground'>
+                    Use the manual setup key below in your authenticator app.
+                  </p>
                 </div>
               </div>
             )}

@@ -219,7 +219,7 @@ export function useSecuritySettings() {
     if (!userId) return;
     const { data, error } = await (supabase as any)
       .from('security_backup_codes')
-      .select('id,user_id,used')
+      .select('id,user_id,used,created_at')
       .eq('user_id', userId)
       .order('id', { ascending: true });
     if (error) throw error;
@@ -228,8 +228,14 @@ export function useSecuritySettings() {
 
   const generateBackupCodes = useCallback(async (count = 10) => {
     if (!userId) return [] as string[];
-    // Generate codes client-side, store hashes server-side
-    // For simplicity, store plain code hashes using SHA-256 here
+    // Store the replacement set before invalidating the previous one, so an
+    // insertion failure never removes the user's existing recovery method.
+    const { data: existingCodes, error: existingCodesError } = await (supabase as any)
+      .from('security_backup_codes')
+      .select('id')
+      .eq('user_id', userId);
+    if (existingCodesError) throw existingCodesError;
+
     const codes: string[] = Array.from({ length: count }).map(() =>
       Math.random().toString(36).slice(2, 10).toUpperCase()
     );
@@ -241,6 +247,17 @@ export function useSecuritySettings() {
     }));
     const { error } = await (supabase as any).from('security_backup_codes').insert(hashes);
     if (error) throw error;
+
+    const previousIds = (existingCodes || []).map((code: { id: number }) => code.id);
+    if (previousIds.length > 0) {
+      const { error: invalidateError } = await (supabase as any)
+        .from('security_backup_codes')
+        .delete()
+        .eq('user_id', userId)
+        .in('id', previousIds);
+      if (invalidateError) throw invalidateError;
+    }
+
     await listBackupCodes();
     success('Backup codes generated');
     return codes;
