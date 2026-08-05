@@ -916,6 +916,11 @@ const AgentWorkTimeline = ({
   const hiddenStepCount = isSkillCall
     ? 0
     : Math.max(0, agentEvents.length + toolCalls.length - timelineRows.length);
+  const liveTimelineRows = isStreaming
+    ? timelineRows.slice(-3).reverse()
+    : timelineRows;
+  const displayedHiddenStepCount =
+    hiddenStepCount + Math.max(0, timelineRows.length - liveTimelineRows.length);
   const totalStepCount = isSkillCall
     ? timelineRows.length
     : agentEvents.length + toolCalls.length;
@@ -994,7 +999,7 @@ const AgentWorkTimeline = ({
 
       {expanded && (
         <div className={`space-y-2 ledger ${isStreaming ? "ledger-live" : "ledger-static"}`}>
-          {timelineRows.map((row) => {
+          {liveTimelineRows.map((row) => {
             const isRowExpanded = !!expandedRows[row.id];
             return (
               <div
@@ -1005,11 +1010,14 @@ const AgentWorkTimeline = ({
                     [row.id]: !prev[row.id],
                   }));
                 }}
-                className={`${rowClass} cursor-pointer hover:bg-brand/[0.09] transition-colors ${
+                className={`${rowClass} ledger-row relative cursor-pointer hover:bg-brand/[0.09] transition-colors ${
                   isRowExpanded ? "items-start" : "items-center"
                 }`}
                 title={row.label}
               >
+                {isStreaming ? (
+                  <span className='ledger-edge-dot' aria-hidden='true' />
+                ) : null}
                 {iconForRow(row)}
                 <span
                   className={
@@ -1026,12 +1034,12 @@ const AgentWorkTimeline = ({
         </div>
       )}
 
-      {expanded && hiddenStepCount > 0 && (
+      {expanded && displayedHiddenStepCount > 0 && (
         <div className={rowClass}>
           <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
           <span className='truncate'>
-            +{hiddenStepCount} earlier working step
-            {hiddenStepCount === 1 ? "" : "s"}
+            +{displayedHiddenStepCount} earlier working step
+            {displayedHiddenStepCount === 1 ? "" : "s"}
           </span>
         </div>
       )}
