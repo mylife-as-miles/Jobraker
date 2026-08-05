@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { TiltCard } from "@/components/ui/tilt-card";
 import { Slider } from "@/components/ui/slider";
 import { createClient } from "@/lib/supabaseClient";
 import { captureClientEvent, captureServerEvent } from "@/lib/analytics";
@@ -1305,49 +1306,49 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <Card className='relative overflow-hidden border-foreground/10 bg-foreground/[0.03] backdrop-blur-xl group hover:border-foreground/20 transition-colors duration-300'>
-                <div
-                  className={`absolute inset-0 bg-gradient-to-br ${getTierGradient(subscriptionTier)} opacity-5`}
-                />
-                <CardContent className='relative p-6'>
-                  <div className='flex items-start justify-between mb-4'>
-                    <div
-                      className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(subscriptionTier)}/10 border border-foreground/10 group-hover:border-foreground/20 transition-colors`}
-                    >
-                      {getTierIcon(subscriptionTier)}
+              <TiltCard>
+                <Card className='relative min-h-[210px] overflow-hidden rounded-2xl border-brand/45 bg-[linear-gradient(145deg,rgba(16,24,33,0.98),rgba(6,9,14,0.98))] shadow-[0_18px_48px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.06)] transition-[border-color,box-shadow] duration-300 hover:border-brand/70 hover:shadow-[0_24px_62px_rgba(0,0,0,0.46),0_0_30px_rgba(47,217,104,0.12),inset_0_1px_0_rgba(255,255,255,0.08)]'>
+                  <div className='absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(59,130,246,0.20),transparent_35%),radial-gradient(circle_at_100%_100%,rgba(47,217,104,0.12),transparent_42%)]' />
+                  <CardContent className='relative p-6'>
+                    <div className='mb-5 flex items-start justify-between'>
+                      <div
+                        className={`grid size-14 place-items-center rounded-2xl bg-gradient-to-br ${getTierGradient(subscriptionTier)} border border-white/10 shadow-[0_10px_22px_rgba(37,99,235,0.28),inset_0_1px_0_rgba(255,255,255,0.24)]`}
+                      >
+                        {getTierIcon(subscriptionTier)}
+                      </div>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-[10px] font-bold tracking-wider ${
+                          subscriptionTier === "Pro"
+                            ? "border-blue-400/35 bg-blue-500/10 text-blue-200"
+                            : subscriptionTier === "Ultimate"
+                              ? "border-purple-400/35 bg-purple-500/10 text-purple-200"
+                              : "border-brand/35 bg-brand/10 text-brand"
+                        }`}
+                      >
+                        ACTIVE PLAN
+                      </span>
                     </div>
-                    <span
-                      className={`text-[10px] tracking-wider font-bold px-2.5 py-1 rounded-full border ${
-                        subscriptionTier === "Pro"
-                          ? "bg-blue-500/10 text-blue-300 border-blue-500/20"
-                          : subscriptionTier === "Ultimate"
-                            ? "bg-purple-500/10 text-purple-300 border-purple-500/20"
-                            : "bg-brand/10 text-brand border-brand/20"
-                      }`}
-                    >
-                      ACTIVE PLAN
-                    </span>
-                  </div>
-                  <div className='space-y-1'>
-                    <p className='text-sm text-muted-foreground font-medium'>
-                      Current Tier
-                    </p>
-                    <p className='text-4xl font-bold text-foreground tracking-tight'>
-                      {subscriptionTier}
-                    </p>
-                    <p className='text-sm text-muted-foreground'>
-                      {plans
-                        .find((p) => p.name === subscriptionTier)
-                        ?.credits_per_month?.toLocaleString() || 0}{" "}
-                      credits
-                      {plans.find((p) => p.name === subscriptionTier)
-                        ?.auto_apply_monthly_limit
-                        ? ` + ${plans.find((p) => p.name === subscriptionTier)?.auto_apply_monthly_limit} auto-apply runs/mo`
-                        : " / manual only"}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+                    <div className='space-y-1'>
+                      <p className='text-sm font-medium text-foreground/65'>
+                        Current Tier
+                      </p>
+                      <p className='text-4xl font-semibold tracking-tight text-foreground'>
+                        {subscriptionTier}
+                      </p>
+                      <p className='text-sm text-muted-foreground'>
+                        {plans
+                          .find((p) => p.name === subscriptionTier)
+                          ?.credits_per_month?.toLocaleString() || 0}{" "}
+                        credits
+                        {plans.find((p) => p.name === subscriptionTier)
+                          ?.auto_apply_monthly_limit
+                          ? ` + ${plans.find((p) => p.name === subscriptionTier)?.auto_apply_monthly_limit} auto-apply runs/mo`
+                          : " / manual only"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TiltCard>
             </motion.div>
 
             {/* Next payment (subscription period end — not the same as monthly credit cron) */}

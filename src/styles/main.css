@@ -757,3 +757,64 @@ body {
     transition: none !important;
   }
 }
+
+/* ===========================================================================
+   JOBRAKER PLAN CARD — POINTER TILT
+   =========================================================================== */
+:root {
+  --tilt-perspective: 1000px;
+  --tilt-return: 700ms;
+  --tilt-return-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tilt-follow: 160ms;
+  --tilt-follow-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tilt-glare-opacity: 0.22;
+  --tilt-glare-fade: 200ms;
+  --tilt-glare-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.t-tilt {
+  touch-action: none;
+}
+
+.t-tilt-card {
+  position: relative;
+  overflow: hidden;
+  transform: perspective(var(--tilt-perspective)) rotateX(var(--tilt-rx, 0deg)) rotateY(var(--tilt-ry, 0deg));
+  transform-style: preserve-3d;
+  transition: transform var(--tilt-return) var(--tilt-return-ease);
+  will-change: transform;
+}
+
+.t-tilt.is-tilting .t-tilt-card {
+  transition: transform var(--tilt-follow) var(--tilt-follow-ease);
+}
+
+.t-tilt-glare {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(circle 95px at var(--tilt-gx, 50%) var(--tilt-gy, 50%), rgba(47, 217, 104, 0.32), rgba(47, 217, 104, 0.04) 52%, transparent 84%),
+    radial-gradient(circle 220px at var(--tilt-gx, 50%) var(--tilt-gy, 50%), rgba(96, 165, 250, 0.16), rgba(96, 165, 250, 0.02) 58%, transparent 78%);
+  transition: opacity var(--tilt-glare-fade) var(--tilt-glare-ease);
+}
+
+.t-tilt.is-hover .t-tilt-glare {
+  opacity: var(--tilt-glare-opacity);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-tilt-card {
+    transform: none !important;
+    transition: none !important;
+    will-change: auto;
+  }
+
+  .t-tilt-glare {
+    opacity: 0 !important;
+    transition: none !important;
+  }
+}
