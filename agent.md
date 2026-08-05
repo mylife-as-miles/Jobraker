@@ -160,6 +160,40 @@ The v2 brief workflow and anti-slop rules are in `.agents/skills/design-taste-fr
 npx skills update design-taste-frontend
 ```
 
+## Taste Skill Bundle
+
+The full `Leonxlnx/taste-skill` bundle is installed in `.agents/skills/` and
+synced to the global Codex and Antigravity skill directories. The available
+skills are:
+
+- `design-taste-frontend` — v2 experimental brief inference and anti-slop frontend
+- `design-taste-frontend-v1` — legacy behavior for compatibility-sensitive work
+- `gpt-taste` — high-variance editorial UX/UI and motion direction
+- `redesign-existing-projects` — audit-first upgrades to existing interfaces
+- `high-end-visual-design` — premium agency-level visual systems
+- `industrial-brutalist-ui` — dense tactical/telemetry and brutalist interfaces
+- `minimalist-ui` — warm editorial minimalism
+- `full-output-enforcement` — complete, non-placeholder output handling
+- `stitch-design-taste` — semantic `DESIGN.md` guidance for Google Stitch
+- `image-to-code` — image-first website reference and implementation workflow
+- `imagegen-frontend-web` — section-by-section web design reference generation
+- `imagegen-frontend-mobile` — mobile screen and flow image generation
+- `brandkit` — premium identity and brand-kit image generation
+
+Use the most specific skill that matches the request. The taste frontend skills
+are primarily for landing pages, portfolios, marketing surfaces, and redesigns;
+do not apply them indiscriminately to Jobraker's dashboard or dense product
+workflows. Preserve existing routes, semantics, analytics, brand assets, and
+the current stack unless the user explicitly asks for a change. Review every
+skill's `SKILL.md` before invoking it because skills run with full agent
+permissions.
+
+Refresh the bundle with:
+
+```bash
+npx skills add Leonxlnx/taste-skill --copy -y
+```
+
 ## Model and Stack Restrictions
 - **CRITICAL**: Never change any model name (e.g., `gemini-embedding-2`), model configurations, or tech stack components (libraries, databases, architecture) without explicit user permission or telling the user first.
 
