@@ -28,6 +28,7 @@ import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { useAnalyticsData } from "../../../hooks/useAnalyticsData";
 import { StreakCard } from "../../../components/StreakCard";
 import { useGamification } from "../../../hooks/useGamification";
+import { AuroraDrift } from "../../../components/ui/AuroraDrift";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import type { Profile } from "../../../hooks/useProfileSettings";
 
@@ -133,17 +134,18 @@ const StatCard = ({
           : "rounded-2xl border-foreground/10 bg-card/50 p-4 sm:p-5 backdrop-blur-xl hover:border-brand/30"
       }`}
     >
-      {/* Contour lines are a vector texture so they remain crisp at every card size. */}
+      {/* Aurora Drift animation & crisp contour vector wave pattern */}
       {highlight && (
         <>
+          <AuroraDrift variant='emerald' />
           <div className='pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_110%,rgba(0,211,116,0.26),transparent_48%)]' />
           <svg
             aria-hidden='true'
-            className='pointer-events-none absolute inset-0 h-full w-full opacity-70'
+            className='pointer-events-none absolute inset-0 z-10 h-full w-full opacity-75'
             viewBox='0 0 220 124'
             preserveAspectRatio='none'
           >
-            <g fill='none' stroke='rgba(119, 255, 183, 0.18)' strokeWidth='0.75'>
+            <g fill='none' stroke='rgba(119, 255, 183, 0.25)' strokeWidth='0.85'>
               <path d='M69 132C94 93 115 112 140 99S181 65 226 71' />
               <path d='M75 136C98 101 118 119 145 105S184 72 226 77' />
               <path d='M82 140C104 109 122 126 150 112S188 79 226 83' />
