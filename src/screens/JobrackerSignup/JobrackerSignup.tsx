@@ -1,4 +1,6 @@
 import {
+  LockKeyholeIcon,
+  MailIcon,
   Eye,
   EyeOff,
   ArrowRight,
@@ -689,7 +691,7 @@ export const JobrackerSignup = (): JSX.Element => {
   };
 
   return (
-    <div className='min-h-svh w-full grid grid-cols-1 bg-background text-foreground lg:grid-cols-[minmax(440px,1fr)_1.2fr]'>
+    <div className='h-screen w-full flex bg-background overflow-hidden relative'>
       <Seo
         title={isSignUp ? "Create Your JobRaker Account" : "Sign In to JobRaker"}
         description={
@@ -701,8 +703,9 @@ export const JobrackerSignup = (): JSX.Element => {
         noindex
       />
       {/* LEFT SIDE: Login Form */}
-      <div className='relative z-20 flex min-h-svh items-center justify-center bg-background px-6 py-12 lg:px-12'>
-        <div className='w-full max-w-sm space-y-6'>
+      <div className='w-full lg:w-1/2 flex flex-col relative z-20 bg-background/80 backdrop-blur-sm lg:backdrop-blur-none border-r border-foreground/5 h-full'>
+        <div className='flex-1 flex flex-col justify-center overflow-y-auto py-6 px-4 sm:px-8 no-scrollbar'>
+          <div className='max-w-[320px] w-full mx-auto space-y-5'>
             {/* Header / Logo */}
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -710,32 +713,32 @@ export const JobrackerSignup = (): JSX.Element => {
               transition={{ duration: 0.6 }}
               className='space-y-1'
             >
-              <div className='mb-12 flex items-center gap-2'>
-                <div className='relative flex h-7 w-7 items-center justify-center overflow-clip rounded-md ring-1 ring-foreground/10'>
+              <div className='flex items-center gap-2 mb-4'>
+                <div className='relative flex items-center justify-center w-9 h-9 overflow-clip  rounded-md'>
                   <img
                     src='/logo/logo.jpeg'
                     alt='logo'
                     className='object-cover'
                   />
                 </div>
-                <span className='font-mono text-[11px] uppercase tracking-[0.3em] text-muted-foreground'>
-                  JobRaker
+                <span className='text-base font-bold tracking-tight text-foreground font-mono'>
+                  JOBRAKER
                 </span>
               </div>
 
-              <h1 className='text-3xl font-semibold tracking-tight text-foreground'>
+              <h1 className='text-2xl font-bold text-foreground tracking-tight'>
                 {showForgotPassword
                   ? "Reset Password"
                   : isSignUp
                     ? "Create Account"
-                    : "Sign in"}
+                    : "Welcome Back"}
               </h1>
-              <p className='mt-2 text-sm text-muted-foreground'>
+              <p className='text-foreground/80 text-xs'>
                 {showForgotPassword
                   ? "Enter your email to receive a reset link"
                   : isSignUp
                     ? "Start your autonomous job hunt today."
-                    : "Welcome back. Continue where you left off."}
+                    : "Login to manage your AI agent."}
               </p>
             </motion.div>
 
@@ -824,38 +827,38 @@ export const JobrackerSignup = (): JSX.Element => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1, duration: 0.5 }}
-                className='grid grid-cols-2 gap-3'
+                className='grid grid-cols-2 gap-2'
               >
                 <Button
                   variant='ghost'
-                  className='flex h-11 items-center justify-center rounded-md border border-border/60 bg-background text-sm font-medium text-foreground transition-[background-color,border-color,transform] hover:bg-foreground/[0.04] active:scale-[0.98]'
+                  className='flex items-center justify-center h-9 bg-foreground/5 hover:bg-foreground/10 border border-foreground/10 rounded-lg transition-all duration-300 group text-xs'
                   type='button'
                   disabled={submitting || (turnstileEnabled && !captchaToken)}
                   onClick={() => handleOAuth("google")}
                 >
                   <img
-                    className='mr-2 h-4 w-4 dark:invert-0'
+                    className='w-3.5 h-3.5 mr-2  dark:invert-0'
                     alt='Google'
                     src='/flat-color-icons-google.svg'
                   />
-                  <span>
+                  <span className='text-foreground/80 group-hover:text-foreground font-medium'>
                     Google
                   </span>
                 </Button>
 
                 <Button
                   variant='ghost'
-                  className='flex h-11 items-center justify-center rounded-md border border-border/60 bg-background text-sm font-medium text-foreground transition-[background-color,border-color,transform] hover:bg-foreground/[0.04] active:scale-[0.98]'
+                  className='flex items-center justify-center h-9 bg-foreground/5 hover:bg-foreground/10 border border-foreground/10 rounded-lg transition-all duration-300 group text-xs'
                   type='button'
                   disabled={submitting || (turnstileEnabled && !captchaToken)}
                   onClick={() => handleOAuth("linkedin_oidc")}
                 >
                   <img
-                    className='mr-2 h-4 w-4 dark:invert-0'
+                    className='w-3.5 h-3.5 mr-2 dark:invert-0'
                     alt='LinkedIn'
                     src='/logos-linkedin-icon.svg'
                   />
-                  <span>
+                  <span className='text-foreground/80 group-hover:text-foreground font-medium'>
                     LinkedIn
                   </span>
                 </Button>
@@ -868,13 +871,13 @@ export const JobrackerSignup = (): JSX.Element => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className='flex items-center gap-3 py-1'
+                className='relative flex items-center py-1'
               >
-                <div className='flex-1 border-t border-border/60' />
-                <span className='shrink-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground'>
+                <div className='flex-grow border-t border-foreground/10'></div>
+                <span className='flex-shrink-0 mx-3 text-gray-500 text-[10px] uppercase tracking-wider'>
                   Or continue with
                 </span>
-                <div className='flex-1 border-t border-border/60' />
+                <div className='flex-grow border-t border-foreground/10'></div>
               </motion.div>
             )}
 
@@ -884,17 +887,15 @@ export const JobrackerSignup = (): JSX.Element => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
               onSubmit={handleSubmit}
-              className='space-y-4'
+              className='space-y-3'
             >
               {/* Email */}
-              <div className='space-y-1.5'>
-                <label htmlFor='auth-email' className='text-sm font-medium text-foreground'>
-                  Email
-                </label>
-                <div className='relative'>
+              <div className='space-y-0.5'>
+                <div className='relative group'>
+                  <MailIcon className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-brand transition-colors w-3.5 h-3.5' />
                   <Input
-                    id='auth-email'
-                    className='h-11 rounded-md border-border/60 bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand/60 focus:ring-2 focus:ring-brand/15'
+                    inputSize='sm'
+                    className='pl-11 h-9 bg-foreground/5 border-foreground/10 focus:border-brand/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
                     error={formData.email.length > 0 && !emailValid}
                     placeholder='you@example.com'
                     type='email'
@@ -914,14 +915,12 @@ export const JobrackerSignup = (): JSX.Element => {
 
               {/* Password */}
               {!showForgotPassword && (
-                <div className='space-y-1.5'>
-                  <label htmlFor='auth-password' className='text-sm font-medium text-foreground'>
-                    Password
-                  </label>
-                  <div className='relative'>
+                <div className='space-y-0.5'>
+                  <div className='relative group'>
+                    <LockKeyholeIcon className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-brand transition-colors w-3.5 h-3.5' />
                     <Input
-                      id='auth-password'
-                      className='h-11 rounded-md border-border/60 bg-background px-3 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand/60 focus:ring-2 focus:ring-brand/15'
+                      inputSize='sm'
+                      className='pl-11 pr-9 h-9 bg-foreground/5 border-foreground/10 focus:border-brand/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
                       placeholder='Password'
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
@@ -933,13 +932,12 @@ export const JobrackerSignup = (): JSX.Element => {
                     <button
                       type='button'
                       onClick={() => setShowPassword(!showPassword)}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                      className='absolute right-3 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60'
+                      className='bg-transparent absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-foreground transition-colors'
                     >
                       {showPassword ? (
-                        <EyeOff className='h-4 w-4' />
+                        <EyeOff className='w-3.5 h-3.5' />
                       ) : (
-                        <Eye className='h-4 w-4' />
+                        <Eye className='w-3.5 h-3.5' />
                       )}
                     </button>
                   </div>
@@ -948,14 +946,12 @@ export const JobrackerSignup = (): JSX.Element => {
 
               {/* Confirm Password (Sign Up) */}
               {isSignUp && !showForgotPassword && (
-                <div className='space-y-1.5'>
-                  <label htmlFor='auth-confirm-password' className='text-sm font-medium text-foreground'>
-                    Confirm password
-                  </label>
-                  <div className='relative'>
+                <div className='space-y-0.5'>
+                  <div className='relative group'>
+                    <LockKeyholeIcon className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-brand transition-colors w-3.5 h-3.5' />
                     <Input
-                      id='auth-confirm-password'
-                      className='h-11 rounded-md border-border/60 bg-background px-3 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand/60 focus:ring-2 focus:ring-brand/15'
+                      inputSize='sm'
+                      className='pl-11 h-9 bg-foreground/5 border-foreground/10 focus:border-brand/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
                       placeholder='Confirm Password'
                       type={showPassword ? "text" : "password"}
                       value={formData.confirmPassword}
@@ -970,13 +966,12 @@ export const JobrackerSignup = (): JSX.Element => {
                     <button
                       type='button'
                       onClick={() => setShowPassword(!showPassword)}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                      className='absolute right-3 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60'
+                      className='bg-transparent absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-foreground transition-colors'
                     >
                       {showPassword ? (
-                        <EyeOff className='h-4 w-4' />
+                        <EyeOff className='w-3.5 h-3.5' />
                       ) : (
-                        <Eye className='h-4 w-4' />
+                        <Eye className='w-3.5 h-3.5' />
                       )}
                     </button>
                   </div>
@@ -1014,6 +1009,19 @@ export const JobrackerSignup = (): JSX.Element => {
                 </div>
               )}
 
+              {!isSignUp && !showForgotPassword && (
+                <div className='flex justify-end'>
+                  <Button
+                    type='button'
+                    variant='link'
+                    onClick={() => setShowForgotPassword(true)}
+                    className='text-gray-400 hover:text-brand text-[10px] p-0 h-auto'
+                  >
+                    Forgot password?
+                  </Button>
+                </div>
+              )}
+
               <Button
                 type='submit'
                 disabled={
@@ -1023,12 +1031,12 @@ export const JobrackerSignup = (): JSX.Element => {
                     (!passwordCheck.valid ||
                       formData.password !== formData.confirmPassword))
                 }
-                className='mt-1 h-11 w-full rounded-md bg-brand text-sm font-semibold text-background shadow-[0_0_15px_rgba(47,217,104,0.2)] transition-[background-color,box-shadow,transform] hover:bg-brand/90 hover:shadow-[0_0_20px_rgba(47,217,104,0.3)] active:scale-[0.98]'
+                className='w-full h-9 bg-brand hover:bg-brand/90 text-background font-semibold rounded-lg text-xs transition-all shadow-[0_0_15px_rgba(47,217,104,0.2)] hover:shadow-[0_0_20px_rgba(47,217,104,0.3)] mt-1'
               >
                 {submitting ? (
                   <Loader2 className='animate-spin w-3.5 h-3.5' />
                 ) : (
-                  <div className='flex items-center justify-center gap-1.5'>
+                  <div className='flex items-center text-foreground justify-center gap-1.5'>
                     <span>
                       {showForgotPassword
                         ? "Send Reset Link"
@@ -1040,18 +1048,6 @@ export const JobrackerSignup = (): JSX.Element => {
                   </div>
                 )}
               </Button>
-              {!isSignUp && !showForgotPassword && (
-                <div className='flex justify-center pt-1'>
-                  <Button
-                    type='button'
-                    variant='link'
-                    onClick={() => setShowForgotPassword(true)}
-                    className='h-auto p-0 text-xs text-muted-foreground hover:text-brand'
-                  >
-                    Forgot password?
-                  </Button>
-                </div>
-              )}
             </motion.form>
 
             {/* Footer Links */}
@@ -1059,40 +1055,41 @@ export const JobrackerSignup = (): JSX.Element => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className='pt-1 text-center'
+              className='text-center pt-1'
             >
               {showForgotPassword ? (
                 <Button
                   type='button'
                   variant='link'
                   onClick={() => setShowForgotPassword(false)}
-                  className='text-xs text-muted-foreground hover:text-foreground'
+                  className='text-gray-400 hover:text-foreground text-xs'
                 >
                   ← Back to sign in
                 </Button>
               ) : (
-                <p className='text-sm text-muted-foreground'>
+                <p className='text-gray-400 text-[11px] sm:text-xs'>
                   {isSignUp
                     ? "Already have an account?"
                     : "Don't have an account?"}{" "}
                   <button
                     onClick={() => setIsSignUp(!isSignUp)}
-                    className='bg-transparent font-medium text-brand hover:underline'
+                    className='bg-transparent text-brand hover:underline font-medium'
                   >
                     {isSignUp ? "Sign In" : "Sign Up"}
                   </button>
                 </p>
               )}
             </motion.div>
+          </div>
 
-          <div className='pt-2 text-center font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground'>
+          <div className='mt-8 text-center text-gray-600 text-[10px]'>
             © 2026 JobRaker AI. All rights reserved.
           </div>
-          </div>
         </div>
+      </div>
 
       {/* RIGHT SIDE: Immersive Visual */}
-      <div className='relative hidden min-h-svh overflow-hidden border-l border-border/60 bg-background lg:block'>
+      <div className='hidden lg:block lg:w-1/2 relative bg-background overflow-hidden h-full'>
         {/* Background Grid */}
         <div className='absolute inset-0 bg-[linear-gradient(rgba(47,217,104,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(47,217,104,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,background_40%,transparent_80%)]' />
 
