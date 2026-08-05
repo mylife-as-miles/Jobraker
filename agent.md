@@ -316,6 +316,32 @@ Refresh the collection with:
 npx skills add Shubhamsaboo/awesome-llm-apps --copy -y
 ```
 
+## Impeccable Frontend Design Workflow
+
+The reviewed `pbakaus/impeccable` skill is installed in
+`.agents/skills/impeccable` and synced to the global `.agents`, Codex, and
+Antigravity skill directories. Use it for frontend design, critique, audits,
+polish, responsive work, motion, accessibility, and design-system extraction.
+Choose the narrowest command (`shape`, `critique`, `audit`, `polish`, or an
+appropriate refinement command), load its referenced playbook before acting,
+and inspect incumbent visual truth before editing. Preserve product behavior,
+copy, routes, and stack unless the user explicitly authorizes a redesign.
+
+The skill includes optional networked features: a once-daily update check,
+Impeccable concept selection/anonymous choice telemetry, and OpenAI image
+generation using `OPENAI_API_KEY`. Keep those opt-in, never expose or persist
+keys, and set `IMPECCABLE_NO_UPDATE_CHECK=1` or `IMPECCABLE_NO_TELEMETRY=1`
+when the task must remain offline. Its live browser server and hook commands
+write project-local state or edit files; invoke them only with explicit scope,
+review their output, and stop/clean up sessions after use. Never treat the
+skill's own visual guidance as permission to change backend code or models.
+
+Refresh it with:
+
+```bash
+npx skills add pbakaus/impeccable --copy -y
+```
+
 ## Model and Stack Restrictions
 - **CRITICAL**: Never change any model name (e.g., `gemini-embedding-2`), model configurations, or tech stack components (libraries, databases, architecture) without explicit user permission or telling the user first.
 
