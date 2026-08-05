@@ -256,7 +256,7 @@ playbooks, EDR/AMSI/ETW bypass, privilege escalation, and offensive scanning
 guidance. Do not enable or sync it globally. Any future use requires explicit
 scope, authorization, and a narrowly selected defensive/research skill after
 fresh review; never use the offensive workflows against Jobraker or third-party
-  systems.
+systems.
 
 ## i-have-adhd Output Mode
 
