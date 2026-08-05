@@ -349,6 +349,12 @@
       "skillPath": "skills/referrals/SKILL.md",
       "computedHash": "f79ec55ebeac33f9ab0b52c27fd82ecbc5537bd02f6410ca014085e3974fe8aa"
     },
+    "remediate": {
+      "source": "fvckprth/remediate",
+      "sourceType": "github",
+      "skillPath": "skills/remediate/SKILL.md",
+      "computedHash": "d95ab0a320347ebc04921e94460270e1eb7f4dced051c231fc95a76a12de32dc"
+    },
     "review-animations": {
       "source": "emilkowalski/skills",
       "sourceType": "github",

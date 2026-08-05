@@ -194,6 +194,31 @@ Refresh the bundle with:
 npx skills add Leonxlnx/taste-skill --copy -y
 ```
 
+## Remediate Feedback Widget
+
+The `fvckprth/remediate` setup skill is installed in `.agents/skills/remediate`
+and synced to the global Codex and Antigravity skill directories. It supports
+the React widget plus a server-side `parseFeedback` route for screenshots,
+recordings, voice notes, text notes, and element annotations.
+
+This repository is a Vite + React app with Supabase auth and Edge Functions.
+Before running Remediate setup, choose and document the feedback destination;
+the skill must not silently create local disk storage or an unprotected route.
+When wiring the widget, pass only the minimum user context in `metadata`, keep
+auth headers separate from metadata, and validate the authenticated user in the
+server route. Never commit webhook URLs, tokens, or captured feedback files.
+
+Use the skill's lifecycle commands for setup, integrations, auth, endpoint tests,
+capture gating, upgrades, dashboards, and removal. Do not mount more than one
+`<Remediate>` instance. Review its `SKILL.md` before each operation because it
+runs with full agent permissions.
+
+Refresh it with:
+
+```bash
+npx skills add fvckprth/remediate --copy -y
+```
+
 ## Model and Stack Restrictions
 - **CRITICAL**: Never change any model name (e.g., `gemini-embedding-2`), model configurations, or tech stack components (libraries, databases, architecture) without explicit user permission or telling the user first.
 
