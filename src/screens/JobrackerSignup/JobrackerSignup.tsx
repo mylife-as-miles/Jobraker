@@ -50,8 +50,6 @@ function getOAuthRedirectUrl() {
     : AUTH_REDIRECTS.dashboard();
 }
 
-type AuthField = "email" | "password" | "confirmPassword";
-
 function SixDigitOtpInput({
   value,
   onChange,
@@ -227,40 +225,7 @@ export const JobrackerSignup = (): JSX.Element => {
     password: "",
     confirmPassword: "",
   });
-  const [authFieldErrors, setAuthFieldErrors] = useState<Record<AuthField, boolean>>({
-    email: false,
-    password: false,
-    confirmPassword: false,
-  });
-  const [authErrorVersion, setAuthErrorVersion] = useState<Record<AuthField, number>>({
-    email: 0,
-    password: 0,
-    confirmPassword: 0,
-  });
   const [submitting, setSubmitting] = useState(false);
-
-  const markAuthFieldsInvalid = useCallback((fields: AuthField[]) => {
-    setAuthFieldErrors((current) => {
-      const next = { ...current };
-      fields.forEach((field) => {
-        next[field] = true;
-      });
-      return next;
-    });
-    setAuthErrorVersion((current) => {
-      const next = { ...current };
-      fields.forEach((field) => {
-        next[field] += 1;
-      });
-      return next;
-    });
-  }, []);
-
-  const clearAuthFieldError = useCallback((field: AuthField) => {
-    setAuthFieldErrors((current) =>
-      current[field] ? { ...current, [field]: false } : current,
-    );
-  }, []);
 
   // 2FA Challenge Modal State
   const [showMfaModal, setShowMfaModal] = useState(false);
@@ -470,21 +435,6 @@ export const JobrackerSignup = (): JSX.Element => {
 
     try {
       const sanitizedEmail = sanitizeTextValue(formData.email).value.trim();
-      const invalidFields: AuthField[] = [];
-
-      if (!emailValid) {
-        invalidFields.push("email");
-      }
-      if (!showForgotPassword && !formData.password) {
-        invalidFields.push("password");
-      }
-      if (isSignUp && !showForgotPassword && !formData.confirmPassword) {
-        invalidFields.push("confirmPassword");
-      }
-      if (invalidFields.length > 0) {
-        markAuthFieldsInvalid(invalidFields);
-        return;
-      }
 
       if (showForgotPassword) {
         if (!ensureCaptchaToken()) {
@@ -511,12 +461,10 @@ export const JobrackerSignup = (): JSX.Element => {
 
       if (isSignUp) {
         if (formData.password !== formData.confirmPassword) {
-          markAuthFieldsInvalid(["confirmPassword"]);
           toastError("Passwords do not match", "Please confirm your password.");
           return;
         }
         if (!passwordCheck.valid) {
-          markAuthFieldsInvalid(["password"]);
           toastError(
             "Weak password",
             "Please meet all password requirements before continuing.",
@@ -650,7 +598,6 @@ export const JobrackerSignup = (): JSX.Element => {
       if (rawMessage.includes("User already registered") || rawMessage.includes("already exists")) {
         userFriendlyMessage = "This email is already registered. Please sign in instead.";
       } else if (rawMessage.includes("Invalid login credentials") || rawMessage.includes("invalid claim") || rawMessage.includes("Invalid credentials")) {
-        markAuthFieldsInvalid(["email", "password"]);
         userFriendlyMessage = "Incorrect email or password. Please verify your credentials.";
       } else if (rawMessage.includes("Email not confirmed") || rawMessage.includes("Email verification required")) {
         userFriendlyMessage = "Please verify your email address before signing in. Check your inbox for the link.";
@@ -938,7 +885,6 @@ export const JobrackerSignup = (): JSX.Element => {
               transition={{ delay: 0.3 }}
               onSubmit={handleSubmit}
               className='space-y-4'
-              noValidate
             >
               {/* Email */}
               <div className='space-y-1.5'>
@@ -948,27 +894,20 @@ export const JobrackerSignup = (): JSX.Element => {
                 <div className='relative'>
                   <Input
                     id='auth-email'
-                    key={`auth-email-${authErrorVersion.email}`}
                     className='h-11 rounded-md border-border/60 bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand/60 focus:ring-2 focus:ring-brand/15'
-                    error={authFieldErrors.email || (formData.email.length > 0 && !emailValid)}
-                    aria-invalid={authFieldErrors.email || (formData.email.length > 0 && !emailValid) || undefined}
+                    error={formData.email.length > 0 && !emailValid}
                     placeholder='you@example.com'
                     type='email'
                     value={formData.email}
-                    onChange={(e) => {
-                      clearAuthFieldError("email");
-                      setFormData({ ...formData, email: e.target.value });
-                    }}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
                     required
                   />
                 </div>
-                {(authFieldErrors.email || (formData.email.length > 0 && !emailValid)) && (
-                  <p key={authErrorVersion.email} role='alert' className='mt-0.5 pl-1 text-[10px] font-semibold text-[#FF5C5C] error-text-shake animate-shake-x'>
-                    {formData.email
-                      ? emailValid
-                        ? "Check your email address and try again."
-                        : "Please enter a valid email."
-                      : "Email is required."}
+                {formData.email.length > 0 && !emailValid && (
+                  <p key={formData.email} className='text-[10px] text-[#FF5C5C] font-semibold pl-1 mt-0.5 error-text-shake animate-shake-x'>
+                    Please enter a valid email.
                   </p>
                 )}
               </div>
@@ -982,17 +921,13 @@ export const JobrackerSignup = (): JSX.Element => {
                   <div className='relative'>
                     <Input
                       id='auth-password'
-                      key={`auth-password-${authErrorVersion.password}`}
                       className='h-11 rounded-md border-border/60 bg-background px-3 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand/60 focus:ring-2 focus:ring-brand/15'
-                      error={authFieldErrors.password}
-                      aria-invalid={authFieldErrors.password || undefined}
                       placeholder='Password'
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
-                      onChange={(e) => {
-                        clearAuthFieldError("password");
-                        setFormData({ ...formData, password: e.target.value });
-                      }}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
                       required
                     />
                     <button
@@ -1008,11 +943,6 @@ export const JobrackerSignup = (): JSX.Element => {
                       )}
                     </button>
                   </div>
-                  {authFieldErrors.password && (
-                    <p key={authErrorVersion.password} role='alert' className='mt-0.5 pl-1 text-[10px] font-semibold text-[#FF5C5C] error-text-shake animate-shake-x'>
-                      {formData.password ? "Check your password and try again." : "Password is required."}
-                    </p>
-                  )}
                 </div>
               )}
 
@@ -1025,20 +955,16 @@ export const JobrackerSignup = (): JSX.Element => {
                   <div className='relative'>
                     <Input
                       id='auth-confirm-password'
-                      key={`auth-confirm-password-${authErrorVersion.confirmPassword}`}
                       className='h-11 rounded-md border-border/60 bg-background px-3 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand/60 focus:ring-2 focus:ring-brand/15'
-                      error={authFieldErrors.confirmPassword}
-                      aria-invalid={authFieldErrors.confirmPassword || undefined}
                       placeholder='Confirm Password'
                       type={showPassword ? "text" : "password"}
                       value={formData.confirmPassword}
-                      onChange={(e) => {
-                        clearAuthFieldError("confirmPassword");
+                      onChange={(e) =>
                         setFormData({
                           ...formData,
                           confirmPassword: e.target.value,
-                        });
-                      }}
+                        })
+                      }
                       required
                     />
                     <button
@@ -1054,11 +980,6 @@ export const JobrackerSignup = (): JSX.Element => {
                       )}
                     </button>
                   </div>
-                  {authFieldErrors.confirmPassword && (
-                    <p key={authErrorVersion.confirmPassword} role='alert' className='mt-0.5 pl-1 text-[10px] font-semibold text-[#FF5C5C] error-text-shake animate-shake-x'>
-                      {formData.confirmPassword ? "Passwords do not match." : "Please confirm your password."}
-                    </p>
-                  )}
                   {/* Upgraded Password Strength & Requirement Checklist */}
                   {formData.password.length > 0 && (
                     <div className="pt-2 space-y-1 bg-foreground/[0.02] border border-foreground/5 rounded-lg p-2.5">
