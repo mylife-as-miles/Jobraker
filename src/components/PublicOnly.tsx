@@ -22,6 +22,12 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
   const checkingRef = useRef(checking);
   checkingRef.current = checking;
 
+  const needsMfaChallenge = async () => {
+    const { data, error } = await (supabase as any).auth.mfa.getAuthenticatorAssuranceLevel();
+    if (error) throw error;
+    return data?.currentLevel !== "aal2" && data?.nextLevel === "aal2";
+  };
+
   useEffect(() => {
     let mounted = true;
     const isOffline = () =>
@@ -68,6 +74,10 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
 
           if (!mounted) return;
           if (session?.user) {
+            if (await needsMfaChallenge()) {
+              setChecking(false);
+              return;
+            }
             navigate(getAuthenticatedRedirectPath(), { replace: true });
             return;
           }
@@ -93,7 +103,7 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
     check();
 
     const { data: sub } = supabase.auth.onAuthStateChange(
-      (_event: any, session: any) => {
+      async (_event: any, session: any) => {
         if (session?.user) {
           // If the initial check is still running, let it handle the initial state
           if (checkingRef.current) {
@@ -106,6 +116,17 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
                 navigate(getAuthenticatedRedirectPath(), { replace: true });
               }
             });
+            return;
+          }
+
+          try {
+            if (await needsMfaChallenge()) {
+              setChecking(false);
+              return;
+            }
+          } catch (error) {
+            console.error("MFA assurance check failed:", error);
+            setChecking(false);
             return;
           }
 

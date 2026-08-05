@@ -129,6 +129,19 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
 
         if (!isOffline()) {
           try {
+            const { data: assurance, error: assuranceError } = await (supabase as any)
+              .auth.mfa.getAuthenticatorAssuranceLevel();
+            if (assuranceError) throw assuranceError;
+            if (
+              assurance?.currentLevel !== "aal2" &&
+              assurance?.nextLevel === "aal2"
+            ) {
+              await clearCachedAuthSnapshot();
+              if (!mounted) return;
+              navigate(`${ROUTES.SIGNIN}?mfa=required`, { replace: true });
+              return;
+            }
+
             const {
               updateSessionActivity,
               checkSecuritySettings,

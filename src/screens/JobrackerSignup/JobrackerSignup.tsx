@@ -242,6 +242,27 @@ export const JobrackerSignup = (): JSX.Element => {
     session: any;
   } | null>(null);
 
+  const requiresMfaChallenge = useCallback(async () => {
+    const { data, error } = await (supabase as any).auth.mfa.getAuthenticatorAssuranceLevel();
+    if (error) throw error;
+    return data?.currentLevel !== "aal2" && data?.nextLevel === "aal2";
+  }, [supabase]);
+
+  const beginMfaChallenge = useCallback(async (userId: string, session: any) => {
+    const { data: mfaFactors, error } = await (supabase as any).auth.mfa.listFactors();
+    if (error) throw error;
+    const verifiedTotp = ((mfaFactors?.totp ?? []) as Array<{ id: string; status: string }>).find(
+      (factor) => factor.status === "verified",
+    );
+    if (!verifiedTotp) {
+      await supabase.auth.signOut();
+      throw new Error("Two-factor authentication is enabled, but no verified authenticator was found. Please contact support.");
+    }
+    setMfaFactorId(verifiedTotp.id);
+    setPendingAuthSession({ userId, session });
+    setShowMfaModal(true);
+  }, [supabase]);
+
   const handleVerifyMfaChallenge = async (codeToVerify?: string) => {
     const code = (useBackupCode ? backupCodeInput : (codeToVerify || mfaCode)).trim();
     if (!code || !pendingAuthSession) return;
@@ -281,18 +302,26 @@ export const JobrackerSignup = (): JSX.Element => {
       }
 
       const {
+        data: { session: elevatedSession },
+      } = await supabase.auth.getSession();
+      const verifiedSession = elevatedSession ?? pendingAuthSession.session;
+      if (!verifiedSession?.access_token) {
+        throw new Error("Your verified session could not be refreshed. Please sign in again.");
+      }
+
+      const {
         createActiveSession,
         enforceMaxSessions,
         logSecurityEvent,
       } = await import("../../utils/sessionManagement");
 
-      const expiresAt = pendingAuthSession.session?.expires_at
-        ? new Date(pendingAuthSession.session.expires_at * 1000)
+      const expiresAt = verifiedSession?.expires_at
+        ? new Date(verifiedSession.expires_at * 1000)
         : undefined;
 
       await createActiveSession(
         pendingAuthSession.userId,
-        pendingAuthSession.session.access_token,
+        verifiedSession.access_token,
         expiresAt,
       );
 
@@ -522,38 +551,8 @@ export const JobrackerSignup = (): JSX.Element => {
             return;
           }
 
-          // Check if MFA TOTP factors exist or two_factor_enabled is active
-          let is2FAActive = false;
-          let factorIdToChallenge: string | null = null;
-          try {
-            const { data: mfaFactors } = await (supabase as any).auth.mfa.listFactors();
-            const verifiedTotp = ((mfaFactors?.totp ?? []) as Array<{ id: string; status: string }>).find(
-              (f) => f.status === "verified",
-            );
-            if (verifiedTotp) {
-              is2FAActive = true;
-              factorIdToChallenge = verifiedTotp.id;
-            }
-          } catch {}
-
-          if (!is2FAActive) {
-            const { data: secSettings } = await supabase
-              .from("security_settings")
-              .select("two_factor_enabled, require_2fa_for_login")
-              .eq("id", signInData.user.id)
-              .maybeSingle();
-            if (secSettings?.two_factor_enabled || secSettings?.require_2fa_for_login) {
-              is2FAActive = true;
-            }
-          }
-
-          if (is2FAActive) {
-            setMfaFactorId(factorIdToChallenge);
-            setPendingAuthSession({
-              userId: signInData.user.id,
-              session: signInData.session,
-            });
-            setShowMfaModal(true);
+          if (await requiresMfaChallenge()) {
+            await beginMfaChallenge(signInData.user.id, signInData.session);
             setSubmitting(false);
             return; // Intercept sign-in with 2FA Challenge Modal
           }
