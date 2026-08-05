@@ -501,6 +501,19 @@ export const SettingsPage = (): JSX.Element => {
     }
   }, [generateBackupCodes, toastError]);
 
+  const handleDownloadGeneratedBackupCodes = useCallback(() => {
+    if (!generatedBackupCodes?.length) return;
+    const blob = new Blob([generatedBackupCodes.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `jobraker-recovery-codes-${new Date().toISOString().split("T")[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [generatedBackupCodes]);
+
   const handleStartTwoFAEnrollment = useCallback(async () => {
     setTwoFAError(null);
     setTotpCode("");
@@ -5823,10 +5836,34 @@ export const SettingsPage = (): JSX.Element => {
       <Modal
         open={open2FA}
         onClose={handleCloseTwoFAModal}
-        title={stepTitles[twoFAStep]}
         size='md'
         side='center'
+        panelClassName='rounded-xl border-border/60 bg-card shadow-2xl'
+        contentClassName='p-0'
       >
+        <div className='flex items-start justify-between border-b border-border/60 px-5 py-4'>
+          <div className='flex items-center gap-3'>
+            <div className='flex h-9 w-9 items-center justify-center rounded-lg bg-brand/15 text-brand'>
+              <ShieldCheck className='h-4 w-4' aria-hidden />
+            </div>
+            <div>
+              <p className='font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground'>
+                {twoFAStep === "backup" ? "Step 3 of 3" : twoFAStep === "success" ? "Security enabled" : "Step 2 of 3"}
+              </p>
+              <h3 className='mt-0.5 text-base font-semibold text-foreground'>
+                {twoFAStep === "success" ? "Two-factor authentication active" : "Set up two-factor auth"}
+              </h3>
+            </div>
+          </div>
+          <button
+            type='button'
+            aria-label='Close two-factor setup'
+            onClick={handleCloseTwoFAModal}
+            className='rounded-md p-1 text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground'
+          >
+            <X className='h-4 w-4' aria-hidden />
+          </button>
+        </div>
         {twoFAStep === "preparing" && (
           <div className='flex flex-col items-center gap-4 py-8 text-center'>
             {enrollBusy ? (
@@ -5872,19 +5909,15 @@ export const SettingsPage = (): JSX.Element => {
         )}
 
         {twoFAStep === "scan" && (
-          <div className='space-y-4'>
-            <p className='text-muted-foreground text-sm'>
-              Scan the QR code with Google Authenticator, 1Password, or Authy.
-            </p>
-
+          <div className='space-y-5 px-5 py-5'>
             <div className='grid grid-cols-1 gap-5 sm:grid-cols-[180px_minmax(0,1fr)]'>
             {totpQrImageSrc && !totpQrUnavailable ? (
-              <div className='flex flex-col items-center gap-3'>
-                <div className='rounded-lg border border-border/60 bg-white p-3 shadow-sm'>
+              <div className='flex flex-col items-center rounded-lg border border-border/60 bg-background p-3'>
+                <div className='bg-white p-1'>
                   <img
                     src={totpQrImageSrc}
                     alt='Scan this QR code with your authenticator app'
-                    className='h-[156px] w-[156px]'
+                    className='h-[154px] w-[154px]'
                     onError={() => setTotpQrUnavailable(true)}
                   />
                 </div>
@@ -5893,7 +5926,7 @@ export const SettingsPage = (): JSX.Element => {
                     href={totpUri}
                     target='_blank'
                     rel='noreferrer'
-                    className='inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline'
+                    className='mt-2 inline-flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground transition-colors hover:text-brand'
                   >
                     <Smartphone className='w-3.5 h-3.5' />
                     Open in Authenticator App
@@ -5901,8 +5934,8 @@ export const SettingsPage = (): JSX.Element => {
                 ) : null}
               </div>
             ) : (
-              <div className='flex justify-center'>
-                <div className='flex h-[180px] w-[180px] flex-col items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-5 text-center'>
+              <div className='flex justify-center rounded-lg border border-border/60 bg-background p-3'>
+                <div className='flex h-[154px] w-[154px] flex-col items-center justify-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-5 text-center'>
                   <KeyRound className='w-8 h-8 text-amber-400' aria-hidden />
                   <p className='text-xs font-medium text-foreground'>
                     QR code unavailable
@@ -5914,6 +5947,10 @@ export const SettingsPage = (): JSX.Element => {
               </div>
             )}
 
+            <div className='space-y-4'>
+              <p className='text-sm leading-snug text-foreground/90'>
+                Open your authenticator app and scan the code, or paste this secret manually.
+              </p>
             {totpSecret ? (
               <button
                 type='button'
@@ -5960,14 +5997,34 @@ export const SettingsPage = (): JSX.Element => {
                 ) : null}
               </div>
             </div>
+            </div>
 
-            <div className='flex justify-end gap-2 pt-2'>
+            <div className='-mx-5 border-y border-border/60 bg-muted/20 px-5 py-4'>
+              <div className='mb-2 flex items-center justify-between'>
+                <p className='font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground'>
+                  Recovery codes
+                </p>
+                <span className='font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground'>
+                  After verification
+                </span>
+              </div>
+              <div className='rounded-md border border-border/60 bg-background px-3 py-3 text-center'>
+                <p className='font-mono text-[11px] text-muted-foreground'>
+                  Your one-time recovery codes will appear here after the authenticator code is confirmed.
+                </p>
+              </div>
+              <p className='mt-2 text-xs text-muted-foreground'>
+                Save the generated set somewhere safe. Each code can be used once if you lose access.
+              </p>
+            </div>
+
+            <div className='flex items-center justify-end gap-2 pt-0'>
               <Button
                 variant='outline'
                 className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 onClick={handleCloseTwoFAModal}
               >
-                Cancel
+                Back
               </Button>
               <Button
                 onClick={() => void handleVerifyTwoFA()}
@@ -6033,35 +6090,27 @@ export const SettingsPage = (): JSX.Element => {
         )}
 
         {twoFAStep === "backup" && (
-          <div className='space-y-4 py-1'>
-            <div className='flex items-center gap-3 p-3 rounded-xl border border-brand/30 bg-brand/5'>
-              <ShieldCheck className='w-5 h-5 shrink-0 text-brand' aria-hidden />
-              <div>
-                <p className='text-xs font-semibold text-foreground'>
-                  Authenticator Verified Successfully!
-                </p>
-                <p className='text-[11px] text-muted-foreground'>
-                  Save these 10 one-time emergency backup codes in a safe place.
-                </p>
-              </div>
-            </div>
+          <div className='space-y-4 px-5 py-5'>
+            <p className='text-sm text-muted-foreground'>
+              Your authenticator is verified. Save these one-time recovery codes before finishing setup.
+            </p>
 
             {generatedBackupCodes && generatedBackupCodes.length > 0 ? (
-              <div className='grid grid-cols-2 gap-2 bg-card border border-border/50 rounded-xl p-3 font-mono text-xs text-center font-bold tracking-widest text-foreground/90'>
+              <div className='grid grid-cols-2 gap-1.5 rounded-md border border-border/60 bg-background p-3 font-mono text-[11px] text-center font-semibold tracking-wide text-foreground/90 sm:grid-cols-4'>
                 {generatedBackupCodes.map((code, idx) => (
-                  <div key={idx} className='bg-muted/40 p-2 rounded-lg border border-border/30'>
+                  <div key={idx} className='rounded bg-muted/60 px-1.5 py-1.5'>
                     {code}
                   </div>
                 ))}
               </div>
             ) : null}
 
-            <div className='flex flex-wrap justify-between gap-2 pt-2 border-t border-border/40'>
+            <div className='flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-4'>
               <Button
                 variant='outline'
                 size='sm'
-                className='border-border/40 text-muted-foreground hover:text-foreground'
-                onClick={() => void handleGenerateBackupCodes()}
+                className='border-border/60 text-muted-foreground hover:text-foreground'
+                onClick={handleDownloadGeneratedBackupCodes}
               >
                 <Download className='w-3.5 h-3.5 mr-1.5' />
                 Download .TXT

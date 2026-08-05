@@ -11,9 +11,12 @@ interface ModalProps {
   footer?: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
   side?: "center" | "right";
+  /** Optional overrides for a focused flow that supplies its own header/body. */
+  panelClassName?: string;
+  contentClassName?: string;
 }
 
-export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, footer, size = "md", side = "center" }) => {
+export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, footer, size = "md", side = "center", panelClassName, contentClassName }) => {
   useEffect(() => {
     if (!open) return;
 
@@ -56,14 +59,14 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
       {side === "center" ? (
         <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
           <div className={cn("relative z-10 w-full pointer-events-auto", sizes[size])}>
-            <div className="flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl">
+            <div className={cn("flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl", panelClassName)}>
               {title && (
                 <div className="flex items-center justify-between border-b border-border px-5 py-4">
                   <h3 className="font-semibold text-foreground">{title}</h3>
                   {closeButton}
                 </div>
               )}
-              <div className="overflow-y-auto px-5 py-4">{children}</div>
+              <div className={cn("overflow-y-auto px-5 py-4", contentClassName)}>{children}</div>
               {footer && <div className="border-t border-border px-5 py-4">{footer}</div>}
             </div>
           </div>
