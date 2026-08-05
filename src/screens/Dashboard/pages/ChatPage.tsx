@@ -993,7 +993,7 @@ const AgentWorkTimeline = ({
       </button>
 
       {expanded && (
-        <div className='space-y-2'>
+        <div className={`space-y-2 ledger ${isStreaming ? "ledger-live" : "ledger-static"}`}>
           {timelineRows.map((row) => {
             const isRowExpanded = !!expandedRows[row.id];
             return (

@@ -248,3 +248,53 @@ body {
     transform: none;
   }
 }
+
+/* ==========================================================================
+   ACTIVITY LEDGER ANIMATION (Fresh Events Arrive Sharply & Older Entries Compact)
+   ========================================================================== */
+
+.ledger > div {
+  animation: ledger-age 4.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.ledger > div:nth-child(1) { animation-delay: 0s; }
+.ledger > div:nth-child(2) { animation-delay: -0.9s; }
+.ledger > div:nth-child(3) { animation-delay: -1.8s; }
+.ledger > div:nth-child(4) { animation-delay: -2.7s; }
+.ledger > div:nth-child(5) { animation-delay: -3.6s; }
+
+.ledger.ledger-static > div {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.ledger-live > div:first-child {
+  animation: ledger-fresh 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+@keyframes ledger-age {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(1.03);
+  }
+  18%, 58% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0.22;
+    transform: translateY(5px) scale(0.95);
+  }
+}
+
+@keyframes ledger-fresh {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
