@@ -3991,14 +3991,15 @@ export const ChatPage = () => {
                 )}
 
                 <div
-                  className={`beam relative rounded-[32px] border shadow-2xl overflow-visible transition-all duration-300 ${
+                  className={`beam relative rounded-[32px] shadow-2xl transition-all duration-300 ${
                     isListening
-                      ? "bg-black border-[#2fd968]/60 ring-2 ring-[#2fd968]/40 shadow-black"
+                      ? "border border-[#2fd968]/60 ring-2 ring-[#2fd968]/40 shadow-black"
                       : isChatBusy || text.trim()
-                        ? "beam-amber border-brand/50 shadow-[0_0_25px_rgba(47,217,104,0.15)]"
-                        : "bg-card/85 border-border backdrop-blur-xl"
+                        ? "beam-amber shadow-[0_0_25px_rgba(47,217,104,0.15)]"
+                        : "border border-border bg-card/85 backdrop-blur-xl"
                   }`}
                 >
+                  <div className="beam-inner rounded-[30.5px]">
                   <input
                     type='file'
                     ref={fileInputRef}
@@ -4260,6 +4261,7 @@ export const ChatPage = () => {
                       </button>
                     </div>
                   </div>
+                  </div>{/* beam-inner */}
                 </div>
                 <p className='text-center text-[10px] text-muted-foreground mt-3 uppercase tracking-widest font-medium'>
                   JobRaker AI can make mistakes. Check important information.
