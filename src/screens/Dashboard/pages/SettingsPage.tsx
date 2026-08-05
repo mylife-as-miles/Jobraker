@@ -4857,7 +4857,7 @@ export const SettingsPage = (): JSX.Element => {
       <div className='min-h-full bg-background'>
         <div className='w-full max-w-[1800px mx-auto px-4 sm:px-6 lg:px-12 py-6'>
           {/* Modern Header */}
-          <div className='mb-20 border-b border-foreground/10 pb-6'>
+          <div className='mb-6 border-b border-foreground/10 pb-6'>
             <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
               <div>
                 <h1 className='text-3xl font-medium tracking-tight text-foreground/95 mb-1'>
