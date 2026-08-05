@@ -67,6 +67,7 @@ import {
 import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
 import { TextSelectionToolbar } from "@/components/chat/TextSelectionToolbar";
 import { ThinkingOrb } from "thinking-orbs";
+import { TokenStream } from "@/components/chat/TokenStream";
 import {
   executeChatSkill,
   getPrimarySkillAlias,
@@ -3555,7 +3556,7 @@ export const ChatPage = () => {
                 </div>
               ) : (
                 <div className='flex-1 w-full max-w-4xl mx-auto p-6 space-y-6 pb-8'>
-                  {messages.map((m) => (
+                  {messages.map((m, idx) => (
                     <div
                       key={m.id}
                       className={`flex gap-4 ${m.role === "user" ? "justify-end" : "justify-start"}`}
@@ -3583,7 +3584,9 @@ export const ChatPage = () => {
                             {m.content.trim() ? m.content : null}
                           </div>
                         ) : (
-                          <div className='text-sm prose prose-invert max-w-none overflow-hidden'>
+                          <div className={`text-sm prose prose-invert max-w-none overflow-hidden ${
+                            isChatBusy && idx === messages.length - 1 ? "token-stream" : ""
+                          }`}>
                             <AgentWorkTimeline
                               message={m}
                               elapsedLabel={requestElapsedLabel}
