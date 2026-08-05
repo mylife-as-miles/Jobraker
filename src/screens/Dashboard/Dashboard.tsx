@@ -330,6 +330,7 @@ export const Dashboard = (): JSX.Element => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showCareerPopup, setShowCareerPopup] = useState(false);
+  const [chatFocusMode, setChatFocusMode] = useState(false);
 
   const currentPage = useMemo(() => {
     const segment = (location.pathname.split("/")[2] || "").toLowerCase();
@@ -337,6 +338,19 @@ export const Dashboard = (): JSX.Element => {
       ? (segment as DashboardPage)
       : "overview";
   }, [location.pathname, pages]);
+
+  useEffect(() => {
+    const handleChatFocusMode = (event: Event) => {
+      setChatFocusMode(Boolean((event as CustomEvent<boolean>).detail));
+    };
+    window.addEventListener("jobraker:chat-focus-mode", handleChatFocusMode);
+    return () =>
+      window.removeEventListener("jobraker:chat-focus-mode", handleChatFocusMode);
+  }, []);
+
+  useEffect(() => {
+    if (currentPage !== "chat") setChatFocusMode(false);
+  }, [currentPage]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -716,7 +730,7 @@ export const Dashboard = (): JSX.Element => {
         <div
           className={`
         fixed inset-y-0 left-0 z-50 bg-card/95 backdrop-blur-xl border-r border-border/40 hidden lg:flex flex-col overflow-hidden transition-all duration-200
-        ${isCollapsed && isDesktop ? "lg:w-20" : "lg:w-72"}
+        ${chatFocusMode ? "!hidden" : isCollapsed && isDesktop ? "lg:w-20" : "lg:w-72"}
       `}
         >
           {/* Logo Section */}
@@ -916,9 +930,18 @@ export const Dashboard = (): JSX.Element => {
 
         {/* Main Content - Responsive */}
         <div
-          className={`flex-1 flex flex-col min-w-0 transition-all duration-300  ${isDesktop ? (isCollapsed ? "lg:ml-20" : "lg:ml-72") : ""}`}
+          className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
+            isDesktop
+              ? chatFocusMode
+                ? "lg:ml-0"
+                : isCollapsed
+                  ? "lg:ml-20"
+                  : "lg:ml-72"
+              : ""
+          }`}
         >
           {/* Header - Responsive */}
+          {!chatFocusMode && (
           <header className='sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/40 p-2 sm:p-3 lg:p-4'>
             <div className='flex items-center justify-between gap-2'>
               <div className='flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1'>
@@ -1103,6 +1126,7 @@ export const Dashboard = (): JSX.Element => {
               </div>
             </div>
           </header>
+          )}
 
           {/* Page Content - Responsive */}
           <div
@@ -1110,7 +1134,7 @@ export const Dashboard = (): JSX.Element => {
               ["chat", "interview-studio"].includes(currentPage)
                 ? "overflow-hidden"
                 : "overflow-auto"
-            } ${!isDesktop ? "pb-20" : ""}`}
+            } ${!isDesktop && !chatFocusMode ? "pb-20" : ""}`}
           >
             <AnimatePresence initial={false}>
               <motion.div
@@ -1130,7 +1154,7 @@ export const Dashboard = (): JSX.Element => {
         </div>
 
         {/* Mobile Bottom Tab Bar */}
-        {!isDesktop && (
+        {!isDesktop && !chatFocusMode && (
           <div className='fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border/40 px-2 grid grid-cols-5 h-16 select-none shadow-[0_-8px_32px_rgba(0,0,0,0.4)]'>
             {/* Home Tab */}
             <button

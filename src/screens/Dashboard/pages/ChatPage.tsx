@@ -141,6 +141,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Mic,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
@@ -2129,7 +2131,38 @@ export const ChatPage = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "history">("chat");
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const [isMultiline, setIsMultiline] = useState(false);
+
+  const toggleFocusMode = useCallback(() => {
+    setMobileTab("chat");
+    setIsFocusMode((current) => !current);
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent<boolean>("jobraker:chat-focus-mode", {
+        detail: isFocusMode,
+      }),
+    );
+  }, [isFocusMode]);
+
+  useEffect(
+    () => () =>
+      window.dispatchEvent(
+        new CustomEvent<boolean>("jobraker:chat-focus-mode", { detail: false }),
+      ),
+    [],
+  );
+
+  useEffect(() => {
+    if (!isFocusMode) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsFocusMode(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFocusMode]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -3222,7 +3255,22 @@ export const ChatPage = () => {
 
       {!loadingTier && hasChatAccess && (
         <>
-          {isMobile && (
+          {isFocusMode && (
+            <button
+              type="button"
+              onClick={toggleFocusMode}
+              className="absolute right-4 top-4 z-50 inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-lg shadow-black/20 backdrop-blur transition-[background-color,border-color,opacity] hover:border-brand/40 hover:bg-card"
+              aria-label="Exit chat focus mode"
+            >
+              <Minimize2 className="size-3.5" />
+              <span>Exit focus</span>
+              <kbd className="rounded border border-border/70 bg-background/60 px-1 py-0.5 font-mono text-[9px] text-muted-foreground">
+                Esc
+              </kbd>
+            </button>
+          )}
+
+          {isMobile && !isFocusMode && (
             <div className="flex flex-col border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 z-30 shrink-0">
               {/* Mobile Page Header */}
               <div className="h-14 flex items-center justify-between px-4">
@@ -3270,6 +3318,15 @@ export const ChatPage = () => {
                       {aiCapacityExhausted ? "Allowance used" : "Ready"}
                     </span>
                   </div>
+                  <button
+                    type="button"
+                    onClick={toggleFocusMode}
+                    className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition-[background-color,border-color,color] hover:border-brand/40 hover:bg-brand/10 hover:text-foreground"
+                    title="Enter chat focus mode"
+                    aria-label="Enter chat focus mode"
+                  >
+                    <Maximize2 className="size-3.5" />
+                  </button>
                 </div>
               </div>
 
@@ -3324,7 +3381,7 @@ export const ChatPage = () => {
                   ? "flex w-full flex-1 border-r border-border"
                   : "hidden"
                 : `flex shrink-0 ${
-                    sidebarCollapsed
+                    isFocusMode || sidebarCollapsed
                       ? "w-0 border-r-0 opacity-0 pointer-events-none"
                       : "w-72 border-r border-border opacity-100"
                   }`
@@ -3484,7 +3541,7 @@ export const ChatPage = () => {
                 : "flex flex-1"
             }`}
           >
-            {!isMobile && (
+            {!isMobile && !isFocusMode && (
               <header className='relative z-30 h-16 flex items-center justify-between px-4 md:px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
                 <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
                   <button
@@ -3565,6 +3622,16 @@ export const ChatPage = () => {
                       Regenerate
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={toggleFocusMode}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card/70 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-[background-color,border-color,color] hover:border-brand/40 hover:bg-brand/10 hover:text-foreground"
+                    title="Enter chat focus mode"
+                    aria-label="Enter chat focus mode"
+                  >
+                    <Maximize2 className="size-3.5" />
+                    <span className="hidden xl:inline">Focus</span>
+                  </button>
                 </div>
               </header>
             )}
@@ -3773,7 +3840,9 @@ export const ChatPage = () => {
                   </div>
                 </div>
               ) : (
-                <div className='flex-1 w-full max-w-4xl mx-auto p-6 space-y-6 pb-8'>
+                <div className={`flex-1 w-full mx-auto p-6 space-y-6 pb-8 ${
+                  isFocusMode ? "max-w-5xl" : "max-w-4xl"
+                }`}>
                   {messages.map((m, idx) => (
                     <div
                       key={m.id}
@@ -4116,7 +4185,9 @@ export const ChatPage = () => {
             </div>
 
             <div className='shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur md:px-6 relative'>
-              <div className='w-full max-w-4xl mx-auto relative'>
+              <div className={`w-full mx-auto relative ${
+                isFocusMode ? "max-w-5xl" : "max-w-4xl"
+              }`}>
                 {messages.length > 0 && showScrollToBottom && (
                   <div className='absolute bottom-full left-1/2 -translate-x-1/2 mb-4 z-20 pointer-events-none'>
                     <button
