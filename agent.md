@@ -266,6 +266,16 @@ invoke `/i-have-adhd` when the user wants action-first, numbered, low-tangent
 output with visible progress and concrete next steps. It stays active until
 `stop adhd mode` or `normal mode`; do not apply it as a project-wide default.
 
+## Archify Diagram Workflow
+
+The `tt-a1i/archify` skill is installed in `.agents/skills/archify` and synced
+to the global Codex and Antigravity skill directories. Use it for architecture,
+workflow, sequence, data-flow, and lifecycle diagrams. It produces standalone
+HTML with inline SVG and requires a typed JSON candidate, `showcase` validation,
+and a final `deliver` receipt before claiming success. Keep motion opt-in,
+inspect repository evidence when diagrams must reflect real code, and never
+claim visual review that was not performed.
+
 ## Model and Stack Restrictions
 - **CRITICAL**: Never change any model name (e.g., `gemini-embedding-2`), model configurations, or tech stack components (libraries, databases, architecture) without explicit user permission or telling the user first.
 

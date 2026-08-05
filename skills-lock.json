@@ -55,6 +55,12 @@
       "skillPath": "skills/apple-design/SKILL.md",
       "computedHash": "0d19303902efa64eace10e6b183eb29ef3220d424c1a7fd1eafc52adde216932"
     },
+    "archify": {
+      "source": "tt-a1i/archify",
+      "sourceType": "github",
+      "skillPath": "archify/SKILL.md",
+      "computedHash": "51ee52591975f12af55840cdd80c176cde5d198a8e3ae8701165c57542fe5f7e"
+    },
     "aso": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
