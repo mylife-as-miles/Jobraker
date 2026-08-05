@@ -19,6 +19,12 @@
       "skillPath": "skills/ads/SKILL.md",
       "computedHash": "f655468f88b128bff8553b516e02dc11fb16335613fac6642df24e6101784d33"
     },
+    "advisor-orchestrator-worker": {
+      "source": "Shubhamsaboo/awesome-llm-apps",
+      "sourceType": "github",
+      "skillPath": "agent_skills/advisor-orchestrator-worker/SKILL.md",
+      "computedHash": "f2ee3690c05a354a2dfd56966a4243c9c9a9ec18d21143d7591d91bd106817cd"
+    },
     "ai-seo": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
@@ -157,6 +163,12 @@
       "skillPath": "skills/cold-email/SKILL.md",
       "computedHash": "7c48dbca45a87ef793e8840f14d5383fcc3c782e07a488c1f50dce0d77eb9520"
     },
+    "commit-archaeologist": {
+      "source": "Shubhamsaboo/awesome-llm-apps",
+      "sourceType": "github",
+      "skillPath": "agent_skills/commit-archaeologist/SKILL.md",
+      "computedHash": "adcdc024326df8f5f61946a136ac26d2fd7adf9175908985e8ba14786a18016d"
+    },
     "community-marketing": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
@@ -216,6 +228,12 @@
       "sourceType": "github",
       "skillPath": "skills/debugging-and-error-recovery/SKILL.md",
       "computedHash": "1a119d27e8f1d27ed6317adf3115826336491346780dcb7d7a7a7f79fe3ffe10"
+    },
+    "dependency-doctor": {
+      "source": "Shubhamsaboo/awesome-llm-apps",
+      "sourceType": "github",
+      "skillPath": "agent_skills/dependency-doctor/SKILL.md",
+      "computedHash": "eb777cb149da63180407a30b3e892b25a2144cbb0c84acd4e12f68747acda2c7"
     },
     "deprecation-and-migration": {
       "source": "addyosmani/agent-skills",
@@ -463,6 +481,12 @@
       "skillPath": "skills/programmatic-seo/SKILL.md",
       "computedHash": "a53dc8741b0df338766ef8fc7d704bdfc75b8c8e7e1b1b2a5947d81d8c9508ff"
     },
+    "project-graveyard": {
+      "source": "Shubhamsaboo/awesome-llm-apps",
+      "sourceType": "github",
+      "skillPath": "agent_skills/project-graveyard/SKILL.md",
+      "computedHash": "9c4ec271cedf92e5a4d21f0000d2ba2f22ebb34ca5f6e69bfbf7b5cced58a51b"
+    },
     "prototype": {
       "source": "emilkowalski/skills",
       "sourceType": "github",
@@ -510,6 +534,12 @@
       "sourceType": "github",
       "skillPath": "skills/schema/SKILL.md",
       "computedHash": "13693bae311fd444da31a82b3aa46003e12a21220aae98c77ee479fe34116067"
+    },
+    "scope-creep-detector": {
+      "source": "Shubhamsaboo/awesome-llm-apps",
+      "sourceType": "github",
+      "skillPath": "agent_skills/scope-creep-detector/SKILL.md",
+      "computedHash": "5d09cae4760131fa245aa8a1655374ed5d64b801f3205d65c38671bca210471f"
     },
     "security-and-hardening": {
       "source": "addyosmani/agent-skills",
@@ -576,6 +606,12 @@
       "sourceType": "github",
       "skillPath": "skills/test-driven-development/SKILL.md",
       "computedHash": "133428ac28fa75cf6f8cf5dafea8d603022852ce59a0520620784c7e3dc7e519"
+    },
+    "thinking-out-loud": {
+      "source": "Shubhamsaboo/awesome-llm-apps",
+      "sourceType": "github",
+      "skillPath": "agent_skills/thinking-out-loud/SKILL.md",
+      "computedHash": "37b94cad430e738608498a15095c70b80426209efbfc6172ebb6f92164379087"
     },
     "using-agent-skills": {
       "source": "addyosmani/agent-skills",
