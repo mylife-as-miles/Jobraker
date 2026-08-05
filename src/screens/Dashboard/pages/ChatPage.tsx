@@ -1896,11 +1896,16 @@ export const ChatPage = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const isListeningRef = useRef(false);
+  const baseTextRef = useRef("");
 
   const toggleListening = useCallback(() => {
     if (isListening) {
+      isListeningRef.current = false;
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (_) {}
       }
       setIsListening(false);
     } else {
@@ -1913,10 +1918,18 @@ export const ChatPage = () => {
         return;
       }
 
+      baseTextRef.current = text;
+      isListeningRef.current = true;
+
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      if (typeof navigator !== "undefined" && navigator.language) {
+        recognition.lang = navigator.language;
+      } else {
+        recognition.lang = "en-US";
+      }
 
       recognition.onstart = () => {
         setIsListening(true);
@@ -1924,23 +1937,61 @@ export const ChatPage = () => {
 
       recognition.onerror = (event: any) => {
         console.error("Speech recognition error:", event.error);
-        toastError(`Speech recognition error: ${event.error}`);
-        setIsListening(false);
+        if (event.error === "no-speech") {
+          return;
+        }
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          toastError("Microphone permission denied.");
+          isListeningRef.current = false;
+          setIsListening(false);
+        }
       };
 
       recognition.onend = () => {
-        setIsListening(false);
+        if (isListeningRef.current) {
+          try {
+            recognition.start();
+          } catch (_) {
+            isListeningRef.current = false;
+            setIsListening(false);
+          }
+        } else {
+          setIsListening(false);
+        }
       };
 
       recognition.onresult = (event: any) => {
-        const transcript = event.results[event.results.length - 1][0].transcript;
-        setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        let finalTranscript = "";
+        let interimTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const result = event.results[i];
+          const transcriptChunk = result[0].transcript;
+          if (result.isFinal) {
+            finalTranscript += transcriptChunk;
+          } else {
+            interimTranscript += transcriptChunk;
+          }
+        }
+
+        const initialText = baseTextRef.current;
+        const speechOutput = (finalTranscript + " " + interimTranscript).trim();
+        if (speechOutput) {
+          setText(initialText ? `${initialText} ${speechOutput}` : speechOutput);
+        }
       };
 
       recognitionRef.current = recognition;
-      recognition.start();
+      try {
+        recognition.start();
+      } catch (e) {
+        console.error("Failed to start speech recognition", e);
+        toastError("Could not start microphone listening.");
+        isListeningRef.current = false;
+        setIsListening(false);
+      }
     }
-  }, [isListening, toastError]);
+  }, [isListening, text, toastError]);
 
   useEffect(() => {
     return () => {
@@ -3911,9 +3962,9 @@ export const ChatPage = () => {
                 )}
 
                 {isListening && (
-                  <div className="mb-3 flex items-center justify-between p-3.5 rounded-2xl bg-slate-900/95 border border-[#2fd968]/40 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 z-30">
+                  <div className="mb-3 flex items-center justify-between p-3.5 rounded-2xl bg-black border border-[#2fd968]/50 shadow-2xl shadow-black backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 z-30">
                     <div className="flex items-center gap-3.5">
-                      <div className="shrink-0 flex items-center justify-center p-1 rounded-xl bg-slate-950/80 border border-[#2fd968]/20">
+                      <div className="shrink-0 flex items-center justify-center p-1 rounded-xl bg-black border border-[#2fd968]/30">
                         <ThinkingOrb state="listening" size={64} theme="dark" />
                       </div>
                       <div>
@@ -3932,7 +3983,7 @@ export const ChatPage = () => {
                     <button
                       type="button"
                       onClick={toggleListening}
-                      className="px-3.5 py-1.5 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-semibold border border-rose-500/40 transition-all cursor-pointer shrink-0"
+                      className="px-3.5 py-1.5 rounded-full bg-rose-950/80 hover:bg-rose-900/90 text-rose-300 text-xs font-semibold border border-rose-600/50 transition-all cursor-pointer shrink-0"
                     >
                       Stop Listening
                     </button>
@@ -3940,10 +3991,12 @@ export const ChatPage = () => {
                 )}
 
                 <div
-                  className={`relative rounded-[32px] border border-border shadow-2xl overflow-visible transition-all duration-300 ${
-                    text.trim() || attachments.length
-                      ? "bg-card ring-1 ring-brand/50 border-brand/50"
-                      : "bg-card/85 backdrop-blur-xl"
+                  className={`relative rounded-[32px] border shadow-2xl overflow-visible transition-all duration-300 ${
+                    isListening
+                      ? "bg-black border-[#2fd968]/60 ring-2 ring-[#2fd968]/40 shadow-black"
+                      : text.trim() || attachments.length
+                        ? "bg-card border-brand/50 ring-1 ring-brand/50"
+                        : "bg-card/85 border-border backdrop-blur-xl"
                   }`}
                 >
                   <input
