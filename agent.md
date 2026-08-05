@@ -256,7 +256,15 @@ playbooks, EDR/AMSI/ETW bypass, privilege escalation, and offensive scanning
 guidance. Do not enable or sync it globally. Any future use requires explicit
 scope, authorization, and a narrowly selected defensive/research skill after
 fresh review; never use the offensive workflows against Jobraker or third-party
-systems.
+  systems.
+
+## i-have-adhd Output Mode
+
+The `ayghri/i-have-adhd` skill is installed in `.agents/skills/i-have-adhd` and
+synced to the global Codex and Antigravity skill directories. It is opt-in:
+invoke `/i-have-adhd` when the user wants action-first, numbered, low-tangent
+output with visible progress and concrete next steps. It stays active until
+`stop adhd mode` or `normal mode`; do not apply it as a project-wide default.
 
 ## Model and Stack Restrictions
 - **CRITICAL**: Never change any model name (e.g., `gemini-embedding-2`), model configurations, or tech stack components (libraries, databases, architecture) without explicit user permission or telling the user first.
