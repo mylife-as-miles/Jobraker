@@ -149,6 +149,17 @@ The audited source is `emilkowalski/skills`; the project install is tracked in `
 npx skills update emil-design-eng review-animations improve-animations find-animation-opportunities animation-vocabulary apple-design pick-ui-library prototype
 ```
 
+## Taste Skill v2 (Experimental)
+The `Leonxlnx/taste-skill` v2 experimental `design-taste-frontend` skill is installed in `.agents/skills/`. It is for landing pages, portfolios, marketing pages, and redesigns, not dashboards, dense product UI, admin panels, data tables, or multi-step product workflows.
+
+Before frontend generation, declare a one-line Design Read, infer and state `DESIGN_VARIANCE`, `MOTION_INTENSITY`, and `VISUAL_DENSITY`, choose an honest design system or aesthetic, and run the Section 14 pre-flight checklist. For redesigns, audit brand tokens, information architecture, content blocks, SEO, and existing accessibility before editing. Preserve routes, navigation labels, form fields, analytics events, and brand assets unless explicitly asked to change them.
+
+The v2 brief workflow and anti-slop rules are in `.agents/skills/design-taste-frontend/SKILL.md`. Refresh it with:
+
+```bash
+npx skills update design-taste-frontend
+```
+
 ## Model and Stack Restrictions
 - **CRITICAL**: Never change any model name (e.g., `gemini-embedding-2`), model configurations, or tech stack components (libraries, databases, architecture) without explicit user permission or telling the user first.
 
