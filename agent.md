@@ -219,6 +219,34 @@ Refresh it with:
 npx skills add fvckprth/remediate --copy -y
 ```
 
+## Addy Osmani Agent Skills
+
+The full `addyosmani/agent-skills` collection is installed in
+`.agents/skills/` and synced to the global Codex and Antigravity skill
+directories. It provides 24 focused workflows:
+
+- `using-agent-skills`, `context-engineering`, `interview-me`, `idea-refine`
+- `planning-and-task-breakdown`, `spec-driven-development`,
+  `incremental-implementation`, `test-driven-development`
+- `source-driven-development`, `doubt-driven-development`,
+  `debugging-and-error-recovery`, `code-simplification`
+- `frontend-ui-engineering`, `api-and-interface-design`,
+  `security-and-hardening`, `observability-and-instrumentation`
+- `code-review-and-quality`, `git-workflow-and-versioning`,
+  `documentation-and-adrs`, `deprecation-and-migration`
+- `browser-testing-with-devtools`, `performance-optimization`,
+  `ci-cd-and-automation`, `shipping-and-launch`
+
+Use the narrowest matching workflow and review its `SKILL.md` before invoking
+it. The browser-testing skill requires Chrome DevTools MCP and carries a
+Medium Risk/one Socket alert from the installer; keep its restrictions against
+external requests and credential access. Never commit secrets or generated
+browser captures. Refresh with:
+
+```bash
+npx skills add addyosmani/agent-skills --copy -y
+```
+
 ## Model and Stack Restrictions
 - **CRITICAL**: Never change any model name (e.g., `gemini-embedding-2`), model configurations, or tech stack components (libraries, databases, architecture) without explicit user permission or telling the user first.
 
