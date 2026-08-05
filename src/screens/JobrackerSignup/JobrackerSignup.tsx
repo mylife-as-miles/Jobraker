@@ -897,7 +897,8 @@ export const JobrackerSignup = (): JSX.Element => {
                   <Input
                     inputSize='sm'
                     className='pl-11 h-9 bg-foreground/5 border-foreground/10 focus:border-brand/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
-                    placeholder='name@example.com'
+                    error={formData.email.length > 0 && !emailValid}
+                    placeholder='you@example.com'
                     type='email'
                     value={formData.email}
                     onChange={(e) =>
@@ -907,8 +908,8 @@ export const JobrackerSignup = (): JSX.Element => {
                   />
                 </div>
                 {formData.email.length > 0 && !emailValid && (
-                  <p className='text-[10px] text-brand pl-1 mt-0.5'>
-                    Invalid email address
+                  <p key={formData.email} className='text-[10px] text-[#FF5C5C] font-semibold pl-1 mt-0.5 error-text-shake animate-shake-x'>
+                    Please enter a valid email.
                   </p>
                 )}
               </div>
