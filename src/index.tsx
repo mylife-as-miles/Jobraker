@@ -58,6 +58,7 @@ const AdminActivity = lazyWithRetry(() => import("./pages/admin/pages/AdminActiv
 const AdminDatabase = lazyWithRetry(() => import("./pages/admin/pages/AdminDatabase"));
 const AdminPerformance = lazyWithRetry(() => import("./pages/admin/pages/AdminPerformance"));
 const AdminSettings = lazyWithRetry(() => import("./pages/admin/pages/AdminSettings"));
+const AdminPermissions = lazyWithRetry(() => import("./pages/admin/pages/AdminPermissions"));
 const AdminJobs = lazyWithRetry(() => import("./pages/admin/pages/AdminJobs"));
 const AdminSubscriptions = lazyWithRetry(() => import("./pages/admin/pages/AdminSubscriptions"));
 
@@ -376,6 +377,7 @@ function AnimatedRoutes() {
           <Route path='database' element={<AdminDatabase />} />
           <Route path='performance' element={<AdminPerformance />} />
           <Route path='settings' element={<AdminSettings />} />
+          <Route path='permissions' element={<AdminPermissions />} />
         </Route>
 
         {/* Admin utility route - check user credits */}

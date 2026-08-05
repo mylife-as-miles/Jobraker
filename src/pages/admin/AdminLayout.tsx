@@ -54,6 +54,7 @@ const navigationGroups = [
     items: [
       { name: "Database", path: "/admin/database" },
       { name: "Settings", path: "/admin/settings" },
+      { name: "Permissions", path: "/admin/permissions" },
     ],
   },
 ];

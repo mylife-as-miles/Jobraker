@@ -9,6 +9,7 @@ import AdminActivity from './pages/AdminActivity';
 import AdminDatabase from './pages/AdminDatabase';
 import AdminPerformance from './pages/AdminPerformance';
 import AdminSettings from './pages/AdminSettings';
+import AdminPermissions from './pages/AdminPermissions';
 import AdminJobs from './pages/AdminJobs';
 import AdminUserUsage from './pages/AdminUserUsage';
 import AdminCostAllocation from './pages/AdminCostAllocation';
@@ -25,6 +26,7 @@ export {
   AdminDatabase,
   AdminPerformance,
   AdminSettings,
+  AdminPermissions,
   AdminJobs,
   AdminUserUsage,
   AdminCostAllocation,
