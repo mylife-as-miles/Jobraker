@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
+import NumberFlow from "@number-flow/react";
 import {
   ArrowUpRight,
   ArrowDownRight,
@@ -196,7 +197,11 @@ const StatCard = ({
             className={`h-9 w-16 ${highlight ? "bg-black/10" : ""}`}
           />
         ) : (
-          value
+          <NumberFlow
+            value={value}
+            format={{ useGrouping: true, maximumFractionDigits: 0 }}
+            respectMotionPreference
+          />
         )}
       </div>
       <div className='relative z-10 mt-3 flex items-center gap-1.5'>

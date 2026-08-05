@@ -536,3 +536,28 @@ body {
     background-position: -100% 0;
   }
 }
+
+/* ==========================================================================
+   HIGH-CONTRAST SELECTION FOR PITCH BLACK & AI CHAT
+   ========================================================================== */
+::selection {
+  background-color: rgba(6, 182, 212, 0.35);
+  color: #ffffff;
+  text-shadow: none;
+}
+
+::-moz-selection {
+  background-color: rgba(6, 182, 212, 0.35);
+  color: #ffffff;
+  text-shadow: none;
+}
+
+.prose ::selection {
+  background-color: rgba(47, 217, 104, 0.35);
+  color: #ffffff;
+}
+
+.prose ::-moz-selection {
+  background-color: rgba(47, 217, 104, 0.35);
+  color: #ffffff;
+}

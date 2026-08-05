@@ -302,6 +302,7 @@ interface BasicMessage {
   content: string;
   parts?: { type: "text"; text: string }[];
   streaming?: boolean;
+  backgroundTaskId?: string;
   createdAt: number;
   meta?: { persona?: Persona; parent?: string };
   toolCalls?: ToolCallEntry[];
@@ -399,6 +400,10 @@ const normalizeBasicMessage = (message: any): BasicMessage => ({
           },
         ],
   streaming: Boolean(message?.streaming),
+  backgroundTaskId:
+    typeof message?.backgroundTaskId === "string"
+      ? message.backgroundTaskId
+      : undefined,
   createdAt:
     typeof message?.createdAt === "number" ? message.createdAt : Date.now(),
   meta:
@@ -1834,10 +1839,189 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
 
   const append = useCallback(
     (m: ChatUserPayload, chatOpts?: ChatRequestOptions) => {
-      void sendMessage(messages, m, chatOpts, responseId);
+      const queueMessage = async () => {
+        const textContent = m.content.trim();
+        const userMessage: BasicMessage = {
+          id: nanoid(),
+          role: "user",
+          content: textContent,
+          hasPastedImage: Boolean(m.images?.length),
+          attachmentCount: m.images?.length || 0,
+          createdAt: Date.now(),
+          parts: [{ type: "text", text: textContent || (m.images?.length ? " " : "") }],
+        };
+        const assistantId = nanoid();
+        const assistantMessage: BasicMessage = {
+          id: assistantId,
+          role: "assistant",
+          content: "",
+          createdAt: Date.now(),
+          parts: [{ type: "text", text: "" }],
+          streaming: true,
+          agentEvents: [{
+            id: nanoid(),
+            kind: "status",
+            title: "Queued in the background",
+            detail: "You can continue chatting while this request runs.",
+            status: "running",
+            createdAt: Date.now(),
+          }],
+        };
+        const history = [...messages, userMessage];
+        const supabase = createClient();
+        try {
+          const { data: task, error } = await supabase
+            .from("job_intelligence_tasks")
+            .insert({
+              type: "chat_completion",
+              title: textContent.slice(0, 80) || "Chat request",
+              message: "Queued for processing.",
+              progress_total: 3,
+              params: {
+                messages: buildChatRequestMessages(history, m),
+                model: chatOpts?.model || DEFAULT_CHAT_MODEL,
+                mode: chatOpts?.mode || "ask",
+                webSearch: chatOpts?.webSearch ?? false,
+                system: chatOpts?.system,
+                client_assistant_id: assistantId,
+              },
+            })
+            .select("id")
+            .single();
+          if (error || !task?.id) throw error || new Error("Failed to queue chat request.");
+          assistantMessage.backgroundTaskId = task.id;
+          setMessages((previous) => [...previous, userMessage, assistantMessage]);
+        } catch (error) {
+          console.warn("[ai-chat] Background queue unavailable; using live chat", error);
+          void sendMessage(messages, m, chatOpts, responseId);
+        }
+      };
+      void queueMessage();
     },
     [messages, responseId, sendMessage],
   );
+
+  useEffect(() => {
+    const supabase = createClient();
+    let channel: ReturnType<typeof supabase.channel> | undefined;
+
+    const subscribeToQueuedChat = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      channel = supabase
+        .channel(`queued-chat:${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "job_intelligence_tasks",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload: any) => {
+            const task = payload.new;
+            if (task?.type !== "chat_completion") return;
+            const assistantId = task.params?.client_assistant_id;
+            if (typeof assistantId !== "string") return;
+
+            const terminal =
+              task.status === "completed" ||
+              task.status === "failed" ||
+              task.status === "canceled";
+            const content =
+              task.status === "completed"
+                ? String(task.result?.content || "I completed this request, but no response text was returned.")
+                : task.status === "failed"
+                  ? `Error: ${String(task.message || "The background request failed.")}`
+                  : task.status === "canceled"
+                    ? "Request stopped."
+                    : "";
+            const detail = String(
+              task.message ||
+                (task.status === "running"
+                  ? "Working in the background."
+                  : "Queued for processing."),
+            );
+
+            setMessages((previous) =>
+              previous.map((message) =>
+                message.id !== assistantId
+                  ? message
+                  : {
+                      ...message,
+                      content: content || message.content,
+                      parts: content
+                        ? [{ type: "text", text: content }]
+                        : message.parts,
+                      streaming: !terminal,
+                      agentEvents: [
+                        {
+                          id: `background:${task.id}:${task.updated_at}`,
+                          kind: "status",
+                          title:
+                            task.status === "completed"
+                              ? "Background request completed"
+                              : task.status === "failed"
+                                ? "Background request failed"
+                                : task.status === "canceled"
+                                  ? "Background request stopped"
+                                  : "Working in the background",
+                          detail,
+                          status:
+                            task.status === "failed"
+                              ? "error"
+                              : terminal
+                                ? "done"
+                                : "running",
+                          createdAt: Date.now(),
+                        },
+                      ],
+                    },
+              ),
+            );
+          },
+        )
+        .subscribe();
+
+      const { data: completedTasks } = await supabase
+        .from("job_intelligence_tasks")
+        .select("id, status, message, result, params")
+        .eq("user_id", user.id)
+        .eq("type", "chat_completion")
+        .in("status", ["completed", "failed", "canceled"])
+        .order("updated_at", { ascending: false })
+        .limit(50);
+      if (!completedTasks) return;
+      setMessages((previous) =>
+        previous.map((message) => {
+          const task = completedTasks.find(
+            (candidate: any) => candidate.params?.client_assistant_id === message.id,
+          ) as any;
+          if (!task) return message;
+          const content =
+            task.status === "completed"
+              ? String(task.result?.content || "I completed this request, but no response text was returned.")
+              : task.status === "canceled"
+                ? "Request stopped."
+                : `Error: ${String(task.message || "The background request failed.")}`;
+          return {
+            ...message,
+            content,
+            parts: [{ type: "text", text: content }],
+            streaming: false,
+          };
+        }),
+      );
+    };
+
+    void subscribeToQueuedChat();
+    return () => {
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, []);
 
   const regenerate = () => {
     if (status === "in_progress" || !lastTurnRef.current) return;
@@ -3718,14 +3902,14 @@ export const ChatPage = () => {
                       <div
                         className={`rounded-2xl shadow-sm ${
                           m.role === "user"
-                            ? "max-w-[85%] bg-brand text-primary-foreground font-medium rounded-tr-sm p-4"
+                            ? "max-w-[85%] bg-brand text-primary-foreground font-medium rounded-tr-sm p-4 select-text"
                             : m.role === "skill"
-                              ? "max-w-[95%] bg-transparent p-0 shadow-none"
-                              : "max-w-[85%] glass-panel text-card-foreground rounded-tl-sm p-4"
+                              ? "max-w-[95%] bg-transparent p-0 shadow-none select-text"
+                              : "max-w-[85%] bg-black/95 border border-zinc-800/80 text-card-foreground rounded-tl-sm p-4 shadow-md shadow-black/80 select-text"
                         }`}
                       >
                         {m.role === "user" ? (
-                          <div className='text-sm break-words whitespace-pre-wrap'>
+                          <div className='text-sm break-words whitespace-pre-wrap select-text'>
                             <UserChatAttachment
                               messageId={m.id}
                               hasPastedImage={m.hasPastedImage}
@@ -3733,7 +3917,7 @@ export const ChatPage = () => {
                             {m.content.trim() ? m.content : null}
                           </div>
                         ) : (
-                          <div className={`text-sm prose prose-invert max-w-none overflow-hidden ${
+                          <div className={`text-sm prose prose-invert max-w-none overflow-x-auto select-text ${
                             isChatBusy && idx === messages.length - 1 ? "token-stream" : ""
                           }`}>
                             <AgentWorkTimeline

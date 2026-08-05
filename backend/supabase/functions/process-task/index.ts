@@ -264,6 +264,90 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
   };
 }
 
+async function executeChatCompletion(
+  _supabase: any,
+  userId: string,
+  params: any,
+  progress: any,
+) {
+  if (!Array.isArray(params.messages) || params.messages.length === 0) {
+    throw new Error("Chat task is missing its messages.");
+  }
+
+  await progress.updateProgress(0, 3, "Preparing your request...");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  if (!serviceRoleKey || !supabaseUrl) {
+    throw new Error("Background chat is not configured.");
+  }
+
+  await progress.updateProgress(1, 3, "Generating a response...");
+  const response = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "x-jobraker-background-user-id": userId,
+    },
+    body: JSON.stringify({
+      messages: params.messages,
+      model: params.model,
+      mode: params.mode,
+      webSearch: params.webSearch,
+      system: params.system,
+    }),
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(await response.text().catch(() => "Background chat could not start."));
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let event = "message";
+  let content = "";
+  let responseId: string | null = null;
+
+  const consumeLine = (line: string) => {
+    if (line.startsWith("event:")) {
+      event = line.slice(6).trim() || "message";
+      return;
+    }
+    if (!line.startsWith("data:")) return;
+    const raw = line.slice(5).trim();
+    if (!raw || raw === "[DONE]") return;
+    let payload: any;
+    try {
+      payload = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (event === "message" && typeof payload.delta === "string") {
+      content += payload.delta;
+    } else if (event === "response_id" && typeof payload.response_id === "string") {
+      responseId = payload.response_id;
+    } else if (event === "error") {
+      throw new Error(String(payload.error || "Background chat failed."));
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() || "";
+    for (const line of lines) consumeLine(line);
+  }
+  if (buffer.trim()) consumeLine(buffer.trim());
+  if (!content.trim()) throw new Error("Background chat finished without a response.");
+
+  await progress.updateProgress(3, 3, "Response ready.");
+  return { content, response_id: responseId };
+}
+
 const PUBLIC_APP_URL =
   Deno.env.get("PUBLIC_APP_URL") ||
   Deno.env.get("APP_BASE_URL") ||
@@ -508,6 +592,8 @@ Deno.serve(async (req) => {
         let result = {};
         if (task.type === "scout_search") {
           result = await executeScoutSearch(supabase, task.user_id, task.params, progressHelper);
+        } else if (task.type === "chat_completion") {
+          result = await executeChatCompletion(supabase, task.user_id, task.params, progressHelper);
         } else if (task.type === "job_reevaluation") {
           result = await executeJobReevaluation(supabase, task.user_id, task.params, progressHelper);
         } else if (task.type === "pipeline_cleanup") {
