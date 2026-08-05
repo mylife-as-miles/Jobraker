@@ -162,24 +162,31 @@ export function BillingFAQSection() {
                       aria-hidden
                     />
                   </button>
-                  <AnimatePresence initial={false}>
-                    {isOpen ? (
-                      <motion.div
-                        id={`billing-faq-a-${i}`}
-                        role='region'
-                        aria-labelledby={`billing-faq-q-${i}`}
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-                        className='overflow-hidden border-t border-foreground/5'
-                      >
-                        <p className='px-4 pb-4 pt-3 text-sm leading-relaxed text-muted-foreground sm:px-5 sm:pb-5'>
-                          {item.answer}
-                        </p>
-                      </motion.div>
-                    ) : null}
-                  </AnimatePresence>
+                  <div
+                    id={`billing-faq-a-${i}`}
+                    role='region'
+                    aria-labelledby={`billing-faq-q-${i}`}
+                    className={`spring-grid-expandable overflow-hidden border-t border-foreground/5 ${
+                      isOpen ? "expanded" : ""
+                    }`}
+                    style={{
+                      display: "grid",
+                      gridTemplateRows: isOpen ? "1fr" : "0fr",
+                      transition: "grid-template-rows 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                    }}
+                  >
+                    <div
+                      className='spring-grid-inner min-h-0 overflow-hidden'
+                      style={{
+                        opacity: isOpen ? 1 : 0,
+                        transition: "opacity 0.35s ease 0.15s",
+                      }}
+                    >
+                      <p className='px-4 pb-4 pt-3 text-sm leading-relaxed text-muted-foreground sm:px-5 sm:pb-5'>
+                        {item.answer}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               );
             })}

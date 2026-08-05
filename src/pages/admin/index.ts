@@ -10,6 +10,8 @@ import AdminDatabase from './pages/AdminDatabase';
 import AdminPerformance from './pages/AdminPerformance';
 import AdminSettings from './pages/AdminSettings';
 import AdminJobs from './pages/AdminJobs';
+import AdminUserUsage from './pages/AdminUserUsage';
+import AdminCostAllocation from './pages/AdminCostAllocation';
 
 export {
   AdminLayout,
@@ -24,4 +26,6 @@ export {
   AdminPerformance,
   AdminSettings,
   AdminJobs,
+  AdminUserUsage,
+  AdminCostAllocation,
 };

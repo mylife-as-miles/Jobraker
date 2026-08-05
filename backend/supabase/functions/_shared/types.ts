@@ -31,6 +31,7 @@ export function getCorsHeaders(origin?: string): Record<string, string> {
     'https://admin.jobraker.io',
     'https://jobraker.io',
     'https://www.jobraker.io',
+    'https://jobraker.com',
     'https://jobraker-tau.vercel.app',
     'https://jobraker.vercel.app',
     'http://127.0.0.1:3000',

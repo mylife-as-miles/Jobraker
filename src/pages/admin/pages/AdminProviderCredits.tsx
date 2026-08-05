@@ -15,7 +15,7 @@ import {
 import { createClient } from "@/lib/supabaseClient";
 import { getCurrentUserAdminSubRole } from "../../../lib/adminUtils";
 
-type ProviderName = "firecrawl" | "skyvern";
+type ProviderName = "firecrawl" | "rtrvr" | "skyvern";
 
 interface ProviderCreditBalance {
   provider: ProviderName;
@@ -71,6 +71,13 @@ const providerCopy: Record<
     icon: Cloud,
     accent: "text-brand bg-brand/15 border-brand/30",
     note: "Job search refreshes this from Firecrawl automatically after provider usage.",
+  },
+  rtrvr: {
+    title: "RTRVR",
+    description: "Provider-account balance and confirmed automation usage.",
+    icon: Cloud,
+    accent: "text-sky-300 bg-sky-400/15 border-sky-400/30",
+    note: "RTRVR balance data belongs here; per-user consumption is available in User Usage.",
   },
   skyvern: {
     title: "Skyvern",
@@ -340,6 +347,7 @@ export default function AdminProviderCredits() {
   );
   const [drafts, setDrafts] = useState<Record<ProviderName, ProviderDraft>>({
     firecrawl: makeDraft(),
+    rtrvr: makeDraft(),
     skyvern: makeDraft(),
   });
   const [loading, setLoading] = useState(true);
@@ -352,7 +360,7 @@ export default function AdminProviderCredits() {
     const byProvider = new Map(
       balances.map((balance) => [balance.provider, balance]),
     );
-    return (["firecrawl", "skyvern"] as ProviderName[]).map(
+    return (["firecrawl", "rtrvr", "skyvern"] as ProviderName[]).map(
       (provider) =>
         byProvider.get(provider) || {
           provider,
@@ -552,8 +560,8 @@ export default function AdminProviderCredits() {
             Provider Credit Monitor
           </h1>
           <p className='text-gray-400 max-w-3xl'>
-            Track Firecrawl and Skyvern provider credits separately from user
-            credits, then send Resend alerts before provider balances run out.
+            Track Firecrawl, RTRVR and Skyvern provider-account balances separately
+            from user credits. Per-user usage belongs in User Usage.
           </p>
         </div>
         <button

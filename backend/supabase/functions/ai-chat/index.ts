@@ -167,37 +167,6 @@ function asNumber(value: unknown): number | null {
   return null;
 }
 
-function extractThoughtSummary(parts: unknown[]): string | null {
-  const summaries: string[] = [];
-
-  for (const part of parts) {
-    if (!isRecord(part)) continue;
-
-    if (part.thought === true) {
-      const text = asString(part.text);
-      if (text) summaries.push(text);
-      continue;
-    }
-
-    if (part.type === "thought_summary" && isRecord(part.content)) {
-      const text = asString(part.content.text);
-      if (text) summaries.push(text);
-      continue;
-    }
-
-    if (Array.isArray(part.summary)) {
-      for (const item of part.summary) {
-        if (!isRecord(item)) continue;
-        const text = asString(item.text);
-        if (text) summaries.push(text);
-      }
-    }
-  }
-
-  if (!summaries.length) return null;
-  return summaries.join(" ").replace(/\s+/g, " ").trim().slice(0, 500);
-}
-
 type AgentToolResultEntry = {
   name: string;
   args: Record<string, unknown>;
@@ -1849,7 +1818,6 @@ async function streamAgentModelStep(opts: {
 }) {
   let lastChunk: any = null;
   let accumulatedVisibleText = "";
-  let lastThoughtSummary = "";
   const accumulatedParts: unknown[] = [];
 
   const stepRequestId = opts.requestId || crypto.randomUUID();
@@ -1882,19 +1850,6 @@ async function streamAgentModelStep(opts: {
           part.functionCall.name = part.functionCall.name.replace(/^(default_api|mcp_default_api):/, "");
         }
         accumulatedParts.push(part);
-      }
-
-      const thoughtSummary = extractThoughtSummary(parts);
-      if (thoughtSummary && thoughtSummary !== lastThoughtSummary) {
-        lastThoughtSummary = thoughtSummary;
-        await opts.enqueueEvent("agent_activity", {
-          kind: "thinking",
-          status: "running",
-          title: "Thinking",
-          detail: thoughtSummary,
-          created_at: Date.now(),
-          round: opts.round,
-        });
       }
 
       const text = streamChunkText(chunk);
@@ -3635,10 +3590,10 @@ Edge functions:
         try {
           if (mode === "agent") {
             await enqueueEvent("agent_activity", {
-              kind: "thinking",
+              kind: "status",
               status: "running",
-              title: "Reading request",
-              detail: "Building the next agent step from your JobRaker context.",
+              title: "Working on your request",
+              detail: "Preparing the first step.",
               created_at: Date.now(),
               round: 0,
             });
@@ -5456,6 +5411,7 @@ Edge functions:
           });
           const userMessage = formatGeminiErrorMessage(e);
           await enqueueEvent("error", { error: userMessage });
+          await enqueueEvent("done", "[DONE]");
           controller.close();
         }
         })();
