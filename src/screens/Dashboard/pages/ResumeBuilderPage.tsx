@@ -716,11 +716,11 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                         <Button
                           variant='ghost'
                           size='sm'
-                          onClick={() => generateAISummary()}
-                          disabled={generatingField === "summary"}
+                          onClick={() => aiPolishSummary()}
+                          disabled={aiLoading}
                           className='h-7 text-xs text-brand hover:text-brand hover:bg-brand/10 gap-1.5'
                         >
-                          {generatingField === "summary" ? (
+                          {aiLoading ? (
                             <>Generating...</>
                           ) : (
                             <>
