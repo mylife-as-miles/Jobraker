@@ -42,6 +42,8 @@ const navigationGroups = [
     items: [
       { name: "Subscriptions", path: "/admin/subscriptions" },
       { name: "Revenue", path: "/admin/revenue" },
+      { name: "User Usage", path: "/admin/user-usage" },
+      { name: "Cost Allocation", path: "/admin/cost-allocation" },
       { name: "Credits", path: "/admin/credits" },
       { name: "Provider Credits", path: "/admin/provider-credits" },
     ],
