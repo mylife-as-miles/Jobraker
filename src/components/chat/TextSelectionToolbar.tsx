@@ -164,24 +164,24 @@ export const TextSelectionToolbar: React.FC<TextSelectionToolbarProps> = ({ cont
           transform: "translateX(-50%)",
           zIndex: 9999,
         }}
-        className="flex items-center gap-1.5 p-1.5 rounded-full bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 shadow-2xl shadow-cyan-950/40 text-xs font-medium text-slate-200 select-none ring-1 ring-white/10"
+        className="flex items-center gap-1.5 p-1.5 rounded-full bg-black/95 backdrop-blur-2xl border border-zinc-800/90 shadow-2xl shadow-black text-xs font-medium text-zinc-100 select-none ring-1 ring-white/10"
       >
         {/* Add to Chat Button */}
         <button
           onClick={(e) => handleAction("quote", e)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-600/90 hover:bg-cyan-500 text-white font-semibold transition-all shadow-md shadow-cyan-600/20 active:scale-95 cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-all shadow-md shadow-cyan-600/20 active:scale-95 cursor-pointer"
           title="Add quoted text into AI Chat prompt"
         >
           <MessageSquarePlus className="w-3.5 h-3.5" />
           <span>Add to Chat</span>
         </button>
 
-        <div className="h-4 w-px bg-slate-700/80 my-auto" />
+        <div className="h-4 w-px bg-zinc-800 my-auto" />
 
         {/* Explain Button */}
         <button
           onClick={(e) => handleAction("explain", e)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full hover:bg-slate-800 text-slate-200 hover:text-white transition-all active:scale-95 cursor-pointer"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full hover:bg-zinc-900 text-zinc-200 hover:text-white transition-all active:scale-95 cursor-pointer"
           title="Ask AI to explain this highlighted text"
         >
           <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
@@ -191,25 +191,25 @@ export const TextSelectionToolbar: React.FC<TextSelectionToolbarProps> = ({ cont
         {/* Summarize Button */}
         <button
           onClick={(e) => handleAction("summarize", e)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full hover:bg-slate-800 text-slate-200 hover:text-white transition-all active:scale-95 cursor-pointer"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full hover:bg-zinc-900 text-zinc-200 hover:text-white transition-all active:scale-95 cursor-pointer"
           title="Ask AI to summarize this highlighted text"
         >
           <FileText className="w-3.5 h-3.5 text-indigo-400" />
           <span className="hidden sm:inline">Summarize</span>
         </button>
 
-        <div className="h-4 w-px bg-slate-700/80 my-auto" />
+        <div className="h-4 w-px bg-zinc-800 my-auto" />
 
         {/* Copy Button */}
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full hover:bg-slate-800 text-slate-200 hover:text-white transition-all active:scale-95 cursor-pointer"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full hover:bg-zinc-900 text-zinc-200 hover:text-white transition-all active:scale-95 cursor-pointer"
           title="Copy selected text to clipboard"
         >
           {copied ? (
             <Check className="w-3.5 h-3.5 text-emerald-400" />
           ) : (
-            <Copy className="w-3.5 h-3.5 text-slate-400" />
+            <Copy className="w-3.5 h-3.5 text-zinc-400" />
           )}
           <span>{copied ? "Copied!" : "Copy"}</span>
         </button>

@@ -3718,14 +3718,14 @@ export const ChatPage = () => {
                       <div
                         className={`rounded-2xl shadow-sm ${
                           m.role === "user"
-                            ? "max-w-[85%] bg-brand text-primary-foreground font-medium rounded-tr-sm p-4"
+                            ? "max-w-[85%] bg-brand text-primary-foreground font-medium rounded-tr-sm p-4 select-text"
                             : m.role === "skill"
-                              ? "max-w-[95%] bg-transparent p-0 shadow-none"
-                              : "max-w-[85%] glass-panel text-card-foreground rounded-tl-sm p-4"
+                              ? "max-w-[95%] bg-transparent p-0 shadow-none select-text"
+                              : "max-w-[85%] bg-black/95 border border-zinc-800/80 text-card-foreground rounded-tl-sm p-4 shadow-md shadow-black/80 select-text"
                         }`}
                       >
                         {m.role === "user" ? (
-                          <div className='text-sm break-words whitespace-pre-wrap'>
+                          <div className='text-sm break-words whitespace-pre-wrap select-text'>
                             <UserChatAttachment
                               messageId={m.id}
                               hasPastedImage={m.hasPastedImage}
@@ -3733,7 +3733,7 @@ export const ChatPage = () => {
                             {m.content.trim() ? m.content : null}
                           </div>
                         ) : (
-                          <div className={`text-sm prose prose-invert max-w-none overflow-hidden ${
+                          <div className={`text-sm prose prose-invert max-w-none overflow-x-auto select-text ${
                             isChatBusy && idx === messages.length - 1 ? "token-stream" : ""
                           }`}>
                             <AgentWorkTimeline
