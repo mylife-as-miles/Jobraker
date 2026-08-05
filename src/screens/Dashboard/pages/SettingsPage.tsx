@@ -81,7 +81,7 @@ import { encryptSymmetric } from "../../../utils/crypto";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { useEmailIntegrationAccess } from "@/hooks/useEmailIntegrationAccess";
 import { CreditService } from "@/services/creditService";
-import { getProxiedLogoUrl } from "../../../lib/utils";
+import { cn, getProxiedLogoUrl } from "../../../lib/utils";
 import useMediaQuery from "@/hooks/use-media-query";
 import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
 import { useComposioIntegrations } from "@/hooks/useComposioIntegrations";
@@ -5775,7 +5775,7 @@ export const SettingsPage = (): JSX.Element => {
     };
 
     return (
-      <div className='flex justify-center gap-2 sm:gap-3 py-3'>
+      <div className='flex justify-start gap-1.5 py-0'>
         {Array.from({ length: 6 }).map((_, idx) => (
           <input
             key={idx}
@@ -5793,7 +5793,7 @@ export const SettingsPage = (): JSX.Element => {
             onPaste={handlePaste}
             onFocus={(e) => e.target.select()}
             className={cn(
-              "w-11 h-14 sm:w-12 sm:h-16 text-center text-2xl font-bold rounded-xl border-2 transition-all outline-none bg-card text-foreground shadow-sm",
+              "h-10 w-9 text-center font-mono text-base font-semibold rounded-md border outline-none bg-card text-foreground shadow-sm transition-[border-color,box-shadow,background-color]",
               digits[idx]
                 ? "border-brand bg-brand/5 shadow-brand/10"
                 : "border-border/60 focus:border-brand/70 focus:ring-2 focus:ring-brand/20",
@@ -5809,7 +5809,7 @@ export const SettingsPage = (): JSX.Element => {
   function TwoFAModal() {
     const stepTitles: Record<TwoFAStep, string> = {
       preparing: "Set up Two-Factor Authentication",
-      scan: "Step 1 of 3 — Scan QR Code",
+      scan: "Set up two-factor auth",
       verify: "Step 2 of 3 — Enter 6-Digit Code",
       backup: "Step 3 of 3 — Save Emergency Backup Codes",
       success: "Two-Factor Authentication Active",
@@ -5877,13 +5877,14 @@ export const SettingsPage = (): JSX.Element => {
               Scan the QR code with Google Authenticator, 1Password, or Authy.
             </p>
 
+            <div className='grid grid-cols-1 gap-5 sm:grid-cols-[180px_minmax(0,1fr)]'>
             {totpQrImageSrc && !totpQrUnavailable ? (
               <div className='flex flex-col items-center gap-3'>
-                <div className='rounded-2xl border-2 border-brand/30 bg-white p-4 shadow-xl shadow-brand/5'>
+                <div className='rounded-lg border border-border/60 bg-white p-3 shadow-sm'>
                   <img
                     src={totpQrImageSrc}
                     alt='Scan this QR code with your authenticator app'
-                    className='h-[200px] w-[200px]'
+                    className='h-[156px] w-[156px]'
                     onError={() => setTotpQrUnavailable(true)}
                   />
                 </div>
@@ -5901,7 +5902,7 @@ export const SettingsPage = (): JSX.Element => {
               </div>
             ) : (
               <div className='flex justify-center'>
-                <div className='flex h-[200px] w-[200px] flex-col items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-5 text-center'>
+                <div className='flex h-[180px] w-[180px] flex-col items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-5 text-center'>
                   <KeyRound className='w-8 h-8 text-amber-400' aria-hidden />
                   <p className='text-xs font-medium text-foreground'>
                     QR code unavailable
@@ -5917,7 +5918,7 @@ export const SettingsPage = (): JSX.Element => {
               <button
                 type='button'
                 onClick={() => void handleCopyTotpSecret()}
-                className='flex w-full items-center gap-3 rounded-xl border border-border/40 bg-card p-3.5 text-left transition-all hover:border-brand/40 hover:bg-muted/50 shadow-sm'
+                className='flex w-full items-center gap-3 rounded-md border border-border/60 bg-card px-3 py-2.5 text-left shadow-sm transition-[border-color,background-color] hover:border-brand/40 hover:bg-muted/50'
               >
                 <div className='min-w-0 flex-1'>
                   <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wider'>
@@ -5938,6 +5939,28 @@ export const SettingsPage = (): JSX.Element => {
               </button>
             ) : null}
 
+              <div className='space-y-2'>
+                <p className='font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground'>
+                  Confirm with a 6-digit code
+                </p>
+                <SixDigitOtpInput
+                  value={totpCode}
+                  onChange={(value) => {
+                    setTotpCode(value);
+                    setTwoFAError(null);
+                  }}
+                  onComplete={(code) => void handleVerifyTwoFA(code)}
+                  disabled={verifyBusy}
+                />
+                {twoFAError ? (
+                  <div className='flex items-center gap-2 rounded-md border border-rose-500/25 bg-rose-500/10 p-2 text-rose-300'>
+                    <AlertTriangle className='h-3.5 w-3.5 shrink-0' aria-hidden />
+                    <p className='text-xs'>{twoFAError}</p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
             <div className='flex justify-end gap-2 pt-2'>
               <Button
                 variant='outline'
@@ -5947,14 +5970,12 @@ export const SettingsPage = (): JSX.Element => {
                 Cancel
               </Button>
               <Button
-                onClick={() => {
-                  setTwoFAError(null);
-                  setTotpCode("");
-                  setTwoFAStep("verify");
-                }}
-                className='bg-brand text-black font-medium hover:bg-brand/90 shadow-md shadow-brand/10'
+                onClick={() => void handleVerifyTwoFA()}
+                disabled={totpCode.length < 6 || verifyBusy}
+                className='bg-brand text-black font-medium hover:bg-brand/90 shadow-md shadow-brand/10 disabled:opacity-50'
               >
-                Next — Enter Code
+                {verifyBusy ? <RefreshCw className='mr-2 h-4 w-4 animate-spin' aria-hidden /> : null}
+                Verify & Continue
               </Button>
             </div>
           </div>
