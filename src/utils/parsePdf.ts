@@ -4,6 +4,8 @@
 export interface ParsedPdfResult {
   text: string;
   lines: string[];
+  /** Text-line positions from the embedded PDF text layer, ordered as parsed. */
+  pageLines: Array<{ page: number; text: string; x: number; y: number }>;
 }
 
 export async function parsePdfFile(file: File): Promise<ParsedPdfResult> {
@@ -27,6 +29,7 @@ export async function parsePdfFile(file: File): Promise<ParsedPdfResult> {
     isEvalSupported: false,
   }).promise;
   let fullText = '';
+  const pageLines: ParsedPdfResult["pageLines"] = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
@@ -92,6 +95,12 @@ export async function parsePdfFile(file: File): Promise<ParsedPdfResult> {
       
       if (lineText.trim()) {
         pageText += lineText + '\n';
+        pageLines.push({
+          page: i,
+          text: lineText.replace(/[ \t]+/g, ' ').trim(),
+          x: Math.min(...line.items.map((entry) => entry.x)),
+          y: line.y,
+        });
       }
     }
     
@@ -106,5 +115,5 @@ export async function parsePdfFile(file: File): Promise<ParsedPdfResult> {
     .join('\n')
     .trim();
 
-  return { text: cleaned, lines: cleaned.split('\n') };
+  return { text: cleaned, lines: cleaned.split('\n'), pageLines };
 }

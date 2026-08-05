@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { parsePdfFile } from "@/utils/parsePdf";
 import type {
   DirectApplyOutput,
   DirectApplyResult,
@@ -13,9 +14,163 @@ const DIRECT_APPLY_PROGRESS = [
   "Searching official company channels",
   "Verifying application paths",
   "Preparing tailored drafts",
+  "Verifying the resume PDF text layer",
+  "Running an independent draft review",
   "Mapping connected inbox actions",
   "Ready for review",
 ];
+
+const ATS_STOP_WORDS = new Set([
+  "about", "after", "application", "business", "candidate", "company", "experience",
+  "including", "knowledge", "looking", "position", "required", "responsibilities",
+  "skills", "strong", "team", "work", "years",
+]);
+
+const extractKeywords = (posting: string) =>
+  Array.from(new Set((posting.toLowerCase().match(/[a-z][a-z0-9+#.-]{3,}/g) || [])
+    .filter((word) => !ATS_STOP_WORDS.has(word))))
+    .slice(0, 14);
+
+const parseJsonPayload = (value: string) => {
+  const candidate = value.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  try { return JSON.parse(candidate) as Record<string, unknown>; } catch { return null; }
+};
+
+const text = (value: unknown) =>
+  typeof value === "string" ? value.trim() : "";
+
+const askFreshReviewer = async (prompt: string, webSearch = false) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Please sign in to run the draft review.");
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL || "http://127.0.0.1:54321";
+  const response = await fetch(`${baseUrl}/functions/v1/ai-chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
+      messages: [{ role: "user", content: prompt }],
+      mode: "ask",
+      webSearch,
+      system: "You are an independent Jobraker application reviewer in a fresh context. Never invent candidate experience, job requirements, sources, contacts, or sent actions. Explicitly identify unsupported keywords as gaps.",
+    }),
+  });
+  if (!response.ok || !response.body) throw new Error(await response.text().catch(() => "Draft review failed."));
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let answer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const frames = buffer.split(/\n\n/);
+    buffer = frames.pop() || "";
+    for (const frame of frames) {
+      const data = frame.split(/\r?\n/).find((line) => line.startsWith("data:"))?.slice(5).trim();
+      if (!data || data === "[DONE]") continue;
+      try {
+        const payload = JSON.parse(data);
+        if (typeof payload.delta === "string") answer += payload.delta;
+        if (typeof payload.error === "string") throw new Error(payload.error);
+      } catch (error) {
+        if (error instanceof SyntaxError) continue;
+        throw error;
+      }
+    }
+  }
+  return answer.trim();
+};
+
+const verifyResumeTextLayer = async (role: string, companies: string[]) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { status: "unavailable" as const, contacts: [], readingOrder: { status: "warning" as const, detail: "Sign in to verify a resume." }, keywordCoverage: [], limitations: ["Not signed in."] };
+  const { data: resumes } = await supabase.from("resumes").select("*").eq("user_id", user.id).eq("file_ext", "pdf").order("is_favorite", { ascending: false }).order("updated_at", { ascending: false }).limit(1);
+  const resume = resumes?.[0] as Record<string, any> | undefined;
+  if (!resume?.file_path) return { status: "unavailable" as const, contacts: [], readingOrder: { status: "warning" as const, detail: "No uploaded PDF resume is available." }, keywordCoverage: [], limitations: ["Verification requires a compiled PDF stored in Jobraker."] };
+  const [{ data: signed }, { data: profile }, { data: skills }, { data: jobs }] = await Promise.all([
+    (supabase as any).storage.from("resumes").createSignedUrl(resume.file_path, 60),
+    supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+    supabase.from("profile_skills").select("name").eq("user_id", user.id),
+    supabase.from("jobs").select("description, job_description, title, company").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(30),
+  ]);
+  if (!signed?.signedUrl) return { status: "unavailable" as const, contacts: [], readingOrder: { status: "warning" as const, detail: "Could not access the stored PDF." }, keywordCoverage: [], limitations: ["The resume storage URL could not be created."] };
+  const response = await fetch(signed.signedUrl);
+  if (!response.ok) throw new Error("Could not download the stored resume PDF for verification.");
+  const parsed = await parsePdfFile(new File([await response.blob()], `${resume.name || "resume"}.pdf`, { type: "application/pdf" }));
+  const extracted = parsed.text.toLowerCase();
+  const phone = [profile?.phone, profile?.phone_number, profile?.mobile].find((value) => typeof value === "string" && value.trim()) as string | undefined;
+  const contacts = [
+    { label: "Email", value: user.email || "No account email", present: Boolean(user.email && extracted.includes(user.email.toLowerCase())) },
+    ...(phone ? [{ label: "Phone", value: phone, present: extracted.replace(/\D/g, "").includes(phone.replace(/\D/g, "")) }] : []),
+  ];
+  const targetJob = (jobs || []).find((job: any) =>
+    companies.some((company) => text(job.company).toLowerCase() === company.toLowerCase()) || text(job.title).toLowerCase().includes(role.toLowerCase()),
+  ) as Record<string, any> | undefined;
+  const posting = text(targetJob?.description) || text(targetJob?.job_description);
+  const supportEvidence = `${JSON.stringify(profile || {})} ${(skills || []).map((skill: any) => skill.name).join(" ")}`.toLowerCase();
+  const keywordCoverage = extractKeywords(posting).map((keyword) => ({ keyword, presentInPdf: extracted.includes(keyword), supportedByProfile: supportEvidence.includes(keyword) }));
+  const byPage = new Map<number, number[]>();
+  parsed.pageLines.forEach((line) => byPage.set(line.page, [...(byPage.get(line.page) || []), line.x]));
+  const likelyColumns = [...byPage.values()].some((xPositions) => xPositions.some((x) => x < 110) && xPositions.some((x) => x > 230));
+  const hasGarbage = /\uFFFD|[\uE000-\uF8FF]/.test(parsed.text);
+  const readingOrder = likelyColumns || hasGarbage
+    ? { status: "warning" as const, detail: hasGarbage ? "The embedded text includes replacement or private-use glyphs." : "The extracted text layer appears to use multiple columns; review the line order before applying." }
+    : { status: "passed" as const, detail: "PDF text was extracted in a single, top-to-bottom reading sequence." };
+  return {
+    status: contacts.every((contact) => contact.present) && readingOrder.status === "passed" ? "passed" as const : "warning" as const,
+    resumeName: resume.name || "Resume PDF",
+    extractedCharacterCount: parsed.text.length,
+    contacts,
+    readingOrder,
+    keywordCoverage,
+    limitations: posting ? undefined : ["No matching tracked posting was found, so keyword coverage could not be checked."],
+  };
+};
+
+const reviseDraftsAfterIndependentReview = async (
+  results: DirectApplyResult[],
+  role: string,
+) => {
+  const drafts = results.map((result) => ({
+    companyName: result.companyName,
+    role: result.role,
+    channel: result.channelValue,
+    subject: result.draftPreview.subject,
+    body: result.draftPreview.body,
+  }));
+  try {
+    const review = await askFreshReviewer(
+      `Research each company using authoritative public sources, then critique these application drafts. Identify generic language, missing role terms, claims unsupported by the draft, and questionable company details. Do not write a new draft. Return concise review notes.\n\nRole: ${role}\nDrafts: ${JSON.stringify(drafts)}`,
+      true,
+    );
+    const revision = await askFreshReviewer(
+      `You are the original application drafter revising after an independent review. Rewrite the supplied drafts using the review notes. Preserve only claims already present in the draft; do not add unverified achievements, contacts, job requirements, or company facts. Return JSON only in this exact shape: {"drafts":[{"companyName":"...","subject":"...","body":"..."}]}.\n\nOriginal drafts: ${JSON.stringify(drafts)}\n\nIndependent review: ${review}`,
+    );
+    const revised = parseJsonPayload(revision)?.drafts;
+    if (Array.isArray(revised)) {
+      for (const result of results) {
+        const next = revised.find((entry: any) => text(entry?.companyName).toLowerCase() === result.companyName.toLowerCase()) as Record<string, unknown> | undefined;
+        if (next && text(next.subject) && text(next.body)) {
+          result.draftPreview = { subject: text(next.subject), body: text(next.body) };
+        }
+      }
+    }
+    return {
+      status: "completed" as const,
+      reviewer: "Independent fresh-context reviewer",
+      detail: "The reviewer researched and critiqued the drafts before revision. Unsupported claims were not added.",
+    };
+  } catch (error) {
+    return {
+      status: "unavailable" as const,
+      reviewer: "Independent fresh-context reviewer",
+      detail: `Drafts are unchanged because the independent review could not run: ${error instanceof Error ? error.message : "unknown error"}`,
+    };
+  }
+};
 
 const VAGUE_ROLE_WORDS = new Set([
   "let",
@@ -520,6 +675,7 @@ export const directApplySkill: JobrakerChatSkill = {
   aliases: [
     "@DirectApply",
     "@CompanyOutreach",
+    "/apply",
     "/direct-apply",
     "/apply-direct",
     "/company-outreach",
@@ -599,6 +755,16 @@ Direct Apply needs a target company or role before it can prepare safe direct ap
     const lowConfidence = results.filter(
       (result) => result.confidence === "low",
     ).length;
+    const [atsVerification, reviewerSeparation] = await Promise.all([
+      verifyResumeTextLayer(role, results.map((result) => result.companyName)).catch((error) => ({
+        status: "unavailable" as const,
+        contacts: [],
+        readingOrder: { status: "warning" as const, detail: "PDF verification failed." },
+        keywordCoverage: [],
+        limitations: [error instanceof Error ? error.message : "Unknown PDF verification error."],
+      })),
+      reviseDraftsAfterIndependentReview(results, role),
+    ]);
     const output: DirectApplyOutput = {
       results,
       summary: {
@@ -609,6 +775,8 @@ Direct Apply needs a target company or role before it can prepare safe direct ap
       },
       progress: completedProgress,
       approvalStatus: "pending_user_review",
+      atsVerification,
+      reviewerSeparation,
       connectedInbox: {
         provider: "gmail",
         status: "available_when_connected",

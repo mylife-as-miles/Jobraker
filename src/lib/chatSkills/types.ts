@@ -152,4 +152,25 @@ export type DirectApplyOutput = {
     status: "available_when_connected";
     supportedActions: DirectApplyInboxAction[];
   };
+  atsVerification?: {
+    status: "passed" | "warning" | "unavailable";
+    resumeName?: string;
+    extractedCharacterCount?: number;
+    contacts: Array<{ label: string; value: string; present: boolean }>;
+    readingOrder: {
+      status: "passed" | "warning";
+      detail: string;
+    };
+    keywordCoverage: Array<{
+      keyword: string;
+      presentInPdf: boolean;
+      supportedByProfile: boolean;
+    }>;
+    limitations?: string[];
+  };
+  reviewerSeparation?: {
+    status: "completed" | "unavailable";
+    reviewer: string;
+    detail: string;
+  };
 };

@@ -189,6 +189,52 @@ export const DirectApplySkillCard = ({ output, onRunPrompt }: Props) => {
           </div>
         ) : null}
 
+        {output.atsVerification ? (
+          <div className='mt-4 rounded-xl border border-border/70 bg-card/35 p-3'>
+            <div className='flex flex-wrap items-center justify-between gap-2'>
+              <div>
+                <p className='text-sm font-semibold text-foreground'>ATS PDF text-layer check</p>
+                <p className='text-[11px] text-muted-foreground'>
+                  {output.atsVerification.resumeName || "Compiled resume PDF"}
+                  {output.atsVerification.extractedCharacterCount ? ` · ${output.atsVerification.extractedCharacterCount.toLocaleString()} characters extracted` : ""}
+                </p>
+              </div>
+              <span className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${output.atsVerification.status === "passed" ? "border-brand/25 bg-brand/10 text-brand" : "border-amber-400/25 bg-amber-400/10 text-amber-200"}`}>
+                {output.atsVerification.status === "passed" ? "Text layer passed" : "Review needed"}
+              </span>
+            </div>
+            <p className='mt-2 text-xs text-muted-foreground'>{output.atsVerification.readingOrder.detail}</p>
+            {output.atsVerification.contacts.length ? (
+              <div className='mt-2 flex flex-wrap gap-2'>
+                {output.atsVerification.contacts.map((contact) => (
+                  <span key={contact.label} className={`rounded-lg border px-2 py-1 text-[11px] ${contact.present ? "border-brand/25 bg-brand/10 text-brand" : "border-red-400/25 bg-red-400/10 text-red-200"}`}>
+                    {contact.label}: {contact.present ? "found" : "not found"}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {output.atsVerification.keywordCoverage.length ? (
+              <div className='mt-2 flex flex-wrap gap-1.5'>
+                {output.atsVerification.keywordCoverage.map((keyword) => (
+                  <span key={keyword.keyword} className={`rounded-lg border px-2 py-1 text-[10px] ${keyword.presentInPdf ? "border-brand/25 bg-brand/10 text-brand" : "border-border bg-background/60 text-muted-foreground"}`}>
+                    {keyword.keyword}{!keyword.supportedByProfile ? " · profile gap" : ""}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {output.atsVerification.limitations?.map((limitation) => (
+              <p key={limitation} className='mt-2 text-[11px] text-amber-200'>{limitation}</p>
+            ))}
+          </div>
+        ) : null}
+
+        {output.reviewerSeparation ? (
+          <p className='mt-3 rounded-xl border border-border/70 bg-background/70 px-3 py-2 text-xs text-muted-foreground'>
+            <span className='font-semibold text-foreground'>{output.reviewerSeparation.reviewer}: </span>
+            {output.reviewerSeparation.detail}
+          </p>
+        ) : null}
+
         <div className='mt-4 overflow-hidden rounded-xl border border-border/70'>
           <div className='hidden grid-cols-[1.15fr_1.15fr_1fr_.85fr_.95fr] gap-3 border-b border-border/70 bg-accent/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground md:grid'>
             <span>Company</span>
