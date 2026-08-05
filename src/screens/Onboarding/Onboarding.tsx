@@ -1278,73 +1278,71 @@ export const Onboarding = (): JSX.Element => {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[450px] bg-[radial-gradient(circle_at_50%_0%,rgba(47,217,104,0.12),transparent_70%)] blur-3xl" />
       </div>
 
-      <div className="relative z-10 max-w-5xl w-full mx-auto space-y-6">
+      <div className="relative z-10 mx-auto w-full max-w-5xl space-y-6">
         {/* Top Stepper Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-foreground/10 pb-4">
+        <div className="flex flex-col gap-4 border-b border-foreground/10 pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={prevStep}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-foreground/15 bg-background/50 text-foreground/70 hover:border-foreground/30 hover:text-foreground transition-all"
-              title="Go Back"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-foreground/15 bg-background/50 text-foreground/70 transition-[background-color,border-color,color] hover:border-brand/40 hover:bg-brand/10 hover:text-brand"
+              title={currentStep === 0 ? "Back to setup options" : "Previous step"}
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="h-4 w-4" />
             </button>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-brand">
-                  Step {currentStep + 1} of {STEP_DEFINITIONS.length}
+              <div className="flex items-center gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.24em] text-brand">
+                <span>
+                  Step {String(currentStep + 1).padStart(2, "0")} / {String(STEP_DEFINITIONS.length).padStart(2, "0")}
                 </span>
                 <span className="text-foreground/30">•</span>
-                <span className="text-xs text-foreground/60">{activeStepMeta.label}</span>
+                <span className="text-foreground/50">{activeStepMeta.label}</span>
               </div>
-              <h2 className="text-lg font-bold text-foreground tracking-tight">
+              <h2 className="mt-1 text-lg font-bold tracking-tight text-foreground">
                 JobRaker Profile Setup
               </h2>
             </div>
           </div>
 
-          {/* Stepper Dots & Icons */}
-          <div className="flex items-center gap-1.5 overflow-x-auto py-1">
+          {/* Compact step progress */}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-1" aria-label="Onboarding progress">
             {STEP_DEFINITIONS.map((s, idx) => {
-              const IconComponent = s.icon;
               const isDone = idx < currentStep;
               const isCurrent = idx === currentStep;
 
               return (
-                <div
+                <button
                   key={s.id}
+                  type="button"
                   onClick={() => setCurrentStep(idx)}
-                  className={`flex items-center gap-1 cursor-pointer px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-all ${
+                  className={`h-2 rounded-full transition-[width,background-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 ${
                     isCurrent
-                      ? "border-brand bg-brand/20 text-brand shadow-[0_0_12px_rgba(47,217,104,0.15)]"
+                      ? "w-7 bg-brand shadow-[0_0_10px_rgba(47,217,104,0.35)]"
                       : isDone
-                        ? "border-brand/30 bg-brand/10 text-brand/80"
-                        : "border-foreground/10 bg-background/30 text-foreground/40 hover:text-foreground/60"
+                        ? "w-2 bg-brand/70 hover:bg-brand"
+                        : "w-2 bg-foreground/15 hover:bg-foreground/35"
                   }`}
                   title={s.label}
+                  aria-label={`Go to ${s.label}`}
+                  aria-current={isCurrent ? "step" : undefined}
                 >
-                  {isDone ? (
-                    <Check className="h-3 w-3 text-brand stroke-[3]" />
-                  ) : (
-                    <IconComponent className="h-3 w-3" />
-                  )}
-                  <span className="hidden md:inline">{s.label}</span>
-                </div>
+                  <span className="sr-only">{s.label}</span>
+                </button>
               );
             })}
           </div>
         </div>
 
         {/* Main Dual-Column Workspace */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
           {/* Left Form Step Container */}
-          <Card className="lg:col-span-7 rounded-2xl border border-brand/20 bg-card/60 backdrop-blur-2xl p-5 sm:p-7 shadow-2xl space-y-6">
+          <Card className="space-y-6 rounded-2xl border border-brand/20 bg-card/60 p-5 shadow-2xl backdrop-blur-2xl sm:p-7 lg:col-span-7">
             <div>
-              <div className="flex items-center gap-2 text-brand text-xs font-bold uppercase tracking-wider mb-1">
+              <div className="mb-1 flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-brand">
                 {React.createElement(activeStepMeta.icon, { className: "w-4 h-4" })}
                 {activeStepMeta.label} Configuration
               </div>
-              <h3 className="text-xl sm:text-2xl font-extrabold text-foreground">
+              <h3 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
                 {currentStep === 0 && "Welcome! Let's get your details"}
                 {currentStep === 1 && "Your Role & Career Level"}
                 {currentStep === 2 && "Where are you based?"}
@@ -1354,7 +1352,7 @@ export const Onboarding = (): JSX.Element => {
                 {currentStep === 6 && "Add your education history"}
                 {currentStep === 7 && "Choose your Scouting Power Plan"}
               </h3>
-              <p className="text-xs text-foreground/60 mt-1">
+              <p className="mt-2 text-sm text-foreground/60">
                 {currentStep === 0 && "Enter your name and contact details to get started."}
                 {currentStep === 1 && "Help AI agents target relevant openings for your title."}
                 {currentStep === 2 && "Specify location & remote/hybrid work preference."}
@@ -1370,11 +1368,11 @@ export const Onboarding = (): JSX.Element => {
             <div className="py-2">{renderStepComponent()}</div>
 
             {/* Navigation Footer Controls */}
-            <div className="flex items-center justify-between border-t border-foreground/10 pt-4">
+            <div className="flex items-center justify-between border-t border-foreground/10 pt-5">
               <Button
                 onClick={prevStep}
                 variant="outline"
-                className="border-foreground/15 bg-background/40 text-foreground/80 hover:border-foreground/30 hover:text-foreground text-xs font-semibold h-10 rounded-xl"
+                className="h-10 rounded-xl border-foreground/15 bg-background/40 text-xs font-semibold text-foreground/80 transition-[background-color,border-color,color] hover:border-brand/40 hover:bg-brand/10 hover:text-foreground"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
                 {currentStep === 0 ? "Back to Mode" : "Back"}
@@ -1383,7 +1381,7 @@ export const Onboarding = (): JSX.Element => {
               <Button
                 onClick={nextStep}
                 disabled={saving}
-                className="bg-brand text-black hover:bg-brand/90 transition-all font-bold text-xs h-10 px-6 rounded-xl shadow-[0_0_15px_rgba(47,217,104,0.2)] flex items-center gap-1.5"
+                className="flex h-10 items-center gap-1.5 rounded-xl bg-brand px-6 text-xs font-bold text-black shadow-[0_0_15px_rgba(47,217,104,0.2)] transition-[background-color,box-shadow] hover:bg-brand/90 hover:shadow-[0_0_22px_rgba(47,217,104,0.3)]"
               >
                 {saving ? (
                   <>
@@ -1403,8 +1401,8 @@ export const Onboarding = (): JSX.Element => {
           </Card>
 
           {/* Right Live Profile Snapshot Card */}
-          <div className="lg:col-span-5 space-y-4">
-            <Card className="rounded-2xl border border-brand/30 bg-gradient-to-br from-card/80 via-card/50 to-card/20 p-5 backdrop-blur-2xl shadow-xl space-y-4">
+          <div className="space-y-4 lg:col-span-5">
+            <Card className="space-y-4 rounded-2xl border border-brand/30 bg-gradient-to-br from-card/80 via-card/50 to-card/20 p-5 shadow-xl backdrop-blur-2xl">
               <div className="flex items-center justify-between border-b border-foreground/10 pb-3">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-brand animate-pulse" />
