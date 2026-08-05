@@ -12,6 +12,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import NumberFlow from "@number-flow/react";
 import {
   Area,
   ResponsiveContainer,
@@ -209,7 +210,12 @@ export default function AdminRevenue() {
               </div>
               <p className='text-sm text-gray-400 mb-1'>Total Revenue</p>
               <p className='text-3xl font-bold text-white'>
-                ${totalRevenue.toLocaleString()}
+                <NumberFlow
+                  value={totalRevenue}
+                  prefix='$'
+                  format={{ useGrouping: true, maximumFractionDigits: 0 }}
+                  respectMotionPreference
+                />
               </p>
             </CardContent>
           </Card>
@@ -233,7 +239,12 @@ export default function AdminRevenue() {
               </div>
               <p className='text-sm text-gray-400 mb-1'>Current MRR</p>
               <p className='text-3xl font-bold text-white'>
-                ${currentMRR.toLocaleString()}
+                <NumberFlow
+                  value={currentMRR}
+                  prefix='$'
+                  format={{ useGrouping: true, maximumFractionDigits: 0 }}
+                  respectMotionPreference
+                />
               </p>
             </CardContent>
           </Card>
@@ -257,7 +268,12 @@ export default function AdminRevenue() {
               </div>
               <p className='text-sm text-gray-400 mb-1'>Avg Daily Revenue</p>
               <p className='text-3xl font-bold text-white'>
-                ${avgDailyRevenue.toFixed(0)}
+                <NumberFlow
+                  value={avgDailyRevenue}
+                  prefix='$'
+                  format={{ useGrouping: true, maximumFractionDigits: 0 }}
+                  respectMotionPreference
+                />
               </p>
             </CardContent>
           </Card>
@@ -280,7 +296,13 @@ export default function AdminRevenue() {
                 </div>
               </div>
               <p className='text-sm text-gray-400 mb-1'>New Subscriptions</p>
-              <p className='text-3xl font-bold text-white'>{totalNewSubs}</p>
+              <p className='text-3xl font-bold text-white'>
+                <NumberFlow
+                  value={totalNewSubs}
+                  format={{ useGrouping: true, maximumFractionDigits: 0 }}
+                  respectMotionPreference
+                />
+              </p>
             </CardContent>
           </Card>
         </motion.div>
