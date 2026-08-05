@@ -138,5 +138,16 @@ The audited source is `jakubkrehel/skills`; the project install is tracked in `s
 npx skills update better-interface better-accessibility better-layout better-writing better-typography better-colors better-ui
 ```
 
+## Emil Kowalski Design Skills
+The `emilkowalski/skills` collection is installed in `.agents/skills/` and has been audited as documentation-only. It includes `emil-design-eng`, `review-animations`, `improve-animations`, `find-animation-opportunities`, `animation-vocabulary`, `apple-design`, `pick-ui-library`, and `prototype`.
+
+Use `emil-design-eng` for general design-engineering guidance. Invoke `review-animations`, `improve-animations`, `find-animation-opportunities`, `animation-vocabulary`, `pick-ui-library`, or `prototype` explicitly when that specialized workflow is requested. `prototype` must remain isolated until a specific variant is selected for promotion.
+
+The audited source is `emilkowalski/skills`; the project install is tracked in `skills-lock.json`. Refresh it with:
+
+```bash
+npx skills update emil-design-eng review-animations improve-animations find-animation-opportunities animation-vocabulary apple-design pick-ui-library prototype
+```
+
 ## Model and Stack Restrictions
 - **CRITICAL**: Never change any model name (e.g., `gemini-embedding-2`), model configurations, or tech stack components (libraries, databases, architecture) without explicit user permission or telling the user first.
