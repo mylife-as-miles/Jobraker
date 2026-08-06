@@ -1638,17 +1638,15 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                   });
 
                   setPendingPermissionRequest(null);
-                  const { data: userData } = await supabase.auth.getUser();
-                  if (userData.user?.id) {
-                    await saveUserPermission(supabase, userData.user.id, integration.slug, decision);
-                  }
-                  setPermissionGrants((prev) => ({
-                    ...prev,
-                    [integration.slug]: decision,
-                  }));
-
-                  if (decision === "deny") {
-                    console.warn(`User denied first-use access to ${integration.name}`);
+                  if (decision !== "deny") {
+                    const { data: userData } = await supabase.auth.getUser();
+                    if (userData.user?.id) {
+                      await saveUserPermission(supabase, userData.user.id, integration.slug, decision);
+                    }
+                    setPermissionGrants((prev) => ({
+                      ...prev,
+                      [integration.slug]: decision,
+                    }));
                   }
                 }
               }
