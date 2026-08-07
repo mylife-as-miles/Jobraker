@@ -18,11 +18,6 @@ export const resolveGeminiApiKey = (): string => {
   return apiKey;
 };
 
-export const createGeminiClient = () => {
-  const apiKey = resolveGeminiApiKey();
-  return new GoogleGenAI({ apiKey });
-};
-
 function getAdminSupabaseClient() {
   const url = Deno.env.get("SUPABASE_URL") || "";
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -112,8 +107,16 @@ export const isGeminiTransientProviderError = (error: unknown): boolean => {
  * Despite the historical name, it intentionally includes both quota/rate-limit
  * failures and transient upstream availability failures.
  */
-export const isGeminiRateLimitError = (error: unknown): boolean =>
-  isGeminiQuotaError(error) || isGeminiTransientProviderError(error);
+export const isGeminiRateLimitError = (error: unknown): boolean => {
+  if (
+    error &&
+    typeof error === "object" &&
+    (error as Record<string, unknown>).jobrakerFallbackExhausted === true
+  ) {
+    return false;
+  }
+  return isGeminiQuotaError(error) || isGeminiTransientProviderError(error);
+};
 
 export const formatGeminiErrorMessage = (error: unknown): string => {
   if (isGeminiQuotaError(error)) {
@@ -203,6 +206,267 @@ export const MODEL_FALLBACK_CHAIN = [
   "gemini-2.5-flash",
 ] as const;
 
+const asProviderRecord = (value: unknown): Record<string, unknown> | null =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+
+const providerChunkParts = (chunk: unknown): unknown[] => {
+  const record = asProviderRecord(chunk);
+  const candidates = Array.isArray(record?.candidates) ? record!.candidates : [];
+  const candidate = asProviderRecord(candidates[0]);
+  const content = asProviderRecord(candidate?.content);
+  return Array.isArray(content?.parts) ? content!.parts as unknown[] : [];
+};
+
+const chatHistoryEntryFromMessage = (message: unknown) => {
+  const record = asProviderRecord(message);
+  if (record && Array.isArray(record.parts)) {
+    return {
+      role: typeof record.role === "string" ? record.role : "user",
+      parts: record.parts,
+    };
+  }
+  if (Array.isArray(message)) {
+    return { role: "user", parts: message };
+  }
+  if (typeof message === "string") {
+    return { role: "user", parts: [{ text: message }] };
+  }
+  return {
+    role: "user",
+    parts: [{ text: JSON.stringify(message ?? {}) }],
+  };
+};
+
+const getFunctionResponses = (message: unknown) => {
+  const record = asProviderRecord(message);
+  const parts = record && Array.isArray(record.parts) ? record.parts : [];
+  return parts
+    .map((part) => asProviderRecord(part)?.functionResponse)
+    .map(asProviderRecord)
+    .filter((part): part is Record<string, unknown> => Boolean(part));
+};
+
+const isFunctionResponseMessage = (message: unknown): boolean =>
+  getFunctionResponses(message).length > 0;
+
+const humanizeToolName = (value: unknown) =>
+  typeof value === "string"
+    ? value.replace(/^(default_api|mcp_default_api):/, "").replace(/_/g, " ")
+    : "tool step";
+
+const buildPreservedWorkMessage = (message: unknown): string => {
+  const responses = getFunctionResponses(message);
+  const successful: string[] = [];
+  const incomplete: string[] = [];
+
+  for (const response of responses) {
+    const name = humanizeToolName(response.name);
+    const payload = asProviderRecord(response.response);
+    const failed = payload?.success === false || typeof payload?.error === "string";
+    const target = failed ? incomplete : successful;
+    if (!target.includes(name)) target.push(name);
+  }
+
+  const lines = [
+    "**Work preserved.** The AI provider stopped responding while generating the next summary, even after JobRaker tried backup models.",
+  ];
+  if (successful.length > 0) {
+    lines.push(`Successful tool result${successful.length === 1 ? "" : "s"} preserved: ${successful.join(", ")}.`);
+  }
+  if (incomplete.length > 0) {
+    lines.push(`Tool result${incomplete.length === 1 ? "" : "s"} that reported an issue: ${incomplete.join(", ")}.`);
+  }
+  lines.push(
+    "The completed actions above were not rolled back. Review the tool results, or send **Continue** and JobRaker will resume from the last successful state.",
+  );
+  return lines.join("\n\n");
+};
+
+const makeSyntheticTextChunk = (text: string) => ({
+  text,
+  candidates: [
+    {
+      content: {
+        role: "model",
+        parts: [{ text }],
+      },
+    },
+  ],
+  usageMetadata: {
+    promptTokenCount: 0,
+    candidatesTokenCount: 0,
+    totalTokenCount: 0,
+  },
+});
+
+const isModelNotFoundError = (error: unknown) => {
+  const status = getGeminiHttpStatus(error);
+  const message = readNestedErrorMessage(error).toLowerCase();
+  return status === 404 || message.includes("not found") || message.includes("model not found");
+};
+
+/**
+ * Wrap the SDK chat object so every streamed chat step can fail over, not just
+ * the first request in an Agent Mode turn. The wrapper keeps a minimal local
+ * transcript, allowing a newly-created backup-model chat to continue after a
+ * successful function-call round without replaying side effects.
+ */
+function createResilientGeminiClient(apiKey: string) {
+  const nativeAi: any = new GoogleGenAI({ apiKey });
+  const nativeChats: any = nativeAi?.chats;
+  if (!nativeChats || typeof nativeChats.create !== "function") {
+    return nativeAi;
+  }
+
+  const resilientChats = new Proxy(nativeChats, {
+    get(target, property, receiver) {
+      if (property !== "create") {
+        const value = Reflect.get(target, property, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      }
+
+      return (createArgs: Record<string, unknown>) => {
+        const baseArgs = createArgs || {};
+        const originalHistory = Array.isArray(baseArgs.history)
+          ? [...baseArgs.history]
+          : [];
+        let transcript = [...originalHistory];
+        let activeModel = typeof baseArgs.model === "string" && baseArgs.model
+          ? baseArgs.model
+          : GEMINI_MODEL;
+        let activeNativeChat = target.create.call(target, {
+          ...baseArgs,
+          model: activeModel,
+          history: transcript,
+        });
+
+        const resilientChat: any = {};
+        Object.defineProperty(resilientChat, "model", {
+          enumerable: true,
+          get: () => activeModel,
+        });
+
+        resilientChat.sendMessageStream = async ({ message }: { message: unknown }) => {
+          const messageEntry = chatHistoryEntryFromMessage(message);
+          const models = [...new Set([activeModel, ...MODEL_FALLBACK_CHAIN])];
+
+          return (async function* resilientStream() {
+            let lastError: unknown = null;
+
+            for (const candidateModel of models) {
+              const candidateChat = candidateModel === activeModel
+                ? activeNativeChat
+                : target.create.call(target, {
+                  ...baseArgs,
+                  model: candidateModel,
+                  history: transcript,
+                });
+              const responseParts: unknown[] = [];
+              let yieldedAnyChunk = false;
+
+              try {
+                if (candidateModel !== activeModel) {
+                  console.warn(
+                    `[Gemini chat] ${activeModel} failed; continuing on ${candidateModel}`,
+                  );
+                }
+                const nativeStream = await candidateChat.sendMessageStream({ message });
+                for await (const chunk of nativeStream) {
+                  yieldedAnyChunk = true;
+                  responseParts.push(...providerChunkParts(chunk));
+                  yield chunk;
+                }
+
+                transcript = [
+                  ...transcript,
+                  messageEntry,
+                  {
+                    role: "model",
+                    parts: responseParts.length > 0
+                      ? responseParts
+                      : [{ text: "" }],
+                  },
+                ];
+                activeModel = candidateModel;
+                activeNativeChat = candidateChat;
+                return;
+              } catch (error) {
+                lastError = error;
+                const retryable =
+                  isGeminiRateLimitError(error) || isModelNotFoundError(error);
+
+                // Once visible output has escaped, replaying the same model turn
+                // on another provider model could duplicate user-facing text or
+                // function calls. For a post-tool synthesis failure, finish with
+                // a deterministic preservation notice instead of replaying work.
+                if (yieldedAnyChunk) {
+                  if (retryable && isFunctionResponseMessage(message)) {
+                    const preserved = buildPreservedWorkMessage(message);
+                    transcript = [
+                      ...transcript,
+                      messageEntry,
+                      { role: "model", parts: [{ text: preserved }] },
+                    ];
+                    yield makeSyntheticTextChunk(`\n\n${preserved}`);
+                    return;
+                  }
+                  throw error;
+                }
+
+                if (!retryable) {
+                  throw error;
+                }
+              }
+            }
+
+            if (isFunctionResponseMessage(message)) {
+              const preserved = buildPreservedWorkMessage(message);
+              transcript = [
+                ...transcript,
+                messageEntry,
+                { role: "model", parts: [{ text: preserved }] },
+              ];
+              yield makeSyntheticTextChunk(preserved);
+              return;
+            }
+
+            const exhaustedError = lastError instanceof Error
+              ? lastError
+              : new Error("All configured Gemini models failed to respond.");
+            Object.assign(exhaustedError, { jobrakerFallbackExhausted: true });
+            throw exhaustedError;
+          })();
+        };
+
+        return new Proxy(resilientChat, {
+          get(targetObject, property, receiver) {
+            if (Reflect.has(targetObject, property)) {
+              return Reflect.get(targetObject, property, receiver);
+            }
+            const value = activeNativeChat?.[property as any];
+            return typeof value === "function" ? value.bind(activeNativeChat) : value;
+          },
+        });
+      };
+    },
+  });
+
+  return new Proxy(nativeAi, {
+    get(target, property, receiver) {
+      if (property === "chats") return resilientChats;
+      const value = Reflect.get(target, property, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}
+
+export const createGeminiClient = () => {
+  const apiKey = resolveGeminiApiKey();
+  return createResilientGeminiClient(apiKey);
+};
+
 /**
  * Try `fn` with the given model. On retryable provider failure or model not
  * found, cascade through fallback models before giving up.
@@ -219,8 +483,7 @@ export async function withModelFallback<T>(
       return { result, modelUsed: model };
     } catch (error) {
       lastError = error;
-      const msg = String(error instanceof Error ? error.message : error).toLowerCase();
-      const isNotFound = msg.includes("not found") || msg.includes("404");
+      const isNotFound = isModelNotFoundError(error);
       if (!isGeminiRateLimitError(error) && !isNotFound) {
         throw error;
       }
