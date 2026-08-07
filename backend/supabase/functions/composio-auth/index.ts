@@ -4,20 +4,30 @@ import { getCorsHeaders, resolveAllowedOrigin } from "../_shared/cors.ts";
 import {
   SubscriptionAccessError,
   requireAuthenticatedUser,
+  resolveSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 import {
-  findActiveConnectedAccount,
+  filterConnectedAccountsForUser,
+  findConnectedAccountsForIntegration,
   normalizeComposioSlug,
   normalizeConnectedAccount,
+  resolveIntegrationConnection,
 } from "../_shared/composio-connected-account.ts";
+import { runMeteredComposioCall } from "../_shared/metered-composio.ts";
 
 const composio = new Composio({
   apiKey: Deno.env.get("COMPOSIO_API_KEY") || "",
 });
 
+const PAID_ACTIONS = new Set(["initiate", "execute", "debug-configs"]);
+
 function asString(val: unknown): string {
   return typeof val === "string" ? val : "";
+}
+
+function requiresPaidPlan(action: unknown): boolean {
+  return typeof action === "string" && PAID_ACTIONS.has(action);
 }
 
 const normalizeSlug = normalizeComposioSlug;
@@ -37,12 +47,163 @@ function resolveAuthConfigId(body: Record<string, unknown>, item?: RequestedInte
   );
 }
 
-function connectedAccountMatches(
-  account: Record<string, unknown>,
-  authConfigId: string | null,
-  slug?: string | null,
-) {
-  return Boolean(findActiveConnectedAccount([account], { authConfigId, slug }));
+function extractConnectedAccounts(result: unknown): Record<string, unknown>[] {
+  if (Array.isArray(result)) {
+    return result.filter(
+      (item): item is Record<string, unknown> =>
+        item !== null && typeof item === "object" && !Array.isArray(item),
+    );
+  }
+
+  if (result === null || typeof result !== "object") {
+    return [];
+  }
+
+  const record = result as Record<string, unknown>;
+  const candidates = [record.items, record.data];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate.filter(
+        (item): item is Record<string, unknown> =>
+          item !== null && typeof item === "object" && !Array.isArray(item),
+      );
+    }
+  }
+
+  return [];
+}
+
+async function listConnectedAccountsForUser(
+  userId: string,
+): Promise<Record<string, unknown>[]> {
+  const accountMap = new Map<string, Record<string, unknown>>();
+  const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+
+  /**
+   * `scoped` means the upstream call already filtered by this user. Rows from
+   * a scoped source that carry no owner field are stamped with the user id so
+   * the strict ownership filter below keeps them; rows from the workspace-wide
+   * endpoint are only kept when they explicitly name this user.
+   */
+  const addItems = (items: unknown[], scoped: boolean) => {
+    const extracted = extractConnectedAccounts(items);
+    for (const item of extracted) {
+      const norm = normalizeConnectedAccount(item);
+      if (!norm.id) continue;
+      if (norm.userId && norm.userId !== userId) continue;
+      if (!norm.userId && !scoped) continue;
+
+      const owned = norm.userId ? item : { ...item, user_id: userId };
+      if (scoped || !accountMap.has(norm.id)) {
+        accountMap.set(norm.id, owned);
+      }
+    }
+  };
+
+  try {
+    const response = await composio.connectedAccounts.list({
+      userIds: [userId],
+    });
+    addItems(extractConnectedAccounts(response), true);
+  } catch (e) {
+    console.warn("SDK connectedAccounts.list failed:", e);
+  }
+
+  if (apiKey) {
+    const endpoints: Array<{ url: string; scoped: boolean }> = [
+      {
+        url: `https://backend.composio.dev/api/v3.1/connected_accounts?user_id=${encodeURIComponent(userId)}`,
+        scoped: true,
+      },
+      {
+        url: `https://backend.composio.dev/api/v3.1/connected_accounts?entity_id=${encodeURIComponent(userId)}`,
+        scoped: true,
+      },
+      { url: `https://backend.composio.dev/api/v3.1/connected_accounts`, scoped: false },
+    ];
+    for (const endpoint of endpoints) {
+      try {
+        const res = await fetch(endpoint.url, { headers: { "x-api-key": apiKey } });
+        if (res.ok) {
+          const data = await res.json();
+          const items = data.items || data.data || (Array.isArray(data) ? data : []);
+          addItems(items, endpoint.scoped);
+        }
+      } catch (e) {
+        console.warn(`REST fetch failed for ${endpoint.url}:`, e);
+      }
+    }
+  }
+
+  return filterConnectedAccountsForUser(Array.from(accountMap.values()), userId);
+}
+
+/** Fetches a single account so disconnect can verify ownership even when the
+ * aggregate listing is momentarily stale. */
+async function fetchConnectedAccountById(
+  connectionId: string,
+): Promise<Record<string, unknown> | null> {
+  const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+
+  try {
+    const account = await composio.connectedAccounts.get(connectionId);
+    if (account && typeof account === "object") {
+      return account as Record<string, unknown>;
+    }
+  } catch (e) {
+    console.warn(`SDK connectedAccounts.get failed for ${connectionId}:`, e);
+  }
+
+  if (!apiKey) return null;
+
+  try {
+    const res = await fetch(
+      `https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(connectionId)}`,
+      { headers: { "x-api-key": apiKey } },
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data === "object" && !Array.isArray(data)) {
+        return data as Record<string, unknown>;
+      }
+    }
+  } catch (e) {
+    console.warn(`REST connected account fetch failed for ${connectionId}:`, e);
+  }
+
+  return null;
+}
+
+async function deleteConnectedAccount(connectionId: string): Promise<boolean> {
+  let deleted = false;
+
+  try {
+    await composio.connectedAccounts.delete(connectionId);
+    deleted = true;
+  } catch (e) {
+    console.warn(`SDK disconnect error for ${connectionId}:`, e);
+  }
+
+  const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+  if (apiKey) {
+    try {
+      const response = await fetch(
+        `https://backend.composio.dev/api/v3.1/connected_accounts/${encodeURIComponent(connectionId)}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+        },
+      );
+      // 404 means it is already gone, which is the outcome the caller wanted.
+      if (response.ok || response.status === 404) {
+        deleted = true;
+      }
+    } catch (e) {
+      console.warn(`REST disconnect error for ${connectionId}:`, e);
+    }
+  }
+
+  return deleted;
 }
 
 interface RequestedIntegration {
@@ -77,7 +238,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { user } = await requireAuthenticatedUser(req);
+    const { user, serviceClient } = await requireAuthenticatedUser(req);
     const userId = user.id;
 
     let body;
@@ -101,6 +262,18 @@ Deno.serve(async (req) => {
       arguments: toolArguments,
       args,
     } = body as Record<string, unknown>;
+
+    if (requiresPaidPlan(action)) {
+      const subscriptionTier = await resolveSubscriptionTier(userId, serviceClient);
+      if (subscriptionTier === "Free") {
+        throw new SubscriptionAccessError(
+          403,
+          "Connected integrations require the Basics plan or higher.",
+        );
+      }
+    }
+
+    const reqSlug = normalizeSlug((body.toolkitSlug as string) || (body.integrationSlug as string) || (body.slug as string));
     const authConfigId = resolveAuthConfigId(body as Record<string, unknown>);
 
     // 3. Handle Actions
@@ -127,7 +300,7 @@ Deno.serve(async (req) => {
           const errStr = String(sdkErr?.message || sdkErr?.cause?.message || sdkErr);
           console.warn(`SDK link call failed for config ${configId}: ${errStr}. Trying REST v3 link fallback...`);
 
-          const res = await fetch("https://backend.composio.dev/api/v3/link", {
+          const res = await fetch("https://backend.composio.dev/api/v3.1/connected_accounts/link", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -165,13 +338,18 @@ Deno.serve(async (req) => {
       if (finalAuthConfigId) {
         const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
         try {
-          const configRes = await fetch(`https://backend.composio.dev/api/v3/auth_configs/${finalAuthConfigId}`, {
+          const configRes = await fetch(`https://backend.composio.dev/api/v3.1/auth_configs/${finalAuthConfigId}`, {
             headers: { "x-api-key": apiKey },
           });
           if (configRes.ok) {
             const configData = await configRes.json();
             const configToolkit = normalizeSlug(
-              configData?.toolkit?.slug || configData?.toolkit_slug || configData?.app_slug || configData?.appName || configData?.app?.slug
+              configData?.toolkit_slug ||
+                configData?.toolkit?.slug ||
+                configData?.app_slug ||
+                configData?.app?.slug ||
+                configData?.auth_config?.toolkit_slug ||
+                ""
             );
             if (configToolkit && configToolkit !== slug) {
               console.warn(`AuthConfig ${finalAuthConfigId} belongs to '${configToolkit}', not requested '${slug}'. Falling back to default ${slug} config...`);
@@ -233,7 +411,7 @@ Deno.serve(async (req) => {
           try {
             const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
             const v3Res = await fetch(
-              `https://backend.composio.dev/api/v3/auth_configs?toolkit_slug=${encodeURIComponent(slug)}`,
+              `https://backend.composio.dev/api/v3.1/auth_configs?toolkit_slug=${encodeURIComponent(slug)}`,
               {
                 headers: { "x-api-key": apiKey },
               }
@@ -277,33 +455,108 @@ Deno.serve(async (req) => {
         }
       );
     } else if (action === "disconnect" || action === "delete") {
-      if (!connectionId || typeof connectionId !== "string") {
-        return new Response(JSON.stringify({ error: "Missing connectionId for disconnect action" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+      const hasConnectionId = typeof connectionId === "string" && connectionId.length > 0;
+      if (!hasConnectionId && !reqSlug) {
+        return new Response(
+          JSON.stringify({ error: "Provide a connectionId or an integrationSlug to disconnect" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
-      try {
-        await composio.connectedAccounts.delete(connectionId);
-      } catch (e: any) {
-        console.warn(`SDK disconnect error for ${connectionId}:`, e);
-        const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-        const response = await fetch(`https://backend.composio.dev/api/v3/connected_accounts/${encodeURIComponent(connectionId)}`, {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-          },
-        });
-        if (!response.ok && response.status !== 404) {
-          const errorText = await response.text();
-          throw new Error(`Composio API error (${response.status}): ${errorText}`);
+      const ownedAccounts = await listConnectedAccountsForUser(userId);
+      const targets = new Map<string, Record<string, unknown>>();
+
+      // Disconnecting by slug clears every row for that toolkit, including the
+      // abandoned "pending" shells that otherwise keep a card looking connected.
+      if (reqSlug) {
+        for (const account of findConnectedAccountsForIntegration(ownedAccounts, {
+          slug: reqSlug,
+          authConfigId,
+        })) {
+          const id = normalizeConnectedAccount(account).id;
+          if (id) targets.set(id, account);
         }
       }
 
+      if (hasConnectionId && !targets.has(connectionId as string)) {
+        const owned = ownedAccounts.find(
+          (account) => normalizeConnectedAccount(account).id === connectionId,
+        );
+        if (owned) {
+          targets.set(connectionId as string, owned);
+        } else {
+          // Not in the (possibly stale) listing — confirm ownership directly
+          // rather than deleting an id supplied by the caller on trust.
+          const fetched = await fetchConnectedAccountById(connectionId as string);
+          if (!fetched) {
+            return new Response(
+              JSON.stringify({ error: "Connection not found", code: "not_found" }),
+              {
+                status: 404,
+                headers: { "Content-Type": "application/json", ...corsHeaders },
+              },
+            );
+          }
+          const owner = normalizeConnectedAccount(fetched).userId;
+          if (owner && owner !== userId) {
+            console.warn(`Blocked cross-user disconnect of ${connectionId} by ${userId}`);
+            return new Response(
+              JSON.stringify({ error: "Connection not found", code: "not_found" }),
+              {
+                status: 404,
+                headers: { "Content-Type": "application/json", ...corsHeaders },
+              },
+            );
+          }
+          targets.set(connectionId as string, fetched);
+        }
+      }
+
+      if (targets.size === 0) {
+        // Nothing left to remove: the caller's desired end state already holds.
+        return new Response(
+          JSON.stringify({ success: true, deleted: 0, alreadyDisconnected: true }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
+      }
+
+      const failed: string[] = [];
+      let deletedCount = 0;
+      for (const id of targets.keys()) {
+        if (await deleteConnectedAccount(id)) {
+          deletedCount += 1;
+        } else {
+          failed.push(id);
+        }
+      }
+
+      if (deletedCount === 0) {
+        return new Response(
+          JSON.stringify({
+            error: "Composio rejected the disconnect request",
+            code: "disconnect_failed",
+            failed,
+          }),
+          {
+            status: 502,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
+      }
+
       return new Response(
-        JSON.stringify({ success: true, message: "Connection deleted" }),
+        JSON.stringify({
+          success: true,
+          message: "Connection deleted",
+          deleted: deletedCount,
+          failed,
+        }),
         {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -316,53 +569,32 @@ Deno.serve(async (req) => {
           )
         : [];
 
-      // Use v3 API (v1 is deprecated and returns 410)
-      const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-
-      // Fetch connected accounts for this user via v3 API
-      const accountsResponse = await fetch(
-        `https://backend.composio.dev/api/v3/connected_accounts?user_id=${encodeURIComponent(userId)}`,
-        {
-          method: "GET",
-          headers: { "x-api-key": apiKey },
-        }
-      );
-      let accounts: Record<string, unknown>[] = [];
-      const filteredResponseText = await accountsResponse.text();
-      let rawApiResponse: unknown = null;
-      try {
-        rawApiResponse = JSON.parse(filteredResponseText);
-        if (accountsResponse.ok) {
-          const parsed = rawApiResponse as Record<string, unknown>;
-          const rawItems = parsed?.items || parsed?.data || parsed;
-          accounts = Array.isArray(rawItems) ? rawItems : [];
-        }
-      } catch (_) {
-        rawApiResponse = filteredResponseText;
-      }
-
-      console.log(`[Status API v3] userId=${userId} count=${accounts.length} (${accountsResponse.status})`);
+      const accounts = await listConnectedAccountsForUser(userId);
+      console.log(`[Status SDK] userId=${userId} count=${accounts.length}`);
 
       if (requested.length > 0) {
         const statuses = requested.map((item) => {
           const itemSlug = normalizeSlug(item.slug) || "unknown";
           const isNoAuth = item.noAuth === true;
           const itemAuthConfigId = resolveAuthConfigId(body as Record<string, unknown>, item);
-          const account = accounts.find((candidate) =>
-            connectedAccountMatches(candidate, itemAuthConfigId, itemSlug)
-          );
-          const identifier = account
-            ? normalizeConnectedAccount(account).identifier
-            : null;
+          const { account, state } = resolveIntegrationConnection(accounts, {
+            slug: itemSlug,
+            authConfigId: itemAuthConfigId,
+          });
+          const normalized = account ? normalizeConnectedAccount(account) : null;
 
           return {
             slug: itemSlug,
             label: item.label || itemSlug,
             toolkitSlug: item.toolkitSlug || itemSlug,
             configured: true,
-            isConnected: isNoAuth || Boolean(account),
-            connectionId: account?.id || null,
-            identifier,
+            // Only a fully authorized account counts as connected. A `pending`
+            // shell is surfaced separately so the UI can say "finish in popup"
+            // instead of claiming success.
+            isConnected: isNoAuth || state === "active",
+            state: isNoAuth ? "active" : state,
+            connectionId: normalized?.id || null,
+            identifier: normalized?.identifier ?? null,
             authType: isNoAuth ? "NO_AUTH" : "OAUTH2",
           };
         });
@@ -377,13 +609,19 @@ Deno.serve(async (req) => {
       }
 
       const singleSlug = normalizeSlug(body.integrationSlug ?? body.slug);
-      const account = findActiveConnectedAccount(accounts, {
+      const { account, state } = resolveIntegrationConnection(accounts, {
         authConfigId,
         slug: singleSlug,
       });
+      const normalized = account ? normalizeConnectedAccount(account) : null;
 
       return new Response(
-        JSON.stringify({ isConnected: Boolean(account), connectionId: account?.id || null }),
+        JSON.stringify({
+          isConnected: state === "active",
+          state,
+          connectionId: normalized?.id || null,
+          identifier: normalized?.identifier ?? null,
+        }),
         {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -398,17 +636,56 @@ Deno.serve(async (req) => {
         });
       }
 
-      const execute = (composio as any)?.tools?.execute;
-      if (typeof execute !== "function") {
-        return new Response(JSON.stringify({ error: "Composio tool execution is not available in this SDK version" }), {
-          status: 501,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
-      }
+      const toolkitSlug = slug.split("_")[0]?.toLowerCase() || "composio";
+      const payloadArgs = (toolArguments ?? args ?? {}) as Record<string, unknown>;
 
-      const result = await execute.call((composio as any).tools, slug, {
+      const result = await runMeteredComposioCall({
+        serviceClient,
         userId,
-        arguments: toolArguments ?? args ?? {},
+        toolkitSlug,
+        toolSlug: slug,
+        payload: payloadArgs,
+        execute: async () => {
+          let resVal: unknown = null;
+          let executed = false;
+
+          const executeFn = (composio as any)?.tools?.execute;
+          if (typeof executeFn === "function") {
+            try {
+              resVal = await executeFn.call((composio as any).tools, slug, {
+                userId,
+                arguments: payloadArgs,
+              });
+              executed = true;
+            } catch (e: any) {
+              console.warn(`SDK tool execution failed for ${slug}:`, e);
+            }
+          }
+
+          if (!executed) {
+            const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
+            const res = await fetch(`https://backend.composio.dev/api/v3.1/tools/execute/${encodeURIComponent(slug)}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": apiKey,
+              },
+              body: JSON.stringify({
+                user_id: userId,
+                arguments: payloadArgs,
+              }),
+            });
+
+            if (!res.ok) {
+              const errorText = await res.text();
+              throw new Error(`Composio tool execution failed (${res.status}): ${errorText}`);
+            }
+
+            resVal = await res.json();
+          }
+
+          return resVal;
+        },
       });
 
       return new Response(
@@ -420,7 +697,7 @@ Deno.serve(async (req) => {
       );
     } else if (action === "debug-configs") {
       const apiKey = Deno.env.get("COMPOSIO_API_KEY") || "";
-      const authConfigsRes = await fetch("https://backend.composio.dev/api/v3/auth_configs", {
+      const authConfigsRes = await fetch("https://backend.composio.dev/api/v3.1/auth_configs", {
         method: "GET",
         headers: { "x-api-key": apiKey },
       });

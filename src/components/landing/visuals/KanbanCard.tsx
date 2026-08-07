@@ -43,7 +43,7 @@ export const KanbanCard = () => {
     <div className='w-full h-full p-4 flex gap-4 bg-neutral-900/50 rounded-xl overflow-hidden'>
       {columns.map((col) => (
         <div key={col.id} className='flex-1 flex flex-col gap-2 min-w-[60px]'>
-          <div className='text-[10px] uppercase tracking-wider text-neutral-500 font-bold mb-1'>
+          <div className='text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-1'>
             {col.title}
           </div>
           <div className='flex-1 bg-foreground/5 rounded-lg p-2 flex flex-col gap-2'>

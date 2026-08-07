@@ -1,4 +1,4 @@
-import type React from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   Briefcase,
   GraduationCap,
@@ -32,7 +32,7 @@ const SIDE_MUTED = "#CFCDD2";
 
 const SECTION_ICONS: Record<
   string,
-  React.ComponentType<{ className?: string; strokeWidth?: number }>
+  LucideIcon
 > = {
   education: GraduationCap,
   experience: Briefcase,
@@ -156,7 +156,7 @@ function SectionHeading({
   icon: Icon,
   title,
 }: {
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: LucideIcon;
   title: string;
 }) {
   return (

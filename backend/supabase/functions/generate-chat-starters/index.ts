@@ -8,6 +8,7 @@ import {
   isGeminiAccessDeniedError,
   withGeminiRetry,
   withModelFallback,
+  runMeteredAiCall,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -251,19 +252,33 @@ serve(async (req) => {
 
     try {
       const ai = createGeminiClient();
-      const { result } = await withModelFallback((model) =>
-        ai.models.generateContent({
-          model,
-          config: createGeminiConfig({
-            systemInstruction:
-              "You create personalized starter prompts for a career AI assistant. Return only valid JSON.",
-            responseMimeType: "application/json",
-          }),
-          contents: [{ role: "user", parts: [{ text: buildPrompt(context) }] }],
-        })
-      );
+      const promptText = buildPrompt(context);
+      const metered = await runMeteredAiCall({
+        userId: user.id,
+        featureKey: "generate_chat_starters",
+        model: GEMINI_MODEL,
+        promptTextLength: promptText.length,
+        execute: async () => {
+          const { result: rawResponse, modelUsed } = await withModelFallback((model) =>
+            ai.models.generateContent({
+              model,
+              config: createGeminiConfig({
+                systemInstruction:
+                  "You create personalized starter prompts for a career AI assistant. Return only valid JSON.",
+                responseMimeType: "application/json",
+              }),
+              contents: [{ role: "user", parts: [{ text: promptText }] }],
+            })
+          );
+          return {
+            result: rawResponse,
+            usageMetadata: (rawResponse as any)?.usageMetadata,
+            modelUsed,
+          };
+        },
+      });
 
-      const text = extractGeminiText(result);
+      const text = extractGeminiText(metered.result);
       if (!text) throw new Error("Empty response from AI");
       response = normalizeResponse(parseStructuredJson(text), fallback);
     } catch (error) {

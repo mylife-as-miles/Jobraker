@@ -7,6 +7,7 @@ import {
   getGeminiAccessDeniedMessage,
   isGeminiAccessDeniedError,
   withModelFallback,
+  runMeteredAiCall,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import {
@@ -134,7 +135,7 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Basics", "AI cover letter generation");
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(req, "Free", "AI cover letter generation");
     await enforceFeatureRateLimit({
       userId: user.id,
       featureKey: "generate_cover_letter",
@@ -184,19 +185,32 @@ serve(async (req) => {
     let coverLetter = "";
     try {
       const ai = createGeminiClient();
-      const { result } = await withModelFallback(
-        (model) => ai.models.generateContent({
-          model,
-          config: createGeminiConfig({
-            systemInstruction:
-              "You are an expert cover letter writer. Return ONLY the plain text of the cover letter.",
-            responseMimeType: "text/plain",
-          }),
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-        }),
-      );
+      const metered = await runMeteredAiCall({
+        userId: user.id,
+        featureKey: "generate_cover_letter",
+        model: GEMINI_MODEL,
+        promptTextLength: prompt.length,
+        execute: async () => {
+          const { result: rawResponse, modelUsed } = await withModelFallback(
+            (model) => ai.models.generateContent({
+              model,
+              config: createGeminiConfig({
+                systemInstruction:
+                  "You are an expert cover letter writer. Return ONLY the plain text of the cover letter.",
+                responseMimeType: "text/plain",
+              }),
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+            }),
+          );
+          return {
+            result: rawResponse,
+            usageMetadata: (rawResponse as any)?.usageMetadata,
+            modelUsed,
+          };
+        },
+      });
 
-      const text = extractGeminiText(result);
+      const text = extractGeminiText(metered.result);
       if (!text) throw new Error("Empty response from AI");
       coverLetter = text.trim();
     } catch (error: any) {

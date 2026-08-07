@@ -399,6 +399,12 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/ai-chat/index.ts"
 
+[functions.get-ai-usage-status]
+enabled = true
+# Must be false so browser OPTIONS preflight reaches the handler; auth is enforced in requireAuthenticatedUser.
+verify_jwt = false
+entrypoint = "./functions/get-ai-usage-status/index.ts"
+
 [functions.parse-resume]
 enabled = true
 # Must be false so browser OPTIONS preflight reaches the handler; auth is enforced in requireAuthenticatedUser.

@@ -5,25 +5,48 @@ import { ResumeTemplateRenderer } from "../templates/render-resume-template";
 
 // A4 at 96dpi — the exact size the on-screen preview is rendered at.
 const A4_WIDTH_PX = 794;
-const A4_MIN_HEIGHT_PX = 1123;
+const A4_HEIGHT_PX = 1123;
 
 /**
- * Copy the app's stylesheets / font links into the print frame so the resume
- * renders with the exact same styles it has on screen. Returns promises that
- * resolve once external stylesheets have loaded.
+ * Reproduce the app's styles inside the print frame.
+ *
+ * Same-origin stylesheets are inlined as already-parsed CSS text rather than
+ * re-linked: a cloned <link> has to be re-fetched and re-parsed by the frame,
+ * which can lose the race against print() (and leaves the resume completely
+ * unstyled when it does). Cross-origin sheets — Google Fonts — cannot be read,
+ * so those keep the <link> clone and are awaited.
  */
-function cloneHeadStyles(source: Document, target: Document): Promise<void>[] {
+function injectStyles(source: Document, target: Document): Promise<void>[] {
   const waits: Promise<void>[] = [];
-  const nodes = source.querySelectorAll(
-    'style, link[rel="stylesheet"], link[rel="preconnect"], link[href*="fonts.googleapis"], link[href*="fonts.gstatic"]',
-  );
-  nodes.forEach((node) => {
-    const clone = node.cloneNode(true) as HTMLElement;
-    target.head.appendChild(clone);
-    if (
-      clone.tagName === "LINK" &&
-      (clone as HTMLLinkElement).rel === "stylesheet"
-    ) {
+
+  // Keeps relative url() references (fonts, background images) resolvable.
+  const base = target.createElement("base");
+  base.href = source.baseURI;
+  target.head.appendChild(base);
+
+  const cssChunks: string[] = [];
+
+  Array.from(source.styleSheets).forEach((sheet) => {
+    let rules: CSSRuleList | null = null;
+    try {
+      rules = (sheet as CSSStyleSheet).cssRules;
+    } catch {
+      rules = null; // cross-origin — not readable
+    }
+
+    if (rules) {
+      cssChunks.push(
+        Array.from(rules)
+          .map((rule) => rule.cssText)
+          .join("\n"),
+      );
+      return;
+    }
+
+    const owner = sheet.ownerNode as HTMLElement | null;
+    if (owner && owner.tagName === "LINK") {
+      const clone = owner.cloneNode(true) as HTMLLinkElement;
+      target.head.appendChild(clone);
       waits.push(
         new Promise<void>((resolve) => {
           clone.addEventListener("load", () => resolve(), { once: true });
@@ -33,6 +56,16 @@ function cloneHeadStyles(source: Document, target: Document): Promise<void>[] {
       );
     }
   });
+
+  // Preconnect hints help the cross-origin font links above resolve quickly.
+  source
+    .querySelectorAll('link[rel="preconnect"]')
+    .forEach((node) => target.head.appendChild(node.cloneNode(true)));
+
+  const style = target.createElement("style");
+  style.textContent = cssChunks.join("\n");
+  target.head.appendChild(style);
+
   return waits;
 }
 
@@ -51,15 +84,22 @@ function waitForImages(root: HTMLElement): Promise<void> {
   ).then(() => undefined);
 }
 
+export interface ResumePrintFrame {
+  iframe: HTMLIFrameElement;
+  win: Window;
+  cleanup: () => void;
+}
+
 /**
- * Export a resume to PDF exactly as it appears in the preview.
+ * Render a resume at true A4 size into an isolated, off-screen iframe that
+ * carries the app's stylesheets, so it looks byte-for-byte like the preview.
  *
- * Renders the template at true A4 size into an isolated, off-screen iframe and
- * invokes the browser's native print engine. Unlike a canvas rasteriser, this
- * reproduces gradients, filters, shadows, rotated text and SVG faithfully, and
- * paginates naturally. The user picks "Save as PDF" in the print dialog.
+ * Exported separately from {@link downloadResumePDF} so the rendering can be
+ * exercised without opening a print dialog.
  */
-export const downloadResumePDF = async (resumeData: ResumeData) => {
+export async function renderResumePrintFrame(
+  resumeData: ResumeData,
+): Promise<ResumePrintFrame> {
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
   iframe.title = "Resume print frame";
@@ -68,7 +108,7 @@ export const downloadResumePDF = async (resumeData: ResumeData) => {
     "left:-10000px",
     "top:0",
     `width:${A4_WIDTH_PX}px`,
-    `height:${A4_MIN_HEIGHT_PX}px`,
+    `height:${A4_HEIGHT_PX}px`,
     "border:0",
     "opacity:0",
     "pointer-events:none",
@@ -103,19 +143,37 @@ export const downloadResumePDF = async (resumeData: ResumeData) => {
     doc.documentElement.className = document.documentElement.className;
     doc.body.className = document.body.className;
 
+    // The print dialog seeds the "Save as PDF" filename from the title.
+    doc.title = `${(resumeData.basics.name || "Resume").replace(/\s+/g, "_")}_Resume`;
+
+    const styleWaits = injectStyles(document, doc);
+
+    // Appended AFTER the app's stylesheets so these rules win the cascade —
+    // otherwise the app's dark `body { background }` bleeds into the page.
     const baseStyle = doc.createElement("style");
     baseStyle.textContent = `
       @page { size: A4 portrait; margin: 0; }
-      html, body { margin: 0; padding: 0; background: #ffffff; }
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+      }
       *, *::before, *::after {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
-      #print-root { width: ${A4_WIDTH_PX}px; min-height: ${A4_MIN_HEIGHT_PX}px; }
+      /* A definite height (not just min-height) so the templates' h-full /
+         flex-1 rules resolve exactly as they do in the fixed-size on-screen
+         preview. The renderer wraps each template in a shell div, so both
+         levels need it. */
+      #print-root,
+      #print-root > *,
+      #print-root > * > * {
+        width: ${A4_WIDTH_PX}px;
+        height: ${A4_HEIGHT_PX}px;
+      }
     `;
     doc.head.appendChild(baseStyle);
-
-    const styleWaits = cloneHeadStyles(document, doc);
 
     const mount = doc.createElement("div");
     mount.id = "print-root";
@@ -140,18 +198,34 @@ export const downloadResumePDF = async (resumeData: ResumeData) => {
     await waitForImages(mount);
     await new Promise((resolve) => window.setTimeout(resolve, 150));
 
+    return { iframe, win, cleanup };
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
+}
+
+/**
+ * Export a resume to PDF exactly as it appears in the preview.
+ *
+ * Uses the browser's native print engine rather than a canvas rasteriser, so
+ * gradients, filters, shadows, rotated text and SVG reproduce faithfully — and
+ * the resulting PDF contains real, selectable text (which ATS systems can
+ * parse) instead of a flat image. The user picks "Save as PDF" in the dialog.
+ */
+export const downloadResumePDF = async (resumeData: ResumeData) => {
+  try {
+    const { win, cleanup } = await renderResumePrintFrame(resumeData);
+
     // Clean up after the print dialog is dismissed (or a safety timeout).
-    win.addEventListener(
-      "afterprint",
-      () => window.setTimeout(cleanup, 300),
-      { once: true },
-    );
+    win.addEventListener("afterprint", () => window.setTimeout(cleanup, 300), {
+      once: true,
+    });
     window.setTimeout(cleanup, 60000);
 
     win.focus();
     win.print();
   } catch (error) {
-    cleanup();
     console.error("PDF generation failed:", error);
     throw error;
   }

@@ -132,7 +132,7 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <span className="text-brand">+</span> Create a new resume
                     </DialogTitle>
-                    <DialogDescription className="text-zinc-400">
+                    <DialogDescription className="text-muted-foreground">
                         Start building your resume by giving it a name.
                     </DialogDescription>
                 </DialogHeader>
@@ -140,7 +140,7 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                 <div className="grid gap-6 py-4">
                     {/* Name Input */}
                     <div className="grid gap-2">
-                        <label htmlFor="name" className="text-sm font-medium text-zinc-300">
+                        <label htmlFor="name" className="text-sm font-medium text-foreground/80">
                             Name
                         </label>
                         <Input
@@ -151,18 +151,18 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                             className="bg-zinc-900 border-zinc-800 focus:border-brand text-foreground placeholder:text-zinc-600"
                             autoFocus
                         />
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-muted-foreground">
                             Tip: You can name the resume referring to the position you are applying for.
                         </p>
                     </div>
 
                     {/* Slug Input */}
                     <div className="grid gap-2">
-                        <label htmlFor="slug" className="text-sm font-medium text-zinc-300">
+                        <label htmlFor="slug" className="text-sm font-medium text-foreground/80">
                             Slug
                         </label>
                         <div className="flex items-stretch rounded-md border border-zinc-800 bg-zinc-900 focus-within:border-brand overflow-hidden transition-all">
-                            <div className="flex items-center px-3 bg-zinc-800/30 text-zinc-500 text-sm border-r border-zinc-800 whitespace-nowrap truncate">
+                            <div className="flex items-center px-3 bg-zinc-800/30 text-muted-foreground text-sm border-r border-zinc-800 whitespace-nowrap truncate">
                                 jobraker.io/resume/
                             </div>
                             <Input
@@ -185,25 +185,25 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                         {slugSuggestions.length > 0 && (
                             <div className="flex flex-wrap gap-2">
                                 {slugSuggestions.map((suggestion) => (
-                                    <button key={suggestion} type="button" onClick={() => { setManualSlug(true); setSlug(suggestion); }} className="text-xs text-zinc-300 underline-offset-4 hover:text-foreground hover:underline">
+                                    <button key={suggestion} type="button" onClick={() => { setManualSlug(true); setSlug(suggestion); }} className="text-xs text-foreground/80 underline-offset-4 hover:text-foreground hover:underline">
                                         {suggestion}
                                     </button>
                                 ))}
                             </div>
                         )}
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-muted-foreground">
                             This is a URL-friendly name for your resume.
                         </p>
                     </div>
 
                     {/* Tags Input */}
                     <div className="grid gap-2">
-                        <label htmlFor="tags" className="text-sm font-medium text-zinc-300">
+                        <label htmlFor="tags" className="text-sm font-medium text-foreground/80">
                             Tags
                         </label>
                         <div className="min-h-[48px] p-2 bg-zinc-900 border border-zinc-800 rounded-xl focus-within:border-brand flex flex-wrap gap-2">
                             {tags.map((tag) => (
-                                <span key={tag} className="bg-zinc-800 text-zinc-200 px-2 py-1 rounded-md text-sm flex items-center gap-1">
+                                <span key={tag} className="bg-zinc-800 text-foreground/80 px-2 py-1 rounded-md text-sm flex items-center gap-1">
                                     {tag}
                                     <button onClick={() => removeTag(tag)} className="hover:text-foreground">
                                         <X size={14} />
@@ -219,8 +219,8 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                                 className="bg-transparent border-none outline-none text-foreground flex-1 min-w-[120px] text-sm h-7"
                             />
                         </div>
-                        <p className="text-xs text-zinc-500">
-                            Press <kbd className="bg-zinc-800 px-1 rounded text-zinc-300">Enter</kbd> or <kbd className="bg-zinc-800 px-1 rounded text-zinc-300">,</kbd> to add tags.
+                        <p className="text-xs text-muted-foreground">
+                            Press <kbd className="bg-zinc-800 px-1 rounded text-foreground/80">Enter</kbd> or <kbd className="bg-zinc-800 px-1 rounded text-foreground/80">,</kbd> to add tags.
                         </p>
                     </div>
                 </div>

@@ -792,7 +792,7 @@ export function SupportFloatingWidget({
                                 {children}
                               </code>
                             ) : (
-                              <code className="bg-white/5 rounded px-1.5 py-0.5 text-xs font-mono" {...props}>
+                              <code className="bg-foreground/5 rounded px-1.5 py-0.5 text-xs font-mono" {...props}>
                                 {children}
                               </code>
                             );

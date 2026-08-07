@@ -57,6 +57,8 @@ import {
   Layers,
   Loader2,
   Activity,
+  FileText,
+  CheckCircle2,
 } from "lucide-react";
 import {
   useJobIntelligenceTasks,
@@ -226,6 +228,76 @@ function CompanyMark({
     </div>
   );
 }
+
+const ReceiptCard: React.FC<{
+  url: string;
+  title: string;
+  badgeLabel: string;
+  iconType?: "receipt" | "success";
+}> = ({ url, title, badgeLabel, iconType = "receipt" }) => {
+  const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="group relative block overflow-hidden rounded-xl border border-foreground/10 bg-slate-950/80 transition-all hover:border-[#2fd968]/50 hover:shadow-[0_0_20px_rgba(47,217,104,0.15)] aspect-[4/3]"
+    >
+      {/* Background Graphic / Fallback UI when image is loading or fails */}
+      {(!imgLoaded || imgError) && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950/40 text-center z-0">
+          <div className="w-10 h-10 rounded-full bg-[#2fd968]/10 border border-[#2fd968]/30 flex items-center justify-center mb-2 text-[#2fd968] group-hover:scale-110 transition-transform">
+            {iconType === "success" ? (
+              <CheckCircle2 className="w-5 h-5 text-[#2fd968]" />
+            ) : (
+              <FileText className="w-5 h-5 text-[#2fd968]" />
+            )}
+          </div>
+          <span className="text-xs font-semibold text-slate-200 group-hover:text-white transition-colors">
+            {title}
+          </span>
+          <span className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+            <ExternalLink className="w-3 h-3 text-[#2fd968]" /> View Details & Receipt
+          </span>
+        </div>
+      )}
+
+      {/* Image tag (only rendered if not errored) */}
+      {!imgError && (
+        <img
+          src={url}
+          alt={title}
+          onLoad={() => setImgLoaded(true)}
+          onError={() => setImgError(true)}
+          className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+            imgLoaded ? "opacity-80" : "opacity-0"
+          }`}
+        />
+      )}
+
+      {/* Overlay gradient & bottom bar */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between pointer-events-none">
+        <span
+          className={`text-xs font-medium ${
+            iconType === "success" ? "text-[#2fd968]" : "text-foreground"
+          }`}
+        >
+          {badgeLabel}
+        </span>
+        <svg className={`w-4 h-4 ${iconType === "success" ? "text-[#2fd968]" : "text-foreground"} opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0`} fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+          {iconType === "success" ? (
+            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' />
+          ) : (
+            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' />
+          )}
+        </svg>
+      </div>
+    </a>
+  );
+};
 
 function getApplicationStatusColor(status: ApplicationStatus) {
   if (status === "Draft") return "#2dd4bf";
@@ -411,7 +483,7 @@ export function ApplicationsListView({
                     className='group relative overflow-hidden rounded-[1.4rem] border-0 bg-transparent p-0 shadow-none'
                   >
                     <div
-                      className='w-full cursor-pointer rounded-[1.4rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.018))] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)] transition-[border-color,box-shadow,transform,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-[#2fd968]/28 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.024))] hover:shadow-[0_22px_48px_rgba(0,0,0,0.32)] active:scale-[0.985]'
+                      className='w-full cursor-pointer rounded-[1.4rem] border border-foreground/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.018))] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)] transition-[border-color,box-shadow,transform,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-[#2fd968]/28 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.024))] hover:shadow-[0_22px_48px_rgba(0,0,0,0.32)] active:scale-[0.985]'
                       onClick={() => setDetailId(a.id)}
                     >
                       <div className='flex items-start gap-4'>
@@ -431,7 +503,20 @@ export function ApplicationsListView({
                                 >
                                   {a.job_title}
                                 </h3>
-                                <MatchScoreBadge score={a.match_score} />
+                                <MatchScoreBadge
+                                  score={a.match_score}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.dispatchEvent(
+                                      new CustomEvent("jobraker:add-to-chat", {
+                                        detail: {
+                                          text: `Evaluate my resume fit and calculate a match score for ${a.job_title} at ${a.company || "target company"}`,
+                                          mode: "quote",
+                                        },
+                                      })
+                                    );
+                                  }}
+                                />
                               </div>
                               <div className='mt-1 truncate text-sm font-medium text-foreground/60'>
                                 {a.company}
@@ -577,12 +662,11 @@ function ApplicationPage() {
       const titleLower = (app.job_title || "").toLowerCase().trim();
       return aiTasks.filter((t) => {
         const tComp = String(t.params?.company || "").toLowerCase().trim();
-        const tTitle = String(t.title || "").toLowerCase();
-        return (
-          (companyLower && tComp && companyLower.includes(tComp)) ||
-          (companyLower && tTitle.includes(companyLower)) ||
-          (titleLower && tTitle.includes(titleLower))
-        );
+        const tAppId = String(t.params?.application_id || t.params?.applicationId || "");
+        const tJobId = String(t.params?.job_id || t.params?.jobId || "");
+        if (app.id && (tAppId === app.id || tJobId === app.id)) return true;
+        if (!companyLower || companyLower === "job openings" || companyLower === "greenhouse" || companyLower === "lever") return false;
+        return tComp && (companyLower === tComp || companyLower.includes(tComp));
       });
     },
     [aiTasks],
@@ -966,7 +1050,7 @@ function ApplicationPage() {
         selectedStatus === "All"
           ? true
           : (selectedStatus as string) === "🤖 AI Tasks"
-            ? getLinkedAiTasks(a).length > 0 || Boolean(a.run_id || a.automation_provider)
+            ? (getLinkedAiTasks(a).length > 0 || Boolean(a.run_id || a.automation_provider)) && (a.canonical_stage === "queued" || a.canonical_stage === "draft_ready" || a.status === "Pending" || a.status === "Draft")
             : a.status === selectedStatus;
       return matchesQ && matchesStatus;
     });
@@ -1180,107 +1264,7 @@ function ApplicationPage() {
         </div>
       </div>
 
-      {/* AI Agent Tasks & Automation Pipeline Hub */}
-      {aiTasks.length > 0 && (
-        <Card className='relative overflow-hidden rounded-2xl border border-[#2fd968]/30 bg-gradient-to-br from-card/90 via-card/50 to-card/20 p-5 shadow-xl backdrop-blur-xl'>
-          <div className='absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#2fd968]/10 blur-3xl' />
-          <div className='relative z-10 flex flex-col gap-4'>
-            <div className='flex flex-wrap items-center justify-between gap-3 border-b border-[#2fd968]/15 pb-3'>
-              <div className='flex items-center gap-2.5'>
-                <div className='flex h-9 w-9 items-center justify-center rounded-xl border border-[#2fd968]/30 bg-[#2fd968]/10 text-[#2fd968]'>
-                  <Bot className='h-4 w-4' />
-                </div>
-                <div>
-                  <h3 className='text-base font-semibold text-foreground tracking-tight flex items-center gap-2'>
-                    AI Agent Tasks & Automation Pipeline
-                    <span className='rounded-full border border-[#2fd968]/30 bg-[#2fd968]/15 px-2.5 py-0.5 text-[10px] font-bold text-[#2fd968]'>
-                      {aiTasks.length} Task{aiTasks.length === 1 ? "" : "s"} Tracked
-                    </span>
-                  </h3>
-                  <p className='text-xs text-muted-foreground'>
-                    Every scheduled, queued, and active AI search or application task
-                  </p>
-                </div>
-              </div>
-              <Button
-                size='sm'
-                variant='outline'
-                onClick={() => setSelectedStatus("🤖 AI Tasks" as any)}
-                className='border-[#2fd968]/30 bg-[#2fd968]/10 text-[#2fd968] hover:bg-[#2fd968]/20 transition-all text-xs font-semibold'
-              >
-                Filter by AI Tasks ({aiTasks.filter((t) => t.status === "running" || t.status === "queued").length} active)
-              </Button>
-            </div>
 
-            {/* Task Cards horizontal list */}
-            <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
-              {aiTasks.slice(0, 6).map((task) => {
-                const targetCompany = String(task.params?.company || "");
-                const matchedApp = applications.find(
-                  (a) =>
-                    targetCompany &&
-                    a.company.toLowerCase().includes(targetCompany.toLowerCase()),
-                );
-
-                return (
-                  <div
-                    key={task.id}
-                    onClick={() => {
-                      if (matchedApp) {
-                        setDetailId(matchedApp.id);
-                      } else {
-                        info(
-                          task.title,
-                          task.message || `AI Task ${task.id.slice(0, 8)} (${task.status})`,
-                        );
-                      }
-                    }}
-                    className='group relative flex cursor-pointer flex-col justify-between rounded-xl border border-foreground/10 bg-background/60 p-3.5 transition-all hover:border-[#2fd968]/40 hover:bg-card/80 shadow-sm'
-                  >
-                    <div className='space-y-1.5'>
-                      <div className='flex items-center justify-between gap-2'>
-                        <span className='flex items-center gap-1.5 text-xs font-semibold text-foreground group-hover:text-[#2fd968] transition-colors truncate'>
-                          {task.type === "scout_search" ? (
-                            <Search className='h-3.5 w-3.5 text-[#2fd968] shrink-0' />
-                          ) : task.type === "job_reevaluation" ? (
-                            <Sparkles className='h-3.5 w-3.5 text-amber-400 shrink-0' />
-                          ) : (
-                            <Zap className='h-3.5 w-3.5 text-[#2fd968] shrink-0' />
-                          )}
-                          <span className='truncate'>{task.title}</span>
-                        </span>
-                        <span
-                          className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                            task.status === "running"
-                              ? "bg-[#2fd968]/20 text-[#2fd968] border-[#2fd968]/40 animate-pulse"
-                              : task.status === "queued"
-                                ? "bg-amber-400/20 text-amber-300 border-amber-400/40 animate-pulse"
-                                : task.status === "completed"
-                                  ? "bg-[#2fd968]/10 text-[#2fd968] border-[#2fd968]/20"
-                                  : "bg-rose-400/10 text-rose-400 border-rose-400/20"
-                          }`}
-                        >
-                          {task.status}
-                        </span>
-                      </div>
-                      <p className='text-[11px] leading-relaxed text-muted-foreground line-clamp-2'>
-                        {task.message || "Executing background task step..."}
-                      </p>
-                    </div>
-
-                    <div className='mt-2.5 flex items-center justify-between border-t border-foreground/5 pt-2 font-mono text-[10px] text-muted-foreground'>
-                      <span className='font-bold text-[#2fd968]'>
-                        taskId: {task.id.slice(0, 8)}
-                      </span>
-                      <span>{new Date(task.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </Card>
-      )}
 
       {/* Toolbar */}
       <Card className='relative overflow-hidden border-none'>
@@ -1695,7 +1679,20 @@ function ApplicationPage() {
                                   </div>
                                 </div>
                                 <div className='mt-0.5 shrink-0'>
-                                  <MatchScoreBadge score={a.match_score} />
+                                  <MatchScoreBadge
+                                    score={a.match_score}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.dispatchEvent(
+                                        new CustomEvent("jobraker:add-to-chat", {
+                                          detail: {
+                                            text: `Evaluate my resume fit and calculate a match score for ${a.job_title} at ${a.company || "target company"}`,
+                                            mode: "quote",
+                                          },
+                                        })
+                                      );
+                                    }}
+                                  />
                                 </div>
                               </div>
                               <div className='mt-3 flex flex-wrap items-center gap-2 border-t border-foreground/5 pt-3 text-[11px] text-foreground/50'>
@@ -1950,11 +1947,98 @@ function ApplicationPage() {
                     </div>
                   ))
                 ) : (
-                  <div className='rounded-xl border border-dashed border-foreground/15 p-4 text-center text-xs text-muted-foreground space-y-1'>
+                  <div className='rounded-xl border border-dashed border-foreground/15 p-4 text-center text-xs text-muted-foreground space-y-3'>
                     <p className='font-medium text-foreground/80'>No active background task currently linked to this application.</p>
                     <p className='text-[11px] text-muted-foreground'>
-                      You can queue a <strong className='text-[#2fd968]'>@RecruiterScout</strong> search or launch <strong className='text-[#2fd968]'>Auto Apply</strong> in Chat anytime.
+                      You can queue a{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent("jobraker:add-to-chat", {
+                              detail: {
+                                text: `@RecruiterScout find the hiring manager and verified recruiter contacts for ${detailApp.job_title} at ${detailApp.company}`,
+                                mode: "quote",
+                              },
+                            })
+                          );
+                        }}
+                        className='font-bold text-[#2fd968] hover:underline underline-offset-2 hover:brightness-125 transition-all cursor-pointer inline-flex items-center gap-1 bg-[#2fd968]/10 px-2 py-0.5 rounded border border-[#2fd968]/30'
+                      >
+                        <Bot className="w-3 h-3" /> @RecruiterScout
+                      </button>{" "}
+                      search or launch{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent("jobraker:add-to-chat", {
+                              detail: {
+                                text: `/direct-apply ${detailApp.job_title} at ${detailApp.company}`,
+                                mode: "quote",
+                              },
+                            })
+                          );
+                        }}
+                        className='font-bold text-[#2fd968] hover:underline underline-offset-2 hover:brightness-125 transition-all cursor-pointer inline-flex items-center gap-1 bg-[#2fd968]/10 px-2 py-0.5 rounded border border-[#2fd968]/30'
+                      >
+                        <Zap className="w-3 h-3" /> Auto Apply
+                      </button>{" "}
+                      in Chat anytime.
                     </p>
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-2 border-t border-foreground/5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent("jobraker:add-to-chat", {
+                              detail: {
+                                text: `@RecruiterScout find the hiring manager and recruiter contacts for ${detailApp.job_title} at ${detailApp.company}`,
+                                mode: "quote",
+                              },
+                            })
+                          );
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2fd968]/10 hover:bg-[#2fd968]/20 border border-[#2fd968]/30 text-[#2fd968] text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                      >
+                        <Bot className="w-3.5 h-3.5" />
+                        Run @RecruiterScout
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent("jobraker:add-to-chat", {
+                              detail: {
+                                text: `/direct-apply ${detailApp.job_title} at ${detailApp.company}`,
+                                mode: "quote",
+                              },
+                            })
+                          );
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2fd968]/10 hover:bg-[#2fd968]/20 border border-[#2fd968]/30 text-[#2fd968] text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                      >
+                        <Zap className="w-3.5 h-3.5" />
+                        Launch Auto Apply
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent("jobraker:add-to-chat", {
+                              detail: {
+                                text: `@OutreachWriter draft cold outreach email to hiring manager for ${detailApp.job_title} at ${detailApp.company}`,
+                                mode: "quote",
+                              },
+                            })
+                          );
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Draft Outreach
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2349,46 +2433,20 @@ function ApplicationPage() {
                 </h3>
                 <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                   {detailApp.receipt_url && (
-                    <a
-                      href={detailApp.receipt_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className='group relative block overflow-hidden rounded-xl border border-foreground/10 bg-foreground/5 transition-all hover:border-[#2fd968]/50 hover:shadow-[0_0_20px_rgba(47,217,104,0.15)] aspect-[4/3]'
-                    >
-                      <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10' />
-                      <img
-                        src={detailApp.receipt_url}
-                        alt="Application Form Receipt"
-                        className='absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80'
-                      />
-                      <div className='absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between'>
-                        <span className='text-xs font-medium text-foreground'>View Form Data</span>
-                        <svg className='w-4 h-4 text-foreground opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' />
-                        </svg>
-                      </div>
-                    </a>
+                    <ReceiptCard
+                      url={detailApp.receipt_url}
+                      title="Application Form Receipt"
+                      badgeLabel="View Form Data"
+                      iconType="receipt"
+                    />
                   )}
                   {detailApp.success_url && (
-                    <a
-                      href={detailApp.success_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className='group relative block overflow-hidden rounded-xl border border-foreground/10 bg-foreground/5 transition-all hover:border-[#2fd968]/50 hover:shadow-[0_0_20px_rgba(47,217,104,0.15)] aspect-[4/3]'
-                    >
-                      <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10' />
-                      <img
-                        src={detailApp.success_url}
-                        alt="Success Confirmation"
-                        className='absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80'
-                      />
-                      <div className='absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between'>
-                        <span className='text-xs font-medium focus:text-foreground text-[#2fd968]'>Success Screenshot</span>
-                        <svg className='w-4 h-4 focus:text-foreground text-[#2fd968] opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' />
-                        </svg>
-                      </div>
-                    </a>
+                    <ReceiptCard
+                      url={detailApp.success_url}
+                      title="Success Confirmation"
+                      badgeLabel="Success Screenshot"
+                      iconType="success"
+                    />
                   )}
                 </div>
               </div>
@@ -2985,7 +3043,7 @@ function KanbanSkeleton() {
 
 function CalendarSkeleton() {
   return (
-    <div className='border border-foreground/10 rounded-lg bg-foreground/30 p-4'>
+    <div className='border border-[#2fd968]/20 rounded-xl bg-card p-4'>
       <div className='flex items-center justify-between mb-4'>
         <Skeleton className='h-6 w-40 bg-foreground/10' />
         <div className='flex gap-2'>
@@ -3012,7 +3070,7 @@ function CalendarSkeleton() {
 
 function TableSkeleton() {
   return (
-    <div className='rounded-xl border border-foreground/10 bg-foreground/30 overflow-hidden'>
+    <div className='rounded-xl border border-[#2fd968]/20 bg-card overflow-hidden'>
       <div className='bg-foreground/5 px-4 py-3 flex gap-4'>
         {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} className='h-3 w-24 bg-foreground/10' />
@@ -3319,7 +3377,23 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           </div>
         ),
         accessorFn: (row) => row.match_score ?? null,
-        cell: (info) => <MatchScoreBadge score={info.getValue<number | null>()} />,
+        cell: (info) => (
+          <MatchScoreBadge
+            score={info.getValue<number | null>()}
+            onClick={(e) => {
+              e.stopPropagation();
+              const app = info.row.original;
+              window.dispatchEvent(
+                new CustomEvent("jobraker:add-to-chat", {
+                  detail: {
+                    text: `Evaluate my resume fit and calculate a match score for ${app.job_title} at ${app.company || "target company"}`,
+                    mode: "quote",
+                  },
+                })
+              );
+            }}
+          />
+        ),
         sortingFn: (a, b, columnId) => {
           const scoreA = a.getValue<number | null>(columnId);
           const scoreB = b.getValue<number | null>(columnId);

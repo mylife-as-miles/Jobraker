@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, startTransition } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
+import NumberFlow from "@number-flow/react";
 import {
   ArrowUpRight,
   ArrowDownRight,
@@ -28,6 +29,7 @@ import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { useAnalyticsData } from "../../../hooks/useAnalyticsData";
 import { StreakCard } from "../../../components/StreakCard";
 import { useGamification } from "../../../hooks/useGamification";
+import { AuroraDrift } from "../../../components/ui/AuroraDrift";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import type { Profile } from "../../../hooks/useProfileSettings";
 
@@ -116,22 +118,55 @@ const StatCard = ({
   const rounded = Math.round(deltaPct);
   const DeltaIcon =
     rounded > 0 ? ArrowUpRight : rounded < 0 ? ArrowDownRight : Minus;
+  const highlightStyle = highlight
+    ? {
+        background:
+          "linear-gradient(115deg, #54e990 0%, #2edb6b 42%, #00744d 72%, #003d30 100%)",
+        color: "#06261b",
+      }
+    : undefined;
+
   return (
     <Card
-      className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 transition-all duration-300 group hover:-translate-y-0.5 ${
+      style={highlightStyle}
+      className={`group relative overflow-hidden border transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 ${
         highlight
-          ? "text-slate-950 border-emerald-300/60 bg-[linear-gradient(135deg,#5cf29a_0%,#2fd968_38%,#17b85f_72%,#0a7a42_100%)] shadow-[0_10px_30px_rgba(47,217,104,0.25)] hover:shadow-[0_15px_40px_rgba(47,217,104,0.4)]"
-          : "bg-card/50 backdrop-blur-xl border-foreground/10 hover:border-brand/30"
+          ? "aspect-[1.78] rounded-2xl border-emerald-100/25 p-4 text-slate-950 shadow-[0_8px_20px_rgba(0,78,54,0.24)] hover:shadow-[0_12px_26px_rgba(0,78,54,0.32)] sm:p-5"
+          : "rounded-2xl border-foreground/10 bg-card/50 p-4 sm:p-5 backdrop-blur-xl hover:border-brand/30"
       }`}
     >
-      {/* Radial gloss overlay for depth */}
+      {/* Aurora Drift animation & crisp contour vector wave pattern */}
       {highlight && (
-        <div className='absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.45)_0%,transparent_65%)] pointer-events-none' />
+        <>
+          <AuroraDrift variant='emerald' />
+          <div className='pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_110%,rgba(0,211,116,0.26),transparent_48%)]' />
+          <svg
+            aria-hidden='true'
+            className='pointer-events-none absolute inset-0 z-10 h-full w-full opacity-75'
+            viewBox='0 0 220 124'
+            preserveAspectRatio='none'
+          >
+            <g fill='none' stroke='rgba(119, 255, 183, 0.25)' strokeWidth='0.85'>
+              <path d='M69 132C94 93 115 112 140 99S181 65 226 71' />
+              <path d='M75 136C98 101 118 119 145 105S184 72 226 77' />
+              <path d='M82 140C104 109 122 126 150 112S188 79 226 83' />
+              <path d='M89 144C111 117 128 132 155 119S192 86 226 89' />
+              <path d='M96 148C118 124 134 139 160 126S197 93 226 95' />
+              <path d='M103 152C125 132 140 146 165 133S202 100 226 101' />
+              <path d='M110 156C132 139 146 153 170 140S207 107 226 107' />
+              <path d='M117 160C139 147 152 160 175 147S212 114 226 113' />
+              <path d='M124 164C146 155 158 167 180 154S217 121 226 119' />
+            </g>
+          </svg>
+        </>
       )}
       <div className='relative z-10 flex items-start justify-between'>
         <span
-          className={`text-xs sm:text-sm font-semibold tracking-tight ${
-            highlight ? "text-slate-900/90" : "text-foreground"
+          style={highlight ? { color: "#06261b" } : undefined}
+          className={`${
+            highlight
+              ? "text-xs font-semibold text-slate-950 sm:text-sm"
+              : "text-xs font-semibold tracking-tight text-foreground sm:text-sm"
           }`}
         >
           {label}
@@ -140,18 +175,21 @@ const StatCard = ({
           type='button'
           onClick={onOpen}
           aria-label={`Open ${label}`}
-          className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all duration-200 ${
+          className={`flex items-center justify-center rounded-full border transition-[transform,background-color,border-color,color] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950/40 focus-visible:ring-offset-2 ${
             highlight
-              ? "bg-black/10 border-black/20 text-slate-950 hover:bg-black/20 hover:scale-105"
-              : "bg-foreground/5 border-foreground/10 text-foreground/60 hover:text-brand hover:border-brand/40"
+              ? "h-7 w-7 border-slate-950/20 bg-slate-950/[0.08] text-slate-950 hover:bg-slate-950/[0.14] focus-visible:ring-offset-emerald-800"
+              : "h-7 w-7 border-foreground/10 bg-foreground/5 text-foreground/60 hover:border-brand/40 hover:text-brand focus-visible:ring-brand focus-visible:ring-offset-background"
           }`}
         >
-          <ArrowUpRight className='w-3.5 h-3.5' />
+          <ArrowUpRight className={highlight ? "h-3.5 w-3.5" : "h-3.5 w-3.5"} />
         </button>
       </div>
       <div
-        className={`relative z-10 mt-2 text-3xl sm:text-4xl font-bold tracking-tight ${
-          highlight ? "text-slate-950" : "text-foreground"
+        style={highlight ? { color: "#06261b" } : undefined}
+        className={`relative z-10 font-bold ${
+          highlight
+            ? "mt-2 text-3xl leading-none text-slate-950 sm:text-4xl"
+            : "mt-2 text-3xl text-foreground sm:text-4xl"
         }`}
       >
         {loading ? (
@@ -159,25 +197,33 @@ const StatCard = ({
             className={`h-9 w-16 ${highlight ? "bg-black/10" : ""}`}
           />
         ) : (
-          value
+          <NumberFlow
+            value={value}
+            format={{ useGrouping: true, maximumFractionDigits: 0 }}
+            respectMotionPreference
+          />
         )}
       </div>
-      <div className='relative z-10 mt-3 flex items-center gap-2'>
+      <div className='relative z-10 mt-3 flex items-center gap-1.5'>
         <span
-          className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${
+          style={highlight ? { color: "#06261b" } : undefined}
+          className={`inline-flex items-center gap-0.5 rounded-md border font-bold ${
             highlight
-              ? "bg-black/10 border-black/20 text-slate-950"
+              ? "rounded-full border-slate-950/20 bg-slate-950/[0.08] px-1.5 py-0.5 text-[10px] text-slate-950"
               : rounded < 0
-                ? "bg-red-500/10 border-red-500/30 text-red-400"
-                : "bg-brand/10 border-brand/30 text-brand"
+                ? "border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-[10px] text-red-400"
+                : "border-brand/30 bg-brand/10 px-1.5 py-0.5 text-[10px] text-brand"
           }`}
         >
-          <DeltaIcon className='w-3 h-3' />
+          <DeltaIcon className='h-3 w-3' />
           {Math.abs(rounded)}%
         </span>
         <span
-          className={`text-[10px] font-medium ${
-            highlight ? "text-slate-900/75" : "text-muted-foreground"
+          style={highlight ? { color: "#06261b" } : undefined}
+          className={`${
+            highlight
+              ? "text-[10px] font-medium text-slate-950/75"
+              : "text-[10px] font-medium text-muted-foreground"
           }`}
         >
           vs last 7 days
@@ -377,7 +423,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
   );
 
   const isTaskActive = Boolean(activeTask);
-  const runActive = (autoApplyEnabled && queuedCount > 0) || isTaskActive;
+  const runActive = isTaskActive;
 
   const autoSentToday = useMemo(() => {
     const startToday = new Date();
@@ -540,7 +586,12 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
               </h2>
               <select
                 value={chartRange}
-                onChange={(e) => setChartRange(e.target.value as ChartRange)}
+                onChange={(e) => {
+                  const val = e.target.value as ChartRange;
+                  startTransition(() => {
+                    setChartRange(val);
+                  });
+                }}
                 aria-label='Analytics range'
                 className='text-[10px] sm:text-xs font-medium rounded-full border border-foreground/10 bg-foreground/5 text-foreground/80 px-2.5 py-1 outline-none hover:border-brand/40 focus:border-brand/40 transition-colors cursor-pointer'
               >
@@ -1014,7 +1065,9 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                   <span className='text-foreground/40'>
                     {autoSentToday > 0 ? `${autoSentToday} sent today · ` : ""}
                     {autoApplyEnabled
-                      ? "Idle — no jobs in the queue"
+                      ? queuedCount > 0
+                        ? `${queuedCount} in queue · Auto Apply ready`
+                        : "Idle — no jobs in the queue"
                       : "Auto Apply is paused"}
                   </span>
                 )}

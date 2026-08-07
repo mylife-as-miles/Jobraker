@@ -321,52 +321,62 @@ export function ProfileAvailabilitySection({
     >
       <Card
         id='profile-availability'
-        className='product-section-card p-6 sm:p-8 hover:border-brand/60 hover:shadow-lg transition-all duration-300 overflow-hidden'
+        className='relative rounded-3xl border border-brand/35 bg-[#050505] p-6 sm:p-8 shadow-2xl shadow-brand/10 transition-all duration-300 overflow-hidden'
       >
-        <div className='grid grid-cols-1 lg:grid-cols-[minmax(0,240px)_1fr] gap-8 lg:gap-10 border-t border-b border-foreground/10 py-8 -mt-2 -mb-2'>
-          <div className='space-y-4 lg:pr-4'>
-            <h3 className='text-lg font-semibold text-foreground tracking-tight'>
-              Availability
-            </h3>
-            <p className='text-sm product-helper-text leading-relaxed'>
-              Set when you are typically available for work.
-            </p>
+        {/* Ambient Corner Glow */}
+        <div className='absolute -top-12 -right-12 h-48 w-48 bg-brand/10 rounded-full blur-3xl pointer-events-none' />
+
+        <div className='grid grid-cols-1 lg:grid-cols-[minmax(0,260px)_1fr] gap-8 lg:gap-10 border-t border-b border-border/40 py-8 -mt-2 -mb-2 relative z-10'>
+          {/* Left Summary Column */}
+          <div className='space-y-5 lg:pr-4'>
+            <div className='space-y-1.5'>
+              <h3 className='text-xl font-bold text-foreground tracking-tight'>
+                Availability
+              </h3>
+              <p className='text-sm text-muted-foreground leading-relaxed'>
+                Set when you are typically available for work.
+              </p>
+            </div>
+
             {missingFields.length > 0 && (
-              <div className='rounded-lg border border-brand/30 bg-brand/5 px-3 py-2.5 text-sm text-brand/95'>
-                <p className='font-medium mb-1'>
+              <div className='rounded-2xl border border-brand/40 bg-[#090909] p-4 text-sm text-brand shadow-inner space-y-2'>
+                <p className='font-semibold text-brand text-sm'>
                   Your availability is incomplete
                 </p>
-                <ul className='list-disc list-inside text-brand/80 space-y-0.5'>
+                <ul className='list-disc list-inside text-brand/90 space-y-1 text-xs font-medium'>
                   {missingFields.map((m) => (
                     <li key={m}>{m}</li>
                   ))}
                 </ul>
               </div>
             )}
-            <p className='text-xs product-helper-text pt-2'>
+
+            <p className='text-xs text-muted-foreground/60 pt-1 font-mono'>
               Last updated: {formatUpdated(profile?.updated_at)}
             </p>
           </div>
 
+          {/* Right Form Controls Column */}
           <div className='space-y-8 min-w-0'>
+            {/* Top Form Fields */}
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6'>
               <div className='space-y-1.5 sm:col-span-1'>
                 <label className='text-sm font-semibold text-foreground'>
                   Availability to start <span className='text-brand'>*</span>
                 </label>
-                <p className='text-xs product-helper-text'>
+                <p className='text-xs text-muted-foreground'>
                   How soon you could begin a new role if offered
                 </p>
                 <Select
                   value={availabilityStart || undefined}
                   onValueChange={setAvailabilityStart}
                 >
-                  <SelectTrigger className='w-full'>
+                  <SelectTrigger className='w-full bg-[#0d0d0d] border border-border/50 rounded-xl focus:border-brand/60 focus:ring-1 focus:ring-brand/30 text-sm h-11 text-foreground'>
                     <SelectValue placeholder='Select' />
                   </SelectTrigger>
-                  <SelectContent className='max-h-[280px]'>
+                  <SelectContent className='max-h-[280px] bg-[#0d0d0d] border border-border/50 text-foreground'>
                     {START_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
+                      <SelectItem key={o.value} value={o.value} className='focus:bg-brand/20 focus:text-brand cursor-pointer'>
                         {o.label}
                       </SelectItem>
                     ))}
@@ -379,7 +389,7 @@ export function ProfileAvailabilitySection({
                   Preferred time commitment{" "}
                   <span className='text-brand'>*</span>
                 </label>
-                <p className='text-xs product-helper-text'>
+                <p className='text-xs text-muted-foreground'>
                   Ideal number of hours you&apos;d like to work each week
                 </p>
                 <input
@@ -389,7 +399,7 @@ export function ProfileAvailabilitySection({
                   placeholder='Ex: 40'
                   value={hoursStr}
                   onChange={(e) => setHoursStr(e.target.value)}
-                  className='product-input-surface w-full rounded-xl px-3 py-2 text-sm h-10'
+                  className='w-full rounded-xl border border-border/50 bg-[#0d0d0d] px-3.5 py-2 text-sm h-11 text-foreground placeholder:text-muted-foreground/50 focus:border-brand/60 focus:ring-1 focus:ring-brand/30 outline-none transition-all'
                 />
               </div>
 
@@ -397,7 +407,7 @@ export function ProfileAvailabilitySection({
                 <label className='text-sm font-semibold text-foreground'>
                   Timezone <span className='text-brand'>*</span>
                 </label>
-                <p className='text-xs product-helper-text'>
+                <p className='text-xs text-muted-foreground'>
                   Select the time zone you primarily work from. This will be
                   used to interpret your weekly availability hours.
                 </p>
@@ -405,12 +415,12 @@ export function ProfileAvailabilitySection({
                   value={timezone || undefined}
                   onValueChange={setTimezone}
                 >
-                  <SelectTrigger className='w-full'>
+                  <SelectTrigger className='w-full bg-[#0d0d0d] border border-border/50 rounded-xl focus:border-brand/60 focus:ring-1 focus:ring-brand/30 text-sm h-11 text-foreground'>
                     <SelectValue placeholder='Select timezone' />
                   </SelectTrigger>
-                  <SelectContent className='max-h-[280px]'>
+                  <SelectContent className='max-h-[280px] bg-[#0d0d0d] border border-border/50 text-foreground'>
                     {zones.map((z) => (
-                      <SelectItem key={z} value={z}>
+                      <SelectItem key={z} value={z} className='focus:bg-brand/20 focus:text-brand cursor-pointer'>
                         {z.replace(/_/g, " ")}
                       </SelectItem>
                     ))}
@@ -419,128 +429,163 @@ export function ProfileAvailabilitySection({
               </div>
             </div>
 
-            <div className='rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4 sm:p-5 space-y-4'>
-              <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3'>
-                <div className='flex items-start gap-2.5'>
-                  <button
-                    type='button'
-                    onClick={resetBusinessWeek}
-                    className='mt-0.5 p-1.5 rounded-lg text-brand hover:bg-brand/10 transition-colors'
-                    title='Reset to Mon–Fri 9am–5pm'
-                    aria-label='Reset working hours to weekday default'
-                  >
-                    <RefreshCw className='w-4 h-4' />
-                  </button>
-                  <div>
-                    <h4 className='text-sm font-semibold text-foreground'>
-                      Working hours
-                    </h4>
-                    <p className='text-xs product-helper-text mt-0.5'>
-                      Select when you are typically available to work
-                    </p>
-                  </div>
+            {/* Working Hours Box */}
+            <div className='rounded-2xl border border-border/50 bg-[#0a0a0a] p-5 space-y-4 shadow-inner'>
+              <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/40 pb-3.5'>
+                <div>
+                  <h4 className='text-sm font-bold text-foreground'>
+                    Working hours
+                  </h4>
+                  <p className='text-xs text-muted-foreground mt-0.5'>
+                    Click days below to toggle availability
+                  </p>
                 </div>
+                <button
+                  type='button'
+                  onClick={resetBusinessWeek}
+                  className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-brand/30 bg-brand/10 text-brand text-xs font-semibold hover:bg-brand/20 transition-colors shrink-0'
+                  title='Reset to Mon–Fri 9am–5pm'
+                >
+                  <RefreshCw className='w-3.5 h-3.5' />
+                  Mon–Fri 9–5
+                </button>
               </div>
 
-              <div className='space-y-3'>
+              {/* Day Toggle Selector Pills */}
+              <div className='flex items-center gap-2 flex-wrap'>
                 {DAY_INITIALS.map((initial, dayIndex) => {
                   const enabled = dayEnabled(dayIndex);
+                  return (
+                    <button
+                      key={dayIndex}
+                      type='button'
+                      onClick={() => {
+                        if (enabled) {
+                          setDaySlots(dayIndex, []);
+                        } else {
+                          setDaySlots(dayIndex, [{ start: "09:00", end: "17:00" }]);
+                        }
+                      }}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all border ${
+                        enabled
+                          ? "bg-brand text-black border-brand shadow-md shadow-brand/25 scale-105"
+                          : "bg-[#000000] text-muted-foreground/60 border-border/40 hover:border-brand/40 hover:text-foreground"
+                      }`}
+                      title={`Toggle ${initial}`}
+                    >
+                      {initial}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Compact 2-Column Active Days Grid */}
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-3 pt-1'>
+                {DAY_INITIALS.map((initial, dayIndex) => {
+                  const enabled = dayEnabled(dayIndex);
+                  if (!enabled) return null;
                   const slots = weekly[String(dayIndex)] ?? [];
+                  const dayNames = [
+                    "Sunday",
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday",
+                  ];
                   return (
                     <div
                       key={dayIndex}
-                      className='flex flex-wrap items-center gap-2 sm:gap-3 py-2 border-b border-foreground/5 last:border-0'
+                      className='rounded-xl border border-border/40 bg-[#000000] p-3 space-y-2.5 shadow-inner'
                     >
-                      <div
-                        className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
-                          enabled
-                            ? "bg-brand text-black shadow-md shadow-brand/25"
-                            : "bg-foreground/10 text-foreground/45"
-                        }`}
-                      >
-                        {initial}
-                      </div>
-                      {!enabled ? (
-                        <>
-                          <span className='text-sm product-helper-text flex-1 min-w-[100px]'>
-                            Unavailable
-                          </span>
-                          <button
-                            type='button'
-                            onClick={() => addSlot(dayIndex)}
-                            className='w-8 h-8 rounded-full border border-foreground/20 flex items-center justify-center text-foreground/70 hover:border-brand/50 hover:text-brand transition-colors'
-                            aria-label={`Add hours for day ${dayIndex}`}
-                          >
-                            <Plus className='w-4 h-4' />
-                          </button>
-                        </>
-                      ) : (
-                        <div className='flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0'>
-                          <div className='flex flex-col gap-2 flex-1'>
-                            {slots.map((slot, si) => (
-                              <div
-                                key={si}
-                                className='flex flex-wrap items-center gap-2'
-                              >
-                                <input
-                                  type='time'
-                                  value={slot.start}
-                                  onChange={(e) =>
-                                    updateSlot(dayIndex, si, {
-                                      start: e.target.value,
-                                    })
-                                  }
-                                  className='product-input-surface rounded-lg px-2 py-1.5 text-sm w-[7.5rem]'
-                                />
-                                <span className='text-foreground/40 text-sm'>
-                                  –
-                                </span>
-                                <input
-                                  type='time'
-                                  value={slot.end}
-                                  onChange={(e) =>
-                                    updateSlot(dayIndex, si, {
-                                      end: e.target.value,
-                                    })
-                                  }
-                                  className='product-input-surface rounded-lg px-2 py-1.5 text-sm w-[7.5rem]'
-                                />
-                                <button
-                                  type='button'
-                                  onClick={() => removeSlot(dayIndex, si)}
-                                  className='p-1.5 rounded-lg text-foreground/50 hover:text-brand hover:bg-brand/10 transition-colors'
-                                  aria-label='Remove time range'
-                                >
-                                  <X className='w-4 h-4' />
-                                </button>
-                              </div>
-                            ))}
+                      <div className='flex items-center justify-between'>
+                        <div className='flex items-center gap-2'>
+                          <div className='w-6 h-6 rounded-full bg-brand text-black text-[11px] font-extrabold flex items-center justify-center'>
+                            {initial}
                           </div>
+                          <span className='text-xs font-semibold text-foreground'>
+                            {dayNames[dayIndex]}
+                          </span>
+                        </div>
+                        <div className='flex items-center gap-1'>
                           <button
                             type='button'
                             onClick={() => addSlot(dayIndex)}
-                            className='w-8 h-8 rounded-full border border-foreground/20 flex items-center justify-center text-foreground/70 hover:border-brand/50 hover:text-brand transition-colors shrink-0'
-                            aria-label='Add another range'
+                            className='p-1 rounded-lg text-muted-foreground hover:text-brand hover:bg-brand/10 transition-colors'
+                            title='Add another range'
                           >
-                            <Plus className='w-4 h-4' />
+                            <Plus className='w-3.5 h-3.5' />
+                          </button>
+                          <button
+                            type='button'
+                            onClick={() => setDaySlots(dayIndex, [])}
+                            className='p-1 rounded-lg text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 transition-colors'
+                            title='Make unavailable'
+                          >
+                            <X className='w-3.5 h-3.5' />
                           </button>
                         </div>
-                      )}
+                      </div>
+
+                      <div className='space-y-2'>
+                        {slots.map((slot, si) => (
+                          <div
+                            key={si}
+                            className='flex items-center gap-2'
+                          >
+                            <input
+                              type='time'
+                              value={slot.start}
+                              onChange={(e) =>
+                                updateSlot(dayIndex, si, {
+                                  start: e.target.value,
+                                })
+                              }
+                              className='rounded-lg border border-border/40 bg-[#0a0a0a] px-2.5 py-1 text-xs text-foreground focus:border-brand/60 outline-none w-[6.8rem]'
+                            />
+                            <span className='text-muted-foreground/60 text-xs'>
+                              –
+                            </span>
+                            <input
+                              type='time'
+                              value={slot.end}
+                              onChange={(e) =>
+                                updateSlot(dayIndex, si, {
+                                  end: e.target.value,
+                                })
+                              }
+                              className='rounded-lg border border-border/40 bg-[#0a0a0a] px-2.5 py-1 text-xs text-foreground focus:border-brand/60 outline-none w-[6.8rem]'
+                            />
+                            {slots.length > 1 && (
+                              <button
+                                type='button'
+                                onClick={() => removeSlot(dayIndex, si)}
+                                className='p-1 text-muted-foreground hover:text-rose-400'
+                                title='Remove range'
+                              >
+                                <X className='w-3 h-3' />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            <div className='rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4 sm:p-5 space-y-4'>
+            {/* Date-Specific Hours Exceptions */}
+            <div className='rounded-2xl border border-border/50 bg-[#0a0a0a] p-5 sm:p-6 space-y-4 shadow-inner'>
               <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'>
-                <div className='flex items-start gap-2.5'>
-                  <Calendar className='w-4 h-4 text-brand mt-1 shrink-0' />
+                <div className='flex items-start gap-3'>
+                  <Calendar className='w-5 h-5 text-brand mt-0.5 shrink-0' />
                   <div>
-                    <h4 className='text-sm font-semibold text-foreground'>
+                    <h4 className='text-base font-bold text-foreground'>
                       Date-specific hours
                     </h4>
-                    <p className='text-xs product-helper-text mt-0.5'>
+                    <p className='text-xs text-muted-foreground mt-0.5'>
                       Override your usual schedule for holidays, travel, or
                       one-off changes
                     </p>
@@ -550,16 +595,16 @@ export function ProfileAvailabilitySection({
                   type='button'
                   variant='outline'
                   size='sm'
-                  className='product-outline-button shrink-0 border-foreground/20'
+                  className='border-brand/40 bg-brand/5 text-brand hover:bg-brand/15 hover:border-brand/60 rounded-xl text-xs font-semibold shrink-0'
                   onClick={addException}
                 >
-                  <Plus className='w-3.5 h-3.5 mr-1' />
+                  <Plus className='w-3.5 h-3.5 mr-1.5' />
                   Add exceptions
                 </Button>
               </div>
 
               {exceptions.length === 0 ? (
-                <div className='rounded-lg bg-foreground/5 border border-foreground/10 py-10 px-4 text-center text-sm product-helper-text'>
+                <div className='rounded-xl bg-[#000000] border border-dashed border-border/40 py-8 px-4 text-center text-sm text-muted-foreground/60'>
                   No active exceptions.
                 </div>
               ) : (
@@ -567,18 +612,18 @@ export function ProfileAvailabilitySection({
                   {exceptions.map((ex) => (
                     <div
                       key={ex.id}
-                      className='rounded-lg border border-foreground/10 bg-background/30 p-3 sm:p-4 space-y-3'
+                      className='rounded-xl border border-border/50 bg-[#000000] p-4 space-y-3'
                     >
-                      <div className='flex flex-wrap items-center gap-2'>
+                      <div className='flex flex-wrap items-center gap-3'>
                         <input
                           type='date'
                           value={ex.date}
                           onChange={(e) =>
                             updateException(ex.id, { date: e.target.value })
                           }
-                          className='product-input-surface rounded-lg px-2 py-1.5 text-sm flex-1 min-w-[140px]'
+                          className='rounded-xl border border-border/40 bg-[#0a0a0a] px-3 py-2 text-sm text-foreground focus:border-brand/60 outline-none flex-1 min-w-[140px]'
                         />
-                        <label className='flex items-center gap-2 text-xs product-helper-text cursor-pointer'>
+                        <label className='flex items-center gap-2 text-xs text-muted-foreground cursor-pointer'>
                           <input
                             type='checkbox'
                             checked={ex.unavailable}
@@ -597,7 +642,7 @@ export function ProfileAvailabilitySection({
                         <button
                           type='button'
                           onClick={() => removeException(ex.id)}
-                          className='p-1.5 rounded-lg text-foreground/50 hover:text-brand ml-auto'
+                          className='p-2 rounded-xl text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 ml-auto'
                           aria-label='Remove exception'
                         >
                           <X className='w-4 h-4' />
@@ -621,9 +666,9 @@ export function ProfileAvailabilitySection({
                                   );
                                   updateException(ex.id, { slots: next });
                                 }}
-                                className='product-input-surface rounded-lg px-2 py-1.5 text-sm w-[7.5rem]'
+                                className='rounded-xl border border-border/40 bg-[#0a0a0a] px-3 py-2 text-sm text-foreground focus:border-brand/60 outline-none w-[7.5rem]'
                               />
-                              <span className='text-foreground/40'>–</span>
+                              <span className='text-muted-foreground/60'>–</span>
                               <input
                                 type='time'
                                 value={slot.end}
@@ -635,12 +680,12 @@ export function ProfileAvailabilitySection({
                                   );
                                   updateException(ex.id, { slots: next });
                                 }}
-                                className='product-input-surface rounded-lg px-2 py-1.5 text-sm w-[7.5rem]'
+                                className='rounded-xl border border-border/40 bg-[#0a0a0a] px-3 py-2 text-sm text-foreground focus:border-brand/60 outline-none w-[7.5rem]'
                               />
                               <button
                                 type='button'
                                 onClick={() => removeExceptionSlot(ex.id, si)}
-                                className='p-1 text-foreground/50 hover:text-brand'
+                                className='p-1.5 text-muted-foreground hover:text-rose-400'
                                 aria-label='Remove slot'
                               >
                                 <X className='w-3.5 h-3.5' />
@@ -651,7 +696,7 @@ export function ProfileAvailabilitySection({
                             type='button'
                             variant='ghost'
                             size='sm'
-                            className='text-xs h-8 text-brand hover:text-brand hover:bg-brand/10'
+                            className='text-xs h-8 text-brand hover:text-brand hover:bg-brand/10 rounded-lg'
                             onClick={() => addExceptionSlot(ex.id)}
                           >
                             <Plus className='w-3 h-3 mr-1' />
@@ -665,18 +710,19 @@ export function ProfileAvailabilitySection({
               )}
             </div>
 
-            <div className='flex flex-wrap gap-2 pt-1'>
+            {/* Save Button Bar */}
+            <div className='flex flex-wrap items-center gap-3 pt-2 border-t border-border/40'>
               <Button
                 type='button'
                 size='sm'
                 disabled={loading || saving || missingFields.length > 0}
-                className='bg-brand text-black hover:bg-brand/90'
+                className='bg-brand text-black font-semibold hover:bg-brand/90 px-6 py-2.5 rounded-xl shadow-lg shadow-brand/20 transition-all disabled:opacity-50'
                 onClick={() => void handleSave()}
               >
                 {saving ? "Saving…" : "Save availability"}
               </Button>
               {missingFields.length > 0 && (
-                <span className='text-xs product-helper-text self-center'>
+                <span className='text-xs text-muted-foreground self-center'>
                   Complete required fields to save.
                 </span>
               )}

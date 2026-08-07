@@ -35,7 +35,7 @@ export function resolveAllowedOrigin(origin?: string | null): string | null {
 }
 
 const BASE_ALLOW_HEADERS =
-  "authorization, x-client-info, apikey, content-type, x-skyvern-api-key, x-api-key, accept, accept-language, content-language, prefer, range, x-supabase-api-version";
+  "authorization, x-client-info, apikey, content-type, x-skyvern-api-key, x-api-key, accept, accept-language, content-language, prefer, range, x-supabase-api-version, baggage, sentry-trace, traceparent, tracestate";
 
 function mergeAllowHeaders(
   base: string,

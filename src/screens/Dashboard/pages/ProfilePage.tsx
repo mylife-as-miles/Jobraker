@@ -3,6 +3,14 @@ import { Link } from "react-router-dom";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "../../../components/ui/dialog";
 import { motion } from "framer-motion";
 import {
   Edit,
@@ -33,6 +41,7 @@ import {
 import { useToast } from "../../../components/ui/toast";
 import { EmptyState } from "../../../components/ui/empty-state";
 import { Skeleton } from "../../../components/ui/skeleton";
+import { HashvatarAvatar } from "@/components/ui/hashvatar-avatar";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import type {
   ProfileEducationRecord as TProfileEducation,
@@ -42,7 +51,6 @@ import type {
 import { useApplications } from "../../../hooks/useApplications";
 import { createClient } from "../../../lib/supabaseClient";
 import { useGamification } from "../../../hooks/useGamification";
-import { CandidateMemoryEditor } from "../components/CandidateMemoryEditor";
 import { ProfileAvailabilitySection } from "../components/ProfileAvailabilitySection";
 import { PublicProfileShareCard } from "../components/PublicProfileShareCard";
 import {
@@ -78,14 +86,33 @@ const ProfilePage = (): JSX.Element => {
   const supabase = useMemo(() => createClient(), []);
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
   const [syncingProviders, setSyncingProviders] = useState<string[]>([]);
+  
+  // Human-in-the-loop sync modal state
+  const [pendingSyncProviders, setPendingSyncProviders] = useState<string[] | null>(null);
+  const [syncOptions, setSyncOptions] = useState({
+    updateAvatar: true,
+    updateAbout: true,
+    updateSkills: true,
+  });
 
-  const handleSync = async (providers: string[]) => {
+  const promptSyncConfirmation = (providers: string[]) => {
+    setPendingSyncProviders(providers);
+  };
+
+  const handleSyncConfirmed = async () => {
+    if (!pendingSyncProviders) return;
+    const providers = pendingSyncProviders;
+    setPendingSyncProviders(null);
+
     setSyncingProviders((prev) => [...prev, ...providers]);
     toastSuccess("Portfolio Sync", `Starting sync for ${providers.join(", ")}...`);
 
     try {
       const { data, error } = await supabase.functions.invoke("sync-portfolio-integrations", {
-        body: { providers },
+        body: { 
+          providers,
+          options: syncOptions,
+        },
       });
 
       if (error) throw error;
@@ -122,14 +149,6 @@ const ProfilePage = (): JSX.Element => {
     const integration = PORTFOLIO_INTEGRATIONS[provider];
     const configId = integration.authConfigId;
 
-    if (!configId) {
-      toastError(
-        "Configuration missing",
-        `Please set VITE_COMPOSIO_${provider.toUpperCase()}_CONFIG_ID environment variable.`
-      );
-      return;
-    }
-
     const popup = window.open("about:blank", "_blank", "width=560,height=760");
     const oauthRequestId = createOAuthRequestId();
     setConnectingProvider(provider);
@@ -156,7 +175,7 @@ const ProfilePage = (): JSX.Element => {
         window.open(redirectUrl, "_blank", "width=560,height=760");
       }
 
-      const connected = await waitForComposioConnection({
+      const outcome = await waitForComposioConnection({
         popup,
         requestId: oauthRequestId,
         provider,
@@ -170,13 +189,16 @@ const ProfilePage = (): JSX.Element => {
                 authConfigId: integration.authConfigId,
               },
             });
-          if (statusError) return false;
-          return Boolean(statusData?.isConnected);
+          if (statusError) return "inactive";
+          if (statusData?.state) return statusData.state;
+          return statusData?.isConnected ? "active" : "inactive";
         },
       });
-      if (!connected) {
+      if (outcome !== "connected") {
         throw new Error(
-          "Authorization was not completed. Reopen the connection and finish the provider flow.",
+          outcome === "timeout"
+            ? "The provider has not confirmed the connection yet. Try again in a moment."
+            : "Authorization was not completed. Reopen the connection and finish the provider flow.",
         );
       }
       await handleSync([provider]);
@@ -210,7 +232,7 @@ const ProfilePage = (): JSX.Element => {
       case "not_connected":
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-500/10 text-muted-foreground border border-zinc-500/20">
             Not Connected
           </span>
         );
@@ -223,14 +245,6 @@ const ProfilePage = (): JSX.Element => {
     "Free" | "Basics" | "Pro" | "Ultimate"
   >("Free");
   const gamification = useGamification();
-  const initials = useMemo(() => {
-    const a = (profile?.first_name || "").trim();
-    const b = (profile?.last_name || "").trim();
-    const i =
-      `${a.charAt(0) || ""}${b.charAt(0) || ""}` || email.charAt(0) || "U";
-    return i.toUpperCase();
-  }, [profile?.first_name, profile?.last_name, email]);
-
   // hydrate auth email
   useEffect(() => {
     (async () => {
@@ -466,9 +480,9 @@ const ProfilePage = (): JSX.Element => {
   return (
     <div className='product-page-shell min-h-full'>
       <div className='w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8'>
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8'>
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 items-start'>
           {/* Profile Sidebar */}
-          <div className='lg:col-span-1 space-y-6'>
+          <div className='lg:col-span-1 space-y-6 lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-foreground/10 hover:scrollbar-thumb-foreground/30 transition-all'>
             {/* Profile Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -498,7 +512,7 @@ const ProfilePage = (): JSX.Element => {
                               className='w-full h-full object-cover'
                             />
                           ) : (
-                            <span>{initials}</span>
+                            <HashvatarAvatar seed={profile?.id || email} />
                           )}
                         </div>
                         <label className='absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-brand text-black hover:bg-brand/90 hover:scale-110 transition-all duration-300 p-0 flex items-center justify-center cursor-pointer'>
@@ -567,12 +581,12 @@ const ProfilePage = (): JSX.Element => {
                   </div>
 
                   <div className='flex justify-center space-x-2 mt-4'>
-                    {profile?.linkedin_url ? (
+                    {profile?.linkedin_url || profile?.linkedin_data?.profile_url ? (
                       <a
                         href={
-                          profile.linkedin_url.startsWith("http")
-                            ? profile.linkedin_url
-                            : `https://${profile.linkedin_url}`
+                          (profile.linkedin_url || profile.linkedin_data.profile_url).startsWith("http")
+                            ? (profile.linkedin_url || profile.linkedin_data.profile_url)
+                            : `https://${profile.linkedin_url || profile.linkedin_data.profile_url}`
                         }
                         target='_blank'
                         rel='noopener noreferrer'
@@ -590,12 +604,12 @@ const ProfilePage = (): JSX.Element => {
                         Add LinkedIn
                       </Link>
                     )}
-                    {profile?.github_url ? (
+                    {profile?.github_url || profile?.github_data?.profile_url ? (
                       <a
                         href={
-                          profile.github_url.startsWith("http")
-                            ? profile.github_url
-                            : `https://${profile.github_url}`
+                          (profile.github_url || profile.github_data.profile_url).startsWith("http")
+                            ? (profile.github_url || profile.github_data.profile_url)
+                            : `https://${profile.github_url || profile.github_data.profile_url}`
                         }
                         target='_blank'
                         rel='noopener noreferrer'
@@ -2012,7 +2026,7 @@ const ProfilePage = (): JSX.Element => {
                       size='sm'
                       variant='outline'
                       disabled={syncingProviders.length > 0 || connectingProvider !== null}
-                      onClick={() => handleSync(["github", "linkedin"])}
+                      onClick={() => promptSyncConfirmation(["github", "linkedin"])}
                       className='border-foreground/20 text-foreground hover:bg-foreground/10 flex items-center gap-1.5'
                     >
                       <RefreshCw className={`w-3.5 h-3.5 ${syncingProviders.length > 0 ? "animate-spin" : ""}`} />
@@ -2026,7 +2040,7 @@ const ProfilePage = (): JSX.Element => {
                   <div className='bg-foreground/5 border border-foreground/10 rounded-xl p-5 hover:bg-foreground/[0.07] transition-all duration-300 flex flex-col'>
                     <div className='flex items-center justify-between mb-4'>
                       <div className='flex items-center gap-2'>
-                        <div className='p-2 bg-zinc-950 rounded-lg border border-zinc-800 text-zinc-200'>
+                        <div className='p-2 bg-zinc-950 rounded-lg border border-zinc-800 text-foreground/80'>
                           <Github className='w-5 h-5' />
                         </div>
                         <div>
@@ -2040,7 +2054,7 @@ const ProfilePage = (): JSX.Element => {
                           size='sm'
                           variant='ghost'
                           disabled={syncingProviders.includes("github")}
-                          onClick={() => handleSync(["github"])}
+                          onClick={() => promptSyncConfirmation(["github"])}
                           className='product-helper-text hover:text-foreground text-xs flex items-center gap-1'
                         >
                           <RefreshCw className={`w-3 h-3 ${syncingProviders.includes("github") ? "animate-spin" : ""}`} />
@@ -2075,7 +2089,7 @@ const ProfilePage = (): JSX.Element => {
                                 className='w-10 h-10 rounded-full border border-foreground/10'
                               />
                             ) : (
-                              <div className='w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-200 font-bold'>
+                              <div className='w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-foreground/80 font-bold'>
                                 <User className='w-5 h-5' />
                               </div>
                             )}
@@ -2173,7 +2187,7 @@ const ProfilePage = (): JSX.Element => {
                       </div>
                     ) : (
                       <div className='flex-1 flex flex-col items-center justify-center text-center p-6 border border-dashed border-foreground/10 rounded-lg bg-foreground/[0.01] mt-2'>
-                        <div className='w-12 h-12 bg-zinc-950 rounded-full flex items-center justify-center border border-zinc-800 text-zinc-500 mb-3 shadow-inner'>
+                        <div className='w-12 h-12 bg-zinc-950 rounded-full flex items-center justify-center border border-zinc-800 text-muted-foreground mb-3 shadow-inner'>
                           <Github className='w-6 h-6' />
                         </div>
                         <h5 className='font-semibold text-foreground text-xs mb-1'>No GitHub Showcase</h5>
@@ -2215,7 +2229,7 @@ const ProfilePage = (): JSX.Element => {
                           size='sm'
                           variant='ghost'
                           disabled={syncingProviders.includes("linkedin")}
-                          onClick={() => handleSync(["linkedin"])}
+                          onClick={() => promptSyncConfirmation(["linkedin"])}
                           className='product-helper-text hover:text-foreground text-xs flex items-center gap-1'
                         >
                           <RefreshCw className={`w-3 h-3 ${syncingProviders.includes("linkedin") ? "animate-spin" : ""}`} />
@@ -2331,25 +2345,87 @@ const ProfilePage = (): JSX.Element => {
                 </div>
               </Card>
             </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.55 }}
-              whileHover={{ scale: 1.01 }}
-              className='transition-transform duration-300'
-            >
-              <CandidateMemoryEditor
-                profile={profile}
-                loading={profileLoading}
-                onSave={async (patch) => {
-                  await updateProfile(patch as any);
-                }}
-              />
-            </motion.div>
           </div>
         </div>
       </div>
+
+      {/* Human-In-The-Loop Confirmation Modal */}
+      <Dialog open={pendingSyncProviders !== null} onOpenChange={(open) => !open && setPendingSyncProviders(null)}>
+        <DialogContent className='sm:max-w-md bg-zinc-950 border-border/40 text-foreground'>
+          <DialogHeader>
+            <DialogTitle className='flex items-center gap-2 text-lg font-bold text-foreground'>
+              <RefreshCw className='w-5 h-5 text-brand' />
+              Confirm Profile Sync Options
+            </DialogTitle>
+            <DialogDescription className='text-xs text-muted-foreground mt-1'>
+              Select which areas of your main profile you would like to update with data fetched from {pendingSyncProviders?.join(" & ")}:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className='space-y-3 py-3 border-y border-border/20 my-2'>
+            <label className='flex items-start gap-3 p-2.5 rounded-lg border border-border/20 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors'>
+              <input
+                type='checkbox'
+                checked={syncOptions.updateAvatar}
+                onChange={(e) => setSyncOptions((prev) => ({ ...prev, updateAvatar: e.target.checked }))}
+                className='mt-1 rounded border-border/40 text-brand focus:ring-brand'
+              />
+              <div>
+                <span className='text-sm font-semibold text-foreground block'>Profile Picture (Avatar)</span>
+                <span className='text-xs text-muted-foreground/80 block leading-normal'>
+                  Update your account avatar using your synced GitHub or LinkedIn profile picture.
+                </span>
+              </div>
+            </label>
+
+            <label className='flex items-start gap-3 p-2.5 rounded-lg border border-border/20 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors'>
+              <input
+                type='checkbox'
+                checked={syncOptions.updateAbout}
+                onChange={(e) => setSyncOptions((prev) => ({ ...prev, updateAbout: e.target.checked }))}
+                className='mt-1 rounded border-border/40 text-brand focus:ring-brand'
+              />
+              <div>
+                <span className='text-sm font-semibold text-foreground block'>Bio / About Section</span>
+                <span className='text-xs text-muted-foreground/80 block leading-normal'>
+                  Overwrites your profile bio summary with your synced profile headline/summary.
+                </span>
+              </div>
+            </label>
+
+            <label className='flex items-start gap-3 p-2.5 rounded-lg border border-border/20 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors'>
+              <input
+                type='checkbox'
+                checked={syncOptions.updateSkills}
+                onChange={(e) => setSyncOptions((prev) => ({ ...prev, updateSkills: e.target.checked }))}
+                className='mt-1 rounded border-border/40 text-brand focus:ring-brand'
+              />
+              <div>
+                <span className='text-sm font-semibold text-foreground block'>Profile Skills Stack</span>
+                <span className='text-xs text-muted-foreground/80 block leading-normal'>
+                  Automatically add top languages from your repositories into your main Skills list.
+                </span>
+              </div>
+            </label>
+          </div>
+
+          <DialogFooter className='gap-2 sm:gap-0'>
+            <Button
+              variant='outline'
+              onClick={() => setPendingSyncProviders(null)}
+              className='border-border/40 text-muted-foreground hover:text-foreground'
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSyncConfirmed}
+              className='bg-brand text-black hover:bg-brand/90 font-semibold'
+            >
+              Proceed & Sync Data
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

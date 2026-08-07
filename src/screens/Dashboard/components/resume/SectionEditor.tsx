@@ -85,128 +85,154 @@ export const SectionEditor = ({ sectionId }: SectionEditorProps) => {
             </div>
           </div>
 
-          {expandedItem === item.id && (
-            <div className='border-t border-border/40 bg-background p-4 space-y-3'>
-              <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-                <div className='sm:col-span-2'>
-                  <label className='product-helper-text mb-1 block text-xs font-medium'>
-                    {sectionId === "education"
-                      ? "School / University"
-                      : sectionId === "awards"
-                        ? "Award Name"
-                        : sectionId === "certifications"
-                          ? "Certification Name"
-                          : sectionId === "publications"
-                            ? "Publication Title"
-                            : sectionId === "references"
-                              ? "Referee Name"
-                              : sectionId === "projects"
-                                ? "Project Name"
-                                : "Title / Role"}
-                  </label>
-                  <Input
-                    value={item.title || item.degree || item.name || ""}
-                    onChange={(e) =>
-                      updateSectionItem(sectionId, item.id, {
-                        title: e.target.value,
-                        degree: e.target.value,
-                        name: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className='product-helper-text mb-1 block text-xs font-medium'>
-                    {sectionId === "education"
-                      ? "Degree"
-                      : sectionId === "awards"
-                        ? "Issuer"
-                        : sectionId === "certifications"
-                          ? "Issuing Organization"
-                          : sectionId === "publications"
-                            ? "Publisher"
-                            : sectionId === "references"
-                              ? "Company / Relation"
-                              : sectionId === "projects"
-                                ? "Project Link"
-                                : "Company / Organization"}
-                  </label>
-                  <Input
-                    value={
-                      item.company ||
-                      item.school ||
-                      item.institution ||
-                      item.issuer ||
-                      ""
-                    }
-                    onChange={(e) =>
-                      updateSectionItem(sectionId, item.id, {
-                        company: e.target.value,
-                        school: e.target.value,
-                        institution: e.target.value,
-                        issuer: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className='product-helper-text mb-1 block text-xs font-medium'>
-                    {sectionId === "awards"
-                      ? "Date"
-                      : sectionId === "projects"
-                        ? "Date"
-                        : "Date / Period"}
-                  </label>
-                  <Input
-                    value={item.date || item.period || ""}
-                    onChange={(e) =>
-                      updateSectionItem(sectionId, item.id, {
-                        date: e.target.value,
-                        period: e.target.value,
-                      })
-                    }
-                    placeholder='e.g. 2020 - Present'
-                  />
-                </div>
-
-                {sectionId === "references" && (
-                  <div>
+          <div
+            className={`spring-grid-expandable overflow-hidden border-t border-border/40 transition-all ${
+              expandedItem === item.id ? "expanded" : ""
+            }`}
+            style={{
+              display: "grid",
+              gridTemplateRows: expandedItem === item.id ? "1fr" : "0fr",
+              transition: "grid-template-rows 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            }}
+          >
+            <div
+              className='spring-grid-inner min-h-0 overflow-hidden'
+              style={{
+                opacity: expandedItem === item.id ? 1 : 0,
+                transition: "opacity 0.35s ease 0.15s",
+              }}
+            >
+              <div className='bg-background p-4 space-y-3'>
+                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+                  <div className='sm:col-span-2'>
                     <label className='product-helper-text mb-1 block text-xs font-medium'>
-                      Referee Contact (Email / Phone)
+                      {sectionId === "education"
+                        ? "School / University"
+                        : sectionId === "awards"
+                          ? "Award Name"
+                          : sectionId === "certifications"
+                            ? "Certification Name"
+                            : sectionId === "publications"
+                              ? "Publication Title"
+                              : sectionId === "projects"
+                                ? "Project Title"
+                                : "Title / Degree"}
                     </label>
-                    <Input
-                      value={item.phone || ""}
+                    <input
+                      type='text'
+                      className='product-input-surface rounded-xl px-3 py-2 text-sm w-full border border-border/40 bg-transparent'
+                      value={
+                        item.title ||
+                        item.name ||
+                        item.degree ||
+                        item.school ||
+                        ""
+                      }
                       onChange={(e) =>
                         updateSectionItem(sectionId, item.id, {
-                          phone: e.target.value,
+                          [sectionId === "education"
+                            ? "school"
+                            : sectionId === "awards" || sectionId === "projects"
+                              ? "name"
+                              : "title"]: e.target.value,
                         })
                       }
-                      placeholder='e.g. john@example.com / +1 234 567 890'
                     />
                   </div>
-                )}
 
-                <div className='sm:col-span-2'>
-                  <label className='product-helper-text mb-1 block text-xs font-medium'>
-                    Description
-                  </label>
-                  <Textarea
-                    value={item.description || ""}
-                    onChange={(e) =>
-                      updateSectionItem(sectionId, item.id, {
-                        description: e.target.value,
-                      })
-                    }
-                    placeholder='Description...'
-                    rows={3}
-                    className='product-input-surface border-border/40 bg-transparent text-xs'
-                  />
+                  {sectionId === "experience" && (
+                    <>
+                      <div>
+                        <label className='product-helper-text mb-1 block text-xs font-medium'>
+                          Company
+                        </label>
+                        <input
+                          type='text'
+                          className='product-input-surface rounded-xl px-3 py-2 text-sm w-full border border-border/40 bg-transparent'
+                          value={item.company || ""}
+                          onChange={(e) =>
+                            updateSectionItem(sectionId, item.id, {
+                              company: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className='product-helper-text mb-1 block text-xs font-medium'>
+                          Location
+                        </label>
+                        <input
+                          type='text'
+                          className='product-input-surface rounded-xl px-3 py-2 text-sm w-full border border-border/40 bg-transparent'
+                          value={item.location || ""}
+                          onChange={(e) =>
+                            updateSectionItem(sectionId, item.id, {
+                              location: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div>
+                    <label className='product-helper-text mb-1 block text-xs font-medium'>
+                      Start Date
+                    </label>
+                    <input
+                      type='text'
+                      placeholder='MM/YYYY'
+                      className='product-input-surface rounded-xl px-3 py-2 text-sm w-full border border-border/40 bg-transparent'
+                      value={item.startDate || ""}
+                      onChange={(e) =>
+                        updateSectionItem(sectionId, item.id, {
+                          startDate: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className='product-helper-text mb-1 block text-xs font-medium'>
+                      End Date
+                    </label>
+                    <input
+                      type='text'
+                      placeholder='MM/YYYY or Present'
+                      className='product-input-surface rounded-xl px-3 py-2 text-sm w-full border border-border/40 bg-transparent'
+                      value={item.endDate || ""}
+                      onChange={(e) =>
+                        updateSectionItem(sectionId, item.id, {
+                          endDate: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className='sm:col-span-2'>
+                    <label className='product-helper-text mb-1 block text-xs font-medium'>
+                      Description / Highlights
+                    </label>
+                    <textarea
+                      rows={3}
+                      className='product-input-surface rounded-xl px-3 py-2 text-sm w-full border border-border/40 bg-transparent'
+                      value={
+                        item.description ||
+                        (item.highlights ? item.highlights.join("\n") : "")
+                      }
+                      onChange={(e) =>
+                        updateSectionItem(sectionId, item.id, {
+                          description: e.target.value,
+                          highlights: e.target.value
+                            .split("\n")
+                            .filter(Boolean),
+                        })
+                      }
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
       ))}
 

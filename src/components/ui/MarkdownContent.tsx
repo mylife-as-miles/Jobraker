@@ -56,10 +56,10 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
         "prose-ul:text-foreground/80 prose-ol:text-foreground/80",
         "prose-li:marker:text-brand/80",
         "prose-hr:border-border/70",
-        "prose-code:rounded prose-code:bg-white/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-foreground",
+        "prose-code:rounded prose-code:bg-foreground/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-foreground",
         "prose-pre:border prose-pre:border-border/70 prose-pre:bg-black/40",
         "prose-th:text-foreground prose-td:text-foreground/75",
-        "prose-img:my-4 prose-img:rounded-xl prose-img:border prose-img:border-border/70 prose-img:bg-white/5 prose-img:p-2",
+        "prose-img:my-4 prose-img:rounded-xl prose-img:border prose-img:border-border/70 prose-img:bg-foreground/5 prose-img:p-2",
         className,
       )}
     >

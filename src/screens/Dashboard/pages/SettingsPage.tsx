@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   TOUR_PAGE_LABELS,
@@ -6,9 +6,11 @@ import {
   useRegisterCoachMarks,
 } from "../../../providers/TourProvider";
 import { Skeleton } from "../../../components/ui/skeleton";
+import { HashvatarAvatar } from "@/components/ui/hashvatar-avatar";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
+import QRCode from "qrcode";
 import {
   LogOut,
   User,
@@ -47,7 +49,6 @@ import {
   History,
   X,
   LifeBuoy,
-  Calendar,
 } from "lucide-react";
 import remoteCoLogo from "../../../assets/job-sources/remote-co.svg";
 import remotiveLogo from "../../../assets/job-sources/remotive.svg";
@@ -60,6 +61,7 @@ import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
 import { useSecuritySettings } from "../../../hooks/useSecuritySettings";
 import { createClient } from "../../../lib/supabaseClient";
 import { useAppearance } from "../../../providers/AppearanceProvider";
+import { setThemeToggleOrigin } from "../../../hooks/useAppearanceSettings";
 import { useToast } from "../../../components/ui/toast";
 import { AnswerBankPanel } from "../components/AnswerBankPanel";
 import Modal from "../../../components/ui/modal";
@@ -67,22 +69,27 @@ import { validatePassword } from "../../../utils/password";
 import {
   CheckCircle2,
   XCircle,
-  Linkedin,
-  Github,
   Key,
   Lock,
+  ShieldCheck,
+  ShieldOff,
+  Smartphone,
+  Copy,
+  KeyRound,
 } from "lucide-react";
 import { encryptSymmetric } from "../../../utils/crypto";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { useEmailIntegrationAccess } from "@/hooks/useEmailIntegrationAccess";
 import { CreditService } from "@/services/creditService";
-import { getProxiedLogoUrl } from "../../../lib/utils";
+import { cn, getProxiedLogoUrl } from "../../../lib/utils";
 import useMediaQuery from "@/hooks/use-media-query";
 import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
-import {
-  createOAuthRequestId,
-  waitForComposioConnection,
-} from "@/lib/composioConnection";
+import { useComposioIntegrations } from "@/hooks/useComposioIntegrations";
+import { GMAIL_INTEGRATION } from "@/lib/composioIntegrations";
+import { IntegrationsPanel } from "../components/IntegrationsPanel";
+import { AiUsageLimitsPanel } from "../components/AiUsageLimitsPanel";
+
+type TwoFAStep = "preparing" | "scan" | "verify" | "backup" | "success";
 
 const SignOutDialog = ({
   open,
@@ -149,127 +156,6 @@ const SignOutDialog = ({
   );
 };
 
-// Lazy-load qrcode to avoid bundler resolution issues during build
-let QRCodeLib: any | null = null;
-async function getQRCode() {
-  if (QRCodeLib) return QRCodeLib;
-  QRCodeLib = await import("qrcode");
-  return QRCodeLib;
-}
-
-type ComposioIntegrationSlug =
-  | "gmail"
-  | "github"
-  | "googledrive"
-  | "googledocs"
-  | "cal"
-  | "reddit"
-  | "notion"
-  | "googlecalendar"
-  | "linkedin";
-
-type ComposioConnectionStatus = {
-  configured: boolean;
-  isConnected: boolean;
-  connectionId?: string | null;
-  identifier?: string | null;
-};
-
-type ComposioIntegration = {
-  slug: ComposioIntegrationSlug;
-  toolkitSlug: string;
-  name: string;
-  description: string;
-  authConfigId?: string;
-  icon: JSX.Element;
-  accentClass: string;
-};
-
-const COMPOSIO_INTEGRATIONS: ComposioIntegration[] = [
-  {
-    slug: "github",
-    toolkitSlug: "github",
-    name: "GitHub",
-    description: "Pull project evidence, repos, languages, and portfolio signals into Agent Mode.",
-    authConfigId: import.meta.env.VITE_COMPOSIO_GITHUB_CONFIG_ID,
-    icon: <Github className='w-6 h-6 text-zinc-200' />,
-    accentClass: "from-zinc-500/20 to-zinc-500/10 border-zinc-500/30",
-  },
-  {
-    slug: "googledrive",
-    toolkitSlug: "googledrive",
-    name: "Google Drive",
-    description: "Import resumes, portfolios, certificates, and career documents.",
-    authConfigId: import.meta.env.VITE_COMPOSIO_GOOGLEDRIVE_CONFIG_ID,
-    icon: <Database className='w-6 h-6 text-emerald-300' />,
-    accentClass: "from-emerald-500/20 to-emerald-500/10 border-emerald-500/30",
-  },
-  {
-    slug: "googledocs",
-    toolkitSlug: "googledocs",
-    name: "Google Docs",
-    description: "Let Agent Mode draft, revise, and update resume and cover-letter documents.",
-    authConfigId: import.meta.env.VITE_COMPOSIO_GOOGLEDOCS_CONFIG_ID,
-    icon: <FileText className='w-6 h-6 text-sky-300' />,
-    accentClass: "from-sky-500/20 to-sky-500/10 border-sky-500/30",
-  },
-
-  {
-    slug: "cal",
-    toolkitSlug: "cal",
-    name: "Cal.com",
-    description: "Create scheduling workflows for interview booking and rescheduling.",
-    authConfigId: import.meta.env.VITE_COMPOSIO_CAL_CONFIG_ID,
-    icon: <Calendar className='w-6 h-6 text-teal-300' />,
-    accentClass: "from-teal-500/20 to-teal-500/10 border-teal-500/30",
-  },
-  {
-    slug: "reddit",
-    toolkitSlug: "reddit",
-    name: "Reddit",
-    description: "Find community hiring leads and niche job-search conversations.",
-    authConfigId: import.meta.env.VITE_COMPOSIO_REDDIT_CONFIG_ID,
-    icon: <Globe className='w-6 h-6 text-orange-300' />,
-    accentClass: "from-orange-500/20 to-orange-500/10 border-orange-500/30",
-  },
-  {
-    slug: "notion",
-    toolkitSlug: "notion",
-    name: "Notion",
-    description: "Use brag docs, case studies, notes, and project writeups as candidate context.",
-    authConfigId: import.meta.env.VITE_COMPOSIO_NOTION_CONFIG_ID,
-    icon: <Database className='w-6 h-6 text-stone-200' />,
-    accentClass: "from-stone-500/20 to-stone-500/10 border-stone-500/30",
-  },
-  {
-    slug: "googlecalendar",
-    toolkitSlug: "googlecalendar",
-    name: "Google Calendar",
-    description: "Schedule interviews, prep reminders, and follow-up events from chat.",
-    authConfigId: import.meta.env.VITE_COMPOSIO_GOOGLECALENDAR_CONFIG_ID,
-    icon: <Calendar className='w-6 h-6 text-blue-300' />,
-    accentClass: "from-blue-500/20 to-blue-500/10 border-blue-500/30",
-  },
-  {
-    slug: "linkedin",
-    toolkitSlug: "linkedin",
-    name: "LinkedIn",
-    description: "Enrich profile context, recruiter signals, and job-search identity.",
-    authConfigId: import.meta.env.VITE_COMPOSIO_LINKEDIN_CONFIG_ID,
-    icon: <Linkedin className='w-6 h-6 text-blue-400' />,
-    accentClass: "from-blue-500/20 to-blue-500/10 border-blue-500/30",
-  },
-];
-
-const GMAIL_COMPOSIO_INTEGRATION: ComposioIntegration = {
-  slug: "gmail",
-  toolkitSlug: "gmail",
-  name: "Gmail",
-  description: "Connect Gmail through Composio for Agent Mode email tools.",
-  icon: <Mail className='w-6 h-6 text-brand' />,
-  accentClass: "from-brand/20 to-brand/10 border-brand/30",
-};
-
 export const SettingsPage = (): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -315,6 +201,11 @@ export const SettingsPage = (): JSX.Element => {
         id: "job-sources",
         label: "Job Sources",
         icon: <SettingsIcon className='w-4 h-4' />,
+      },
+      {
+        id: "usage",
+        label: "Usage",
+        icon: <Activity className='w-4 h-4' />,
       },
       {
         id: "billing",
@@ -407,6 +298,7 @@ export const SettingsPage = (): JSX.Element => {
     enrollTotp,
     verifyTotp,
     disableTotp,
+    syncTotpStatus,
     // extras
     backupCodes,
     generateBackupCodes,
@@ -457,25 +349,18 @@ export const SettingsPage = (): JSX.Element => {
 
   // 2FA modal state
   const [open2FA, setOpen2FA] = useState(false);
-  const [qrDataUrl, setQrDataUrl] = useState<string | undefined>();
+  const [twoFAStep, setTwoFAStep] = useState<TwoFAStep>("preparing");
+  const [totpQrImageSrc, setTotpQrImageSrc] = useState<string | undefined>();
+  const [totpQrUnavailable, setTotpQrUnavailable] = useState(false);
+  const [totpSecret, setTotpSecret] = useState<string | undefined>();
+  const [totpUri, setTotpUri] = useState<string | undefined>();
   const [totpFactorId, setTotpFactorId] = useState<string | undefined>();
   const [totpCode, setTotpCode] = useState<string>("");
   const [verifyBusy, setVerifyBusy] = useState(false);
-  const [isGmailConnected, setIsGmailConnected] = useState(false);
-  /** Address from Gmail profile / stored connection (status action). */
-  const [gmailConnectedEmail, setGmailConnectedEmail] = useState<string | null>(
-    null,
-  );
-  const [gmailConnectionId, setGmailConnectionId] = useState<string | null>(null);
-  const [gmailDisconnecting, setGmailDisconnecting] = useState(false);
-  const [composioConnectionStatuses, setComposioConnectionStatuses] = useState<
-    Partial<Record<ComposioIntegrationSlug, ComposioConnectionStatus>>
-  >({});
-  const [composioStatusesLoading, setComposioStatusesLoading] = useState(false);
-  const [connectingComposioSlug, setConnectingComposioSlug] =
-    useState<ComposioIntegrationSlug | null>(null);
-  const [disconnectingComposioSlug, setDisconnectingComposioSlug] =
-    useState<ComposioIntegrationSlug | null>(null);
+  const [enrollBusy, setEnrollBusy] = useState(false);
+  const [twoFAError, setTwoFAError] = useState<string | null>(null);
+  const [secretCopied, setSecretCopied] = useState(false);
+  const [showDisable2FAConfirm, setShowDisable2FAConfirm] = useState(false);
   // API Key state
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [newApiKeyName, setNewApiKeyName] = useState("");
@@ -584,342 +469,147 @@ export const SettingsPage = (): JSX.Element => {
     })();
   }, []);
 
-  const handleConnectGmail = async () => {
-    const popup = window.open("about:blank", "_blank", "width=560,height=760");
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        toastError("Please sign in to connect your Gmail account.");
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke("composio-auth", {
-        body: {
-          action: "initiate",
-          integrationSlug: GMAIL_COMPOSIO_INTEGRATION.slug,
-          toolkitSlug: GMAIL_COMPOSIO_INTEGRATION.toolkitSlug,
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      const redirectUrl = (data as { redirectUrl?: unknown } | null)?.redirectUrl;
-      if (typeof redirectUrl !== "string" || !redirectUrl) {
-        throw new Error("Composio did not return a Gmail connection URL.");
-      }
-      if (popup) {
-        popup.location.href = redirectUrl;
-      } else {
-        window.open(redirectUrl, "_blank", "width=560,height=760");
-      }
-    } catch (error: any) {
-      popup?.close();
-      const errorMessage =
-        error.details ||
-        (error as Error).message ||
-        "An unknown error occurred.";
-      toastError("Failed to connect Gmail", errorMessage);
-    }
-  };
-
-  const checkGmailConnection = useCallback(async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setIsGmailConnected(false);
-        setGmailConnectedEmail(null);
-        setGmailConnectionId(null);
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke("composio-auth", {
-        body: {
-          action: "status",
-          integrations: [
-            {
-              slug: GMAIL_COMPOSIO_INTEGRATION.slug,
-              label: GMAIL_COMPOSIO_INTEGRATION.name,
-              toolkitSlug: GMAIL_COMPOSIO_INTEGRATION.toolkitSlug,
-            },
-          ],
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      const status = Array.isArray((data as { statuses?: unknown } | null)?.statuses)
-        ? (data as { statuses: Array<ComposioConnectionStatus> }).statuses[0]
-        : undefined;
-      const connected = !!status?.isConnected;
-      setIsGmailConnected(connected);
-      setGmailConnectionId(connected ? status?.connectionId ?? null : null);
-      const identifier = status?.identifier;
-      setGmailConnectedEmail(
-        connected && typeof identifier === "string" && identifier.trim().length > 0
-          ? identifier.trim()
-          : null,
-      );
-    } catch (error: unknown) {
-      console.error("Failed to check Gmail connection status:", error);
-      setIsGmailConnected(false);
-      setGmailConnectedEmail(null);
-      setGmailConnectionId(null);
-    }
-  }, [supabase]);
-
-  const handleDisconnectGmail = useCallback(async () => {
-    setGmailDisconnecting(true);
-    try {
-      if (!gmailConnectionId) {
-        throw new Error("No Composio Gmail connection was found.");
-      }
-      const { error } = await supabase.functions.invoke("composio-auth", {
-        body: { action: "disconnect", connectionId: gmailConnectionId },
-      });
-      if (error) {
-        throw error;
-      }
-      await checkGmailConnection();
-      success(
-        "Gmail disconnected",
-        "JobRaker no longer has access to your inbox. You can reconnect anytime.",
-      );
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "Could not disconnect Gmail.";
-      toastError("Disconnect failed", message);
-    } finally {
-      setGmailDisconnecting(false);
-    }
-  }, [
-    supabase,
-    gmailConnectionId,
-    checkGmailConnection,
-    success,
-    toastError,
-  ]);
-
-  const configuredComposioIntegrations = useMemo(
-    () => COMPOSIO_INTEGRATIONS,
-    [],
+  const composio = useComposioIntegrations({
+    enabled: activeTab === "integrations" || activeTab === "notifications",
+  });
+  const gmailStatus = composio.getStatus(GMAIL_INTEGRATION.slug);
+  const isGmailConnected = composio.getViewState(GMAIL_INTEGRATION.slug) === "connected";
+  const gmailConnectedEmail = gmailStatus?.identifier ?? null;
+  const handleConnectGmail = useCallback(
+    () => void composio.connect(GMAIL_INTEGRATION),
+    [composio],
   );
 
-  const refreshComposioConnectionStatuses = useCallback(async () => {
-    if (configuredComposioIntegrations.length === 0) {
-      setComposioConnectionStatuses({});
-      return;
-    }
-
-    setComposioStatusesLoading(true);
+  const handleGenerateBackupCodes = useCallback(async () => {
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "composio-auth",
-        {
-          body: {
-            action: "status",
-            integrations: configuredComposioIntegrations.map((integration) => ({
-              slug: integration.slug,
-              label: integration.name,
-              toolkitSlug: integration.toolkitSlug,
-              authConfigId: integration.authConfigId,
-            })),
-          },
-        },
-      );
-
-      if (error) {
-        throw error;
+      const codes = await generateBackupCodes(10);
+      if (codes && codes.length > 0) {
+        setGeneratedBackupCodes(codes);
+        setShowBackupCodesModal(true);
+        const blob = new Blob([codes.join("\n")], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `jobraker-backup-codes-${new Date().toISOString().split("T")[0]}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       }
-
-      const statuses = Array.isArray((data as any)?.statuses)
-        ? ((data as any).statuses as Array<{
-            slug: ComposioIntegrationSlug;
-            configured?: boolean;
-            isConnected?: boolean;
-            connectionId?: string | null;
-            identifier?: string | null;
-          }>)
-        : [];
-
-      setComposioConnectionStatuses(() => {
-        const next: Partial<Record<ComposioIntegrationSlug, ComposioConnectionStatus>> = {};
-        for (const integration of COMPOSIO_INTEGRATIONS) {
-          const status = statuses.find((item) => item.slug === integration.slug);
-          next[integration.slug] = {
-            configured: true,
-            isConnected: !!status?.isConnected,
-            connectionId: status?.connectionId ?? null,
-            identifier: status?.identifier ?? null,
-          };
-        }
-        return next;
-      });
-    } catch (error) {
-      console.error("Failed to check Composio connections:", error);
-    } finally {
-      setComposioStatusesLoading(false);
+    } catch (e: any) {
+      toastError("Failed to generate codes", e.message);
     }
-  }, [configuredComposioIntegrations, supabase]);
+  }, [generateBackupCodes, toastError]);
 
-  const handleConnectComposioIntegration = useCallback(
-    async (integration: ComposioIntegration) => {
-      // Open popup synchronously to prevent popup blockers
-      const popup = window.open("about:blank", "_blank", "width=560,height=760");
-      const oauthRequestId = createOAuthRequestId();
+  const handleDownloadGeneratedBackupCodes = useCallback(() => {
+    if (!generatedBackupCodes?.length) return;
+    const blob = new Blob([generatedBackupCodes.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `jobraker-recovery-codes-${new Date().toISOString().split("T")[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [generatedBackupCodes]);
 
-      startTransition(() => {
-        setConnectingComposioSlug(integration.slug);
-      });
-      
-      try {
-        const { data, error } = await supabase.functions.invoke(
-          "composio-auth",
-          {
-            body: {
-              action: "initiate",
-              integrationSlug: integration.slug,
-              toolkitSlug: integration.toolkitSlug,
-              authConfigId: integration.authConfigId,
-              oauthRequestId,
-            },
-          },
+  const handleStartTwoFAEnrollment = useCallback(async () => {
+    setTwoFAError(null);
+    setTotpCode("");
+    setSecretCopied(false);
+    setTotpQrImageSrc(undefined);
+    setTotpQrUnavailable(false);
+    setTwoFAStep("preparing");
+    setOpen2FA(true);
+    setEnrollBusy(true);
+    try {
+      if (!sec) await createSecurity({});
+      const { factorId, qrCode, secret, uri } = await enrollTotp();
+      if (!factorId || (!qrCode && !uri)) {
+        throw new Error(
+          "The authenticator service did not return a QR code. Please try again.",
         );
-
-        if (error) {
-          throw error;
-        }
-
-        const redirectUrl = (data as any)?.redirectUrl;
-        if (typeof redirectUrl !== "string" || !redirectUrl) {
-          throw new Error("Composio did not return a redirect URL.");
-        }
-
-        if (popup) {
-          popup.location.href = redirectUrl;
-        } else {
-          window.open(redirectUrl, "_blank", "width=560,height=760");
-        }
-        
-        const connected = await waitForComposioConnection({
-          popup,
-          requestId: oauthRequestId,
-          provider: integration.slug,
-          check: async () => {
-            const { data: statusData, error: statusError } =
-              await supabase.functions.invoke("composio-auth", {
-                body: {
-                  action: "status",
-                  integrationSlug: integration.slug,
-                  toolkitSlug: integration.toolkitSlug,
-                  authConfigId: integration.authConfigId,
-                },
-              });
-            if (statusError) return false;
-            return Boolean(statusData?.isConnected);
-          },
-        });
-        await refreshComposioConnectionStatuses();
-        if (!connected) {
-          toastError(
-            `${integration.name} connection not completed`,
-            "Complete authorization in the popup, then use Refresh status to try again.",
-          );
-        }
-      } catch (error: unknown) {
-        if (popup) {
-          popup.close();
-        }
-        const message =
-          error instanceof Error ? error.message : "Could not start connection.";
-        toastError(`Failed to connect ${integration.name}`, message);
-      } finally {
-        startTransition(() => {
-          setConnectingComposioSlug(null);
-        });
       }
-    },
-    [refreshComposioConnectionStatuses, supabase, toastError],
-  );
 
-  const handleDisconnectComposioIntegration = useCallback(
-    async (integration: ComposioIntegration, connectionId: string) => {
-      startTransition(() => {
-        setDisconnectingComposioSlug(integration.slug);
-      });
+      // `uri` is the actual TOTP provisioning payload from Supabase. Encoding
+      // it here guarantees the image is a scannable QR code instead of relying
+      // on the format of Supabase's optional SVG preview string.
+      let imageSrc: string | undefined;
+      if (uri) {
+        imageSrc = await QRCode.toDataURL(uri, {
+          errorCorrectionLevel: "M",
+          margin: 2,
+          width: 320,
+          color: { dark: "#080b09", light: "#ffffff" },
+        });
+      } else if (qrCode?.trim().startsWith("data:image/")) {
+        imageSrc = qrCode.trim();
+      } else if (qrCode?.trim().startsWith("<svg")) {
+        imageSrc = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(qrCode.trim())}`;
+      }
 
+      if (!imageSrc) {
+        throw new Error(
+          "The authenticator service returned an unreadable QR code. Please try again.",
+        );
+      }
+      setTotpFactorId(factorId);
+      setTotpQrImageSrc(imageSrc);
+      setTotpSecret(secret);
+      setTotpUri(uri);
+      setTwoFAStep("scan");
+    } catch (e: any) {
+      setTwoFAError(e?.message || "Failed to start two-factor setup.");
+    } finally {
+      setEnrollBusy(false);
+    }
+  }, [sec, createSecurity, enrollTotp]);
+
+  const handleVerifyTwoFA = useCallback(async (codeToVerify?: string) => {
+    const code = codeToVerify || totpCode;
+    if (!totpFactorId || code.length !== 6 || verifyBusy) return;
+    setVerifyBusy(true);
+    setTwoFAError(null);
+    try {
+      await verifyTotp(totpFactorId, code);
       try {
-        const { error } = await supabase.functions.invoke("composio-auth", {
-          body: {
-            action: "disconnect",
-            connectionId,
-          },
-        });
-
-        if (error) {
-          throw error;
-        }
-
-        success(`${integration.name} disconnected successfully!`);
-        void refreshComposioConnectionStatuses();
-      } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : "Could not delete connection.";
-        toastError(`Failed to disconnect ${integration.name}`, message);
-      } finally {
-        startTransition(() => {
-          setDisconnectingComposioSlug(null);
-        });
+        const codes = await generateBackupCodes();
+        setGeneratedBackupCodes(codes || []);
+        setTwoFAStep("backup");
+      } catch {
+        setTwoFAStep("success");
       }
-    },
-    [refreshComposioConnectionStatuses, supabase, success, toastError],
-  );
-
-  useEffect(() => {
-    void checkGmailConnection();
-  }, [checkGmailConnection]);
-
-  useEffect(() => {
-    if (activeTab === "integrations") {
-      void checkGmailConnection();
-      void refreshComposioConnectionStatuses();
+    } catch {
+      setTwoFAError("Incorrect verification code. Please check your authenticator app.");
+    } finally {
+      setVerifyBusy(false);
     }
-  }, [activeTab, checkGmailConnection, refreshComposioConnectionStatuses]);
+  }, [totpFactorId, totpCode, verifyBusy, verifyTotp, generateBackupCodes]);
 
-  useEffect(() => {
-    if (activeTab !== "integrations") {
-      return;
+  const handleCopyTotpSecret = useCallback(async () => {
+    if (!totpSecret) return;
+    try {
+      await navigator.clipboard.writeText(totpSecret);
+      setSecretCopied(true);
+      window.setTimeout(() => setSecretCopied(false), 2000);
+    } catch {
+      toastError("Copy failed", "Select and copy the key manually.");
     }
-    let debounce: ReturnType<typeof setTimeout>;
-    const onFocus = () => {
-      clearTimeout(debounce);
-      debounce = setTimeout(() => {
-        void checkGmailConnection();
-        void refreshComposioConnectionStatuses();
-      }, 300);
-    };
-    window.addEventListener("focus", onFocus);
-    return () => {
-      clearTimeout(debounce);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [activeTab, checkGmailConnection, refreshComposioConnectionStatuses]);
+  }, [totpSecret, toastError]);
 
-  const initials = useMemo(() => {
-    const a = (formData.firstName || "").trim();
-    const b = (formData.lastName || "").trim();
-    if (a || b)
-      return `${a.charAt(0) || ""}${b.charAt(0) || ""}`.toUpperCase() || "U";
-    const email = formData.email || "";
-    return (email.charAt(0) || "U").toUpperCase();
-  }, [formData.firstName, formData.lastName, formData.email]);
+  const handleCloseTwoFAModal = useCallback(() => {
+    setOpen2FA(false);
+  }, []);
+
+  const handleConfirmDisableTwoFA = useCallback(async () => {
+    setShowDisable2FAConfirm(false);
+    try {
+      await disableTotp();
+    } catch (e: any) {
+      toastError("Failed to disable 2FA", e.message);
+    }
+  }, [disableTotp, toastError]);
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   // const [groupEnabledFirst, setGroupEnabledFirst] = useState(true); // Unused
@@ -1046,8 +736,8 @@ export const SettingsPage = (): JSX.Element => {
         phone: (profile as any)?.phone || "",
         location: (profile as any)?.location || "",
         avatar_url: (profile as any)?.avatar_url || "",
-        linkedin_url: (profile as any)?.linkedin_url || "",
-        github_url: (profile as any)?.github_url || "",
+        linkedin_url: (profile as any)?.linkedin_url || (profile as any)?.linkedin_data?.profile_url || "",
+        github_url: (profile as any)?.github_url || (profile as any)?.github_data?.profile_url || "",
       }));
     })();
   }, [profile, supabase]);
@@ -1103,6 +793,17 @@ export const SettingsPage = (): JSX.Element => {
     // ensure settings exist lazily on first toggle
     void refreshSec();
   }, [refreshSec]);
+
+  // Reconcile the cached 2FA flag against Supabase's actual factor state
+  // whenever the Security tab is visible, and again if the user comes back
+  // to this tab (e.g. after enabling/removing a factor from another device).
+  useEffect(() => {
+    if (activeTab !== "security") return;
+    void syncTotpStatus();
+    const onFocus = () => void syncTotpStatus();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [activeTab, syncTotpStatus]);
 
   // Load job source domain settings when job-sources tab is active
   useEffect(() => {
@@ -1799,7 +1500,11 @@ export const SettingsPage = (): JSX.Element => {
                       className='w-full h-full object-cover'
                     />
                   ) : (
-                    <span>{initials}</span>
+                    <HashvatarAvatar
+                      seed={
+                        formData.email || `${formData.firstName} ${formData.lastName}`
+                      }
+                    />
                   )}
                 </div>
                 <div className='flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-3'>
@@ -2277,13 +1982,56 @@ export const SettingsPage = (): JSX.Element => {
           <div
             id='settings-tab-security'
             data-tour='settings-tab-security'
-            className='space-y-6 mb-20'
+            className='space-y-4 mb-20'
           >
+            <div className='relative overflow-hidden rounded-xl border border-brand/25 bg-gradient-to-br from-brand/[0.09] via-card to-card px-4 py-5 shadow-sm ring-1 ring-brand/10 sm:px-6'>
+              <div className='pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-brand/10 blur-3xl' />
+              <div className='relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+                <div className='flex min-w-0 items-start gap-3'>
+                  <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand/30 bg-brand/10 text-brand'>
+                    <ShieldCheck className='h-5 w-5' aria-hidden />
+                  </div>
+                  <div>
+                    <p className='text-[10px] font-semibold uppercase tracking-[0.22em] text-brand/80'>
+                      Account · Security
+                    </p>
+                    <h2 className='mt-1 text-lg font-medium tracking-tight text-foreground'>
+                      Keep your Jobraker account protected
+                    </h2>
+                    <p className='mt-1 max-w-2xl text-sm text-muted-foreground'>
+                      Manage your sign-in methods, trusted devices, active sessions, and recovery options.
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                    sec?.two_factor_enabled
+                      ? "border-brand/30 bg-brand/10 text-brand"
+                      : "border-border/50 bg-muted/40 text-muted-foreground"
+                  }`}
+                >
+                  {sec?.two_factor_enabled ? <CheckCircle2 className='h-3 w-3' /> : <ShieldOff className='h-3 w-3' />}
+                  {sec?.two_factor_enabled ? "2FA protected" : "2FA not enabled"}
+                </span>
+              </div>
+            </div>
+
             {/* Change Password */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <h3 className='text-base font-medium text-foreground mb-6'>
-                Change Password
-              </h3>
+            <div className='overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm ring-1 ring-foreground/5'>
+              <div className='flex items-start gap-3 border-b border-border/40 px-4 py-4 sm:px-6'>
+                <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
+                  <Lock className='h-4 w-4' aria-hidden />
+                </div>
+                <div>
+                  <h3 className='text-base font-medium text-foreground'>
+                    Change password
+                  </h3>
+                  <p className='mt-0.5 text-xs text-muted-foreground'>
+                    Use a unique password that you do not use anywhere else.
+                  </p>
+                </div>
+              </div>
+              <div className='p-4 sm:p-6'>
               <div className='space-y-4'>
                 <div>
                   <label className='block text-xs font-bold text-muted-foreground/80 mb-2 uppercase tracking-wider'>
@@ -2403,59 +2151,56 @@ export const SettingsPage = (): JSX.Element => {
                   </Button>
                 </div>
               </div>
+              </div>
             </div>
 
             {/* Two-Factor Authentication */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between mb-4'>
-                <div>
-                  <h3 className='text-base font-medium text-foreground/95'>
-                    Two-Factor Authentication
-                  </h3>
-                  <p className='text-xs text-muted-foreground mt-1'>
-                    Add an extra layer of security to your account
-                  </p>
+            <div className='overflow-hidden rounded-xl border border-brand/25 bg-gradient-to-br from-brand/[0.07] via-card to-card shadow-sm ring-1 ring-brand/10'>
+              <div className='p-4 sm:p-5'>
+              <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+                <div className='flex items-start gap-3 min-w-0'>
+                  <div
+                    className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${
+                      sec?.two_factor_enabled
+                        ? "border-brand/30 bg-brand/10 text-brand"
+                        : "border-border/40 bg-muted/40 text-muted-foreground"
+                    }`}
+                  >
+                    {sec?.two_factor_enabled ? (
+                      <ShieldCheck className='w-5 h-5' aria-hidden />
+                    ) : (
+                      <ShieldOff className='w-5 h-5' aria-hidden />
+                    )}
+                  </div>
+                  <div className='min-w-0'>
+                    <h3 className='text-base font-medium text-foreground/95'>
+                      Two-Factor Authentication
+                    </h3>
+                    <p className='text-xs text-muted-foreground mt-1'>
+                      {sec?.two_factor_enabled
+                        ? "Your account requires a 6-digit code on each sign-in."
+                        : "Add an extra layer of security to your account"}
+                    </p>
+                  </div>
                 </div>
-                <div className='flex items-center gap-3'>
+                <div className='flex shrink-0 flex-wrap items-center gap-2'>
                   <span
-                    className={`text-sm px-3 py-1 rounded ${sec?.two_factor_enabled ? "bg-brand/20 text-brand" : "bg-muted/50 text-muted-foreground"}`}
+                    className={`text-sm px-3 py-1 rounded-full font-medium ${sec?.two_factor_enabled ? "bg-brand/10 text-brand border border-brand/30" : "bg-muted/50 text-muted-foreground border border-border/40"}`}
                   >
                     {sec?.two_factor_enabled ? "Enabled" : "Disabled"}
                   </span>
                   <Button
                     variant={sec?.two_factor_enabled ? "outline" : "default"}
-                    onClick={async () => {
-                      try {
-                        if (sec?.two_factor_enabled) {
-                          if (
-                            !confirm(
-                              "Disable two-factor authentication? This will reduce your account security.",
-                            )
-                          )
-                            return;
-                          await disableTotp();
-                          return;
-                        }
-                        if (!sec) await createSecurity({});
-                        const { factorId, uri } = await enrollTotp();
-                        setTotpFactorId(factorId);
-                        if (uri) {
-                          try {
-                            const QR = await getQRCode();
-                            setQrDataUrl(await QR.toDataURL(uri));
-                          } catch {
-                            setQrDataUrl(undefined);
-                          }
-                        }
-                        setTotpCode("");
-                        setOpen2FA(true);
-                      } catch (e: any) {
-                        toastError("2FA setup failed", e.message);
+                    onClick={() => {
+                      if (sec?.two_factor_enabled) {
+                        setShowDisable2FAConfirm(true);
+                        return;
                       }
+                      void handleStartTwoFAEnrollment();
                     }}
                     className={
                       sec?.two_factor_enabled
-                        ? "border-border/40 text-muted-foreground hover:bg-muted/50"
+                        ? "border-rose-500/35 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-400/50"
                         : "bg-brand text-black hover:bg-[#e6c200] shadow-lg shadow-brand/20"
                     }
                   >
@@ -2465,6 +2210,12 @@ export const SettingsPage = (): JSX.Element => {
               </div>
               {sec?.two_factor_enabled && (
                 <div className='space-y-3 pt-4 border-t border-border/40 mt-4'>
+                  <div className='flex items-center gap-3 p-4 bg-background/50 border border-border/40 rounded-lg'>
+                    <Smartphone className='w-4 h-4 shrink-0 text-brand' aria-hidden />
+                    <p className='text-sm font-medium text-foreground/90'>
+                      Authenticator app connected
+                    </p>
+                  </div>
                   <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'>
                     <div className='flex-1'>
                       <p className='text-sm font-medium text-foreground/90'>
@@ -2547,14 +2298,21 @@ export const SettingsPage = (): JSX.Element => {
                   </div>
                 </div>
               )}
+              </div>
             </div>
 
             {/* Sign-in Alerts */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <h3 className='text-base font-medium text-foreground mb-4'>
-                Security Alerts
-              </h3>
-              <div className='space-y-3'>
+            <div className='overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm ring-1 ring-foreground/5'>
+              <div className='flex items-start gap-3 border-b border-border/40 px-4 py-4 sm:px-6'>
+                <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
+                  <Bell className='h-4 w-4' aria-hidden />
+                </div>
+                <div>
+                  <h3 className='text-base font-medium text-foreground'>Security alerts</h3>
+                  <p className='mt-0.5 text-xs text-muted-foreground'>Get notified when something needs your attention.</p>
+                </div>
+              </div>
+              <div className='space-y-3 p-4 sm:p-5'>
                 <div className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'>
                   <div className='flex-1'>
                     <p className='text-sm font-medium text-foreground/90'>
@@ -2678,78 +2436,61 @@ export const SettingsPage = (): JSX.Element => {
               </div>
             </div>
 
-            {/* Backup Codes */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between mb-4'>
-                <div>
-                  <h3 className='text-base font-medium text-foreground/95'>
-                    Backup Codes
-                  </h3>
-                  <p className='text-xs text-muted-foreground mt-1'>
-                    One-time use codes for account recovery
-                  </p>
+            {/* Recovery codes */}
+            <div className='overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-[0_12px_32px_-24px_rgba(0,0,0,0.8)]'>
+              <div className='flex flex-col gap-4 border-b border-border/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between'>
+                <div className='flex items-start gap-3'>
+                  <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground ring-1 ring-inset ring-foreground/[0.04]'>
+                    <KeyRound className='h-4 w-4' aria-hidden />
+                  </div>
+                  <div>
+                    <h3 className='text-base font-semibold text-foreground'>
+                      Recovery codes
+                    </h3>
+                    <p className='mt-1 text-xs text-muted-foreground'>
+                      One-time codes for account recovery. They are only shown when generated.
+                    </p>
+                  </div>
                 </div>
                 <Button
                   variant='outline'
                   size='sm'
-                  className='border-border/40 text-muted-foreground hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm'
-                  onClick={async () => {
-                    try {
-                      const codes = await generateBackupCodes(10);
-                      if (codes && codes.length > 0) {
-                        setGeneratedBackupCodes(codes);
-                        setShowBackupCodesModal(true);
-                        // Also download as backup
-                        const blob = new Blob([codes.join("\n")], {
-                          type: "text/plain",
-                        });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = `jobraker-backup-codes-${new Date().toISOString().split("T")[0]}.txt`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      }
-                    } catch (e: any) {
-                      toastError("Failed to generate codes", e.message);
-                    }
-                  }}
+                  className='shrink-0 border-border/60 bg-background/40 text-foreground/80 transition-colors hover:border-brand/30 hover:bg-brand/10 hover:text-brand'
+                  onClick={() => void handleGenerateBackupCodes()}
                 >
-                  <Plus className='w-4 h-4 mr-2' />
-                  Generate New Codes
+                  <Plus className='mr-2 h-4 w-4' />
+                  Generate new codes
                 </Button>
               </div>
-              <div className='space-y-2'>
+              <div className='p-5'>
                 {backupCodes && backupCodes.length > 0 ? (
-                  <div className='border border-border/40 rounded-lg overflow-hidden bg-muted/50 shadow-inner'>
-                    <div className='grid grid-cols-3 text-xs font-bold uppercase tracking-wider text-muted-foreground/80 bg-muted/50 py-2 px-4 border-b border-border/40'>
+                  <div className='overflow-hidden rounded-xl border border-border/50 bg-background/30'>
+                    <div className='grid grid-cols-3 border-b border-border/50 bg-foreground/[0.025] px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground'>
                       <div>ID</div>
                       <div>Status</div>
                       <div>Created</div>
                     </div>
-                    <div className='divide-y divide-border/20'>
+                    <div className='divide-y divide-border/40'>
                       {backupCodes.map((bc: any) => (
                         <div
                           key={bc.id}
-                          className='grid grid-cols-3 items-center text-sm py-2 px-4 hover:bg-muted/30 transition-colors'
+                          className='grid grid-cols-3 items-center px-4 py-2.5 text-sm transition-colors hover:bg-foreground/[0.02]'
                         >
-                          <div className='text-foreground/90 font-mono text-xs'>
-                            #{bc.id}
+                          <div className='font-mono text-xs text-foreground/90'>
+                            #{String(bc.id).padStart(2, "0")}
                           </div>
                           <div>
                             <span
-                              className={`text-xs px-2 py-1 rounded font-medium tracking-wide ${
+                              className={`inline-flex rounded-md px-2 py-1 text-[11px] font-medium ${
                                 bc.used
-                                  ? "bg-brand/20 text-brand"
-                                  : "bg-brand/20 text-brand"
+                                  ? "bg-foreground/[0.06] text-muted-foreground"
+                                  : "bg-brand/10 text-brand"
                               }`}
                             >
                               {bc.used ? "Used" : "Unused"}
                             </span>
                           </div>
-                          <div className='text-xs text-muted-foreground/80'>
+                          <div className='text-xs text-muted-foreground'>
                             {bc.created_at
                               ? new Date(bc.created_at).toLocaleDateString()
                               : "N/A"}
@@ -2759,24 +2500,36 @@ export const SettingsPage = (): JSX.Element => {
                     </div>
                   </div>
                 ) : (
-                  <div className='text-sm text-muted-foreground py-8 text-center border border-border/40 rounded-lg bg-muted/50'>
-                    No backup codes generated yet. Click "Generate New Codes" to
-                    create your first set.
+                  <div className='rounded-xl border border-dashed border-border/60 bg-foreground/[0.015] px-4 py-8 text-center'>
+                    <p className='text-sm font-medium text-foreground/85'>No recovery codes yet</p>
+                    <p className='mt-1 text-xs text-muted-foreground'>
+                      Generate a set and store it somewhere safe before you need it.
+                    </p>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Trusted Devices */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between mb-3'>
-                <h3 className='text-base font-medium text-foreground/95'>
-                  Trusted Devices
-                </h3>
+            <div className='overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-[0_12px_32px_-24px_rgba(0,0,0,0.8)]'>
+              <div className='flex flex-col gap-4 border-b border-border/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between'>
+                <div className='flex items-start gap-3'>
+                  <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
+                    <Smartphone className='h-4 w-4' aria-hidden />
+                  </div>
+                  <div>
+                    <h3 className='text-base font-semibold text-foreground'>
+                      Trusted Devices
+                    </h3>
+                    <p className='mt-1 text-xs text-muted-foreground'>
+                      Trusted devices skip some security prompts. Revoke lost or old devices.
+                    </p>
+                  </div>
+                </div>
                 <Button
                   variant='outline'
                   size='sm'
-                  className='border-border/40 text-muted-foreground hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm'
+                  className='shrink-0 border-border/60 bg-background/40 text-foreground/80 transition-colors hover:border-brand/30 hover:bg-brand/10 hover:text-brand'
                   onClick={async () => {
                     try {
                       const deviceId = crypto
@@ -2792,44 +2545,40 @@ export const SettingsPage = (): JSX.Element => {
                   Trust This Device
                 </Button>
               </div>
-              <p className='text-xs text-muted-foreground mb-4'>
-                Trusted devices skip some security prompts. Revoke lost or old
-                devices.
-              </p>
-              <div className='mt-3 border border-border/40 rounded-lg overflow-hidden bg-muted/50 shadow-inner'>
-                <div className='grid grid-cols-4 text-xs font-bold uppercase tracking-wider text-muted-foreground/80 bg-muted/50 py-2 px-3 border-b border-border/40'>
+              <div className='m-5 overflow-hidden rounded-xl border border-border/50 bg-background/30'>
+                <div className='grid grid-cols-4 border-b border-border/50 bg-foreground/[0.025] px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground'>
                   <div>Device</div>
                   <div>Device ID</div>
                   <div>Last seen</div>
                   <div className='text-right'>Actions</div>
                 </div>
-                <div className='divide-y divide-border/20'>
+                <div className='divide-y divide-border/40'>
                   {devices && devices.length > 0 ? (
                     devices.map((d: any) => (
                       <div
                         key={d.device_id}
-                        className='grid grid-cols-4 items-center text-sm py-2 px-3 hover:bg-muted/30 transition-colors'
+                        className='grid grid-cols-4 items-center px-4 py-3 text-sm transition-colors hover:bg-foreground/[0.02]'
                       >
                         <div
-                          className='truncate text-foreground/90 font-medium text-xs'
+                          className='truncate font-medium text-xs text-foreground/90'
                           title={d.device_name || d.device_id}
                         >
                           {d.device_name || "Unnamed device"}
                         </div>
                         <div
-                          className='truncate text-muted-foreground/80 text-xs font-mono'
+                          className='truncate font-mono text-xs text-muted-foreground'
                           title={d.device_id}
                         >
                           {String(d.device_id).slice(0, 10)}…
                         </div>
-                        <div className='text-xs text-muted-foreground/80'>
+                        <div className='text-xs text-muted-foreground'>
                           {new Date(d.last_seen_at).toLocaleString()}
                         </div>
                         <div className='text-right'>
                           <Button
                             variant='ghost'
                             size='sm'
-                            className='text-brand hover:text-brand hover:bg-brand/10 h-7 px-2 text-xs'
+                            className='h-7 px-2 text-xs text-brand hover:bg-brand/10 hover:text-brand'
                             onClick={async () => {
                               if (!confirm("Revoke this device?")) return;
                               try {
@@ -2845,7 +2594,7 @@ export const SettingsPage = (): JSX.Element => {
                       </div>
                     ))
                   ) : (
-                    <div className='text-sm text-muted-foreground py-6 text-center italic'>
+                    <div className='px-4 py-7 text-center text-sm text-muted-foreground'>
                       No trusted devices yet.
                     </div>
                   )}
@@ -2854,15 +2603,20 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Active Sessions */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between mb-4'>
-                <div>
-                  <h3 className='text-base font-medium text-foreground/95'>
+            <div className='overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-[0_12px_32px_-24px_rgba(0,0,0,0.8)]'>
+              <div className='flex flex-col gap-4 border-b border-border/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between'>
+                <div className='flex items-start gap-3'>
+                  <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
+                    <Activity className='h-4 w-4' aria-hidden />
+                  </div>
+                  <div>
+                  <h3 className='text-base font-semibold text-foreground'>
                     Active Sessions
                   </h3>
                   <p className='text-xs text-muted-foreground mt-1'>
                     Manage your active login sessions
                   </p>
+                  </div>
                 </div>
                 {activeSessions && activeSessions.length > 1 && (
                   <Button
@@ -2881,46 +2635,41 @@ export const SettingsPage = (): JSX.Element => {
                         toastError("Failed to revoke sessions", e.message);
                       }
                     }}
-                    className='border-border/40 text-muted-foreground hover:text-brand hover:bg-brand/10 hover:border-brand/30 transition-all shadow-sm'
+                    className='border-destructive/40 bg-background/40 text-destructive hover:bg-destructive/10 hover:text-destructive'
                   >
-                    Revoke All Others
+                    <LogOut className='mr-2 h-4 w-4' />
+                    Sign out of all other sessions
                   </Button>
                 )}
               </div>
-              <div className='space-y-2'>
+              <div className='space-y-2 p-3 sm:p-4'>
                 {activeSessions && activeSessions.length > 0 ? (
                   activeSessions.map((session: any) => (
                     <div
                       key={session.id}
-                      className='flex items-center justify-between p-4 bg-background/50 border border-border/40 rounded-lg hover:border-brand/30 hover:bg-muted/50 transition-all'
+                      className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 transition-colors ${
+                        session.is_current
+                          ? "border-brand/30 bg-brand/[0.06]"
+                          : "border-transparent hover:border-border/40 hover:bg-foreground/[0.02]"
+                      }`}
                     >
-                      <div className='flex-1'>
-                        <div className='flex items-center gap-2 mb-1'>
-                          <p className='text-sm font-medium text-foreground/90'>
+                      <div className='min-w-0 flex-1'>
+                        <div className='mb-1 flex flex-wrap items-center gap-2'>
+                          <p className='text-sm font-medium text-foreground'>
                             {session.device_name ||
                               session.device_type ||
                               "Unknown Device"}
                           </p>
                           {session.is_current && (
-                            <span className='text-xs px-2 py-0.5 rounded bg-brand/20 text-brand'>
-                              Current
+                            <span className='rounded-md bg-brand/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-brand'>
+                              This device
                             </span>
                           )}
                         </div>
-                        <div className='text-xs text-muted-foreground/80 space-y-0.5'>
-                          {session.browser && <p>Browser: {session.browser}</p>}
-                          {session.os && <p>OS: {session.os}</p>}
-                          {session.ip_address && (
-                            <p>IP: {session.ip_address}</p>
-                          )}
-                          {session.location && (
-                            <p>Location: {session.location}</p>
-                          )}
-                          <p>
-                            Last active:{" "}
-                            {new Date(
-                              session.last_activity_at,
-                            ).toLocaleString()}
+                        <div className='space-y-0.5 text-xs text-muted-foreground'>
+                          <p>{[session.browser, session.os].filter(Boolean).join(" · ") || "Session details unavailable"}</p>
+                          <p className='font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/75'>
+                            {session.ip_address || "IP unavailable"} · {session.is_current ? "Active now" : new Date(session.last_activity_at).toLocaleString()}
                           </p>
                         </div>
                       </div>
@@ -2936,7 +2685,7 @@ export const SettingsPage = (): JSX.Element => {
                               toastError("Failed to revoke session", e.message);
                             }
                           }}
-                          className='text-brand hover:text-brand hover:bg-brand/10'
+                          className='border border-border/60 px-2 text-xs text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive'
                         >
                           Revoke
                         </Button>
@@ -2944,7 +2693,7 @@ export const SettingsPage = (): JSX.Element => {
                     </div>
                   ))
                 ) : (
-                  <p className='text-sm text-foreground/50 py-4 text-center border border-border/40 rounded-lg bg-muted/50'>
+                  <p className='rounded-xl border border-dashed border-border/60 bg-foreground/[0.015] py-7 text-center text-sm text-muted-foreground'>
                     No active sessions found
                   </p>
                 )}
@@ -2952,15 +2701,20 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Security Audit Log */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between mb-4'>
-                <div>
+            <div className='overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm ring-1 ring-foreground/5'>
+              <div className='flex flex-col gap-4 border-b border-border/40 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6'>
+                <div className='flex items-start gap-3'>
+                  <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05] text-muted-foreground'>
+                    <History className='h-4 w-4' aria-hidden />
+                  </div>
+                  <div>
                   <h3 className='text-base font-medium text-foreground/95'>
                     Security Audit Log
                   </h3>
                   <p className='text-xs text-muted-foreground mt-1'>
                     View your account security events
                   </p>
+                  </div>
                 </div>
                 <Button
                   variant='outline'
@@ -2972,7 +2726,7 @@ export const SettingsPage = (): JSX.Element => {
                   Refresh
                 </Button>
               </div>
-              <div className='space-y-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent'>
+              <div className='max-h-[400px] space-y-2 overflow-y-auto p-4 pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent sm:p-5 sm:pr-3'>
                 {auditLogs && auditLogs.length > 0 ? (
                   auditLogs.map((log: any) => (
                     <div
@@ -3412,11 +3166,14 @@ export const SettingsPage = (): JSX.Element => {
                 {["Dark", "Light", "Auto"].map((theme) => (
                   <button
                     key={theme}
-                    onClick={async () => {
+                    onClick={async (event) => {
                       const value = theme.toLowerCase() as
                         | "dark"
                         | "light"
                         | "auto";
+                      const { left, top, width, height } =
+                        event.currentTarget.getBoundingClientRect();
+                      setThemeToggleOrigin(left + width / 2, top + height / 2);
                       try {
                         if (!appearanceSettings)
                           await (appearance as any).createSettings({
@@ -3441,7 +3198,7 @@ export const SettingsPage = (): JSX.Element => {
                       <div
                         className={`w-10 h-10 rounded-lg mx-auto mb-3 ${
                           theme === "Dark"
-                            ? "bg-black ring-1 ring-white/10"
+                            ? "bg-black ring-1 ring-foreground/10"
                             : theme === "Light"
                               ? "bg-white ring-1 ring-black/10"
                               : "bg-gradient-to-r from-50% to-50% from-black border to-white"
@@ -3487,7 +3244,7 @@ export const SettingsPage = (): JSX.Element => {
                       }
                     }}
                     className={`w-12 h-12 rounded-full cursor-pointer border-2 transition-all hover:scale-110 shadow-lg ${(appearanceSettings?.accent_color || "#2fd968").toLowerCase() === color.toLowerCase()
-                      ? "border-white ring-4 ring-white/20 scale-110"
+                      ? "border-white ring-4 ring-foreground/20 scale-110"
                       : "border-background/50 hover:border-foreground/50"
                       }`}
                     style={{ backgroundColor: color }}
@@ -4084,7 +3841,7 @@ export const SettingsPage = (): JSX.Element => {
                                 ? "bg-brand/20 text-brand"
                                 : req.status === "processing"
                                   ? "bg-blue-500/20 text-blue-400"
-                                  : "bg-zinc-500/20 text-zinc-400"
+                                  : "bg-zinc-500/20 text-muted-foreground"
                             }`}
                           >
                             {req.status}
@@ -4097,7 +3854,7 @@ export const SettingsPage = (): JSX.Element => {
             )}
 
             {/* Account Deletion */}
-            <div className='bg-card border border-brand/30 rounded-xl p-6 shadow-sm ring-1 ring-white/5'>
+            <div className='bg-card border border-brand/30 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
               <div className='flex items-center gap-3 mb-4'>
                 <AlertTriangle className='w-5 h-5 text-brand' />
                 <h3 className='text-base font-medium text-brand'>
@@ -4558,7 +4315,7 @@ export const SettingsPage = (): JSX.Element => {
                           />
                         </div>
                         <div className='flex-1 pt-1'>
-                          <h3 className='text-xl font-bold tracking-tight text-white flex items-center gap-2'>
+                          <h3 className='text-xl font-bold tracking-tight text-foreground flex items-center gap-2'>
                             {s.name} Access
                             {s.requiresCredentials && (
                               <Lock className='w-4 h-4 text-brand' />
@@ -4574,7 +4331,7 @@ export const SettingsPage = (): JSX.Element => {
                       {/* Power Toggle */}
                       <div className='bg-[#16161D] border border-border/10 rounded-xl p-5 flex items-center justify-between'>
                         <div>
-                          <p className='text-sm font-semibold text-white'>
+                          <p className='text-sm font-semibold text-foreground'>
                             Job Source Status
                           </p>
                           <p className='text-xs text-foreground/50 mt-0.5'>
@@ -4602,7 +4359,7 @@ export const SettingsPage = (): JSX.Element => {
                             </span>
                           </div>
 
-                          <div className='space-y-3 p-5 rounded-xl border border-white/5 bg-black/20'>
+                          <div className='space-y-3 p-5 rounded-xl border border-foreground/5 bg-black/20'>
                             <div className='space-y-1.5'>
                               <label className='text-xs font-semibold text-foreground/70 uppercase tracking-wider ml-1'>
                                 Access Email
@@ -4713,186 +4470,15 @@ export const SettingsPage = (): JSX.Element => {
 
       case "integrations":
         return (
-          <div
-            id='settings-tab-integrations'
-            data-tour='settings-tab-integrations'
-            className='space-y-6 mb-20'
-          >
-            <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-brand/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>
-              <div className='flex items-center justify-between'>
-                <div className='flex items-center gap-4'>
-                  <div className='w-12 h-12 rounded-xl bg-gradient-to-br from-brand/20 to-brand/10 border border-brand/30 flex items-center justify-center'>
-                    <Mail className='w-6 h-6 text-brand' />
-                  </div>
-                  <div className='min-w-0'>
-                    <h3 className='text-sm font-medium text-foreground/95'>
-                      Gmail (Composio)
-                    </h3>
-                    {isGmailConnected && gmailConnectedEmail ? (
-                      <p
-                        className='text-xs font-medium text-brand/90 mt-0.5 truncate'
-                        title={gmailConnectedEmail}
-                      >
-                        {gmailConnectedEmail}
-                      </p>
-                    ) : null}
-                    <p className='text-xs text-muted-foreground mt-0.5'>
-                      Connect Gmail for Composio-powered Agent Mode email tools
-                    </p>
-                  </div>
-                </div>
-                <div className='flex flex-wrap items-center justify-end gap-2'>
-                  {isGmailConnected ? (
-                    <>
-                      <span
-                        className='inline-flex items-center gap-2 rounded-lg border border-brand/30 bg-brand/10 px-3 py-2 text-sm font-medium text-brand'
-                        aria-live='polite'
-                      >
-                        <Link className='w-4 h-4 shrink-0' aria-hidden />
-                        Connected
-                      </span>
-                      <Button
-                        type='button'
-                        variant='outline'
-                        className='border-rose-500/35 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-400/50'
-                        onClick={handleDisconnectGmail}
-                        disabled={
-                          loadingEmailIntegrationAccess || gmailDisconnecting
-                        }
-                      >
-                        {gmailDisconnecting ? (
-                          <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
-                        ) : null}
-                        Disconnect
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      variant='outline'
-                      className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-brand/10 hover:border-brand/30 transition-all'
-                      onClick={handleConnectGmail}
-                      disabled={loadingEmailIntegrationAccess}
-                    >
-                      <Link className='w-4 h-4 mr-2' />
-                      Connect
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-
-            <div className='flex flex-col gap-4'>
-              {COMPOSIO_INTEGRATIONS.map((integration) => {
-                const status = composioConnectionStatuses[integration.slug] ?? {
-                  configured: true,
-                  isConnected: false,
-                  connectionId: null,
-                  identifier: null,
-                };
-                const isConnecting = connectingComposioSlug === integration.slug;
-                const isDisconnecting = disconnectingComposioSlug === integration.slug;
-
-                return (
-                  <div
-                    key={integration.slug}
-                    className='bg-card border border-border/40 rounded-xl p-6 hover:border-brand/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'
-                  >
-                    <div className='flex items-center justify-between'>
-                      <div className='flex items-center gap-4 min-w-0'>
-                        <div
-                          className={`w-12 h-12 rounded-xl bg-gradient-to-br border flex items-center justify-center shrink-0 ${integration.accentClass}`}
-                        >
-                          {integration.icon}
-                        </div>
-                        <div className='min-w-0'>
-                          <h3 className='text-sm font-medium text-foreground/95'>
-                            {integration.name}
-                          </h3>
-                          {status.isConnected && status.identifier ? (
-                            <p
-                              className='text-xs font-medium text-brand/90 mt-0.5 truncate'
-                              title={status.identifier}
-                            >
-                              {status.identifier}
-                            </p>
-                          ) : null}
-                          <p className='text-xs text-muted-foreground mt-0.5'>
-                            {integration.description}
-                          </p>
-                        </div>
-                      </div>
-                      <div className='flex flex-wrap items-center justify-end gap-2 shrink-0'>
-                        {status.isConnected ? (
-                          <>
-                            <span
-                              className='inline-flex items-center gap-2 rounded-lg border border-brand/30 bg-brand/10 px-3 py-2 text-sm font-medium text-brand'
-                              aria-live='polite'
-                            >
-                              <Link className='w-4 h-4 shrink-0' aria-hidden />
-                              Connected
-                            </span>
-                            <Button
-                              type='button'
-                              variant='outline'
-                              className='border-rose-500/35 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-400/50'
-                              onClick={() => {
-                                if (status.connectionId) {
-                                  void handleDisconnectComposioIntegration(integration, status.connectionId);
-                                }
-                              }}
-                              disabled={isDisconnecting}
-                            >
-                              {isDisconnecting ? (
-                                <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
-                              ) : null}
-                              Disconnect
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            {!status.configured ? (
-                              <span className='inline-flex items-center rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-300'>
-                                Config needed
-                              </span>
-                            ) : null}
-                            <Button
-                              type='button'
-                              variant='outline'
-                              className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-brand/10 hover:border-brand/30 transition-all'
-                              onClick={() =>
-                                void handleConnectComposioIntegration(integration)
-                              }
-                              disabled={
-                                composioStatusesLoading ||
-                                isConnecting ||
-                                !status.configured
-                              }
-                            >
-                              {isConnecting ? (
-                                <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
-                              ) : (
-                                <Link className='w-4 h-4 mr-2' />
-                              )}
-                              Connect
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className='rounded-xl border border-border/40 bg-muted/30 p-4 text-xs text-muted-foreground'>
-              Agent Mode can read connection status immediately. Tool execution
-              uses the connected user account and still requires explicit
-              confirmation for posting, sending, applying, or other external
-              side effects.
-            </div>
-          </div>
+          <IntegrationsPanel
+            controller={composio}
+            hasEmailIntegrationAccess={hasGmailIntegrationAccess}
+            loadingEmailIntegrationAccess={loadingEmailIntegrationAccess}
+          />
         );
+
+      case "usage":
+        return <AiUsageLimitsPanel />;
 
       case "billing":
         return (
@@ -4937,9 +4523,11 @@ export const SettingsPage = (): JSX.Element => {
                         ? "bg-blue-500/20 text-blue-400"
                         : billingSubscriptionTier === "Basics"
                           ? "bg-brand/20 text-brand"
-                          : billingSubscriptionTier === "Ultimate"
-                            ? "bg-purple-500/20 text-purple-400"
-                            : "bg-brand/20 text-brand"
+                          : billingSubscriptionTier === "Starter"
+                            ? "bg-sky-500/20 text-sky-400"
+                            : billingSubscriptionTier === "Ultimate"
+                              ? "bg-purple-500/20 text-purple-400"
+                              : "bg-brand/20 text-brand"
                     }`}
                   >
                     {billingSubscriptionTier.toUpperCase()}
@@ -5306,7 +4894,7 @@ export const SettingsPage = (): JSX.Element => {
       <div className='min-h-full bg-background'>
         <div className='w-full max-w-[1800px mx-auto px-4 sm:px-6 lg:px-12 py-6'>
           {/* Modern Header */}
-          <div className='mb-20 border-b border-foreground/10 pb-6'>
+          <div className='mb-6 border-b border-foreground/10 pb-6'>
             <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
               <div>
                 <h1 className='text-3xl font-medium tracking-tight text-foreground/95 mb-1'>
@@ -5408,6 +4996,7 @@ export const SettingsPage = (): JSX.Element => {
       </div>
       {/* 2FA Setup Modal */}
       <TwoFAModal />
+      <DisableTwoFAModal />
       {/* Backup Codes Display Modal */}
       <Modal
         open={showBackupCodesModal}
@@ -5415,12 +5004,12 @@ export const SettingsPage = (): JSX.Element => {
           setShowBackupCodesModal(false);
           setGeneratedBackupCodes(null);
         }}
-        title='Your Backup Codes'
+        title='Recovery codes'
         size='lg'
         side='center'
       >
         {generatedBackupCodes && generatedBackupCodes.length > 0 ? (
-          <div className='space-y-4'>
+          <div className='space-y-5'>
             <div className='bg-brand/10 border border-brand/20 rounded-lg p-4'>
               <p className='text-sm text-brand font-medium mb-2'>
                 ⚠️ Important: Save these codes now
@@ -5431,12 +5020,12 @@ export const SettingsPage = (): JSX.Element => {
                 downloaded to your device.
               </p>
             </div>
-            <div className='bg-foreground/[0.05] border border-foreground/[0.1] rounded-lg p-4'>
-              <div className='grid grid-cols-2 gap-3'>
+            <div className='rounded-xl border border-border/50 bg-foreground/[0.015] p-3'>
+              <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
                 {generatedBackupCodes.map((code, index) => (
                   <div
                     key={index}
-                    className='flex items-center justify-between p-2 bg-muted/50 border border-foreground/[0.1] rounded font-mono text-sm text-foreground/90'
+                    className='flex items-center justify-between rounded-lg border border-border/50 bg-background/60 px-3 py-2.5 font-mono text-sm tracking-wider text-foreground/90'
                   >
                     <span>{code}</span>
                     <Button
@@ -5446,32 +5035,43 @@ export const SettingsPage = (): JSX.Element => {
                         navigator.clipboard.writeText(code);
                         success(`Code ${index + 1} copied`);
                       }}
-                      className='h-6 w-6 p-0 text-foreground/50 hover:text-foreground hover:bg-foreground/[0.1]'
+                      className='h-7 w-7 p-0 text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground'
                     >
-                      <Download className='w-3 h-3' />
+                      <Copy className='h-3.5 w-3.5' />
                     </Button>
                   </div>
                 ))}
               </div>
             </div>
-            <div className='flex gap-3'>
+            <div className='flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3.5 sm:flex-row sm:items-center sm:justify-between'>
+              <div className='flex items-start gap-2.5'>
+                <AlertTriangle className='mt-0.5 h-4 w-4 shrink-0 text-amber-500' />
+                <p className='text-xs leading-relaxed text-amber-100/90'>
+                  Generating another set invalidates these codes. Copy and store this set before closing.
+                </p>
+              </div>
               <Button
+                size='sm'
+                variant='outline'
                 onClick={() => {
                   const allCodes = generatedBackupCodes.join("\n");
                   navigator.clipboard.writeText(allCodes);
                   success("All codes copied to clipboard");
                 }}
-                className='flex-1 bg-brand text-black hover:bg-brand/90'
+                className='shrink-0 border-amber-500/40 text-amber-100 hover:bg-amber-500/10 hover:text-amber-50'
               >
-                Copy All Codes
+                <Copy className='mr-2 h-4 w-4' />
+                Copy all
               </Button>
+            </div>
+            <div className='flex justify-end'>
               <Button
                 variant='outline'
                 onClick={() => {
                   setShowBackupCodesModal(false);
                   setGeneratedBackupCodes(null);
                 }}
-                className='border-foreground/[0.1] text-foreground/70 hover:bg-foreground/[0.05]'
+                className='border-border/60 text-foreground/80 hover:bg-foreground/[0.05]'
               >
                 I've Saved Them
               </Button>
@@ -5736,7 +5336,7 @@ export const SettingsPage = (): JSX.Element => {
               )}
           </div>
 
-          <div className='flex items-start gap-2 p-3 bg-card border border-border/40 rounded-lg ring-1 ring-white/5 shadow-sm'>
+          <div className='flex items-start gap-2 p-3 bg-card border border-border/40 rounded-lg ring-1 ring-foreground/5 shadow-sm'>
             <input
               type='checkbox'
               id='confirm-deletion'
@@ -5965,7 +5565,7 @@ export const SettingsPage = (): JSX.Element => {
                 location.
               </p>
             </div>
-            <div className='bg-card border border-border/40 rounded-lg p-4 shadow-sm ring-1 ring-white/5'>
+            <div className='bg-card border border-border/40 rounded-lg p-4 shadow-sm ring-1 ring-foreground/5'>
               <p className='text-xs text-muted-foreground mb-2'>
                 Your API Key:
               </p>
@@ -6111,69 +5711,483 @@ export const SettingsPage = (): JSX.Element => {
     </>
   );
 
-  // 2FA Setup Modal
+  // Advanced 6-Digit OTP Box Grid Component
+  function SixDigitOtpInput({
+    value,
+    onChange,
+    onComplete,
+    disabled,
+  }: {
+    value: string;
+    onChange: (val: string) => void;
+    onComplete?: (code: string) => void;
+    disabled?: boolean;
+  }) {
+    const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+
+    const digits = useMemo(() => {
+      const chars = value.split("");
+      return Array.from({ length: 6 }, (_, i) => chars[i] || "");
+    }, [value]);
+
+    const handleDigitChange = (index: number, val: string) => {
+      const clean = val.replace(/\D/g, "");
+      if (!clean) {
+        const next = digits.slice();
+        next[index] = "";
+        const updated = next.join("");
+        onChange(updated);
+        return;
+      }
+
+      if (clean.length > 1) {
+        const pasted = clean.slice(0, 6);
+        onChange(pasted);
+        if (pasted.length === 6) {
+          inputsRef.current[5]?.focus();
+          if (onComplete) onComplete(pasted);
+        } else {
+          inputsRef.current[pasted.length]?.focus();
+        }
+        return;
+      }
+
+      const next = digits.slice();
+      next[index] = clean;
+      const updated = next.join("");
+      onChange(updated);
+
+      if (index < 5 && clean) {
+        inputsRef.current[index + 1]?.focus();
+      }
+      if (updated.length === 6 && onComplete) {
+        onComplete(updated);
+      }
+    };
+
+    const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Backspace" && !digits[index] && index > 0) {
+        inputsRef.current[index - 1]?.focus();
+      } else if (e.key === "ArrowLeft" && index > 0) {
+        inputsRef.current[index - 1]?.focus();
+      } else if (e.key === "ArrowRight" && index < 5) {
+        inputsRef.current[index + 1]?.focus();
+      }
+    };
+
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+      e.preventDefault();
+      const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+      if (pasted) {
+        onChange(pasted);
+        inputsRef.current[Math.min(pasted.length, 5)]?.focus();
+        if (pasted.length === 6 && onComplete) {
+          onComplete(pasted);
+        }
+      }
+    };
+
+    return (
+      <div className='flex justify-start gap-1.5 py-0'>
+        {Array.from({ length: 6 }).map((_, idx) => (
+          <input
+            key={idx}
+            ref={(el) => {
+              inputsRef.current[idx] = el;
+            }}
+            type='text'
+            inputMode='numeric'
+            pattern='[0-9]*'
+            maxLength={6}
+            disabled={disabled}
+            value={digits[idx]}
+            onChange={(e) => handleDigitChange(idx, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(idx, e)}
+            onPaste={handlePaste}
+            onFocus={(e) => e.target.select()}
+            className={cn(
+              "h-10 w-9 text-center font-mono text-base font-semibold rounded-md border outline-none bg-card text-foreground shadow-sm transition-[border-color,box-shadow,background-color]",
+              digits[idx]
+                ? "border-brand bg-brand/5 shadow-brand/10"
+                : "border-border/60 focus:border-brand/70 focus:ring-2 focus:ring-brand/20",
+              disabled && "opacity-50 cursor-not-allowed",
+            )}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // 2FA Setup Modal — Advanced 4-step guided enrollment flow
   function TwoFAModal() {
+    const stepTitles: Record<TwoFAStep, string> = {
+      preparing: "Set up Two-Factor Authentication",
+      scan: "Set up two-factor auth",
+      verify: "Step 2 of 3 — Enter 6-Digit Code",
+      backup: "Step 3 of 3 — Save Emergency Backup Codes",
+      success: "Two-Factor Authentication Active",
+    };
+
+    const formattedSecret = totpSecret
+      ? totpSecret.match(/.{1,4}/g)?.join(" ") || totpSecret
+      : "";
+
     return (
       <Modal
         open={open2FA}
-        onClose={() => setOpen2FA(false)}
-        title='Set up Two-Factor Authentication'
+        onClose={handleCloseTwoFAModal}
+        size='md'
+        side='center'
+        panelClassName='rounded-xl border-border/60 bg-card shadow-2xl'
+        contentClassName='p-0'
+      >
+        <div className='flex items-start justify-between border-b border-border/60 px-5 py-4'>
+          <div className='flex items-center gap-3'>
+            <div className='flex h-9 w-9 items-center justify-center rounded-lg bg-brand/15 text-brand'>
+              <ShieldCheck className='h-4 w-4' aria-hidden />
+            </div>
+            <div>
+              <p className='font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground'>
+                {twoFAStep === "backup" ? "Step 3 of 3" : twoFAStep === "success" ? "Security enabled" : "Step 2 of 3"}
+              </p>
+              <h3 className='mt-0.5 text-base font-semibold text-foreground'>
+                {twoFAStep === "success" ? "Two-factor authentication active" : "Set up two-factor auth"}
+              </h3>
+            </div>
+          </div>
+          <button
+            type='button'
+            aria-label='Close two-factor setup'
+            onClick={handleCloseTwoFAModal}
+            className='rounded-md p-1 text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground'
+          >
+            <X className='h-4 w-4' aria-hidden />
+          </button>
+        </div>
+        {twoFAStep === "preparing" && (
+          <div className='flex flex-col items-center gap-4 py-8 text-center'>
+            {enrollBusy ? (
+              <>
+                <RefreshCw className='w-10 h-10 text-brand animate-spin' aria-hidden />
+                <p className='text-sm font-medium text-foreground/90'>
+                  Generating secure authenticator credentials…
+                </p>
+                <p className='text-xs text-muted-foreground max-w-xs'>
+                  Creating a unique TOTP key for your account.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className='flex h-14 w-14 items-center justify-center rounded-full bg-rose-500/10 border border-rose-500/25'>
+                  <AlertTriangle className='w-6 h-6 text-rose-400' aria-hidden />
+                </div>
+                <p className='text-sm text-foreground/90 font-medium'>
+                  Couldn't start setup
+                </p>
+                <p className='text-xs text-muted-foreground max-w-xs'>
+                  {twoFAError}
+                </p>
+                <div className='flex gap-2 mt-2'>
+                  <Button
+                    variant='outline'
+                    className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    onClick={handleCloseTwoFAModal}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => void handleStartTwoFAEnrollment()}
+                    className='bg-brand text-black font-medium hover:bg-brand/90'
+                  >
+                    <RefreshCw className='w-4 h-4 mr-2' aria-hidden />
+                    Retry
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {twoFAStep === "scan" && (
+          <div className='space-y-5 px-5 py-5'>
+            <div className='grid grid-cols-1 gap-5 sm:grid-cols-[180px_minmax(0,1fr)]'>
+            {totpQrImageSrc && !totpQrUnavailable ? (
+              <div className='flex flex-col items-center rounded-lg border border-border/60 bg-background p-3'>
+                <div className='bg-white p-1'>
+                  <img
+                    src={totpQrImageSrc}
+                    alt='Scan this QR code with your authenticator app'
+                    className='h-[154px] w-[154px]'
+                    onError={() => setTotpQrUnavailable(true)}
+                  />
+                </div>
+                {totpUri ? (
+                  <a
+                    href={totpUri}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='mt-2 inline-flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground transition-colors hover:text-brand'
+                  >
+                    <Smartphone className='w-3.5 h-3.5' />
+                    Open in Authenticator App
+                  </a>
+                ) : null}
+              </div>
+            ) : (
+              <div className='flex justify-center rounded-lg border border-border/60 bg-background p-3'>
+                <div className='flex h-[154px] w-[154px] flex-col items-center justify-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-5 text-center'>
+                  <KeyRound className='w-8 h-8 text-amber-400' aria-hidden />
+                  <p className='text-xs font-medium text-foreground'>
+                    QR code unavailable
+                  </p>
+                  <p className='text-[11px] leading-relaxed text-muted-foreground'>
+                    Use the manual setup key below in your authenticator app.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className='space-y-4'>
+              <p className='text-sm leading-snug text-foreground/90'>
+                Open your authenticator app and scan the code, or paste this secret manually.
+              </p>
+            {totpSecret ? (
+              <button
+                type='button'
+                onClick={() => void handleCopyTotpSecret()}
+                className='flex w-full items-center gap-3 rounded-md border border-border/60 bg-card px-3 py-2.5 text-left shadow-sm transition-[border-color,background-color] hover:border-brand/40 hover:bg-muted/50'
+              >
+                <div className='min-w-0 flex-1'>
+                  <p className='text-[11px] font-semibold text-muted-foreground uppercase tracking-wider'>
+                    Manual Setup Key
+                  </p>
+                  <p className='truncate text-sm font-mono font-bold tracking-widest text-foreground/90 mt-0.5'>
+                    {formattedSecret}
+                  </p>
+                </div>
+                {secretCopied ? (
+                  <span className='inline-flex items-center gap-1 text-xs font-semibold text-brand'>
+                    <CheckCircle2 className='w-4 h-4 shrink-0' aria-hidden />
+                    Copied
+                  </span>
+                ) : (
+                  <Copy className='w-4 h-4 shrink-0 text-muted-foreground hover:text-brand' aria-hidden />
+                )}
+              </button>
+            ) : null}
+
+              <div className='space-y-2'>
+                <p className='font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground'>
+                  Confirm with a 6-digit code
+                </p>
+                <SixDigitOtpInput
+                  value={totpCode}
+                  onChange={(value) => {
+                    setTotpCode(value);
+                    setTwoFAError(null);
+                  }}
+                  onComplete={(code) => void handleVerifyTwoFA(code)}
+                  disabled={verifyBusy}
+                />
+                {twoFAError ? (
+                  <div className='flex items-center gap-2 rounded-md border border-rose-500/25 bg-rose-500/10 p-2 text-rose-300'>
+                    <AlertTriangle className='h-3.5 w-3.5 shrink-0' aria-hidden />
+                    <p className='text-xs'>{twoFAError}</p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+            </div>
+
+            <div className='-mx-5 border-y border-border/60 bg-muted/20 px-5 py-4'>
+              <div className='mb-2 flex items-center justify-between'>
+                <p className='font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground'>
+                  Recovery codes
+                </p>
+                <span className='font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground'>
+                  After verification
+                </span>
+              </div>
+              <div className='rounded-md border border-border/60 bg-background px-3 py-3 text-center'>
+                <p className='font-mono text-[11px] text-muted-foreground'>
+                  Your one-time recovery codes will appear here after the authenticator code is confirmed.
+                </p>
+              </div>
+              <p className='mt-2 text-xs text-muted-foreground'>
+                Save the generated set somewhere safe. Each code can be used once if you lose access.
+              </p>
+            </div>
+
+            <div className='flex items-center justify-end gap-2 pt-0'>
+              <Button
+                variant='outline'
+                className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                onClick={handleCloseTwoFAModal}
+              >
+                Back
+              </Button>
+              <Button
+                onClick={() => void handleVerifyTwoFA()}
+                disabled={totpCode.length < 6 || verifyBusy}
+                className='bg-brand text-black font-medium hover:bg-brand/90 shadow-md shadow-brand/10 disabled:opacity-50'
+              >
+                {verifyBusy ? <RefreshCw className='mr-2 h-4 w-4 animate-spin' aria-hidden /> : null}
+                Verify & Continue
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {twoFAStep === "verify" && (
+          <div className='space-y-5 py-1'>
+            <div className='text-center space-y-1'>
+              <p className='text-sm font-medium text-foreground'>
+                Enter the 6-digit verification code
+              </p>
+              <p className='text-xs text-muted-foreground'>
+                From your authenticator app for JobRaker
+              </p>
+            </div>
+
+            <SixDigitOtpInput
+              value={totpCode}
+              onChange={(val) => {
+                setTotpCode(val);
+                setTwoFAError(null);
+              }}
+              onComplete={(code) => void handleVerifyTwoFA(code)}
+              disabled={verifyBusy}
+            />
+
+            {twoFAError ? (
+              <div className='flex items-center justify-center gap-2 text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg text-center'>
+                <AlertTriangle className='w-4 h-4 shrink-0' aria-hidden />
+                <p className='text-xs font-medium'>{twoFAError}</p>
+              </div>
+            ) : null}
+
+            <div className='flex justify-end gap-2 pt-2'>
+              <Button
+                variant='outline'
+                className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                onClick={() => setTwoFAStep("scan")}
+                disabled={verifyBusy}
+              >
+                Back
+              </Button>
+              <Button
+                onClick={() => void handleVerifyTwoFA()}
+                disabled={totpCode.length < 6 || verifyBusy}
+                className='bg-brand text-black font-medium hover:bg-brand/90 disabled:opacity-50 shadow-md shadow-brand/10'
+              >
+                {verifyBusy ? (
+                  <RefreshCw className='w-4 h-4 mr-2 animate-spin' aria-hidden />
+                ) : null}
+                Verify & Continue
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {twoFAStep === "backup" && (
+          <div className='space-y-4 px-5 py-5'>
+            <p className='text-sm text-muted-foreground'>
+              Your authenticator is verified. Save these one-time recovery codes before finishing setup.
+            </p>
+
+            {generatedBackupCodes && generatedBackupCodes.length > 0 ? (
+              <div className='grid grid-cols-2 gap-1.5 rounded-md border border-border/60 bg-background p-3 font-mono text-[11px] text-center font-semibold tracking-wide text-foreground/90 sm:grid-cols-4'>
+                {generatedBackupCodes.map((code, idx) => (
+                  <div key={idx} className='rounded bg-muted/60 px-1.5 py-1.5'>
+                    {code}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className='flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-4'>
+              <Button
+                variant='outline'
+                size='sm'
+                className='border-border/60 text-muted-foreground hover:text-foreground'
+                onClick={handleDownloadGeneratedBackupCodes}
+              >
+                <Download className='w-3.5 h-3.5 mr-1.5' />
+                Download .TXT
+              </Button>
+              <Button
+                onClick={() => setTwoFAStep("success")}
+                className='bg-brand text-black font-medium hover:bg-brand/90 shadow-md shadow-brand/10'
+              >
+                Done — Finish Setup
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {twoFAStep === "success" && (
+          <div className='flex flex-col items-center gap-4 py-6 text-center'>
+            <div className='flex h-16 w-16 items-center justify-center rounded-full bg-brand/10 border-2 border-brand/30 shadow-lg shadow-brand/10'>
+              <CheckCircle2 className='w-8 h-8 text-brand' aria-hidden />
+            </div>
+            <div className='space-y-1'>
+              <p className='text-base font-semibold text-foreground'>
+                Two-Factor Protection Enabled
+              </p>
+              <p className='text-xs text-muted-foreground max-w-xs'>
+                Your JobRaker account is now guarded by TOTP multi-factor security.
+              </p>
+            </div>
+            <div className='flex gap-2 mt-2'>
+              <Button
+                onClick={handleCloseTwoFAModal}
+                className='bg-brand text-black font-medium hover:bg-brand/90 px-6'
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    );
+  }
+
+  function DisableTwoFAModal() {
+    return (
+      <Modal
+        open={showDisable2FAConfirm}
+        onClose={() => setShowDisable2FAConfirm(false)}
+        title='Remove Two-Factor Authentication?'
         size='md'
         side='center'
       >
         <div className='space-y-4'>
-          <p className='text-muted-foreground text-sm'>
-            Scan the QR code in your authenticator app (e.g., Google
-            Authenticator, Authy), then enter the 6-digit code below.
-          </p>
-          {qrDataUrl ? (
-            <div className='flex justify-center'>
-              <img
-                src={qrDataUrl}
-                alt='TOTP QR'
-                className='rounded border border-primary/30'
-              />
+          <div className='flex items-start gap-3 rounded-lg border border-rose-500/25 bg-rose-500/10 p-4'>
+            <ShieldOff className='w-5 h-5 shrink-0 mt-0.5 text-rose-400' aria-hidden />
+            <div>
+              <p className='text-sm font-medium text-rose-300'>
+                This will make your account less secure.
+              </p>
+              <p className='text-xs text-rose-300/80 mt-1'>
+                You'll only need your password to sign in. You can re-enable
+                two-factor authentication at any time.
+              </p>
             </div>
-          ) : (
-            <div className='text-muted-foreground text-sm'>Generating QR…</div>
-          )}
-          <div>
-            <label className='block text-sm font-medium text-muted-foreground mb-1'>
-              Authentication code
-            </label>
-            <Input
-              inputMode='numeric'
-              pattern='[0-9]*'
-              placeholder='123456'
-              value={totpCode}
-              onChange={(e) => setTotpCode(e.target.value)}
-              className='bg-card border-border/40 text-foreground focus:border-brand/50 hover:border-border/60 transition-all duration-300'
-            />
           </div>
           <div className='flex justify-end gap-2'>
             <Button
               variant='outline'
               className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              onClick={() => setOpen2FA(false)}
+              onClick={() => setShowDisable2FAConfirm(false)}
             >
-              Cancel
+              Keep it enabled
             </Button>
             <Button
-              onClick={async () => {
-                try {
-                  if (!totpFactorId || !totpCode || verifyBusy) return;
-                  setVerifyBusy(true);
-                  await verifyTotp(totpFactorId, totpCode);
-                  setOpen2FA(false);
-                } catch (e: any) {
-                  toastError("Verification failed", e.message);
-                } finally {
-                  setVerifyBusy(false);
-                }
-              }}
-              className='bg-brand text-black font-medium hover:bg-brand/90 transition-all hover:scale-105'
+              onClick={() => void handleConfirmDisableTwoFA()}
+              className='bg-rose-600 text-white hover:bg-rose-700'
             >
-              Verify & Enable
+              <ShieldOff className='w-4 h-4 mr-2' aria-hidden />
+              Yes, remove 2FA
             </Button>
           </div>
         </div>

@@ -530,7 +530,7 @@ Deno.serve(async (req) => {
     );
     const autoSubmit = parseBoolean(
       body?.auto_submit ?? body?.autoSubmit,
-      profileRow?.auto_apply_auto_submit !== false,
+      Boolean(profileRow?.auto_apply_auto_submit),
     );
 
     if (!jobUrls.length) {
@@ -924,7 +924,7 @@ Deno.serve(async (req) => {
 
     const maxSteps = resolveMaxStepsOverride(body as Record<string, unknown>);
     const applyUrl = jobUrls[0] || null;
-    const rtrvrEnabled = parseBoolean(Deno.env.get("RTRVR_ENABLED"), true);
+    const rtrvrEnabled = parseBoolean(Deno.env.get("RTRVR_ENABLED"), false);
     const rtrvrRecordingContext = configuredRtrvrRecordingContextForUrl(applyUrl);
     const nowIso = new Date().toISOString();
     const applicationId = crypto.randomUUID();

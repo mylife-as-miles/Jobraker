@@ -6,7 +6,15 @@ import {
   ArrowRight,
   CheckCircle2,
   Loader2,
+  ShieldCheck,
+  AlertTriangle,
+  KeyRound,
+  Key,
+  LifeBuoy,
+  RefreshCw,
+  X,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import React, {
   useCallback,
@@ -44,6 +52,128 @@ function getOAuthRedirectUrl() {
   return isAdminHost()
     ? `${window.location.origin}/admin`
     : AUTH_REDIRECTS.dashboard();
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: number | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+  }
+}
+
+function SixDigitOtpInput({
+  value,
+  onChange,
+  onComplete,
+  disabled,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onComplete?: (code: string) => void;
+  disabled?: boolean;
+}) {
+  const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+
+  const digits = useMemo(() => {
+    const chars = value.split("");
+    return Array.from({ length: 6 }, (_, i) => chars[i] || "");
+  }, [value]);
+
+  const handleDigitChange = (index: number, val: string) => {
+    const clean = val.replace(/\D/g, "");
+    if (!clean) {
+      const next = digits.slice();
+      next[index] = "";
+      const updated = next.join("");
+      onChange(updated);
+      return;
+    }
+
+    if (clean.length > 1) {
+      const pasted = clean.slice(0, 6);
+      onChange(pasted);
+      if (pasted.length === 6) {
+        inputsRef.current[5]?.focus();
+        if (onComplete) onComplete(pasted);
+      } else {
+        inputsRef.current[pasted.length]?.focus();
+      }
+      return;
+    }
+
+    const next = digits.slice();
+    next[index] = clean;
+    const updated = next.join("");
+    onChange(updated);
+
+    if (index < 5 && clean) {
+      inputsRef.current[index + 1]?.focus();
+    }
+    if (updated.length === 6 && onComplete) {
+      onComplete(updated);
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !digits[index] && index > 0) {
+      inputsRef.current[index - 1]?.focus();
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      inputsRef.current[index - 1]?.focus();
+    } else if (e.key === "ArrowRight" && index < 5) {
+      inputsRef.current[index + 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (pasted) {
+      onChange(pasted);
+      inputsRef.current[Math.min(pasted.length, 5)]?.focus();
+      if (pasted.length === 6 && onComplete) {
+        onComplete(pasted);
+      }
+    }
+  };
+
+  return (
+    <div className='flex justify-center gap-1.5 py-2 sm:gap-2'>
+      {Array.from({ length: 6 }).map((_, idx) => (
+        <React.Fragment key={idx}>
+          {idx === 3 ? <span aria-hidden className='mx-1 h-6 w-px bg-border/70' /> : null}
+          <input
+            ref={(el) => {
+              inputsRef.current[idx] = el;
+            }}
+            type='text'
+            inputMode='numeric'
+            pattern='[0-9]*'
+            maxLength={6}
+            disabled={disabled}
+            value={digits[idx]}
+            onChange={(e) => handleDigitChange(idx, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(idx, e)}
+            onPaste={handlePaste}
+            onFocus={(e) => e.target.select()}
+            className={cn(
+              "h-12 w-10 rounded-lg border text-center font-mono text-lg font-semibold text-foreground outline-none transition-[border-color,background-color,box-shadow] sm:h-14 sm:w-11",
+              digits[idx]
+                ? "border-brand bg-brand/5 shadow-[0_0_0_1px_rgba(47,217,104,0.12)]"
+                : "border-border/60 bg-background focus:border-brand/70 focus:ring-2 focus:ring-brand/20",
+              disabled && "cursor-not-allowed opacity-50",
+            )}
+          />
+        </React.Fragment>
+      ))}
+    </div>
+  );
 }
 
 export const JobrackerSignup = (): JSX.Element => {
@@ -116,6 +246,185 @@ export const JobrackerSignup = (): JSX.Element => {
     confirmPassword: "",
   });
   const [submitting, setSubmitting] = useState(false);
+
+  // 2FA Challenge Modal State
+  const [showMfaModal, setShowMfaModal] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaError, setMfaError] = useState<string | null>(null);
+  const [mfaVerifying, setMfaVerifying] = useState(false);
+  const [useBackupCode, setUseBackupCode] = useState(false);
+  const [backupCodeInput, setBackupCodeInput] = useState("");
+  const [pendingAuthSession, setPendingAuthSession] = useState<{
+    userId: string;
+    session: any;
+  } | null>(null);
+  const mfaResumeAttemptedRef = useRef(false);
+
+  const requiresMfaChallenge = useCallback(async () => {
+    const { data, error } = await (supabase as any).auth.mfa.getAuthenticatorAssuranceLevel();
+    if (error) throw error;
+    return data?.currentLevel !== "aal2" && data?.nextLevel === "aal2";
+  }, [supabase]);
+
+  const beginMfaChallenge = useCallback(async (userId: string, session: any) => {
+    const { data: mfaFactors, error } = await (supabase as any).auth.mfa.listFactors();
+    if (error) throw error;
+    const verifiedTotp = ((mfaFactors?.totp ?? []) as Array<{ id: string; status: string }>).find(
+      (factor) => factor.status === "verified",
+    );
+    if (!verifiedTotp) {
+      await supabase.auth.signOut();
+      throw new Error("Two-factor authentication is enabled, but no verified authenticator was found. Please contact support.");
+    }
+    setMfaFactorId(verifiedTotp.id);
+    setPendingAuthSession({ userId, session });
+    setShowMfaModal(true);
+  }, [supabase]);
+
+  useEffect(() => {
+    if (searchParams.get("mfa") !== "required") {
+      mfaResumeAttemptedRef.current = false;
+      return;
+    }
+    if (mfaResumeAttemptedRef.current || showMfaModal) return;
+
+    mfaResumeAttemptedRef.current = true;
+    let active = true;
+
+    const resumeMfaChallenge = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!active || !session?.user) return;
+        await beginMfaChallenge(session.user.id, session);
+      } catch (error: any) {
+        if (!active) return;
+        toastError(
+          "Two-factor authentication required",
+          error?.message || "Please sign in again to continue.",
+        );
+      }
+    };
+
+    void resumeMfaChallenge();
+    return () => {
+      active = false;
+    };
+  }, [beginMfaChallenge, searchParams, showMfaModal, supabase, toastError]);
+
+  const recordVerifiedMfaSession = useCallback((userId: string, session: any) => {
+    void (async () => {
+      try {
+        const {
+          createActiveSession,
+          enforceMaxSessions,
+          logSecurityEvent,
+        } = await import("../../utils/sessionManagement");
+        const expiresAt = session?.expires_at
+          ? new Date(session.expires_at * 1000)
+          : undefined;
+
+        await createActiveSession(userId, session.access_token, expiresAt);
+        const { data: settings } = await supabase
+          .from("security_settings")
+          .select("max_concurrent_sessions")
+          .eq("id", userId)
+          .maybeSingle();
+        const maxSessions = settings?.max_concurrent_sessions || 5;
+
+        await Promise.all([
+          enforceMaxSessions(userId, maxSessions),
+          logSecurityEvent(
+            userId,
+            "login",
+            `User logged in via 2FA/MFA verification from ${navigator.userAgent}`,
+            "low",
+          ),
+        ]);
+      } catch (error) {
+        console.warn("[auth] Post-MFA session bookkeeping failed:", error);
+      }
+    })();
+  }, [supabase]);
+
+  const handleVerifyMfaChallenge = async (codeToVerify?: string) => {
+    const code = (useBackupCode ? backupCodeInput : (codeToVerify || mfaCode)).trim();
+    if (!code || !pendingAuthSession) return;
+    setMfaVerifying(true);
+    setMfaError(null);
+    try {
+      if (useBackupCode) {
+        const encoder = new TextEncoder();
+        const buf = await crypto.subtle.digest("SHA-256", encoder.encode(code.toUpperCase()));
+        const hex = Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+
+        const { data: codeMatch, error: matchError } = await (supabase as any)
+          .from("security_backup_codes")
+          .select("id, used")
+          .eq("user_id", pendingAuthSession.userId)
+          .eq("code_hash", hex)
+          .eq("used", false)
+          .maybeSingle();
+
+        if (matchError || !codeMatch) {
+          throw new Error("Invalid or previously used emergency backup code.");
+        }
+
+        await (supabase as any)
+          .from("security_backup_codes")
+          .update({ used: true, used_at: new Date().toISOString() })
+          .eq("id", codeMatch.id);
+      } else {
+        if (!mfaFactorId) {
+          throw new Error("2FA Factor ID missing. Please sign in again.");
+        }
+        const { error } = await withTimeout(
+          (supabase as any).auth.mfa.challengeAndVerify({
+            factorId: mfaFactorId,
+            code,
+          }),
+          15_000,
+          "Verification is taking too long. Please check your connection and try again.",
+        );
+        if (error) throw error;
+      }
+
+      const {
+        data: { session: elevatedSession },
+      } = await withTimeout(
+        supabase.auth.getSession(),
+        5_000,
+        "Your verified session could not be refreshed. Please try again.",
+      );
+      const verifiedSession = elevatedSession ?? pendingAuthSession.session;
+      if (!verifiedSession?.access_token) {
+        throw new Error("Your verified session could not be refreshed. Please sign in again.");
+      }
+
+      recordVerifiedMfaSession(pendingAuthSession.userId, verifiedSession);
+      setShowMfaModal(false);
+      navigate(getPostSignInPath());
+    } catch (err: any) {
+      console.error("MFA challenge verification error:", err);
+      setMfaError(err?.message || "Verification failed. Check your 2FA code.");
+    } finally {
+      setMfaVerifying(false);
+    }
+  };
+
+  const handleCancelMfa = async () => {
+    setShowMfaModal(false);
+    setPendingAuthSession(null);
+    setMfaCode("");
+    setMfaError(null);
+    setUseBackupCode(false);
+    setBackupCodeInput("");
+    try {
+      await supabase.auth.signOut();
+    } catch {}
+  };
   const passwordCheck = useMemo(
     () => validatePassword(formData.password, formData.email),
     [formData.password, formData.email],
@@ -285,8 +594,6 @@ export const JobrackerSignup = (): JSX.Element => {
         // Track session and enforce security settings
         if (signInData.session && signInData.user) {
           const {
-            createActiveSession,
-            enforceMaxSessions,
             logSecurityEvent,
             checkSecuritySettings,
           } = await import("../../utils/sessionManagement");
@@ -308,7 +615,18 @@ export const JobrackerSignup = (): JSX.Element => {
             return;
           }
 
-          // Create active session
+          if (await requiresMfaChallenge()) {
+            await beginMfaChallenge(signInData.user.id, signInData.session);
+            setSubmitting(false);
+            return; // Intercept sign-in with 2FA Challenge Modal
+          }
+
+          // Create active session if 2FA not required/active
+          const {
+            createActiveSession,
+            enforceMaxSessions,
+          } = await import("../../utils/sessionManagement");
+
           const expiresAt = signInData.session.expires_at
             ? new Date(signInData.session.expires_at * 1000)
             : undefined;
@@ -642,7 +960,8 @@ export const JobrackerSignup = (): JSX.Element => {
                   <Input
                     inputSize='sm'
                     className='pl-11 h-9 bg-foreground/5 border-foreground/10 focus:border-brand/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
-                    placeholder='name@example.com'
+                    error={formData.email.length > 0 && !emailValid}
+                    placeholder='you@example.com'
                     type='email'
                     value={formData.email}
                     onChange={(e) =>
@@ -652,8 +971,8 @@ export const JobrackerSignup = (): JSX.Element => {
                   />
                 </div>
                 {formData.email.length > 0 && !emailValid && (
-                  <p className='text-[10px] text-brand pl-1 mt-0.5'>
-                    Invalid email address
+                  <p key={formData.email} className='text-[10px] text-[#FF5C5C] font-semibold pl-1 mt-0.5 error-text-shake animate-shake-x'>
+                    Please enter a valid email.
                   </p>
                 )}
               </div>
@@ -839,7 +1158,7 @@ export const JobrackerSignup = (): JSX.Element => {
         <div className='absolute inset-0 bg-[linear-gradient(rgba(47,217,104,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(47,217,104,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,background_40%,transparent_80%)]' />
 
         {/* 3D Self-Solving Cube */}
-        <div className='absolute inset-0 flex items-center justify-center scale-110 translate-x-12 pointer-events-none'>
+        <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
           <SelfSolvingCube />
         </div>
 
@@ -914,6 +1233,124 @@ export const JobrackerSignup = (): JSX.Element => {
               Go to login
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* 2FA Verification Challenge Modal */}
+      <Modal
+        open={showMfaModal}
+        onClose={handleCancelMfa}
+        size='sm'
+        side='center'
+        panelClassName='border-border/70 bg-card shadow-[0_24px_80px_rgba(0,0,0,0.45)]'
+        contentClassName='p-0'
+      >
+        <div className='relative space-y-5 px-6 py-6'>
+          <button
+            type='button'
+            aria-label='Cancel two-factor authentication'
+            onClick={() => void handleCancelMfa()}
+            disabled={mfaVerifying}
+            className='absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50'
+          >
+            <X className='h-4 w-4' />
+          </button>
+          <div className='mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-brand/30 bg-brand/10 text-brand'>
+            <ShieldCheck className='h-5 w-5' aria-hidden />
+          </div>
+          <div className='text-center'>
+            <p className='font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground'>
+              Step 2 of 2
+            </p>
+            <h2 className='mt-2 text-xl font-semibold tracking-tight text-foreground'>
+              Two-factor authentication
+            </h2>
+            <p className='mx-auto mt-2 max-w-xs text-sm leading-6 text-muted-foreground'>
+              {useBackupCode
+                ? "Enter one of your one-time recovery codes."
+                : "Open your authenticator app and enter the 6-digit code."}
+            </p>
+          </div>
+
+          {!useBackupCode ? (
+            <SixDigitOtpInput
+              value={mfaCode}
+              onChange={(val) => {
+                setMfaCode(val);
+                setMfaError(null);
+              }}
+              onComplete={(code) => void handleVerifyMfaChallenge(code)}
+              disabled={mfaVerifying}
+            />
+          ) : (
+            <div className='space-y-2'>
+              <label htmlFor='mfa-recovery-code' className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
+                Recovery code
+              </label>
+              <Input
+                id='mfa-recovery-code'
+                placeholder='XXXXX-XXXXX'
+                autoFocus
+                autoComplete='one-time-code'
+                value={backupCodeInput}
+                onChange={(e) => {
+                  setBackupCodeInput(e.target.value.toUpperCase().trim());
+                  setMfaError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleVerifyMfaChallenge();
+                }}
+                className='h-12 rounded-lg border-border/60 bg-background px-3 font-mono text-center text-base font-semibold tracking-[0.18em] text-foreground focus:border-brand/70 focus:ring-2 focus:ring-brand/15'
+              />
+            </div>
+          )}
+
+          {mfaError ? (
+            <div className='flex items-center justify-center gap-2 text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg text-center'>
+              <AlertTriangle className='w-4 h-4 shrink-0' aria-hidden />
+              <p className='text-xs font-medium'>{mfaError}</p>
+            </div>
+          ) : null}
+
+          <div className='flex flex-col gap-4 border-t border-border/60 pt-5'>
+            <Button
+              type='button'
+              variant='link'
+              onClick={() => {
+                setUseBackupCode(!useBackupCode);
+                setMfaError(null);
+              }}
+              className='order-2 h-auto w-full p-0 text-sm font-medium text-muted-foreground hover:text-brand hover:underline'
+            >
+              {useBackupCode
+                ? "← Use Authenticator App Code"
+                : "Use emergency backup code"}
+            </Button>
+            <div className='order-1 w-full'>
+              <Button
+                onClick={() => void handleVerifyMfaChallenge()}
+                disabled={
+                  mfaVerifying ||
+                  (useBackupCode
+                    ? backupCodeInput.length < 6
+                    : mfaCode.length < 6)
+                }
+                className='h-11 w-full rounded-lg bg-brand font-semibold text-background transition-[background-color,transform] hover:bg-brand/90 active:scale-[0.96] disabled:opacity-50'
+              >
+                {mfaVerifying ? (
+                  <RefreshCw className='w-4 h-4 mr-2 animate-spin' aria-hidden />
+                ) : null}
+                Verify and continue
+              </Button>
+            </div>
+          </div>
+          <p className='order-3 flex items-center justify-center gap-1.5 border-t border-border/60 pt-4 text-xs text-muted-foreground'>
+            <LifeBuoy className='h-3.5 w-3.5' aria-hidden />
+            Lost access?
+            <a href='mailto:support@jobraker.io' className='underline underline-offset-2 hover:text-foreground'>
+              Contact support
+            </a>
+          </p>
         </div>
       </Modal>
     </div>

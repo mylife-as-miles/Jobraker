@@ -20,6 +20,7 @@ import {
   Ban,
   FileText,
   CornerUpLeft,
+  Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -275,7 +276,10 @@ export default function AdminJobs() {
   // Jobs waiting in queue
   const waitingJobs = useMemo(() => {
     return applications.filter(
-      (a) => a.canonical_stage === "queued" && a.provider_status === "waiting"
+      (a) =>
+        a.canonical_stage === "queued" ||
+        a.status === "Pending" ||
+        ["waiting", "waiting_worker", "launching"].includes(a.provider_status || "")
     );
   }, [applications]);
 
@@ -316,6 +320,9 @@ export default function AdminJobs() {
             break;
           case "Basics":
             maxSlots = 2;
+            break;
+          case "Starter":
+            maxSlots = 0;
             break;
           default:
             maxSlots = 1;
@@ -434,14 +441,37 @@ export default function AdminJobs() {
           </p>
         </div>
 
-        <button
-          onClick={fetchJobsData}
-          disabled={refreshing}
-          className='flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl border border-gray-700 transition-all font-medium'
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin text-brand" : ""}`} />
-          {refreshing ? "Refreshing..." : "Refresh Queue"}
-        </button>
+        <div className='flex items-center gap-3'>
+          <button
+            onClick={async () => {
+              if (!confirm(`Are you sure you want to clear all ${waitingJobs.length} queued jobs?`)) return;
+              try {
+                setRefreshing(true);
+                const res = await invokeProtectedFunction<{ success?: boolean; message?: string; error?: string }>("admin-clear-queue");
+                if (res.error) throw new Error(res.error);
+                toastSuccess("Queue Cleared", res.message || "All queued jobs have been cleared.");
+                await fetchJobsData();
+              } catch (err: any) {
+                toastError("Failed to clear queue", err.message || "An error occurred");
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            disabled={refreshing || waitingJobs.length === 0}
+            className='flex items-center gap-2 px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 disabled:opacity-50 rounded-xl border border-rose-500/30 transition-all font-medium text-sm'
+          >
+            <Trash2 className='w-4 h-4' />
+            Clear Queue ({waitingJobs.length})
+          </button>
+          <button
+            onClick={fetchJobsData}
+            disabled={refreshing}
+            className='flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl border border-gray-700 transition-all font-medium text-sm'
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin text-brand" : ""}`} />
+            {refreshing ? "Refreshing..." : "Refresh Queue"}
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -684,6 +714,7 @@ export default function AdminJobs() {
                     <option value='Ultimate'>Ultimate</option>
                     <option value='Pro'>Pro</option>
                     <option value='Basics'>Basics</option>
+                    <option value='Starter'>Starter</option>
                     <option value='Free'>Free</option>
                   </select>
                   <ChevronDown className='absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none' />

@@ -250,7 +250,7 @@ const PlanCard: React.FC<PlanCardProps> = ({
             {plan.creditsPerCycle} applications/month
           </div>
           {plan.price > 0 && (
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-muted-foreground">
               ${(plan.price / plan.creditsPerCycle).toFixed(2)} per application
             </div>
           )}
@@ -298,14 +298,14 @@ const PlanCard: React.FC<PlanCardProps> = ({
                   <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                   <span>
                     {featureName}
-                    {featureValue && <span className="text-gray-500 ml-1">• {featureValue}</span>}
+                    {featureValue && <span className="text-muted-foreground ml-1">• {featureValue}</span>}
                   </span>
                 </li>
               );
             })}
           </ul>
           {plan.features.length > 4 && (
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               +{plan.features.length - 4} more features
             </p>
           )}

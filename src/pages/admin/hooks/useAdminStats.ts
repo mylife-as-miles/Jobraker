@@ -259,20 +259,26 @@ export const useUserActivities = () => {
       setLoading(true);
       setError(null);
 
-      // 1. Fetch all users from Auth (via Edge Function)
+      // 1. Fetch all users from Auth (prefer RPC for real emails, fallback to Edge Function)
       let authUsers: any[] = [];
       try {
-        const { data, error } = await supabase.functions.invoke('list-users');
-        if (error) throw error;
-        authUsers = data || [];
+        const { data: rpcUsers, error: rpcErr } = await supabase.rpc('get_all_users_for_admin');
+        if (!rpcErr && rpcUsers && Array.isArray(rpcUsers) && rpcUsers.length > 0) {
+          authUsers = rpcUsers;
+        } else {
+          const { data, error } = await supabase.functions.invoke('list-users');
+          if (!error && data) {
+            authUsers = data || [];
+          }
+        }
       } catch (e) {
-        console.warn('Failed to fetch auth users via edge function', e);
+        console.warn('Failed to fetch auth users via RPC / edge function', e);
       }
 
       // 2. Fetch profiles
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, updated_at, avatar_url');
+        .select('id, email, first_name, last_name, updated_at, avatar_url');
 
       if (profileError) {
         console.error('Error fetching profiles:', profileError);
@@ -285,7 +291,7 @@ export const useUserActivities = () => {
       // 3. Determine the base list of users to iterate over
       const baseUsers = authUsers.length > 0 ? authUsers : (profiles || []).map((p: any) => ({
         id: p.id,
-        email: `user-${p.id.substring(0, 8)}@jobraker.com`,
+        email: p.email || (p.first_name ? `${p.first_name.toLowerCase()}@jobraker.com` : `user-${p.id.substring(0, 8)}@jobraker.com`),
         created_at: new Date().toISOString(),
         last_sign_in_at: new Date().toISOString(),
       }));
@@ -331,8 +337,8 @@ export const useUserActivities = () => {
       const userActivities: UserActivity[] = baseUsers.map((user: any) => {
         const profile = profileMap.get(user.id);
         
-        // Basic Info - Prefer Auth email, fallback to constructed or unknown
-        const email = user.email || (profile ? `user-${user.id.substring(0, 8)}@jobraker.com` : 'Unknown');
+        // Basic Info - Prefer Auth email, fallback to profile email or constructed
+        const email = user.email || profile?.email || (profile ? `user-${user.id.substring(0, 8)}@jobraker.com` : 'Unknown');
         
         // Name Resolution
         let full_name = null;
@@ -352,12 +358,12 @@ export const useUserActivities = () => {
         const credits_consumed = userCredits?.lifetime_spent || 0;
 
         // Subscription
-        let subscription_tier: 'Free' | 'Basics' | 'Pro' | 'Ultimate' = 'Free';
+        let subscription_tier: 'Free' | 'Starter' | 'Basics' | 'Pro' | 'Ultimate' = 'Free';
         let total_spent = 0;
         const sub = subscriptionMap.get(user.id);
         if (sub && sub.subscription_plans) {
              const plan = Array.isArray(sub.subscription_plans) ? sub.subscription_plans[0] : sub.subscription_plans;
-             if (plan && ['Free', 'Basics', 'Pro', 'Ultimate'].includes(plan.name)) {
+             if (plan && ['Free', 'Starter', 'Basics', 'Pro', 'Ultimate'].includes(plan.name)) {
                  subscription_tier = plan.name as any;
              }
              total_spent = plan?.price || 0;
@@ -527,10 +533,15 @@ export const useRevenueData = (days: number = 30) => {
       // Fetch all active subscriptions with plan details
       let allSubscriptions: any[] = [];
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('user_subscriptions')
-          .select('created_at, status, subscription_plan_id, subscription_plans(name, price)')
-          .gte('created_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString());
+          .select('created_at, status, subscription_plan_id, subscription_plans(name, price)');
+
+        if (days > 0 && days < 3650) {
+          query = query.gte('created_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString());
+        }
+
+        const { data, error } = await query;
 
         if (!error && data) {
           allSubscriptions = data;
@@ -567,14 +578,15 @@ export const useRevenueData = (days: number = 30) => {
       // Group by date and calculate daily revenue
       const revenueByDate: { [key: string]: RevenueData } = {};
       
-      // Initialize all dates in range with zero values
-      for (let i = 0; i < days; i++) {
+      const numDaysToInit = days >= 3650 ? 365 : Math.min(days, 365);
+      // Initialize dates in range with zero values
+      for (let i = 0; i < numDaysToInit; i++) {
         const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
         const dateStr = date.toISOString().split('T')[0];
         revenueByDate[dateStr] = {
           date: dateStr,
           revenue: 0,
-          mrr: currentMRR, // Use current MRR for all dates (could be historical in future)
+          mrr: currentMRR,
           new_subscriptions: 0,
           churned_subscriptions: 0,
         };

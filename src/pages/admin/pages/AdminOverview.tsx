@@ -146,10 +146,11 @@ export default function AdminOverview() {
 
   // Subscription distribution data
   const subscriptionData = [
-    { name: "Free", value: 60, color: "#6b7280" },
+    { name: "Free", value: 50, color: "#6b7280" },
+    { name: "Starter", value: 15, color: "#3b82f6" },
     { name: "Basics", value: 10, color: "#2fd968" },
-    { name: "Pro", value: 20, color: "#2fd968" },
-    { name: "Ultimate", value: 10, color: "#2fd968" },
+    { name: "Pro", value: 15, color: "#8b5cf6" },
+    { name: "Ultimate", value: 10, color: "#ec4899" },
   ];
 
   // Credit usage trend data

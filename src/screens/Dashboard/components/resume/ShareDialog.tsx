@@ -99,17 +99,17 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
             <DialogTitle className='text-xl font-bold tracking-tight'>
               Share Resume
             </DialogTitle>
-            <DialogDescription className='text-zinc-500 dark:text-zinc-400'>
+            <DialogDescription className='text-muted-foreground dark:text-muted-foreground'>
               Manage public access and track your resume performance.
             </DialogDescription>
           </DialogHeader>
 
-          <div className='flex items-center justify-between p-5 bg-zinc-50 dark:bg-white/5 rounded-2xl border border-zinc-200 dark:border-white/10 mb-8'>
+          <div className='flex items-center justify-between p-5 bg-zinc-50 dark:bg-foreground/5 rounded-2xl border border-zinc-200 dark:border-foreground/10 mb-8'>
             <div className='flex flex-col gap-1'>
               <span className='font-bold text-sm tracking-tight text-zinc-900 dark:text-zinc-100'>
                 Public Access
               </span>
-              <p className='text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-[240px]'>
+              <p className='text-xs text-muted-foreground dark:text-muted-foreground leading-relaxed max-w-[240px]'>
                 {canShare
                   ? "Visible to anyone with the link. Track performance."
                   : "Save this resume first to generate a public link."}
@@ -126,22 +126,22 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
           {canShare && isPublic && (
             <div className='space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300'>
               <div className='space-y-3'>
-                <label className='text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] ml-1'>
+                <label className='text-[10px] font-bold text-muted-foreground dark:text-muted-foreground uppercase tracking-[0.2em] ml-1'>
                   Share Link
                 </label>
-                <div className='flex items-center gap-3 p-4 bg-zinc-100/50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-2xl group transition-all hover:border-zinc-300 dark:hover:border-white/20'>
+                <div className='flex items-center gap-3 p-4 bg-zinc-100/50 dark:bg-foreground/5 border border-zinc-200 dark:border-foreground/10 rounded-2xl group transition-all hover:border-zinc-300 dark:hover:border-foreground/20'>
                   <div className='w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center shrink-0'>
                     <Globe className='w-4 h-4 text-brand' />
                   </div>
                   <div className='flex-1 min-w-0'>
-                    <p className='text-xs font-mono text-zinc-500 dark:text-zinc-400 truncate'>
+                    <p className='text-xs font-mono text-muted-foreground dark:text-muted-foreground truncate'>
                       {publicUrl}
                     </p>
                   </div>
                   <Button
                     size='sm'
                     variant='ghost'
-                    className='h-9 px-4 text-xs font-bold gap-2 hover:bg-zinc-200 dark:hover:bg-white/10 transition-all rounded-xl border border-transparent dark:border-zinc-800'
+                    className='h-9 px-4 text-xs font-bold gap-2 hover:bg-zinc-200 dark:hover:bg-foreground/10 transition-all rounded-xl border border-transparent dark:border-zinc-800'
                     onClick={copyToClipboard}
                   >
                     <Copy className='w-3.5 h-3.5' />
@@ -157,7 +157,7 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
                   <span className='text-3xl font-bold tabular-nums'>
                     {views || 0}
                   </span>
-                  <span className='text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest'>
+                  <span className='text-[10px] text-muted-foreground dark:text-muted-foreground font-bold uppercase tracking-widest'>
                     Total Views
                   </span>
                 </div>
@@ -168,7 +168,7 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
                   <span className='text-3xl font-bold tabular-nums'>
                     {downloads || 0}
                   </span>
-                  <span className='text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest'>
+                  <span className='text-[10px] text-muted-foreground dark:text-muted-foreground font-bold uppercase tracking-widest'>
                     Downloads
                   </span>
                 </div>

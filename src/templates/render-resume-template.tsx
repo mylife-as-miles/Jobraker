@@ -1,5 +1,4 @@
 import type React from "react";
-import { LayoutTemplate } from "lucide-react";
 import { AndersonTemplate } from "./anderson";
 import { ClarkeTemplate } from "./clarke";
 import { DianTemplate } from "./dian";
@@ -134,17 +133,3 @@ function ResumeTemplateShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ResumeTemplatePlaceholder() {
-  return (
-    <div className='flex h-full min-h-[400px] w-full flex-col items-center justify-center gap-3 bg-white p-10 text-center text-gray-400'>
-      <LayoutTemplate className='h-10 w-10' />
-      <p className='text-sm font-semibold text-gray-500'>
-        No resume templates available yet
-      </p>
-      <p className='max-w-xs text-xs leading-relaxed'>
-        A new batch of templates is on the way. Register them in
-        render-resume-template.tsx.
-      </p>
-    </div>
-  );
-}

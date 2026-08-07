@@ -264,6 +264,90 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
   };
 }
 
+async function executeChatCompletion(
+  _supabase: any,
+  userId: string,
+  params: any,
+  progress: any,
+) {
+  if (!Array.isArray(params.messages) || params.messages.length === 0) {
+    throw new Error("Chat task is missing its messages.");
+  }
+
+  await progress.updateProgress(0, 3, "Preparing your request...");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  if (!serviceRoleKey || !supabaseUrl) {
+    throw new Error("Background chat is not configured.");
+  }
+
+  await progress.updateProgress(1, 3, "Generating a response...");
+  const response = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "x-jobraker-background-user-id": userId,
+    },
+    body: JSON.stringify({
+      messages: params.messages,
+      model: params.model,
+      mode: params.mode,
+      webSearch: params.webSearch,
+      system: params.system,
+    }),
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(await response.text().catch(() => "Background chat could not start."));
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let event = "message";
+  let content = "";
+  let responseId: string | null = null;
+
+  const consumeLine = (line: string) => {
+    if (line.startsWith("event:")) {
+      event = line.slice(6).trim() || "message";
+      return;
+    }
+    if (!line.startsWith("data:")) return;
+    const raw = line.slice(5).trim();
+    if (!raw || raw === "[DONE]") return;
+    let payload: any;
+    try {
+      payload = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (event === "message" && typeof payload.delta === "string") {
+      content += payload.delta;
+    } else if (event === "response_id" && typeof payload.response_id === "string") {
+      responseId = payload.response_id;
+    } else if (event === "error") {
+      throw new Error(String(payload.error || "Background chat failed."));
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() || "";
+    for (const line of lines) consumeLine(line);
+  }
+  if (buffer.trim()) consumeLine(buffer.trim());
+  if (!content.trim()) throw new Error("Background chat finished without a response.");
+
+  await progress.updateProgress(3, 3, "Response ready.");
+  return { content, response_id: responseId };
+}
+
 const PUBLIC_APP_URL =
   Deno.env.get("PUBLIC_APP_URL") ||
   Deno.env.get("APP_BASE_URL") ||
@@ -419,11 +503,25 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("authorization");
-    const token = authHeader?.replace(/^Bearer\s+/i, "");
+    const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
 
-    if (!token || (token !== serviceRoleKey && token !== "SYSTEM_TRIGGER")) {
+    if (!token || !serviceRoleKey || !supabaseUrl) {
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+    }
+
+    const isSystemTrigger = token === serviceRoleKey || token === "SYSTEM_TRIGGER";
+    let requestingUserId: string | null = null;
+    if (!isSystemTrigger) {
+      const authClient = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { persistSession: false },
+      });
+      const { data, error } = await authClient.auth.getUser(token);
+      if (error || !data.user) {
+        return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+      }
+      requestingUserId = data.user.id;
     }
 
     const { taskId } = await req.json().catch(() => ({}));
@@ -432,8 +530,8 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      supabaseUrl,
+      serviceRoleKey,
       { auth: { persistSession: false } }
     );
 
@@ -448,13 +546,17 @@ Deno.serve(async (req) => {
       return new Response("Task not found", { status: 404, headers: corsHeaders });
     }
 
+    if (requestingUserId && task.user_id !== requestingUserId) {
+      return new Response("Forbidden", { status: 403, headers: corsHeaders });
+    }
+
     if (task.status === "completed" || task.status === "failed" || task.status === "canceled") {
       return new Response("Task already completed", { status: 200, headers: corsHeaders });
     }
 
     // Mark task as running
     const nowIso = new Date().toISOString();
-    const { error: runError } = await supabase
+    const { data: startedTask, error: runError } = await supabase
       .from("job_intelligence_tasks")
       .update({
         status: "running",
@@ -462,11 +564,17 @@ Deno.serve(async (req) => {
         updated_at: nowIso,
         message: "Starting execution...",
       })
-      .eq("id", taskId);
+      .eq("id", taskId)
+      .eq("status", "queued")
+      .select("id")
+      .maybeSingle();
 
     if (runError) {
       console.error(`[process-task] Failed to mark task running ${taskId}`, runError);
       return new Response("Failed to start task", { status: 500, headers: corsHeaders });
+    }
+    if (!startedTask) {
+      return new Response("Task is already being processed", { status: 200, headers: corsHeaders });
     }
 
     const progressHelper = {
@@ -508,6 +616,8 @@ Deno.serve(async (req) => {
         let result = {};
         if (task.type === "scout_search") {
           result = await executeScoutSearch(supabase, task.user_id, task.params, progressHelper);
+        } else if (task.type === "chat_completion") {
+          result = await executeChatCompletion(supabase, task.user_id, task.params, progressHelper);
         } else if (task.type === "job_reevaluation") {
           result = await executeJobReevaluation(supabase, task.user_id, task.params, progressHelper);
         } else if (task.type === "pipeline_cleanup") {

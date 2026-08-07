@@ -60,7 +60,7 @@ export function ScoreTrendCard({
             </div>
 
             {/* Numeric badge — matches MatchScoreAnalytics style */}
-            <div className='rounded-2xl border border-foreground/10 bg-background/40 backdrop-blur-md px-5 py-4 text-right  ring-1 ring-white/5'>
+            <div className='rounded-2xl border border-foreground/10 bg-background/40 backdrop-blur-md px-5 py-4 text-right  ring-1 ring-foreground/5'>
               <div className='text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60'>
                 Average
               </div>

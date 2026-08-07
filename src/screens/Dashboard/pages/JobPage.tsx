@@ -1260,7 +1260,7 @@ export const JobPage = (): JSX.Element => {
   const [browserExecutionPreference, setBrowserExecutionPreference] = useState<
     "automatic" | "my_chrome" | "jobraker_cloud"
   >("automatic");
-  const [autoSubmitApplications, setAutoSubmitApplications] = useState(true);
+  const [autoSubmitApplications, setAutoSubmitApplications] = useState(false);
   const [coverLetterLibrary, setCoverLetterLibrary] = useState<
     CoverLetterLibraryEntry[]
   >([]);
@@ -1386,7 +1386,7 @@ export const JobPage = (): JSX.Element => {
     setBrowserExecutionPreference(
       profile.browser_execution_preference || "automatic",
     );
-    setAutoSubmitApplications(profile.auto_apply_auto_submit !== false);
+    setAutoSubmitApplications(Boolean(profile.auto_apply_auto_submit));
   }, [profile?.browser_execution_preference, profile?.auto_apply_auto_submit]);
 
   const saveBrowserExecutionPreference = useCallback(
@@ -3057,11 +3057,24 @@ export const JobPage = (): JSX.Element => {
         return false;
       }
 
-      const resumeText = activeResumeText.trim();
+      let resumeText = activeResumeText.trim();
+      if (!resumeText) {
+        // Fallback candidate text built from profile if raw resume text is empty/loading
+        const profileParts = [
+          profileFullName ? `Name: ${profileFullName}` : "",
+          profile?.job_title ? `Title: ${profile.job_title}` : "",
+          profile?.location ? `Location: ${profile.location}` : "",
+          profile?.phone ? `Phone: ${profile.phone}` : "",
+        ].filter(Boolean);
+        if (profileParts.length > 0) {
+          resumeText = profileParts.join("\n");
+        }
+      }
+
       if (!resumeText) {
         safeInfo(
           "Resume required",
-          "Select a resume with readable text before generating an AI draft.",
+          "Select a resume or complete your candidate profile before generating an AI draft.",
         );
         return false;
       }
@@ -4009,7 +4022,7 @@ export const JobPage = (): JSX.Element => {
       resumes.length === 0 ||
       Boolean(selectedResumeId));
   const canAutoFixDecisionBoundary = Boolean(
-    jobToAutoApply && activeResumeText.trim(),
+    jobToAutoApply && (activeResumeText.trim() || selectedResumeId || profile),
   );
   const autoApplyPrimaryDisabled =
     loadingTier ||
@@ -5274,7 +5287,7 @@ export const JobPage = (): JSX.Element => {
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
                                   job.status === "applied"
                                     ? "bg-brand/10 text-brand border-brand/20"
-                                    : "bg-foreground/5 text-gray-400 border-foreground/10"
+                                    : "bg-foreground/5 text-muted-foreground border-foreground/10"
                                 }`}
                               >
                                 {job.status}
@@ -5417,7 +5430,7 @@ export const JobPage = (): JSX.Element => {
                             return tags.slice(0, 4).map((t, i) => (
                               <span
                                 key={`t-${i}`}
-                                className='inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-foreground/[0.03] border border-foreground/[0.08] text-gray-400 hover:text-foreground transition-colors cursor-default'
+                                className='inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-foreground/[0.03] border border-foreground/[0.08] text-muted-foreground hover:text-foreground transition-colors cursor-default'
                               >
                                 {t}
                               </span>
@@ -6553,41 +6566,13 @@ export const JobPage = (): JSX.Element => {
                     </button>
                   </div>
 
-                  <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5 space-y-4'>
-                    <div className='flex flex-wrap items-center justify-between gap-3'>
-                      <div className='flex items-center gap-2 text-sm font-medium text-foreground/80'>
-                        <Briefcase className='w-4 h-4 text-brand' />
-                        Browser execution
-                      </div>
-                      <div className='inline-flex rounded-lg border border-foreground/10 bg-background/50 p-1'>
-                        {[
-                          ["automatic", "Automatic"],
-                          ["my_chrome", "My Chrome"],
-                          ["jobraker_cloud", "Jobraker Cloud"],
-                        ].map(([value, label]) => (
-                          <button
-                            key={value}
-                            type='button'
-                            onClick={() =>
-                              saveBrowserExecutionPreference(
-                                value as "automatic" | "my_chrome" | "jobraker_cloud",
-                              )
-                            }
-                            className={cn(
-                              "min-h-8 rounded-md px-3 text-xs font-medium transition",
-                              browserExecutionPreference === value
-                                ? "bg-brand/20 text-brand"
-                                : "text-foreground/60 hover:text-foreground hover:bg-foreground/5",
-                            )}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className='flex items-center justify-between gap-4 border-t border-foreground/10 pt-4'>
-                      <div className='text-sm font-medium text-foreground/80'>
-                        Final submit
+                  <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5 space-y-2.5'>
+                    <div className='flex items-center justify-between gap-4'>
+                      <div className='text-sm font-medium text-foreground/80 flex items-center gap-2'>
+                        <span>Final submit</span>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${autoSubmitApplications ? "bg-brand/15 text-brand border border-brand/20" : "bg-foreground/10 text-foreground/70"}`}>
+                          {autoSubmitApplications ? "Autopilot Mode" : "Draft / Review Mode"}
+                        </span>
                       </div>
                       <button
                         type='button'
@@ -6603,6 +6588,17 @@ export const JobPage = (): JSX.Element => {
                         />
                       </button>
                     </div>
+                    <p className='text-xs text-foreground/65 leading-relaxed pt-1 border-t border-foreground/5'>
+                      {autoSubmitApplications ? (
+                        <>
+                          <strong className='text-brand font-medium'>ON (Autopilot):</strong> The AI agent navigates the job page, fills in all form fields (contact info, resume, cover letter, custom screening answers), and automatically submits the application for you.
+                        </>
+                      ) : (
+                        <>
+                          <strong className='text-foreground/90 font-medium'>OFF (Draft / Review Mode):</strong> The AI agent fills out all form fields and pre-populates everything, but stops before clicking Submit so you can review and double-check inputs yourself.
+                        </>
+                      )}
+                    </p>
                   </div>
                 </div>
               )}

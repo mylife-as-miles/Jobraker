@@ -54,16 +54,38 @@ import {
 } from "recharts";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createClient } from "../../../lib/supabaseClient";
+import { useAiUsageLimits } from "@/hooks/useAiUsageLimits";
 import {
   cacheChatAttachments,
   getChatAttachment,
 } from "../../../lib/chatAttachmentIdb";
+import {
+  isUserVisibleAgentActivity,
+  type UserVisibleAgentActivityKind,
+} from "@/lib/chat/agentActivity";
+import {
+  getAiCapacityErrorMessage,
+  isAiCapacityExhausted,
+} from "@/lib/chat/aiCapacityMessages";
+import {
+  commitVoiceInterimTranscript,
+  mergeVoiceTranscript,
+} from "@/lib/chat/voiceTranscript";
 import {
   generateChatStarters,
   type ChatStarterIcon,
   type ChatStarterSuggestion,
 } from "../../../services/ai/generateChatStarters";
 import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+import { ThinkingOrb } from "thinking-orbs";
+import { TokenStream } from "@/components/chat/TokenStream";
 import {
   executeChatSkill,
   getPrimarySkillAlias,
@@ -80,6 +102,17 @@ import type {
   ParsedSkillCall,
   SkillExecutionInput,
 } from "@/lib/chatSkills/types";
+import {
+  IntegrationPermissionModal,
+  type PendingPermissionRequest,
+} from "@/components/chat/IntegrationPermissionModal";
+import {
+  fetchUserPermissions,
+  saveUserPermission,
+  resolveIntegrationFromTool,
+  getLocalPermissions,
+  type PermissionScope,
+} from "@/lib/integrationPermissions";
 import {
   MessageSquare,
   Wand2,
@@ -101,13 +134,15 @@ import {
   X,
   Coins,
   History,
-  Brain,
   ReceiptText,
   AlertTriangle,
   ListChecks,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Mic,
-  Loader2,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
@@ -146,6 +181,48 @@ const waitForAgentProgressPaint = () =>
   new Promise<void>((resolve) => {
     window.requestAnimationFrame(() => resolve());
   });
+
+const cleanErrorMessage = (raw: unknown): string => {
+  if (!raw) return "An unexpected error occurred. Please try again.";
+  let str = typeof raw === "string" ? raw : (raw as any)?.message || String(raw);
+
+  if (str.trim().startsWith("{") || str.includes('"message"') || str.includes('"error"')) {
+    try {
+      let parsed = typeof raw === "object" && raw !== null ? raw : JSON.parse(str);
+      while (typeof parsed === "string" && (parsed.trim().startsWith("{") || parsed.includes("{"))) {
+        parsed = JSON.parse(parsed);
+      }
+      if (parsed?.error?.message) {
+        str = typeof parsed.error.message === "string" ? parsed.error.message : String(parsed.error.message);
+      } else if (parsed?.message) {
+        str = typeof parsed.message === "string" ? parsed.message : String(parsed.message);
+      }
+    } catch {
+      // Keep original string if JSON parsing fails
+    }
+  }
+
+  const lower = str.toLowerCase();
+  const aiCapacityMessage = getAiCapacityErrorMessage(str);
+  if (aiCapacityMessage) return aiCapacityMessage;
+  if (
+    lower.includes("high demand") ||
+    lower.includes("503") ||
+    lower.includes("unavailable") ||
+    lower.includes("service unavailable")
+  ) {
+    return "Our AI service is currently experiencing high demand. Spikes in demand are usually temporary — please try again in a moment.";
+  }
+  if (
+    lower.includes("rate limit") ||
+    lower.includes("resource_exhausted") ||
+    lower.includes("quota")
+  ) {
+    return "Our AI service is temporarily busy. Please try again in a minute.";
+  }
+
+  return str.replace(/^Error:\s*/i, "").trim();
+};
 
 const parseSseFrame = (frame: string) => {
   let event = "message";
@@ -211,14 +288,7 @@ interface ToolCallEntry {
 }
 interface AgentActivityEntry {
   id: string;
-  kind:
-    | "thinking"
-    | "tool_batch"
-    | "tool_result"
-    | "billing"
-    | "limit"
-    | "status"
-    | "error";
+  kind: UserVisibleAgentActivityKind;
   title: string;
   detail?: string;
   status: "running" | "done" | "error";
@@ -302,6 +372,30 @@ const CHAT_TIMEOUT_MS = 30 * 60_000;
 
 // Fallback starters removed in favor of dynamic AI suggestions and skeleton loaders.
 
+const isPlaceholderChatTitle = (title?: string | null) =>
+  !title || title.trim().toLowerCase() === "new chat";
+
+const deriveChatTitle = (messages: BasicMessage[]): string | null => {
+  const firstUserMessage = messages.find(
+    (message) => message.role === "user" && message.content.trim(),
+  );
+  if (!firstUserMessage) return null;
+
+  const cleaned = firstUserMessage.content
+    .replace(/^>\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return null;
+
+  const words = cleaned.split(" ").slice(0, 7).join(" ");
+  return words.length > 50 ? `${words.slice(0, 47)}...` : words;
+};
+
+const getChatSessionTitle = (session: ChatSessionState): string =>
+  isPlaceholderChatTitle(session.title)
+    ? deriveChatTitle(session.messages) || "New Chat"
+    : session.title;
+
 const CHAT_STARTER_ICONS: Record<
   ChatStarterIcon,
   React.ComponentType<{ className?: string }>
@@ -314,15 +408,37 @@ const CHAT_STARTER_ICONS: Record<
   strategy: Bolt,
 };
 
-const normalizeBasicMessage = (message: any): BasicMessage => ({
+const isLegacyQueuedAssistant = (message: any) =>
+  message?.role === "assistant" &&
+  Boolean(message?.streaming) &&
+  !String(message?.content || "").trim() &&
+  Array.isArray(message?.agentEvents) &&
+  message.agentEvents.some(
+    (event: any) =>
+      event?.title === "Queued in the background" ||
+      String(event?.detail || "").includes("continue chatting while this request runs"),
+  );
+
+const normalizeBasicMessage = (message: any): BasicMessage => {
+  const legacyQueuedAssistant = isLegacyQueuedAssistant(message);
+  const legacyQueueMessage =
+    "This request did not complete. Send it again to receive a streamed response.";
+
+  return {
   id: typeof message?.id === "string" ? message.id : nanoid(),
   role:
     message?.role === "assistant" || message?.role === "skill"
       ? message.role
       : "user",
-  content: typeof message?.content === "string" ? message.content : "",
+  content: legacyQueuedAssistant
+    ? legacyQueueMessage
+    : typeof message?.content === "string"
+      ? message.content
+      : "",
   parts:
-    Array.isArray(message?.parts) && message.parts.length > 0
+    legacyQueuedAssistant
+      ? [{ type: "text" as const, text: legacyQueueMessage }]
+      : Array.isArray(message?.parts) && message.parts.length > 0
       ? message.parts
       : [
           {
@@ -330,7 +446,7 @@ const normalizeBasicMessage = (message: any): BasicMessage => ({
             text: typeof message?.content === "string" ? message.content : "",
           },
         ],
-  streaming: Boolean(message?.streaming),
+  streaming: legacyQueuedAssistant ? false : Boolean(message?.streaming),
   createdAt:
     typeof message?.createdAt === "number" ? message.createdAt : Date.now(),
   meta:
@@ -369,13 +485,19 @@ const normalizeBasicMessage = (message: any): BasicMessage => ({
               : undefined,
         }))
     : undefined,
-  agentEvents: Array.isArray(message?.agentEvents)
+  agentEvents: legacyQueuedAssistant
+    ? undefined
+    : Array.isArray(message?.agentEvents)
     ? message.agentEvents
-        .filter((entry: any) => entry && typeof entry.title === "string")
+        .filter(
+          (entry: any) =>
+            entry &&
+            typeof entry.title === "string" &&
+            isUserVisibleAgentActivity(entry.kind),
+        )
         .map((entry: any) => ({
           id: typeof entry.id === "string" ? entry.id : nanoid(),
           kind:
-            entry.kind === "thinking" ||
             entry.kind === "tool_batch" ||
             entry.kind === "tool_result" ||
             entry.kind === "billing" ||
@@ -415,7 +537,8 @@ const normalizeBasicMessage = (message: any): BasicMessage => ({
     typeof message?.attachmentCount === "number"
       ? message.attachmentCount
       : undefined,
-});
+  };
+};
 
 const toolDisplayName = (
   name: string,
@@ -813,7 +936,7 @@ const AgentWorkTimeline = ({
     : [
         ...agentEvents
           .filter((event) =>
-            ["thinking", "billing", "limit", "error"].includes(event.kind),
+            ["status", "billing", "limit", "error"].includes(event.kind),
           )
           .map((event) => ({
             id: event.id,
@@ -823,11 +946,9 @@ const AgentWorkTimeline = ({
             label:
               event.kind === "billing"
                 ? [event.title, event.detail].filter(Boolean).join(" - ")
-                : event.kind === "thinking" && event.detail
-                  ? `Thinking: ${event.detail}`
-                  : event.detail
-                    ? `${event.title} - ${event.detail}`
-                    : event.title,
+                : event.detail
+                  ? `${event.title} - ${event.detail}`
+                  : event.title,
           })),
         ...toolCalls
           .filter((tool) => !isInternalToolFailure(tool))
@@ -859,6 +980,11 @@ const AgentWorkTimeline = ({
   const hiddenStepCount = isSkillCall
     ? 0
     : Math.max(0, agentEvents.length + toolCalls.length - timelineRows.length);
+  const liveTimelineRows = isStreaming
+    ? timelineRows.slice(-3).reverse()
+    : timelineRows;
+  const displayedHiddenStepCount =
+    hiddenStepCount + Math.max(0, timelineRows.length - liveTimelineRows.length);
   const totalStepCount = isSkillCall
     ? timelineRows.length
     : agentEvents.length + toolCalls.length;
@@ -870,6 +996,7 @@ const AgentWorkTimeline = ({
     ? `Connecting to JobRaker agent (${elapsedLabel})`
     : "Connecting to JobRaker agent";
   const summaryLabel = latestRow?.label || fallbackLabel;
+  const timelineOrbState = timelineRows.length ? "working" : "connecting";
   const stepLabel =
     totalStepCount > 0
       ? `${totalStepCount} step${totalStepCount === 1 ? "" : "s"}`
@@ -884,10 +1011,14 @@ const AgentWorkTimeline = ({
       return <AlertTriangle className='h-3.5 w-3.5 shrink-0 text-red-400' />;
     }
     if (row.status === "running") {
-      return <Loader2 className='h-3.5 w-3.5 shrink-0 animate-spin text-brand' />;
-    }
-    if (row.kind === "thinking") {
-      return <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />;
+      return (
+        <ThinkingOrb
+          state={row.kind === "tool" ? "searching" : "working"}
+          size={20}
+          className='shrink-0'
+          aria-label='JobRaker is working'
+        />
+      );
     }
     if (row.kind === "billing") {
       return <ReceiptText className='h-3.5 w-3.5 shrink-0 text-brand' />;
@@ -906,7 +1037,16 @@ const AgentWorkTimeline = ({
         className={`${rowClass} w-full text-left transition-colors hover:bg-brand/[0.09]`}
         aria-expanded={expanded}
       >
-        <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
+        {isStreaming ? (
+          <ThinkingOrb
+            state={timelineOrbState}
+            size={20}
+            className='shrink-0'
+            aria-label='JobRaker is working'
+          />
+        ) : (
+          <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
+        )}
         <span className='shrink-0 font-medium text-foreground/80'>
           Working process
         </span>
@@ -936,8 +1076,8 @@ const AgentWorkTimeline = ({
       </button>
 
       {expanded && (
-        <div className='space-y-2'>
-          {timelineRows.map((row) => {
+        <div className={`space-y-2 ledger ${isStreaming ? "ledger-live" : "ledger-static"}`}>
+          {liveTimelineRows.map((row) => {
             const isRowExpanded = !!expandedRows[row.id];
             return (
               <div
@@ -948,11 +1088,14 @@ const AgentWorkTimeline = ({
                     [row.id]: !prev[row.id],
                   }));
                 }}
-                className={`${rowClass} cursor-pointer hover:bg-brand/[0.09] transition-colors ${
+                className={`${rowClass} ledger-row relative cursor-pointer hover:bg-brand/[0.09] transition-colors ${
                   isRowExpanded ? "items-start" : "items-center"
                 }`}
                 title={row.label}
               >
+                {isStreaming ? (
+                  <span className='ledger-edge-dot' aria-hidden='true' />
+                ) : null}
                 {iconForRow(row)}
                 <span
                   className={
@@ -969,19 +1112,24 @@ const AgentWorkTimeline = ({
         </div>
       )}
 
-      {expanded && hiddenStepCount > 0 && (
+      {expanded && displayedHiddenStepCount > 0 && (
         <div className={rowClass}>
           <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
           <span className='truncate'>
-            +{hiddenStepCount} earlier working step
-            {hiddenStepCount === 1 ? "" : "s"}
+            +{displayedHiddenStepCount} earlier working step
+            {displayedHiddenStepCount === 1 ? "" : "s"}
           </span>
         </div>
       )}
 
       {expanded && isStreaming && timelineRows.length === 0 && (
         <div className={rowClass}>
-          <Brain className='h-3.5 w-3.5 shrink-0 text-brand' />
+          <ThinkingOrb
+            state='connecting'
+            size={20}
+            className='shrink-0'
+            aria-label='Connecting to JobRaker'
+          />
           <span className='truncate'>{fallbackLabel}</span>
         </div>
       )}
@@ -1288,9 +1436,9 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             ? [
                 {
                   id: nanoid(),
-                  kind: "thinking",
-                  title: "Starting agent",
-                  detail: "Connecting to JobRaker and preparing the first step.",
+                  kind: "status",
+                  title: "Working on your request",
+                  detail: "Preparing the first step.",
                   status: "running",
                   createdAt: Date.now(),
                   round: 0,
@@ -1409,7 +1557,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 setResponseId(data.response_id);
               }
             } else if (currentEvent === "error") {
-              const errorText = `Error: ${data.error}`;
+              const errorText = `Error: ${cleanErrorMessage(data.error)}`;
               flushSync(() => {
                 setMessages((prev) =>
                   prev.map((msg) =>
@@ -1425,7 +1573,9 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 );
               });
               await waitForAgentProgressPaint();
+              return true;
             } else if (currentEvent === "agent_activity") {
+              if (!isUserVisibleAgentActivity(data.kind)) return false;
               const activity: AgentActivityEntry = {
                 id: data.id || nanoid(),
                 kind: data.kind || "status",
@@ -1471,6 +1621,36 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
               });
               await waitForAgentProgressPaint();
             } else if (currentEvent === "tool_start") {
+              const integration = resolveIntegrationFromTool(data.name, data.args);
+              if (integration) {
+                const currentGrant =
+                  permissionGrantsRef.current[integration.slug] ||
+                  getLocalPermissions()[integration.slug];
+                if (!currentGrant) {
+                  const decision = await new Promise<PermissionScope>((resolve) => {
+                    setPendingPermissionRequest({
+                      integrationSlug: integration.slug,
+                      integrationName: integration.name,
+                      toolName: data.name,
+                      toolSummary: data.name.replace(/_/g, " "),
+                      resolve,
+                    });
+                  });
+
+                  setPendingPermissionRequest(null);
+                  if (decision !== "deny") {
+                    const { data: userData } = await supabase.auth.getUser();
+                    if (userData.user?.id) {
+                      await saveUserPermission(supabase, userData.user.id, integration.slug, decision);
+                    }
+                    setPermissionGrants((prev) => ({
+                      ...prev,
+                      [integration.slug]: decision,
+                    }));
+                  }
+                }
+              }
+
               const toolEntry: ToolCallEntry = {
                 id: data.id || nanoid(),
                 name: data.name,
@@ -1612,6 +1792,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
               const shouldStop = await handleSsePayload(currentEvent, dataStr);
               if (shouldStop) {
                 streamFinished = true;
+                await reader.cancel().catch(() => undefined);
                 break;
               }
             }
@@ -1671,7 +1852,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           setRequestStartedAt(null);
           return;
         }
-        const errorText = `Fetch Error: ${err.message || "Could not connect to the chat function."}`;
+        const errorText = `Error: ${cleanErrorMessage(err)}`;
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantId
@@ -1706,7 +1887,6 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     },
     [messages, responseId, sendMessage],
   );
-
   const regenerate = () => {
     if (status === "in_progress" || !lastTurnRef.current) return;
     const lastTurn = lastTurnRef.current;
@@ -1801,16 +1981,32 @@ export const ChatPage = () => {
   const { error: toastError } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const { data: aiLimits } = useAiUsageLimits();
+  const aiCapacityExhausted = isAiCapacityExhausted(
+    aiLimits?.rolling24h.percentLeft,
+  );
+  const aiCapacityLabel = aiCapacityExhausted
+    ? "AI allowance used"
+    : `${aiLimits?.rolling24h.percentLeft ?? 0}% AI Capacity`;
+  const aiCapacityTitle = aiCapacityExhausted
+    ? "Your AI allowance is used for now. Capacity becomes available gradually over the next 24 hours. Open Settings for details."
+    : "AI Usage Limits (rolling 24-hour capacity). Open Settings for details.";
   // UI state
   const [text, setText] = useState("");
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const isListeningRef = useRef(false);
+  const baseTextRef = useRef("");
+  const finalizedTranscriptRef = useRef("");
+  const interimTranscriptRef = useRef("");
 
   const toggleListening = useCallback(() => {
     if (isListening) {
+      isListeningRef.current = false;
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (_) {}
       }
       setIsListening(false);
     } else {
@@ -1823,10 +2019,20 @@ export const ChatPage = () => {
         return;
       }
 
+      baseTextRef.current = text;
+      finalizedTranscriptRef.current = "";
+      interimTranscriptRef.current = "";
+      isListeningRef.current = true;
+
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      if (typeof navigator !== "undefined" && navigator.language) {
+        recognition.lang = navigator.language;
+      } else {
+        recognition.lang = "en-US";
+      }
 
       recognition.onstart = () => {
         setIsListening(true);
@@ -1834,23 +2040,72 @@ export const ChatPage = () => {
 
       recognition.onerror = (event: any) => {
         console.error("Speech recognition error:", event.error);
-        toastError(`Speech recognition error: ${event.error}`);
-        setIsListening(false);
+        if (event.error === "no-speech") {
+          return;
+        }
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          toastError("Microphone permission denied.");
+          isListeningRef.current = false;
+          setIsListening(false);
+        }
       };
 
       recognition.onend = () => {
-        setIsListening(false);
+        if (isListeningRef.current) {
+          finalizedTranscriptRef.current = commitVoiceInterimTranscript(
+            finalizedTranscriptRef.current,
+            interimTranscriptRef.current,
+          );
+          interimTranscriptRef.current = "";
+          try {
+            recognition.start();
+          } catch (_) {
+            isListeningRef.current = false;
+            setIsListening(false);
+          }
+        } else {
+          setIsListening(false);
+        }
       };
 
       recognition.onresult = (event: any) => {
-        const transcript = event.results[event.results.length - 1][0].transcript;
-        setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        let finalTranscript = "";
+        let interimTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const result = event.results[i];
+          const transcriptChunk = result[0].transcript;
+          if (result.isFinal) {
+            finalTranscript += transcriptChunk;
+          } else {
+            interimTranscript += transcriptChunk;
+          }
+        }
+
+        const nextTranscript = mergeVoiceTranscript({
+          baseText: baseTextRef.current,
+          finalizedTranscript: finalizedTranscriptRef.current,
+          newFinalTranscript: finalTranscript,
+          interimTranscript,
+        });
+        finalizedTranscriptRef.current = nextTranscript.finalizedTranscript;
+        interimTranscriptRef.current = interimTranscript;
+        if (nextTranscript.draft) {
+          setText(nextTranscript.draft);
+        }
       };
 
       recognitionRef.current = recognition;
-      recognition.start();
+      try {
+        recognition.start();
+      } catch (e) {
+        console.error("Failed to start speech recognition", e);
+        toastError("Could not start microphone listening.");
+        isListeningRef.current = false;
+        setIsListening(false);
+      }
     }
-  }, [isListening, toastError]);
+  }, [isListening, text, toastError]);
 
   useEffect(() => {
     return () => {
@@ -1874,7 +2129,38 @@ export const ChatPage = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "history">("chat");
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const [isMultiline, setIsMultiline] = useState(false);
+
+  const toggleFocusMode = useCallback(() => {
+    setMobileTab("chat");
+    setIsFocusMode((current) => !current);
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent<boolean>("jobraker:chat-focus-mode", {
+        detail: isFocusMode,
+      }),
+    );
+  }, [isFocusMode]);
+
+  useEffect(
+    () => () =>
+      window.dispatchEvent(
+        new CustomEvent<boolean>("jobraker:chat-focus-mode", { detail: false }),
+      ),
+    [],
+  );
+
+  useEffect(() => {
+    if (!isFocusMode) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsFocusMode(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFocusMode]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -1927,7 +2213,7 @@ export const ChatPage = () => {
     };
   }, [attachmentPreviewUrls]);
 
-  const hasChatAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
+  const hasChatAccess = hasSubscriptionAccess(subscriptionTier, "Free");
 
   const [chatQuota, setChatQuota] = useState<{
     free_remaining: number;
@@ -1943,7 +2229,10 @@ export const ChatPage = () => {
       const { data } = await supabase.rpc("get_chat_quota_status", {
         p_user_id: userData.user.id,
       });
-      if (data) setChatQuota(data);
+      if (data) {
+        setChatQuota(data);
+        window.dispatchEvent(new CustomEvent("jobraker:credits-updated"));
+      }
     } catch {
       // Quota display is non-critical
     }
@@ -1952,6 +2241,38 @@ export const ChatPage = () => {
   useEffect(() => {
     if (hasChatAccess) fetchChatQuota();
   }, [hasChatAccess, fetchChatQuota]);
+
+  useEffect(() => {
+    const handleAddToChat = (e: Event) => {
+      const customEvt = e as CustomEvent<{ text: string; mode?: "quote" | "explain" | "summarize" }>;
+      const { text: selectedText, mode = "quote" } = customEvt.detail || {};
+      if (!selectedText) return;
+
+      let formatted = "";
+      if (mode === "explain") {
+        formatted = `Explain this:\n> ${selectedText.trim()}\n\n`;
+      } else if (mode === "summarize") {
+        formatted = `Summarize this:\n> ${selectedText.trim()}\n\n`;
+      } else {
+        formatted = `> ${selectedText.trim()}\n\n`;
+      }
+
+      setText((prev) => (prev ? `${prev}\n\n${formatted}` : formatted));
+
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.selectionStart = textareaRef.current.value.length;
+          textareaRef.current.selectionEnd = textareaRef.current.value.length;
+        }
+      }, 50);
+    };
+
+    window.addEventListener("jobraker:add-to-chat", handleAddToChat);
+    return () => {
+      window.removeEventListener("jobraker:add-to-chat", handleAddToChat);
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasChatAccess) {
@@ -2016,6 +2337,24 @@ export const ChatPage = () => {
     return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
   }, [requestElapsedMs]);
   const isChatBusy = status === "in_progress" || skillStatus === "in_progress";
+  const [proTipIndex, setProTipIndex] = useState(0);
+  const [permissionGrants, setPermissionGrants] = useState<Record<string, PermissionScope>>({});
+  const [pendingPermissionRequest, setPendingPermissionRequest] = useState<PendingPermissionRequest | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.id) {
+        fetchUserPermissions(supabase, data.user.id).then(setPermissionGrants);
+      }
+    });
+  }, [supabase]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setProTipIndex((prev) => (prev + 1) % 4);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (status !== "in_progress") return;
@@ -2028,9 +2367,16 @@ export const ChatPage = () => {
   const sessionsRef = useRef(sessions);
   sessionsRef.current = sessions;
 
+  const personaRef = useRef(persona);
+  personaRef.current = persona;
+
+  const permissionGrantsRef = useRef(permissionGrants);
+  permissionGrantsRef.current = permissionGrants;
+
   const createSession = useCallback(
     async (activate = true) => {
-      const sessionMode: ChatMode = persona === "analyst" ? "agent" : "ask";
+      const currentPersona = personaRef.current;
+      const sessionMode: ChatMode = currentPersona === "analyst" ? "agent" : "ask";
       const { data, error } = await supabase
         .from("chat_sessions")
         .insert({
@@ -2054,12 +2400,17 @@ export const ChatPage = () => {
               new Date(a.updated_at || 0).getTime(),
           ),
         );
-        if (activate) setActiveSessionId(normalized.id);
+        if (activate) {
+          setActiveSessionId(normalized.id);
+          try {
+            localStorage.setItem("jobraker_active_chat_session_id", normalized.id);
+          } catch {}
+        }
         return normalized.id;
       }
       return null;
     },
-    [persona, supabase, toastError],
+    [supabase, toastError],
   );
 
   const loadSessions = useCallback(async () => {
@@ -2075,11 +2426,52 @@ export const ChatPage = () => {
         return;
       }
       if (data && data.length > 0) {
-        const normalizedSessions = (data as ChatSessionRecord[]).map(
-          normalizeChatSession,
-        );
+        const normalizedSessions = (data as ChatSessionRecord[])
+          .map(normalizeChatSession)
+          .map((session) => {
+            const title = getChatSessionTitle(session);
+            return isPlaceholderChatTitle(session.title) && title !== "New Chat"
+              ? { ...session, title }
+              : session;
+          });
         setSessions(normalizedSessions);
-        setActiveSessionId(normalizedSessions[0]?.id || null);
+        void Promise.all(
+          normalizedSessions
+            .filter((session) =>
+              isPlaceholderChatTitle(
+                (data as ChatSessionRecord[]).find((row) => row.id === session.id)
+                  ?.title,
+              ),
+            )
+            .filter((session) => session.title !== "New Chat")
+            .map((session) =>
+              supabase
+                .from("chat_sessions")
+                .update({ title: session.title })
+                .eq("id", session.id),
+            ),
+        );
+
+        let savedSessionId: string | null = null;
+        try {
+          savedSessionId =
+            new URLSearchParams(window.location.search).get("session") ||
+            localStorage.getItem("jobraker_active_chat_session_id");
+        } catch {}
+
+        const targetSession =
+          normalizedSessions.find((s) => s.id === savedSessionId) ||
+          normalizedSessions[0];
+
+        if (targetSession) {
+          setActiveSessionId(targetSession.id);
+          try {
+            localStorage.setItem(
+              "jobraker_active_chat_session_id",
+              targetSession.id,
+            );
+          } catch {}
+        }
       } else {
         // No sessions, create one
         await createSession(true);
@@ -2091,11 +2483,35 @@ export const ChatPage = () => {
 
   useEffect(() => {
     loadSessions();
-  }, [loadSessions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handlePersonaChange = useCallback(
+    (newPersona: Persona) => {
+      setPersona(newPersona);
+      const newMode: ChatMode = newPersona === "analyst" ? "agent" : "ask";
+      if (activeSessionId) {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === activeSessionId ? { ...s, persona: newMode } : s,
+          ),
+        );
+        void supabase
+          .from("chat_sessions")
+          .update({ persona: newMode })
+          .eq("id", activeSessionId);
+      }
+    },
+    [activeSessionId, supabase],
+  );
 
   const prevSessionIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!activeSessionId) return;
+    try {
+      localStorage.setItem("jobraker_active_chat_session_id", activeSessionId);
+    } catch {}
+
     if (status === "in_progress") return;
     if (activeSessionId === prevSessionIdRef.current) return;
     prevSessionIdRef.current = activeSessionId;
@@ -2614,7 +3030,7 @@ export const ChatPage = () => {
 
           if (response.ok) {
             const { title } = await response.json();
-            if (title) {
+            if (typeof title === "string" && !isPlaceholderChatTitle(title)) {
               setSessions((prev) =>
                 prev.map((s) => (s.id === sessionId ? { ...s, title } : s)),
               );
@@ -2667,6 +3083,7 @@ export const ChatPage = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const skillPaletteTrigger = useMemo(() => {
+    if (!text || (!text.includes("/") && !text.includes("@"))) return null;
     const normalizedCaretPosition = Math.min(
       Math.max(caretPosition, 0),
       text.length,
@@ -2775,7 +3192,7 @@ export const ChatPage = () => {
     const query = searchQuery.toLowerCase();
     return sessions.filter(
       (s) =>
-        s.title.toLowerCase().includes(query) ||
+        getChatSessionTitle(s).toLowerCase().includes(query) ||
         s.messages.some((m) => m.content.toLowerCase().includes(query)),
     );
   }, [sessions, searchQuery]);
@@ -2798,7 +3215,7 @@ export const ChatPage = () => {
                 icon: <MessageSquare className='h-5 w-5' />,
                 title: "AI Conversations",
                 description:
-                  "50 free messages/month on Pro, 200 on Ultimate, then 1 credit each",
+                  "Metered by your tier's AI Usage Limits (Rolling 24h, Weekly & Monthly allowances)",
               },
               {
                 icon: <Wand2 className='h-5 w-5' />,
@@ -2836,7 +3253,22 @@ export const ChatPage = () => {
 
       {!loadingTier && hasChatAccess && (
         <>
-          {isMobile && (
+          {isFocusMode && (
+            <button
+              type="button"
+              onClick={toggleFocusMode}
+              className="absolute right-4 top-4 z-50 inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-lg shadow-black/20 backdrop-blur transition-[background-color,border-color,opacity] hover:border-brand/40 hover:bg-card"
+              aria-label="Exit chat focus mode"
+            >
+              <Minimize2 className="size-3.5" />
+              <span>Exit focus</span>
+              <kbd className="rounded border border-border/70 bg-background/60 px-1 py-0.5 font-mono text-[9px] text-muted-foreground">
+                Esc
+              </kbd>
+            </button>
+          )}
+
+          {isMobile && !isFocusMode && (
             <div className="flex flex-col border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 z-30 shrink-0">
               {/* Mobile Page Header */}
               <div className="h-14 flex items-center justify-between px-4">
@@ -2850,22 +3282,49 @@ export const ChatPage = () => {
                 </div>
                 
                 <div className="flex items-center gap-2 overflow-hidden min-w-0">
-                  {chatQuota && (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0">
-                      <Coins size={12} className="text-brand shrink-0" />
+                  {aiLimits?.rolling24h && (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/dashboard/settings")}
+                      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 transition-colors ${
+                        aiCapacityExhausted
+                          ? "border-amber-400/35 bg-amber-400/10 hover:border-amber-300/60"
+                          : "border-border bg-card/70 hover:border-brand/40"
+                      }`}
+                      title={aiCapacityTitle}
+                    >
+                      <Zap
+                        size={12}
+                        className={`shrink-0 ${
+                          aiCapacityExhausted ? "text-amber-300" : "text-brand"
+                        }`}
+                      />
                       <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
-                        {chatQuota.free_remaining > 0
-                          ? `${chatQuota.free_remaining}/${chatQuota.free_total} (+${chatQuota.credit_balance})`
-                          : `${chatQuota.credit_balance} paid`}
+                        {aiCapacityExhausted
+                          ? "AI allowance used"
+                          : `${aiLimits.rolling24h.percentLeft}% AI Limit`}
                       </span>
-                    </div>
+                    </button>
                   )}
                   <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0">
-                    <div className="w-1.5 h-1.5 rounded-full bg-brand"></div>
+                    <div
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        aiCapacityExhausted ? "bg-amber-300" : "bg-brand"
+                      }`}
+                    />
                     <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
-                      Ready
+                      {aiCapacityExhausted ? "Allowance used" : "Ready"}
                     </span>
                   </div>
+                  <button
+                    type="button"
+                    onClick={toggleFocusMode}
+                    className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground transition-[background-color,border-color,color] hover:border-brand/40 hover:bg-brand/10 hover:text-foreground"
+                    title="Enter chat focus mode"
+                    aria-label="Enter chat focus mode"
+                  >
+                    <Maximize2 className="size-3.5" />
+                  </button>
                 </div>
               </div>
 
@@ -2920,7 +3379,7 @@ export const ChatPage = () => {
                   ? "flex w-full flex-1 border-r border-border"
                   : "hidden"
                 : `flex shrink-0 ${
-                    sidebarCollapsed
+                    isFocusMode || sidebarCollapsed
                       ? "w-0 border-r-0 opacity-0 pointer-events-none"
                       : "w-72 border-r border-border opacity-100"
                   }`
@@ -3021,7 +3480,7 @@ export const ChatPage = () => {
                             />
                           ) : (
                             <p className='text-sm font-medium truncate text-foreground'>
-                              {s.title || "New Chat"}
+                              {getChatSessionTitle(s)}
                             </p>
                           )}
                           <p className='text-[11px] text-muted-foreground mt-0.5'>
@@ -3041,7 +3500,7 @@ export const ChatPage = () => {
                               startRenamingSession(s);
                             }}
                             className='p-1 hover:text-brand text-foreground/60 rounded'
-                            aria-label={`Rename ${s.title || "chat"}`}
+                            aria-label={`Rename ${getChatSessionTitle(s) || "chat"}`}
                             title='Rename chat'
                           >
                             <Edit2 size={12} />
@@ -3053,7 +3512,7 @@ export const ChatPage = () => {
                               deleteSession(s.id);
                             }}
                             className='p-1 hover:text-brand text-foreground/60 rounded'
-                            aria-label={`Delete ${s.title || "chat"}`}
+                            aria-label={`Delete ${getChatSessionTitle(s) || "chat"}`}
                             title='Delete chat'
                           >
                             <Trash2 size={12} />
@@ -3080,7 +3539,7 @@ export const ChatPage = () => {
                 : "flex flex-1"
             }`}
           >
-            {!isMobile && (
+            {!isMobile && !isFocusMode && (
               <header className='relative z-30 h-16 flex items-center justify-between px-4 md:px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
                 <div className='flex items-center gap-2 sm:gap-3 shrink-0'>
                   <button
@@ -3097,34 +3556,40 @@ export const ChatPage = () => {
                   </span>
                 </div>
                 <div className='flex items-center gap-2 sm:gap-4 overflow-hidden min-w-0 justify-end'>
-                  {chatQuota && (
-                    <div className='flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0'>
-                      <Coins size={14} className='text-brand shrink-0' />
+                  {aiLimits?.rolling24h && (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/dashboard/settings")}
+                      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 transition-colors ${
+                        aiCapacityExhausted
+                          ? "border-amber-400/35 bg-amber-400/10 hover:border-amber-300/60"
+                          : "border-border bg-card/70 hover:border-brand/40"
+                      }`}
+                      title={aiCapacityTitle}
+                    >
+                      <Zap
+                        size={14}
+                        className={`shrink-0 ${
+                          aiCapacityExhausted ? "text-amber-300" : "text-brand"
+                        }`}
+                      />
                       <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
-                        {chatQuota.free_remaining > 0
-                          ? isMobile
-                            ? `${chatQuota.free_remaining}/${chatQuota.free_total}${
-                                chatQuota.credit_balance > 0
-                                  ? ` (+${chatQuota.credit_balance})`
-                                  : ""
-                              }`
-                            : `${chatQuota.free_remaining}/${chatQuota.free_total} free${
-                                chatQuota.credit_balance > 0
-                                  ? ` + ${chatQuota.credit_balance} paid`
-                                  : ""
-                              }`
-                          : isMobile
-                            ? `${chatQuota.credit_balance} paid`
-                            : `${chatQuota.credit_balance} paid credits`}
+                        {aiCapacityLabel}
                       </span>
-                    </div>
+                    </button>
                   )}
                   <div
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/70 border border-border shrink-0`}
                   >
                     <div
-                      className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${isChatBusy ? "bg-brand animate-pulse" : "bg-brand"} `}
-                    ></div>
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2 ${
+                        aiCapacityExhausted
+                          ? "bg-amber-300"
+                          : isChatBusy
+                            ? "bg-brand animate-pulse"
+                            : "bg-brand"
+                      }`}
+                    />
                     <span className='text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap'>
                       {status === "in_progress"
                         ? showExtendedWait
@@ -3132,7 +3597,9 @@ export const ChatPage = () => {
                           : "Generating..."
                         : skillStatus === "in_progress"
                           ? "Running skill..."
-                          : "Ready"}
+                          : aiCapacityExhausted
+                            ? "Allowance used"
+                            : "Ready"}
                     </span>
                   </div>
                   {status === "in_progress" && (
@@ -3153,6 +3620,16 @@ export const ChatPage = () => {
                       Regenerate
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={toggleFocusMode}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card/70 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-[background-color,border-color,color] hover:border-brand/40 hover:bg-brand/10 hover:text-foreground"
+                    title="Enter chat focus mode"
+                    aria-label="Enter chat focus mode"
+                  >
+                    <Maximize2 className="size-3.5" />
+                    <span className="hidden xl:inline">Focus</span>
+                  </button>
                 </div>
               </header>
             )}
@@ -3254,36 +3731,117 @@ export const ChatPage = () => {
                         Personalizing your AI starter prompts...
                       </p>
                     ) : (
-                      <div className='glass-panel mt-6 p-4 rounded-xl text-left w-full border border-brand/20 bg-brand/5 backdrop-blur-md max-w-2xl flex gap-3.5 items-start mx-auto'>
-                        <div className='p-2 rounded-lg bg-brand/10 text-brand border border-brand/20 shrink-0 mt-0.5'>
-                          <Sparkles size={16} />
-                        </div>
-                        <div className='flex-1 min-w-0'>
-                          <h4 className='text-xs font-semibold text-foreground/95 mb-1 flex items-center gap-1.5'>
-                            Pro Tip: Direct Outreach for Sales & Marketing
-                          </h4>
-                          <p className='text-xs text-muted-foreground leading-relaxed'>
-                            Are you in Sales or Marketing? You can use the{" "}
-                            <button
-                              type='button'
-                              onClick={() => {
-                                setText("/direct-apply ");
-                                if (textareaRef.current) textareaRef.current.focus();
-                              }}
-                              className='font-mono font-bold text-brand hover:underline bg-brand/10 px-1.5 py-0.5 rounded transition-all text-[11px]'
-                            >
-                              /direct-apply
-                            </button>{" "}
-                            command to scrape for target companies, retrieve verified contact details, and draft cold outreach emails automatically.
-                          </p>
-                        </div>
-                      </div>
+                      (() => {
+                        const proTips = [
+                          {
+                            title: "Pro Tip: Recruiter & Hiring Manager Scout",
+                            command: "/recruiter-scout",
+                            prompt: "/recruiter-scout ",
+                            description: "Want to bypass automated job portals? Use the ",
+                            descriptionSuffix: " command to find verified recruiter & hiring manager contact emails for target companies or your latest application.",
+                          },
+                          {
+                            title: "Pro Tip: Direct Outreach for Sales & Marketing",
+                            command: "/direct-apply",
+                            prompt: "/direct-apply ",
+                            description: "Are you in Sales or Marketing? You can use the ",
+                            descriptionSuffix: " command to scrape for target companies, retrieve verified contact details, and draft cold outreach emails automatically.",
+                          },
+                          {
+                            title: "Pro Tip: AI Resume Tailor",
+                            command: "/resume-tailor",
+                            prompt: "/resume-tailor ",
+                            description: "Tailor your resume for any role! Use the ",
+                            descriptionSuffix: " command to analyze job requirements, match keywords, and optimize your resume for high ATS pass rates.",
+                          },
+                          {
+                            title: "Pro Tip: Application Follow-up Assistant",
+                            command: "/follow-up",
+                            prompt: "/follow-up ",
+                            description: "Applied to a job recently? Use the ",
+                            descriptionSuffix: " command to draft personalized follow-up messages and check application status with recruiters.",
+                          },
+                        ];
+
+                        const currentTip = proTips[proTipIndex % proTips.length];
+
+                        return (
+                          <div className='glass-panel mt-6 p-4 rounded-xl text-left w-full border border-brand/20 bg-brand/5 backdrop-blur-md max-w-2xl flex gap-3.5 items-start mx-auto relative group'>
+                            <div className='p-2 rounded-lg bg-brand/10 text-brand border border-brand/20 shrink-0 mt-0.5'>
+                              <Sparkles size={16} />
+                            </div>
+
+                            <div className='flex-1 min-w-0 pr-14'>
+                              <h4 className='text-xs font-semibold text-foreground/95 mb-1 flex items-center gap-1.5'>
+                                {currentTip.title}
+                              </h4>
+                              <p className='text-xs text-muted-foreground leading-relaxed'>
+                                {currentTip.description}
+                                <button
+                                  type='button'
+                                  onClick={() => {
+                                    setText(currentTip.prompt);
+                                    if (textareaRef.current) textareaRef.current.focus();
+                                  }}
+                                  className='font-mono font-bold text-brand hover:underline bg-brand/10 px-1.5 py-0.5 rounded transition-all text-[11px] inline-flex items-center gap-1'
+                                >
+                                  {currentTip.command}
+                                </button>
+                                {currentTip.descriptionSuffix}
+                              </p>
+
+                              {/* Carousel Dots */}
+                              <div className='flex items-center gap-1.5 mt-2.5'>
+                                {proTips.map((_, idx) => (
+                                  <button
+                                    key={idx}
+                                    type='button'
+                                    onClick={() => setProTipIndex(idx)}
+                                    aria-label={`Go to slide ${idx + 1}`}
+                                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                                      idx === proTipIndex % proTips.length
+                                        ? "w-5 bg-brand"
+                                        : "w-1.5 bg-brand/20 hover:bg-brand/40"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Carousel Navigation Buttons */}
+                            <div className='flex items-center gap-1 shrink-0 self-center absolute right-3 top-3.5 opacity-80 group-hover:opacity-100 transition-opacity'>
+                              <button
+                                type='button'
+                                onClick={() =>
+                                  setProTipIndex((prev) => (prev === 0 ? proTips.length - 1 : prev - 1))
+                                }
+                                aria-label='Previous Pro Tip'
+                                className='p-1 rounded-md bg-brand/10 hover:bg-brand/20 text-brand border border-brand/20 transition-all'
+                              >
+                                <ChevronLeft size={13} />
+                              </button>
+                              <button
+                                type='button'
+                                onClick={() =>
+                                  setProTipIndex((prev) => (prev + 1) % proTips.length)
+                                }
+                                aria-label='Next Pro Tip'
+                                className='p-1 rounded-md bg-brand/10 hover:bg-brand/20 text-brand border border-brand/20 transition-all'
+                              >
+                                <ChevronRight size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()
                     )}
                   </div>
                 </div>
               ) : (
-                <div className='flex-1 w-full max-w-4xl mx-auto p-6 space-y-6 pb-8'>
-                  {messages.map((m) => (
+                <div className={`flex-1 w-full mx-auto p-6 space-y-6 pb-8 ${
+                  isFocusMode ? "max-w-5xl" : "max-w-4xl"
+                }`}>
+                  {messages.map((m, idx) => (
                     <div
                       key={m.id}
                       className={`flex gap-4 ${m.role === "user" ? "justify-end" : "justify-start"}`}
@@ -3294,16 +3852,17 @@ export const ChatPage = () => {
                         </div>
                       )}
                       <div
+                        data-ai-message={m.role !== "user" ? "true" : undefined}
                         className={`rounded-2xl shadow-sm ${
                           m.role === "user"
-                            ? "max-w-[85%] bg-brand text-primary-foreground font-medium rounded-tr-sm p-4"
+                            ? "max-w-[85%] bg-brand text-primary-foreground font-medium rounded-tr-sm p-4 select-text"
                             : m.role === "skill"
-                              ? "max-w-[95%] bg-transparent p-0 shadow-none"
-                              : "max-w-[85%] glass-panel text-card-foreground rounded-tl-sm p-4"
+                              ? "max-w-[95%] bg-transparent p-0 shadow-none select-text"
+                              : "max-w-[85%] bg-black/95 border border-zinc-800/80 text-card-foreground rounded-tl-sm p-4 shadow-md shadow-black/80 select-text"
                         }`}
                       >
                         {m.role === "user" ? (
-                          <div className='text-sm break-words whitespace-pre-wrap'>
+                          <div className='text-sm break-words whitespace-pre-wrap select-text'>
                             <UserChatAttachment
                               messageId={m.id}
                               hasPastedImage={m.hasPastedImage}
@@ -3311,7 +3870,9 @@ export const ChatPage = () => {
                             {m.content.trim() ? m.content : null}
                           </div>
                         ) : (
-                          <div className='text-sm prose prose-invert max-w-none overflow-hidden'>
+                          <div className={`text-sm prose prose-invert max-w-none overflow-x-auto select-text ${
+                            isChatBusy && idx === messages.length - 1 ? "token-stream" : ""
+                          }`}>
                             <AgentWorkTimeline
                               message={m}
                               elapsedLabel={requestElapsedLabel}
@@ -3622,7 +4183,9 @@ export const ChatPage = () => {
             </div>
 
             <div className='shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur md:px-6 relative'>
-              <div className='w-full max-w-4xl mx-auto relative'>
+              <div className={`w-full mx-auto relative ${
+                isFocusMode ? "max-w-5xl" : "max-w-4xl"
+              }`}>
                 {messages.length > 0 && showScrollToBottom && (
                   <div className='absolute bottom-full left-1/2 -translate-x-1/2 mb-4 z-20 pointer-events-none'>
                     <button
@@ -3635,13 +4198,45 @@ export const ChatPage = () => {
                   </div>
                 )}
 
+                {isListening && (
+                  <div className="mb-3 flex items-center justify-between p-3.5 rounded-2xl bg-black border border-[#2fd968]/50 shadow-2xl shadow-black backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 z-30">
+                    <div className="flex items-center gap-3.5">
+                      <div className="shrink-0 flex items-center justify-center p-1 rounded-xl bg-black border border-[#2fd968]/30">
+                        <ThinkingOrb state="listening" size={64} theme="dark" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-white flex items-center gap-2">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2fd968] opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2fd968]"></span>
+                          </span>
+                          Listening to your voice...
+                        </div>
+                        <p className="text-[11px] text-slate-300 mt-0.5">
+                          Pause naturally and continue speaking. Your draft keeps growing until you stop listening.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleListening}
+                      className="px-3.5 py-1.5 rounded-full bg-rose-950/80 hover:bg-rose-900/90 text-rose-300 text-xs font-semibold border border-rose-600/50 transition-all cursor-pointer shrink-0"
+                    >
+                      Stop Listening
+                    </button>
+                  </div>
+                )}
+
                 <div
-                  className={`relative rounded-[32px] border border-border shadow-2xl overflow-visible transition-all duration-300 ${
-                    text.trim() || attachments.length
-                      ? "bg-card ring-1 ring-brand/50 border-brand/50"
-                      : "bg-card/85 backdrop-blur-xl"
+                  className={`beam relative rounded-[32px] shadow-2xl transition-all duration-300 ${
+                    isListening
+                      ? "border border-[#2fd968]/60 ring-2 ring-[#2fd968]/40 shadow-black"
+                      : isChatBusy || text.trim()
+                        ? "beam-amber shadow-[0_0_25px_rgba(47,217,104,0.15)]"
+                        : "border border-border bg-card/85 backdrop-blur-xl"
                   }`}
                 >
+                  <div className="beam-inner rounded-[30.5px]">
                   <input
                     type='file'
                     ref={fileInputRef}
@@ -3710,21 +4305,23 @@ export const ChatPage = () => {
                         ref={textareaRef}
                         value={text}
                         onChange={(e) => {
-                          setText(e.target.value);
-                          setCaretPosition(e.currentTarget.selectionStart);
+                          const val = e.target.value;
+                          const sel = e.target.selectionStart;
+                          setText(val);
+                          setCaretPosition((prev) => (prev === sel ? prev : sel));
                         }}
-                        onClick={(e) =>
-                          setCaretPosition(e.currentTarget.selectionStart)
-                        }
-                        onFocus={(e) =>
-                          setCaretPosition(e.currentTarget.selectionStart)
-                        }
-                        onKeyUp={(e) =>
-                          setCaretPosition(e.currentTarget.selectionStart)
-                        }
-                        onSelect={(e) =>
-                          setCaretPosition(e.currentTarget.selectionStart)
-                        }
+                        onClick={(e) => {
+                          const sel = e.currentTarget.selectionStart;
+                          setCaretPosition((prev) => (prev === sel ? prev : sel));
+                        }}
+                        onKeyUp={(e) => {
+                          const sel = e.currentTarget.selectionStart;
+                          setCaretPosition((prev) => (prev === sel ? prev : sel));
+                        }}
+                        onSelect={(e) => {
+                          const sel = e.currentTarget.selectionStart;
+                          setCaretPosition((prev) => (prev === sel ? prev : sel));
+                        }}
                         onPaste={handlePasteImage}
                         onKeyDown={(e) => {
                           if (skillPaletteOpen) {
@@ -3769,9 +4366,10 @@ export const ChatPage = () => {
                         style={{ height: "auto", minHeight: "24px" }}
                         onInput={(e) => {
                           const target = e.target as HTMLTextAreaElement;
-                          setCaretPosition(target.selectionStart);
-                          target.style.height = "auto";
-                          target.style.height = `${target.scrollHeight}px`;
+                          window.requestAnimationFrame(() => {
+                            target.style.height = "auto";
+                            target.style.height = `${target.scrollHeight}px`;
+                          });
                         }}
                       />
                     </div>
@@ -3809,56 +4407,46 @@ export const ChatPage = () => {
                           : "row-start-2 md:row-start-1"
                       }`}
                     >
-                      {/* Custom Dropdown */}
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setDropdownOpen((prev) => !prev)}
-                          className="flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-semibold bg-foreground/5 text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-all border border-border"
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className="group flex items-center gap-1 rounded-full border border-border bg-foreground/5 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
+                          >
+                            <span>
+                              {persona === "concise" ? "Ask: plan" : "Agent: do work"}
+                            </span>
+                            <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          side="top"
+                          align="end"
+                          sideOffset={8}
+                          className="z-[70] w-40"
                         >
-                          <span>{persona === "concise" ? "Ask: plan" : "Agent: do work"}</span>
-                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} />
-                        </button>
-
-                        {dropdownOpen && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-40"
-                              onClick={() => setDropdownOpen(false)}
-                            />
-                            <div className="absolute right-0 bottom-full mb-2 z-50 w-36 rounded-xl border border-border bg-card/95 p-1 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setPersona("concise");
-                                  setDropdownOpen(false);
-                                }}
-                                className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                                  persona === "concise"
-                                    ? "text-brand bg-brand/10"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                                }`}
-                              >
-                                Ask: plan
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setPersona("analyst");
-                                  setDropdownOpen(false);
-                                }}
-                                className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                                  persona === "analyst"
-                                    ? "text-brand bg-brand/10"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                                }`}
-                              >
-                                Agent: do work
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                          <DropdownMenuItem
+                            onSelect={() => handlePersonaChange("concise")}
+                            className={`px-3 py-2 text-xs font-semibold ${
+                              persona === "concise"
+                                ? "bg-brand/10 text-brand"
+                                : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                            }`}
+                          >
+                            Ask: plan
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => handlePersonaChange("analyst")}
+                            className={`px-3 py-2 text-xs font-semibold ${
+                              persona === "analyst"
+                                ? "bg-brand/10 text-brand"
+                                : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                            }`}
+                          >
+                            Agent: do work
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
 
                       {/* Voice Mic Button */}
                       <button
@@ -3866,12 +4454,16 @@ export const ChatPage = () => {
                         onClick={toggleListening}
                         className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
                           isListening
-                            ? "bg-brand/15 text-brand animate-pulse hover:bg-brand/25"
+                            ? "bg-[#2fd968]/20 text-[#2fd968] ring-2 ring-[#2fd968]/40 hover:bg-[#2fd968]/30"
                             : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                         }`}
                         title={isListening ? "Listening... Click to stop" : "Voice input"}
                       >
-                        <Mic size={18} />
+                        {isListening ? (
+                          <ThinkingOrb state="listening" size={20} theme="dark" />
+                        ) : (
+                          <Mic size={18} />
+                        )}
                       </button>
 
                       {/* Send Button */}
@@ -3895,6 +4487,7 @@ export const ChatPage = () => {
                       </button>
                     </div>
                   </div>
+                  </div>{/* beam-inner */}
                 </div>
                 <p className='text-center text-[10px] text-muted-foreground mt-3 uppercase tracking-widest font-medium'>
                   JobRaker AI can make mistakes. Check important information.
@@ -3905,6 +4498,13 @@ export const ChatPage = () => {
             <div className='fixed -bottom-48 -right-48 w-96 h-96 bg-brand/5 rounded-full blur-[120px] pointer-events-none'></div>
             <div className='fixed top-24 left-96 w-64 h-64 bg-brand/5 rounded-full blur-[100px] pointer-events-none'></div>
           </main>
+
+          <IntegrationPermissionModal
+            request={pendingPermissionRequest}
+            onRespond={(decision) => {
+              pendingPermissionRequest?.resolve(decision);
+            }}
+          />
 
         </>
       )}

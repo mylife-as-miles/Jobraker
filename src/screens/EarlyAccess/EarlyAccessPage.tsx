@@ -221,7 +221,7 @@ export const EarlyAccessPage = () => {
               </div>
 
               {error && (
-                <div className="p-3 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-mono">
+                <div key={error} className="p-3 rounded-lg bg-red-500/10 border border-[#FF5C5C]/40 text-[#FF5C5C] text-sm font-mono error-shake animate-shake-x">
                   {error}
                 </div>
               )}

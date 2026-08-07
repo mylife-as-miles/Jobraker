@@ -4,13 +4,17 @@ import { cn } from "../../lib/utils";
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   variant?: "default" | "transparent" | "outlined";
   inputSize?: "sm" | "md" | "lg" | "xl";
+  error?: boolean;
+  hasError?: boolean;
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   (
-    { className, type, variant = "transparent", inputSize = "lg", ...props },
+    { className, type, variant = "transparent", inputSize = "lg", error, hasError, ...props },
     ref,
   ) => {
+    const isError = error || hasError || props["aria-invalid"] === true || props["aria-invalid"] === "true";
+
     const baseClasses =
       "flex w-full rounded-xl border border-input bg-background text-foreground placeholder:text-foreground/60 file:border-0 file:bg-transparent file:text-sm outline-none file:font-medium disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200";
 
@@ -31,19 +35,17 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <input
         type={type}
+        data-error={isError ? "true" : undefined}
         className={cn(
           baseClasses,
           variantClasses[variant],
           sizeClasses[inputSize],
           "font-medium tracking-wide leading-relaxed placeholder:opacity-80",
-          // Invalid state (when aria-invalid is set by form libs or manually)
-          "aria-[invalid=true]:border-brand aria-[invalid=true]:focus-visible:ring-brand",
-          // Responsive text sizing
+          isError && "border-[#FF5C5C] text-[#FF5C5C] animate-shake-x",
+          "aria-[invalid=true]:border-[#FF5C5C] aria-[invalid=true]:animate-shake-x",
           inputSize === "lg" && "text-base sm:text-lg",
           inputSize === "xl" && "text-lg sm:text-xl",
-          // Responsive spacing
           "py-3",
-          // Ensure proper width on all screens
           "min-w-0 max-w-full",
           className,
         )}

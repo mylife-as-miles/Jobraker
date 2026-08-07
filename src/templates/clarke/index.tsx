@@ -21,7 +21,6 @@ const BODY = "#52525B";
 const CARD_WHITE = "#FFFFFF";
 const PAGE_BG = "#E8E7E2";
 
-const PILL_SECTIONS = new Set(["skills", "languages", "interests"]);
 const LEFT_EXTRA_ORDER = ["languages", "interests"];
 const RIGHT_EXTRA_ORDER = [
   "projects",

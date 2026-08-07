@@ -7,37 +7,50 @@ import {
 } from "../lib/composioConnection";
 
 describe("waitForComposioConnection", () => {
-  it("finishes as soon as the live provider status becomes connected", async () => {
+  it("finishes as soon as the live provider status becomes active", async () => {
     const check = vi.fn()
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(true);
+      .mockResolvedValueOnce("inactive" as const)
+      .mockResolvedValueOnce("active" as const);
 
     await expect(waitForComposioConnection({
       check,
       popup: { closed: false } as Window,
       intervalMs: 0,
       timeoutMs: 1_000,
-    })).resolves.toBe(true);
+    })).resolves.toBe("connected");
     expect(check).toHaveBeenCalledTimes(2);
   });
 
-  it("allows a short status-propagation grace period after popup closure", async () => {
-    const check = vi.fn().mockResolvedValue(false);
+  it("does not treat a pending authorization as a connection", async () => {
+    // Composio creates a pending record the moment the link is issued; the
+    // user has not authorized anything yet.
+    const check = vi.fn().mockResolvedValue("pending" as const);
 
     await expect(waitForComposioConnection({
       check,
       popup: { closed: true } as Window,
       intervalMs: 0,
       timeoutMs: 1_000,
-    })).resolves.toBe(false);
+    })).resolves.toBe("cancelled");
+  });
+
+  it("reports cancellation when the popup closes without authorizing", async () => {
+    const check = vi.fn().mockResolvedValue("inactive" as const);
+
+    await expect(waitForComposioConnection({
+      check,
+      popup: { closed: true } as Window,
+      intervalMs: 0,
+      timeoutMs: 1_000,
+    })).resolves.toBe("cancelled");
     expect(check).toHaveBeenCalledTimes(3);
   });
 
   it("uses a correlated same-origin callback event to accelerate verification", async () => {
     const requestId = "oauth_request_123456";
     const check = vi.fn()
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(true);
+      .mockResolvedValueOnce("inactive" as const)
+      .mockResolvedValueOnce("active" as const);
 
     window.setTimeout(() => {
       window.dispatchEvent(new MessageEvent("message", {
@@ -58,8 +71,68 @@ describe("waitForComposioConnection", () => {
       provider: "github",
       intervalMs: 20,
       timeoutMs: 1_000,
-    })).resolves.toBe(true);
+    })).resolves.toBe("connected");
     expect(check).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps waiting after an authorized popup closes before Composio catches up", async () => {
+    const requestId = "oauth_request_654321";
+    // Fails the first several polls, then flips active — the pattern seen when
+    // the callback fires before Composio marks the account ACTIVE.
+    const check = vi.fn()
+      .mockResolvedValue("pending" as const)
+      .mockResolvedValueOnce("pending" as const)
+      .mockResolvedValueOnce("pending" as const)
+      .mockResolvedValueOnce("pending" as const)
+      .mockResolvedValueOnce("pending" as const)
+      .mockResolvedValueOnce("active" as const);
+
+    window.setTimeout(() => {
+      window.dispatchEvent(new MessageEvent("message", {
+        origin: window.location.origin,
+        data: {
+          type: COMPOSIO_OAUTH_MESSAGE,
+          requestId,
+          provider: "gmail",
+          status: "success",
+        },
+      }));
+    }, 0);
+
+    await expect(waitForComposioConnection({
+      check,
+      popup: { closed: true } as Window,
+      requestId,
+      provider: "gmail",
+      intervalMs: 0,
+      timeoutMs: 2_000,
+    })).resolves.toBe("connected");
+  });
+
+  it("surfaces a provider-reported failure instead of waiting it out", async () => {
+    const requestId = "oauth_request_abcdef";
+    const check = vi.fn().mockResolvedValue("inactive" as const);
+
+    window.setTimeout(() => {
+      window.dispatchEvent(new MessageEvent("message", {
+        origin: window.location.origin,
+        data: {
+          type: COMPOSIO_OAUTH_MESSAGE,
+          requestId,
+          provider: "notion",
+          status: "error",
+        },
+      }));
+    }, 0);
+
+    await expect(waitForComposioConnection({
+      check,
+      popup: { closed: false } as Window,
+      requestId,
+      provider: "notion",
+      intervalMs: 0,
+      timeoutMs: 1_000,
+    })).resolves.toBe("failed");
   });
 
   it("rejects callback messages from a different origin or request", () => {

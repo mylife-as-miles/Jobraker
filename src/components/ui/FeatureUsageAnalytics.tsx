@@ -118,9 +118,9 @@ export const FeatureUsageAnalytics: React.FC<FeatureUsageAnalyticsProps> = ({
         <CardContent>
           {featureUsage.length === 0 ? (
             <div className="text-center py-8">
-              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No feature usage data yet</p>
-              <p className="text-sm text-gray-400">Start using features to see analytics here</p>
+              <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No feature usage data yet</p>
+              <p className="text-sm text-muted-foreground">Start using features to see analytics here</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -145,7 +145,7 @@ export const FeatureUsageAnalytics: React.FC<FeatureUsageAnalyticsProps> = ({
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-gray-900">{usage.totalCredits}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       {usage.lastUsed ? new Date(usage.lastUsed).toLocaleDateString() : 'Never'}
                     </p>
                   </div>

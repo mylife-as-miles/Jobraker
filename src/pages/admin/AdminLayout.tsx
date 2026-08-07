@@ -42,6 +42,8 @@ const navigationGroups = [
     items: [
       { name: "Subscriptions", path: "/admin/subscriptions" },
       { name: "Revenue", path: "/admin/revenue" },
+      { name: "User Usage", path: "/admin/user-usage" },
+      { name: "Cost Allocation", path: "/admin/cost-allocation" },
       { name: "Credits", path: "/admin/credits" },
       { name: "Provider Credits", path: "/admin/provider-credits" },
     ],
@@ -52,6 +54,7 @@ const navigationGroups = [
     items: [
       { name: "Database", path: "/admin/database" },
       { name: "Settings", path: "/admin/settings" },
+      { name: "Permissions", path: "/admin/permissions" },
     ],
   },
 ];
@@ -299,7 +302,7 @@ export default function AdminLayout() {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                      transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
                       className="overflow-hidden ml-5 relative space-y-1"
                     >
                       {group.items.map((item, idx) => {

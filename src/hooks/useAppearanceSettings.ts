@@ -9,14 +9,12 @@ export interface AppearanceSettings {
   updated_at: string;
 }
 
-// The brand accent changed from a neon lime to green. Existing users have the
-// old lime persisted as their accent_color; map any legacy lime value to the
-// new default green so their UI matches the rest of the app (self-heals on load).
-const LEGACY_ACCENTS = new Set(["#1dff00", "#52ff4b", "#7bffb2", "#22c55e", "#16a34a"]);
+// The brand accent is standardized to signal green (#2fd968). Always enforce
+// the green theme across all user accounts.
 const DEFAULT_ACCENT = "#2fd968";
 
-function normalizeAccent(accent: string): string {
-  return LEGACY_ACCENTS.has((accent || "").toLowerCase()) ? DEFAULT_ACCENT : accent;
+function normalizeAccent(_accent: string): string {
+  return DEFAULT_ACCENT;
 }
 
 function hexToHsl(hex: string): { h: number; s: number; l: number } | null {
@@ -55,6 +53,24 @@ function hexToHsl(hex: string): { h: number; s: number; l: number } | null {
   };
 }
 
+/**
+ * Set right before a theme change is triggered by a click (see SettingsPage's
+ * theme buttons), so the reveal animation expands from wherever the user
+ * clicked instead of the viewport centre. Reads back via CSS `var(--theme-
+ * toggle-x/y, 50%)` in tailwind.css, so leaving it unset is a valid "use the
+ * centre" default for non-click-driven changes (auto/system, realtime sync).
+ */
+export function setThemeToggleOrigin(clientX: number, clientY: number) {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  root.style.setProperty("--theme-toggle-x", `${clientX}px`);
+  root.style.setProperty("--theme-toggle-y", `${clientY}px`);
+}
+
+// The very first coat of theme on a fresh page load has nothing to crossfade
+// against and would just be a flash; only animate real, subsequent changes.
+let hasAppliedThemeOnce = false;
+
 function applyAppearanceToDOM({
   theme,
   accent_color,
@@ -71,9 +87,27 @@ function applyAppearanceToDOM({
     typeof window !== "undefined" &&
     (window as any).matchMedia &&
     window.matchMedia("(prefers-color-scheme: dark)").matches;
-  root.classList.remove("dark");
-  if (theme === "dark" || (theme === "auto" && prefersDark))
-    root.classList.add("dark");
+  const nextIsDark = theme === "dark" || (theme === "auto" && prefersDark);
+  const isDarkNow = root.classList.contains("dark");
+
+  const applyThemeClass = () => root.classList.toggle("dark", nextIsDark);
+
+  const systemReducedMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const canAnimate =
+    hasAppliedThemeOnce &&
+    isDarkNow !== nextIsDark &&
+    !reduce_motion &&
+    !systemReducedMotion &&
+    typeof (document as any).startViewTransition === "function";
+
+  if (canAnimate) {
+    (document as any).startViewTransition(applyThemeClass);
+  } else {
+    applyThemeClass();
+  }
+  hasAppliedThemeOnce = true;
 
   // Accent color variables (legacy lime accents are migrated to the new green)
   const normalizedAccent = normalizeAccent(accent_color);

@@ -342,7 +342,7 @@ export const SelfSolvingCube = () => {
       {contextLost && <CubeFallback />}
 
       <Canvas
-        camera={{ position: [5, 4, 5], fov: 35 }}
+        camera={{ position: [5, 4.5, 5], fov: 45 }}
         gl={{ antialias: true, alpha: true }}
         dpr={[1, 2]}
         onCreated={handleCreated}

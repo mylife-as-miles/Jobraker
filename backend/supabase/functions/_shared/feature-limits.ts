@@ -21,6 +21,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Resume analysis",
     limits: {
       Free: { perMinute: 2, perDay: 5 },
+      Starter: { perMinute: 3, perDay: 10 },
       Basics: { perMinute: 5, perDay: 20 },
       Pro: { perMinute: 10, perDay: 60 },
       Ultimate: { perMinute: 20, perDay: 120 },
@@ -30,6 +31,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Resume parsing",
     limits: {
       Free: { perMinute: 2, perDay: 5 },
+      Starter: { perMinute: 3, perDay: 10 },
       Basics: { perMinute: 5, perDay: 20 },
       Pro: { perMinute: 10, perDay: 75 },
       Ultimate: { perMinute: 20, perDay: 150 },
@@ -39,6 +41,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "AI chat starters",
     limits: {
       Free: { perMinute: 4, perDay: 20 },
+      Starter: { perMinute: 6, perDay: 40 },
       Basics: { perMinute: 10, perDay: 80 },
       Pro: { perMinute: 20, perDay: 200 },
       Ultimate: { perMinute: 30, perDay: 400 },
@@ -48,6 +51,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Customer support AI",
     limits: {
       Free: { perMinute: 6, perDay: 40 },
+      Starter: { perMinute: 8, perDay: 60 },
       Basics: { perMinute: 12, perDay: 120 },
       Pro: { perMinute: 24, perDay: 300 },
       Ultimate: { perMinute: 40, perDay: 600 },
@@ -57,6 +61,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Cover letter generation",
     limits: {
       Free: { perMinute: 0, perDay: 0 },
+      Starter: { perMinute: 2, perDay: 8 },
       Basics: { perMinute: 3, perDay: 15 },
       Pro: { perMinute: 8, perDay: 40 },
       Ultimate: { perMinute: 15, perDay: 100 },
@@ -66,6 +71,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Outreach generation",
     limits: {
       Free: { perMinute: 0, perDay: 0 },
+      Starter: { perMinute: 2, perDay: 8 },
       Basics: { perMinute: 3, perDay: 15 },
       Pro: { perMinute: 8, perDay: 40 },
       Ultimate: { perMinute: 15, perDay: 100 },
@@ -75,6 +81,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Company scouting",
     limits: {
       Free: { perMinute: 0, perDay: 0 },
+      Starter: { perMinute: 1, perDay: 5 },
       Basics: { perMinute: 3, perDay: 15 },
       Pro: { perMinute: 8, perDay: 40 },
       Ultimate: { perMinute: 15, perDay: 100 },
@@ -84,6 +91,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Resume tailoring",
     limits: {
       Free: { perMinute: 0, perDay: 0 },
+      Starter: { perMinute: 2, perDay: 8 },
       Basics: { perMinute: 3, perDay: 15 },
       Pro: { perMinute: 8, perDay: 40 },
       Ultimate: { perMinute: 15, perDay: 100 },
@@ -93,6 +101,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "AI writing tools",
     limits: {
       Free: { perMinute: 0, perDay: 0 },
+      Starter: { perMinute: 2, perDay: 10 },
       Basics: { perMinute: 4, perDay: 20 },
       Pro: { perMinute: 10, perDay: 60 },
       Ultimate: { perMinute: 20, perDay: 150 },
@@ -102,6 +111,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Job fit evaluation",
     limits: {
       Free: { perMinute: 0, perDay: 0 },
+      Starter: { perMinute: 2, perDay: 10 },
       Basics: { perMinute: 4, perDay: 20 },
       Pro: { perMinute: 10, perDay: 80 },
       Ultimate: { perMinute: 20, perDay: 200 },
@@ -111,6 +121,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Match score analysis",
     limits: {
       Free: { perMinute: 0, perDay: 0 },
+      Starter: { perMinute: 3, perDay: 15 },
       Basics: { perMinute: 6, perDay: 30 },
       Pro: { perMinute: 12, perDay: 120 },
       Ultimate: { perMinute: 24, perDay: 300 },
@@ -120,6 +131,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Chat title generation",
     limits: {
       Free: { perMinute: 6, perDay: 60 },
+      Starter: { perMinute: 8, perDay: 100 },
       Basics: { perMinute: 12, perDay: 200 },
       Pro: { perMinute: 20, perDay: 500 },
       Ultimate: { perMinute: 30, perDay: 1000 },
@@ -129,6 +141,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Embeddings",
     limits: {
       Free: { perMinute: 10, perDay: 100 },
+      Starter: { perMinute: 15, perDay: 250 },
       Basics: { perMinute: 30, perDay: 500 },
       Pro: { perMinute: 60, perDay: 1500 },
       Ultimate: { perMinute: 100, perDay: 4000 },
@@ -138,6 +151,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Interview studio",
     limits: {
       Free: { perMinute: 0, perDay: 0 },
+      Starter: { perMinute: 0, perDay: 0 },
       Basics: { perMinute: 0, perDay: 0 },
       Pro: { perMinute: 3, perDay: 20 },
       Ultimate: { perMinute: 8, perDay: 60 },
@@ -147,6 +161,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Job URL intake",
     limits: {
       Free: { perMinute: 0, perDay: 0 },
+      Starter: { perMinute: 2, perDay: 10 },
       Basics: { perMinute: 4, perDay: 25 },
       Pro: { perMinute: 10, perDay: 100 },
       Ultimate: { perMinute: 20, perDay: 250 },
@@ -156,6 +171,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Gmail application sync",
     limits: {
       Free: { perMinute: 0, perDay: 0 },
+      Starter: { perMinute: 0, perDay: 0 },
       Basics: { perMinute: 0, perDay: 0 },
       Pro: { perMinute: 2, perDay: 20 },
       Ultimate: { perMinute: 6, perDay: 80 },
@@ -165,6 +181,7 @@ const FEATURE_LIMITS: Record<string, FeatureLimitDefinition> = {
     label: "Referral network AI",
     limits: {
       Free: { perMinute: 0, perDay: 0 },
+      Starter: { perMinute: 1, perDay: 8 },
       Basics: { perMinute: 3, perDay: 20 },
       Pro: { perMinute: 8, perDay: 60 },
       Ultimate: { perMinute: 16, perDay: 150 },

@@ -8,7 +8,7 @@ const Avatar = React.forwardRef<HTMLSpanElement, AvatarProps>(
     <span
       ref={ref}
       className={cn(
-        "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-800 text-neutral-200 items-center justify-center select-none",
+        "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-800 text-foreground/80 items-center justify-center select-none",
         className
       )}
       {...props}

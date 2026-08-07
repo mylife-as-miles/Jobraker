@@ -1,4 +1,3 @@
-import type React from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -40,7 +39,6 @@ const DOT_EMPTY = "#DFD5B7";
 
 const SHADOW = "3px 3px 0 #1B1B1B";
 
-const DOT_SECTIONS = new Set(["skills", "languages"]);
 const RIGHT_EXTRA_ORDER = [
   "projects",
   "awards",

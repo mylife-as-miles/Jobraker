@@ -13,20 +13,25 @@ import {
 
 const BILLING_FAQ_ITEMS: { question: string; answer: string }[] = [
   {
-    question: "What are credits and what spends them?",
+    question: "How do AI Usage Limits work?",
     answer:
-      "Credits power search, AI evaluation, resume and cover-letter drafting, chat, and other metered features. Each action deducts credits according to the live Credit Costs list on this page. Governed auto-apply uses separate monthly run allowances on paid plans, not credits, unless a flow explicitly charges credits.",
+      "All AI-powered features—including AI Chat (Ask and Agent modes), Resume Analysis, Cover Letter Generation, Resume Tailoring, and AI Content Polishing—are metered strictly by model token consumption against your subscription tier's AI Usage Limits. You receive Rolling 24-hour, Weekly, and Monthly usage allowances that automatically refresh based on your plan.",
+  },
+  {
+    question: "What are Credits and what uses them?",
+    answer:
+      "Tool credits are used for non-AI and external web automation tools (such as Skyvern browser tasks and Firecrawl web scrapers). AI Chat turns and model generations consume your plan's AI Usage Limits instead of deducting credits.",
   },
   {
     question:
       "What is the difference between a subscription and a credit pack?",
     answer:
-      "A subscription sets your tier (Basics, Pro, or Ultimate), your monthly credit allowance, governed auto-apply runs, and your billing cadence. Credit packs are one-time top-ups that add to your balance immediately and never change your tier or automation limits.",
+      "A subscription sets your tier (Starter, Basics, Pro, or Ultimate), your AI Usage Limits, monthly web automation tool credits, governed auto-apply runs, and billing cadence. Credit packs are one-time top-ups for web automation tools that add to your balance immediately without expiring.",
   },
   {
     question: "How do monthly, quarterly, and annual billing work?",
     answer:
-      "Monthly charges you each month. Quarterly (Pro and Ultimate only) bills every three months at a discount versus three separate monthly payments. Annual bills once per year at the lowest effective monthly rate. Basics supports monthly and annual only. Features are the same; only the payment schedule and price differ.",
+      "Monthly charges you each month. Quarterly (Pro and Ultimate only) bills every three months at a discount versus three separate monthly payments. Annual bills once per year at the lowest effective monthly rate. Basics and Starter support monthly and annual. Features are the same; only the payment schedule and price differ.",
   },
   {
     question:
@@ -157,24 +162,31 @@ export function BillingFAQSection() {
                       aria-hidden
                     />
                   </button>
-                  <AnimatePresence initial={false}>
-                    {isOpen ? (
-                      <motion.div
-                        id={`billing-faq-a-${i}`}
-                        role='region'
-                        aria-labelledby={`billing-faq-q-${i}`}
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-                        className='overflow-hidden border-t border-foreground/5'
-                      >
-                        <p className='px-4 pb-4 pt-3 text-sm leading-relaxed text-muted-foreground sm:px-5 sm:pb-5'>
-                          {item.answer}
-                        </p>
-                      </motion.div>
-                    ) : null}
-                  </AnimatePresence>
+                  <div
+                    id={`billing-faq-a-${i}`}
+                    role='region'
+                    aria-labelledby={`billing-faq-q-${i}`}
+                    className={`spring-grid-expandable overflow-hidden border-t border-foreground/5 ${
+                      isOpen ? "expanded" : ""
+                    }`}
+                    style={{
+                      display: "grid",
+                      gridTemplateRows: isOpen ? "1fr" : "0fr",
+                      transition: "grid-template-rows 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                    }}
+                  >
+                    <div
+                      className='spring-grid-inner min-h-0 overflow-hidden'
+                      style={{
+                        opacity: isOpen ? 1 : 0,
+                        transition: "opacity 0.35s ease 0.15s",
+                      }}
+                    >
+                      <p className='px-4 pb-4 pt-3 text-sm leading-relaxed text-muted-foreground sm:px-5 sm:pb-5'>
+                        {item.answer}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               );
             })}

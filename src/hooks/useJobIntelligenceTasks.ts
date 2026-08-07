@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabaseClient";
 export type JobTaskType =
   | "scout_search"
   | "job_reevaluation"
-  | "pipeline_cleanup";
+  | "pipeline_cleanup"
+  | "chat_completion";
 
 export type JobTaskStatus =
   | "queued"

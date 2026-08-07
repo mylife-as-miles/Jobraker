@@ -29,9 +29,9 @@ const faqs = [
       "Yes, you can cancel directly from your dashboard. You will retain access until the end of your billing period.",
   },
   {
-    question: "What are search and AI credits?",
+    question: "How do AI Usage Limits and Tool Credits work?",
     answer:
-      "Credits power job search, evaluations, resume tailoring, cover letters, AI chat, and other metered features. Your plan includes a monthly allowance, and one-time packs are available from Billing. Governed auto-apply uses separate monthly run limits on paid tiers.",
+      "All AI features (AI Chat, resume analysis, cover letters, resume tailoring, and polishing) consume your plan's AI Usage Limits (Rolling 24h, Weekly, and Monthly model allowances). Tool credits are reserved for external web automation tools like Skyvern tasks and web scrapers. Governed auto-apply uses separate monthly run limits on paid tiers.",
   },
   {
     question: "Do you offer quarterly or annual billing?",

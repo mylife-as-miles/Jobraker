@@ -21,6 +21,7 @@ import { InputSecurityGuard } from "./components/system/InputSecurityGuard";
 import { AnimatePresence } from "framer-motion";
 import { PageTransition } from "./components/transitions";
 import posthog, { initPostHog } from "./lib/posthog";
+import { initSentry, Sentry } from "./lib/sentry";
 import { PostHogProvider } from "posthog-js/react";
 import { HelmetProvider } from "react-helmet-async";
 import { usePostHogAuthBridge } from "./hooks/usePostHogAuthBridge";
@@ -51,14 +52,18 @@ const AdminChat = lazyWithRetry(() => import("./pages/admin/pages/AdminChat"));
 const AdminRevenue = lazyWithRetry(() => import("./pages/admin/pages/AdminRevenue"));
 const AdminCredits = lazyWithRetry(() => import("./pages/admin/pages/AdminCredits"));
 const AdminProviderCredits = lazyWithRetry(() => import("./pages/admin/pages/AdminProviderCredits"));
+const AdminUserUsage = lazyWithRetry(() => import("./pages/admin/pages/AdminUserUsage"));
+const AdminCostAllocation = lazyWithRetry(() => import("./pages/admin/pages/AdminCostAllocation"));
 const AdminActivity = lazyWithRetry(() => import("./pages/admin/pages/AdminActivity"));
 const AdminDatabase = lazyWithRetry(() => import("./pages/admin/pages/AdminDatabase"));
 const AdminPerformance = lazyWithRetry(() => import("./pages/admin/pages/AdminPerformance"));
 const AdminSettings = lazyWithRetry(() => import("./pages/admin/pages/AdminSettings"));
+const AdminPermissions = lazyWithRetry(() => import("./pages/admin/pages/AdminPermissions"));
 const AdminJobs = lazyWithRetry(() => import("./pages/admin/pages/AdminJobs"));
 const AdminSubscriptions = lazyWithRetry(() => import("./pages/admin/pages/AdminSubscriptions"));
 
 const APP_ORIGIN = "https://app.jobraker.io";
+initSentry();
 initPostHog();
 
 function isAdminPublicPath(pathname: string) {
@@ -92,6 +97,7 @@ class ErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Application Error Boundary caught error:", error, errorInfo);
+    Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
   }
 
   handleReset = () => {
@@ -365,10 +371,13 @@ function AnimatedRoutes() {
           <Route path='revenue' element={<AdminRevenue />} />
           <Route path='credits' element={<AdminCredits />} />
           <Route path='provider-credits' element={<AdminProviderCredits />} />
+          <Route path='user-usage' element={<AdminUserUsage />} />
+          <Route path='cost-allocation' element={<AdminCostAllocation />} />
           <Route path='activity' element={<AdminActivity />} />
           <Route path='database' element={<AdminDatabase />} />
           <Route path='performance' element={<AdminPerformance />} />
           <Route path='settings' element={<AdminSettings />} />
+          <Route path='permissions' element={<AdminPermissions />} />
         </Route>
 
         {/* Admin utility route - check user credits */}
@@ -456,6 +465,13 @@ function App() {
 
 // Add error logging
 window.addEventListener("error", (event) => {
+  if (
+    event.error?.name === "InvalidNodeTypeError" ||
+    (event.message && String(event.message).includes("selectNode"))
+  ) {
+    event.preventDefault();
+    return;
+  }
   console.error("Global error:", event.error);
 });
 

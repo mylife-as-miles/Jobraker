@@ -104,27 +104,28 @@ export const CreditDisplay = () => {
     };
   }, [supabase]);
 
-  const getTierColor = () => {
-    switch (subscriptionTier) {
-      case "Basics":
-        return "brand";
-      case "Pro":
-        return "blue-600";
-      case "Ultimate":
-        return "purple-600";
-      default:
-        return "brand";
-    }
+  const tierClasses: Record<string, string> = {
+    Free: "bg-foreground/10 border-foreground/15 text-foreground",
+    Basics: "bg-brand/15 border-brand/30 text-brand",
+    Pro: "bg-blue-500/15 border-blue-500/30 text-blue-400",
+    Ultimate: "bg-purple-500/15 border-purple-500/30 text-purple-400",
+  };
+
+  const tierIconClasses: Record<string, string> = {
+    Free: "text-muted-foreground",
+    Basics: "text-brand",
+    Pro: "text-blue-400",
+    Ultimate: "text-purple-400",
   };
 
   const getTierIcon = () => {
     switch (subscriptionTier) {
       case "Basics":
-        return <Zap className='w-3 h-3 sm:w-4 sm:h-4 text-black' />;
+        return <Zap className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${tierIconClasses[subscriptionTier]}`} />;
       case "Pro":
-        return <Zap className='w-3 h-3 sm:w-4 sm:h-4 text-black' />;
+        return <Zap className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${tierIconClasses[subscriptionTier]}`} />;
       case "Ultimate":
-        return <Crown className='w-3 h-3 sm:w-4 sm:h-4 text-black' />;
+        return <Crown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${tierIconClasses[subscriptionTier]}`} />;
       default:
         return null;
     }
@@ -132,9 +133,9 @@ export const CreditDisplay = () => {
 
   if (loading) {
     return (
-      <div className='flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-foreground/5 border border-foreground/10 animate-pulse'>
-        <div className='w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-foreground/10' />
-        <div className='w-12 h-3 sm:h-4 bg-foreground/10 rounded' />
+      <div className='flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-foreground/5 border border-foreground/10 animate-pulse'>
+        <div className='w-4 h-4 rounded-full bg-foreground/10' />
+        <div className='w-10 h-3 bg-foreground/10 rounded' />
       </div>
     );
   }
@@ -142,15 +143,15 @@ export const CreditDisplay = () => {
   return (
     <button
       onClick={() => navigate("/dashboard/billing")}
-      className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-${getTierColor()} hover:opacity-90 transition-all duration-300 hover:scale-105 cursor-pointer dark:text-background text-foreground/80`}
+      className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border backdrop-blur-sm hover:brightness-125 transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] cursor-pointer ${tierClasses[subscriptionTier] || tierClasses.Free}`}
       title={`${subscriptionTier} Plan - ${credits} credits remaining. Click to view billing.`}
     >
-      <Coins className='w-4 h-4 sm:w-5 sm:h-5 ' />
-      <span className='font-bold text-sm sm:text-base whitespace-nowrap'>
+      <Coins className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${tierIconClasses[subscriptionTier] || tierIconClasses.Free}`} />
+      <span className='font-bold text-xs sm:text-sm whitespace-nowrap'>
         {credits.toLocaleString()}
       </span>
       {getTierIcon()}
-      <span className='hidden lg:inline text-xs font-semibold ml-0.5'>
+      <span className='hidden lg:inline text-[10px] font-bold uppercase tracking-wider opacity-80'>
         {subscriptionTier}
       </span>
     </button>

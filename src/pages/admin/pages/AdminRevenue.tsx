@@ -12,6 +12,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import NumberFlow from "@number-flow/react";
 import {
   Area,
   ResponsiveContainer,
@@ -31,7 +32,15 @@ import { createClient } from "@/lib/supabaseClient";
 import type { AdminTransaction } from "../types";
 
 export default function AdminRevenue() {
-  const [timeRange, setTimeRange] = useState<30 | 60 | 90>(30);
+  const [timeRange, setTimeRange] = useState<number>(30);
+  const timeRangeOptions = [
+    { label: "30 Days", value: 30 },
+    { label: "60 Days", value: 60 },
+    { label: "90 Days (3M)", value: 90 },
+    { label: "6 Months", value: 180 },
+    { label: "1 Year", value: 365 },
+    { label: "Lifetime", value: 3650 },
+  ];
   const { data: revenueData, loading } = useRevenueData(timeRange);
   const { transactions, loading: txLoading } = useRecentTransactions(50);
   const [revenueByTier, setRevenueByTier] = useState<{
@@ -165,18 +174,18 @@ export default function AdminRevenue() {
         </div>
 
         {/* Time Range Selector */}
-        <div className='flex gap-2 bg-gradient-to-br from-background via-[#111111] to-background border border-brand/20 rounded-xl p-1'>
-          {[30, 60, 90].map((days) => (
+        <div className='flex items-center gap-1.5 bg-gradient-to-br from-background via-[#111111] to-background border border-brand/20 rounded-xl p-1.5 overflow-x-auto max-w-full'>
+          {timeRangeOptions.map((opt) => (
             <button
-              key={days}
-              onClick={() => setTimeRange(days as any)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                timeRange === days
-                  ? "bg-brand text-black shadow-lg shadow-brand/50"
-                  : "text-gray-400 hover:text-white"
+              key={opt.value}
+              onClick={() => setTimeRange(opt.value)}
+              className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-all ${
+                timeRange === opt.value
+                  ? "bg-brand text-black shadow-lg shadow-brand/40 font-semibold"
+                  : "text-gray-400 hover:text-white hover:bg-white/5"
               }`}
             >
-              {days} Days
+              {opt.label}
             </button>
           ))}
         </div>
@@ -201,7 +210,12 @@ export default function AdminRevenue() {
               </div>
               <p className='text-sm text-gray-400 mb-1'>Total Revenue</p>
               <p className='text-3xl font-bold text-white'>
-                ${totalRevenue.toLocaleString()}
+                <NumberFlow
+                  value={totalRevenue}
+                  prefix='$'
+                  format={{ useGrouping: true, maximumFractionDigits: 0 }}
+                  respectMotionPreference
+                />
               </p>
             </CardContent>
           </Card>
@@ -225,7 +239,12 @@ export default function AdminRevenue() {
               </div>
               <p className='text-sm text-gray-400 mb-1'>Current MRR</p>
               <p className='text-3xl font-bold text-white'>
-                ${currentMRR.toLocaleString()}
+                <NumberFlow
+                  value={currentMRR}
+                  prefix='$'
+                  format={{ useGrouping: true, maximumFractionDigits: 0 }}
+                  respectMotionPreference
+                />
               </p>
             </CardContent>
           </Card>
@@ -249,7 +268,12 @@ export default function AdminRevenue() {
               </div>
               <p className='text-sm text-gray-400 mb-1'>Avg Daily Revenue</p>
               <p className='text-3xl font-bold text-white'>
-                ${avgDailyRevenue.toFixed(0)}
+                <NumberFlow
+                  value={avgDailyRevenue}
+                  prefix='$'
+                  format={{ useGrouping: true, maximumFractionDigits: 0 }}
+                  respectMotionPreference
+                />
               </p>
             </CardContent>
           </Card>
@@ -272,7 +296,13 @@ export default function AdminRevenue() {
                 </div>
               </div>
               <p className='text-sm text-gray-400 mb-1'>New Subscriptions</p>
-              <p className='text-3xl font-bold text-white'>{totalNewSubs}</p>
+              <p className='text-3xl font-bold text-white'>
+                <NumberFlow
+                  value={totalNewSubs}
+                  format={{ useGrouping: true, maximumFractionDigits: 0 }}
+                  respectMotionPreference
+                />
+              </p>
             </CardContent>
           </Card>
         </motion.div>
@@ -456,6 +486,34 @@ export default function AdminRevenue() {
                         </p>
                         <p className='text-sm text-brand'>
                           {proData.percentage}% of MRR
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {(() => {
+                  const starterData = getTierData("Starter");
+                  return (
+                    <div className='flex items-center justify-between p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl'>
+                      <div className='flex items-center gap-3'>
+                        <div className='w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center'>
+                          <DollarSign className='w-5 h-5 text-blue-400' />
+                        </div>
+                        <div>
+                          <p className='text-white font-medium'>Starter Plan</p>
+                          <p className='text-sm text-gray-400'>
+                            {starterData.count} subscriber
+                            {starterData.count !== 1 ? "s" : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <div className='text-right'>
+                        <p className='text-xl font-bold text-white'>
+                          ${starterData.revenue.toLocaleString()}
+                        </p>
+                        <p className='text-sm text-blue-400'>
+                          {starterData.percentage}% of MRR
                         </p>
                       </div>
                     </div>

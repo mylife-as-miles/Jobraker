@@ -5,7 +5,7 @@ export const HoverCardTrigger: React.FC<{children: React.ReactNode; asChild?: bo
 export const HoverCardContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({children, className='', ...rest}) => (
 	<div
 		className={
-			"p-3 rounded-xl border border-foreground/15 bg-background/80 text-white text-sm shadow-[0_10px_30px_-10px_rgba(47,217,104,0.25)] backdrop-blur-md "+
+			"p-3 rounded-xl border border-foreground/15 bg-background/80 text-foreground text-sm shadow-[0_10px_30px_-10px_rgba(47,217,104,0.25)] backdrop-blur-md "+
 			"data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 "+
 			className
 		}

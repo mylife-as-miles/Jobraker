@@ -31,6 +31,7 @@ export function getCorsHeaders(origin?: string): Record<string, string> {
     'https://admin.jobraker.io',
     'https://jobraker.io',
     'https://www.jobraker.io',
+    'https://jobraker.com',
     'https://jobraker-tau.vercel.app',
     'https://jobraker.vercel.app',
     'http://127.0.0.1:3000',
@@ -47,7 +48,7 @@ export function getCorsHeaders(origin?: string): Record<string, string> {
 
   return {
     'Access-Control-Allow-Origin': corsOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-skyvern-api-key, x-api-key, accept, accept-language, content-language',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-skyvern-api-key, x-api-key, accept, accept-language, content-language, prefer, range, x-supabase-api-version, baggage, sentry-trace, traceparent, tracestate',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Max-Age': '86400',
   };

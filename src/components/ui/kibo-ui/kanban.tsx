@@ -101,7 +101,7 @@ export function KanbanCards<T extends Item>({
 
   return (
     <div
-      className={`space-y-3 min-h-[120px] rounded-lg transition-colors duration-200 ${isDragOver ? "bg-foreground/5 ring-2 ring-white/20 ring-inset border-2 border-dashed border-foreground/20" : ""}`}
+      className={`space-y-3 min-h-[120px] rounded-lg transition-colors duration-200 ${isDragOver ? "bg-foreground/5 ring-2 ring-foreground/20 ring-inset border-2 border-dashed border-foreground/20" : ""}`}
       onDragOver={(e) => {
         if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
         e.preventDefault();

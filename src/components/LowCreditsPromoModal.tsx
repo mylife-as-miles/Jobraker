@@ -175,17 +175,17 @@ export function LowCreditsPromoModal({
           a one-time rescue offer at your next checkout.
         </DialogDescription>
 
-        <div className='flex items-center justify-between gap-3 border-b border-white/10 bg-black/40 px-4 py-2.5'>
+        <div className='flex items-center justify-between gap-3 border-b border-foreground/10 bg-black/40 px-4 py-2.5'>
           <div className='flex min-w-0 items-center gap-2'>
             <Rocket className='h-4 w-4 shrink-0 text-white' aria-hidden />
-            <span className='truncate text-xs font-medium text-white/95 sm:text-sm'>
+            <span className='truncate text-xs font-medium text-foreground/95 sm:text-sm'>
               You&apos;ve used {stats.percentSpent}% of your search capacity
             </span>
           </div>
           <button
             type='button'
             onClick={handleClose}
-            className='rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white'
+            className='rounded-lg p-1.5 text-foreground/70 transition-colors hover:bg-foreground/10 hover:text-foreground'
             aria-label='Dismiss'
           >
             <X className='h-4 w-4' />
@@ -218,7 +218,7 @@ export function LowCreditsPromoModal({
             </p>
           </div>
 
-          <p className='px-1 text-center text-sm leading-relaxed text-zinc-400'>
+          <p className='px-1 text-center text-sm leading-relaxed text-muted-foreground'>
             You have only{" "}
             <span className='font-semibold text-white'>
               {stats.percentRemaining}%
@@ -227,19 +227,19 @@ export function LowCreditsPromoModal({
             offer for your next paid checkout before this hour closes.
           </p>
 
-          <div className='overflow-hidden rounded-xl border border-white/10 bg-zinc-900/80'>
-            <div className='flex items-center gap-2 border-b border-white/10 bg-brand/10 px-3 py-2'>
+          <div className='overflow-hidden rounded-xl border border-foreground/10 bg-zinc-900/80'>
+            <div className='flex items-center gap-2 border-b border-foreground/10 bg-brand/10 px-3 py-2'>
               <Check className='h-4 w-4 shrink-0 text-brand' strokeWidth={3} />
               <span className='text-xs font-semibold text-brand'>
                 {PROMO_CODE_DISPLAY} is reserved for this account
               </span>
             </div>
             <div className='grid min-h-[88px] grid-cols-[1fr_auto_1fr] items-stretch gap-0'>
-              <div className='flex flex-col justify-center border-r border-dashed border-white/20 px-4 py-3'>
+              <div className='flex flex-col justify-center border-r border-dashed border-foreground/20 px-4 py-3'>
                 <span className='text-2xl font-black leading-none tabular-nums text-fuchsia-400 sm:text-3xl'>
                   {PROMO_DISCOUNT_PCT}% OFF
                 </span>
-                <span className='mt-1.5 text-[10px] uppercase tracking-wide text-zinc-500'>
+                <span className='mt-1.5 text-[10px] uppercase tracking-wide text-muted-foreground'>
                   One-time momentum offer
                 </span>
               </div>
@@ -249,12 +249,12 @@ export function LowCreditsPromoModal({
                   <span className='text-3xl font-bold leading-none text-white sm:text-4xl'>
                     {String(mm).padStart(2, "0")}
                   </span>
-                  <span className='pb-1 text-2xl text-white/60'>:</span>
+                  <span className='pb-1 text-2xl text-foreground/60'>:</span>
                   <span className='text-3xl font-bold leading-none text-white sm:text-4xl'>
                     {String(ss).padStart(2, "0")}
                   </span>
                 </div>
-                <div className='mt-1 flex gap-6 text-[10px] uppercase tracking-wider text-zinc-500'>
+                <div className='mt-1 flex gap-6 text-[10px] uppercase tracking-wider text-muted-foreground'>
                   <span>minutes</span>
                   <span>seconds</span>
                 </div>

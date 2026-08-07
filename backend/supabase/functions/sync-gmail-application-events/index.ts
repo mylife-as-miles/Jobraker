@@ -8,6 +8,10 @@ import {
 } from "../_shared/subscription.ts";
 import { createNotificationRecord } from "../_shared/notification-center.ts";
 import {
+  composioGmailFetchEmails,
+  getComposioGmailConnection,
+} from "../_shared/composio-gmail.ts";
+import {
   enforceFeatureRateLimit,
   recordFeatureUsage,
 } from "../_shared/feature-limits.ts";
@@ -82,19 +86,6 @@ type RequestBody = {
   force?: boolean;
 };
 
-type GmailConnection = {
-  email: string | null;
-  access_token_ciphertext: string | null;
-  refresh_token_ciphertext: string | null;
-  token_expires_at: string | null;
-  sync_history_id: string | null;
-};
-
-type GmailListResponse = {
-  messages?: Array<{ id: string; threadId?: string }>;
-  nextPageToken?: string;
-};
-
 type GmailHeader = {
   name?: string;
   value?: string;
@@ -108,24 +99,6 @@ type GmailPayload = {
   parts?: GmailPayload[];
 };
 
-type GmailMessage = {
-  id: string;
-  threadId?: string;
-  labelIds?: string[];
-  snippet?: string;
-  internalDate?: string;
-  historyId?: string;
-  payload?: GmailPayload;
-};
-
-type GoogleTokenResponse = {
-  access_token?: string;
-  expires_in?: number;
-  scope?: string;
-  token_type?: string;
-  error?: string;
-  error_description?: string;
-};
 
 type ApplicationStatus =
   | "Draft"
@@ -179,7 +152,6 @@ type ClassifiedMessage = {
   nextStep: string | null;
 };
 
-const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 function jsonResponse(
@@ -191,18 +163,6 @@ function jsonResponse(
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-function requireEnv(name: string) {
-  const value = Deno.env.get(name)?.trim();
-  if (!value) throw new Error(`${name} is not configured`);
-  return value;
-}
-
-function toBase64(bytes: Uint8Array) {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
 }
 
 function fromBase64(value: string) {
@@ -226,151 +186,6 @@ function decodeBase64Url(data?: string) {
   } catch {
     return "";
   }
-}
-
-async function getEncryptionKey() {
-  const secret = requireEnv("GMAIL_TOKEN_ENCRYPTION_KEY");
-  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(secret));
-  return crypto.subtle.importKey("raw", digest, "AES-GCM", false, [
-    "encrypt",
-    "decrypt",
-  ]);
-}
-
-async function encryptSecret(value: string) {
-  const iv = new Uint8Array(12);
-  crypto.getRandomValues(iv);
-  const key = await getEncryptionKey();
-  const ciphertext = new Uint8Array(
-    await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv },
-      key,
-      encoder.encode(value),
-    ),
-  );
-  return `${toBase64(iv)}.${toBase64(ciphertext)}`;
-}
-
-async function decryptSecret(value: string | null | undefined) {
-  if (!value) return null;
-  const [ivBase64, ciphertextBase64] = value.split(".");
-  if (!ivBase64 || !ciphertextBase64) {
-    throw new Error("Stored Gmail token is invalid");
-  }
-  const key = await getEncryptionKey();
-  const plaintext = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: fromBase64(ivBase64) },
-    key,
-    fromBase64(ciphertextBase64),
-  );
-  return decoder.decode(plaintext);
-}
-
-async function refreshAccessToken(refreshToken: string) {
-  const params = new URLSearchParams({
-    client_id: requireEnv("GOOGLE_GMAIL_CLIENT_ID"),
-    client_secret: requireEnv("GOOGLE_GMAIL_CLIENT_SECRET"),
-    refresh_token: refreshToken,
-    grant_type: "refresh_token",
-  });
-
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: params,
-  });
-  const data = await response.json() as GoogleTokenResponse;
-  if (!response.ok || !data.access_token) {
-    throw new Error(
-      data.error_description || data.error || "Gmail token refresh failed",
-    );
-  }
-  return {
-    accessToken: data.access_token,
-    expiresAt: new Date(
-      Date.now() + Math.max(30, data.expires_in || 3600) * 1000,
-    ).toISOString(),
-  };
-}
-
-async function getValidAccessToken(
-  serviceClient: any,
-  userId: string,
-  connection: GmailConnection,
-) {
-  const expiresAt = connection.token_expires_at
-    ? Date.parse(connection.token_expires_at)
-    : 0;
-  const shouldRefresh = !expiresAt || expiresAt - Date.now() < 90_000;
-  const currentAccessToken = await decryptSecret(
-    connection.access_token_ciphertext,
-  );
-
-  if (currentAccessToken && !shouldRefresh) {
-    return currentAccessToken;
-  }
-
-  const refreshToken = await decryptSecret(connection.refresh_token_ciphertext);
-  if (!refreshToken) {
-    throw new Error("Gmail is connected without a refresh token. Reconnect Gmail.");
-  }
-
-  const refreshed = await refreshAccessToken(refreshToken);
-  const { error } = await serviceClient
-    .from("gmail_connections")
-    .update({
-      access_token_ciphertext: await encryptSecret(refreshed.accessToken),
-      token_expires_at: refreshed.expiresAt,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", userId);
-  if (error) throw error;
-  return refreshed.accessToken;
-}
-
-async function listGmailMessages(
-  accessToken: string,
-  query: string,
-  maxResults: number,
-) {
-  const messages: Array<{ id: string; threadId?: string }> = [];
-  let pageToken: string | undefined;
-
-  while (messages.length < maxResults) {
-    const url = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages");
-    url.searchParams.set("q", query);
-    url.searchParams.set("maxResults", String(Math.min(100, maxResults - messages.length)));
-    if (pageToken) url.searchParams.set("pageToken", pageToken);
-
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (!response.ok) {
-      throw new Error(`Gmail message search failed (${response.status}): ${await response.text()}`);
-    }
-
-    const data = await response.json() as GmailListResponse;
-    messages.push(...(data.messages || []));
-    pageToken = data.nextPageToken;
-    if (!pageToken || !data.messages?.length) break;
-  }
-
-  return messages;
-}
-
-async function getGmailMessage(accessToken: string, messageId: string) {
-  const url = new URL(
-    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}`,
-  );
-  url.searchParams.set("format", "full");
-
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!response.ok) {
-    throw new Error(`Gmail message fetch failed (${response.status}): ${await response.text()}`);
-  }
-  return await response.json() as GmailMessage;
 }
 
 function getHeader(payload: GmailPayload | undefined, name: string) {
@@ -518,7 +333,7 @@ function normalizeForPhraseMatch(text: string) {
 }
 
 function looksLikeMarketingOffer(text: string) {
-  return /\b(discount|promo|coupon|sale|black friday|limited time offer|subscription offer|special offer|renewal offer|upgrade offer)\b/i
+  return /\b(discount|promo|coupon|sale|black friday|limited time offer|subscription offer|special offer|renewal offer|upgrade offer|newsletter|digest|welcome to|account created|what's new|new since|weekly update|monthly update|community update|release notes|feature update|webinar|unsubscribe)\b/i
     .test(text);
 }
 
@@ -1004,7 +819,10 @@ async function createNotification(
   }
 }
 
-function receivedAtFor(message: GmailMessage, dateHeader: string) {
+function receivedAtFor(
+  message: { internalDate?: string | null },
+  dateHeader: string,
+) {
   const internal = Number(message.internalDate || "");
   if (Number.isFinite(internal) && internal > 0) {
     return new Date(internal).toISOString();
@@ -1030,9 +848,7 @@ serve(async (req) => {
       "Basics",
       "Gmail application checks",
     );
-    const canUseEmailIntegrations =
-      typeof user.email === "string" &&
-      user.email.trim().toLowerCase() === EMAIL_INTEGRATION_ALLOWED_EMAIL;
+    const canUseEmailIntegrations = typeof user.email === "string" && user.email.trim().length > 0;
 
     if (!canUseEmailIntegrations) {
       return jsonResponse(
@@ -1055,26 +871,31 @@ serve(async (req) => {
       : DEFAULT_QUERY;
     const force = body.force === true;
 
-    const { data: connection, error: connectionError } = await serviceClient
-      .from("gmail_connections")
-      .select("email, access_token_ciphertext, refresh_token_ciphertext, token_expires_at, sync_history_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (connectionError) throw connectionError;
-    if (!connection) {
+    // Gmail auth lives in the Composio connected account that Settings →
+    // Integrations manages, so the agent and the UI can no longer disagree.
+    const gmailConnection = await getComposioGmailConnection(user.id);
+    if (!gmailConnection.connected) {
       return jsonResponse(
-        { error: "Gmail is not connected. Connect Gmail in Settings first." },
+        {
+          error: gmailConnection.state === "pending"
+            ? "Gmail authorization was started but never finished. Complete it in Settings → Integrations."
+            : "Gmail is not connected. Connect Gmail in Settings first.",
+          code: gmailConnection.state === "pending"
+            ? "gmail_authorization_incomplete"
+            : "gmail_not_connected",
+        },
         409,
         corsHeaders,
       );
     }
 
-    const accessToken = await getValidAccessToken(
-      serviceClient,
-      user.id,
-      connection as GmailConnection,
-    );
-    const list = await listGmailMessages(accessToken, query, maxResults);
+    // include_payload returns headers and body inline, so the previous
+    // list-then-fetch-each round trip is no longer needed.
+    const { messages: list } = await composioGmailFetchEmails(user.id, {
+      query,
+      maxResults,
+      includePayload: true,
+    });
     const ids = list.map((message) => message.id);
 
     /** Skip only messages already processed and linked to an application (retry orphans until they match). */
@@ -1117,19 +938,25 @@ serve(async (req) => {
     let latestHistoryId: string | null = null;
     const events: Array<Record<string, unknown>> = [];
 
-    for (const listed of list) {
-      if (!force && existingIds.has(listed.id)) {
+    for (const message of list) {
+      if (!force && existingIds.has(message.id)) {
         skippedExistingCount += 1;
         continue;
       }
 
-      const message = await getGmailMessage(accessToken, listed.id);
       latestHistoryId = message.historyId || latestHistoryId;
-      const subject = getHeader(message.payload, "Subject");
-      const from = parseAddress(getHeader(message.payload, "From"));
-      const dateHeader = getHeader(message.payload, "Date");
+      // Composio may return these pre-extracted or only inside the raw payload,
+      // so prefer the explicit field and fall back to header parsing. Without
+      // this, an absent payload would classify every message as "other".
+      const subject = message.subject || getHeader(message.payload, "Subject");
+      const from = parseAddress(message.from || getHeader(message.payload, "From"));
+      const dateHeader = message.date || getHeader(message.payload, "Date");
       const receivedAt = receivedAtFor(message, dateHeader);
-      const bodyText = payloadToText(message.payload);
+      const bodyText = payloadToText(message.payload) ||
+        stripHtml(message.messageText || "")
+          .replace(/\s{2,}/g, " ")
+          .trim()
+          .slice(0, MAX_MESSAGE_BODY_CHARS);
       const classified = classifyMessage(
         subject,
         message.snippet || "",
@@ -1338,15 +1165,23 @@ serve(async (req) => {
       });
     }
 
+    // The sync cursor is JobRaker bookkeeping, not auth. Credentials moved to
+    // Composio, so a gmail_connections row may not exist at all — update it
+    // when present but never fail the sync over it.
     const { error: syncUpdateError } = await serviceClient
       .from("gmail_connections")
       .update({
         last_sync_at: new Date().toISOString(),
-        sync_history_id: latestHistoryId || (connection as GmailConnection).sync_history_id,
+        ...(latestHistoryId ? { sync_history_id: latestHistoryId } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", user.id);
-    if (syncUpdateError) throw syncUpdateError;
+    if (syncUpdateError) {
+      console.warn(
+        "sync-gmail-application-events: could not persist sync cursor",
+        syncUpdateError,
+      );
+    }
 
     await recordFeatureUsage({
       userId: user.id,

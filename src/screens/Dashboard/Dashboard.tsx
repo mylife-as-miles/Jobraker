@@ -5,6 +5,10 @@ import {
   getCreditPressureStats,
   readSnoozeUntil,
 } from "@/components/LowCreditsPromoModal";
+import {
+  CreditsExhaustedUpgradeDialog,
+  readExhaustedCreditsSnoozeUntil,
+} from "@/components/CreditsExhaustedUpgradeDialog";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import {
@@ -28,6 +32,8 @@ import {
   Home,
   ChevronRight as BreadcrumbChevron,
   Briefcase,
+  User2,
+  BriefcaseBusiness,
 
   // CreditCard,
   PanelLeft,
@@ -46,6 +52,7 @@ import {
   clearPendingReferralCode,
 } from "@/lib/referralAttribution";
 import { Skeleton } from "../../components/ui/skeleton";
+import { HashvatarAvatar } from "@/components/ui/hashvatar-avatar";
 import { createClient } from "../../lib/supabaseClient";
 import { updateSessionActivity } from "../../utils/sessionManagement";
 import { isCurrentUserAdmin } from "@/lib/adminUtils";
@@ -54,7 +61,10 @@ import { CreditDisplay } from "../../components/CreditDisplay";
 import useMediaQuery from "../../hooks/use-media-query";
 
 import { ExperienceFeedbackPrompt } from "./components/ExperienceFeedbackPrompt";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { SupportFloatingWidget } from "@/components/support/SupportFloatingWidget";
+import { TextSelectionToolbar } from "@/components/chat/TextSelectionToolbar";
+import { ShimmerText } from "@/components/ui/ShimmerText";
 import { useProductTour } from "@/providers/TourProvider";
 
 import { lazyWithRetry } from "@/utils/lazyWithRetry";
@@ -104,7 +114,7 @@ interface PageLink {
   path: string;
 }
 
-type SubscriptionTier = "Free" | "Basics" | "Pro" | "Ultimate";
+type SubscriptionTier = "Free" | "Starter" | "Basics" | "Pro" | "Ultimate";
 
 function SidebarPlanCardSkeleton({ isCollapsed }: { isCollapsed?: boolean }) {
   return (
@@ -324,6 +334,8 @@ export const Dashboard = (): JSX.Element => {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showCareerPopup, setShowCareerPopup] = useState(false);
+  const [chatFocusMode, setChatFocusMode] = useState(false);
 
   const currentPage = useMemo(() => {
     const segment = (location.pathname.split("/")[2] || "").toLowerCase();
@@ -331,6 +343,19 @@ export const Dashboard = (): JSX.Element => {
       ? (segment as DashboardPage)
       : "overview";
   }, [location.pathname, pages]);
+
+  useEffect(() => {
+    const handleChatFocusMode = (event: Event) => {
+      setChatFocusMode(Boolean((event as CustomEvent<boolean>).detail));
+    };
+    window.addEventListener("jobraker:chat-focus-mode", handleChatFocusMode);
+    return () =>
+      window.removeEventListener("jobraker:chat-focus-mode", handleChatFocusMode);
+  }, []);
+
+  useEffect(() => {
+    if (currentPage !== "chat") setChatFocusMode(false);
+  }, [currentPage]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -349,6 +374,8 @@ export const Dashboard = (): JSX.Element => {
 
   const { balance: creditBalance, loading: creditsLoading } = useCredits();
   const [lowCreditModalOpen, setLowCreditModalOpen] = useState(false);
+  const [creditsExhaustedModalOpen, setCreditsExhaustedModalOpen] =
+    useState(false);
   const [sidebarSubscriptionTier, setSidebarSubscriptionTier] =
     useState<SubscriptionTier | null>(null);
 
@@ -356,13 +383,26 @@ export const Dashboard = (): JSX.Element => {
     if (creditsLoading) return;
     if (currentPage === "billing") {
       setLowCreditModalOpen(false);
+      setCreditsExhaustedModalOpen(false);
       return;
     }
     if (!creditBalance) return;
-    if (!getCreditPressureStats(creditBalance).shouldAlert) {
+    const creditPressure = getCreditPressureStats(creditBalance);
+    if (!creditPressure.shouldAlert) {
       setLowCreditModalOpen(false);
+      setCreditsExhaustedModalOpen(false);
       return;
     }
+    const creditsExhausted = Math.max(0, Number(creditBalance.balance) || 0) <= 0;
+    if (creditsExhausted) {
+      setLowCreditModalOpen(false);
+      const snoozeUntil = readExhaustedCreditsSnoozeUntil();
+      if (!snoozeUntil || Date.now() >= snoozeUntil) {
+        setCreditsExhaustedModalOpen(true);
+      }
+      return;
+    }
+    setCreditsExhaustedModalOpen(false);
     const snoozeUntil = readSnoozeUntil();
     if (snoozeUntil && Date.now() < snoozeUntil) return;
     setLowCreditModalOpen(true);
@@ -375,14 +415,6 @@ export const Dashboard = (): JSX.Element => {
     () => recentNotifications.filter((n) => !n.read).length,
     [recentNotifications],
   );
-  const initials = useMemo(() => {
-    const a = (profile?.first_name || "").trim();
-    const b = (profile?.last_name || "").trim();
-    const i =
-      `${a.charAt(0) || ""}${b.charAt(0) || ""}` || email.charAt(0) || "U";
-    return i.toUpperCase();
-  }, [profile?.first_name, profile?.last_name, email]);
-
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
@@ -498,6 +530,18 @@ export const Dashboard = (): JSX.Element => {
       clearInterval(id);
     };
   }, [supabase, (profile as any)?.avatar_url]);
+
+  useEffect(() => {
+    const handleAddToChatNav = () => {
+      if (location.pathname !== "/dashboard/chat") {
+        navigate("/dashboard/chat");
+      }
+    };
+    window.addEventListener("jobraker:add-to-chat", handleAddToChatNav);
+    return () => {
+      window.removeEventListener("jobraker:add-to-chat", handleAddToChatNav);
+    };
+  }, [location.pathname, navigate]);
 
   const allDashboardPages = useMemo((): PageLink[] => {
     const base: PageLink[] = [
@@ -702,20 +746,11 @@ export const Dashboard = (): JSX.Element => {
   return (
     <TooltipProvider delayDuration={150}>
       <div className='h-screen max-h-screen w-screen overflow-hidden bg-background flex'>
-        {/* Mobile sidebar overlay */}
-        {sidebarOpen && (
-          <div
-            className='fixed inset-0 bg-fore/50 backdrop-blur-sm z-40 lg:hidden'
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Sidebar - Modern & Advanced */}
+        {/* Sidebar - Desktop Only */}
         <div
           className={`
-        fixed inset-y-0 left-0 z-50 bg-card/95 backdrop-blur-xl border-r border-border/40 flex flex-col overflow-hidden transition-all duration-200
-        ${sidebarOpen ? "translate-x-0 w-72" : "-translate-x-full lg:translate-x-0"}
-        ${isCollapsed && isDesktop ? "lg:w-20" : "lg:w-72"}
+        fixed inset-y-0 left-0 z-50 bg-card/95 backdrop-blur-xl border-r border-border/40 hidden lg:flex flex-col overflow-hidden transition-all duration-200
+        ${chatFocusMode ? "!hidden" : isCollapsed && isDesktop ? "lg:w-20" : "lg:w-72"}
       `}
         >
           {/* Logo Section */}
@@ -739,9 +774,9 @@ export const Dashboard = (): JSX.Element => {
                   animate={{ opacity: 1 }}
                   className='flex flex-col min-w-0'
                 >
-                  <span className='font-bold text-lg leading-none tracking-tight text-foreground truncate'>
+                  <ShimmerText className='font-bold text-lg leading-none tracking-tight truncate'>
                     JobRaker
-                  </span>
+                  </ShimmerText>
                 </motion.div>
               )}
 
@@ -915,9 +950,18 @@ export const Dashboard = (): JSX.Element => {
 
         {/* Main Content - Responsive */}
         <div
-          className={`flex-1 flex flex-col min-w-0 transition-all duration-300  ${isDesktop ? (isCollapsed ? "lg:ml-20" : "lg:ml-72") : ""}`}
+          className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
+            isDesktop
+              ? chatFocusMode
+                ? "lg:ml-0"
+                : isCollapsed
+                  ? "lg:ml-20"
+                  : "lg:ml-72"
+              : ""
+          }`}
         >
           {/* Header - Responsive */}
+          {!chatFocusMode && (
           <header className='sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border/40 p-2 sm:p-3 lg:p-4'>
             <div className='flex items-center justify-between gap-2'>
               <div className='flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1'>
@@ -934,17 +978,7 @@ export const Dashboard = (): JSX.Element => {
                 >
                   <PanelLeft className='w-5 h-5' />
                 </Button>
-                {/* Mobile menu button */}
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  className='lg:hidden text-brand hover:bg-brand/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2'
-                  onClick={() => setSidebarOpen(true)}
-                  title='Open sidebar navigation'
-                  aria-label='Open sidebar'
-                >
-                  <Menu className='w-4 h-4 sm:w-5 sm:h-5' />
-                </Button>
+
 
                 {/* Logo and Brand on mobile */}
                 {currentPage === "overview" ? (
@@ -956,9 +990,9 @@ export const Dashboard = (): JSX.Element => {
                         alt='JobRaker logo'
                       />
                     </div>
-                    <span className='text-foreground font-bold text-lg leading-none tracking-tight'>
+                    <ShimmerText className='font-bold text-lg leading-none tracking-tight'>
                       JobRaker
-                    </span>
+                    </ShimmerText>
                   </div>
                 ) : (
                   <span className='sm:hidden text-foreground font-bold text-lg leading-none tracking-tight truncate max-w-[14rem]'>
@@ -1072,9 +1106,7 @@ export const Dashboard = (): JSX.Element => {
                           className='w-full h-full object-cover'
                         />
                       ) : (
-                        <span className='text-foreground font-bold text-xs sm:text-sm lg:text-base'>
-                          {initials}
-                        </span>
+                        <HashvatarAvatar seed={profile?.id || email} />
                       )}
                     </div>
                     <div className='text-right hidden lg:block max-w-[200px] overflow-hidden'>
@@ -1107,15 +1139,14 @@ export const Dashboard = (): JSX.Element => {
                         className='w-full h-full object-cover'
                       />
                     ) : (
-                      <span className='text-foreground font-bold text-xs'>
-                        {initials}
-                      </span>
+                      <HashvatarAvatar seed={profile?.id || email} />
                     )}
                   </div>
                 </Button>
               </div>
             </div>
           </header>
+          )}
 
           {/* Page Content - Responsive */}
           <div
@@ -1123,7 +1154,7 @@ export const Dashboard = (): JSX.Element => {
               ["chat", "interview-studio"].includes(currentPage)
                 ? "overflow-hidden"
                 : "overflow-auto"
-            } ${!isDesktop ? "pb-20" : ""}`}
+            } ${!isDesktop && !chatFocusMode ? "pb-20" : ""}`}
           >
             <AnimatePresence initial={false}>
               <motion.div
@@ -1143,10 +1174,14 @@ export const Dashboard = (): JSX.Element => {
         </div>
 
         {/* Mobile Bottom Tab Bar */}
-        {!isDesktop && (
+        {!isDesktop && !chatFocusMode && (
           <div className='fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border/40 px-2 grid grid-cols-5 h-16 select-none shadow-[0_-8px_32px_rgba(0,0,0,0.4)]'>
+            {/* Home Tab */}
             <button
-              onClick={() => navigate("/dashboard/overview")}
+              onClick={() => {
+                setShowCareerPopup(false);
+                navigate("/dashboard/overview");
+              }}
               className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
                 currentPage === "overview"
                   ? "text-brand scale-105"
@@ -1156,41 +1191,86 @@ export const Dashboard = (): JSX.Element => {
               <Home className='w-5 h-5 mb-0.5' />
               <span className='text-[10px] font-semibold'>Home</span>
             </button>
+
+            {/* Account Tab */}
             <button
-              onClick={() => navigate("/dashboard/jobs")}
-              className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
-                currentPage === "jobs"
-                  ? "text-brand scale-105"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Briefcase className='w-5 h-5 mb-0.5' />
-              <span className='text-[10px] font-semibold'>Jobs</span>
-            </button>
-            <button
-              onClick={() => navigate("/dashboard/application")}
-              className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
-                currentPage === "application"
-                  ? "text-brand scale-105"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Users className='w-5 h-5 mb-0.5' />
-              <span className='text-[10px] font-semibold'>Applications</span>
-            </button>
-            <button
-              onClick={() => navigate("/dashboard/account")}
+              onClick={() => {
+                setShowCareerPopup(false);
+                navigate("/dashboard/account");
+              }}
               className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
                 ["account", "resume", "cover-letter"].includes(currentPage)
                   ? "text-brand scale-105"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Folder className='w-5 h-5 mb-0.5' />
-              <span className='text-[10px] font-semibold'>Documents</span>
+              <FileText className='w-5 h-5 mb-0.5' />
+              <span className='text-[10px] font-semibold'>Document</span>
             </button>
+
+            {/* Career Tab (Center highlighted squircle button) */}
+            <div className='relative flex justify-center items-center -mt-6'>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCareerPopup(!showCareerPopup);
+                }}
+                className={`w-12 h-12 rounded-[14px] bg-gradient-to-br from-brand via-brand/90 to-brand/75 flex items-center justify-center text-black shadow-[0_0_20px_rgba(47,217,104,0.45)] active:scale-95 transition-all duration-300 hover:shadow-[0_0_25px_rgba(47,217,104,0.6)] z-50 ${
+                  showCareerPopup ? "rotate-45" : ""
+                }`}
+                title='Career actions'
+                aria-label='Open Career menu'
+              >
+                <BriefcaseBusiness
+                  className={`w-5 h-5 transition-transform duration-300 ${showCareerPopup ? "-rotate-45" : ""}`}
+                />
+              </button>
+
+              {/* Popup Menu */}
+              <AnimatePresence>
+                {showCareerPopup && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 15, scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    className='absolute bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center pointer-events-auto'
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Jobs Pill */}
+                    <button
+                      onClick={() => {
+                        navigate("/dashboard/jobs");
+                        setShowCareerPopup(false);
+                      }}
+                      className='absolute right-2 flex w-32 translate-x-[-18px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(47,217,104,0.1)] shrink-0 text-foreground text-sm font-semibold'
+                    >
+                      <Briefcase className='w-4 h-4 text-brand' />
+                      <span>Jobs</span>
+                    </button>
+
+                    {/* Application Pill */}
+                    <button
+                      onClick={() => {
+                        navigate("/dashboard/application");
+                        setShowCareerPopup(false);
+                      }}
+                      className='absolute left-2 flex w-40 translate-x-[18px] items-center justify-center gap-2 px-5 py-3 rounded-full bg-card/95 backdrop-blur-xl border border-border/40 hover:bg-brand/15 hover:text-brand hover:border-brand/30 transition-all duration-200 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_12px_rgba(47,217,104,0.1)] shrink-0 text-foreground text-sm font-semibold'
+                    >
+                      <Users className='w-4 h-4 text-brand' />
+                      <span>Applications</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Chat Tab */}
             <button
-              onClick={() => navigate("/dashboard/chat")}
+              onClick={() => {
+                setShowCareerPopup(false);
+                navigate("/dashboard/chat");
+              }}
               className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
                 currentPage === "chat"
                   ? "text-brand scale-105"
@@ -1198,7 +1278,23 @@ export const Dashboard = (): JSX.Element => {
               }`}
             >
               <MessageSquare className='w-5 h-5 mb-0.5' />
-              <span className='text-[10px] font-semibold'>Assistant</span>
+              <span className='text-[10px] font-semibold'>Chat</span>
+            </button>
+
+            {/* Analytics Tab */}
+            <button
+              onClick={() => {
+                setShowCareerPopup(false);
+                navigate("/dashboard/analytics");
+              }}
+              className={`flex flex-col items-center justify-center w-full py-1 transition-all duration-200 ${
+                currentPage === "analytics"
+                  ? "text-brand scale-105"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <TrendingUp className='w-5 h-5 mb-0.5' />
+              <span className='text-[10px] font-semibold'>Analytics</span>
             </button>
           </div>
         )}
@@ -1212,6 +1308,21 @@ export const Dashboard = (): JSX.Element => {
             navigate("/dashboard/billing?promo=LOWCREDIT_RESCUE")
           }
         />
+        <CreditsExhaustedUpgradeDialog
+          open={creditsExhaustedModalOpen}
+          onOpenChange={setCreditsExhaustedModalOpen}
+          balance={creditBalance}
+          currentPlan={sidebarSubscriptionTier}
+          onExplorePlans={() => navigate("/dashboard/billing?tab=subscription")}
+          onExplorePacks={() => navigate("/dashboard/billing?tab=packs")}
+        />
+        {currentPage === "overview" && (
+          <OnboardingChecklist
+            profile={profile}
+            skillsCount={profileSkills.data.length}
+            onNavigate={navigate}
+          />
+        )}
         {currentPage !== "chat" && (
           <SupportFloatingWidget
             currentPageId={currentPage}
@@ -1219,6 +1330,7 @@ export const Dashboard = (): JSX.Element => {
           />
         )}
         <ExperienceFeedbackPrompt />
+        <TextSelectionToolbar />
       </div>
     </TooltipProvider>
   );

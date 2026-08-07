@@ -282,7 +282,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     safeQuery(
       supabase
         .from("profiles")
-        .select("first_name, last_name, job_title")
+        .select("first_name, last_name, job_title, phone, phone_number, location, linkedin_url")
         .eq("id", userId)
         .maybeSingle(),
       { data: null } as any,
@@ -573,6 +573,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     name,
     email: "", // Not strictly needed for context
     headline: profileRes.data?.job_title || null,
+    profileRecord: profileRes.data || null,
     resumeSummary,
     candidateMemorySummary: candidateMemory?.summaryText || null,
     answerBankSummary: formatAnswerBankForPrompt(answerBankEntries, 12),
@@ -612,6 +613,9 @@ export function formatUserContextForPrompt(context: UserContext): string {
   const lines = [
     `## User Information`,
     `- Name: ${context.name}`,
+    `- Phone Number: ${(context.profileRecord as any)?.phone || (context.profileRecord as any)?.phone_number || "Not set"}`,
+    `- LinkedIn URL: ${(context.profileRecord as any)?.linkedin_url || (context.publicProfileSite as any)?.linkedin_url || "Not set"}`,
+    `- Location: ${(context.profileRecord as any)?.location || "Not set"}`,
     `- Headline: ${context.headline || "Not set"}`,
     `- Plan / tier: ${context.subscriptionTier}`,
     `- Paid AI credits: ${context.chatPaidCreditBalance}`,

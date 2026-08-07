@@ -56,7 +56,6 @@ import { useResumeExport } from "@/hooks/useResumeExport";
 import { useResumeHydration } from "@/hooks/useResumeHydration";
 
 const PREVIEW_BASE_WIDTH = 794;
-const PREVIEW_BASE_HEIGHT = 1123;
 
 const SECTION_ICONS: Record<string, any> = {
   education: FileText,
@@ -78,7 +77,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const navigate = useNavigate();
   const { success, error: toastError, info } = useToast();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
-  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
+  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Free");
   const { save: persistResume } = useResumePersistence(resumeId);
   const { downloadPdf, exporting } = useResumeExport((message) => {
     toastError("PDF export failed", message);
@@ -131,6 +130,27 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
     info,
     error: toastError,
   });
+
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const lastScrollTopRef = useRef(0);
+
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      if (!isMobile) return;
+      const currentScrollTop = e.currentTarget.scrollTop;
+      const diff = currentScrollTop - lastScrollTopRef.current;
+
+      if (currentScrollTop < 20) {
+        setHeaderVisible(true);
+      } else if (diff > 8 && currentScrollTop > 40) {
+        setHeaderVisible(false);
+      } else if (diff < -8) {
+        setHeaderVisible(true);
+      }
+      lastScrollTopRef.current = currentScrollTop;
+    },
+    [isMobile],
+  );
 
   // Responsive Check
   useEffect(() => {
@@ -335,7 +355,6 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const [saveAlertOpen, setSaveAlertOpen] = useState(false);
   const effectivePreviewScale = isMobile ? previewScale : zoom;
   const previewFrameWidth = PREVIEW_BASE_WIDTH * effectivePreviewScale;
-  const previewFrameHeight = PREVIEW_BASE_HEIGHT * effectivePreviewScale;
   const editorStatusLabel = saving
     ? "Saving..."
     : editorState.status === "error"
@@ -413,7 +432,15 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
       </Modal>
 
       {/* Header toolbar */}
-      <header className='shrink-0 border-b border-border/40 bg-background/95 px-3 py-3 md:h-16 md:px-6 md:py-0 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex flex-col gap-3 md:flex-row md:items-center md:justify-between z-10'>
+      <header
+        className={`shrink-0 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex flex-col gap-3 md:flex-row md:items-center md:justify-between z-10 transition-all duration-300 overflow-hidden ${
+          isMobile
+            ? headerVisible
+              ? "max-h-[300px] px-3 py-3 opacity-100"
+              : "max-h-0 px-3 py-0 opacity-0 border-b-0 pointer-events-none"
+            : "md:h-16 md:px-6 md:py-0 opacity-100"
+        }`}
+      >
         <div className='flex min-w-0 items-center gap-3 md:gap-4'>
           <button
             onClick={() => navigate("/dashboard/resume")}
@@ -473,7 +500,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           <button
             onClick={aiGenerateResume}
             disabled={aiLoading || loadingTier}
-            className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-brand/60 hover:bg-brand/15 dark:hover:bg-white/10 dark:hover:border-white/20'
+            className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-brand/60 hover:bg-brand/15 dark:hover:bg-foreground/10 dark:hover:border-foreground/20'
           >
             <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
             <span className='hidden sm:inline'>
@@ -569,6 +596,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
       <div className='flex-1 flex flex-col md:flex-row overflow-hidden'>
         {/* Editor Panel (Left) */}
         <div
+          onScroll={handleScroll}
           className={`${isMobile && mobileView !== "editor" ? "hidden" : "flex"} product-section-card-muted w-full flex-col overflow-y-auto custom-scrollbar rounded-none border-y-0 border-l-0 ${isMobile ? "pb-6" : "pb-20"} flex-1 md:w-[40%] md:min-w-[350px] md:max-w-[500px] md:flex-initial`}
         >
           <div className='p-4 md:p-6 space-y-4'>
@@ -605,15 +633,32 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                   <ChevronDown className='w-4 h-4 product-helper-text' />
                 )}
               </div>
-              {expandedSection === "personal" && (
-                <PersonalDetailsEditor
-                  hasProfileAvatar={Boolean(profile?.avatar_url)}
-                  profileAvatarUrl={profileAvatarUrl}
-                  syncingProfilePhoto={syncingProfilePhoto}
-                  onUseProfileImage={useProfileImage}
-                  onRefreshProfileImage={refreshProfileImage}
-                />
-              )}
+              <div
+                className={`spring-grid-expandable overflow-hidden transition-all ${
+                  expandedSection === "personal" ? "expanded" : ""
+                }`}
+                style={{
+                  display: "grid",
+                  gridTemplateRows: expandedSection === "personal" ? "1fr" : "0fr",
+                  transition: "grid-template-rows 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                }}
+              >
+                <div
+                  className='spring-grid-inner min-h-0 overflow-hidden'
+                  style={{
+                    opacity: expandedSection === "personal" ? 1 : 0,
+                    transition: "opacity 0.35s ease 0.15s",
+                  }}
+                >
+                  <PersonalDetailsEditor
+                    hasProfileAvatar={Boolean(profile?.avatar_url)}
+                    profileAvatarUrl={profileAvatarUrl}
+                    syncingProfilePhoto={syncingProfilePhoto}
+                    onUseProfileImage={useProfileImage}
+                    onRefreshProfileImage={refreshProfileImage}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Summary Section */}
@@ -638,17 +683,55 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                   )}
                 </div>
 
-                {expandedSection === "summary" && (
-                  <div className='p-5 pt-0 animate-in slide-in-from-top-2 duration-200'>
-                    <textarea
-                      value={summary.content || ""}
-                      onChange={(e) => setSummary(e.target.value)}
-                      rows={4}
-                      className='product-input-surface w-full rounded-lg px-3 py-2 text-sm outline-none transition-all focus:border-brand focus:ring-1 focus:ring-brand'
-                      placeholder='Brief professional summary...'
-                    />
+                <div
+                  className={`spring-grid-expandable overflow-hidden transition-all ${
+                    expandedSection === "summary" ? "expanded" : ""
+                  }`}
+                  style={{
+                    display: "grid",
+                    gridTemplateRows: expandedSection === "summary" ? "1fr" : "0fr",
+                    transition: "grid-template-rows 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                  }}
+                >
+                  <div
+                    className='spring-grid-inner min-h-0 overflow-hidden'
+                    style={{
+                      opacity: expandedSection === "summary" ? 1 : 0,
+                      transition: "opacity 0.35s ease 0.15s",
+                    }}
+                  >
+                    <div className='p-5 pt-0 space-y-3'>
+                      <textarea
+                        value={summary.content || ""}
+                        onChange={(e) => setSummary(e.target.value)}
+                        rows={4}
+                        className='product-input-surface w-full rounded-lg px-3 py-2 text-sm outline-none transition-all focus:border-brand focus:ring-1 focus:ring-brand'
+                        placeholder='Brief professional summary...'
+                      />
+                      <div className='flex items-center justify-between gap-2 pt-1'>
+                        <div className='text-[11px] text-muted-foreground flex items-center gap-1.5'>
+                          <Sparkles className='w-3.5 h-3.5 text-brand' />
+                          <span>AI Assistant ready to refine summary</span>
+                        </div>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={() => aiPolishSummary()}
+                          disabled={aiLoading}
+                          className='h-7 text-xs text-brand hover:text-brand hover:bg-brand/10 gap-1.5'
+                        >
+                          {aiLoading ? (
+                            <>Generating...</>
+                          ) : (
+                            <>
+                              <Sparkles className='w-3 h-3' /> Enhance with AI
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
 
@@ -693,15 +776,32 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                     </div>
                   </div>
 
-                  {expandedSection === sectionId && (
-                    <div className='p-5 pt-0'>
-                      {section.type === "list" ? (
-                        <ListEditor sectionId={sectionId} />
-                      ) : (
-                        <SectionEditor sectionId={sectionId} />
-                      )}
+                  <div
+                    className={`spring-grid-expandable overflow-hidden transition-all ${
+                      expandedSection === sectionId ? "expanded" : ""
+                    }`}
+                    style={{
+                      display: "grid",
+                      gridTemplateRows: expandedSection === sectionId ? "1fr" : "0fr",
+                      transition: "grid-template-rows 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                    }}
+                  >
+                    <div
+                      className='spring-grid-inner min-h-0 overflow-hidden'
+                      style={{
+                        opacity: expandedSection === sectionId ? 1 : 0,
+                        transition: "opacity 0.35s ease 0.15s",
+                      }}
+                    >
+                      <div className='p-5 pt-0'>
+                        {section.type === "list" ? (
+                          <ListEditor sectionId={sectionId} />
+                        ) : (
+                          <SectionEditor sectionId={sectionId} />
+                        )}
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}
@@ -710,7 +810,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             <div>
               <Button
                 variant='outline'
-                className='w-full py-6 border-dashed border-gray-300 dark:border-foreground/20 hover:border-brand hover:text-brand hover:bg-brand/5'
+                className='w-full py-6 border-dashed border-foreground/20 bg-card/30 hover:border-brand hover:text-brand hover:bg-brand/10 transition-all'
                 onClick={() => setIsAddSectionOpen(true)}
               >
                 <Plus className='w-5 h-5 mr-2' />
@@ -723,6 +823,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
         {/* Preview Panel (Right) */}
         <div
           ref={previewPanelRef}
+          onScroll={handleScroll}
           className={`${isMobile && mobileView !== "preview" ? "hidden" : "flex"} flex-1 overflow-auto justify-center p-3 md:p-8 relative custom-scrollbar bg-[hsl(var(--product-surface-muted))] dark:bg-background ${isMobile ? "pb-6 pt-4" : ""}`}
         >
           {!isMobile && (
@@ -743,10 +844,9 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           )}
 
           <div
-            className='shrink-0 transition-[width,min-height] duration-200 bg-white shadow-2xl relative'
+            className='shrink-0 transition-[width] duration-200 bg-white shadow-2xl relative'
             style={{
               width: `${previewFrameWidth}px`,
-              minHeight: `${previewFrameHeight}px`,
             }}
           >
             <div
@@ -754,7 +854,6 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
               className='origin-top-left transition-transform duration-200'
               style={{
                 width: `${PREVIEW_BASE_WIDTH}px`,
-                minHeight: `${PREVIEW_BASE_HEIGHT}px`,
                 transform: `scale(${effectivePreviewScale})`,
               }}
             >

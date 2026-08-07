@@ -40,7 +40,7 @@ export const CoverLetterPreviewCard: React.FC<CoverLetterPreviewCardProps> = ({ 
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
         return (
             <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                <span className="text-gray-300 text-xs">No preview</span>
+                <span className="text-foreground/80 text-xs">No preview</span>
             </div>
         );
     }
@@ -66,8 +66,8 @@ export const CoverLetterPreviewCard: React.FC<CoverLetterPreviewCardProps> = ({ 
                     {/* Sender Info */}
                     <div className="text-right mb-4">
                         <p className="font-bold text-sm text-gray-900">{sender.name || 'Your Name'}</p>
-                        {sender.address && <p className="text-gray-500" style={{ fontSize: '9px' }}>{sender.address}</p>}
-                        <div className="flex justify-end gap-3 text-gray-500" style={{ fontSize: '8px' }}>
+                        {sender.address && <p className="text-muted-foreground" style={{ fontSize: '9px' }}>{sender.address}</p>}
+                        <div className="flex justify-end gap-3 text-muted-foreground" style={{ fontSize: '8px' }}>
                             {sender.phone && <span>{sender.phone}</span>}
                             {sender.email && <span>{sender.email}</span>}
                         </div>

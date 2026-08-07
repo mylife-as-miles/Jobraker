@@ -444,7 +444,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
               <div className='relative z-10 flex-1 overflow-y-auto pr-1 custom-scroll'>
                 <div className='flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6'>
                   <div>
-                    <h2 className='text-xl sm:text-2xl font-bold text-white flex items-center gap-2'>
+                    <h2 className='text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2'>
                       <CalendarDays className='w-5 h-5 text-brand' />
                       {range
                         ? `${range.start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} → ${range.end.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
@@ -535,24 +535,24 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
                 </div>
 
                 {quickAddOpen && (
-                  <div className='mb-6 p-4 rounded-xl border border-foreground/10 bg-white/[0.04] flex flex-col gap-3'>
+                  <div className='mb-6 p-4 rounded-xl border border-foreground/10 bg-foreground/[0.04] flex flex-col gap-3'>
                     <div className='flex flex-col sm:flex-row gap-3'>
                       <input
                         placeholder='Job title'
                         value={qaJob}
                         onChange={(e) => setQaJob(e.target.value)}
-                        className='flex-1 bg-background/40 border border-foreground/10 rounded px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-brand/50'
+                        className='flex-1 bg-background/40 border border-foreground/10 rounded px-3 py-2 text-sm text-foreground placeholder-foreground/30 focus:outline-none focus:ring-1 focus:ring-brand/50'
                       />
                       <input
                         placeholder='Company'
                         value={qaCompany}
                         onChange={(e) => setQaCompany(e.target.value)}
-                        className='flex-1 bg-background/40 border border-foreground/10 rounded px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-brand/50'
+                        className='flex-1 bg-background/40 border border-foreground/10 rounded px-3 py-2 text-sm text-foreground placeholder-foreground/30 focus:outline-none focus:ring-1 focus:ring-brand/50'
                       />
                       <select
                         value={qaStatus}
                         onChange={(e) => setQaStatus(e.target.value as any)}
-                        className='bg-background/40 border border-foreground/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-brand/50'
+                        className='bg-background/40 border border-foreground/10 rounded px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-brand/50'
                       >
                         {ALL_STATUSES.map((s) => (
                           <option key={s} value={s}>
@@ -581,7 +581,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
 
                 {topCompanies.length > 0 && (
                   <div className='mb-6'>
-                    <h3 className='text-sm font-semibold text-white mb-2 flex items-center gap-2'>
+                    <h3 className='text-sm font-semibold text-foreground mb-2 flex items-center gap-2'>
                       <Building2 className='w-4 h-4 text-brand' /> Companies
                     </h3>
                     <div className='flex flex-wrap gap-2'>
@@ -600,7 +600,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
                 {/* Interviews */}
                 {filteredInterviews.length > 0 && (
                   <div className='mb-8'>
-                    <h3 className='text-sm font-semibold text-white mb-3 flex items-center gap-2'>
+                    <h3 className='text-sm font-semibold text-foreground mb-3 flex items-center gap-2'>
                       <Clock className='w-4 h-4 text-brand' /> Interviews
                     </h3>
                     <div className='space-y-2'>
@@ -613,7 +613,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
                             {(a.company || "")[0] || "•"}
                           </div>
                           <div className='min-w-0 flex-1'>
-                            <div className='text-white text-sm font-medium truncate'>
+                            <div className='text-foreground text-sm font-medium truncate'>
                               {a.job_title}
                             </div>
                             <div className='text-foreground/40 text-[11px] truncate'>
@@ -639,7 +639,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
 
                 {/* Applications */}
                 <div className='mb-2 flex items-center justify-between'>
-                  <h3 className='text-sm font-semibold text-white flex items-center gap-2'>
+                  <h3 className='text-sm font-semibold text-foreground flex items-center gap-2'>
                     <Briefcase className='w-4 h-4 text-brand' /> Applications (
                     {filteredApplications.length})
                   </h3>
@@ -649,14 +649,14 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
                     {filteredApplications.map((a) => (
                       <div
                         key={a.id}
-                        className='p-3 rounded-xl border border-foreground/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-brand/40 transition flex items-center gap-3 group'
+                        className='p-3 rounded-xl border border-foreground/10 bg-foreground/[0.03] hover:bg-foreground/[0.06] hover:border-brand/40 transition flex items-center gap-3 group'
                       >
                         <div className='w-10 h-10 rounded-xl bg-brand/10 border border-brand/30 flex items-center justify-center text-brand font-bold text-xs'>
                           {(a.company || "")[0] || "•"}
                         </div>
                         <div className='min-w-0 flex-1'>
                           <div
-                            className='text-white text-sm font-medium truncate'
+                            className='text-foreground text-sm font-medium truncate'
                             title={a.job_title}
                           >
                             {a.job_title}
@@ -713,7 +713,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
 
                 {/* Match Score Distribution */}
                 <div className='mt-8 mb-4'>
-                  <h3 className='text-sm font-semibold text-white mb-3'>
+                  <h3 className='text-sm font-semibold text-foreground mb-3'>
                     Match Score Distribution
                   </h3>
                   <div className='grid grid-cols-4 gap-3'>
@@ -760,12 +760,12 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({
             value={followUpText}
             onChange={(e) => setFollowUpText(e.target.value)}
             placeholder='e.g., Email recruiter on Friday about take-home; prep system design'
-            className='w-full min-h-[140px] rounded-xl bg-foreground/5 border border-foreground/10 text-white placeholder:text-foreground/40 p-3 outline-none focus:border-brand/40 focus:ring-2 focus:ring-brand/20'
+            className='w-full min-h-[140px] rounded-xl bg-foreground/5 border border-foreground/10 text-foreground placeholder:text-foreground/40 p-3 outline-none focus:border-brand/40 focus:ring-2 focus:ring-brand/20'
           />
           <div className='flex justify-end gap-2'>
             <Button
               variant='outline'
-              className='border-foreground/20 hover:border-foreground/30 hover:bg-foreground/5 text-foreground/70 hover:text-white'
+              className='border-foreground/20 hover:border-foreground/30 hover:bg-foreground/5 text-foreground/70 hover:text-foreground'
               onClick={() => setFollowUpOpen(false)}
             >
               Cancel

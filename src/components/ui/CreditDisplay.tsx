@@ -72,7 +72,7 @@ export const CreditDisplay: React.FC<CreditDisplayProps> = ({
     return (
       <Card className={compact ? "w-48" : "w-full"}>
         <CardContent className='p-4'>
-          <p className='text-sm text-gray-500'>Credits not available</p>
+          <p className='text-sm text-muted-foreground'>Credits not available</p>
         </CardContent>
       </Card>
     );
@@ -113,13 +113,13 @@ export const CreditDisplay: React.FC<CreditDisplayProps> = ({
         <div className='flex items-center justify-between'>
           <div>
             <p className='text-2xl font-bold text-brand'>{credits.balance}</p>
-            <p className='text-sm text-gray-500'>Available Credits</p>
+            <p className='text-sm text-muted-foreground'>Available Credits</p>
           </div>
           <div className='text-right'>
             <p className='text-sm font-medium text-gray-700'>
               {credits.totalEarned} earned
             </p>
-            <p className='text-sm text-gray-500'>
+            <p className='text-sm text-muted-foreground'>
               {credits.totalConsumed} used
             </p>
           </div>
@@ -159,7 +159,7 @@ export const CreditDisplay: React.FC<CreditDisplayProps> = ({
 
         {/* Last Reset Info */}
         {credits.lastResetAt && (
-          <p className='text-xs text-gray-500 pt-2 border-t'>
+          <p className='text-xs text-muted-foreground pt-2 border-t'>
             Last reset: {new Date(credits.lastResetAt).toLocaleDateString()}
           </p>
         )}
@@ -234,13 +234,13 @@ const CreditHistoryModal: React.FC<CreditHistoryModalProps> = ({
                       <p className='text-sm font-medium'>
                         {transaction.description || formatted.label}
                       </p>
-                      <p className='text-xs text-gray-500'>
+                      <p className='text-xs text-muted-foreground'>
                         {new Date(transaction.created_at).toLocaleDateString()}
                       </p>
                     </div>
                     <div
                       className={`text-sm font-medium ${
-                        formatted.semanticColor === "neutral" ? "text-gray-500" : "text-brand"
+                        formatted.semanticColor === "neutral" ? "text-muted-foreground" : "text-brand"
                       }`}
                     >
                       {formatted.formattedAmount}

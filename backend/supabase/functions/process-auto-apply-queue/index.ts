@@ -111,14 +111,14 @@ async function recoverStaleAutoApplyRows(supabase: any): Promise<{
   failed: number;
 }> {
   const launchingCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-  const workerCutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  const workerCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
   const { data: staleRows, error } = await supabase
     .from("applications")
     .select(
       "id, user_id, job_id, agent_run_id, provider_status, retry_count, updated_at, automation_heartbeat_at",
     )
     .eq("canonical_stage", "queued")
-    .in("provider_status", ["launching", "waiting_worker"])
+    .in("provider_status", ["launching", "waiting_worker", "waiting"])
     .order("updated_at", { ascending: true })
     .limit(200);
 
@@ -308,28 +308,104 @@ serve(async (req) => {
         typeof queueParams.provider === "string" ? queueParams.provider : "skyvern";
 
       if (queueProvider === "rtrvr") {
-        await supabase
-          .from("applications")
-          .update({
-            provider_status: "waiting_worker",
-            automation_provider: "rtrvr",
-            automation_claimed_by: null,
-            automation_lease_expires_at: null,
-            automation_heartbeat_at: null,
-            provider_run_output: {
-              ...previousRunOutput,
-              queue_parameters: queueParams,
-              queue_handoff: {
-                provider: "rtrvr",
-                handed_off_at: new Date().toISOString(),
-                worker: "automation-worker",
+        const rtrvrKey = Deno.env.get("RTRVR_API_KEY");
+        const rtrvrParams = queueParams.rtrvr && typeof queueParams.rtrvr === "object"
+          ? queueParams.rtrvr as Record<string, unknown>
+          : null;
+
+        if (rtrvrKey && rtrvrParams) {
+          const appUrl = String(rtrvrParams.applicationUrl || appRow.job_url || "");
+          const candidate = rtrvrParams.candidate || {};
+          const job = rtrvrParams.job || {};
+          const resume = rtrvrParams.resume || {};
+          const coverLetter = rtrvrParams.coverLetter || "";
+
+          const baseSupabaseUrl = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
+          const webhookSecret = Deno.env.get("RTRVR_WEBHOOK_SECRET") || "";
+          const rtrvrWebhookUrl = baseSupabaseUrl
+            ? `${baseSupabaseUrl}/functions/v1/skyvern-webhook` + (webhookSecret ? `?token=${encodeURIComponent(webhookSecret)}` : "")
+            : undefined;
+
+          const promptInput = `Navigate to ${appUrl} and apply for the position of "${(job as any).title || appRow.job_title || 'Job'}" at "${(job as any).company || appRow.company || 'Company'}". ` +
+            `Fill out all required form fields using candidate information: ${JSON.stringify(candidate)}. ` +
+            `${(resume as any)?.signedUrl ? `Resume download URL: ${(resume as any).signedUrl}. ` : ""}` +
+            `${coverLetter ? `Cover letter: ${coverLetter}. ` : ""}` +
+            `Submit the application form when complete.`;
+
+          console.log(`[process-auto-apply-queue] Launching RTRVR Cloud API task for application ${appId}`);
+
+          try {
+            const rtrvrRes = await fetch("https://api.rtrvr.ai/agent", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${rtrvrKey}`,
+                "Content-Type": "application/json",
               },
-            },
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", appId);
-        console.log(`[process-auto-apply-queue] Handed application ${appId} to rtrvr automation worker`);
-        continue;
+              body: JSON.stringify({
+                input: promptInput,
+                urls: appUrl ? [appUrl] : [],
+                ...(rtrvrWebhookUrl ? {
+                  webhooks: [
+                    {
+                      url: rtrvrWebhookUrl,
+                      events: ["rtrvr.execution.succeeded", "rtrvr.execution.failed"],
+                    },
+                  ],
+                } : {}),
+                response: { verbosity: "final" },
+              }),
+            });
+
+            const rtrvrData = await rtrvrRes.json().catch(() => ({}));
+
+            if (rtrvrRes.ok) {
+              const runId = String(rtrvrData.id || rtrvrData.run_id || rtrvrData.taskId || crypto.randomUUID());
+              await supabase
+                .from("applications")
+                .update({
+                  run_id: runId,
+                  status: "Applied",
+                  provider_status: "running",
+                  canonical_stage: "submitted",
+                  automation_provider: "rtrvr",
+                  provider_run_output: {
+                    ...previousRunOutput,
+                    rtrvr_response: rtrvrData,
+                    launched_at: new Date().toISOString(),
+                  },
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", appId);
+
+              console.log(`[process-auto-apply-queue] Successfully launched RTRVR task for application ${appId} (run_id: ${runId})`);
+              continue;
+            } else {
+              console.warn(`[process-auto-apply-queue] RTRVR Cloud API returned ${rtrvrRes.status}: ${JSON.stringify(rtrvrData)}. Falling back to Skyvern if available.`);
+            }
+          } catch (rtrvrErr) {
+            console.error(`[process-auto-apply-queue] Failed to call RTRVR Cloud API for ${appId}:`, rtrvrErr);
+          }
+        }
+
+        // If RTRVR Cloud API was not configured or failed, check if Skyvern is configured as fallback
+        const hasSkyvernFallback = Boolean(skyvernKey && (queueParams.skyvern || (workflowId && parameters)));
+        if (!hasSkyvernFallback) {
+          const reason = "RTRVR API key not configured or execution failed, and no Skyvern fallback available.";
+          console.error(`[process-auto-apply-queue] ${reason} for application ${appId}`);
+          await supabase
+            .from("applications")
+            .update({
+              canonical_stage: "failed",
+              status: "Failed",
+              provider_status: "failed",
+              failure_reason: reason,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", appId);
+          await refundQueuedAutoApplyLaunch(supabase, appRow, appId, reason);
+          continue;
+        }
+        console.log(`[process-auto-apply-queue] RTRVR direct launch unavailable, falling through to Skyvern for ${appId}`);
       }
 
       const skyvernQueue =

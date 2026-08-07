@@ -65,7 +65,7 @@ export function ConcurrencyLimitModal({
           <button
             type='button'
             onClick={handleClose}
-            className='rounded-lg p-1 text-white/50 transition-colors hover:bg-white/10 hover:text-white'
+            className='rounded-lg p-1 text-foreground/50 transition-colors hover:bg-foreground/10 hover:text-foreground'
             aria-label='Dismiss'
           >
             <X className='h-4 w-4' />
@@ -97,7 +97,7 @@ export function ConcurrencyLimitModal({
             <h3 className='text-xl font-black uppercase tracking-tight text-white leading-tight sm:text-2xl sm:leading-none'>
               Queue paused at <span className='text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500'>{activeRuns}/{totalLimit} Slots</span>
             </h3>
-            <p className='mx-auto max-w-[54ch] px-1 text-xs leading-relaxed text-zinc-400 sm:text-sm'>
+            <p className='mx-auto max-w-[54ch] px-1 text-xs leading-relaxed text-muted-foreground sm:text-sm'>
               Your ready applications are queued, but your current plan is already using every parallel run. Add capacity to finish this sprint faster.
             </p>
           </div>
@@ -132,7 +132,7 @@ export function ConcurrencyLimitModal({
                     <p className='text-sm font-bold text-white group-hover:text-purple-300 transition-colors'>
                       {momentumBoost.name}
                     </p>
-                    <p className='text-[10px] leading-snug text-zinc-500'>
+                    <p className='text-[10px] leading-snug text-muted-foreground'>
                       Add 2 extra automation lanes for the rest of this billing period.
                     </p>
                   </div>
@@ -155,26 +155,26 @@ export function ConcurrencyLimitModal({
                   onUpgrade("boosts");
                   handleClose();
                 }}
-                className='group flex cursor-pointer flex-col gap-3 rounded-xl border border-white/5 bg-zinc-900/40 p-3.5 transition-all duration-200 hover:border-purple-500/20 hover:bg-zinc-900/80 sm:flex-row sm:items-center sm:justify-between sm:p-4'
+                className='group flex cursor-pointer flex-col gap-3 rounded-xl border border-foreground/5 bg-zinc-900/40 p-3.5 transition-all duration-200 hover:border-purple-500/20 hover:bg-zinc-900/80 sm:flex-row sm:items-center sm:justify-between sm:p-4'
               >
                 <div className='flex min-w-0 items-center gap-3'>
-                  <div className='w-8 h-8 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 group-hover:scale-105 transition-transform'>
+                  <div className='w-8 h-8 rounded-lg bg-zinc-800 border border-foreground/10 flex items-center justify-center text-muted-foreground group-hover:scale-105 transition-transform'>
                     <span className='text-sm font-black'>+{scaleBoost.parallelSlots}</span>
                   </div>
                   <div className='min-w-0'>
-                    <p className='text-sm font-bold text-zinc-300 group-hover:text-purple-300 transition-colors'>
+                    <p className='text-sm font-bold text-foreground/80 group-hover:text-purple-300 transition-colors'>
                       {scaleBoost.name}
                     </p>
-                    <p className='text-[10px] leading-snug text-zinc-500'>
+                    <p className='text-[10px] leading-snug text-muted-foreground'>
                       Add 4 parallel lanes for a heavier application sprint.
                     </p>
                   </div>
                 </div>
                 <div className='flex shrink-0 items-end justify-between gap-3 text-right sm:block'>
-                  <p className='text-sm font-bold text-zinc-300'>
+                  <p className='text-sm font-bold text-foreground/80'>
                     ${scaleBoost.priceUsd}
                   </p>
-                  <p className='text-[9px] text-zinc-500 flex items-center gap-0.5 justify-end mt-0.5'>
+                  <p className='text-[9px] text-muted-foreground flex items-center gap-0.5 justify-end mt-0.5'>
                     Buy pack <ArrowRight className='w-2.5 h-2.5' />
                   </p>
                 </div>
@@ -188,26 +188,26 @@ export function ConcurrencyLimitModal({
                   onUpgrade("subscription");
                   handleClose();
                 }}
-                className='group flex cursor-pointer flex-col gap-3 rounded-xl border border-white/5 bg-zinc-900/40 p-3.5 transition-all duration-200 hover:border-purple-500/20 hover:bg-zinc-900/80 sm:flex-row sm:items-center sm:justify-between sm:p-4'
+                className='group flex cursor-pointer flex-col gap-3 rounded-xl border border-foreground/5 bg-zinc-900/40 p-3.5 transition-all duration-200 hover:border-purple-500/20 hover:bg-zinc-900/80 sm:flex-row sm:items-center sm:justify-between sm:p-4'
               >
                 <div className='flex min-w-0 items-center gap-3'>
                   <div className='w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-105 transition-transform'>
                     <Crown className='w-4 h-4' />
                   </div>
                   <div className='min-w-0'>
-                    <p className='text-sm font-bold text-zinc-300 group-hover:text-purple-300 transition-colors'>
+                    <p className='text-sm font-bold text-foreground/80 group-hover:text-purple-300 transition-colors'>
                       Upgrade to Ultimate
                     </p>
-                    <p className='text-[10px] leading-snug text-zinc-500'>
+                    <p className='text-[10px] leading-snug text-muted-foreground'>
                       8 base slots + 3,500 credits/mo + Priority Autopilot.
                     </p>
                   </div>
                 </div>
                 <div className='flex shrink-0 items-end justify-between gap-3 text-right sm:block'>
-                  <p className='text-sm font-bold text-zinc-300'>
+                  <p className='text-sm font-bold text-foreground/80'>
                     ${ultimatePlan.monthlyPriceUsd}/mo
                   </p>
-                  <p className='text-[9px] text-zinc-500 flex items-center gap-0.5 justify-end mt-0.5'>
+                  <p className='text-[9px] text-muted-foreground flex items-center gap-0.5 justify-end mt-0.5'>
                     View plans <ArrowRight className='w-2.5 h-2.5' />
                   </p>
                 </div>
@@ -230,7 +230,7 @@ export function ConcurrencyLimitModal({
             <button
               type='button'
               onClick={handleClose}
-              className='w-full px-3 py-2 text-center text-xs font-semibold leading-snug text-zinc-500 transition-colors hover:text-zinc-400'
+              className='w-full px-3 py-2 text-center text-xs font-semibold leading-snug text-muted-foreground transition-colors hover:text-muted-foreground'
             >
               Keep current speed
             </button>
