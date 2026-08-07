@@ -19,9 +19,9 @@ export const resolveGeminiApiKey = (): string => {
 };
 
 export const createGeminiClient = () => {
-    const apiKey = resolveGeminiApiKey();
-    return new GoogleGenAI({ apiKey });
-}
+  const apiKey = resolveGeminiApiKey();
+  return new GoogleGenAI({ apiKey });
+};
 
 function getAdminSupabaseClient() {
   const url = Deno.env.get("SUPABASE_URL") || "";
@@ -47,10 +47,22 @@ const readNestedErrorMessage = (value: unknown): string => {
   return "";
 };
 
+const getGeminiHttpStatus = (error: unknown): number | null => {
+  if (!error || typeof error !== "object") return null;
+  const record = error as Record<string, unknown>;
+  if (typeof record.status === "number") return record.status;
+  if (typeof record.code === "number") return record.code;
+  const nested = record.error;
+  if (nested && typeof nested === "object") {
+    const nestedRecord = nested as Record<string, unknown>;
+    if (typeof nestedRecord.status === "number") return nestedRecord.status;
+    if (typeof nestedRecord.code === "number") return nestedRecord.code;
+  }
+  return null;
+};
+
 export const isGeminiAccessDeniedError = (error: unknown): boolean => {
-  const record =
-    error && typeof error === "object" ? (error as Record<string, unknown>) : {};
-  const status = typeof record.status === "number" ? record.status : null;
+  const status = getGeminiHttpStatus(error);
   const message = readNestedErrorMessage(error).toLowerCase();
 
   return (
@@ -65,39 +77,60 @@ export const isGeminiAccessDeniedError = (error: unknown): boolean => {
 export const getGeminiAccessDeniedMessage = (feature: string): string =>
   `${feature} is temporarily unavailable because the configured Gemini project no longer has model access. Re-enable Gemini access or switch this feature to another provider.`;
 
-export const isGeminiRateLimitError = (error: unknown): boolean => {
-  const record =
-    error && typeof error === "object" ? (error as Record<string, unknown>) : {};
-  const status = typeof record.status === "number" ? record.status : null;
+export const isGeminiQuotaError = (error: unknown): boolean => {
+  const status = getGeminiHttpStatus(error);
   const message = readNestedErrorMessage(error).toLowerCase();
 
   return (
     status === 429 ||
-    status === 503 ||
-    status === 502 ||
-    status === 504 ||
     message.includes("resource_exhausted") ||
     message.includes("rate limit") ||
-    message.includes("quota") ||
-    message.includes("503") ||
-    message.includes("unavailable") ||
-    message.includes("high demand") ||
-    message.includes("service unavailable") ||
-    message.includes("overloaded")
+    message.includes("too many requests") ||
+    message.includes("quota")
   );
 };
 
+export const isGeminiTransientProviderError = (error: unknown): boolean => {
+  const status = getGeminiHttpStatus(error);
+  const message = readNestedErrorMessage(error).toLowerCase();
+
+  return (
+    status === 502 ||
+    status === 503 ||
+    status === 504 ||
+    message.includes("high demand") ||
+    message.includes("service unavailable") ||
+    message.includes("overloaded") ||
+    message.includes("model is unavailable") ||
+    message.includes("model unavailable") ||
+    message.includes("backend error")
+  );
+};
+
+/**
+ * Backwards-compatible retry predicate used throughout the Edge Functions.
+ * Despite the historical name, it intentionally includes both quota/rate-limit
+ * failures and transient upstream availability failures.
+ */
+export const isGeminiRateLimitError = (error: unknown): boolean =>
+  isGeminiQuotaError(error) || isGeminiTransientProviderError(error);
+
 export const formatGeminiErrorMessage = (error: unknown): string => {
-  if (isGeminiRateLimitError(error)) {
-    return "Our AI service is currently experiencing high demand. Please try again in a moment.";
+  if (isGeminiQuotaError(error)) {
+    return "The AI provider is temporarily rate-limiting this request. Please try again shortly.";
+  }
+  if (isGeminiTransientProviderError(error)) {
+    return "The AI provider is temporarily having trouble responding. Please try again shortly.";
   }
   if (isGeminiAccessDeniedError(error)) {
-    return "The AI service is temporarily unavailable due to model maintenance. Please try again shortly.";
+    return "The configured AI model is temporarily inaccessible. Please try again shortly.";
   }
 
   let rawMsg = readNestedErrorMessage(error);
   if (!rawMsg) {
-    rawMsg = typeof error === "string" ? error : (error as any)?.message || String(error || "Unknown error");
+    rawMsg = typeof error === "string"
+      ? error
+      : (error as any)?.message || String(error || "Unknown error");
   }
 
   if (rawMsg.includes("{") && rawMsg.includes("}")) {
@@ -111,13 +144,8 @@ export const formatGeminiErrorMessage = (error: unknown): string => {
         }
       }
     } catch {
-      // Ignore JSON parse failure
+      // Ignore JSON parse failure.
     }
-  }
-
-  const lower = rawMsg.toLowerCase();
-  if (lower.includes("high demand") || lower.includes("503") || lower.includes("unavailable") || lower.includes("service unavailable")) {
-    return "Our AI service is currently experiencing high demand. Please try again in a moment.";
   }
 
   return rawMsg.replace(/^Error:\s*/i, "").trim();
@@ -150,7 +178,7 @@ export async function withGeminiRetry<T>(
       const parsed = parseRetryDelay(error);
       const delay = parsed ?? DEFAULT_BACKOFF_MS[Math.min(attempt, DEFAULT_BACKOFF_MS.length - 1)];
       console.warn(
-        `[Gemini] Rate limited (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms`,
+        `[Gemini] Retryable provider failure (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms`,
       );
       await new Promise((r) => setTimeout(r, delay));
     }
@@ -158,26 +186,26 @@ export async function withGeminiRetry<T>(
   throw lastError;
 }
 
-// Standardize default text/function-calling work on the current shared Gemini model.
+// Standardize default text/function-calling work on current supported Gemini models.
 // Tiered model strategy:
-//   LITE   – cheapest, highest rate limits, best for simple tasks & fallback
-//   MODEL  – standard workhorse for most features
-//   PREMIUM – most capable, costs 2 credits, for advanced reasoning tasks
-export const GEMINI_LITE_MODEL = "gemini-3-flash-preview";
-export const GEMINI_MODEL = "gemini-3-flash-preview";
+//   LITE    – cheaper fallback for simple work
+//   MODEL   – standard workhorse for most features
+//   PREMIUM – explicitly requested higher-capability path
+export const GEMINI_LITE_MODEL = "gemini-3.5-flash-lite";
+export const GEMINI_MODEL = "gemini-3.6-flash";
 export const GEMINI_FAST_MODEL = GEMINI_LITE_MODEL;
-export const GEMINI_PREMIUM_MODEL = "gemini-3-flash-preview";
+export const GEMINI_PREMIUM_MODEL = "gemini-3.5-flash";
 
-/** Ordered fallback chain: try primary → standard → lite */
+/** Ordered fallback chain. Every entry is deliberately a distinct live model. */
 export const MODEL_FALLBACK_CHAIN = [
-  "gemini-3-flash-preview",
+  GEMINI_MODEL,
+  GEMINI_LITE_MODEL,
   "gemini-2.5-flash",
-  "gemini-1.5-flash",
 ] as const;
 
 /**
- * Try `fn` with the given model. On rate-limit or model not found, cascade through
- * fallback models before giving up.
+ * Try `fn` with the given model. On retryable provider failure or model not
+ * found, cascade through fallback models before giving up.
  */
 export async function withModelFallback<T>(
   fn: (model: string) => Promise<T>,
@@ -194,9 +222,11 @@ export async function withModelFallback<T>(
       const msg = String(error instanceof Error ? error.message : error).toLowerCase();
       const isNotFound = msg.includes("not found") || msg.includes("404");
       if (!isGeminiRateLimitError(error) && !isNotFound) {
-        throw error; // non-retriable errors propagate immediately
+        throw error;
       }
-      console.warn(`[Gemini] ${model} failed (${isNotFound ? "not found" : "rate limited"}), falling back…`);
+      console.warn(
+        `[Gemini] ${model} failed (${isNotFound ? "not found" : "retryable provider error"}), falling back…`,
+      );
     }
   }
   throw lastError;
@@ -204,8 +234,8 @@ export async function withModelFallback<T>(
 
 // Standard tools configuration
 export const GEMINI_TOOLS = [
-    { urlContext: {} },
-    { googleSearch: {} }
+  { urlContext: {} },
+  { googleSearch: {} },
 ];
 
 // Standard config with thinking enabled
@@ -214,39 +244,46 @@ export const createGeminiConfig = (
     systemInstruction?: string;
     responseMimeType?: string;
     includeTools?: boolean;
-    thinkingLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+    thinkingLevel?: "LOW" | "MEDIUM" | "HIGH";
     maxOutputTokens?: number;
   },
-  modelName?: string
+  modelName?: string,
 ) => {
   const thinkingLevel = options?.thinkingLevel
     ? ThinkingLevel[options.thinkingLevel]
     : undefined;
-  const supportsThinking = modelName ? (
-    modelName.toLowerCase().includes("thinking") ||
-    modelName.toLowerCase().includes("gemini-3") ||
-    modelName.toLowerCase().includes("3.0") ||
-    modelName.toLowerCase().includes("3.1") ||
-    modelName.toLowerCase().includes("3.5")
-  ) : false;
+  const supportsThinking = modelName
+    ? (
+      modelName.toLowerCase().includes("thinking") ||
+      modelName.toLowerCase().includes("gemini-3") ||
+      modelName.toLowerCase().includes("3.0") ||
+      modelName.toLowerCase().includes("3.1") ||
+      modelName.toLowerCase().includes("3.5") ||
+      modelName.toLowerCase().includes("3.6")
+    )
+    : false;
 
   return {
-    ...(thinkingLevel && supportsThinking ? {
-      thinkingConfig: {
-        thinkingLevel,
+    ...(thinkingLevel && supportsThinking
+      ? {
+        thinkingConfig: {
+          thinkingLevel,
+        },
       }
-    } : {}),
+      : {}),
     ...(options?.includeTools ? { tools: GEMINI_TOOLS } : {}),
-    responseMimeType: options?.responseMimeType || 'application/json',
-    ...(options?.systemInstruction ? {
-      systemInstruction: {
-        role: "system",
-        parts: [{ text: options.systemInstruction }]
+    responseMimeType: options?.responseMimeType || "application/json",
+    ...(options?.systemInstruction
+      ? {
+        systemInstruction: {
+          role: "system",
+          parts: [{ text: options.systemInstruction }],
+        },
       }
-    } : {}),
-    ...(typeof options?.maxOutputTokens === "number" && options.maxOutputTokens > 0 ? {
-      maxOutputTokens: options.maxOutputTokens
-    } : {}),
+      : {}),
+    ...(typeof options?.maxOutputTokens === "number" && options.maxOutputTokens > 0
+      ? { maxOutputTokens: options.maxOutputTokens }
+      : {}),
   };
 };
 
@@ -258,30 +295,32 @@ export const createGeminiConfig = (
  *  - response.candidates[0].content.parts[0].text (raw structure)
  */
 export function extractGeminiText(response: any): string {
-    // 1. Direct string property or getter
-    if (typeof response?.text === 'string' && response.text.length > 0) {
-        return response.text;
-    }
-    // 2. Function (older SDK versions)
-    if (typeof response?.text === 'function') {
-        try {
-            const val = response.text();
-            if (typeof val === 'string' && val.length > 0) return val;
-        } catch { /* fall through */ }
-    }
-    // 3. Nested candidates structure
+  if (typeof response?.text === "string" && response.text.length > 0) {
+    return response.text;
+  }
+  if (typeof response?.text === "function") {
     try {
-        const parts = response?.candidates?.[0]?.content?.parts;
-        if (Array.isArray(parts)) {
-            const textParts = parts.filter((p: any) => typeof p?.text === 'string').map((p: any) => p.text);
-            if (textParts.length > 0) return textParts.join('');
-        }
-    } catch { /* fall through */ }
-    // 4. response.response wrapper (some SDK versions wrap the result)
-    if (response?.response) {
-        return extractGeminiText(response.response);
+      const val = response.text();
+      if (typeof val === "string" && val.length > 0) return val;
+    } catch {
+      // Fall through.
     }
-    throw new Error("Failed to extract text from Gemini response");
+  }
+  try {
+    const parts = response?.candidates?.[0]?.content?.parts;
+    if (Array.isArray(parts)) {
+      const textParts = parts
+        .filter((p: any) => typeof p?.text === "string")
+        .map((p: any) => p.text);
+      if (textParts.length > 0) return textParts.join("");
+    }
+  } catch {
+    // Fall through.
+  }
+  if (response?.response) {
+    return extractGeminiText(response.response);
+  }
+  throw new Error("Failed to extract text from Gemini response");
 }
 
 export interface AiDescriptionResponse {
