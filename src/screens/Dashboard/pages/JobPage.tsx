@@ -5689,7 +5689,7 @@ export const JobPage = (): JSX.Element => {
                             <span className='pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-brand/20 blur-3xl opacity-60' />
                             
                             {/* Logo: full height on the left, width proportional */}
-                            <div className='relative w-24 sm:w-auto sm:h-full sm:aspect-square flex-shrink-0 bg-foreground/5 flex items-center justify-center overflow-hidden border-r border-brand/10'>
+                            <div className='relative w-24 h-24 aspect-square shrink-0 bg-foreground/5 flex items-center justify-center overflow-hidden border-r border-brand/10'>
                               {job.logoUrl && !logoError[job.id] ? (
                                 <img
                                   src={job.logoUrl}
