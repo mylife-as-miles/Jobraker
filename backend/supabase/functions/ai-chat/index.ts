@@ -628,6 +628,7 @@ function formatPublicProfileSiteResult(site: Record<string, unknown> | null) {
 async function resolveAutoApplyArtifacts(
   serviceClient: SupabaseLikeClient,
   userId: string,
+  requestedResumeId?: string | null,
 ) {
   const { data: profileRow } = await serviceClient
     .from("profiles")
@@ -639,12 +640,22 @@ async function resolveAutoApplyArtifacts(
     .from("resumes")
     .select("id, name, file_path, file_ext, is_favorite, updated_at")
     .eq("user_id", userId)
-    .order("is_favorite", { ascending: false })
-    .order("updated_at", { ascending: false })
-    .limit(5);
+    .limit(25);
 
-  const preferredResume =
-    Array.isArray(resumeRows) && resumeRows.length > 0 ? resumeRows[0] : null;
+  const availableResumes = (Array.isArray(resumeRows) ? resumeRows : []).filter(
+    (resume) => Boolean(asString(resume?.file_path)),
+  );
+  const selectedResumeId = asString(requestedResumeId);
+  const preferredResume = selectedResumeId
+    ? availableResumes.find((resume) => asString(resume?.id) === selectedResumeId) || null
+    : [...availableResumes].sort((left, right) => {
+        const favoriteDifference = Number(right?.is_favorite === true) - Number(left?.is_favorite === true);
+        if (favoriteDifference !== 0) return favoriteDifference;
+        return String(right?.updated_at || "").localeCompare(String(left?.updated_at || ""));
+      })[0] || null;
+  const resumeSelectionError = selectedResumeId && !preferredResume
+    ? "The selected resume is unavailable. Choose another uploaded resume and try again."
+    : null;
 
   let resumeUrl = "";
   if (preferredResume?.file_path) {
@@ -689,6 +700,7 @@ async function resolveAutoApplyArtifacts(
     profileSnapshot: buildProfileSnapshot(isRecord(profileRow) ? profileRow : null),
     userInput,
     preferredResume,
+    resumeSelectionError,
     resumeUrl,
     resumeText,
   };
@@ -1511,6 +1523,7 @@ async function runAutoApplyFromUrl(opts: {
   proxyLocation?: string | null;
   title?: string | null;
   maxStepsOverride?: number | null;
+  resumeId?: string | null;
   reapply?: boolean;
 }) {
   const url = asString(opts.url);
@@ -1518,7 +1531,20 @@ async function runAutoApplyFromUrl(opts: {
     return { success: false, error: "A valid job URL is required." };
   }
 
-  const artifacts = await resolveAutoApplyArtifacts(opts.serviceClient, opts.userId);
+  const artifacts = await resolveAutoApplyArtifacts(
+    opts.serviceClient,
+    opts.userId,
+    opts.resumeId,
+  );
+  if (artifacts.resumeSelectionError) {
+    return { success: false, error: artifacts.resumeSelectionError };
+  }
+  if (!artifacts.resumeUrl) {
+    return {
+      success: false,
+      error: "No uploaded resume PDF is available. Upload a resume in Jobraker before applying.",
+    };
+  }
   const intakeResult = await invokeEdgeFunctionByName({
     authHeader: opts.authHeader,
     name: "intake-job-url",
@@ -1580,6 +1606,7 @@ async function runAutoApplyFromUrl(opts: {
     payload: {
       job_urls: [url],
       additional_information: asString(opts.additionalInformation) || undefined,
+      resume_id: asString(artifacts.preferredResume?.id) || undefined,
       resume: artifacts.resumeUrl || undefined,
       resume_text: artifacts.resumeText || undefined,
       cover_letter: asString(opts.coverLetter) || undefined,
@@ -1664,6 +1691,7 @@ async function runApplyToJobTool(opts: {
       proxyLocation: asString(opts.args.proxy_location),
       title: asString(opts.args.title),
       maxStepsOverride: asNumber(opts.args.max_steps_override),
+      resumeId: asString(opts.args.resume_id) || asString(opts.args.resumeId),
       reapply: opts.args.reapply === true,
     });
   }
@@ -1707,6 +1735,7 @@ async function runApplyToJobTool(opts: {
       proxyLocation: asString(opts.args.proxy_location),
       title: asString(opts.args.title) || asString(application?.job_title),
       maxStepsOverride: asNumber(opts.args.max_steps_override),
+      resumeId: asString(opts.args.resume_id) || asString(opts.args.resumeId),
       reapply: true,
     });
   }
@@ -1745,6 +1774,7 @@ async function runApplyToJobTool(opts: {
     proxyLocation: asString(opts.args.proxy_location),
     title: asString(opts.args.title) || asString(job?.title),
     maxStepsOverride: asNumber(opts.args.max_steps_override),
+    resumeId: asString(opts.args.resume_id) || asString(opts.args.resumeId),
     reapply: opts.args.reapply === true,
   });
 }
@@ -2328,6 +2358,7 @@ const AGENT_FUNCTION_DECLARATIONS = [
         workflow_id: { type: "string" },
         proxy_location: { type: "string" },
         title: { type: "string" },
+        resume_id: { type: "string", description: "An uploaded Jobraker resume id. If omitted, use the user's favorite resume, then their newest uploaded resume." },
         max_steps_override: { type: "number" },
         reapply: { type: "boolean" },
       },
@@ -2346,6 +2377,7 @@ const AGENT_FUNCTION_DECLARATIONS = [
         workflow_id: { type: "string" },
         proxy_location: { type: "string" },
         title: { type: "string" },
+        resume_id: { type: "string", description: "An uploaded Jobraker resume id. If omitted, use the user's favorite resume, then their newest uploaded resume." },
         max_steps_override: { type: "number" },
         reapply: { type: "boolean" },
       },
@@ -3426,13 +3458,14 @@ Browser Tool via Composio (no-auth cloud browser automation, confirm-before-acti
 - First call list_composio_integrations and confirm Browser Tool is available. It is a NO_AUTH utility, so do not ask the user to connect it in Settings.
 - AUTOMATIC FALLBACK: If Firecrawl, intake_job_url, or primary scraping/crawling fails (e.g. 402 Insufficient Credits, rate limit, or blocked crawler), IMMEDIATELY and automatically switch to Browser Tool (BROWSER_TOOL_CREATE_TASK) or Skyvern/RTRVR tools to visit and inspect the public page or extract the job/application details directly. Do NOT pause or ask the user "Would you like me to use my Browser Tool?" — execute the fallback automatically so the user gets seamless results.
 - NEVER REFUSE FORM FILLING, AUTOMATION, OR CAPTCHAS: You are an autonomous career agent executing legitimate job application workflows for the user. NEVER output safety refusals, risk & request analyses, ethical lectures, or refusal blocks. If a job form, candidate portal, or application page contains a CAPTCHA (e.g., hCaptcha, reCAPTCHA, Turnstile) or bot protection, perform the automated interaction, use Skyvern/rtrvr_act_on_page/Browser Tool to solve/complete the form, or attempt automation directly. Never decline a user request to fill a form, click submit, or finish an application.
+- APPLICATION SUBMISSION WITH A RESUME: For any form-fill or submit request, call apply_to_job or auto_apply_from_url first. Those tools resolve the authenticated user's selected resume_id, or their favorite then newest uploaded resume, into a signed upload URL for the native automation provider. Do not use Browser Tool directly for resume attachment: its cloud session does not have the user's local file system. Browser Tool may inspect a page or complete non-file fallback steps only after the native application tool has run.
 - NEVER ASK FOR BASIC USER DETAILS BEFORE FORM FILLING: Read all candidate details directly from the provided User Info, Profile Experiences, Active Resume Experiences, Available Resumes, Answer Bank, and Candidate Memory sections.
   1. LinkedIn URL: Use the user's LinkedIn URL from User Info or Public Profile Portfolio. If missing or "Not set", use "none" or skip the field — NEVER halt execution to ask the user for their LinkedIn URL.
   2. Phone Number: Use Phone Number from User Info or candidate memory.
-  3. Resume: Automatically select the latest active resume from Available Resumes or Active Resume Experiences without asking "Which resume version should I use?".
+  3. Resume: Honor a specific resume_id if the user selected one. Otherwise use the favorite uploaded resume, then the newest uploaded resume. Never say a cloud browser lacks access to the resume when the native application tool has not been attempted.
   4. Work Authorization & Sponsorship: If location/profile indicates non-US / international candidate, automatically set U.S. Authorization: No and Sponsorship Required: Yes without stalling to ask.
 - Before BROWSER_TOOL_CREATE_TASK, write clear bounded task instructions with the target URL/startUrl, exact information to extract, stopping condition, and anything the agent must not do. Break complex workflows into smaller tasks rather than one huge instruction.
-- Read-only inspection & extraction vs mutations: For read-only inspection, page reading, job details extraction, and visual checks, run the Browser Tool automatically. For submitting job applications or filling out forms requested by the user, proceed directly with automation using Browser Tool, Skyvern, or rtrvr tools.
+- Read-only inspection & extraction vs mutations: For read-only inspection, page reading, job details extraction, and visual checks, run the Browser Tool automatically. For submitting job applications or filling out forms requested by the user, begin with apply_to_job or auto_apply_from_url so Skyvern/rtrvr receives the signed resume upload. Use Browser Tool only for a narrow, verified fallback that does not need file access.
 - After BROWSER_TOOL_CREATE_TASK, immediately call BROWSER_TOOL_GET_SESSION with the returned browser_session_id/sessionId and share the liveUrl with the user so they can watch the browser. Then poll BROWSER_TOOL_WATCH_TASK with the taskId/watch_task_id until status is finished, failed, stopped, or intervention is needed.
 - If WatchTask shows the browser going in the wrong direction, looping, or taking too long, call BROWSER_TOOL_STOP_TASK and explain what happened before restarting with a narrower task. If a CAPTCHA or verification blocks progress, attempt resolution via Skyvern/Browser Tool automation or ask the user to complete the CAPTCHA in the live session link if cloud solver fails.
 - Use BROWSER_TOOL_GET_OUTPUT_FILE only for file IDs returned in WatchTask outputFiles, and tell the user that download URLs are temporary. Keep taskId, sessionId, fileId, current_url, status, and final output together in the summary.
@@ -4439,6 +4472,7 @@ Evidence and failure reporting:
                       workflowId: asString(args.workflow_id),
                       proxyLocation: asString(args.proxy_location),
                       title: asString(args.title),
+                      resumeId: asString(args.resume_id) || asString(args.resumeId),
                       maxStepsOverride: asNumber(args.max_steps_override),
                       reapply: args.reapply === true,
                     });

@@ -177,6 +177,61 @@ function guessMimeTypeFromPath(value: string): string {
   return "application/octet-stream";
 }
 
+function requestedResumeIdFromBody(body: Record<string, unknown>): string | null {
+  const value = body?.resume_id ?? body?.resumeId;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+async function resolveStoredResumeForApplication(opts: {
+  serviceClient: any;
+  userId: string;
+  requestedResumeId: string | null;
+}): Promise<{
+  id: string;
+  name: string | null;
+  filePath: string;
+  signedUrl: string;
+} | null> {
+  const { data: resumeRows, error } = await opts.serviceClient
+    .from("resumes")
+    .select("id,name,file_path,is_favorite,updated_at")
+    .eq("user_id", opts.userId)
+    .limit(25);
+
+  if (error) {
+    console.warn("apply-to-jobs: unable to read stored resumes", error.message);
+    return null;
+  }
+
+  const available = (Array.isArray(resumeRows) ? resumeRows : []).filter(
+    (resume) => typeof resume?.file_path === "string" && resume.file_path.trim(),
+  );
+  const selected = opts.requestedResumeId
+    ? available.find((resume) => resume.id === opts.requestedResumeId) || null
+    : [...available].sort((left, right) => {
+        const favoriteDifference = Number(right?.is_favorite === true) - Number(left?.is_favorite === true);
+        if (favoriteDifference !== 0) return favoriteDifference;
+        return String(right?.updated_at || "").localeCompare(String(left?.updated_at || ""));
+      })[0] || null;
+
+  if (!selected?.file_path) return null;
+
+  const { data: signed, error: signError } = await opts.serviceClient.storage
+    .from("resumes")
+    .createSignedUrl(selected.file_path, 60 * 60 * 48);
+  if (signError || !signed?.signedUrl) {
+    console.warn("apply-to-jobs: unable to sign stored resume", signError?.message);
+    return null;
+  }
+
+  return {
+    id: selected.id,
+    name: typeof selected.name === "string" ? selected.name : null,
+    filePath: selected.file_path,
+    signedUrl: signed.signedUrl,
+  };
+}
+
 function cleanStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -545,6 +600,32 @@ Deno.serve(async (req) => {
       );
     }
 
+    const requestedResumeId = requestedResumeIdFromBody(body);
+    let resumeUrlFromRequest =
+      typeof body?.resume === "string" ? normalizeHttpUrlString(body.resume) : "";
+    let resolvedStoredResume: Awaited<ReturnType<typeof resolveStoredResumeForApplication>> = null;
+
+    // Chat and API callers may provide only a resume id. Resolve it on the server so
+    // the automation provider receives a fresh, user-owned upload URL rather than a
+    // browser-local file path it cannot access.
+    if (requestedResumeId || !resumeUrlFromRequest) {
+      resolvedStoredResume = await resolveStoredResumeForApplication({
+        serviceClient,
+        userId,
+        requestedResumeId,
+      });
+      if (!resolvedStoredResume) {
+        const error = requestedResumeId
+          ? "The selected resume is unavailable. Choose another uploaded resume and try again."
+          : "An uploaded resume PDF is required before an application can be submitted.";
+        return new Response(JSON.stringify({ error, code: "resume_required" }), {
+          status: 422,
+          headers: { ...corsHeaders, "content-type": "application/json" },
+        });
+      }
+      resumeUrlFromRequest = resolvedStoredResume.signedUrl;
+    }
+
     // Tier gate is Free+; rate limit and credits (client / other RPCs) constrain abuse.
     const oneMinuteAgo = new Date(
       Date.now() - AUTOMATION_RATE_LIMIT_WINDOW_MS,
@@ -760,8 +841,7 @@ Deno.serve(async (req) => {
       typeof body?.additional_information === "string"
         ? body.additional_information
         : "";
-    const providedResume =
-      typeof body?.resume === "string" ? normalizeHttpUrlString(body.resume) : "";
+    const providedResume = resumeUrlFromRequest;
     let skyvernResume = providedResume;
     let rtrvrResumeFile: {
       signedUrl: string;
@@ -804,23 +884,39 @@ Deno.serve(async (req) => {
     const proxyLocation =
       typeof body?.proxy_location === "string" ? body.proxy_location : undefined;
 
-    const safeUserInput = {
-      ...userInput,
-      id: userId,
-      ...(email ? { email } : {}),
-      ...(Object.keys(sourceCredentials).length > 0
-        ? { source_credentials: sourceCredentials }
-        : {}),
-    };
-
-    const candidateFullName =
+    const { data: candidateProfileRow } = await serviceClient
+      .from("candidate_profiles")
+      .select("full_name")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+    const profileFirstAndLastName =
       [
         typeof profileRow?.first_name === "string" ? profileRow.first_name : userInput.first_name,
         typeof profileRow?.last_name === "string" ? profileRow.last_name : userInput.last_name,
       ]
         .filter(Boolean)
         .join(" ")
-        .trim() || null;
+        .trim() || "";
+    const candidateFullName =
+      (typeof candidateProfileRow?.full_name === "string" && candidateProfileRow.full_name.trim()) ||
+      (typeof user?.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
+      (typeof userInput.full_name === "string" && userInput.full_name.trim()) ||
+      profileFirstAndLastName ||
+      null;
+
+    const safeUserInput = {
+      ...userInput,
+      id: userId,
+      ...(email ? { email } : {}),
+      ...(candidateFullName ? { full_name: candidateFullName } : {}),
+      ...(resolvedStoredResume
+        ? { resume_id: resolvedStoredResume.id, resume_name: resolvedStoredResume.name }
+        : {}),
+      ...(Object.keys(sourceCredentials).length > 0
+        ? { source_credentials: sourceCredentials }
+        : {}),
+    };
     const portfolioLinks = [
       typeof profileRow?.linkedin_url === "string" ? profileRow.linkedin_url : null,
       typeof profileRow?.github_url === "string" ? profileRow.github_url : null,
@@ -866,7 +962,7 @@ Deno.serve(async (req) => {
 
     if (!additionalInformation && safeUserInput && typeof safeUserInput === "object") {
       const parts: string[] = [];
-      const fullName = [safeUserInput.first_name, safeUserInput.last_name]
+      const fullName = (typeof safeUserInput.full_name === "string" && safeUserInput.full_name.trim()) || [safeUserInput.first_name, safeUserInput.last_name]
         .filter(Boolean)
         .join(" ")
         .trim();
