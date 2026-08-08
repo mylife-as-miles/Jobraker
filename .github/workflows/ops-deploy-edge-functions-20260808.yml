@@ -1,0 +1,37 @@
+name: Ops deploy ai-chat and apply-to-jobs
+
+on:
+  push:
+    branches:
+      - ops/deploy-ai-chat-apply-to-jobs-20260808
+
+jobs:
+  deploy-edge-functions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verify production project target
+        shell: bash
+        run: |
+          if [ "$SUPABASE_PROJECT_REF" != "yquhsllwrwfvrwolqywh" ]; then
+            echo "Refusing deployment: SUPABASE_PROJECT_REF does not match Jobraker production."
+            exit 1
+          fi
+
+      - name: Deploy ai-chat
+        working-directory: backend
+        run: npx --yes supabase@latest functions deploy ai-chat --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+
+      - name: Deploy apply-to-jobs
+        working-directory: backend
+        run: npx --yes supabase@latest functions deploy apply-to-jobs --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
