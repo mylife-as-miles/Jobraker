@@ -2,9 +2,12 @@ name: supabase-push
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - ops/deploy-ai-chat-apply-to-jobs-20260808
 
 jobs:
-  push-migrations:
+  deploy-edge-functions:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -13,24 +16,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm i -g supabase@^2
-      - name: Supabase login
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase login --token "${SUPABASE_ACCESS_TOKEN}"
-      - name: Link project
+      - name: Verify production project target
         env:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        working-directory: backend
-        run: supabase link --project-ref "${SUPABASE_PROJECT_REF}" --password "${SUPABASE_DB_PASSWORD}" --yes
-      - name: Push migrations (dry-run)
-        working-directory: backend
-        run: supabase db push --linked --dry-run
-      - name: Push migrations
+        run: |
+          if [ "${SUPABASE_PROJECT_REF}" != "yquhsllwrwfvrwolqywh" ]; then
+            echo "Refusing deployment because the configured project is not Jobraker production."
+            exit 1
+          fi
+      - name: Deploy ai-chat
         env:
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         working-directory: backend
-        run: supabase db push --linked --include-all --yes -p "${SUPABASE_DB_PASSWORD}"
+        run: npx --yes supabase@latest functions deploy ai-chat --project-ref "${SUPABASE_PROJECT_REF}" --no-verify-jwt
+      - name: Deploy apply-to-jobs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        working-directory: backend
+        run: npx --yes supabase@latest functions deploy apply-to-jobs --project-ref "${SUPABASE_PROJECT_REF}" --no-verify-jwt
