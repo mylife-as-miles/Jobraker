@@ -1,5 +1,29 @@
-const token = "sbp_d74115c473e5c2e5891aa4c22e6ef06008c8f11b";
-const ref = "yquhsllwrwfvrwolqywh";
+import fs from 'fs';
+import path from 'path';
+
+function getEnvValue(key) {
+  if (process.env[key]) return process.env[key];
+  const possiblePaths = [
+    path.resolve(process.cwd(), '.env'),
+    path.resolve(process.cwd(), 'backend', '.env')
+  ];
+  for (const envPath of possiblePaths) {
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      const match = content.match(new RegExp(`^${key}=(.*)$`, 'm'));
+      if (match) return match[1].trim();
+    }
+  }
+  return null;
+}
+
+const token = getEnvValue("SUPABASE_ACCESS_TOKEN");
+const ref = getEnvValue("SUPABASE_PROJECT_REF") || "yquhsllwrwfvrwolqywh";
+
+if (!token) {
+  console.error("Error: SUPABASE_ACCESS_TOKEN not found in environment or .env files.");
+  process.exit(1);
+}
 
 const sql = `
 SELECT 
