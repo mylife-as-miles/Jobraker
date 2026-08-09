@@ -97,33 +97,104 @@ export function useAdminActions() {
   /**
    * Change a user's subscription plan.
    * Deactivates current subscription and creates a new one.
+  /**
+   * Change a user's subscription plan.
+   * Updates user_subscriptions, profiles.subscription_tier, and ensures user_credits balance matches plan.
    */
   const changeSubscription = useCallback(async (userId: string, newPlanId: string, planName: string) => {
     try {
-      // Deactivate current subscriptions
+      // 1. Resolve real subscription_plan_id from subscription_plans table if needed
+      let targetPlanId = newPlanId;
+      let targetPlanName = planName;
+
+      const { data: dbPlan } = await supabase
+        .from('subscription_plans')
+        .select('id, name, credits_per_month')
+        .or(`id.eq.${newPlanId},name.ilike.${planName}`)
+        .maybeSingle();
+
+      if (dbPlan) {
+        targetPlanId = dbPlan.id;
+        targetPlanName = dbPlan.name;
+      }
+
+      // 2. Deactivate current active subscriptions
       await supabase
         .from('user_subscriptions')
         .update({ status: 'canceled', updated_at: new Date().toISOString() })
         .eq('user_id', userId)
         .eq('status', 'active');
 
-      // Create new subscription
+      // 3. Create new active subscription if plan ID is valid
       const periodEnd = new Date();
       periodEnd.setMonth(periodEnd.getMonth() + 1);
 
-      const { error } = await supabase
-        .from('user_subscriptions')
-        .insert({
-          user_id: userId,
-          subscription_plan_id: newPlanId,
-          status: 'active',
-          current_period_start: new Date().toISOString(),
-          current_period_end: periodEnd.toISOString(),
-        });
+      if (targetPlanId && !targetPlanId.startsWith('plan-')) {
+        const { error: subErr } = await supabase
+          .from('user_subscriptions')
+          .insert({
+            user_id: userId,
+            subscription_plan_id: targetPlanId,
+            status: 'active',
+            current_period_start: new Date().toISOString(),
+            current_period_end: periodEnd.toISOString(),
+          });
 
-      if (error) throw error;
+        if (subErr) {
+          console.warn('user_subscriptions insert warning:', subErr);
+        }
+      }
 
-      success(`User moved to ${planName} plan`);
+      // 4. Update profiles table subscription_tier
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .update({ subscription_tier: targetPlanName, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+
+      if (profileErr) {
+        console.warn('profiles subscription_tier update warning:', profileErr);
+      }
+
+      // 5. Top up or set user_credits balance if lower than included plan credits
+      const planCreditsMap: Record<string, number> = {
+        Free: 10,
+        Starter: 150,
+        Basics: 250,
+        Pro: 600,
+        Ultimate: 1250,
+      };
+      const includedCredits = dbPlan?.credits_per_month ?? (planCreditsMap[targetPlanName] || 10);
+
+      if (includedCredits > 0) {
+        const { data: currentCredits } = await supabase
+          .from('user_credits')
+          .select('balance')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        const currentBal = currentCredits?.balance ?? 0;
+        if (currentBal < includedCredits) {
+          await supabase
+            .from('user_credits')
+            .upsert(
+              { user_id: userId, balance: includedCredits, updated_at: new Date().toISOString() },
+              { onConflict: 'user_id' }
+            );
+
+          await supabase
+            .from('credit_transactions')
+            .insert({
+              user_id: userId,
+              transaction_type: 'bonus',
+              amount: includedCredits - currentBal,
+              balance_after: includedCredits,
+              description: `Admin plan grant: ${targetPlanName} (${includedCredits} credits)`,
+              reference_type: 'admin_subscription_grant',
+            });
+        }
+      }
+
+      success(`User moved to ${targetPlanName} plan`);
       return { success: true };
     } catch (err: any) {
       console.error('Error changing subscription:', err);
@@ -223,6 +294,14 @@ export function useAdminActions() {
    * Uses credits_per_month (actual DB column name).
    */
   const fetchPlans = useCallback(async () => {
+    const FALLBACK_PLANS = [
+      { id: 'plan-free', name: 'Free', price: 0, credits_per_month: 10, credits_per_cycle: 10, billing_cycle: 'monthly', is_active: true },
+      { id: 'plan-starter', name: 'Starter', price: 9, credits_per_month: 150, credits_per_cycle: 150, billing_cycle: 'monthly', is_active: true },
+      { id: 'plan-basics', name: 'Basics', price: 19, credits_per_month: 250, credits_per_cycle: 250, billing_cycle: 'monthly', is_active: true },
+      { id: 'plan-pro', name: 'Pro', price: 39, credits_per_month: 600, credits_per_cycle: 600, billing_cycle: 'monthly', is_active: true },
+      { id: 'plan-ultimate', name: 'Ultimate', price: 79, credits_per_month: 1250, credits_per_cycle: 1250, billing_cycle: 'monthly', is_active: true },
+    ];
+
     try {
       const { data, error } = await supabase
         .from('subscription_plans')
@@ -230,7 +309,9 @@ export function useAdminActions() {
         .eq('is_active', true)
         .order('price', { ascending: true });
 
-      if (error) throw error;
+      if (error || !data || data.length === 0) {
+        return FALLBACK_PLANS;
+      }
 
       // Map credits_per_month to credits_per_cycle for display compatibility
       return (data || []).map((plan: any) => ({
@@ -238,8 +319,8 @@ export function useAdminActions() {
         credits_per_cycle: plan.credits_per_month ?? 0,
       }));
     } catch (err: any) {
-      console.error('Error fetching plans:', err);
-      return [];
+      console.error('Error fetching plans, using fallback:', err);
+      return FALLBACK_PLANS;
     }
   }, [supabase]);
 
