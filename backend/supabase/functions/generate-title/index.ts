@@ -8,7 +8,7 @@ import {
   withModelFallback,
   runMeteredAiCall,
 } from "../_shared/gemini.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import {
   requireAuthenticatedUser,
   SubscriptionAccessError,
@@ -52,8 +52,10 @@ const buildFallbackTitle = (message: string): string => {
 };
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
+
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
@@ -130,7 +132,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof SubscriptionAccessError) {
       return subscriptionErrorResponse(error, corsHeaders);
     }

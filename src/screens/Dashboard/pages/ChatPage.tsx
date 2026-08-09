@@ -338,6 +338,8 @@ interface UseChatReturn {
   responseId: string | null;
   setResponseId: (id: string | null) => void;
   requestStartedAt: number | null;
+  pendingPermissionRequest: PendingPermissionRequest | null;
+  setPendingPermissionRequest: Dispatch<SetStateAction<PendingPermissionRequest | null>>;
 }
 
 type ChatSessionRecord = {
@@ -1374,6 +1376,20 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     historyBeforeUser: BasicMessage[];
   } | null>(null);
 
+  const [permissionGrants, setPermissionGrants] = useState<Record<string, PermissionScope>>({});
+  const [pendingPermissionRequest, setPendingPermissionRequest] = useState<PendingPermissionRequest | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.id) {
+        fetchUserPermissions(supabase, data.user.id).then(setPermissionGrants);
+      }
+    });
+  }, []);
+
+  const permissionGrantsRef = useRef(permissionGrants);
+  permissionGrantsRef.current = permissionGrants;
+
   const sendMessage = useCallback(
     async (
       baseMessages: BasicMessage[],
@@ -1915,6 +1931,8 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     responseId,
     setResponseId,
     requestStartedAt,
+    pendingPermissionRequest,
+    setPendingPermissionRequest,
   };
 };
 
@@ -2325,6 +2343,8 @@ export const ChatPage = () => {
     responseId,
     setResponseId,
     requestStartedAt,
+    pendingPermissionRequest,
+    setPendingPermissionRequest,
   } = chat;
   const [now, setNow] = useState(() => Date.now());
   const requestElapsedMs =
@@ -2338,16 +2358,6 @@ export const ChatPage = () => {
   }, [requestElapsedMs]);
   const isChatBusy = status === "in_progress" || skillStatus === "in_progress";
   const [proTipIndex, setProTipIndex] = useState(0);
-  const [permissionGrants, setPermissionGrants] = useState<Record<string, PermissionScope>>({});
-  const [pendingPermissionRequest, setPendingPermissionRequest] = useState<PendingPermissionRequest | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.id) {
-        fetchUserPermissions(supabase, data.user.id).then(setPermissionGrants);
-      }
-    });
-  }, [supabase]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -2369,9 +2379,6 @@ export const ChatPage = () => {
 
   const personaRef = useRef(persona);
   personaRef.current = persona;
-
-  const permissionGrantsRef = useRef(permissionGrants);
-  permissionGrantsRef.current = permissionGrants;
 
   const createSession = useCallback(
     async (activate = true) => {
