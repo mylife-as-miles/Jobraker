@@ -1376,6 +1376,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     historyBeforeUser: BasicMessage[];
   } | null>(null);
 
+  const supabase = useMemo(() => createClient(), []);
   const [permissionGrants, setPermissionGrants] = useState<Record<string, PermissionScope>>({});
   const [pendingPermissionRequest, setPendingPermissionRequest] = useState<PendingPermissionRequest | null>(null);
 
@@ -1385,7 +1386,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         fetchUserPermissions(supabase, data.user.id).then(setPermissionGrants);
       }
     });
-  }, []);
+  }, [supabase]);
 
   const permissionGrantsRef = useRef(permissionGrants);
   permissionGrantsRef.current = permissionGrants;
