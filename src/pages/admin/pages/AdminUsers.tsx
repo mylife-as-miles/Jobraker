@@ -27,6 +27,7 @@ import {
   ArrowDownRight,
   RefreshCw,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { CreditTransaction } from "../types";
