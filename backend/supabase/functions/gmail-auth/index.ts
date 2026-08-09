@@ -6,6 +6,7 @@ import {
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import { getComposioGmailConnection } from "../_shared/composio-gmail.ts";
 
 const GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
@@ -305,6 +306,21 @@ serve(async (req) => {
         .eq("user_id", user.id);
       if (error) throw error;
       return jsonResponse({ ok: true, isConnected: false }, 200, corsHeaders);
+    }
+
+    const composioConn = await getComposioGmailConnection(user.id);
+    if (composioConn.connected) {
+      return jsonResponse(
+        {
+          isConnected: true,
+          email: composioConn.identifier ?? user.email ?? null,
+          connectedAt: null,
+          lastSyncAt: null,
+          tokenExpiresAt: null,
+        },
+        200,
+        corsHeaders,
+      );
     }
 
     const { data: connection, error } = await serviceClient

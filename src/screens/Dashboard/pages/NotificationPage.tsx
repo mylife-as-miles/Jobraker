@@ -372,14 +372,36 @@ export const NotificationPage = (): JSX.Element => {
         const { data, error } = await supabase.functions.invoke("gmail-auth", {
           body: { action: "status" },
         });
-        if (error) throw error;
-        if (!active) return;
-        setGmailStatus({
-          isConnected: !!data?.isConnected,
-          email: typeof data?.email === "string" ? data.email.trim() || null : null,
-          lastSyncAt:
-            typeof data?.lastSyncAt === "string" ? data.lastSyncAt : null,
+        if (!error && data?.isConnected) {
+          if (!active) return;
+          setGmailStatus({
+            isConnected: true,
+            email: typeof data?.email === "string" ? data.email.trim() || null : null,
+            lastSyncAt:
+              typeof data?.lastSyncAt === "string" ? data.lastSyncAt : null,
+          });
+          return;
+        }
+
+        // Fallback: check Composio connected account status for Gmail
+        const { data: composioData, error: composioError } = await supabase.functions.invoke("composio-auth", {
+          body: {
+            action: "status",
+            integrationSlug: "gmail",
+            toolkitSlug: "gmail",
+          },
         });
+        if (!composioError && (composioData?.isConnected || composioData?.state === "active")) {
+          if (!active) return;
+          setGmailStatus({
+            isConnected: true,
+            email: typeof composioData?.identifier === "string" ? composioData.identifier.trim() || null : null,
+            lastSyncAt: null,
+          });
+          return;
+        }
+
+        if (active) setGmailStatus(DEFAULT_GMAIL_STATUS);
       } catch {
         if (active) setGmailStatus(DEFAULT_GMAIL_STATUS);
       }
