@@ -892,22 +892,44 @@ function ApplicationPage() {
         const { data, error } = await supabase.functions.invoke("gmail-auth", {
           body: { action: "status" },
         });
-        if (error) throw error;
         const payload = data as {
           isConnected?: boolean;
           email?: string | null;
         } | null;
-        if (!cancelled && payload?.isConnected !== undefined) {
-          const connected = !!payload.isConnected;
-          setIsGmailConnected(connected);
-          const raw = payload.email;
-          setGmailConnectedEmail(
-            connected &&
-              typeof raw === "string" &&
-              raw.trim().length > 0
-              ? raw.trim()
-              : null,
-          );
+
+        if (!error && payload?.isConnected) {
+          if (!cancelled) {
+            setIsGmailConnected(true);
+            const raw = payload.email;
+            setGmailConnectedEmail(
+              typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : null,
+            );
+          }
+          return;
+        }
+
+        // Fallback: check Composio connected account status for Gmail
+        const { data: composioData, error: composioError } = await supabase.functions.invoke("composio-auth", {
+          body: {
+            action: "status",
+            integrationSlug: "gmail",
+            toolkitSlug: "gmail",
+          },
+        });
+        if (!composioError && (composioData?.isConnected || composioData?.state === "active")) {
+          if (!cancelled) {
+            setIsGmailConnected(true);
+            const raw = composioData?.identifier;
+            setGmailConnectedEmail(
+              typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : null,
+            );
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          setIsGmailConnected(false);
+          setGmailConnectedEmail(null);
         }
       } catch {
         if (!cancelled) {
