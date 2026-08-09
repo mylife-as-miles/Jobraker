@@ -155,7 +155,7 @@ function addBillingCycle(baseDate: Date, billingCycle: string) {
 }
 
 serve(async (req) => {
-  const cors = getCorsHeaders(req.headers.get("origin"));
+  const cors = getCorsHeaders(req.headers.get("origin"), req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: cors });
