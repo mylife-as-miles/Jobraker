@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-import { getCorsHeaders } from "../_shared/types.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { recordSkyvernUsageFromOutput } from "../_shared/provider-credits.ts";
 
 const TERMINAL_SUCCESS = ["succeeded", "completed"];
@@ -79,7 +79,7 @@ async function fetchSkyvernRun(runId: string, skyvernKey: string) {
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
 
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

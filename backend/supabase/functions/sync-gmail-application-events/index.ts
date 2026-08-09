@@ -833,7 +833,7 @@ function receivedAtFor(
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
 
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
