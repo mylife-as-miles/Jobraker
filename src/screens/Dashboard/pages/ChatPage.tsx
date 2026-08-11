@@ -2539,6 +2539,7 @@ export const ChatPage = () => {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [sourceLauncherOpen, setSourceLauncherOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sourceLauncherTriggerRef = useRef<HTMLButtonElement>(null);
   const sourceLauncherSkills = useMemo(
     () =>
       jobrakerChatSkills.map((skill) => ({
@@ -4729,15 +4730,23 @@ export const ChatPage = () => {
                   </div>
                 )}
 
-                <div
-                  className={`beam relative rounded-[32px] shadow-2xl transition-all duration-300 ${
+                <div className="relative">
+                  <ChatSourceLauncher
+                    open={sourceLauncherOpen}
+                    skills={sourceLauncherSkills}
+                    triggerRef={sourceLauncherTriggerRef}
+                    onClose={() => setSourceLauncherOpen(false)}
+                    onUpload={() => fileInputRef.current?.click()}
+                  />
+                  <div
+                    className={`beam relative rounded-[32px] shadow-2xl transition-all duration-300 ${
                     isListening
                       ? "border border-[#2fd968]/60 ring-2 ring-[#2fd968]/40 shadow-black"
                       : isChatBusy || text.trim()
                         ? "beam-amber shadow-[0_0_25px_rgba(47,217,104,0.15)]"
                         : "border border-border bg-card/85 backdrop-blur-xl"
-                  }`}
-                >
+                    }`}
+                  >
                   <div className="beam-inner rounded-[30.5px]">
                   <input
                     type='file'
@@ -4887,15 +4896,9 @@ export const ChatPage = () => {
                       />
                     </div>
 
-                    <ChatSourceLauncher
-                      open={sourceLauncherOpen}
-                      skills={sourceLauncherSkills}
-                      onClose={() => setSourceLauncherOpen(false)}
-                      onUpload={() => fileInputRef.current?.click()}
-                    />
-
                     {/* Left: Plus button */}
                     <button
+                      ref={sourceLauncherTriggerRef}
                       type="button"
                       aria-label="Add a file or browse skills"
                       aria-haspopup="dialog"
@@ -4910,7 +4913,10 @@ export const ChatPage = () => {
                       }`}
                       title="Add a file or browse skills"
                     >
-                      <Plus size={18} />
+                      <Plus
+                        size={18}
+                        className={`transition-transform ${sourceLauncherOpen ? "rotate-45" : ""}`}
+                      />
                     </button>
 
                     {/* Right: Controls */}
@@ -5002,6 +5008,7 @@ export const ChatPage = () => {
                     </div>
                   </div>
                   </div>{/* beam-inner */}
+                  </div>
                 </div>
                 <p className='text-center text-[10px] text-muted-foreground mt-3 uppercase tracking-widest font-medium'>
                   JobRaker AI can make mistakes. Check important information.

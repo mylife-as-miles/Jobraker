@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import {
   Globe2,
   Paperclip,
@@ -15,6 +15,7 @@ export type ChatSourceLauncherSkill = {
 type Props = {
   open: boolean;
   skills: ChatSourceLauncherSkill[];
+  triggerRef: RefObject<HTMLButtonElement>;
   onClose: () => void;
   onUpload: () => void;
 };
@@ -24,6 +25,7 @@ const DEFAULT_VISIBLE_ITEMS = 7;
 export const ChatSourceLauncher = ({
   open,
   skills,
+  triggerRef,
   onClose,
   onUpload,
 }: Props) => {
@@ -42,7 +44,13 @@ export const ChatSourceLauncher = ({
   useEffect(() => {
     if (!open) return;
     const handlePointerDown = (event: PointerEvent) => {
-      if (!launcherRef.current?.contains(event.target as Node)) onClose();
+      const target = event.target as Node;
+      if (
+        !launcherRef.current?.contains(target) &&
+        !triggerRef.current?.contains(target)
+      ) {
+        onClose();
+      }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -53,7 +61,7 @@ export const ChatSourceLauncher = ({
       document.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose, open]);
+  }, [onClose, open, triggerRef]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const matchingSkills = useMemo(
