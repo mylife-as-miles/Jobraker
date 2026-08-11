@@ -4910,7 +4910,7 @@ export const ChatPage = () => {
                       }`}
                       title="Add a file or browse skills"
                     >
-                      <Plus size={18} className={`transition-transform ${sourceLauncherOpen ? "rotate-45" : ""}`} />
+                      <Plus size={18} />
                     </button>
 
                     {/* Right: Controls */}
