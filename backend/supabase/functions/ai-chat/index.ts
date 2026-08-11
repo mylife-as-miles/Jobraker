@@ -1222,7 +1222,7 @@ async function fetchApplicationProcessSnapshot(opts: {
   let query = opts.serviceClient
     .from("applications")
     .select(
-      "id, job_id, job_title, company, location, status, canonical_stage, applied_date, updated_at, next_step, interview_date, provider_status, run_id, workflow_id, failure_reason, app_url, receipt_url, success_url, draft_status, ai_confidence_score, user_review_notes",
+      "id, job_id, job_title, company, location, status, canonical_stage, applied_date, updated_at, next_step, interview_date, provider_status, run_id, workflow_id, failure_reason, app_url, receipt_url, success_url, draft_status, match_score, ai_confidence_score, user_review_notes",
     )
     .eq("user_id", opts.userId)
     .order("updated_at", { ascending: false })
@@ -2099,6 +2099,7 @@ For generated CVs/resumes, never copy a name from a template example, style guid
 const CHARTS_AND_TABLES_RULES = `
 Visualizations (Charts & Tables):
 You can render beautiful interactive charts and tables directly inside the chat. Use these visual elements whenever presenting statistics, metrics, comparisons, fit scores, application status breakdowns, salary ranges, or structured datasets.
+For an application-status request, call list_applications before answering. Its completed result is rendered as the interactive Application Status table in chat, so report only values returned from that tool.
 
 1. Interactive Recharts Charts:
    Render a chart by using a markdown code block with language: "chart-bar", "chart-line", or "chart-pie".

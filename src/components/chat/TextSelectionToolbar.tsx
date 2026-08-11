@@ -136,18 +136,23 @@ export const TextSelectionToolbar: React.FC<TextSelectionToolbarProps> = ({ cont
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleAction = (mode: "quote" | "explain" | "summarize", e: React.MouseEvent) => {
+  const handleAction = (
+    mode: "quote" | "explain" | "summarize" | "rewrite",
+    e: React.MouseEvent,
+  ) => {
     e.preventDefault();
     e.stopPropagation();
     if (!selectedText) return;
 
     window.dispatchEvent(
-      new CustomEvent("jobraker:add-to-chat", {
-        detail: { text: selectedText, mode },
-      })
+      new CustomEvent(
+        mode === "rewrite" ? "jobraker:rewrite-selection" : "jobraker:add-to-chat",
+        { detail: { text: selectedText, mode } },
+      ),
     );
 
     const modeLabels: Record<string, string> = {
+      rewrite: "Sent to JobRaker to rewrite!",
       quote: "Added quote to AI Chat!",
       explain: "Prompt set to explain selection!",
       summarize: "Prompt set to summarize selection!",
@@ -177,24 +182,33 @@ export const TextSelectionToolbar: React.FC<TextSelectionToolbarProps> = ({ cont
           transform: "translateX(-50%)",
           zIndex: 9999,
         }}
-        className="flex items-center gap-1.5 p-1.5 rounded-full bg-black/95 backdrop-blur-2xl border border-zinc-800/90 shadow-2xl shadow-black text-xs font-medium text-zinc-100 select-none ring-1 ring-white/10"
+        className="flex max-w-[calc(100vw-1rem)] items-center gap-1 overflow-x-auto rounded-full border border-zinc-800/90 bg-black/95 p-1.5 text-xs font-medium text-zinc-100 shadow-2xl shadow-black ring-1 ring-white/10 backdrop-blur-2xl select-none [scrollbar-width:none]"
       >
+        <button
+          onClick={(e) => handleAction("rewrite", e)}
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-brand px-3 py-1.5 font-semibold text-primary-foreground shadow-md shadow-brand/25 transition-all hover:bg-brand/90 active:scale-95"
+          title="Ask JobRaker to rewrite this highlighted text"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          <span>Rewrite</span>
+        </button>
+
+        <div className="my-auto h-4 w-px shrink-0 bg-zinc-800" />
+
         {/* Add to Chat Button */}
         <button
           onClick={(e) => handleAction("quote", e)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand hover:bg-brand/90 text-primary-foreground font-semibold transition-all shadow-md shadow-brand/25 active:scale-95 cursor-pointer"
+          className="flex shrink-0 items-center gap-1 px-2.5 py-1.5 text-zinc-200 transition-all hover:bg-zinc-900 hover:text-white active:scale-95"
           title="Add quoted text into AI Chat prompt"
         >
           <MessageSquarePlus className="w-3.5 h-3.5" />
-          <span>Add to Chat</span>
+          <span className="hidden sm:inline">Quote</span>
         </button>
-
-        <div className="h-4 w-px bg-zinc-800 my-auto" />
 
         {/* Explain Button */}
         <button
           onClick={(e) => handleAction("explain", e)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full hover:bg-zinc-900 text-zinc-200 hover:text-white transition-all active:scale-95 cursor-pointer"
+          className="flex shrink-0 items-center gap-1 px-2.5 py-1.5 text-zinc-200 transition-all hover:bg-zinc-900 hover:text-white active:scale-95"
           title="Ask AI to explain this highlighted text"
         >
           <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
@@ -204,19 +218,19 @@ export const TextSelectionToolbar: React.FC<TextSelectionToolbarProps> = ({ cont
         {/* Summarize Button */}
         <button
           onClick={(e) => handleAction("summarize", e)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full hover:bg-zinc-900 text-zinc-200 hover:text-white transition-all active:scale-95 cursor-pointer"
+          className="flex shrink-0 items-center gap-1 px-2.5 py-1.5 text-zinc-200 transition-all hover:bg-zinc-900 hover:text-white active:scale-95"
           title="Ask AI to summarize this highlighted text"
         >
           <FileText className="w-3.5 h-3.5 text-indigo-400" />
           <span className="hidden sm:inline">Summarize</span>
         </button>
 
-        <div className="h-4 w-px bg-zinc-800 my-auto" />
+        <div className="my-auto h-4 w-px shrink-0 bg-zinc-800" />
 
         {/* Copy Button */}
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full hover:bg-zinc-900 text-zinc-200 hover:text-white transition-all active:scale-95 cursor-pointer"
+          className="flex shrink-0 items-center gap-1 px-2.5 py-1.5 text-zinc-200 transition-all hover:bg-zinc-900 hover:text-white active:scale-95"
           title="Copy selected text to clipboard"
         >
           {copied ? (

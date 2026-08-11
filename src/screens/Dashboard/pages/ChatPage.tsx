@@ -1,5 +1,6 @@
 // Clean AI-elements only Chat Page implementation
 import {
+  Fragment,
   useState,
   useCallback,
   useEffect,
@@ -93,6 +94,23 @@ import {
 import { TokenStream } from "@/components/chat/TokenStream";
 import { StreamedAnswerFooter } from "@/components/chat/StreamedAnswerFooter";
 import { AgentApprovalCard } from "@/components/chat/AgentApprovalCard";
+import { ChatSourceLauncher } from "@/components/chat/ChatSourceLauncher";
+import {
+  ApplicationStatusTable,
+  type ApplicationStatusRecord,
+} from "@/components/chat/ApplicationStatusTable";
+import {
+  AgentInsightCards,
+  type AgentAnalyticsSnapshot,
+} from "@/components/chat/AgentInsightCards";
+import {
+  AgentRecommendationCard,
+  type AgentRecommendation,
+} from "@/components/chat/AgentRecommendationCard";
+import {
+  AgentTaskRows,
+  type AgentTaskRow,
+} from "@/components/chat/AgentTaskRows";
 import type {
   AgentApprovalRequest,
   ApprovedToolCall,
@@ -102,6 +120,7 @@ import {
   getPrimarySkillAlias,
   getSkillById,
   getSkillSuggestions,
+  jobrakerChatSkills,
 } from "@/lib/chatSkills/registry";
 import {
   detectSkillPaletteTrigger,
@@ -936,6 +955,64 @@ const estimateAgentTimeSavedMinutes = (message: BasicMessage): number => {
 const isSearchTool = (name: string) =>
   /search|find_company|semantic_search|research|browse/i.test(name);
 
+const isLongRunningAgentTool = (name: string) =>
+  name === "apply_to_job" ||
+  name === "auto_apply_from_url" ||
+  name === "reapply_job" ||
+  name === "run_job_search" ||
+  name === "invoke_composio_tool" ||
+  name.startsWith("rtrvr_");
+
+const buildAgentTaskRows = (message: BasicMessage): AgentTaskRow[] => {
+  const skillCall = message.skillCall;
+  if (skillCall) {
+    const progress = skillCall.progress || [];
+    return progress.slice(-4).map((label, index, rows) => ({
+      id: `skill-task-${skillCall.id}-${index}-${label}`,
+      label,
+      status:
+        index === rows.length - 1 &&
+        (skillCall.status === "running" || skillCall.status === "queued")
+          ? "running"
+          : index === rows.length - 1 && skillCall.status === "failed"
+            ? "failed"
+            : "completed",
+      detail:
+        index === rows.length - 1 && skillCall.error ? skillCall.error : undefined,
+    }));
+  }
+
+  const tools = (message.toolCalls || []).slice(-5);
+  if (tools.length > 0) {
+    return tools.map((tool) => ({
+      id: tool.id || `${tool.name}-${tool.startedAt || tool.finishedAt || "task"}`,
+      label: toolDisplayName(tool.name, tool.args),
+      status:
+        tool.status === "running"
+          ? "running"
+          : tool.status === "error"
+            ? "failed"
+            : "completed",
+      detail: summarizeToolResult(tool),
+    }));
+  }
+
+  return (message.agentEvents || [])
+    .filter((event) => event.kind !== "billing")
+    .slice(-3)
+    .map((event) => ({
+      id: `activity-task-${event.id}`,
+      label: event.title,
+      detail: event.detail,
+      status:
+        event.status === "error"
+          ? "failed"
+          : event.status === "running"
+            ? "running"
+            : "completed",
+    }));
+};
+
 const traceSourcesFromTool = (tool: ToolCallEntry): AgentTraceSource[] => {
   const found = new Map<string, AgentTraceSource>();
   const visit = (value: unknown, depth = 0) => {
@@ -1220,6 +1297,226 @@ const AgentResultPreview = ({ message }: { message: BasicMessage }) => {
         ))}
       </div>
     </div>
+  );
+};
+
+const applicationStatusRecordsFromMessage = (
+  message: BasicMessage,
+): ApplicationStatusRecord[] => {
+  const toText = (value: unknown) =>
+    typeof value === "string" && value.trim() ? value.trim() : undefined;
+  const toMatchScore = (record: Record<string, unknown>) => {
+    const rawScore = [record.match_score, record.ai_confidence_score].find(
+      (value) => typeof value === "number" || typeof value === "string",
+    );
+    const numericScore = typeof rawScore === "number" ? rawScore : Number(rawScore);
+    if (!Number.isFinite(numericScore)) return null;
+    const normalizedScore = numericScore <= 1 ? numericScore * 100 : numericScore;
+    return Math.max(0, Math.min(100, Math.round(normalizedScore)));
+  };
+
+  const records = (message.toolCalls || [])
+    .filter((tool) => tool.status === "done" && tool.name === "list_applications")
+    .flatMap((tool) => {
+      const payload = getToolResultPayload(tool.result);
+      return Array.isArray(payload.applications) ? payload.applications : [];
+    })
+    .filter(
+      (application): application is Record<string, unknown> =>
+        Boolean(application) && typeof application === "object" && !Array.isArray(application),
+    )
+    .map((application) => {
+      const recentEvents = Array.isArray(application.recent_events)
+        ? application.recent_events
+            .filter(
+              (event): event is Record<string, unknown> =>
+                Boolean(event) && typeof event === "object" && !Array.isArray(event),
+            )
+            .map((event) => ({
+              subject: toText(event.subject),
+              receivedAt: toText(event.received_at) || toText(event.processed_at),
+              status: toText(event.status),
+            }))
+        : [];
+
+      return {
+        id:
+          toText(application.id) ||
+          `${toText(application.company) || "unknown"}-${toText(application.job_title) || "role"}`,
+        company: toText(application.company) || "Unknown company",
+        role: toText(application.job_title) || "Untitled role",
+        status: toText(application.status) || "Pending",
+        location: toText(application.location),
+        match: toMatchScore(application),
+        appliedAt: toText(application.applied_date),
+        updatedAt: toText(application.updated_at),
+        nextStep: toText(application.next_step),
+        runId: toText(application.run_id),
+        recentEvents,
+      } satisfies ApplicationStatusRecord;
+    });
+
+  return Array.from(new Map(records.map((record) => [record.id, record])).values());
+};
+
+const ApplicationStatusPreview = ({ message }: { message: BasicMessage }) => {
+  if (message.role !== "assistant") return null;
+  const applications = applicationStatusRecordsFromMessage(message);
+  return applications.length > 0 ? <ApplicationStatusTable applications={applications} /> : null;
+};
+
+const analyticsSnapshotFromMessage = (
+  message: BasicMessage,
+): AgentAnalyticsSnapshot | null => {
+  const asNumber = (value: unknown, fallback = 0) => {
+    const numeric = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(numeric) ? numeric : fallback;
+  };
+  const asCountMap = (value: unknown): Record<string, number> => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .map(([key, count]) => [key, asNumber(count)] as const)
+        .filter(([, count]) => count >= 0),
+    );
+  };
+
+  const tool = [...(message.toolCalls || [])]
+    .reverse()
+    .find((entry) => entry.status === "done" && entry.name === "get_application_analytics");
+  if (!tool) return null;
+  const payload = getToolResultPayload(tool.result);
+  if (payload.success === false) return null;
+  const metrics = payload.metrics;
+  if (!metrics || typeof metrics !== "object" || Array.isArray(metrics)) return null;
+  const metricRecord = metrics as Record<string, unknown>;
+  const jobs = payload.jobs;
+  const jobRecord = jobs && typeof jobs === "object" && !Array.isArray(jobs)
+    ? jobs as Record<string, unknown>
+    : {};
+
+  return {
+    periodDays: Math.max(1, asNumber(payload.period_days, 30)),
+    applications: asNumber(metricRecord.applications),
+    previousApplications: asNumber(metricRecord.previous_applications),
+    applicationsDelta: asNumber(metricRecord.applications_delta),
+    interviews: asNumber(metricRecord.interviews),
+    offers: asNumber(metricRecord.offers),
+    offerRate: asNumber(metricRecord.offer_rate),
+    interviewOrOfferRate: asNumber(metricRecord.interview_or_offer_rate),
+    statusBreakdown: asCountMap(payload.status_breakdown),
+    jobSources: asCountMap(jobRecord.sources),
+    jobsFound: asNumber(jobRecord.found),
+  };
+};
+
+const AgentInsightPreview = ({ message }: { message: BasicMessage }) => {
+  if (message.role !== "assistant") return null;
+  const snapshot = analyticsSnapshotFromMessage(message);
+  return snapshot ? <AgentInsightCards snapshot={snapshot} /> : null;
+};
+
+const recommendationConfidence = (job: Record<string, unknown>) => {
+  const score = [
+    job.match_score,
+    job.ai_match_score,
+    job.ai_confidence_score,
+    job.confidence_score,
+  ].find((value) => typeof value === "number" || typeof value === "string");
+  const numericScore = typeof score === "number" ? score : Number(score);
+  if (Number.isFinite(numericScore)) {
+    const normalized = numericScore <= 1 ? numericScore * 100 : numericScore;
+    return {
+      confidence: Math.max(0, Math.min(100, Math.round(normalized))),
+      confidenceLabel: "fit confidence",
+    };
+  }
+
+  const sourceConfidence =
+    typeof job.source_confidence === "string"
+      ? job.source_confidence.toLowerCase()
+      : typeof job.confidence === "string"
+        ? job.confidence.toLowerCase()
+        : "";
+  const sourceScores: Record<string, number> = { high: 85, medium: 65, low: 35 };
+  if (sourceConfidence in sourceScores) {
+    return {
+      confidence: sourceScores[sourceConfidence],
+      confidenceLabel: "source confidence",
+    };
+  }
+
+  return null;
+};
+
+const agentRecommendationsFromMessage = (message: BasicMessage): AgentRecommendation[] => {
+  const recommendations = (message.toolCalls || [])
+    .filter(
+      (tool) =>
+        tool.status !== "running" &&
+        (tool.name === "run_job_search" || tool.name === "search_public_job_sources"),
+    )
+    .flatMap((tool) => {
+      const payload = getToolResultPayload(tool.result);
+      const jobs = Array.isArray(payload.jobs)
+        ? payload.jobs
+        : Array.isArray(payload.results)
+          ? payload.results
+          : [];
+      return jobs
+        .filter(
+          (job): job is Record<string, unknown> =>
+            Boolean(job) && typeof job === "object" && !Array.isArray(job),
+        )
+        .map((job) => {
+          const confidence = recommendationConfidence(job);
+          if (!confidence) return null;
+          const title = typeof job.title === "string" && job.title.trim() ? job.title.trim() : "Untitled role";
+          const company = typeof job.company === "string" && job.company.trim() ? job.company.trim() : "Unknown company";
+          const url = typeof job.url === "string" && job.url.trim() ? job.url.trim() : "";
+          const detail = [
+            typeof job.location === "string" ? job.location : "",
+            typeof job.source_kind === "string" ? job.source_kind : "",
+            typeof job.verification_status === "string" ? job.verification_status : "",
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          return {
+            id: `${title}|${company}|${url}`,
+            title: `${title} at ${company}`,
+            description: "JobRaker suggests reviewing this role before moving to an application.",
+            detail: detail || undefined,
+            ...confidence,
+            actionPrompt: `Assess my fit for ${title} at ${company}${url ? ` (${url})` : ""}. Explain the evidence for the recommendation and do not apply yet.`,
+          } satisfies AgentRecommendation;
+        })
+        .filter((recommendation): recommendation is AgentRecommendation => Boolean(recommendation));
+    });
+
+  return Array.from(
+    new Map(recommendations.map((recommendation) => [recommendation.id, recommendation])).values(),
+  )
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 4);
+};
+
+const AgentRecommendationPreview = ({
+  message,
+  onRunPrompt,
+}: {
+  message: BasicMessage;
+  onRunPrompt: (prompt: string) => void;
+}) => {
+  if (message.role !== "assistant") return null;
+  const recommendations = agentRecommendationsFromMessage(message);
+  const primary = recommendations[0];
+  if (!primary) return null;
+  return (
+    <AgentRecommendationCard
+      recommendation={primary}
+      alternatives={recommendations.slice(1)}
+      onRunPrompt={onRunPrompt}
+    />
   );
 };
 
@@ -2205,7 +2502,17 @@ export const ChatPage = () => {
   const supabase = useMemo(() => createClient(), []);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [sourceLauncherOpen, setSourceLauncherOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sourceLauncherSkills = useMemo(
+    () =>
+      jobrakerChatSkills.map((skill) => ({
+        id: skill.id,
+        name: skill.name,
+        description: skill.description,
+      })),
+    [],
+  );
   const attachmentPreviewUrls = useMemo(
     () =>
       attachments.map((attachment) =>
@@ -2348,6 +2655,27 @@ export const ChatPage = () => {
     return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
   }, [requestElapsedMs]);
   const isChatBusy = status === "in_progress" || skillStatus === "in_progress";
+  const liveTaskMessage = useMemo(() => {
+    return [...messages]
+      .reverse()
+      .find(
+        (message) =>
+          message.streaming ||
+          message.skillCall?.status === "running" ||
+          message.skillCall?.status === "queued",
+      );
+  }, [messages]);
+  const liveTaskRows = useMemo(
+    () => (liveTaskMessage ? buildAgentTaskRows(liveTaskMessage) : []),
+    [liveTaskMessage],
+  );
+  const hasKnownLongRunningTask = Boolean(
+    liveTaskMessage?.toolCalls?.some((tool) => isLongRunningAgentTool(tool.name)),
+  );
+  const isBackgroundTask = liveTaskMessage?.skillCall?.status === "queued";
+  const shouldShowTaskRows =
+    liveTaskRows.length > 0 &&
+    (showExtendedWait || hasKnownLongRunningTask || isBackgroundTask);
 
   const updateApprovalDecision = useCallback(
     (requestId: string, decision: "approved" | "declined") => {
@@ -3109,6 +3437,32 @@ export const ChatPage = () => {
   // real data instead of dropping them into a blank chat.
   const handleSubmitRef = useRef(handleSubmit);
   handleSubmitRef.current = handleSubmit;
+  useEffect(() => {
+    const handleRewriteSelection = (event: Event) => {
+      const selectedText = (
+        event as CustomEvent<{ text?: string }>
+      ).detail?.text?.trim();
+      if (!selectedText) return;
+
+      const prompt = [
+        "Rewrite the selected passage for clarity, impact, and natural professional tone.",
+        "Preserve its meaning and factual claims. Do not add experience, results, or facts that are not in the passage.",
+        "",
+        "> " + selectedText.replace(/\n/g, "\n> "),
+      ].join("\n");
+
+      if (isChatBusy || text.trim()) {
+        setText((current) => (current ? `${current}\n\n${prompt}` : prompt));
+        window.requestAnimationFrame(() => textareaRef.current?.focus());
+        return;
+      }
+
+      void handleSubmitRef.current({ text: prompt });
+    };
+
+    window.addEventListener("jobraker:rewrite-selection", handleRewriteSelection);
+    return () => window.removeEventListener("jobraker:rewrite-selection", handleRewriteSelection);
+  }, [isChatBusy, text]);
   const autoInvokeFiredRef = useRef(false);
   useEffect(() => {
     const state = location.state as { autoPrompt?: string } | null;
@@ -3249,6 +3603,10 @@ export const ChatPage = () => {
         s.messages.some((m) => m.content.toLowerCase().includes(query)),
     );
   }, [sessions, searchQuery]);
+
+  const latestAssistantMessageId = [...messages]
+    .reverse()
+    .find((message) => message.role === "assistant")?.id;
 
   return (
     <div className='relative flex flex-col md:flex-row h-full w-full font-sans bg-background overflow-hidden text-foreground'>
@@ -3692,26 +4050,15 @@ export const ChatPage = () => {
               onScroll={updateScrollState}
               className='min-h-0 flex-1 overflow-y-auto flex flex-col relative custom-scrollbar'
             >
-              {showExtendedWait && (
-                <div className='sticky top-3 z-20 mx-auto mt-3 flex max-w-xl items-center justify-between gap-4 rounded-xl border border-brand/25 bg-card/95 px-4 py-3 text-sm shadow-lg shadow-black/10 backdrop-blur'>
-                  <div>
-                    <p className='font-medium text-foreground'>
-                      JobRaker is still working
-                    </p>
-                    <p className='text-xs text-muted-foreground'>
-                      This has been running for {requestElapsedLabel}. You can
-                      wait, or stop and try a shorter request.
-                    </p>
-                  </div>
-                  <button
-                    type='button'
-                    onClick={stop}
-                    className='shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent'
-                  >
-                    Stop
-                  </button>
+              {shouldShowTaskRows ? (
+                <div className="sticky top-3 z-20 px-3">
+                  <AgentTaskRows
+                    tasks={liveTaskRows}
+                    elapsedLabel={requestElapsedLabel}
+                    onStop={stop}
+                  />
                 </div>
-              )}
+              ) : null}
               {messages.length === 0 ? (
                 <div className='flex-1 flex flex-col items-center justify-center px-6 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
                   <div className='max-w-2xl w-full text-center space-y-4 md:space-y-6 py-6 flex flex-col items-center'>
@@ -3895,8 +4242,8 @@ export const ChatPage = () => {
                   isFocusMode ? "max-w-5xl" : "max-w-4xl"
                 }`}>
                   {messages.map((m, idx) => (
-                    <div
-                      key={m.id}
+                    <Fragment key={m.id}>
+                      <div
                       className={`flex gap-4 ${m.role === "user" ? "justify-end" : "justify-start"}`}
                     >
                       {m.role !== "user" && (
@@ -3931,6 +4278,8 @@ export const ChatPage = () => {
                               elapsedLabel={requestElapsedLabel}
                             />
                             <AgentResultPreview message={m} />
+                            <ApplicationStatusPreview message={m} />
+                            <AgentInsightPreview message={m} />
                             {m.role === "assistant" && m.streaming && m.content ? (
                               <TokenStream
                                 text={m.content}
@@ -4266,7 +4615,18 @@ export const ChatPage = () => {
                           </div>
                         )}
                       </div>
-                    </div>
+                      </div>
+                      {m.id === latestAssistantMessageId ? (
+                        <div className="ml-12 max-w-[85%]">
+                          <AgentRecommendationPreview
+                            message={m}
+                            onRunPrompt={(prompt) => {
+                              if (!isChatBusy) void handleSubmit({ text: prompt });
+                            }}
+                          />
+                        </div>
+                      ) : null}
+                    </Fragment>
                   ))}
                   <div ref={messagesEndRef} />
                 </div>
@@ -4378,7 +4738,7 @@ export const ChatPage = () => {
                   )}
 
                   <div
-                    className={`grid gap-x-2 transition-all duration-300 px-4 py-3 min-h-[56px] ${
+                    className={`relative grid gap-x-2 gap-y-1.5 transition-all duration-300 px-3 py-3 min-h-[56px] sm:px-4 ${
                       isMultiline
                         ? "grid-cols-[auto_1fr_auto] grid-rows-[auto_auto] items-end"
                         : "grid-cols-[auto_1fr_auto] grid-rows-[auto_auto] items-end md:grid-cols-[auto_1fr_auto] md:grid-rows-[1fr] md:items-center"
@@ -4452,7 +4812,7 @@ export const ChatPage = () => {
                               handleSubmit({ text } as any);
                           }
                         }}
-                        className='w-full bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 py-1.5 px-1.5 resize-none max-h-36 text-base outline-none leading-normal scrollbar-hide'
+                        className='w-full bg-transparent border-none focus:ring-0 text-sm text-foreground placeholder:text-muted-foreground/60 py-1.5 px-0.5 resize-none max-h-36 outline-none leading-normal scrollbar-hide sm:px-1.5 sm:text-base'
                         placeholder='Ask your Career Command Center...'
                         rows={1}
                         style={{ height: "auto", minHeight: "24px" }}
@@ -4468,7 +4828,7 @@ export const ChatPage = () => {
 
                     <div className='absolute bottom-full left-0 right-0 mb-2'>
                       <ChatSkillCommandPalette
-                        open={skillPaletteOpen}
+                        open={skillPaletteOpen && !sourceLauncherOpen}
                         mode={skillPaletteTrigger?.mode || "slash"}
                         skills={skillPaletteSkills}
                         activeIndex={skillPaletteActiveIndex}
@@ -4476,24 +4836,35 @@ export const ChatPage = () => {
                       />
                     </div>
 
+                    <ChatSourceLauncher
+                      open={sourceLauncherOpen}
+                      skills={sourceLauncherSkills}
+                      onClose={() => setSourceLauncherOpen(false)}
+                      onUpload={() => fileInputRef.current?.click()}
+                    />
+
                     {/* Left: Plus button */}
                     <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-foreground/5 transition-colors col-start-1 ${
+                      type="button"
+                      aria-label="Add a file or browse skills"
+                      aria-haspopup="dialog"
+                      aria-expanded={sourceLauncherOpen}
+                      onClick={() => setSourceLauncherOpen((open) => !open)}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-foreground/5 transition-colors sm:h-10 sm:w-10 col-start-1 ${
                         isMultiline
                           ? "row-start-2"
                           : "row-start-2 md:row-start-1"
                       } ${
-                        attachments.length ? "text-brand" : "text-muted-foreground hover:text-foreground"
+                        attachments.length || sourceLauncherOpen ? "text-brand" : "text-muted-foreground hover:text-foreground"
                       }`}
-                      title="Upload files"
+                      title="Add a file or browse skills"
                     >
-                      <Plus size={20} />
+                      <Plus size={18} className={`transition-transform ${sourceLauncherOpen ? "rotate-45" : ""}`} />
                     </button>
 
                     {/* Right: Controls */}
                     <div
-                      className={`flex items-center gap-2 shrink-0 col-start-3 ${
+                      className={`flex min-w-0 items-center gap-1.5 shrink-0 sm:gap-2 col-start-3 ${
                         isMultiline
                           ? "row-start-2"
                           : "row-start-2 md:row-start-1"
@@ -4503,9 +4874,9 @@ export const ChatPage = () => {
                         <DropdownMenuTrigger asChild>
                           <button
                             type="button"
-                            className="group flex items-center gap-1 rounded-full border border-border bg-foreground/5 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
+                            className="group flex max-w-[8.75rem] items-center gap-1 rounded-full border border-border bg-foreground/5 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground sm:max-w-none sm:px-3"
                           >
-                            <span>
+                            <span className="truncate">
                               {persona === "concise" ? "Ask: plan" : "Agent: do work"}
                             </span>
                             <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
@@ -4544,7 +4915,7 @@ export const ChatPage = () => {
                       <button
                         type="button"
                         onClick={toggleListening}
-                        className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
+                        className={`flex h-8 w-8 items-center justify-center rounded-full transition-all sm:h-9 sm:w-9 ${
                           isListening
                             ? "bg-[#2fd968]/20 text-[#2fd968] ring-2 ring-[#2fd968]/40 hover:bg-[#2fd968]/30"
                             : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
@@ -4552,9 +4923,9 @@ export const ChatPage = () => {
                         title={isListening ? "Listening... Click to stop" : "Voice input"}
                       >
                         {isListening ? (
-                          <ThinkingOrb state="listening" size={20} theme="dark" />
+                          <ThinkingOrb state="listening" size={18} theme="dark" />
                         ) : (
-                          <Mic size={18} />
+                          <Mic size={17} />
                         )}
                       </button>
 
@@ -4568,14 +4939,14 @@ export const ChatPage = () => {
                           (!text.trim() && attachments.length === 0) ||
                           isChatBusy
                         }
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all ${
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all sm:h-10 sm:w-10 ${
                           text.trim() || attachments.length
                             ? "bg-white text-black shadow-lg hover:bg-neutral-100"
                             : "bg-muted text-muted-foreground/60 cursor-not-allowed"
                         }`}
                         title="Send message"
                       >
-                        <ArrowUp size={18} className="font-semibold" />
+                        <ArrowUp size={17} className="font-semibold" />
                       </button>
                     </div>
                   </div>
