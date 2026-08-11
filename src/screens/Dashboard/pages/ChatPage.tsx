@@ -86,6 +86,7 @@ import {
 
 import { ThinkingOrb } from "thinking-orbs";
 import { TokenStream } from "@/components/chat/TokenStream";
+import { StreamedAnswerFooter } from "@/components/chat/StreamedAnswerFooter";
 import {
   executeChatSkill,
   getPrimarySkillAlias,
@@ -153,6 +154,18 @@ import { RouteLoadingFallback } from "@/components/system/RouteLoadingFallback";
 
 // Custom styles for the new design
 const customStyles = `
+  @keyframes jobraker-stream-resolve {
+    from { opacity: 0; filter: blur(5px); transform: translateY(2px); }
+    to { opacity: 1; filter: blur(0); transform: translateY(0); }
+  }
+  .token-stream-active .token {
+    display: inline-block;
+    animation: jobraker-stream-resolve 360ms cubic-bezier(0.22, 0.61, 0.25, 1) both;
+    will-change: filter, opacity, transform;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .token-stream-active .token { animation: none; }
+  }
   .glass-panel {
     background: hsl(var(--card) / 0.72);
     backdrop-filter: blur(12px);
@@ -176,6 +189,15 @@ const customStyles = `
     background: hsl(var(--foreground) / 0.2);
   }
 `;
+
+const externalSourceDomain = (href?: string) => {
+  if (!href?.startsWith("http") || href.includes(window.location.host)) return null;
+  try {
+    return new URL(href).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+};
 
 const waitForAgentProgressPaint = () =>
   new Promise<void>((resolve) => {
@@ -3886,10 +3908,22 @@ export const ChatPage = () => {
                               elapsedLabel={requestElapsedLabel}
                             />
                             <AgentResultPreview message={m} />
+                            {m.role === "assistant" && m.streaming && m.content ? (
+                              <TokenStream
+                                text={m.content}
+                                isStreaming
+                                className="leading-relaxed text-muted-foreground"
+                                staggerDelay={0.012}
+                              />
+                            ) : (
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
-                                a: ({ node: _node, href, children, ...props }) => (
+                                a: ({ node: _node, href, children, ...props }) => {
+                                  const sourceDomain = externalSourceDomain(href);
+                                  const isExternal = Boolean(sourceDomain);
+                                  return (
+                                  <span className="inline">
                                   <a
                                     {...props}
                                     href={href}
@@ -3914,21 +3948,27 @@ export const ChatPage = () => {
                                         navigate(targetRoute);
                                       }
                                     }}
-                                    target={
-                                      href?.startsWith("http") && !href.includes(window.location.host)
-                                        ? "_blank"
-                                        : undefined
-                                    }
-                                    rel={
-                                      href?.startsWith("http") && !href.includes(window.location.host)
-                                        ? "noopener noreferrer"
-                                        : undefined
-                                    }
+                                    target={isExternal ? "_blank" : undefined}
+                                    rel={isExternal ? "noopener noreferrer" : undefined}
                                     className="font-semibold text-brand underline underline-offset-2 hover:text-[#6bff4d] transition-colors cursor-pointer"
                                   >
                                     {children}
                                   </a>
-                                ),
+                                  {sourceDomain && (
+                                    <a
+                                      href={href}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="ml-1 inline-flex translate-y-[-1px] items-center gap-1 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium no-underline transition-colors hover:bg-brand/20"
+                                      aria-label={`Open source: ${sourceDomain}`}
+                                    >
+                                      <BookOpen size={10} aria-hidden />
+                                      {sourceDomain}
+                                    </a>
+                                  )}
+                                  </span>
+                                  );
+                                },
                                 table: ({ node, ...props }) => (
                                   <div className='my-6 overflow-x-auto rounded-xl border border-border'>
                                     <table
@@ -4176,10 +4216,21 @@ export const ChatPage = () => {
                             >
                               {m.content}
                             </ReactMarkdown>
+                            )}
                             {m.streaming &&
                               (m.content ? (
                                 <span className='inline-block w-1.5 h-4 ml-1 align-middle bg-brand animate-pulse' />
                               ) : null)}
+                            {m.role === "assistant" && (
+                              <StreamedAnswerFooter
+                                content={m.content}
+                                isStreaming={Boolean(m.streaming)}
+                                onRegenerate={regenerate}
+                                onFollowUp={(prompt) => {
+                                  if (!isChatBusy) void handleSubmit({ text: prompt });
+                                }}
+                              />
+                            )}
                           </div>
                         )}
                       </div>
