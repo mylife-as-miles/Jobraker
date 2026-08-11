@@ -85,6 +85,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { ThinkingOrb } from "thinking-orbs";
+import {
+  AgentWorkTrace,
+  type AgentTraceRow,
+  type AgentTraceSource,
+} from "@/components/chat/AgentWorkTrace";
 import { TokenStream } from "@/components/chat/TokenStream";
 import { StreamedAnswerFooter } from "@/components/chat/StreamedAnswerFooter";
 import {
@@ -135,8 +140,6 @@ import {
   X,
   Coins,
   History,
-  ReceiptText,
-  AlertTriangle,
   ListChecks,
   ChevronDown,
   ChevronLeft,
@@ -886,6 +889,47 @@ const estimateAgentTimeSavedMinutes = (message: BasicMessage): number => {
   return workUnits > 0 ? Math.min(180, Math.max(8, workUnits * 8)) : 0;
 };
 
+const isSearchTool = (name: string) =>
+  /search|find_company|semantic_search|research|browse/i.test(name);
+
+const traceSourcesFromTool = (tool: ToolCallEntry): AgentTraceSource[] => {
+  const found = new Map<string, AgentTraceSource>();
+  const visit = (value: unknown, depth = 0) => {
+    if (depth > 4 || found.size >= 4 || value == null) return;
+    if (typeof value === "string") {
+      if (!/^https?:\/\//i.test(value)) return;
+      try {
+        const url = new URL(value);
+        if (url.protocol === "http:" || url.protocol === "https:") {
+          found.set(url.href, {
+            href: url.href,
+            label: url.hostname.replace(/^www\./, ""),
+          });
+        }
+      } catch {
+        // Ignore malformed source URLs returned by a tool.
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.slice(0, 12).forEach((entry) => visit(entry, depth + 1));
+      return;
+    }
+    if (typeof value === "object") {
+      const record = value as Record<string, unknown>;
+      ["url", "href", "link", "source_url", "sourceUrl"].forEach((key) =>
+        visit(record[key], depth + 1),
+      );
+      ["results", "jobs", "sources", "items"].forEach((key) =>
+        visit(record[key], depth + 1),
+      );
+    }
+  };
+
+  visit(getToolResultPayload(tool.result));
+  return [...found.values()];
+};
+
 const AgentWorkTimeline = ({
   message,
   elapsedLabel,
@@ -893,8 +937,6 @@ const AgentWorkTimeline = ({
   message: BasicMessage;
   elapsedLabel: string;
 }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const toolCalls = message.toolCalls || [];
   const agentEvents = message.agentEvents || [];
 
@@ -905,13 +947,7 @@ const AgentWorkTimeline = ({
     (isSkillCall &&
       (skillCall.status === "running" || skillCall.status === "queued"));
 
-  const skillRows: {
-    id: string;
-    at: number;
-    kind: string;
-    status: "running" | "done" | "error";
-    label: string;
-  }[] = [];
+  const skillRows: (AgentTraceRow & { at: number })[] = [];
 
   if (skillCall) {
     const progressList = skillCall.progress || [];
@@ -955,60 +991,49 @@ const AgentWorkTimeline = ({
     }
   }
 
-  const timelineRows = isSkillCall
+  const operationalRows: (AgentTraceRow & { at: number })[] = agentEvents
+    .filter((event) =>
+      ["status", "tool_batch", "tool_result", "billing", "limit", "error"].includes(event.kind),
+    )
+    .map((event) => ({
+      id: event.id,
+      at: event.createdAt,
+      kind: event.kind,
+      status: event.status,
+      label: event.title,
+      detail: event.detail,
+    }));
+
+  const toolRows: (AgentTraceRow & { at: number })[] = toolCalls
+    .filter((tool) => !isInternalToolFailure(tool))
+    .map((tool) => {
+      const resultSummary = summarizeToolResult(tool);
+      const prefix =
+        tool.status === "running"
+          ? "Running"
+          : tool.status === "error"
+            ? "Failed"
+            : "Finished";
+      return {
+        id: tool.id || `${tool.name}-${tool.startedAt || ""}`,
+        at: tool.startedAt || tool.finishedAt || 0,
+        kind: "tool",
+        status: tool.status,
+        label: `${prefix} ${toolDisplayName(tool.name, tool.args)}`,
+        detail: resultSummary,
+        sources: isSearchTool(tool.name) ? traceSourcesFromTool(tool) : undefined,
+      };
+    });
+
+  const timelineRows: AgentTraceRow[] = (isSkillCall
     ? skillRows
-    : [
-        ...agentEvents
-          .filter((event) =>
-            ["status", "billing", "limit", "error"].includes(event.kind),
-          )
-          .map((event) => ({
-            id: event.id,
-            at: event.createdAt,
-            kind: event.kind,
-            status: event.status,
-            label:
-              event.kind === "billing"
-                ? [event.title, event.detail].filter(Boolean).join(" - ")
-                : event.detail
-                  ? `${event.title} - ${event.detail}`
-                  : event.title,
-          })),
-        ...toolCalls
-          .filter((tool) => !isInternalToolFailure(tool))
-          .map((tool) => {
-            const resultSummary = summarizeToolResult(tool);
-            const prefix =
-              tool.status === "running"
-                ? "Running"
-                : tool.status === "error"
-                  ? "Failed"
-                  : "Finished";
-            return {
-              id: tool.id || `${tool.name}-${tool.startedAt || ""}`,
-              at: tool.startedAt || tool.finishedAt || 0,
-              kind: "tool",
-              status: tool.status,
-              label: [
-                `${prefix} ${toolDisplayName(tool.name, tool.args)}`,
-                resultSummary,
-              ]
-                .filter(Boolean)
-                .join(" - "),
-            };
-          }),
-      ]
-        .sort((a, b) => a.at - b.at)
-        .slice(-50);
+    : [...operationalRows, ...toolRows])
+    .sort((a, b) => a.at - b.at)
+    .slice(-50);
 
   const hiddenStepCount = isSkillCall
     ? 0
     : Math.max(0, agentEvents.length + toolCalls.length - timelineRows.length);
-  const liveTimelineRows = isStreaming
-    ? timelineRows.slice(-3).reverse()
-    : timelineRows;
-  const displayedHiddenStepCount =
-    hiddenStepCount + Math.max(0, timelineRows.length - liveTimelineRows.length);
   const totalStepCount = isSkillCall
     ? timelineRows.length
     : agentEvents.length + toolCalls.length;
@@ -1019,145 +1044,40 @@ const AgentWorkTimeline = ({
   const fallbackLabel = elapsedLabel
     ? `Connecting to JobRaker agent (${elapsedLabel})`
     : "Connecting to JobRaker agent";
-  const summaryLabel = latestRow?.label || fallbackLabel;
-  const timelineOrbState = timelineRows.length ? "working" : "connecting";
+  const summaryLabel = latestRow
+    ? [latestRow.label, latestRow.detail].filter(Boolean).join(" - ")
+    : fallbackLabel;
   const stepLabel =
     totalStepCount > 0
       ? `${totalStepCount} step${totalStepCount === 1 ? "" : "s"}`
       : "Waiting";
+  const reasoningRows = isSkillCall
+    ? skillRows.slice(-4)
+    : operationalRows
+        .filter((row) => ["status", "tool_batch", "tool_result"].includes(row.kind))
+        .slice(-4);
+  const searchRows = toolRows.filter((row) => {
+    const sourceTool = toolCalls.find(
+      (tool) => (tool.id || `${tool.name}-${tool.startedAt || ""}`) === row.id,
+    );
+    return Boolean(sourceTool && isSearchTool(sourceTool.name));
+  });
 
   if (!timelineRows.length && !isStreaming) return null;
 
-  const rowClass =
-    "flex max-w-full items-center gap-2 rounded-lg border border-brand/20 bg-brand/[0.06] px-3 py-2 text-[13px] leading-5 text-muted-foreground";
-  const iconForRow = (row: { kind: string; status: string }) => {
-    if (row.status === "error") {
-      return <AlertTriangle className='h-3.5 w-3.5 shrink-0 text-red-400' />;
-    }
-    if (row.status === "running") {
-      return (
-        <ThinkingOrb
-          state={row.kind === "tool" ? "searching" : "working"}
-          size={20}
-          className='shrink-0'
-          aria-label='JobRaker is working'
-        />
-      );
-    }
-    if (row.kind === "billing") {
-      return <ReceiptText className='h-3.5 w-3.5 shrink-0 text-brand' />;
-    }
-    if (row.kind === "limit") {
-      return <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />;
-    }
-    return <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-brand' />;
-  };
-
   return (
-    <div className='mb-3 space-y-2'>
-      <button
-        type='button'
-        onClick={() => setExpanded((value) => !value)}
-        className={`${rowClass} w-full text-left transition-colors hover:bg-brand/[0.09]`}
-        aria-expanded={expanded}
-      >
-        {isStreaming ? (
-          <ThinkingOrb
-            state={timelineOrbState}
-            size={20}
-            className='shrink-0'
-            aria-label='JobRaker is working'
-          />
-        ) : (
-          <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
-        )}
-        <span className='shrink-0 font-medium text-foreground/80'>
-          Working process
-        </span>
-        <span className='shrink-0 text-muted-foreground/70'>-</span>
-        <span className='shrink-0'>{stepLabel}</span>
-        {estimatedTimeSaved > 0 ? (
-          <>
-            <span className='hidden shrink-0 text-muted-foreground/70 md:inline'>
-              -
-            </span>
-            <span className='hidden shrink-0 text-brand/90 md:inline'>
-              ~{estimatedTimeSaved} min saved
-            </span>
-          </>
-        ) : null}
-        <span className='hidden shrink-0 text-muted-foreground/70 sm:inline'>
-          -
-        </span>
-        <span className='min-w-0 flex-1 truncate text-muted-foreground/80'>
-          {summaryLabel}
-        </span>
-        <ChevronDown
-          className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${
-            expanded ? "rotate-180" : ""
-          }`}
-        />
-      </button>
-
-      {expanded && (
-        <div className={`space-y-2 ledger ${isStreaming ? "ledger-live" : "ledger-static"}`}>
-          {liveTimelineRows.map((row) => {
-            const isRowExpanded = !!expandedRows[row.id];
-            return (
-              <div
-                key={row.id}
-                onClick={() => {
-                  setExpandedRows((prev) => ({
-                    ...prev,
-                    [row.id]: !prev[row.id],
-                  }));
-                }}
-                className={`${rowClass} ledger-row relative cursor-pointer hover:bg-brand/[0.09] transition-colors ${
-                  isRowExpanded ? "items-start" : "items-center"
-                }`}
-                title={row.label}
-              >
-                {isStreaming ? (
-                  <span className='ledger-edge-dot' aria-hidden='true' />
-                ) : null}
-                {iconForRow(row)}
-                <span
-                  className={
-                    isRowExpanded
-                      ? "break-words whitespace-pre-wrap flex-1 text-left"
-                      : "truncate flex-1 text-left"
-                  }
-                >
-                  {row.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {expanded && displayedHiddenStepCount > 0 && (
-        <div className={rowClass}>
-          <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
-          <span className='truncate'>
-            +{displayedHiddenStepCount} earlier working step
-            {displayedHiddenStepCount === 1 ? "" : "s"}
-          </span>
-        </div>
-      )}
-
-      {expanded && isStreaming && timelineRows.length === 0 && (
-        <div className={rowClass}>
-          <ThinkingOrb
-            state='connecting'
-            size={20}
-            className='shrink-0'
-            aria-label='Connecting to JobRaker'
-          />
-          <span className='truncate'>{fallbackLabel}</span>
-        </div>
-      )}
-    </div>
+    <AgentWorkTrace
+      rows={timelineRows}
+      reasoningRows={reasoningRows}
+      searchRows={searchRows}
+      isStreaming={isStreaming}
+      stepLabel={stepLabel}
+      summaryLabel={summaryLabel}
+      estimatedTimeSaved={estimatedTimeSaved}
+      hiddenStepCount={hiddenStepCount}
+      fallbackLabel={fallbackLabel}
+      traceId={`agent-work-trace-${message.id}`}
+    />
   );
 };
 
