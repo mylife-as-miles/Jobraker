@@ -204,6 +204,19 @@ const customStyles = `
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--foreground) / 0.2);
   }
+  .chat-scroll-hidden,
+  [data-ai-message="true"],
+  [data-ai-message="true"] * {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .chat-scroll-hidden::-webkit-scrollbar,
+  [data-ai-message="true"]::-webkit-scrollbar,
+  [data-ai-message="true"] *::-webkit-scrollbar {
+    display: none;
+    height: 0;
+    width: 0;
+  }
 `;
 
 const externalSourceDomain = (href?: string) => {
@@ -1359,10 +1372,29 @@ const applicationStatusRecordsFromMessage = (
   return Array.from(new Map(records.map((record) => [record.id, record])).values());
 };
 
-const ApplicationStatusPreview = ({ message }: { message: BasicMessage }) => {
+const isApplicationListRequest = (message?: BasicMessage) => {
+  if (!message || message.role !== "user") return false;
+
+  const request = message.content.replace(/\s+/g, " ").trim().toLowerCase();
+  if (!request) return false;
+
+  const mentionsApplications = /\b(applications?|jobs?|roles?)\b/.test(request);
+  const asksForAList = /\b(list|show|view|display|see|give me|what(?:'s| is| are)|which|check|track(?:ed|ing)?|status)\b/.test(request);
+  return mentionsApplications && asksForAList;
+};
+
+const ApplicationStatusPreview = ({
+  message,
+  requested,
+}: {
+  message: BasicMessage;
+  requested: boolean;
+}) => {
   if (message.role !== "assistant") return null;
   const applications = applicationStatusRecordsFromMessage(message);
-  return applications.length > 0 ? <ApplicationStatusTable applications={applications} /> : null;
+  return requested && applications.length > 0 ? (
+    <ApplicationStatusTable applications={applications} />
+  ) : null;
 };
 
 const analyticsSnapshotFromMessage = (
@@ -4241,7 +4273,15 @@ export const ChatPage = () => {
                 <div className={`flex-1 w-full mx-auto p-6 space-y-6 pb-8 ${
                   isFocusMode ? "max-w-5xl" : "max-w-4xl"
                 }`}>
-                  {messages.map((m, idx) => (
+                  {messages.map((m, idx) => {
+                    const applicationListRequested = isApplicationListRequest(
+                      messages
+                        .slice(0, idx)
+                        .reverse()
+                        .find((message) => message.role === "user"),
+                    );
+
+                    return (
                     <Fragment key={m.id}>
                       <div
                       className={`flex gap-4 ${m.role === "user" ? "justify-end" : "justify-start"}`}
@@ -4278,7 +4318,6 @@ export const ChatPage = () => {
                               elapsedLabel={requestElapsedLabel}
                             />
                             <AgentResultPreview message={m} />
-                            <ApplicationStatusPreview message={m} />
                             <AgentInsightPreview message={m} />
                             {m.role === "assistant" && m.streaming && m.content ? (
                               <TokenStream
@@ -4589,6 +4628,10 @@ export const ChatPage = () => {
                               {m.content}
                             </ReactMarkdown>
                             )}
+                            <ApplicationStatusPreview
+                              message={m}
+                              requested={applicationListRequested}
+                            />
                             {m.role === "assistant" && m.approvalRequest ? (
                               <AgentApprovalCard
                                 request={m.approvalRequest}
@@ -4627,7 +4670,8 @@ export const ChatPage = () => {
                         </div>
                       ) : null}
                     </Fragment>
-                  ))}
+                    );
+                  })}
                   <div ref={messagesEndRef} />
                 </div>
               )}

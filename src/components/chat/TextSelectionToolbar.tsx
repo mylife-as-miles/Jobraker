@@ -182,7 +182,7 @@ export const TextSelectionToolbar: React.FC<TextSelectionToolbarProps> = ({ cont
           transform: "translateX(-50%)",
           zIndex: 9999,
         }}
-        className="flex max-w-[calc(100vw-1rem)] items-center gap-1 overflow-x-auto rounded-full border border-zinc-800/90 bg-black/95 p-1.5 text-xs font-medium text-zinc-100 shadow-2xl shadow-black ring-1 ring-white/10 backdrop-blur-2xl select-none [scrollbar-width:none]"
+        className="chat-scroll-hidden flex max-w-[calc(100vw-1rem)] items-center gap-1 overflow-x-auto rounded-full border border-zinc-800/90 bg-black/95 p-1.5 text-xs font-medium text-zinc-100 shadow-2xl shadow-black ring-1 ring-white/10 backdrop-blur-2xl select-none"
       >
         <button
           onClick={(e) => handleAction("rewrite", e)}

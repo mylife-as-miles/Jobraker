@@ -17,20 +17,6 @@ type Props = {
   onRunPrompt: (prompt: string) => void;
 };
 
-const confidenceTone = (confidence: number) =>
-  confidence >= 75
-    ? "bg-brand"
-    : confidence >= 50
-      ? "bg-amber-300"
-      : "bg-rose-400";
-
-const confidenceText = (confidence: number) =>
-  confidence >= 75
-    ? "text-brand"
-    : confidence >= 50
-      ? "text-amber-200"
-      : "text-rose-300";
-
 export const AgentRecommendationCard = ({
   recommendation,
   alternatives = [],
@@ -45,7 +31,7 @@ export const AgentRecommendationCard = ({
   return (
     <section
       aria-labelledby={`recommendation-${recommendation.id}`}
-      className="mt-5 max-w-xl"
+      className="mt-5 max-w-xl overflow-hidden rounded-2xl border border-border bg-card/75 px-5 py-4 shadow-sm shadow-black/20"
     >
       <h3
         id={`recommendation-${recommendation.id}`}
@@ -53,9 +39,8 @@ export const AgentRecommendationCard = ({
       >
         Continue exploring
       </h3>
-      <div className="space-y-1">
-        {recommendations.map((item, index) => {
-          const meterBars = Math.max(1, Math.min(4, Math.ceil(item.confidence / 25)));
+      <div className="divide-y divide-border/60">
+        {recommendations.map((item) => {
           const accepted = acceptedId === item.id;
           return (
             <button
@@ -65,31 +50,15 @@ export const AgentRecommendationCard = ({
                 setAcceptedId(item.id);
                 onRunPrompt(item.actionPrompt);
               }}
-              className={`group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 ${
-                index === 0
-                  ? "bg-brand/10 text-brand hover:bg-brand/15"
-                  : "text-foreground hover:bg-brand/[0.07]"
-              }`}
+              className="group flex w-full items-start gap-3 py-3 text-left transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
             >
               {accepted ? (
                 <Check className="size-3.5 shrink-0 text-brand" strokeWidth={3} aria-hidden="true" />
               ) : (
                 <ArrowUpRight className="size-3.5 shrink-0 text-brand" aria-hidden="true" />
               )}
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+              <span className="min-w-0 flex-1 break-words text-sm font-medium text-foreground transition-colors group-hover:text-brand">
                 {accepted ? "Queued for review" : item.title}
-              </span>
-              <span className="flex h-3 items-end gap-0.5" aria-label={`${item.confidence}% ${item.confidenceLabel}`}>
-                {Array.from({ length: 4 }, (_, meterIndex) => (
-                  <span
-                    key={meterIndex}
-                    className={`w-1 rounded-full ${meterIndex < meterBars ? confidenceTone(item.confidence) : "bg-border"}`}
-                    style={{ height: `${5 + meterIndex * 2}px` }}
-                  />
-                ))}
-              </span>
-              <span className={`shrink-0 text-[11px] font-medium ${confidenceText(item.confidence)}`}>
-                {item.confidence}%
               </span>
             </button>
           );
