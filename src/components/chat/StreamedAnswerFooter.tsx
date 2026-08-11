@@ -1,9 +1,10 @@
 import {
-  ArrowUpRight,
   Check,
   ChevronDown,
+  ChevronRight,
   Copy,
   ExternalLink,
+  List,
   RefreshCw,
   Search,
 } from "lucide-react";
@@ -15,7 +16,6 @@ type StreamedAnswerFooterProps = {
   content: string;
   isStreaming: boolean;
   onRegenerate: () => void;
-  onFollowUp: (prompt: string) => void;
 };
 
 const sourceFromUrl = (href: string, label?: string): StreamSource | null => {
@@ -62,12 +62,10 @@ export function StreamedAnswerFooter({
   content,
   isStreaming,
   onRegenerate,
-  onFollowUp,
 }: StreamedAnswerFooterProps) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const sources = useMemo(() => extractSources(content), [content]);
-  const followUps = useMemo(() => followUpsFor(content), [content]);
   const isError = /^\s*error:/i.test(content);
 
   if (!content.trim() || isError) return null;
@@ -137,23 +135,47 @@ export function StreamedAnswerFooter({
           ))}
         </ul>
       )}
-
-      <section className="mt-3" aria-label="Suggested follow-up questions">
-        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Continue exploring</p>
-        <div className="mt-1.5 flex flex-col">
-          {followUps.map((prompt) => (
-            <button
-              key={prompt}
-              type="button"
-              onClick={() => onFollowUp(prompt)}
-              className="-mx-1 flex items-center gap-2 rounded-md px-1 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-brand/10 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
-            >
-              <ArrowUpRight aria-hidden className="shrink-0 text-brand" size={12} />
-              {prompt}
-            </button>
-          ))}
-        </div>
-      </section>
     </div>
+  );
+}
+
+export function ChatFollowUpPanel({
+  content,
+  isStreaming,
+  onFollowUp,
+}: Pick<StreamedAnswerFooterProps, "content" | "isStreaming"> & {
+  onFollowUp: (prompt: string) => void;
+}) {
+  const followUps = useMemo(() => followUpsFor(content), [content]);
+  const isError = /^\s*error:/i.test(content);
+
+  if (!content.trim() || isError || isStreaming) return null;
+
+  return (
+    <section
+      className="max-w-xl rounded-2xl border border-border bg-card/75 p-5"
+      aria-label="Suggested follow-up questions"
+    >
+      <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-foreground">
+        <List className="size-4 text-muted-foreground" aria-hidden />
+        Follow-up questions
+      </h3>
+      <div className="divide-y divide-border/60">
+        {followUps.map((prompt) => (
+          <button
+            key={prompt}
+            type="button"
+            onClick={() => onFollowUp(prompt)}
+            className="group flex w-full items-center justify-between py-3 text-left text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
+          >
+            <span className="min-w-0 pr-4">{prompt}</span>
+            <ChevronRight
+              aria-hidden
+              className="size-4 shrink-0 text-brand/60 opacity-60 transition-opacity group-hover:opacity-100"
+            />
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

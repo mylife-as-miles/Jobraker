@@ -92,7 +92,10 @@ import {
   type AgentTraceSource,
 } from "@/components/chat/AgentWorkTrace";
 import { TokenStream } from "@/components/chat/TokenStream";
-import { StreamedAnswerFooter } from "@/components/chat/StreamedAnswerFooter";
+import {
+  ChatFollowUpPanel,
+  StreamedAnswerFooter,
+} from "@/components/chat/StreamedAnswerFooter";
 import { AgentApprovalCard } from "@/components/chat/AgentApprovalCard";
 import { ChatSourceLauncher } from "@/components/chat/ChatSourceLauncher";
 import {
@@ -4650,9 +4653,6 @@ export const ChatPage = () => {
                                 content={m.content}
                                 isStreaming={Boolean(m.streaming)}
                                 onRegenerate={regenerate}
-                                onFollowUp={(prompt) => {
-                                  if (!isChatBusy) void handleSubmit({ text: prompt });
-                                }}
                               />
                             )}
                           </div>
@@ -4660,10 +4660,17 @@ export const ChatPage = () => {
                       </div>
                       </div>
                       {m.id === latestAssistantMessageId ? (
-                        <div className="ml-12 max-w-[85%]">
+                        <div className="ml-12 max-w-[85%] space-y-3">
                           <AgentRecommendationPreview
                             message={m}
                             onRunPrompt={(prompt) => {
+                              if (!isChatBusy) void handleSubmit({ text: prompt });
+                            }}
+                          />
+                          <ChatFollowUpPanel
+                            content={m.content}
+                            isStreaming={Boolean(m.streaming)}
+                            onFollowUp={(prompt) => {
                               if (!isChatBusy) void handleSubmit({ text: prompt });
                             }}
                           />
