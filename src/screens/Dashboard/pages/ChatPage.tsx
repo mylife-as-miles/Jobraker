@@ -92,6 +92,11 @@ import {
 } from "@/components/chat/AgentWorkTrace";
 import { TokenStream } from "@/components/chat/TokenStream";
 import { StreamedAnswerFooter } from "@/components/chat/StreamedAnswerFooter";
+import { AgentApprovalCard } from "@/components/chat/AgentApprovalCard";
+import type {
+  AgentApprovalRequest,
+  ApprovedToolCall,
+} from "@/lib/chat/agentApproval";
 import {
   executeChatSkill,
   getPrimarySkillAlias,
@@ -108,17 +113,6 @@ import type {
   ParsedSkillCall,
   SkillExecutionInput,
 } from "@/lib/chatSkills/types";
-import {
-  IntegrationPermissionModal,
-  type PendingPermissionRequest,
-} from "@/components/chat/IntegrationPermissionModal";
-import {
-  fetchUserPermissions,
-  saveUserPermission,
-  resolveIntegrationFromTool,
-  getLocalPermissions,
-  type PermissionScope,
-} from "@/lib/integrationPermissions";
 import {
   MessageSquare,
   Wand2,
@@ -293,6 +287,7 @@ type ChatRequestOptions = {
   webSearch?: boolean;
   system?: string;
   mode?: ChatMode;
+  approvedToolCalls?: ApprovedToolCall[];
 };
 type ChatUiAction = {
   type?: string;
@@ -333,6 +328,7 @@ interface BasicMessage {
   meta?: { persona?: Persona; parent?: string };
   toolCalls?: ToolCallEntry[];
   agentEvents?: AgentActivityEntry[];
+  approvalRequest?: AgentApprovalRequest;
   streamFrameCount?: number;
   skillCall?: ChatSkillCall;
   /** Persisted: user message included an image (bytes live in IndexedDB). */
@@ -363,8 +359,6 @@ interface UseChatReturn {
   responseId: string | null;
   setResponseId: (id: string | null) => void;
   requestStartedAt: number | null;
-  pendingPermissionRequest: PendingPermissionRequest | null;
-  setPendingPermissionRequest: Dispatch<SetStateAction<PendingPermissionRequest | null>>;
 }
 
 type ChatSessionRecord = {
@@ -555,6 +549,56 @@ const normalizeBasicMessage = (message: any): BasicMessage => {
             typeof entry.toolCount === "number" ? entry.toolCount : undefined,
         }))
     : undefined,
+  approvalRequest:
+    message?.approvalRequest && typeof message.approvalRequest === "object"
+      ? {
+          id:
+            typeof message.approvalRequest.id === "string"
+              ? message.approvalRequest.id
+              : nanoid(),
+          title:
+            typeof message.approvalRequest.title === "string"
+              ? message.approvalRequest.title
+              : "Approve this action?",
+          description:
+            typeof message.approvalRequest.description === "string"
+              ? message.approvalRequest.description
+              : "Review the proposed action before JobRaker continues.",
+          steps: Array.isArray(message.approvalRequest.steps)
+            ? message.approvalRequest.steps
+                .filter(
+                  (step: any) =>
+                    step &&
+                    typeof step.approvalKey === "string" &&
+                    typeof step.toolName === "string" &&
+                    typeof step.title === "string",
+                )
+                .map((step: any) => ({
+                  approvalKey: step.approvalKey,
+                  toolName: step.toolName,
+                  title: step.title,
+                  detail: typeof step.detail === "string" ? step.detail : "",
+                  kind:
+                    step.kind === "browser" ||
+                    step.kind === "application" ||
+                    step.kind === "email" ||
+                    step.kind === "data" ||
+                    step.kind === "credits"
+                      ? step.kind
+                      : "plan",
+                }))
+            : [],
+          createdAt:
+            typeof message.approvalRequest.createdAt === "number"
+              ? message.approvalRequest.createdAt
+              : Date.now(),
+          decision:
+            message.approvalRequest.decision === "approved" ||
+            message.approvalRequest.decision === "declined"
+              ? message.approvalRequest.decision
+              : undefined,
+        }
+      : undefined,
   skillCall:
     message?.skillCall && typeof message.skillCall === "object"
       ? (message.skillCall as ChatSkillCall)
@@ -1318,21 +1362,6 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     historyBeforeUser: BasicMessage[];
   } | null>(null);
 
-  const supabase = useMemo(() => createClient(), []);
-  const [permissionGrants, setPermissionGrants] = useState<Record<string, PermissionScope>>({});
-  const [pendingPermissionRequest, setPendingPermissionRequest] = useState<PendingPermissionRequest | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.id) {
-        fetchUserPermissions(supabase, data.user.id).then(setPermissionGrants);
-      }
-    });
-  }, [supabase]);
-
-  const permissionGrantsRef = useRef(permissionGrants);
-  permissionGrantsRef.current = permissionGrants;
-
   const sendMessage = useCallback(
     async (
       baseMessages: BasicMessage[],
@@ -1438,6 +1467,9 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             webSearch: chatOpts?.webSearch ?? false,
             system: chatOpts?.system,
             previous_response_id: previousResponseId ?? responseId,
+            approved_tool_calls: chatOpts?.approvedToolCalls?.map(({ approvalKey }) => ({
+              approval_key: approvalKey,
+            })),
           }),
           signal: abortControllerRef.current.signal,
         });
@@ -1579,37 +1611,57 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 );
               });
               await waitForAgentProgressPaint();
+            } else if (currentEvent === "approval_request") {
+              const approvalRequest: AgentApprovalRequest = {
+                id: typeof data.id === "string" ? data.id : nanoid(),
+                title:
+                  typeof data.title === "string"
+                    ? data.title
+                    : "Approve this action?",
+                description:
+                  typeof data.description === "string"
+                    ? data.description
+                    : "Review the proposed action before JobRaker continues.",
+                steps: Array.isArray(data.steps)
+                  ? data.steps
+                      .filter(
+                        (step: any) =>
+                          step &&
+                          typeof step.approvalKey === "string" &&
+                          typeof step.toolName === "string" &&
+                          typeof step.title === "string",
+                      )
+                      .map((step: any) => ({
+                        approvalKey: step.approvalKey,
+                        toolName: step.toolName,
+                        title: step.title,
+                        detail: typeof step.detail === "string" ? step.detail : "",
+                        kind:
+                          step.kind === "browser" ||
+                          step.kind === "application" ||
+                          step.kind === "email" ||
+                          step.kind === "data" ||
+                          step.kind === "credits"
+                            ? step.kind
+                            : "plan",
+                      }))
+                  : [],
+                createdAt:
+                  typeof data.created_at === "number"
+                    ? data.created_at
+                    : Date.now(),
+              };
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantId
+                      ? { ...markStreamFrame(msg), approvalRequest }
+                      : msg,
+                  ),
+                );
+              });
+              await waitForAgentProgressPaint();
             } else if (currentEvent === "tool_start") {
-              const integration = resolveIntegrationFromTool(data.name, data.args);
-              if (integration) {
-                const currentGrant =
-                  permissionGrantsRef.current[integration.slug] ||
-                  getLocalPermissions()[integration.slug];
-                if (!currentGrant) {
-                  const decision = await new Promise<PermissionScope>((resolve) => {
-                    setPendingPermissionRequest({
-                      integrationSlug: integration.slug,
-                      integrationName: integration.name,
-                      toolName: data.name,
-                      toolSummary: data.name.replace(/_/g, " "),
-                      resolve,
-                    });
-                  });
-
-                  setPendingPermissionRequest(null);
-                  if (decision !== "deny") {
-                    const { data: userData } = await supabase.auth.getUser();
-                    if (userData.user?.id) {
-                      await saveUserPermission(supabase, userData.user.id, integration.slug, decision);
-                    }
-                    setPermissionGrants((prev) => ({
-                      ...prev,
-                      [integration.slug]: decision,
-                    }));
-                  }
-                }
-              }
-
               const toolEntry: ToolCallEntry = {
                 id: data.id || nanoid(),
                 name: data.name,
@@ -1874,8 +1926,6 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     responseId,
     setResponseId,
     requestStartedAt,
-    pendingPermissionRequest,
-    setPendingPermissionRequest,
   };
 };
 
@@ -2286,8 +2336,6 @@ export const ChatPage = () => {
     responseId,
     setResponseId,
     requestStartedAt,
-    pendingPermissionRequest,
-    setPendingPermissionRequest,
   } = chat;
   const [now, setNow] = useState(() => Date.now());
   const requestElapsedMs =
@@ -2300,6 +2348,61 @@ export const ChatPage = () => {
     return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
   }, [requestElapsedMs]);
   const isChatBusy = status === "in_progress" || skillStatus === "in_progress";
+
+  const updateApprovalDecision = useCallback(
+    (requestId: string, decision: "approved" | "declined") => {
+      setMessages((previous) =>
+        previous.map((message) =>
+          message.approvalRequest?.id === requestId
+            ? {
+                ...message,
+                approvalRequest: {
+                  ...message.approvalRequest,
+                  decision,
+                },
+              }
+            : message,
+        ),
+      );
+    },
+    [setMessages],
+  );
+
+  const handleApprovalApprove = useCallback(
+    (request: AgentApprovalRequest) => {
+      if (isChatBusy || request.steps.length === 0) return;
+      updateApprovalDecision(request.id, "approved");
+      append(
+        {
+          role: "user",
+          content: "I approve the proposed plan. Continue only with the approved steps.",
+        },
+        {
+          model: DEFAULT_CHAT_MODEL,
+          mode: "agent",
+          webSearch: true,
+          approvedToolCalls: request.steps.map(({ approvalKey }) => ({ approvalKey })),
+        },
+      );
+    },
+    [append, isChatBusy, updateApprovalDecision],
+  );
+
+  const handleApprovalAdjust = useCallback(
+    (_request: AgentApprovalRequest) => {
+      if (isChatBusy) return;
+      setText("Please adjust the plan: ");
+      window.setTimeout(() => textareaRef.current?.focus(), 0);
+    },
+    [isChatBusy],
+  );
+
+  const handleApprovalDecline = useCallback(
+    (request: AgentApprovalRequest) => {
+      updateApprovalDecision(request.id, "declined");
+    },
+    [updateApprovalDecision],
+  );
   const [proTipIndex, setProTipIndex] = useState(0);
 
   useEffect(() => {
@@ -4137,6 +4240,15 @@ export const ChatPage = () => {
                               {m.content}
                             </ReactMarkdown>
                             )}
+                            {m.role === "assistant" && m.approvalRequest ? (
+                              <AgentApprovalCard
+                                request={m.approvalRequest}
+                                disabled={isChatBusy}
+                                onApprove={handleApprovalApprove}
+                                onAdjust={handleApprovalAdjust}
+                                onDecline={handleApprovalDecline}
+                              />
+                            ) : null}
                             {m.streaming &&
                               (m.content ? (
                                 <span className='inline-block w-1.5 h-4 ml-1 align-middle bg-brand animate-pulse' />
@@ -4478,13 +4590,6 @@ export const ChatPage = () => {
             <div className='fixed -bottom-48 -right-48 w-96 h-96 bg-brand/5 rounded-full blur-[120px] pointer-events-none'></div>
             <div className='fixed top-24 left-96 w-64 h-64 bg-brand/5 rounded-full blur-[100px] pointer-events-none'></div>
           </main>
-
-          <IntegrationPermissionModal
-            request={pendingPermissionRequest}
-            onRespond={(decision) => {
-              pendingPermissionRequest?.resolve(decision);
-            }}
-          />
 
         </>
       )}
