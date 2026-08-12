@@ -20,7 +20,7 @@ type Props = {
   onUpload: () => void;
 };
 
-const DEFAULT_VISIBLE_ITEMS = 7;
+const DEFAULT_VISIBLE_ITEMS = 5;
 
 export const ChatSourceLauncher = ({
   open,
