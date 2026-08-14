@@ -12,7 +12,7 @@ const TIER_RANK: Record<SubscriptionTier, number> = {
 
 export const JOB_SEARCH_RESULT_CAPS: Record<SubscriptionTier, number> = {
   Free: 10,
-  Starter: 15,
+  Starter: 10,
   Basics: 20,
   Pro: 50,
   Ultimate: 100,
