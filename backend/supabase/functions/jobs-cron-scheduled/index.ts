@@ -31,12 +31,24 @@ function serviceRoleClient() {
   });
 }
 
-function isServiceRoleRequest(req: Request): boolean {
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-  const token = req.headers.get("authorization")
-    ?.replace(/^Bearer\s+/i, "")
-    .trim();
-  return Boolean(serviceRoleKey && token && token === serviceRoleKey);
+async function isAuthorizedSchedulerRequest(
+  req: Request,
+  serviceClient: any,
+): Promise<boolean> {
+  const token = req.headers.get("x-jobraker-scheduler-token")?.trim();
+  if (!token) return false;
+
+  const { data, error } = await serviceClient.rpc(
+    "verify_jobs_cron_scheduler_token",
+    { p_token: token },
+  );
+
+  if (error) {
+    console.error("jobs-cron-scheduled scheduler-token verification failed", error);
+    return false;
+  }
+
+  return data === true;
 }
 
 async function loadSearchScope(serviceClient: any, userId: string) {
@@ -312,15 +324,16 @@ Deno.serve(async (req) => {
     });
   }
 
-  if (!isServiceRoleRequest(req)) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "content-type": "application/json" },
-    });
-  }
-
   try {
-    const results = await runScheduledUsers(serviceRoleClient());
+    const serviceClient = serviceRoleClient();
+    if (!(await isAuthorizedSchedulerRequest(req, serviceClient))) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      });
+    }
+
+    const results = await runScheduledUsers(serviceClient);
     const failed = results.filter((result) => !result.ok).length;
     const skipped = results.filter((result) => result.skipped).length;
 
