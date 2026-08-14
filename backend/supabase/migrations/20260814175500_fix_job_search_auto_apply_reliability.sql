@@ -1,10 +1,11 @@
 -- Fix JobRaker scheduled job discovery and Auto Apply billing/state reliability.
 --
--- 1. Replace the legacy anon-key jobs-cron pg_cron request with a dedicated
---    service-role-only scheduled Edge Function.
+-- 1. Replace the broken legacy jobs-cron request (which references a missing
+--    Vault anon_key) with a dedicated scheduler endpoint protected by a random
+--    token generated and retained entirely inside Supabase Vault.
 -- 2. Enforce the commercial Auto Apply price of 10 credits per application at
---    the authoritative reservation + settlement boundary, including callers
---    that still estimate 5 credits per application.
+--    both reservation and settlement, including callers that still estimate
+--    5 credits per application.
 -- 3. Prevent provider runs from becoming "Applied/submitted" before the
 --    provider actually reports completion.
 
@@ -12,8 +13,52 @@ CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- ---------------------------------------------------------------------------
--- Scheduled job discovery dispatch
+-- Scheduled job discovery authentication + dispatch
 -- ---------------------------------------------------------------------------
+
+DO $ensure_scheduler_secret$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM vault.decrypted_secrets
+    WHERE name = 'jobs_cron_scheduler_token'
+  ) THEN
+    PERFORM vault.create_secret(
+      replace(gen_random_uuid()::text, '-', '') ||
+      replace(gen_random_uuid()::text, '-', ''),
+      'jobs_cron_scheduler_token',
+      'JobRaker pg_cron to jobs-cron-scheduled authentication token'
+    );
+  END IF;
+END;
+$ensure_scheduler_secret$;
+
+CREATE OR REPLACE FUNCTION public.verify_jobs_cron_scheduler_token(
+  p_token text
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $function$
+DECLARE
+  v_expected text;
+BEGIN
+  IF p_token IS NULL OR length(p_token) < 32 THEN
+    RETURN false;
+  END IF;
+
+  SELECT NULLIF(btrim(v.decrypted_secret), '')
+  INTO v_expected
+  FROM vault.decrypted_secrets AS v
+  WHERE v.name = 'jobs_cron_scheduler_token'
+  LIMIT 1;
+
+  RETURN v_expected IS NOT NULL
+    AND length(p_token) = length(v_expected)
+    AND p_token = v_expected;
+END;
+$function$;
 
 CREATE OR REPLACE FUNCTION public.invoke_jobs_cron_scheduled()
 RETURNS bigint
@@ -23,7 +68,7 @@ SET search_path = pg_catalog, public
 AS $function$
 DECLARE
   v_project_url text;
-  v_service_role_key text;
+  v_scheduler_token text;
   v_base_url text;
   v_target_url text;
   v_request_id bigint;
@@ -35,13 +80,13 @@ BEGIN
   LIMIT 1;
 
   SELECT NULLIF(btrim(v.decrypted_secret), '')
-  INTO v_service_role_key
+  INTO v_scheduler_token
   FROM vault.decrypted_secrets AS v
-  WHERE v.name = 'service_role_key'
+  WHERE v.name = 'jobs_cron_scheduler_token'
   LIMIT 1;
 
-  IF v_project_url IS NULL OR v_service_role_key IS NULL THEN
-    RAISE WARNING 'Scheduled job discovery skipped: Vault secrets project_url/service_role_key are missing';
+  IF v_project_url IS NULL OR v_scheduler_token IS NULL THEN
+    RAISE WARNING 'Scheduled job discovery skipped: required Vault secrets are missing';
     RETURN NULL;
   END IF;
 
@@ -59,7 +104,7 @@ BEGIN
     url := v_target_url,
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || v_service_role_key
+      'x-jobraker-scheduler-token', v_scheduler_token
     ),
     body := jsonb_build_object('scheduled_trigger', true),
     timeout_milliseconds := 30000
@@ -74,7 +119,7 @@ EXCEPTION
 END;
 $function$;
 
--- Remove the obsolete hourly job that called jobs-cron using a browser/anon key.
+-- Remove the obsolete hourly job that calls jobs-cron with a missing anon_key.
 DO $unschedule$
 BEGIN
   PERFORM cron.unschedule('invoke-jobs-cron-hourly');
@@ -98,8 +143,15 @@ SELECT cron.schedule(
   $$ SELECT public.invoke_jobs_cron_scheduled(); $$
 );
 
-REVOKE ALL ON FUNCTION public.invoke_jobs_cron_scheduled() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.invoke_jobs_cron_scheduled() TO service_role;
+REVOKE ALL ON FUNCTION public.verify_jobs_cron_scheduler_token(text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.verify_jobs_cron_scheduler_token(text)
+  TO service_role;
+
+REVOKE ALL ON FUNCTION public.invoke_jobs_cron_scheduled()
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.invoke_jobs_cron_scheduled()
+  TO service_role;
 
 -- ---------------------------------------------------------------------------
 -- Auto Apply reservation: 10 credits/application
