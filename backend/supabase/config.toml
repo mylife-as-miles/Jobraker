@@ -8,8 +8,8 @@ project_id = "backend"
 enabled = true
 # Port to use for the API URL.
 port = 54321
-# Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
-# endpoints. `public` and `graphql_public` schemas are included by default.
+# Schemas to expose in your API. Tables, views and stored procedures in this schema will get
+# endpoints. `public` and `graphql_public` are included by default.
 schemas = ["public", "graphql_public"]
 # Extra schemas to add to the search_path of every request.
 extra_search_path = ["public", "extensions"]
@@ -24,9 +24,9 @@ enabled = false
 [db]
 # Port to use for the local database URL.
 port = 54322
-# Port used by db diff command to initialize the shadow database.
+# Port to use for db shadow database.
 shadow_port = 54320
-# The database major version to use. This has to be the same as your remote database's. Run `SHOW
+# The major version of database to use. This has to be the same as your remote database's. Run `SHOW
 # server_version;` on the remote database to check.
 major_version = 17
 
@@ -55,17 +55,17 @@ schema_paths = ["./schema.sql"]
 [db.seed]
 # If enabled, seeds the database after migrations during a db reset.
 enabled = true
-# Specifies an ordered list of seed files to load during db reset.
+# Specifies an ordered list of seed files to load.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
 sql_paths = ["./seed.sql"]
 
 [db.network_restrictions]
-# Enable management of network restrictions.
+# Enable network restrictions management.
 enabled = false
-# List of IPv4 CIDR blocks allowed to connect to the database.
+# List of IPv4 CIDR blocks allowed to connect to Postgres.
 # Defaults to allow all IPv4 connections. Set empty array to block all IPs.
 allowed_cidrs = ["0.0.0.0/0"]
-# List of IPv6 CIDR blocks allowed to connect to the database.
+# List of IPv6 CIDR blocks allowed to connect to Postgres.
 # Defaults to allow all IPv6 connections. Set empty array to block all IPs.
 allowed_cidrs_v6 = ["::/0"]
 
@@ -85,13 +85,12 @@ api_url = "http://127.0.0.1"
 # OpenAI API Key to use for Supabase AI in the Supabase Studio.
 openai_api_key = "env(OPENAI_API_KEY)"
 
-# Email testing server. Emails sent with the local dev setup are not actually sent - rather, they
-# are monitored, and you can view the emails that would have been sent from the web interface.
+# Email testing server. Emails sent in local dev are not actually sent - they are captured here.
 [inbucket]
 enabled = true
 # Port to use for the email testing server web interface.
 port = 54324
-# Uncomment to expose additional ports for testing user applications that send emails.
+# Uncomment to expose additional ports for testing manual email clients.
 # smtp_port = 54325
 # pop3_port = 54326
 # admin_email = "admin@email.com"
@@ -109,14 +108,14 @@ file_size_limit = "50MiB"
 # Uncomment to configure local storage buckets
 # [storage.buckets.images]
 # public = false
-# file_size_limit = "50MiB"
+# file_size_limit = "50MB"
 # allowed_mime_types = ["image/png", "image/jpeg"]
 # objects_path = "./images"
 
 [auth]
 enabled = true
-# The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
-# in emails.
+# The base URL of your website. Used as an allow-list for redirects and for constructing URLs used in
+# emails.
 site_url = "https://app.jobraker.io"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = [
@@ -149,10 +148,10 @@ additional_redirect_urls = [
 	"https://jobraker-tau.vercel.app/dashboard",
 	"https://jobraker-tau.vercel.app/reset-password"
 ]
-# How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
+# How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (one week).
 jwt_expiry = 3600
 # Path to JWT signing key. DO NOT commit your signing keys file to git.
-# signing_keys_path = "./signing_keys.json"
+# signing_keys_path = "./supabase/.jwt_signing_keys.json"
 # If disabled, the refresh token will never expire.
 enable_refresh_token_rotation = true
 # Allows refresh tokens to be reused after expiry, up to the specified interval in seconds.
@@ -164,7 +163,7 @@ enable_signup = true
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
-# Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 12 or more.
+# Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
 minimum_password_length = 12
 # Passwords that do not meet the following requirements will be rejected as weak. Supported values
 # are: `letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`
@@ -175,11 +174,11 @@ password_requirements = "lower_upper_letters_digits_symbols"
 email_sent = 2
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
-# Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
+# Number of anonymous sign-ins that can be made in a 5 minute interval per IP address.
 anonymous_users = 30
 # Number of sessions that can be refreshed in a 5 minute interval per IP address.
 token_refresh = 150
-# Number of sign up and sign-in requests that can be made in a 5 minute interval per IP address (excludes anonymous users).
+# Number of sign up and sign-in requests that can be made in a 5 minute interval per IP address.
 sign_in_sign_ups = 30
 # Number of OTP / Magic link verifications that can be made in a 5 minute interval per IP address.
 token_verifications = 30
@@ -193,16 +192,15 @@ web3 = 30
 # secret = ""
 
 [auth.email]
-# Allow/disallow new user signups via email to your project.
+# Allow/disallow new user signups via email.
 enable_signup = true
-# If enabled, a user will be required to confirm any email change on both the old, and new email
-# addresses. If disabled, only the new email is required to confirm.
+# If enabled, a user will be required to confirm any email change on both the old and new addresses.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
 enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = true
-# Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
+# Controls the minimum time that must pass before sending another signup confirmation or reset email.
 max_frequency = "1s"
 # Number of characters used in the email OTP.
 otp_length = 6
@@ -225,13 +223,13 @@ subject = "Welcome to Jobraker — Confirm your email"
 content_path = "./supabase/templates/confirm.html"
 
 [auth.sms]
-# Allow/disallow new user signups via SMS to your project.
+# Allow/disallow new user signups via SMS.
 enable_signup = false
 # If enabled, users need to confirm their phone number before signing in.
 enable_confirmations = false
-# Template for sending OTP to users
+# Template for sending OTP to users.
 template = "Your code is {{ .Code }}"
-# Controls the minimum amount of time that must pass before sending another sms otp.
+# Controls the minimum time that must pass before sending another sms otp.
 max_frequency = "5s"
 
 # Use pre-defined map of phone number to OTP for testing.
@@ -245,15 +243,15 @@ max_frequency = "5s"
 # Force log out if the user has been inactive longer than the specified duration.
 # inactivity_timeout = "8h"
 
-# This hook runs before a new user is created and allows developers to reject the request based on the incoming user object.
+# This hook runs before a new user is created and allows developers to reject the incoming user.
 # [auth.hook.before_user_created]
 # enabled = true
 # uri = "pg-functions://postgres/auth/before-user-created-hook"
 
-# This hook runs before a token is issued and allows you to add additional claims based on the authentication method used.
+# This hook runs before a token is issued and allows adding additional claims.
 # [auth.hook.custom_access_token]
 # enabled = true
-# uri = "pg-functions://<database>/<schema>/<hook_name>"
+# uri = "pg-functions://<postgres>/<schema>/<hook_name>"
 
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]
@@ -265,7 +263,7 @@ auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 
 # Multi-factor-authentication is available to Supabase Pro plan.
 [auth.mfa]
-# Control how many MFA factors can be enrolled at once per user.
+# Control how many MFA factors can be enrolled at once.
 max_enrolled_factors = 10
 
 # Control MFA via App Authenticator (TOTP)
@@ -296,14 +294,13 @@ client_id = ""
 secret = "env(SUPABASE_AUTH_EXTERNAL_APPLE_SECRET)"
 # Overrides the default auth redirectUrl.
 redirect_uri = ""
-# Overrides the default auth provider URL. Used to support self-hosted gitlab, single-tenant Azure,
+# Overrides the default auth provider URL. Used to support self-hosted gitlab,
 # or any other third-party OIDC providers.
 url = ""
 # If enabled, the nonce check will be skipped. Required for local sign in with Google auth.
 skip_nonce_check = false
 
-# Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.
-# You can configure "web3" rate limit in the [auth.rate_limit] section and set up [auth.captcha] if self-hosting.
+# Allow Solana wallet holders to sign in with Solana (SIWS, EIP-4361).
 [auth.web3.solana]
 enabled = false
 
@@ -315,13 +312,13 @@ enabled = false
 # Use Auth0 as a third-party provider alongside Supabase Auth.
 [auth.third_party.auth0]
 enabled = false
-# tenant = "my-auth0-tenant"
+# tenant = "my-tenant"
 # tenant_region = "us"
 
 # Use AWS Cognito (Amplify) as a third-party provider alongside Supabase Auth.
 [auth.third_party.aws_cognito]
 enabled = false
-# user_pool_id = "my-user-pool-id"
+# user_pool_id = "my-user-pool"
 # user_pool_region = "us-east-1"
 
 # Use Clerk as a third-party provider alongside Supabase Auth.
@@ -354,15 +351,13 @@ backend = "postgres"
 
 # Experimental features may be deprecated any time
 [experimental]
-# Configures Postgres storage engine to use OrioleDB (S3)
-orioledb_version = ""
-# Configures S3 bucket URL, eg. <bucket_name>.s3-<region>.amazonaws.com
+# Configures S3 storage engine.
 s3_host = "env(S3_HOST)"
-# Configures S3 bucket region, eg. us-east-1
+# Configures S3 bucket region.
 s3_region = "env(S3_REGION)"
-# Configures AWS_ACCESS_KEY_ID for S3 bucket
+# Configures AWS_ACCESS_KEY_ID for S3.
 s3_access_key = "env(S3_ACCESS_KEY)"
-# Configures AWS_SECRET_ACCESS_KEY for S3 bucket
+# Configures AWS_SECRET_ACCESS_KEY for S3.
 s3_secret_key = "env(S3_SECRET_KEY)"
 
 [functions.skyvern-webhook]
@@ -446,24 +441,14 @@ enabled = true
 # Browser OPTIONS preflight must reach the handler; auth is enforced in requireSubscriptionTier.
 verify_jwt = false
 import_map = "./functions/calculate-match-score/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/calculate-match-score/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/calculate-match-score/*.html" ]
 
 [functions.generate-cover-letter]
 enabled = true
 # Browser OPTIONS preflight must reach the handler; auth is enforced in requireSubscriptionTier.
 verify_jwt = false
 import_map = "./functions/generate-cover-letter/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/generate-cover-letter/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/generate-cover-letter/*.html" ]
 
 [functions.generate-outreach]
 enabled = true
@@ -487,12 +472,7 @@ enabled = true
 # Browser OPTIONS preflight must reach the handler; auth is enforced in requireSubscriptionTier.
 verify_jwt = false
 import_map = "./functions/tailor-resume/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/tailor-resume/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/tailor-resume/*.html" ]
 
 [functions.evaluate-job-fit]
 enabled = true
@@ -605,6 +585,13 @@ entrypoint = "./functions/interview-session/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/jobs-cron/index.ts"
+
+[functions.jobs-cron-scheduled]
+enabled = true
+# pg_cron cannot present a user JWT. The function verifies a dedicated random
+# scheduler token stored in Vault before creating a service-role client.
+verify_jwt = false
+entrypoint = "./functions/jobs-cron-scheduled/index.ts"
 
 [functions.paystack-webhook]
 enabled = true
