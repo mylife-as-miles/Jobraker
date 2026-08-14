@@ -12,7 +12,7 @@ const TIER_RANK: Record<SubscriptionTier, number> = {
 
 export const JOB_SEARCH_RESULT_CAPS: Record<SubscriptionTier, number> = {
   Free: 10,
-  Starter: 10,
+  Starter: 15,
   Basics: 20,
   Pro: 50,
   Ultimate: 100,
@@ -177,9 +177,18 @@ export async function resolveJobSearchExecutionLimits(
   const normalizedRequestedLimit = Number.isFinite(requestedLimit)
     ? Math.max(1, Math.floor(requestedLimit))
     : planCap;
+
+  // JobPage historically sent its Free-tier default (10) for Starter too.
+  // Preserve custom higher/lower requests on every other tier, but uplift this
+  // legacy Starter default so Starter receives its actual 15-result entitlement.
+  const effectiveRequestedLimit =
+    subscriptionTier === "Starter" && normalizedRequestedLimit === 10
+      ? planCap
+      : normalizedRequestedLimit;
+
   const effectiveLimit = Math.max(
     0,
-    Math.min(normalizedRequestedLimit, planCap),
+    Math.min(effectiveRequestedLimit, planCap),
   );
 
   return {
