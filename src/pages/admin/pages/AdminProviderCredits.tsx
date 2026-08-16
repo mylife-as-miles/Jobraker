@@ -10,12 +10,11 @@ import {
   RefreshCw,
   Save,
   WalletCards,
-  Wand2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
 import { getCurrentUserAdminSubRole } from "../../../lib/adminUtils";
 
-type ProviderName = "firecrawl" | "rtrvr" | "skyvern";
+type ProviderName = "rtrvr";
 
 interface ProviderCreditBalance {
   provider: ProviderName;
@@ -65,26 +64,12 @@ const providerCopy: Record<
     note: string;
   }
 > = {
-  firecrawl: {
-    title: "Firecrawl",
-    description: "Exact balance from the Firecrawl credit usage API.",
-    icon: Cloud,
-    accent: "text-brand bg-brand/15 border-brand/30",
-    note: "Job search refreshes this from Firecrawl automatically after provider usage.",
-  },
   rtrvr: {
     title: "RTRVR",
-    description: "Provider-account balance and confirmed automation usage.",
+    description: "DOM-native discovery, browser automation, and confirmed usage.",
     icon: Cloud,
     accent: "text-sky-300 bg-sky-400/15 border-sky-400/30",
-    note: "RTRVR balance data belongs here; per-user consumption is available in User Usage.",
-  },
-  skyvern: {
-    title: "Skyvern",
-    description: "Manual balance reduced by terminal run step counts.",
-    icon: Wand2,
-    accent: "text-[#2dd4bf] bg-[#2dd4bf]/15 border-[#2dd4bf]/30",
-    note: "Set total and remaining credits here; completed Skyvern run output subtracts step_count once per run.",
+    note: "RTRVR usage is settled from each completed discovery or browser task. Per-user consumption is available in User Usage.",
   },
 };
 
@@ -346,9 +331,7 @@ export default function AdminProviderCredits() {
     [],
   );
   const [drafts, setDrafts] = useState<Record<ProviderName, ProviderDraft>>({
-    firecrawl: makeDraft(),
     rtrvr: makeDraft(),
-    skyvern: makeDraft(),
   });
   const [loading, setLoading] = useState(true);
   const [callerSubRole, setCallerSubRole] = useState<'owner' | 'editor' | 'reader' | null>(null);
@@ -360,7 +343,7 @@ export default function AdminProviderCredits() {
     const byProvider = new Map(
       balances.map((balance) => [balance.provider, balance]),
     );
-    return (["firecrawl", "rtrvr", "skyvern"] as ProviderName[]).map(
+    return (["rtrvr"] as ProviderName[]).map(
       (provider) =>
         byProvider.get(provider) || {
           provider,
@@ -441,31 +424,6 @@ export default function AdminProviderCredits() {
       setError(null);
       const data = await invokeProviderCredits({ action: "list" });
       applyResponse(data);
-      const firecrawl = Array.isArray(data?.balances)
-        ? data.balances.find(
-            (balance: ProviderCreditBalance) =>
-              balance.provider === "firecrawl",
-          )
-        : null;
-      const firecrawlLooksUnsynced =
-        !firecrawl?.last_checked_at ||
-        firecrawl?.source === "seed" ||
-        (Number(firecrawl?.total_credits || 0) === 0 &&
-          Number(firecrawl?.remaining_credits || 0) === 0);
-
-      if (firecrawlLooksUnsynced) {
-        try {
-          const refreshed = await invokeProviderCredits({
-            action: "refresh_firecrawl",
-          });
-          applyResponse(refreshed);
-          setNotice("Firecrawl credits refreshed from the provider API.");
-        } catch (refreshError: any) {
-          setError(
-            `Firecrawl is still 0 because the API refresh failed: ${refreshError?.message || "Unknown error"}. Check FIRECRAWL_API_KEY in Supabase Edge Function secrets.`,
-          );
-        }
-      }
     } catch (err: any) {
       setError(err?.message || "Could not load provider credits");
     } finally {
@@ -522,21 +480,6 @@ export default function AdminProviderCredits() {
     }
   };
 
-  const refreshFirecrawl = async () => {
-    try {
-      setBusyKey("refresh:firecrawl");
-      setError(null);
-      setNotice(null);
-      const data = await invokeProviderCredits({ action: "refresh_firecrawl" });
-      applyResponse(data);
-      setNotice("Firecrawl credits refreshed from the provider API.");
-    } catch (err: any) {
-      setError(err?.message || "Could not refresh Firecrawl credits");
-    } finally {
-      setBusyKey(null);
-    }
-  };
-
   if (loading) {
     return (
       <div className='flex items-center justify-center h-96'>
@@ -560,8 +503,8 @@ export default function AdminProviderCredits() {
             Provider Credit Monitor
           </h1>
           <p className='text-gray-400 max-w-3xl'>
-            Track Firecrawl, RTRVR and Skyvern provider-account balances separately
-            from user credits. Per-user usage belongs in User Usage.
+            Track RTRVR provider-account balances separately from user credits.
+            Per-user usage belongs in User Usage.
           </p>
         </div>
         <button
@@ -595,9 +538,7 @@ export default function AdminProviderCredits() {
             isReader={callerSubRole === "reader"}
             onDraftChange={(patch) => updateDraft(balance.provider, patch)}
             onSave={() => saveProvider(balance.provider)}
-            onRefresh={
-              balance.provider === "firecrawl" ? refreshFirecrawl : undefined
-            }
+            onRefresh={undefined}
           />
         ))}
       </div>
@@ -616,8 +557,7 @@ export default function AdminProviderCredits() {
               Provider Credit Ledger
             </h2>
             <p className='text-sm text-gray-400'>
-              Manual changes, Firecrawl snapshots, Skyvern usage, and alert
-              sends.
+              Manual changes, RTRVR usage, and alert sends.
             </p>
           </div>
         </div>

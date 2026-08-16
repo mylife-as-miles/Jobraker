@@ -365,11 +365,6 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
 
-[functions.skyvern-webhook]
-enabled = true
-verify_jwt = false
-entrypoint = "./functions/skyvern-webhook/index.ts"
-
 [functions.proxy-resume]
 enabled = true
 verify_jwt = false
@@ -555,11 +550,6 @@ entrypoint = "./functions/composio-auth/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/enrich-jobs/index.ts"
-
-[functions.firecrawl-health]
-enabled = true
-verify_jwt = true
-entrypoint = "./functions/firecrawl-health/index.ts"
 
 [functions.generate-chat-starters]
 enabled = true

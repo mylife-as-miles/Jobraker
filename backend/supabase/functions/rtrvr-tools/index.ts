@@ -284,6 +284,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization") || "";
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const supabase = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false },
@@ -295,6 +296,15 @@ serve(async (req) => {
         headers: { ...corsHeaders, "content-type": "application/json" },
       });
     }
+    if (!serviceRoleKey) {
+      return new Response(JSON.stringify({ error: "RTRVR metering is not configured." }), {
+        status: 503,
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      });
+    }
+    const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
+    });
 
     const body = await req.json().catch(() => ({}));
     const tool = typeof body.tool === "string" ? body.tool : "";

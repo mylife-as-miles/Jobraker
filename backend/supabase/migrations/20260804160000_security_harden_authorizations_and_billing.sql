@@ -142,27 +142,28 @@ GRANT EXECUTE ON FUNCTION public.get_effective_entitlements(UUID) TO authenticat
 
 -- 2. HARDENED GET_USER_EMAIL RPC
 CREATE OR REPLACE FUNCTION public.get_user_email(user_id UUID)
-RETURNS TEXT
+RETURNS TABLE (email TEXT)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE
-    v_email TEXT;
 BEGIN
     -- Protect user email privacy: only allow self-read, service_role, or verified admin
     IF auth.uid() IS NOT NULL AND auth.uid() <> user_id AND NOT (
         EXISTS (
-            SELECT 1 FROM public.user_roles ur
-            JOIN public.roles r ON r.id = ur.role_id
-            WHERE ur.user_id = auth.uid() AND r.name IN ('admin', 'owner')
+            SELECT 1
+            FROM public.user_roles ur
+            WHERE ur.user_id = auth.uid()
+              AND ur.role = 'admin'
         )
     ) THEN
-        RETURN NULL;
+        RETURN;
     END IF;
 
-    SELECT email INTO v_email FROM auth.users WHERE id = user_id;
-    RETURN v_email;
+    RETURN QUERY
+    SELECT au.email
+    FROM auth.users AS au
+    WHERE au.id = user_id;
 END;
 $$;
 
@@ -188,9 +189,10 @@ CREATE POLICY "Admins can view audit logs"
     ON public.admin_audit_logs FOR SELECT TO authenticated
     USING (
         EXISTS (
-            SELECT 1 FROM public.user_roles ur
-            JOIN public.roles r ON r.id = ur.role_id
-            WHERE ur.user_id = auth.uid() AND r.name IN ('admin', 'owner')
+            SELECT 1
+            FROM public.user_roles ur
+            WHERE ur.user_id = auth.uid()
+              AND ur.role = 'admin'
         )
     );
 
@@ -201,23 +203,18 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE
-    v_role_id UUID;
 BEGIN
     -- Strictly require service_role
     IF current_setting('role', true) <> 'service_role' AND auth.role() <> 'service_role' THEN
         RAISE EXCEPTION 'Unauthorized: assign_admin_role is restricted exclusively to service_role.';
     END IF;
 
-    SELECT id INTO v_role_id FROM public.roles WHERE name = 'admin';
-    IF v_role_id IS NOT NULL THEN
-        INSERT INTO public.user_roles (user_id, role_id)
-        VALUES (target_user_id, v_role_id)
-        ON CONFLICT (user_id, role_id) DO NOTHING;
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (target_user_id, 'admin')
+    ON CONFLICT (user_id, role) DO NOTHING;
 
-        INSERT INTO public.admin_audit_logs (admin_user_id, target_user_id, action)
-        VALUES (COALESCE(auth.uid(), target_user_id), target_user_id, 'assign_admin_role');
-    END IF;
+    INSERT INTO public.admin_audit_logs (admin_user_id, target_user_id, action)
+    VALUES (COALESCE(auth.uid(), target_user_id), target_user_id, 'assign_admin_role');
 END;
 $$;
 

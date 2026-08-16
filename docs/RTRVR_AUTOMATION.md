@@ -1,6 +1,6 @@
 # rtrvr Automation Provider
 
-JobRaker uses Firecrawl for job search and rtrvr as the primary governed auto-apply automation provider. Skyvern remains configured as the advanced fallback.
+JobRaker uses RTRVR for job discovery and governed auto-apply. It is the single external web provider for these workflows.
 
 ## Runtime
 
@@ -24,7 +24,6 @@ Set these only in Supabase Edge Function secrets, the Node worker environment, o
 ```bash
 RTRVR_API_KEY=
 RTRVR_ENABLED=true
-RTRVR_ALLOW_SKYVERN_FALLBACK=true
 RTRVR_DEFAULT_TARGET=auto
 RTRVR_PREFER_EXTENSION=false
 RTRVR_TIMEOUT_MS=300000
@@ -41,7 +40,6 @@ AUTOMATION_WORKER_PUBLIC_URL=https://automation-worker.yourdomain.com
 AUTOMATION_WORKER_SECRET=
 AUTOMATION_WORKER_HMAC_MAX_AGE_SECONDS=300
 AUTOMATION_WORKER_LEASE_SECONDS=900
-SKYVERN_API_KEY=
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
@@ -50,11 +48,11 @@ Do not add rtrvr secrets to `VITE_` variables.
 
 ## Provider Routing
 
-Auto Apply queues one durable application run with `automation_provider = 'rtrvr'` when `RTRVR_ENABLED=true`. Set `RTRVR_ENABLED=false` to route new queue items through the existing Skyvern path without redeploying. The existing Supabase queue trigger hands rtrvr rows to the Node worker. The worker atomically claims rows with `FOR UPDATE SKIP LOCKED`, writes `automation_claimed_by`, `automation_lease_token`, `automation_lease_expires_at`, `automation_heartbeat_at`, and `automation_attempt_number`, renews the lease while a run is active, and releases the lease when a result is written.
+Auto Apply queues one durable application run with `automation_provider = 'rtrvr'`. The Supabase queue hands RTRVR rows to the Node worker. The worker atomically claims rows with `FOR UPDATE SKIP LOCKED`, writes `automation_claimed_by`, `automation_lease_token`, `automation_lease_expires_at`, `automation_heartbeat_at`, and `automation_attempt_number`, renews the lease while a run is active, and releases the lease when a result is written.
 
 `automation_lease_token` is a per-claim fencing value. Heartbeats, completion, failure, and fallback writes include both the worker id and this token, so a stale worker cannot update an application after another worker has reclaimed the row.
 
-Skyvern fallback is allowed only when `RTRVR_ALLOW_SKYVERN_FALLBACK=true`, rtrvr returns a safe retryable failure, and no submission evidence exists. CAPTCHA, TOTP, login/security verification, legal-question gaps, local-device offline, and uncertain submission states stop as user handoff instead of switching providers.
+CAPTCHA, TOTP, login/security verification, legal-question gaps, local-device offline, and uncertain submission states stop as user handoff. A failed or uncertain RTRVR execution is never re-run through a second provider, preventing duplicate applications.
 
 When a run is paused with `provider_status = 'waiting_for_user'`, call `resume_waiting_rtrvr_auto_apply_job(application_id)` after the user resolves the challenge. The RPC verifies the authenticated user owns the application, requires the same durable idempotency key, rejects active leases or submitted results, requeues the same application row as `waiting_worker`, clears stale lease fields, and lets the worker claim the next attempt without creating a duplicate application.
 

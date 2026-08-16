@@ -1,7 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { discoverJobsFirecrawl, type PublicJobSource } from "../_shared/discovery-hybrid.ts";
+import { discoverJobsHybrid, type PublicJobSource } from "../_shared/discovery-hybrid.ts";
 import { persistDiscoveredJobs, settleJobSearchRunCredits } from "../_shared/jobs.ts";
-import { syncFirecrawlCreditUsage } from "../_shared/provider-credits.ts";
+import { syncRtrvrCreditUsage } from "../_shared/provider-credits.ts";
 import { normalizeSearchScope } from "../_shared/search-normalization.ts";
 import {
   requireAuthenticatedUser,
@@ -369,7 +369,7 @@ Deno.serve(async (req) => {
     let totalInserted = 0;
 
     try {
-      console.log("[jobs-search] Firecrawl-led discovery", {
+      console.log("[jobs-search] RTRVR-led discovery", {
         userId: user.id,
         searchQuery,
         location,
@@ -380,7 +380,7 @@ Deno.serve(async (req) => {
         subscriptionTier,
       });
 
-      const result = await discoverJobsFirecrawl(
+      const result = await discoverJobsHybrid(
         {
           serviceClient,
           userId: user.id,
@@ -462,7 +462,7 @@ Deno.serve(async (req) => {
     let providerCreditSync: Record<string, unknown> | null = null;
 
     try {
-      const syncResult = await syncFirecrawlCreditUsage(serviceClient, {
+      const syncResult = await syncRtrvrCreditUsage(serviceClient, {
         source: "jobs-search",
         userId: user.id,
         requestedLimit,
@@ -478,7 +478,7 @@ Deno.serve(async (req) => {
         alert: syncResult.alert,
       };
     } catch (providerCreditError) {
-      console.warn("[jobs-search] Firecrawl credit sync failed", providerCreditError);
+      console.warn("[jobs-search] RTRVR credit ledger sync failed", providerCreditError);
     }
 
     console.info("[jobs-search] Completed", {

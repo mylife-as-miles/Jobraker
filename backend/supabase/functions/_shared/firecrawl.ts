@@ -1,193 +1,243 @@
-// @ts-nocheck
+// Compatibility module for the former Firecrawl call sites.
+// All traffic now goes to RTRVR. Keep this filename temporarily so older Edge
+// Functions continue to import one shared provider boundary while they are
+// migrated to rtrvr.ts in a later cleanup.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-// Centralized retry logic
-async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 500): Promise<T> {
-  let lastErr: any;
-  for (let i = 0; i < attempts; i++) {
+const RTRVR_API_BASE = 'https://api.rtrvr.ai';
+
+export async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 500): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       return await fn();
-    } catch (e) {
-      lastErr = e;
-      if (i < attempts - 1) {
-        let delay = baseDelayMs * Math.pow(2, i); // Default exponential backoff
-
-        // Check for rate limit error and respect retry-after header
-        if (e.status === 429 && e.message) {
-          const retryAfterMatch = e.message.match(/retry after (\d+)s/);
-          if (retryAfterMatch && retryAfterMatch[1]) {
-            const retryAfterSeconds = parseInt(retryAfterMatch[1], 10);
-            delay = retryAfterSeconds * 1000 + 500; // Use recommended delay + a small buffer
-            console.warn(`firecrawl.rate_limited`, { message: e.message, retry_delay_ms: delay });
-          }
-        }
-
-        await new Promise((r) => setTimeout(r, delay));
-      }
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts - 1) break;
+      const retryAfterSeconds = Number((error as { retryAfterSeconds?: unknown })?.retryAfterSeconds);
+      const delay = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+        ? retryAfterSeconds * 1000 + 500
+        : baseDelayMs * 2 ** attempt;
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
-  throw lastErr;
+  throw lastError;
 }
 
-// Centralized Firecrawl API key resolution (env-only)
-async function resolveFirecrawlApiKey(): Promise<string> {
-  const envKey = (Deno.env.get('FIRECRAWL_API_KEY') || '').trim();
-  if (envKey) {
-    console.info('firecrawl.key_source', { used: 'env' });
-    return envKey;
-  }
-  console.error('firecrawl.key_missing');
-  throw new Error('Search provider API key is not configured.');
+export async function resolveRtrvrApiKey(): Promise<string> {
+  const apiKey = (Deno.env.get('RTRVR_API_KEY') || '').trim();
+  if (apiKey) return apiKey;
+  console.error('rtrvr.key_missing');
+  throw new Error('RTRVR_API_KEY is not configured.');
 }
+
+// Deprecated export name retained only while legacy Edge Function imports are
+// migrated. It reads RTRVR_API_KEY and never reads FIRECRAWL_API_KEY.
+export const resolveFirecrawlApiKey = resolveRtrvrApiKey;
 
 function getAdminSupabaseClient() {
-  const url = Deno.env.get("SUPABASE_URL") || "";
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  return createClient(url, key);
+  return createClient(
+    Deno.env.get('SUPABASE_URL') || '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
+  );
 }
 
-// Centralized Firecrawl API call function
-async function firecrawlFetch(
-  path: string,
-  apiKey: string,
-  body: any,
-  userId?: string,
-  timeoutMs = 20000,
-) {
-  const operationKey = path.includes("search")
-    ? "search"
-    : path.includes("scrape")
-      ? "scrape"
-      : path.includes("map")
-        ? "map"
-        : path.includes("crawl")
-          ? "crawl"
-          : "search";
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
 
-  const executeCall = async () => {
-    const url = `https://api.firecrawl.dev/v2${path}`;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort("firecrawl_timeout"), timeoutMs);
-    const res = await fetch(url, {
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function unwrapOutput(payload: unknown): Record<string, unknown> {
+  const root = asRecord(payload);
+  const candidates = [
+    root.json,
+    asRecord(root.result).json,
+    asRecord(root.data).json,
+    asRecord(root.output).json,
+    root.output,
+    root.result,
+    root.data,
+  ];
+  for (const candidate of candidates) {
+    if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+      return candidate as Record<string, unknown>;
+    }
+    if (typeof candidate === 'string') {
+      try {
+        const parsed = JSON.parse(candidate);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+      } catch {
+        // Not JSON; continue with the remaining response shapes.
+      }
+    }
+  }
+  return {};
+}
+
+function responseText(payload: unknown): string {
+  const root = asRecord(payload);
+  const candidates = [
+    root.text,
+    root.markdown,
+    asRecord(root.output).text,
+    asRecord(root.output).markdown,
+    asRecord(root.result).text,
+    asRecord(root.data).text,
+  ];
+  return candidates.find((value): value is string => typeof value === 'string') || '';
+}
+
+function usageUnits(payload: unknown): number {
+  const root = asRecord(payload);
+  const usage = asRecord(root.usage);
+  const candidates = [
+    usage.creditsUsed,
+    usage.credits_used,
+    root.creditsUsed,
+    root.credits_used,
+    asRecord(root.metadata).creditsUsed,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'number' && Number.isFinite(candidate)) return candidate;
+  }
+  return 1;
+}
+
+async function requestRtrvr(
+  endpoint: '/agent' | '/scrape',
+  apiKey: string,
+  body: Record<string, unknown>,
+  timeoutMs: number,
+): Promise<unknown> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort('rtrvr_timeout'), timeoutMs);
+  try {
+    const response = await fetch(`${RTRVR_API_BASE}${endpoint}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      headers: { Authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
       body: JSON.stringify(body),
       signal: controller.signal,
-    }).finally(() => clearTimeout(timeout));
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      const err = new Error(`Search provider failed: ${res.status} ${text}`) as any;
-      (err as any).status = res.status;
-      (err as any).body = text;
-      const hdr = res.headers.get('retry-after');
-      if (hdr) {
-        const secs = parseInt(hdr, 10);
-        if (!Number.isNaN(secs)) (err as any).retryAfterSeconds = secs;
-      }
-      if (!(err as any).retryAfterSeconds && text) {
-        const m = text.match(/retry after\s+(\d+)s/i);
-        if (m && m[1]) {
-          const secs = parseInt(m[1], 10);
-          if (!Number.isNaN(secs)) (err as any).retryAfterSeconds = secs;
-        }
-      }
-      if (res.status === 401) {
-        console.error(`firecrawl.unauthorized`, { user_id: userId, path });
-      }
-      throw err;
-    }
-    const json = await res.json().catch(() => null);
-    if (json && typeof json.success === 'boolean' && json.success === false) {
-      const code = json.error || json.message || 'request_failed';
-      const err = new Error(`Search provider error: ${code}`) as any;
-      err.firecrawlError = code;
-      throw err;
-    }
-
-    const confirmedUnits = typeof json?.creditsUsed === 'number'
-      ? json.creditsUsed
-      : typeof json?.metadata?.creditsUsed === 'number'
-        ? json.metadata.creditsUsed
-        : 1;
-
-    return { result: json, confirmedUnits };
-  };
-
-  if (userId) {
-    const { runMeteredFirecrawlCall } = await import("./metered-provider-credits.ts");
-    const serviceClient = getAdminSupabaseClient();
-    return runMeteredFirecrawlCall({
-      serviceClient,
-      userId,
-      operationKey,
-      endpoint: path,
-      payload: body,
-      execute: executeCall,
     });
+    const text = await response.text();
+    let payload: unknown = {};
+    try { payload = text ? JSON.parse(text) : {}; } catch { payload = { raw: text }; }
+    if (!response.ok) {
+      const error = new Error(`RTRVR ${endpoint} failed: ${response.status} ${text}`) as Error & {
+        status?: number; retryAfterSeconds?: number;
+      };
+      error.status = response.status;
+      const retryAfter = Number(response.headers.get('retry-after'));
+      if (Number.isFinite(retryAfter) && retryAfter > 0) error.retryAfterSeconds = retryAfter;
+      throw error;
+    }
+    return payload;
+  } finally {
+    clearTimeout(timer);
   }
-
-  const { result } = await executeCall();
-  return result;
 }
 
-async function getFirecrawlCreditUsage(apiKey: string, timeoutMs = 15000) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort("firecrawl_credit_timeout"), timeoutMs);
-  const res = await fetch("https://api.firecrawl.dev/v2/team/credit-usage", {
-    method: "GET",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    signal: controller.signal,
-  }).finally(() => clearTimeout(timeout));
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    const err = new Error(`Credit usage check failed: ${res.status} ${text}`) as any;
-    err.status = res.status;
-    err.body = text;
-    throw err;
-  }
-
-  const json = await res.json().catch(() => null);
-  const data = json?.data && typeof json.data === "object" ? json.data : {};
-
+function searchSchema() {
   return {
-    remainingCredits: Number(data.remainingCredits ?? 0),
-    planCredits: Number(data.planCredits ?? 0),
-    billingPeriodStart: data.billingPeriodStart ?? null,
-    billingPeriodEnd: data.billingPeriodEnd ?? null,
-    raw: json,
+    type: 'object',
+    properties: {
+      web: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' }, url: { type: 'string' },
+            description: { type: 'string' }, markdown: { type: 'string' },
+            publishedDate: { type: 'string' },
+          },
+          required: ['title', 'url'],
+        },
+      },
+    },
+    required: ['web'],
   };
 }
 
-async function getFirecrawlHistoricalCreditUsage(apiKey: string, timeoutMs = 15000) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort("firecrawl_historical_credit_timeout"), timeoutMs);
-  const res = await fetch("https://api.firecrawl.dev/v2/team/credit-usage/historical", {
-    method: "GET",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    signal: controller.signal,
-  }).finally(() => clearTimeout(timeout));
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    const err = new Error(`Historical credit usage check failed: ${res.status} ${text}`) as any;
-    err.status = res.status;
-    err.body = text;
-    throw err;
-  }
-
-  const json = await res.json().catch(() => null);
+function mapSchema() {
   return {
-    periods: Array.isArray(json?.periods) ? json.periods : [],
-    raw: json,
+    type: 'object',
+    properties: { links: { type: 'array', items: { type: 'object', properties: {
+      url: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' },
+    }, required: ['url'] } } },
+    required: ['links'],
   };
 }
 
-export {
-  withRetry,
-  resolveFirecrawlApiKey,
-  firecrawlFetch,
-  getFirecrawlCreditUsage,
-  getFirecrawlHistoricalCreditUsage,
-};
+function jsonSchemaFromScrapeBody(body: Record<string, unknown>): Record<string, unknown> | undefined {
+  for (const format of asArray(body.formats)) {
+    const formatRecord = asRecord(format);
+    if (formatRecord.type === 'json' && asRecord(formatRecord.schema).type) {
+      return asRecord(formatRecord.schema);
+    }
+  }
+  return undefined;
+}
+
+async function rtrvrFetch(
+  path: string,
+  apiKey: string,
+  body: Record<string, unknown>,
+  userId?: string,
+  timeoutMs = 20_000,
+): Promise<unknown> {
+  const operationClass = path.includes('scrape') ? 'scrape' : 'run';
+  const execute = async () => {
+    let result: unknown;
+    if (path.includes('/search')) {
+      result = await requestRtrvr('/agent', apiKey, {
+        input: `Search the public web for this query: ${String(body.query || '')}. Return only real, reachable results.`,
+        schema: searchSchema(),
+        response: { verbosity: 'final', inlineOutputMaxBytes: 1_000_000 },
+      }, timeoutMs);
+      return { result: { success: true, data: { web: asArray(unwrapOutput(result).web) }, metadata: { creditsUsed: usageUnits(result) } }, confirmedUnits: usageUnits(result) };
+    }
+
+    if (path.includes('/map')) {
+      const url = String(body.url || '');
+      result = await requestRtrvr('/agent', apiKey, {
+        input: `Inspect ${url} and return links that lead to individual job postings or application pages. Exclude navigation, privacy, and login links.`,
+        urls: url ? [url] : [], schema: mapSchema(), response: { verbosity: 'final' },
+      }, timeoutMs);
+      return { result: { success: true, links: asArray(unwrapOutput(result).links), metadata: { creditsUsed: usageUnits(result) } }, confirmedUnits: usageUnits(result) };
+    }
+
+    if (path.includes('/scrape') || path.includes('/extract')) {
+      const urls = path.includes('/extract')
+        ? asArray(body.urls).filter((value): value is string => typeof value === 'string')
+        : [String(body.url || '')].filter(Boolean);
+      const schema = path.includes('/extract') ? asRecord(body.schema) : jsonSchemaFromScrapeBody(body);
+      const prompt = String(body.prompt || (path.includes('/extract')
+        ? 'Extract the requested structured data from the supplied job-listing URLs. Never invent facts.'
+        : 'Extract the structured job-posting data from this page. Never invent facts.'));
+      result = await requestRtrvr('/agent', apiKey, {
+        input: prompt, urls, ...(schema && Object.keys(schema).length ? { schema } : {}),
+        response: { verbosity: 'final', inlineOutputMaxBytes: 1_000_000 },
+      }, timeoutMs);
+      const output = unwrapOutput(result);
+      return { result: { success: true, id: asRecord(result).trajectoryId || asRecord(result).id || crypto.randomUUID(), data: { json: output, markdown: responseText(result) }, metadata: { creditsUsed: usageUnits(result) } }, confirmedUnits: usageUnits(result) };
+    }
+
+    throw new Error(`Unsupported RTRVR compatibility operation: ${path}`);
+  };
+
+  if (!userId) return (await execute()).result;
+  const { runMeteredRtrvrCall } = await import('./metered-provider-credits.ts');
+  return runMeteredRtrvrCall({
+    serviceClient: getAdminSupabaseClient(), userId, operationClass,
+    featureKey: 'job_discovery', payload: body, execute,
+  });
+}
+
+// Deprecated alias: all requests are served by RTRVR, not Firecrawl.
+const firecrawlFetch = rtrvrFetch;
+
+export { rtrvrFetch, firecrawlFetch };

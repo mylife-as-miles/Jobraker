@@ -141,7 +141,7 @@ export async function loadStartApplicationInput(
 export async function insertAutomationAttempt(
   supabase: ServiceSupabaseClient,
   input: StartApplicationInput,
-  provider: "rtrvr" | "skyvern",
+  provider: "rtrvr",
   status: string,
   workerId?: string | null,
   leaseSeconds?: number,
@@ -242,15 +242,6 @@ function applicationPatchFromResult(result: StartApplicationResult): Record<stri
   };
 
   if (result.providerRunId) base.run_id = result.providerRunId;
-
-  if (result.provider === "skyvern" && result.status === "running") {
-    return {
-      ...base,
-      provider_status: "pending",
-      status: "Pending",
-      canonical_stage: "queued",
-    };
-  }
 
   const structured = result.result;
   if (structured?.status === "completed" && structured.submitted) {

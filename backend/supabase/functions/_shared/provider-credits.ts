@@ -1,11 +1,5 @@
 // @ts-nocheck
-import {
-  getFirecrawlCreditUsage,
-  getFirecrawlHistoricalCreditUsage,
-  resolveFirecrawlApiKey,
-} from "./firecrawl.ts";
-
-type ProviderName = "firecrawl" | "skyvern";
+type ProviderName = "rtrvr";
 
 const SKYVERN_TERMINAL_STATUSES = new Set([
   "completed",
@@ -148,9 +142,9 @@ function resolveAlertRecipient(row: any): string {
   return String(row?.alert_email || "").trim() || ownerEmail;
 }
 
-function formatProviderName(provider: ProviderName, displayName?: string): string {
+function formatProviderName(_provider: ProviderName, displayName?: string): string {
   if (displayName) return displayName;
-  return provider === "firecrawl" ? "Firecrawl" : "Skyvern";
+  return "RTRVR";
 }
 
 async function sendResendEmail(args: {
@@ -284,70 +278,30 @@ async function maybeSendProviderCreditAlert(serviceClient: any, provider: Provid
   return { ...result, remaining, threshold };
 }
 
-async function syncFirecrawlCreditUsage(
+async function syncRtrvrCreditUsage(
   serviceClient: any,
   metadata: Record<string, unknown> = {},
 ) {
-  const apiKey = await resolveFirecrawlApiKey();
-  const usage = await getFirecrawlCreditUsage(apiKey);
-  let historicalUsage: any = null;
-  let historicalWarning: string | null = null;
-
-  try {
-    historicalUsage = await getFirecrawlHistoricalCreditUsage(apiKey);
-  } catch (error) {
-    historicalWarning =
-      error instanceof Error ? error.message : "Firecrawl historical usage unavailable";
-    console.warn("firecrawl.historical_credit_usage_failed", { error: historicalWarning });
-  }
-
-  const remainingCredits = normalizePositiveInteger(usage.remainingCredits);
-  const planCredits = normalizePositiveInteger(usage.planCredits);
-  const currentPeriodUsedCredits = getCurrentFirecrawlPeriodCredits(
-    historicalUsage?.periods || [],
-    usage.billingPeriodStart,
-    usage.billingPeriodEnd,
-  );
-  const effectiveTotalCredits = Math.max(
-    planCredits,
-    remainingCredits,
-    remainingCredits + currentPeriodUsedCredits,
-  );
-
-  const { data, error } = await serviceClient.rpc("set_provider_credit_balance", {
-    p_provider: "firecrawl",
-    p_total_credits: effectiveTotalCredits,
-    p_remaining_credits: remainingCredits,
-    p_source: "firecrawl_api",
-    p_description: "Firecrawl credit balance refreshed from API",
-    p_metadata: {
-      ...metadata,
-      planCredits,
-      reportedRemainingCredits: remainingCredits,
-      currentPeriodUsedCredits,
-      effectiveTotalCredits,
-      historicalWarning,
-      billingPeriodStart: usage.billingPeriodStart,
-      billingPeriodEnd: usage.billingPeriodEnd,
-    },
-  });
-
-  if (error) {
-    console.error("firecrawl.credit_sync_failed", error);
-    throw error;
-  }
-
-  const alert = await maybeSendProviderCreditAlert(serviceClient, "firecrawl");
+  // RTRVR documents per-execution usage in its agent response/webhook payloads,
+  // not a public account-balance endpoint. Do not fabricate a provider balance:
+  // usage is metered at execution time and this only returns the admin ledger.
+  const { data: balance, error } = await serviceClient
+    .from("provider_credit_balances")
+    .select("*")
+    .eq("provider", "rtrvr")
+    .maybeSingle();
+  if (error) throw error;
+  const alert = await maybeSendProviderCreditAlert(serviceClient, "rtrvr");
   return {
     usage: {
-      ...usage,
-      planCredits,
-      remainingCredits,
-      currentPeriodUsedCredits,
-      effectiveTotalCredits,
+      remainingCredits: normalizePositiveInteger(balance?.remaining_credits),
+      planCredits: normalizePositiveInteger(balance?.total_credits),
+      billingPeriodStart: null,
+      billingPeriodEnd: null,
+      metering: "execution_usage",
+      ...metadata,
     },
-    historicalUsage,
-    balance: data,
+    balance,
     alert,
   };
 }
@@ -408,6 +362,5 @@ async function recordSkyvernUsageFromOutput(
 
 export {
   maybeSendProviderCreditAlert,
-  recordSkyvernUsageFromOutput,
-  syncFirecrawlCreditUsage,
+  syncRtrvrCreditUsage,
 };

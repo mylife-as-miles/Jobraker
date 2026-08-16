@@ -10,14 +10,6 @@ SET credits_per_month = CASE name
         WHEN 'Pro' THEN 600
         WHEN 'Ultimate' THEN 1250
         ELSE credits_per_month
-    END,
-    credits_per_cycle = CASE name
-        WHEN 'Free' THEN 10
-        WHEN 'Starter' THEN 150
-        WHEN 'Basics' THEN 250
-        WHEN 'Pro' THEN 600
-        WHEN 'Ultimate' THEN 1250
-        ELSE credits_per_cycle
     END
 WHERE name IN ('Free', 'Starter', 'Basics', 'Pro', 'Ultimate');
 

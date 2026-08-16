@@ -20,7 +20,7 @@ SELECT user_id, date_trunc('day', created_at)::date AS day,
   sum(reserved_cost_nanos) AS reserved_cost_nanos,
   count(*) FILTER (WHERE status = 'settled') AS settled_events,
   count(*) FILTER (WHERE status = 'reserved') AS reserved_events
-FROM public.user_combined_ai_usage_events
+FROM public.ai_usage_events
 GROUP BY user_id, date_trunc('day', created_at)::date;
 
 CREATE OR REPLACE VIEW public.admin_user_provider_usage_daily_v1
@@ -47,7 +47,7 @@ DO $$ BEGIN
       CREATE OR REPLACE VIEW public.admin_user_provider_usage_daily_v1 WITH (security_invoker = false) AS
       SELECT user_id, provider, date_trunc('day', created_at)::date AS day,
         sum(provider_units) AS provider_units, sum(provider_cost_nanos) AS provider_cost_nanos,
-        sum(user_credit_cost) AS user_credit_cost, sum(reserved_user_credits) AS reserved_user_credits,
+        sum(user_credit_cost)::integer AS user_credit_cost, sum(reserved_user_credits)::integer AS reserved_user_credits,
         bool_or(reconciliation_required) AS reconciliation_required,
         bool_or(usage_source NOT IN ('confirmed', 'provider_reported')) AS has_estimated_usage
       FROM public.external_provider_usage_events GROUP BY user_id, provider, date_trunc('day', created_at)::date
@@ -73,19 +73,17 @@ END $$;
 CREATE OR REPLACE VIEW public.admin_user_usage_summary_v1
 WITH (security_invoker = false) AS
 WITH subscription AS (
-  SELECT DISTINCT ON (user_id) user_id, status, current_period_start, current_period_end, subscription_plans.name AS plan, subscription_plans.price
-  FROM public.user_subscriptions LEFT JOIN public.subscription_plans ON subscription_plans.id = user_subscriptions.subscription_plan_id
-  ORDER BY user_id, created_at DESC
+  SELECT DISTINCT ON (us.user_id) us.user_id, us.status, us.current_period_start, us.current_period_end, subscription_plans.name AS plan, subscription_plans.price
+  FROM public.user_subscriptions AS us LEFT JOIN public.subscription_plans ON subscription_plans.id = us.subscription_plan_id
+  ORDER BY us.user_id, us.created_at DESC
 ), ai AS (
   SELECT user_id, sum(provider_cost_nanos) AS ai_provider_cost_nanos, sum(billable_cost_nanos) AS ai_consumed_nanos,
     sum(input_tokens) AS input_tokens, sum(output_tokens) AS output_tokens,
     sum(billable_cost_nanos) FILTER (WHERE created_at >= now() - interval '24 hours') AS ai_24h_nanos,
     max(created_at) AS last_activity
-  FROM public.user_combined_ai_usage_events WHERE created_at >= now() - interval '90 days' GROUP BY user_id
+  FROM public.ai_usage_events WHERE created_at >= now() - interval '90 days' GROUP BY user_id
 ), providers AS (
-  SELECT user_id, sum(user_credit_cost) AS credits_consumed, sum(reserved_user_credits) FILTER (WHERE status = 'reserved') AS credits_reserved,
-    sum(provider_cost_nanos) AS provider_cost_nanos, bool_or(reconciliation_required) AS reconciliation_required,
-    bool_or(usage_source NOT IN ('confirmed', 'provider_reported')) AS estimated_usage
+  SELECT user_id, credits_consumed, credits_reserved, provider_cost_nanos, reconciliation_required, estimated_usage
   FROM public.admin_external_user_rollup_v1
 )
 SELECT COALESCE(subscription.user_id, ai.user_id, providers.user_id) AS user_id,
