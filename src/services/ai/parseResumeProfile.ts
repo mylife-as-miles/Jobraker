@@ -11,6 +11,12 @@ export interface ParsedProfileData {
   jobTitle: string;
   experienceYears: number | null;
   about: string;
+  website: string;
+  profiles: Array<{
+    network: string;
+    username?: string;
+    url: string;
+  }>;
   skills: string[];
   education: Array<{
     school: string;
@@ -37,6 +43,42 @@ export interface ParsedProfileData {
     issuer?: string;
     date?: string;
     description?: string;
+  }>;
+  languages: Array<{
+    name: string;
+    description?: string;
+  }>;
+  interests: Array<{
+    name: string;
+    description?: string;
+    keywords?: string[];
+  }>;
+  awards: Array<{
+    name: string;
+    issuer?: string;
+    date?: string;
+    description?: string;
+  }>;
+  publications: Array<{
+    name: string;
+    publisher?: string;
+    date?: string;
+    description?: string;
+    url?: string;
+  }>;
+  volunteer: Array<{
+    organization: string;
+    position?: string;
+    location?: string;
+    startDate?: string;
+    endDate?: string;
+    description?: string;
+  }>;
+  references: Array<{
+    name: string;
+    description?: string;
+    email?: string;
+    phone?: string;
   }>;
 }
 
@@ -231,12 +273,78 @@ export function buildFallbackParsedProfileData(
     jobTitle: analyzed.entities.titles[0] || "",
     experienceYears: null,
     about: summary,
+    website: analyzed.urls[0] || "",
+    profiles: analyzed.urls.slice(1).map((url) => ({
+      network: "",
+      username: "",
+      url,
+    })),
     skills: analyzed.skills,
     education,
     experience,
     projects,
     certifications,
+    languages: [],
+    interests: [],
+    awards: [],
+    publications: [],
+    volunteer: [],
+    references: [],
   };
+}
+
+function mapLegacyNamedSection(
+  items: unknown,
+  str: (value: unknown) => string,
+): any[] {
+  return Array.isArray(items)
+    ? items.map((item: any) => ({
+        name: str(item?.name || item?.title),
+        issuer: str(item?.issuer || item?.company || item?.organization),
+        publisher: str(item?.publisher || item?.organization),
+        date: str(item?.date || item?.period),
+        description: str(item?.description),
+        url: str(item?.url || item?.website?.url),
+        keywords: Array.isArray(item?.keywords)
+          ? item.keywords.map(str).filter(Boolean)
+          : [],
+      })).filter((item: any) => item.name || item.description)
+    : [];
+}
+
+function mapLegacyVolunteerSection(
+  items: unknown,
+  str: (value: unknown) => string,
+) {
+  return Array.isArray(items)
+    ? items.map((item: any) => {
+        const { start, end } = parseLegacyRange(str(item?.date || item?.period));
+        return {
+          organization: str(item?.organization || item?.company),
+          position: str(item?.position || item?.title || item?.name),
+          location: str(item?.location),
+          startDate: start,
+          endDate: end,
+          description: str(item?.description || item?.summary),
+        };
+      }).filter((item: any) =>
+        item.organization || item.position || item.description
+      )
+    : [];
+}
+
+function mapLegacyReferencesSection(
+  items: unknown,
+  str: (value: unknown) => string,
+) {
+  return Array.isArray(items)
+    ? items.map((item: any) => ({
+        name: str(item?.name || item?.title),
+        description: str(item?.description || item?.summary),
+        email: str(item?.email),
+        phone: str(item?.phone),
+      })).filter((item: any) => item.name || item.description)
+    : [];
 }
 
 // Helper to ensure data matches the interface (sanitize nulls etc)
@@ -274,6 +382,14 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
             jobTitle: str(legacyBasics?.headline),
             experienceYears: null,
             about: str(legacySummary?.content),
+            website: str(legacyBasics?.website?.url || legacyBasics?.website),
+            profiles: Array.isArray(legacyBasics?.profiles)
+              ? legacyBasics.profiles.map((item: any) => ({
+                  network: str(item?.network),
+                  username: str(item?.username),
+                  url: str(item?.url),
+                })).filter((item: any) => item.url)
+              : [],
             skills: legacySkills
               .map((item: any) => str(item?.name))
               .filter(Boolean),
@@ -319,6 +435,12 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
                   description: str(item?.description),
                 })).filter((item: any) => item.name)
               : [],
+            languages: mapLegacyNamedSection(legacySections?.languages?.items, str),
+            interests: mapLegacyNamedSection(legacySections?.interests?.items, str),
+            awards: mapLegacyNamedSection(legacySections?.awards?.items, str),
+            publications: mapLegacyNamedSection(legacySections?.publications?.items, str),
+            volunteer: mapLegacyVolunteerSection(legacySections?.volunteer?.items, str),
+            references: mapLegacyReferencesSection(legacySections?.references?.items, str),
         };
     }
 
@@ -331,6 +453,12 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
         jobTitle: str(raw.jobTitle || raw.job_title),
         experienceYears: num(raw.experienceYears || raw.experience_years),
         about: str(raw.about),
+        website: str(raw.website || raw.website_url),
+        profiles: Array.isArray(raw.profiles) ? raw.profiles.map((p: any) => ({
+            network: str(p.network),
+            username: str(p.username),
+            url: str(p.url)
+        })).filter((p: any) => p.url) : [],
         skills: arr(raw.skills),
         education: Array.isArray(raw.education) ? raw.education.map((e: any) => ({
             school: str(e.school),
@@ -357,6 +485,44 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
             issuer: str(c.issuer || c.organization || c.company),
             date: str(c.date || c.period),
             description: str(c.description)
-        })).filter((c: any) => c.name) : []
+        })).filter((c: any) => c.name) : [],
+        languages: Array.isArray(raw.languages) ? raw.languages.map((item: any) => ({
+            name: str(item.name || item.language || item.title),
+            description: str(item.description || item.proficiency || item.level)
+        })).filter((item: any) => item.name || item.description) : [],
+        interests: Array.isArray(raw.interests) ? raw.interests.map((item: any) => ({
+            name: str(item.name || item.title),
+            description: str(item.description),
+            keywords: arr(item.keywords)
+        })).filter((item: any) => item.name || item.description) : [],
+        awards: Array.isArray(raw.awards) ? raw.awards.map((item: any) => ({
+            name: str(item.name || item.title),
+            issuer: str(item.issuer || item.organization),
+            date: str(item.date || item.period),
+            description: str(item.description)
+        })).filter((item: any) => item.name || item.description) : [],
+        publications: Array.isArray(raw.publications) ? raw.publications.map((item: any) => ({
+            name: str(item.name || item.title),
+            publisher: str(item.publisher || item.organization),
+            date: str(item.date || item.period),
+            description: str(item.description),
+            url: str(item.url)
+        })).filter((item: any) => item.name || item.description) : [],
+        volunteer: Array.isArray(raw.volunteer) ? raw.volunteer.map((item: any) => ({
+            organization: str(item.organization || item.company),
+            position: str(item.position || item.title || item.role),
+            location: str(item.location),
+            startDate: str(item.startDate || item.start_date),
+            endDate: str(item.endDate || item.end_date),
+            description: str(item.description || item.summary)
+        })).filter((item: any) =>
+            item.organization || item.position || item.description
+        ) : [],
+        references: Array.isArray(raw.references) ? raw.references.map((item: any) => ({
+            name: str(item.name || item.title),
+            description: str(item.description || item.summary),
+            email: str(item.email),
+            phone: str(item.phone)
+        })).filter((item: any) => item.name || item.description) : []
     };
 }
