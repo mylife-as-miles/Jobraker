@@ -653,11 +653,15 @@ Deno.serve(async (req) => {
             .eq("id", taskId);
             
           if (task.params?.agent_run_id) {
-            await supabase.rpc("settle_run_credits", {
-              p_agent_run_id: task.params.agent_run_id,
-              p_actual_credits: 0,
-              p_status: "cancelled",
-              p_failure_reason: "Task canceled by user"
+            await settleJobSearchRunCredits(supabase, {
+              agentRunId: task.params.agent_run_id,
+              userId: task.user_id,
+              searchQuery: task.params.search_query || "",
+              location: task.params.location || "",
+              maxCredits: 0,
+              searchFailed: true,
+              failureReason: "Task canceled by user",
+              settlementIdempotencyKey: `cancel:${task.params.agent_run_id}:${Date.now()}`,
             });
           }
         } else {
@@ -698,11 +702,15 @@ Deno.serve(async (req) => {
             await notifyTaskFailure(supabase, task.user_id, task, errorMsg);
 
             if (task.params?.agent_run_id) {
-              await supabase.rpc("settle_run_credits", {
-                p_agent_run_id: task.params.agent_run_id,
-                p_actual_credits: 0,
-                p_status: "failed",
-                p_failure_reason: `Task failed permanently: ${errorMsg}`
+              await settleJobSearchRunCredits(supabase, {
+                agentRunId: task.params.agent_run_id,
+                userId: task.user_id,
+                searchQuery: task.params.search_query || "",
+                location: task.params.location || "",
+                maxCredits: 0,
+                searchFailed: true,
+                failureReason: `Task failed permanently: ${errorMsg}`,
+                settlementIdempotencyKey: `fail:${task.params.agent_run_id}:${Date.now()}`,
               });
             }
           }

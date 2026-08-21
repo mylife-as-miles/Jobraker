@@ -194,6 +194,9 @@ Deno.serve(async (req) => {
       );
     }
 
+    let agentRunId: string | null = null;
+    let searchSettled = false;
+
     const creditsToReserve = Math.max(1, effectiveLimit);
     const idempotencyKey = crypto.randomUUID();
     const { data: reserveRaw, error: reserveError } = await serviceClient.rpc(
@@ -232,7 +235,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const agentRunId = reserve.agent_run_id as string;
+    agentRunId = reserve.agent_run_id as string;
     const holdId = (reserve.hold_id as string | undefined) ?? null;
 
     // ── Persist canonical search run record ───────────────────────────────────
@@ -442,12 +445,16 @@ Deno.serve(async (req) => {
       },
     );
 
+    searchSettled = true;
+
     if (searchFailed) {
       return new Response(
         JSON.stringify({
           error: "Search failed. Your credits have been refunded.",
           code: "search_failed",
-          details: failureReason
+          details: failureReason,
+          creditsCharged: 0,
+          current_balance: currentBalance,
         }),
         {
           status: 500,
@@ -541,6 +548,22 @@ Deno.serve(async (req) => {
     );
   } catch (error: unknown) {
     console.error("jobs-search.error", error);
+    if (agentRunId && !searchSettled) {
+      try {
+        const serviceClient = createServiceSupabaseClient();
+        await settleJobSearchRunCredits(serviceClient, {
+          agentRunId,
+          userId: user?.id || "",
+          searchQuery: searchQuery || "",
+          location: location || "",
+          maxCredits: creditsToReserve || 0,
+          searchFailed: true,
+          failureReason: error instanceof Error ? error.message : "Unhandled search failure",
+        });
+      } catch (fallbackSettleErr) {
+        console.error("[jobs-search] Emergency fallback settlement failed:", fallbackSettleErr);
+      }
+    }
     return subscriptionErrorResponse(error, corsHeaders);
   }
 });

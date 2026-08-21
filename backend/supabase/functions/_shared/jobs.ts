@@ -495,6 +495,52 @@ export async function settleJobSearchRunCredits(
     settlementIdempotencyKey?: string;
   },
 ): Promise<{ displayableJobCount: number; creditsCharged: number; currentBalance?: number }> {
+  const settlementKey =
+    options.settlementIdempotencyKey ||
+    `settle:${options.agentRunId}:${Date.now()}`;
+
+  // ── V2 settlement path (Primary) ─────────────────────────────────────────
+  // settle_search_run_v2 calculates the actual cost itself by counting billable rows
+  // from job_search_results. If 0 jobs found or failed -> actual_cost = 0, 100% refunded.
+  // If partial results (e.g. 30/50) -> actual_cost = 30, remaining 20 refunded.
+  const { data: v2Raw, error: v2Error } = await serviceClient.rpc(
+    "settle_search_run_v2",
+    {
+      p_agent_run_id:               options.agentRunId,
+      p_settlement_idempotency_key: settlementKey,
+      p_status:                     options.searchFailed ? "failed" : "completed",
+      p_metadata: {
+        jobs_inserted:   options.jobsInserted ?? null,
+        jobs_discovered: options.jobsDiscovered ?? null,
+        failure_reason:  options.failureReason ?? null,
+      },
+    },
+  );
+
+  if (!v2Error && v2Raw) {
+    const v2Data = v2Raw as Record<string, unknown>;
+    const v2Cost = typeof v2Data?.actual_cost === "number"
+      ? (options.searchFailed ? 0 : v2Data.actual_cost)
+      : (options.searchFailed ? 0 : (typeof v2Data?.charged === "number" ? v2Data.charged : 0));
+    const v2Count = typeof v2Data?.billable_results === "number"
+      ? v2Data.billable_results
+      : (options.jobsInserted ?? 0);
+    const availableBalance = typeof v2Data?.available === "number"
+      ? v2Data.available
+      : undefined;
+
+    return {
+      displayableJobCount: v2Count,
+      creditsCharged: v2Cost,
+      currentBalance: availableBalance,
+    };
+  }
+
+  if (v2Error) {
+    console.warn("[settleJobSearchRunCredits] V2 settlement RPC error, attempting legacy fallback:", v2Error);
+  }
+
+  // ── Legacy settlement path (fallback) ────────────────────────────────────
   const displayableJobCount = options.searchFailed
     ? 0
     : await countDisplayableJobsForSearch(serviceClient, {
@@ -504,57 +550,10 @@ export async function settleJobSearchRunCredits(
       searchStartedAt: options.searchStartedAt,
     });
 
-  const firecrawlMeteringMode = (Deno.env.get("FIRECRAWL_CREDIT_METERING_MODE") || "enforce").toLowerCase().trim();
-  if (firecrawlMeteringMode === "enforce") {
-    console.log("[settleJobSearchRunCredits] Firecrawl credit metering is enforce mode. Skipping legacy flat job-search deduction.");
-    return {
-      displayableJobCount: 0,
-      creditsCharged: 0,
-      currentBalance: undefined,
-    };
-  }
-
   const creditsCharged = options.searchFailed
     ? 0
     : resolveJobSearchCreditsToCharge(displayableJobCount, options.maxCredits);
 
-  // ── V2 settlement path ────────────────────────────────────────────────────
-  // When a settlementIdempotencyKey is provided the database RPC
-  // settle_search_run_v2 calculates the actual cost itself by counting rows
-  // from job_search_results. This is more accurate than countDisplayableJobsForSearch.
-  if (options.settlementIdempotencyKey) {
-    const { data: v2Raw, error: v2Error } = await serviceClient.rpc(
-      "settle_search_run_v2",
-      {
-        p_agent_run_id:               options.agentRunId,
-        p_settlement_idempotency_key: options.settlementIdempotencyKey,
-        p_status:                     options.searchFailed ? "failed" : "completed",
-        p_metadata: {
-          jobs_inserted:   options.jobsInserted ?? null,
-          jobs_discovered: options.jobsDiscovered ?? null,
-          failure_reason:  options.failureReason ?? null,
-        },
-      }
-    );
-
-    if (v2Error) {
-      console.error("[settleJobSearchRunCredits] V2 settlement failed", v2Error);
-      // Fall through to legacy path below
-    } else {
-      const v2Data = v2Raw as Record<string, unknown> | null;
-      const v2Cost = typeof v2Data?.actual_cost === "number" ? v2Data.actual_cost : creditsCharged;
-      const v2Count = typeof v2Data?.billable_results === "number"
-        ? v2Data.billable_results
-        : displayableJobCount;
-      return {
-        displayableJobCount: v2Count,
-        creditsCharged: v2Cost,
-        currentBalance: undefined,
-      };
-    }
-  }
-
-  // ── Legacy settlement path (fallback) ────────────────────────────────────
   const { data: settleRaw, error: settleError } = await serviceClient.rpc("settle_run_credits", {
     p_agent_run_id: options.agentRunId,
     p_actual_credits: creditsCharged,
@@ -568,10 +567,11 @@ export async function settleJobSearchRunCredits(
       location: options.location,
       search_started_at: options.searchStartedAt ?? null,
     },
+    p_settlement_idempotency_key: settlementKey,
   });
 
   if (settleError) {
-    console.error("[settleJobSearchRunCredits] settlement failed", settleError);
+    console.error("[settleJobSearchRunCredits] Legacy settlement failed", settleError);
   }
 
   const settleData = settleRaw as Record<string, unknown> | null;
