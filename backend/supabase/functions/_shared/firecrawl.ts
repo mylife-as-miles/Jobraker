@@ -55,28 +55,45 @@ function asArray(value: unknown): unknown[] {
 function unwrapOutput(payload: unknown): Record<string, unknown> {
   const root = asRecord(payload);
   const candidates = [
+    root,
     root.json,
     asRecord(root.result).json,
     asRecord(root.data).json,
     asRecord(root.output).json,
+    asRecord(root.response).json,
     root.output,
     root.result,
     root.data,
+    root.response,
   ];
   for (const candidate of candidates) {
     if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
-      return candidate as Record<string, unknown>;
+      const rec = candidate as Record<string, unknown>;
+      if (Array.isArray(rec.web) || Array.isArray(rec.links) || Array.isArray(rec.items) || Array.isArray(rec.results)) {
+        return rec;
+      }
     }
     if (typeof candidate === 'string') {
       try {
         const parsed = JSON.parse(candidate);
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          const rec = parsed as Record<string, unknown>;
+          if (Array.isArray(rec.web) || Array.isArray(rec.links) || Array.isArray(rec.items) || Array.isArray(rec.results)) {
+            return rec;
+          }
+          return rec;
+        }
       } catch {
-        // Not JSON; continue with the remaining response shapes.
+        // Not JSON; continue
       }
     }
   }
-  return {};
+  for (const candidate of candidates) {
+    if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+      return candidate as Record<string, unknown>;
+    }
+  }
+  return root;
 }
 
 function responseText(payload: unknown): string {
@@ -187,7 +204,7 @@ async function rtrvrFetch(
   apiKey: string,
   body: Record<string, unknown>,
   userId?: string,
-  timeoutMs = 20_000,
+  timeoutMs = 30_000,
 ): Promise<unknown> {
   const operationClass = path.includes('scrape') ? 'scrape' : 'run';
   const execute = async () => {
@@ -198,7 +215,9 @@ async function rtrvrFetch(
         schema: searchSchema(),
         response: { verbosity: 'final', inlineOutputMaxBytes: 1_000_000 },
       }, timeoutMs);
-      return { result: { success: true, data: { web: asArray(unwrapOutput(result).web) }, metadata: { creditsUsed: usageUnits(result) } }, confirmedUnits: usageUnits(result) };
+      const unwrapped = unwrapOutput(result);
+      const web = asArray(unwrapped.web || unwrapped.items || unwrapped.results || (result as any)?.web || (result as any)?.items);
+      return { result: { success: true, data: { web } }, confirmedUnits: usageUnits(result) };
     }
 
     if (path.includes('/map')) {
@@ -207,7 +226,9 @@ async function rtrvrFetch(
         input: `Inspect ${url} and return links that lead to individual job postings or application pages. Exclude navigation, privacy, and login links.`,
         urls: url ? [url] : [], schema: mapSchema(), response: { verbosity: 'final' },
       }, timeoutMs);
-      return { result: { success: true, links: asArray(unwrapOutput(result).links), metadata: { creditsUsed: usageUnits(result) } }, confirmedUnits: usageUnits(result) };
+      const unwrapped = unwrapOutput(result);
+      const links = asArray(unwrapped.links || unwrapped.items || (result as any)?.links);
+      return { result: { success: true, links }, confirmedUnits: usageUnits(result) };
     }
 
     if (path.includes('/scrape') || path.includes('/extract')) {
