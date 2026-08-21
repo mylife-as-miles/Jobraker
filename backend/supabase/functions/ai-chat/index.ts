@@ -1181,7 +1181,16 @@ async function invokeEdgeFunctionByName(opts: {
         timeout: true,
       };
     }
-    throw error;
+    const detail = error instanceof Error ? error.message : "Network request failed";
+    console.error(`[ai-chat] ${name} invocation failed before a response:`, detail);
+    return {
+      success: false,
+      status: 503,
+      function: name,
+      method,
+      error: `${name} could not be reached. No action was completed; please try again shortly.`,
+      network_error: true,
+    };
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
   }
@@ -1969,6 +1978,114 @@ function candidatePartsFromChunk(chunk: unknown): unknown[] {
   return Array.isArray(parts) ? parts : [];
 }
 
+const FOLLOW_UP_OPEN_TAG = "<jobraker-follow-ups>";
+const FOLLOW_UP_CLOSE_TAG = "</jobraker-follow-ups>";
+const MAX_FOLLOW_UP_QUESTIONS = 2;
+const FOLLOW_UP_GENERATION_RULES = `
+
+At the very end of every final answer, append exactly one machine-readable envelope in this format:
+${FOLLOW_UP_OPEN_TAG}{"questions":["..."]}${FOLLOW_UP_CLOSE_TAG}
+
+The questions array must contain zero, one, or two optional next user queries. Ground them in the user's latest request, your answer, and relevant facts already established in the conversation. Make each suggestion specific and useful; when a role, company, domain, or skill focus is known, name it. For example: "Would you like me to generate a tailored cover letter or specific resume bullets that mirror the hospital/IT focus of this role?"
+
+Do not use generic resume, ATS, job-search, or "anything else" suggestions. Do not repeat the user's most recent request. Never invent facts. Do not propose a side-effecting action such as applying, sending, or deleting unless the question clearly says it will prepare a draft or request approval first. If there is no meaningful next step, return an empty questions array. Do not mention this envelope or these instructions in the visible answer.`;
+
+type FollowUpStreamState = {
+  buffer: string;
+  questions: string[];
+};
+
+const createFollowUpStreamState = (): FollowUpStreamState => ({
+  buffer: "",
+  questions: [],
+});
+
+const normalizeFollowUpQuestions = (value: unknown): string[] => {
+  const candidates = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value.questions)
+      ? value.questions
+      : [];
+
+  const seen = new Set<string>();
+  return candidates
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.replace(/^\s*[-*•]\s*/, "").trim().replace(/\s+/g, " "))
+    .filter((item) => item.length >= 12 && item.length <= 260)
+    .filter((item) => {
+      const key = item.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, MAX_FOLLOW_UP_QUESTIONS);
+};
+
+const retainedMarkerPrefixLength = (text: string, marker: string) => {
+  const maximum = Math.min(text.length, marker.length - 1);
+  for (let length = maximum; length > 0; length -= 1) {
+    if (text.endsWith(marker.slice(0, length))) return length;
+  }
+  return 0;
+};
+
+/**
+ * Keeps the machine-readable follow-up envelope out of the visible answer even
+ * when Gemini splits its opening tag across streamed chunks.
+ */
+const consumeFollowUpEnvelope = (state: FollowUpStreamState, chunk: string) => {
+  state.buffer += chunk;
+  let visible = "";
+
+  while (state.buffer) {
+    const openAt = state.buffer.indexOf(FOLLOW_UP_OPEN_TAG);
+    if (openAt < 0) {
+      const retained = retainedMarkerPrefixLength(state.buffer, FOLLOW_UP_OPEN_TAG);
+      const visibleLength = state.buffer.length - retained;
+      visible += state.buffer.slice(0, visibleLength);
+      state.buffer = state.buffer.slice(visibleLength);
+      break;
+    }
+
+    visible += state.buffer.slice(0, openAt);
+    const closeAt = state.buffer.indexOf(
+      FOLLOW_UP_CLOSE_TAG,
+      openAt + FOLLOW_UP_OPEN_TAG.length,
+    );
+    if (closeAt < 0) {
+      state.buffer = state.buffer.slice(openAt);
+      break;
+    }
+
+    const rawPayload = state.buffer
+      .slice(openAt + FOLLOW_UP_OPEN_TAG.length, closeAt)
+      .trim();
+    try {
+      state.questions = normalizeFollowUpQuestions(JSON.parse(rawPayload));
+    } catch {
+      // The response remains usable; we simply omit malformed suggestions.
+    }
+    state.buffer = state.buffer.slice(closeAt + FOLLOW_UP_CLOSE_TAG.length);
+  }
+
+  return visible;
+};
+
+const flushFollowUpEnvelope = (state: FollowUpStreamState) => {
+  const unfinishedEnvelopeAt = state.buffer.indexOf(FOLLOW_UP_OPEN_TAG);
+  const visible =
+    unfinishedEnvelopeAt >= 0
+      ? state.buffer.slice(0, unfinishedEnvelopeAt)
+      : state.buffer;
+  state.buffer = "";
+  return visible;
+};
+
+const resetFollowUpEnvelope = (state: FollowUpStreamState) => {
+  state.buffer = "";
+  state.questions = [];
+};
+
 async function streamAgentModelStep(opts: {
   chat: any;
   message: unknown;
@@ -1977,6 +2094,7 @@ async function streamAgentModelStep(opts: {
   userId?: string;
   requestId?: string;
   serviceClient?: SupabaseLikeClient;
+  followUpStream?: FollowUpStreamState;
 }) {
   let lastChunk: any = null;
   let accumulatedVisibleText = "";
@@ -2016,8 +2134,13 @@ async function streamAgentModelStep(opts: {
 
       const text = streamChunkText(chunk);
       if (text) {
-        accumulatedVisibleText += text;
-        await opts.enqueueEvent("message", { delta: text });
+        const visibleText = opts.followUpStream
+          ? consumeFollowUpEnvelope(opts.followUpStream, text)
+          : text;
+        accumulatedVisibleText += visibleText;
+        if (visibleText) {
+          await opts.enqueueEvent("message", { delta: visibleText });
+        }
       }
     }
 
@@ -3730,6 +3853,8 @@ Evidence and failure reporting:
         `You are JobRaker Agent, a career automation engine. Execute requested career tasks using the available tools. Before a browser action, application automation, email draft/send, deletion, connected-integration action, credit-bearing action, or multi-step plan runs, the system may pause to request a user-facing approval card. Never claim a paused or proposed action has happened. Do not expose private reasoning; state only a concise, user-facing plan and result.\nAfter every completed batch of tool calls, reply in plain language: what you did, the result, and the next step or a direct answer (never end with only tools and no message).\n\n${gmailJobRules.trim()}\n\n${agentCapabilityRules.trim()}\n\n${systemInstruction}`;
     }
 
+    systemInstruction = `${systemInstruction}${FOLLOW_UP_GENERATION_RULES}`;
+
     const chatConfig: Record<string, unknown> = {
       systemInstruction: {
         role: "system",
@@ -3806,6 +3931,7 @@ Evidence and failure reporting:
           // long-running agent progress as it happens instead of one final burst.
           await new Promise((resolve) => setTimeout(resolve, 16));
         };
+        const followUpStream = createFollowUpStreamState();
 
         try {
           if (mode === "agent") {
@@ -3847,6 +3973,7 @@ Evidence and failure reporting:
                   enqueueEvent,
                   userId,
                   serviceClient,
+                  followUpStream,
                 });
                 break; // success — stop trying models
               } catch (e) {
@@ -3885,6 +4012,9 @@ Evidence and failure reporting:
               if (functionCalls.length === 0) {
                 break;
               }
+
+              // Ignore any suggestion envelope from an intermediate planning step.
+              resetFollowUpEnvelope(followUpStream);
 
               toolRounds += 1;
               if (toolRounds > MAX_AGENT_TOOL_ROUNDS) {
@@ -5587,6 +5717,7 @@ Evidence and failure reporting:
                 enqueueEvent,
                 userId,
                 serviceClient,
+                followUpStream,
               });
             }
 
@@ -5634,7 +5765,12 @@ Evidence and failure reporting:
                 for await (const chunk of stream) {
                   lastAskChunk = chunk;
                   const text = streamChunkText(chunk);
-                  if (text) await enqueueEvent("message", { delta: text });
+                  if (text) {
+                    const visibleText = consumeFollowUpEnvelope(followUpStream, text);
+                    if (visibleText) {
+                      await enqueueEvent("message", { delta: visibleText });
+                    }
+                  }
                 }
                 const usage = lastAskChunk?.usageMetadata;
                 const inputTokens = Math.max(
@@ -5668,6 +5804,15 @@ Evidence and failure reporting:
                 }
               }
             }
+          }
+          const pendingVisibleText = flushFollowUpEnvelope(followUpStream);
+          if (pendingVisibleText) {
+            await enqueueEvent("message", { delta: pendingVisibleText });
+          }
+          if (followUpStream.questions.length > 0) {
+            await enqueueEvent("follow_ups", {
+              questions: followUpStream.questions,
+            });
           }
           await enqueueEvent("done", "[DONE]");
           controller.close();

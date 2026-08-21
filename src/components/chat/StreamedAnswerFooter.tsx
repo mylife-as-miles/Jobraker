@@ -44,20 +44,6 @@ const extractSources = (content: string): StreamSource[] => {
   return [...byHref.values()].slice(0, 8);
 };
 
-const followUpsFor = (content: string) => {
-  const normalized = content.toLowerCase();
-  if (normalized.includes("interview")) {
-    return ["Help me prepare for the interview", "Create concise STAR answers for this role"];
-  }
-  if (normalized.includes("resume") || normalized.includes("cv")) {
-    return ["Tailor my resume to this role", "Check my resume for ATS gaps"];
-  }
-  if (normalized.includes("application") || normalized.includes("apply")) {
-    return ["Find similar roles for me", "Draft a follow-up for this application"];
-  }
-  return ["Turn this into a job-search plan", "Find roles that match my profile"];
-};
-
 export function StreamedAnswerFooter({
   content,
   isStreaming,
@@ -142,14 +128,29 @@ export function StreamedAnswerFooter({
 export function ChatFollowUpPanel({
   content,
   isStreaming,
+  questions,
   onFollowUp,
 }: Pick<StreamedAnswerFooterProps, "content" | "isStreaming"> & {
+  questions?: string[];
   onFollowUp: (prompt: string) => void;
 }) {
-  const followUps = useMemo(() => followUpsFor(content), [content]);
+  const followUps = useMemo(() => {
+    const seen = new Set<string>();
+    return (questions || [])
+      .filter((question): question is string => typeof question === "string")
+      .map((question) => question.replace(/\s+/g, " ").trim())
+      .filter((question) => question.length >= 12 && question.length <= 260)
+      .filter((question) => {
+        const key = question.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 2);
+  }, [questions]);
   const isError = /^\s*error:/i.test(content);
 
-  if (!content.trim() || isError || isStreaming) return null;
+  if (!content.trim() || isError || isStreaming || followUps.length === 0) return null;
 
   return (
     <section

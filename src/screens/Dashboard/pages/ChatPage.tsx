@@ -369,6 +369,8 @@ interface BasicMessage {
   /** Persisted: user message included an image (bytes live in IndexedDB). */
   hasPastedImage?: boolean;
   attachmentCount?: number;
+  /** AI-generated next questions for the most recent completed assistant turn. */
+  followUpQuestions?: string[];
 }
 
 type ChatUserPayload = {
@@ -503,6 +505,13 @@ const normalizeBasicMessage = (message: any): BasicMessage => {
           },
         ],
   streaming: legacyQueuedAssistant ? false : Boolean(message?.streaming),
+  followUpQuestions: Array.isArray(message?.followUpQuestions)
+    ? message.followUpQuestions
+        .filter((question: unknown): question is string => typeof question === "string")
+        .map((question: string) => question.replace(/\s+/g, " ").trim())
+        .filter((question: string) => question.length >= 12 && question.length <= 260)
+        .slice(0, 2)
+    : undefined,
   createdAt:
     typeof message?.createdAt === "number" ? message.createdAt : Date.now(),
   meta:
@@ -978,6 +987,20 @@ const isLongRunningAgentTool = (name: string) =>
   name === "run_job_search" ||
   name === "invoke_composio_tool" ||
   name.startsWith("rtrvr_");
+
+const finishRunningToolCalls = (message: BasicMessage, reason: string): BasicMessage => ({
+  ...message,
+  toolCalls: (message.toolCalls || []).map((tool) =>
+    tool.status === "running"
+      ? {
+          ...tool,
+          status: "error",
+          result: { success: false, error: reason },
+          finishedAt: Date.now(),
+        }
+      : tool,
+  ),
+});
 
 const buildAgentTaskRows = (message: BasicMessage): AgentTaskRow[] => {
   const skillCall = message.skillCall;
@@ -1875,6 +1898,32 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 });
                 await waitForAgentProgressPaint();
               }
+            } else if (currentEvent === "follow_ups") {
+              const followUpQuestions = Array.isArray(data.questions)
+                ? data.questions
+                    .filter(
+                      (question: unknown): question is string =>
+                        typeof question === "string",
+                    )
+                    .map((question: string) => question.replace(/\s+/g, " ").trim())
+                    .filter(
+                      (question: string) =>
+                        question.length >= 12 && question.length <= 260,
+                    )
+                    .slice(0, 2)
+                : [];
+              if (followUpQuestions.length > 0) {
+                flushSync(() => {
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? { ...markStreamFrame(msg), followUpQuestions }
+                        : msg,
+                    ),
+                  );
+                });
+                await waitForAgentProgressPaint();
+              }
             } else if (currentEvent === "response_id") {
               if (data.response_id) {
                 setResponseId(data.response_id);
@@ -1885,12 +1934,12 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === assistantId
-                      ? {
+                      ? finishRunningToolCalls({
                           ...markStreamFrame(msg),
                           content: errorText,
                           parts: [{ type: "text", text: errorText }],
                           streaming: false,
-                        }
+                        }, cleanErrorMessage(data.error))
                       : msg,
                   ),
                 );
@@ -2153,7 +2202,10 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 ? msg.content
                 : buildAgentFinalFallback(msg) || "";
               finalAssistantMessage = {
-                ...msg,
+                ...finishRunningToolCalls(
+                  msg,
+                  "The chat stream ended before this step reported a result.",
+                ),
                 content: fallbackContent,
                 parts: [{ type: "text", text: fallbackContent }],
                 streaming: false,
@@ -2178,7 +2230,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             prev.map((msg) =>
               msg.id === assistantId
                 ? {
-                    ...msg,
+                    ...finishRunningToolCalls(msg, stoppedText),
                     content: msg.content.trim() ? msg.content : stoppedText,
                     parts: [
                       {
@@ -2200,7 +2252,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           prev.map((msg) =>
             msg.id === assistantId
               ? {
-                  ...msg,
+                  ...finishRunningToolCalls(msg, errorText),
                   content: errorText,
                   parts: [{ type: "text", text: errorText }],
                   streaming: false,
@@ -4671,6 +4723,7 @@ export const ChatPage = () => {
                           <ChatFollowUpPanel
                             content={m.content}
                             isStreaming={Boolean(m.streaming)}
+                            questions={m.followUpQuestions}
                             onFollowUp={(prompt) => {
                               if (!isChatBusy) void handleSubmit({ text: prompt });
                             }}

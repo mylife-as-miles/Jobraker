@@ -204,10 +204,10 @@ const computeJobMatchInsights = (job: JobData, context: MatchContext) => {
 };
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
 
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {

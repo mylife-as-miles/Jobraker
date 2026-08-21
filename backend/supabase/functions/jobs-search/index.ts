@@ -119,7 +119,7 @@ function extractTargetDomains(value: unknown): string[] {
 Deno.serve(async (req) => {
   const startedAt = Date.now();
   const origin = req.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
+  const corsHeaders = getCorsHeaders(origin, req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });

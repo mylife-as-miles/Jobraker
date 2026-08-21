@@ -4,6 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { runMeteredRtrvrCall } from "../_shared/metered-provider-credits.ts";
 
 const RTRVR_API_BASE = "https://api.rtrvr.ai";
+const RTRVR_REQUEST_TIMEOUT_MS = 120_000;
 
 const READ_ONLY_TOOLS = new Set([
   "rtrvr_scrape",
@@ -269,6 +270,25 @@ async function signedWorkerHeaders(
   };
 }
 
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs = RTRVR_REQUEST_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`RTRVR did not respond within ${Math.round(timeoutMs / 1000)} seconds.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 /* ---------- Main handler ---------- */
 
 serve(async (req) => {
@@ -330,6 +350,8 @@ serve(async (req) => {
     const rtrvrApiKey = Deno.env.get("RTRVR_API_KEY") || "";
     const args = body.args && typeof body.args === "object" ? body.args : {};
     const operationClass = SCRAPE_TOOLS.has(tool) ? "scrape" : MUTATING_TOOLS.has(tool) ? "act" : "run";
+    const workerUrl = (Deno.env.get("AUTOMATION_WORKER_URL") || "").replace(/\/$/, "");
+    const workerSecret = Deno.env.get("AUTOMATION_WORKER_SECRET") || "";
 
     const executeRtrvr = async () => {
       // ── Strategy A: RTRVR Cloud API (preferred) ──
@@ -337,38 +359,61 @@ serve(async (req) => {
         const { endpoint, payload } = resolveRtrvrRequest(tool, args);
         console.log(`rtrvr-tools [cloud] tool=${tool} endpoint=${endpoint}`);
 
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${rtrvrApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
+        try {
+          const response = await fetchWithTimeout(endpoint, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${rtrvrApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
 
-        const result = await response.json().catch(async () => ({
-          raw: await response.text().catch(() => ""),
-        }));
+          const result = await response.json().catch(async () => ({
+            raw: await response.text().catch(() => ""),
+          }));
+          const confirmedUnits = typeof result?.credits_used === "number"
+            ? result.credits_used
+            : typeof result?.usage?.credits === "number"
+              ? result.usage.credits
+              : 1;
 
-        const confirmedUnits = typeof result?.credits_used === "number"
-          ? result.credits_used
-          : typeof result?.usage?.credits === "number"
-            ? result.usage.credits
-            : 1;
+          if (response.ok || response.status < 500 || !workerUrl || !workerSecret) {
+            return {
+              result: new Response(JSON.stringify(redact(result)), {
+                status: response.ok ? 200 : response.status,
+                headers: { ...corsHeaders, "content-type": "application/json" },
+              }),
+              confirmedUnits: response.ok ? confirmedUnits : 0,
+              providerRunId: result?.id || result?.run_id || undefined,
+              completed: response.ok,
+            };
+          }
 
-        return {
-          result: new Response(JSON.stringify(redact(result)), {
-            status: response.ok ? 200 : response.status,
-            headers: { ...corsHeaders, "content-type": "application/json" },
-          }),
-          confirmedUnits,
-          providerRunId: result?.id || result?.run_id || undefined,
-        };
+          console.warn(`rtrvr-tools [cloud] server error ${response.status}; trying worker fallback`);
+        } catch (cloudError) {
+          console.warn("rtrvr-tools [cloud] request failed", redact(cloudError));
+          if (!workerUrl || !workerSecret) {
+            return {
+              result: new Response(
+                JSON.stringify({
+                  error: "RTRVR is temporarily unreachable. No browser action was completed; please try again shortly.",
+                  code: "rtrvr_unreachable",
+                }),
+                {
+                  status: 503,
+                  headers: { ...corsHeaders, "content-type": "application/json" },
+                },
+              ),
+              confirmedUnits: 0,
+              completed: false,
+            };
+          }
+          console.warn("rtrvr-tools [cloud] trying worker fallback after network failure");
+        }
       }
 
       // ── Strategy B: Legacy automation worker (fallback) ──
-      const workerUrl = (Deno.env.get("AUTOMATION_WORKER_URL") || "").replace(/\/$/, "");
-      const workerSecret = Deno.env.get("AUTOMATION_WORKER_SECRET") || "";
       if (!workerUrl || !workerSecret) {
         return {
           result: new Response(
@@ -382,6 +427,7 @@ serve(async (req) => {
             },
           ),
           confirmedUnits: 0,
+          completed: false,
         };
       }
 
@@ -391,14 +437,33 @@ serve(async (req) => {
         args,
         user_id: userData.user.id,
       });
-      const response = await fetch(`${workerUrl}/tools/rtrvr`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...await signedWorkerHeaders(workerSecret, workerBody),
-        },
-        body: workerBody,
-      });
+      let response: Response;
+      try {
+        response = await fetchWithTimeout(`${workerUrl}/tools/rtrvr`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            ...await signedWorkerHeaders(workerSecret, workerBody),
+          },
+          body: workerBody,
+        });
+      } catch (workerError) {
+        console.error("rtrvr-tools [worker-fallback] request failed", redact(workerError));
+        return {
+          result: new Response(
+            JSON.stringify({
+              error: "RTRVR is temporarily unavailable. No browser action was completed; please try again shortly.",
+              code: "rtrvr_unreachable",
+            }),
+            {
+              status: 503,
+              headers: { ...corsHeaders, "content-type": "application/json" },
+            },
+          ),
+          confirmedUnits: 0,
+          completed: false,
+        };
+      }
       const result = await response.json().catch(async () => ({
         raw: await response.text().catch(() => ""),
       }));
@@ -412,8 +477,9 @@ serve(async (req) => {
           status: response.status,
           headers: { ...corsHeaders, "content-type": "application/json" },
         }),
-        confirmedUnits,
+        confirmedUnits: response.ok ? confirmedUnits : 0,
         providerRunId: result?.id || result?.run_id || undefined,
+        completed: response.ok,
       };
     };
 

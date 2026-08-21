@@ -119,7 +119,13 @@ export interface MeteredRtrvrOptions<T> {
   featureKey?: string;
   payload?: unknown;
   estimatedUnits?: number;
-  execute: () => Promise<{ result: T; confirmedUnits?: number; providerRunId?: string }>;
+  execute: () => Promise<{
+    result: T;
+    confirmedUnits?: number;
+    providerRunId?: string;
+    /** False means the provider rejected or could not complete the request. */
+    completed?: boolean;
+  }>;
 }
 
 export async function runMeteredRtrvrCall<T>(opts: MeteredRtrvrOptions<T>): Promise<T> {
@@ -152,7 +158,12 @@ export async function runMeteredRtrvrCall<T>(opts: MeteredRtrvrOptions<T>): Prom
     }
   }
 
-  let executionResult: { result: T; confirmedUnits?: number; providerRunId?: string };
+  let executionResult: {
+    result: T;
+    confirmedUnits?: number;
+    providerRunId?: string;
+    completed?: boolean;
+  };
   try {
     executionResult = await opts.execute();
   } catch (err) {
@@ -166,7 +177,18 @@ export async function runMeteredRtrvrCall<T>(opts: MeteredRtrvrOptions<T>): Prom
     throw err;
   }
 
-  const confirmedUnits = executionResult.confirmedUnits || estimatedUnits;
+  if (executionResult.completed === false) {
+    if (mode === "enforce") {
+      await opts.serviceClient.rpc("release_external_provider_credits", {
+        p_request_id: requestId,
+        p_reason: "provider_request_failed",
+        p_failure_owner: "rtrvr",
+      }).catch(() => {});
+    }
+    return executionResult.result;
+  }
+
+  const confirmedUnits = executionResult.confirmedUnits ?? estimatedUnits;
   await opts.serviceClient.rpc("settle_external_provider_credits", {
     p_request_id: requestId,
     p_confirmed_units: confirmedUnits,

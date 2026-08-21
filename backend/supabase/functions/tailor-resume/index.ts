@@ -9,7 +9,7 @@ import {
   withModelFallback,
   runMeteredAiCall,
 } from "../_shared/gemini.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import {
   SubscriptionAccessError,
   requireSubscriptionTier,
@@ -45,22 +45,33 @@ function buildPrompt(
   ${candidateMemory}
   """
 
-  ANSWER BANK:
+  ${
+    answerBank
+      ? `AUTHENTIC CANDIDATE STORIES & PROOF POINTS:
   """
-  ${answerBank || "None"}
-  """
-  
-  JOB DESCRIPTION:
+  ${answerBank}
+  """`
+      : ""
+  }
+
+  TARGET JOB DESCRIPTION:
   """
   ${jobDescription}
   """
 
-  CANDIDATE'S EXISTING RESUME:
+  CURRENT RESUME:
   """
   ${resumeText}
   """
 
-  ${instructions ? `ADDITIONAL INSTRUCTIONS:\n  """\n  ${instructions}\n  """\n` : ''}
+  ${
+    instructions
+      ? `SPECIAL INSTRUCTIONS FROM USER:
+  """
+  ${instructions}
+  """`
+      : ""
+  }
 
   REQUIREMENTS:
   1. Rewrite the professional summary to highlight the most relevant skills for this specific job.
@@ -72,6 +83,8 @@ function buildPrompt(
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
