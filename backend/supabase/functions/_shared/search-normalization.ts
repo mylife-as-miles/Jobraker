@@ -57,13 +57,31 @@ async function computeSHA256(text: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+export function sanitizeLocationInput(raw: string): string {
+  let cleaned = String(raw || "").trim();
+  // Strip candidate relocation / sponsorship annotations
+  cleaned = cleaned
+    .replace(/\bopen to relocation\b/gi, "")
+    .replace(/\bwilling to relocate\b/gi, "")
+    .replace(/\bsponsorship required\b/gi, "")
+    .replace(/\bvisa sponsorship\b/gi, "")
+    .replace(/\bneeds sponsorship\b/gi, "")
+    .replace(/\brequires sponsorship\b/gi, "")
+    .replace(/[()\[\]{}]/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^[,\s-]+|[,\s-]+$/g, "")
+    .trim();
+  return cleaned;
+}
+
 export async function normalizeSearchScope(
   originalQuery: string,
   rawLocation: string,
   locationScope: "city" | "country" | "global" | "remote" | string,
 ): Promise<CanonicalSearchScope> {
   const normQuery = String(originalQuery || "").trim().toLowerCase().replace(/\s+/g, " ");
-  const cleanLoc = String(rawLocation || "").trim();
+  const sanitizedLoc = sanitizeLocationInput(rawLocation);
+  const cleanLoc = sanitizedLoc || String(rawLocation || "").trim();
   const lowerLoc = cleanLoc.toLowerCase();
 
   let scope: "country" | "city" | "remote" | "global" = "global";
