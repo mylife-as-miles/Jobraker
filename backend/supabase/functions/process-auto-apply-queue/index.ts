@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { createNotificationRecord } from "../_shared/notification-center.ts";
 
 async function recoverStaleRtrvrRows(serviceClient: any) {
   const staleBefore = new Date(Date.now() - 10 * 60_000).toISOString();
@@ -37,6 +38,123 @@ async function recoverStaleRtrvrRows(serviceClient: any) {
   return { requeued };
 }
 
+async function executeRtrvrApplicationDirect(supabase: any, applicationId: string, rtrvrApiKey: string) {
+  try {
+    const { data: app, error } = await supabase
+      .from("applications")
+      .select("*, profiles(*)")
+      .eq("id", applicationId)
+      .single();
+
+    if (error || !app) {
+      console.warn("[process-auto-apply-queue] Application not found:", applicationId);
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    await supabase
+      .from("applications")
+      .update({
+        provider_status: "rtrvr_running",
+        canonical_stage: "queued",
+        automation_heartbeat_at: nowIso,
+        updated_at: nowIso,
+      })
+      .eq("id", applicationId);
+
+    const applyUrl = app.app_url || "";
+    const candidateName = `${app.profiles?.first_name || ""} ${app.profiles?.last_name || ""}`.trim() || "Candidate";
+    const candidateEmail = app.profiles?.email || "";
+    const candidatePhone = app.profiles?.phone || "";
+    const candidateLocation = app.profiles?.location || "";
+    const candidateLinkedIn = app.profiles?.linkedin_url || "";
+    const candidateGithub = app.profiles?.github_url || "";
+    const autoSubmit = Boolean(app.auto_apply_auto_submit ?? true);
+
+    const prompt = [
+      `You are JobRaker's governed auto-apply agent for role "${app.job_title}" at "${app.company}".`,
+      `Target Application URL: ${applyUrl}`,
+      `Candidate Verified Details:`,
+      `- Full Name: ${candidateName}`,
+      `- Email: ${candidateEmail}`,
+      `- Phone: ${candidatePhone}`,
+      `- Location: ${candidateLocation}`,
+      `- LinkedIn: ${candidateLinkedIn}`,
+      `- GitHub: ${candidateGithub}`,
+      `Instructions:`,
+      `- Navigate to the job application URL.`,
+      `- Fill in the application fields accurately using the candidate's verified information.`,
+      `- If resume upload is present, attach the candidate's resume.`,
+      `- If 2FA, CAPTCHA, or custom account login is required, report waiting_for_user.`,
+      autoSubmit ? `- Complete and submit the application.` : `- Fill and prepare the form, but do not click final submit (save draft).`,
+    ].join("\n");
+
+    const rtrvrRes = await fetch("https://api.rtrvr.ai/agent", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${rtrvrApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        input: prompt,
+        urls: [applyUrl],
+        response: { verbosity: "final" },
+      }),
+    });
+
+    const result = await rtrvrRes.json().catch(() => ({}));
+    const finishedAt = new Date().toISOString();
+
+    if (rtrvrRes.ok) {
+      const isDraftOnly = !autoSubmit || result?.status === "prepared";
+      await supabase
+        .from("applications")
+        .update({
+          status: isDraftOnly ? "Draft" : "Applied",
+          canonical_stage: isDraftOnly ? "draft" : "applied",
+          provider_status: isDraftOnly ? "prepared" : "succeeded",
+          applied_date: finishedAt,
+          updated_at: finishedAt,
+          automation_heartbeat_at: finishedAt,
+        })
+        .eq("id", applicationId);
+
+      try {
+        await createNotificationRecord(supabase, {
+          userId: app.user_id,
+          type: "application",
+          title: isDraftOnly ? `Draft Prepared: ${app.job_title}` : `Application Submitted: ${app.job_title}`,
+          message: isDraftOnly
+            ? `Your application for ${app.job_title} at ${app.company} is filled and ready for your final review.`
+            : `Your application for ${app.job_title} at ${app.company} was submitted successfully via cloud automation.`,
+          priority: "medium",
+          source: "automation",
+          sourceRecordId: applicationId,
+          sourceRecordType: "application",
+          actionUrl: "/dashboard/applications",
+          actionLabel: "View Application",
+        });
+      } catch (e) {
+        console.warn("[process-auto-apply-queue] notification failed:", e);
+      }
+    } else {
+      console.warn("[process-auto-apply-queue] RTRVR execution result:", result);
+      await supabase
+        .from("applications")
+        .update({
+          status: "Pending",
+          canonical_stage: "queued",
+          provider_status: "waiting_worker",
+          failure_reason: result?.error || result?.message || "RTRVR cloud run error",
+          updated_at: finishedAt,
+        })
+        .eq("id", applicationId);
+    }
+  } catch (err: any) {
+    console.error("[process-auto-apply-queue] executeRtrvrApplicationDirect error:", err);
+  }
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
@@ -44,8 +162,21 @@ serve(async (req) => {
 
   try {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
     const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-    if (!serviceRoleKey || token !== serviceRoleKey) {
+    
+    let isAuthorized = Boolean(serviceRoleKey && token === serviceRoleKey);
+    if (!isAuthorized && token) {
+      const authClient = createClient(Deno.env.get("SUPABASE_URL") || "", anonKey || serviceRoleKey, {
+        auth: { persistSession: false },
+      });
+      const { data: userData } = await authClient.auth.getUser(token);
+      if (userData?.user) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
     const rtrvrApiKey = (
@@ -73,28 +204,18 @@ serve(async (req) => {
       ? data.map((row: unknown) => typeof row === "string" ? row : (row as { application_id?: string })?.application_id)
         .filter((id): id is string => typeof id === "string" && id.length > 0)
       : [];
-    const handoffs = await Promise.all(applicationIds.map(async (applicationId) => {
-      const { error: handoffError } = await supabase
-        .from("applications")
-        .update({
-          automation_provider: "rtrvr",
-          provider_status: "waiting_worker",
-          canonical_stage: "queued",
-          status: "Pending",
-          failure_reason: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", applicationId)
-        .eq("canonical_stage", "queued");
-      if (handoffError) console.error("rtrvr_queue_handoff_failed", { applicationId, error: handoffError.message });
-      return !handoffError;
-    }));
+
+    // Trigger direct cloud execution for claimed applications
+    for (const applicationId of applicationIds) {
+      // Execute asynchronously in background isolate
+      void executeRtrvrApplicationDirect(supabase, applicationId, rtrvrApiKey);
+    }
 
     return new Response(JSON.stringify({
       success: true,
-      queued_for_worker: handoffs.filter(Boolean).length,
+      acquired_and_running: applicationIds.length,
       recovery,
-    }), { status: 202, headers: { ...corsHeaders, "content-type": "application/json" } });
+    }), { status: 200, headers: { ...corsHeaders, "content-type": "application/json" } });
   } catch (error) {
     console.error("rtrvr_queue_failed", error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unable to queue RTRVR automation" }), {

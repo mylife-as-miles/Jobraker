@@ -1792,11 +1792,17 @@ function ApplicationPage() {
               <div className='rounded-xl border border-sky-400/25 bg-sky-400/10 p-4'>
                 <div className='flex items-start gap-3'>
                   <div className='mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-sky-300/25 bg-sky-300/10 text-sky-300'>
-                    <Clock className='h-4 w-4' />
+                    {detailApp.provider_status === "waiting_worker" || detailApp.provider_status === "launching" ? (
+                      <Sparkles className='h-4 w-4 animate-spin' />
+                    ) : (
+                      <Clock className='h-4 w-4' />
+                    )}
                   </div>
                   <div className='min-w-0 space-y-2'>
                     <div className='flex items-center gap-2 text-sm font-semibold text-sky-200'>
-                      Waiting for an auto-apply slot
+                      {detailApp.provider_status === "waiting_worker" || detailApp.provider_status === "launching"
+                        ? "Slot Allocated — Cloud Runner Active"
+                        : "Waiting for an auto-apply slot"}
                       <TooltipProvider delayDuration={150}>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1811,9 +1817,9 @@ function ApplicationPage() {
                       </TooltipProvider>
                     </div>
                     <p className='text-sm leading-relaxed text-foreground/75'>
-                      This run has been charged and reserved, and will launch
-                      automatically when capacity opens. Pro, Ultimate, and
-                      concurrency boosts move more applications in parallel.
+                      {detailApp.provider_status === "waiting_worker" || detailApp.provider_status === "launching"
+                        ? "Your application slot is active. The cloud browser runner is launching the submission session."
+                        : "This run has been charged and reserved, and will launch automatically when capacity opens. Pro, Ultimate, and concurrency boosts move more applications in parallel."}
                     </p>
                   </div>
                 </div>
