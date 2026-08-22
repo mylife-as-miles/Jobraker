@@ -79,6 +79,10 @@ import {
   fetchJobEvaluationReport,
   type JobEvaluationReport as JobEvaluationReportData,
 } from "../../../services/jobs/jobEvaluation";
+import {
+  fetchAiSuggestedRoles,
+  fetchAiSuggestedLocations,
+} from "../../../services/ai/suggestRoles";
 
 import { applyMicro1ReferralToUrl } from "../../../utils/micro1Referral";
 import { useGamification } from "../../../hooks/useGamification";
@@ -1380,6 +1384,26 @@ export const JobPage = (): JSX.Element => {
   const [tempLocation, setTempLocation] = useState("");
   const [tempLocationScope, setTempLocationScope] = useState<"city" | "country" | "global">("city");
   const [isSavingProfilePreference, setIsSavingProfilePreference] = useState(false);
+  const [aiSuggestedRoles, setAiSuggestedRoles] = useState<string[]>([
+    "Senior AI & Backend Developer",
+    "Full Stack Engineer",
+    "AI Engineer",
+    "Backend Developer",
+    "Frontend Developer",
+    "Machine Learning Engineer",
+    "DevOps Engineer",
+  ]);
+  const [isLoadingAiRoles, setIsLoadingAiRoles] = useState(false);
+  const [aiSuggestedLocations, setAiSuggestedLocations] = useState<string[]>([
+    "Remote",
+    "Enugu, Nigeria",
+    "Lagos, Nigeria",
+    "United States",
+    "United Kingdom",
+    "Canada",
+    "Germany",
+  ]);
+  const [isLoadingAiLocations, setIsLoadingAiLocations] = useState(false);
   const backgroundEvaluationFailedRef = useRef<Set<string>>(new Set());
   const activeTaskIdRef = useRef<string | null>(null);
   const canceledTaskIdsRef = useRef<Set<string>>(new Set());
@@ -2676,16 +2700,86 @@ export const JobPage = (): JSX.Element => {
     ],
   );
 
+  const handleFetchAiRoles = useCallback(async () => {
+    setIsLoadingAiRoles(true);
+    try {
+      const roles = await fetchAiSuggestedRoles({
+        currentRole: tempSearchQuery || searchQuery || profile?.job_title || undefined,
+        skills: profileSkills.data.map((s) => s.name),
+        experiences: profileExperiences.data.map((e) => ({
+          title: e.title,
+          company: e.company,
+          description: e.description,
+        })),
+        location: selectedLocation,
+      });
+      if (roles.length > 0) {
+        setAiSuggestedRoles(roles);
+      }
+    } catch (err) {
+      console.warn("[handleFetchAiRoles] Error:", err);
+    } finally {
+      setIsLoadingAiRoles(false);
+    }
+  }, [tempSearchQuery, searchQuery, profile?.job_title, profileSkills.data, profileExperiences.data, selectedLocation]);
+
+  const handleFetchAiLocations = useCallback(async () => {
+    setIsLoadingAiLocations(true);
+    try {
+      const locs = await fetchAiSuggestedLocations({
+        currentRole: searchQuery || profile?.job_title || undefined,
+        currentLocation: tempLocation || selectedLocation || profile?.location || undefined,
+        experiences: profileExperiences.data.map((e) => ({
+          title: e.title,
+          company: e.company,
+          location: e.location,
+        })),
+      });
+      if (locs.length > 0) {
+        setAiSuggestedLocations(locs);
+      }
+    } catch (err) {
+      console.warn("[handleFetchAiLocations] Error:", err);
+    } finally {
+      setIsLoadingAiLocations(false);
+    }
+  }, [searchQuery, profile?.job_title, tempLocation, selectedLocation, profile?.location, profileExperiences.data]);
+
   const handleOpenEditTitle = useCallback(() => {
-    setTempSearchQuery(searchQuery || profile?.job_title || "");
+    const current = searchQuery || profile?.job_title || "";
+    setTempSearchQuery(current);
     setEditSearchModal("title");
-  }, [searchQuery, profile?.job_title]);
+    if (profileSkills.data.length > 0 || profileExperiences.data.length > 0 || profile?.job_title) {
+      void fetchAiSuggestedRoles({
+        currentRole: current || undefined,
+        skills: profileSkills.data.map((s) => s.name),
+        experiences: profileExperiences.data.map((e) => ({
+          title: e.title,
+          company: e.company,
+        })),
+      }).then((roles) => {
+        if (roles.length > 0) setAiSuggestedRoles(roles);
+      });
+    }
+  }, [searchQuery, profile?.job_title, profileSkills.data, profileExperiences.data]);
 
   const handleOpenEditLocation = useCallback(() => {
-    setTempLocation(selectedLocation || profile?.location || "Remote");
+    const currentLoc = selectedLocation || profile?.location || "Remote";
+    setTempLocation(currentLoc);
     setTempLocationScope(locationScope || profile?.location_scope || "city");
     setEditSearchModal("location");
-  }, [selectedLocation, locationScope, profile?.location, profile?.location_scope]);
+    void fetchAiSuggestedLocations({
+      currentRole: searchQuery || profile?.job_title || undefined,
+      currentLocation: currentLoc,
+      experiences: profileExperiences.data.map((e) => ({
+        title: e.title,
+        company: e.company,
+        location: e.location,
+      })),
+    }).then((locs) => {
+      if (locs.length > 0) setAiSuggestedLocations(locs);
+    });
+  }, [selectedLocation, locationScope, profile?.location, profile?.location_scope, searchQuery, profile?.job_title, profileExperiences.data]);
 
   const handleSaveTitle = useCallback(
     async (triggerSearch = false) => {
@@ -7783,34 +7877,55 @@ export const JobPage = (): JSX.Element => {
                     />
                   </div>
 
-                  {/* Role suggestions */}
-                  <div className='space-y-1.5'>
-                    <span className='text-[11px] font-medium text-foreground/50'>
-                      Suggested Roles:
-                    </span>
-                    <div className='flex flex-wrap gap-1.5'>
-                      {[
-                        "Senior AI & Backend Developer",
-                        "Full Stack Engineer",
-                        "AI Engineer",
-                        "Backend Developer",
-                        "Frontend Developer",
-                        "Machine Learning Engineer",
-                        "DevOps Engineer",
-                      ].map((role) => (
-                        <button
-                          key={role}
-                          type='button'
-                          onClick={() => setTempSearchQuery(role)}
-                          className={`rounded-lg px-2.5 py-1 text-xs transition-all ${
-                            tempSearchQuery.toLowerCase() === role.toLowerCase()
-                              ? "bg-brand/20 text-brand border border-brand/40 font-medium"
-                              : "bg-neutral-900 border border-foreground/10 text-foreground/70 hover:border-foreground/20 hover:text-foreground"
-                          }`}
-                        >
-                          {role}
-                        </button>
-                      ))}
+                  {/* AI-Powered Role suggestions */}
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <div className='flex items-center gap-1.5 text-[11px] font-medium text-foreground/70'>
+                        <Sparkles className='h-3.5 w-3.5 text-brand' />
+                        <span>AI Suggested Target Roles:</span>
+                      </div>
+                      <button
+                        type='button'
+                        disabled={isLoadingAiRoles}
+                        onClick={() => void handleFetchAiRoles()}
+                        className='flex items-center gap-1 text-[11px] font-medium text-brand hover:text-brand/80 transition-colors disabled:opacity-50'
+                      >
+                        {isLoadingAiRoles ? (
+                          <>
+                            <Loader2 className='h-3 w-3 animate-spin' />
+                            <span>Analyzing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className='h-3 w-3' />
+                            <span>AI Re-generate</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className='flex flex-wrap gap-1.5 min-h-[3rem] items-start'>
+                      {isLoadingAiRoles ? (
+                        <div className='flex w-full items-center justify-center py-3 text-xs text-foreground/50 gap-2'>
+                          <Loader2 className='h-3.5 w-3.5 animate-spin text-brand' />
+                          <span>Generating roles tailored to your skills & history...</span>
+                        </div>
+                      ) : (
+                        aiSuggestedRoles.map((role) => (
+                          <button
+                            key={role}
+                            type='button'
+                            onClick={() => setTempSearchQuery(role)}
+                            className={`rounded-lg px-2.5 py-1 text-xs transition-all ${
+                              tempSearchQuery.toLowerCase() === role.toLowerCase()
+                                ? "bg-brand/20 text-brand border border-brand/40 font-medium shadow-sm"
+                                : "bg-neutral-900 border border-foreground/10 text-foreground/70 hover:border-foreground/20 hover:text-foreground"
+                            }`}
+                          >
+                            {role}
+                          </button>
+                        ))
+                      )}
                     </div>
                   </div>
 
@@ -7907,34 +8022,55 @@ export const JobPage = (): JSX.Element => {
                     </div>
                   </div>
 
-                  {/* Popular location chips */}
-                  <div className='space-y-1.5'>
-                    <span className='text-[11px] font-medium text-foreground/50'>
-                      Popular Choices:
-                    </span>
-                    <div className='flex flex-wrap gap-1.5'>
-                      {[
-                        "Remote",
-                        "Enugu, Nigeria",
-                        "Lagos, Nigeria",
-                        "United States",
-                        "United Kingdom",
-                        "Canada",
-                        "Germany",
-                      ].map((loc) => (
-                        <button
-                          key={loc}
-                          type='button'
-                          onClick={() => setTempLocation(loc)}
-                          className={`rounded-lg px-2.5 py-1 text-xs transition-all ${
-                            tempLocation.toLowerCase() === loc.toLowerCase()
-                              ? "bg-brand/20 text-brand border border-brand/40 font-medium"
-                              : "bg-neutral-900 border border-foreground/10 text-foreground/70 hover:border-foreground/20 hover:text-foreground"
-                          }`}
-                        >
-                          {loc}
-                        </button>
-                      ))}
+                  {/* AI-Powered Location suggestions */}
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <div className='flex items-center gap-1.5 text-[11px] font-medium text-foreground/70'>
+                        <Sparkles className='h-3.5 w-3.5 text-brand' />
+                        <span>AI Suggested Locations:</span>
+                      </div>
+                      <button
+                        type='button'
+                        disabled={isLoadingAiLocations}
+                        onClick={() => void handleFetchAiLocations()}
+                        className='flex items-center gap-1 text-[11px] font-medium text-brand hover:text-brand/80 transition-colors disabled:opacity-50'
+                      >
+                        {isLoadingAiLocations ? (
+                          <>
+                            <Loader2 className='h-3 w-3 animate-spin' />
+                            <span>Analyzing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className='h-3 w-3' />
+                            <span>AI Re-generate</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className='flex flex-wrap gap-1.5 min-h-[3rem] items-start'>
+                      {isLoadingAiLocations ? (
+                        <div className='flex w-full items-center justify-center py-3 text-xs text-foreground/50 gap-2'>
+                          <Loader2 className='h-3.5 w-3.5 animate-spin text-brand' />
+                          <span>Generating high-demand hubs & remote markets...</span>
+                        </div>
+                      ) : (
+                        aiSuggestedLocations.map((loc) => (
+                          <button
+                            key={loc}
+                            type='button'
+                            onClick={() => setTempLocation(loc)}
+                            className={`rounded-lg px-2.5 py-1 text-xs transition-all ${
+                              tempLocation.toLowerCase() === loc.toLowerCase()
+                                ? "bg-brand/20 text-brand border border-brand/40 font-medium shadow-sm"
+                                : "bg-neutral-900 border border-foreground/10 text-foreground/70 hover:border-foreground/20 hover:text-foreground"
+                            }`}
+                          >
+                            {loc}
+                          </button>
+                        ))
+                      )}
                     </div>
                   </div>
 
