@@ -630,8 +630,13 @@ Deno.serve(async (req) => {
       );
     }
 
+    const rtrvrApiKey = (
+      Deno.env.get("RTRVR_API_KEY") ||
+      Deno.env.get("FIRECRAWL_API_KEY") ||
+      ""
+    ).trim();
     const rtrvrEnabled = parseBoolean(Deno.env.get("RTRVR_ENABLED"), true);
-    if (!rtrvrEnabled || !Deno.env.get("RTRVR_API_KEY")?.trim()) {
+    if (!rtrvrEnabled || !rtrvrApiKey) {
       return new Response(
         JSON.stringify({
           error: "Application automation is temporarily unavailable. RTRVR is not configured.",

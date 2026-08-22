@@ -48,7 +48,12 @@ serve(async (req) => {
     if (!serviceRoleKey || token !== serviceRoleKey) {
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
-    if (!Deno.env.get("RTRVR_API_KEY")?.trim()) {
+    const rtrvrApiKey = (
+      Deno.env.get("RTRVR_API_KEY") ||
+      Deno.env.get("FIRECRAWL_API_KEY") ||
+      ""
+    ).trim();
+    if (!rtrvrApiKey) {
       return new Response(JSON.stringify({ error: "RTRVR is not configured", code: "rtrvr_not_configured" }), {
         status: 503, headers: { ...corsHeaders, "content-type": "application/json" },
       });
