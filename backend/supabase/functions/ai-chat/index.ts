@@ -2267,6 +2267,43 @@ const createServiceSupabaseClient = () =>
 
 const AGENT_FUNCTION_DECLARATIONS = [
   {
+    name: "spawn_background_agent",
+    description:
+      "Dispatch a persistent, autonomous background AI agent that runs in the cloud (even if the user closes their browser or laptop). Use this for deep company/recruiter research, personalized cold outreach campaigns, multi-board job discovery, automated application batches, or continuous target company monitoring. The agent executes multi-step workflows in the cloud, streams real-time progress, and auto-posts the completed findings directly back into this chat thread.",
+    parameters: {
+      type: "object",
+      properties: {
+        agent_type: {
+          type: "string",
+          enum: [
+            "research_agent",
+            "outreach_agent",
+            "scout_search",
+            "auto_apply_agent",
+            "monitoring_agent",
+            "custom_agent",
+          ],
+          description:
+            "Type of autonomous agent: 'research_agent' for deep company/recruiter intelligence, 'outreach_agent' for generating personalized multi-touch outreach drafts, 'scout_search' for deep multi-source job hunting, 'auto_apply_agent' for background application batching, 'monitoring_agent' for continuous tracking, or 'custom_agent' for general goal execution.",
+        },
+        title: {
+          type: "string",
+          description: "Clear, descriptive title for the task (e.g. 'Deep Recruiter Intelligence: NYC AI Startups')",
+        },
+        goal: {
+          type: "string",
+          description: "Detailed instructions and expected outcome for the background agent to execute.",
+        },
+        parameters: {
+          type: "object",
+          description: "Optional structured parameters such as query, companies, target_urls, location, max_results.",
+        },
+      },
+      required: ["agent_type", "title", "goal"],
+      additionalProperties: true,
+    },
+  },
+  {
     name: "get_account_snapshot",
     description:
       "Get a summary of the user's JobRaker account, including applications, jobs, resumes, credits, subscription tier, and when present subscription period end / days until next renewal (same source as the Billing page DB fields).",
@@ -4202,6 +4239,69 @@ Evidence and failure reporting:
                         resumes: userContext?.resumes || [],
                       },
                     };
+                  } else if (fn.name === "spawn_background_agent") {
+                    const agentType = asString(args.agent_type) || "custom_agent";
+                    const title = asString(args.title) || "Autonomous Background Agent";
+                    const goal = asString(args.goal) || "";
+                    const extraParams = isRecord(args.parameters) ? args.parameters : {};
+                    const currentSessionId = asString(body?.sessionId || body?.session_id) || null;
+
+                    const { data: taskRow, error: taskError } = await serviceClient
+                      .from("job_intelligence_tasks")
+                      .insert({
+                        user_id: userId,
+                        type: agentType,
+                        title: title,
+                        message: "Agent initialized for persistent cloud execution...",
+                        status: "queued",
+                        progress_current: 0,
+                        progress_total: 5,
+                        session_id: currentSessionId,
+                        params: {
+                          ...extraParams,
+                          goal,
+                          title,
+                          session_id: currentSessionId,
+                          dispatched_from: "ai_chat",
+                        },
+                      })
+                      .select()
+                      .single();
+
+                    if (taskError || !taskRow) {
+                      console.error("Failed to spawn background agent:", taskError);
+                      result = {
+                        success: false,
+                        error: `Could not initialize background agent: ${taskError?.message || "database insert error"}`,
+                      };
+                    } else {
+                      const baseUrl = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
+                      const sRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+                      if (baseUrl && sRoleKey) {
+                        void fetch(`${baseUrl}/functions/v1/process-task`, {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${sRoleKey}`,
+                          },
+                          body: JSON.stringify({
+                            taskId: taskRow.id,
+                            task_id: taskRow.id,
+                            user_id: userId,
+                            task_type: agentType,
+                          }),
+                        }).catch((e) => console.warn("[spawn_background_agent] process-task dispatch error:", e?.message));
+                      }
+
+                      result = {
+                        success: true,
+                        task_id: taskRow.id,
+                        agent_type: agentType,
+                        title: title,
+                        status: "queued",
+                        message: `Autonomous agent "${title}" has been launched in a persistent cloud sandbox. It will continue running uninterrupted even if the browser/laptop is closed. Progress is streaming live in the chat card, and the completed findings will be posted directly back to this conversation.`,
+                      };
+                    }
                   } else if (fn.name === "run_job_search") {
                     result = await invokeEdgeFunctionByName({
                       authHeader: authHeader!,

@@ -118,6 +118,7 @@ import type {
   AgentApprovalRequest,
   ApprovedToolCall,
 } from "@/lib/chat/agentApproval";
+import { LiveAgentTaskCard } from "@/screens/Dashboard/components/LiveAgentTaskCard";
 import {
   executeChatSkill,
   getPrimarySkillAlias,
@@ -4375,6 +4376,22 @@ export const ChatPage = () => {
                             />
                             <AgentResultPreview message={m} />
                             <AgentInsightPreview message={m} />
+                            {(() => {
+                              const spawnedTaskId =
+                                (m.meta as any)?.task_id ||
+                                (m as any)?.metadata?.task_id ||
+                                m.toolCalls?.find((tc: any) => (tc.result as any)?.task_id)?.result?.task_id;
+                              if (spawnedTaskId) {
+                                return (
+                                  <LiveAgentTaskCard
+                                    taskId={String(spawnedTaskId)}
+                                    initialTitle={(m.meta as any)?.task_title || "Autonomous Cloud Agent"}
+                                    initialType={(m.meta as any)?.task_type}
+                                  />
+                                );
+                              }
+                              return null;
+                            })()}
                             {m.role === "assistant" && m.streaming && m.content ? (
                               <TokenStream
                                 text={m.content}

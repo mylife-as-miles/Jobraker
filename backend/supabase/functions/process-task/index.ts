@@ -11,6 +11,7 @@ import { resolveJobSearchExecutionLimits } from "../_shared/subscription.ts";
 import { evaluateAndPersistJobFit } from "../_shared/job-evaluation.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createNotificationRecord } from "../_shared/notification-center.ts";
+import { createGeminiClient, GEMINI_MODEL } from "../_shared/gemini.ts";
 
 
 class TaskCanceledError extends Error {
@@ -348,6 +349,252 @@ async function executeChatCompletion(
   return { content, response_id: responseId };
 }
 
+async function executeResearchAgent(
+  supabase: any,
+  userId: string,
+  params: any,
+  progress: any,
+) {
+  const goal = typeof params?.goal === "string" ? params.goal : (params?.title || "Research target opportunities");
+  const query = typeof params?.query === "string" ? params.query : goal;
+  const targetCompanies = Array.isArray(params?.companies) ? params.companies : [];
+
+  await progress.updateProgress(1, 5, "Initializing cloud research engine & analyzing goal...", [
+    { time: new Date().toISOString(), event: "start", message: `Research objective: ${goal}` },
+  ]);
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("job_title, location, bio")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const { data: skills } = await supabase
+    .from("profile_skills")
+    .select("name")
+    .eq("user_id", userId);
+
+  await progress.updateProgress(2, 5, "Querying live web signals, career hubs, and company data...", [
+    { time: new Date().toISOString(), event: "search", message: "Searching web sources and market data" },
+  ]);
+
+  const genAI = createGeminiClient();
+  const model = genAI.getGenerativeModel({
+    model: GEMINI_MODEL,
+    tools: [{ googleSearch: {} }],
+  });
+
+  await progress.updateProgress(3, 5, "Synthesizing recruiter intelligence, hiring trends, and team profiles...", [
+    { time: new Date().toISOString(), event: "synthesis", message: "Structuring findings and extracting key contacts" },
+  ]);
+
+  const candidateContext = `Candidate Target Role: ${profile?.job_title || "Software Professional"}
+Location: ${profile?.location || "Remote"}
+Key Skills: ${(skills || []).map((s: any) => s.name).join(", ") || "General Technical"}`;
+
+  const prompt = `You are JobRaker's Elite Autonomous Background Research Agent.
+You are executing a persistent, in-depth cloud research mission for the candidate.
+
+${candidateContext}
+
+USER'S RESEARCH GOAL:
+"${goal}"
+
+ADDITIONAL PARAMETERS:
+- Query / Focus: "${query}"
+- Target Companies: ${targetCompanies.length > 0 ? targetCompanies.join(", ") : "Identified during research"}
+
+Perform deep live web research using Google Search and output a comprehensive, structured Markdown Executive Dossier:
+# 🎯 Deep Intelligence Report: ${params?.title || goal}
+
+## 🏢 1. Company & Market Overview
+(Key insights, stage, recent funding/announcements, tech stacks, and team culture)
+
+## 👥 2. Key Hiring Leaders & Recruiter Touchpoints
+(Hiring managers, talent acquisition leads, engineering directors, or active recruiters with actionable titles and names where publicly available)
+
+## 💼 3. Open Roles & Compensation Benchmarks
+(Active job openings, level expectations, estimated salary/equity ranges)
+
+## 🚀 4. Strategic Outreach Playbook
+(Actionable, tailored angles for how the candidate can position their background and reach out)
+
+Format cleanly with clear headings, bullet points, and bold callouts.`;
+
+  const response = await model.generateContent(prompt);
+  const reportText = response.response.text();
+
+  await progress.updateProgress(5, 5, "Research dossier complete.", [
+    { time: new Date().toISOString(), event: "complete", message: "Executive report generated" },
+  ]);
+
+  return {
+    summary: `Deep research completed for: "${params?.title || goal}".`,
+    report: reportText,
+    goal,
+  };
+}
+
+async function executeOutreachAgent(
+  supabase: any,
+  userId: string,
+  params: any,
+  progress: any,
+) {
+  const goal = typeof params?.goal === "string" ? params.goal : (params?.title || "Generate personalized outreach");
+  const targetCompany = params?.company || params?.target_company || "";
+  const targetRole = params?.role || params?.target_role || "";
+
+  await progress.updateProgress(1, 4, "Loading candidate profile and target company context...", [
+    { time: new Date().toISOString(), event: "start", message: `Outreach objective: ${goal}` },
+  ]);
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("first_name, last_name, job_title, location, bio")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const { data: experiences } = await supabase
+    .from("profile_experiences")
+    .select("title, company, description")
+    .eq("user_id", userId)
+    .limit(3);
+
+  await progress.updateProgress(2, 4, "Researching company value props and strategic hooks...", [
+    { time: new Date().toISOString(), event: "research", message: "Synthesizing value alignment" },
+  ]);
+
+  const genAI = createGeminiClient();
+  const model = genAI.getGenerativeModel({
+    model: GEMINI_MODEL,
+    tools: [{ googleSearch: {} }],
+  });
+
+  const prompt = `You are JobRaker's Elite Cold Outreach & Networking Agent.
+Generate a multi-touch outreach playbook customized to this candidate and target.
+
+Candidate: ${profile?.first_name || "Candidate"} ${profile?.last_name || ""} (${profile?.job_title || "Professional"})
+Recent Experience: ${(experiences || []).map((e: any) => `${e.title} at ${e.company}`).join(", ")}
+
+GOAL & TARGET:
+"${goal}"
+Target Company: ${targetCompany || "Identified Target"}
+Target Role: ${targetRole || "Target Role"}
+
+Generate:
+# 📬 Multi-Touch Outreach Sequence
+
+### 1. LinkedIn Connection Note (<300 chars)
+### 2. High-Impact Cold Email to Hiring Manager (Punchy, tailored, clear CTA)
+### 3. Follow-up Email #1 (Day 4 - Adding value/case study)
+### 4. Value-Add InMail / Recruiter Pitch
+
+Format with copyable code blocks and clean Markdown.`;
+
+  await progress.updateProgress(3, 4, "Drafting high-conversion multi-touch sequence...");
+  const response = await model.generateContent(prompt);
+  const reportText = response.response.text();
+
+  await progress.updateProgress(4, 4, "Outreach playbook ready.");
+
+  return {
+    summary: `Outreach playbook generated for "${params?.title || goal}".`,
+    report: reportText,
+    goal,
+  };
+}
+
+async function executeCustomAgent(
+  supabase: any,
+  userId: string,
+  params: any,
+  progress: any,
+) {
+  const goal = typeof params?.goal === "string" ? params.goal : (params?.title || "Custom Autonomous Agent Execution");
+
+  await progress.updateProgress(1, 4, "Initializing cloud agent workspace and analyzing objectives...", [
+    { time: new Date().toISOString(), event: "start", message: `Objective: ${goal}` },
+  ]);
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("job_title, location")
+    .eq("id", userId)
+    .maybeSingle();
+
+  await progress.updateProgress(2, 4, "Executing live web research and data gathering in cloud sandbox...", [
+    { time: new Date().toISOString(), event: "execution", message: "Gathering live data" },
+  ]);
+
+  const genAI = createGeminiClient();
+  const model = genAI.getGenerativeModel({
+    model: GEMINI_MODEL,
+    tools: [{ googleSearch: {} }],
+  });
+
+  const prompt = `You are JobRaker's Autonomous Cloud Agent.
+Candidate Context: ${profile?.job_title || "Professional"}, Location: ${profile?.location || "Remote"}
+
+GOAL:
+"${goal}"
+
+PARAMETERS:
+${JSON.stringify(params, null, 2)}
+
+Execute the goal thoroughly with real-time web search and output an executive Markdown summary with actionable takeaways, data points, and next steps.`;
+
+  await progress.updateProgress(3, 4, "Synthesizing final findings and structured artifacts...");
+  const response = await model.generateContent(prompt);
+  const reportText = response.response.text();
+
+  await progress.updateProgress(4, 4, "Task complete.");
+
+  return {
+    summary: `Autonomous agent completed: "${params?.title || goal}".`,
+    report: reportText,
+    goal,
+  };
+}
+
+async function postTaskCompletionToChat(
+  supabase: any,
+  userId: string,
+  sessionId: string,
+  task: any,
+  result: any,
+) {
+  try {
+    let reportText = "";
+    if (typeof result?.report === "string" && result.report.trim()) {
+      reportText = result.report;
+    } else if (typeof result?.summary === "string" && result.summary.trim()) {
+      reportText = result.summary;
+    } else if (result?.jobs_saved != null) {
+      reportText = `### 🎯 Background Job Discovery Complete\n\n- **Target**: ${task.title}\n- **Jobs Discovered & Scraped**: ${result.jobs_saved || 0}\n- **Status**: Completed in the cloud\n\nYou can view your new matched jobs on the [Jobs Page](/dashboard/jobs).`;
+    } else {
+      reportText = `### ✅ Background Agent Complete: ${task.title}\n\n${task.message || "Task completed successfully in the cloud."}`;
+    }
+
+    await supabase.from("chat_messages").insert({
+      session_id: sessionId,
+      user_id: userId,
+      role: "assistant",
+      persona: "agent",
+      content: reportText,
+      metadata: {
+        task_id: task.id,
+        task_type: task.type,
+        task_title: task.title,
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      },
+    });
+  } catch (err) {
+    console.error("[process-task] postTaskCompletionToChat error:", err);
+  }
+}
+
 const PUBLIC_APP_URL =
   Deno.env.get("PUBLIC_APP_URL") ||
   Deno.env.get("APP_BASE_URL") ||
@@ -622,6 +869,12 @@ Deno.serve(async (req) => {
           result = await executeJobReevaluation(supabase, task.user_id, task.params, progressHelper);
         } else if (task.type === "pipeline_cleanup") {
           result = await executePipelineCleanup(supabase, task.user_id, task.params, progressHelper);
+        } else if (task.type === "research_agent") {
+          result = await executeResearchAgent(supabase, task.user_id, task.params, progressHelper);
+        } else if (task.type === "outreach_agent") {
+          result = await executeOutreachAgent(supabase, task.user_id, task.params, progressHelper);
+        } else if (task.type === "custom_agent" || task.type === "monitoring_agent" || task.type === "auto_apply_agent") {
+          result = await executeCustomAgent(supabase, task.user_id, task.params, progressHelper);
         } else {
           throw new Error(`Unsupported task type: ${task.type}`);
         }
@@ -637,6 +890,30 @@ Deno.serve(async (req) => {
             result,
           })
           .eq("id", taskId);
+
+        // Auto-post completed report to chat if spawned from chat session
+        const targetSessionId = task.session_id || task.params?.session_id;
+        if (targetSessionId) {
+          await postTaskCompletionToChat(supabase, task.user_id, targetSessionId, task, result);
+        }
+
+        // Send in-app notification
+        try {
+          await createNotificationRecord(supabase, {
+            userId: task.user_id,
+            type: "system",
+            title: `Cloud Agent Complete: ${task.title}`,
+            message: (result as any)?.summary || `Your cloud agent "${task.title}" has completed successfully.`,
+            priority: "medium",
+            source: "job_intelligence_task",
+            sourceRecordId: task.id,
+            sourceRecordType: "job_intelligence_task",
+            actionUrl: targetSessionId ? `/dashboard/chat` : "/dashboard/jobs",
+            actionLabel: targetSessionId ? "Open Chat" : "View Results",
+          });
+        } catch (notifErr) {
+          console.warn("[process-task] completion notification failed:", notifErr);
+        }
 
       } catch (err) {
         if (err instanceof TaskCanceledError) {

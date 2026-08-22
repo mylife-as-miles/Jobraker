@@ -5,7 +5,12 @@ export type JobTaskType =
   | "scout_search"
   | "job_reevaluation"
   | "pipeline_cleanup"
-  | "chat_completion";
+  | "chat_completion"
+  | "research_agent"
+  | "outreach_agent"
+  | "auto_apply_agent"
+  | "monitoring_agent"
+  | "custom_agent";
 
 export type JobTaskStatus =
   | "queued"
@@ -17,6 +22,7 @@ export type JobTaskStatus =
 export interface JobIntelligenceTask {
   id: string;
   user_id: string;
+  session_id?: string | null;
   type: JobTaskType;
   status: JobTaskStatus;
   title: string;
@@ -38,6 +44,7 @@ type CreateTaskInput = {
   type: JobTaskType;
   title: string;
   message?: string;
+  session_id?: string | null;
   progressTotal?: number;
   params?: Record<string, unknown>;
   retryOf?: string | null;
@@ -214,6 +221,7 @@ export function useJobIntelligenceTasks(limit = 8) {
         .from("job_intelligence_tasks")
         .insert({
           user_id: user.id,
+          session_id: input.session_id ?? null,
           type: input.type,
           title: input.title,
           message: input.message ?? null,
