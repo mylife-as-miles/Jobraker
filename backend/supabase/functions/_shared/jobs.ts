@@ -109,6 +109,8 @@ Return only a valid JSON object matching this schema:
   return { title, description };
 }
 
+export const formatJobTitleAndDescriptionWithAi = cleanJobDescriptionWithAI;
+
 type JobRowInput = Record<string, unknown> & {
   id?: string;
   user_id: string;
@@ -215,13 +217,21 @@ export async function persistDiscoveredJobs(
 
   const formattedJobs = await Promise.all(
     jobs.map(async (job) => {
-      const formatted = await formatJobTitleAndDescriptionWithAi(job.title, job.description || "");
-      return {
-        ...job,
-        title: formatted.title,
-        description: formatted.description,
-      };
-    })
+      try {
+        const formatted = await formatJobTitleAndDescriptionWithAi(
+          job.title,
+          job.description || "",
+        );
+        return {
+          ...job,
+          title: formatted.title || job.title,
+          description: formatted.description || job.description,
+        };
+      } catch (err) {
+        console.warn("[persistDiscoveredJobs] AI formatting fallback", err);
+        return job;
+      }
+    }),
   );
 
   const results = await Promise.all(

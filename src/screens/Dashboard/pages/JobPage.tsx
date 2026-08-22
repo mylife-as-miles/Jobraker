@@ -13,6 +13,7 @@ import {
   Clock3,
   FileText,
   AlertTriangle,
+  AlertCircle,
   UserCheck,
   UserX,
   FileCheck2,
@@ -1365,6 +1366,13 @@ export const JobPage = (): JSX.Element => {
   // Debug payload capture for in-app panel
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
   const [dbgSearchRes, setDbgSearchRes] = useState<any>(null);
+  const [searchFeedbackModal, setSearchFeedbackModal] = useState<{
+    open: boolean;
+    title: string;
+    type: "warning" | "error" | "info";
+    message: string;
+    creditsRefunded?: boolean;
+  } | null>(null);
   const backgroundEvaluationFailedRef = useRef<Set<string>>(new Set());
   const activeTaskIdRef = useRef<string | null>(null);
   const canceledTaskIdsRef = useRef<Set<string>>(new Set());
@@ -2766,12 +2774,33 @@ export const JobPage = (): JSX.Element => {
             : "No jobs found for this search.",
         );
 
+        if (finalCount === 0) {
+          const warnings = (activeTask.result?.warnings || []) as string[];
+          if (warnings.length > 0) {
+            setSearchFeedbackModal({
+              open: true,
+              title: "Search Recommendations",
+              type: "warning",
+              message: warnings.join("\n\n"),
+              creditsRefunded: true,
+            });
+          }
+        }
+
       } else if (["failed", "canceled"].includes(activeTask.status)) {
         setIncrementalMode(false);
         setQueueStatus(jobs.length > 0 ? "ready" : "empty");
         setCurrentSource(null);
         if (activeTask.status === "failed") {
-          setError({ message: activeTask.message || "Search task failed." });
+          const errorMsg = activeTask.message || "Search task failed.";
+          setError({ message: errorMsg });
+          setSearchFeedbackModal({
+            open: true,
+            title: "Search Task Failed",
+            type: "error",
+            message: `${errorMsg}\n\nAll reserved credits have been fully refunded to your available balance.`,
+            creditsRefunded: true,
+          });
         }
         if (activeTaskIdRef.current === activeTaskId) {
           activeTaskIdRef.current = null;
@@ -7535,6 +7564,51 @@ export const JobPage = (): JSX.Element => {
         confirmText='Delete All'
         cancelText='Cancel'
       />
+      <Modal
+        open={Boolean(searchFeedbackModal?.open)}
+        onOpenChange={(open) => !open && setSearchFeedbackModal(null)}
+        title={searchFeedbackModal?.title || "Search Notice"}
+      >
+        <div className="space-y-4 p-4">
+          <div className="flex items-start gap-3">
+            <div
+              className={cn(
+                "rounded-full p-2 shrink-0 mt-0.5",
+                searchFeedbackModal?.type === "error"
+                  ? "bg-red-500/10 text-red-400"
+                  : "bg-amber-500/10 text-amber-400",
+              )}
+            >
+              {searchFeedbackModal?.type === "error" ? (
+                <AlertTriangle className="h-5 w-5" />
+              ) : (
+                <AlertCircle className="h-5 w-5" />
+              )}
+            </div>
+            <div className="space-y-2 text-sm text-neutral-300">
+              <p className="leading-relaxed whitespace-pre-line">
+                {searchFeedbackModal?.message}
+              </p>
+              {searchFeedbackModal?.creditsRefunded && (
+                <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-400 border border-emerald-500/20">
+                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  <span>0 credits charged. 100% of reserved credits remain in your balance.</span>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setSearchFeedbackModal(null)}
+              className="px-4"
+            >
+              Got it
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
