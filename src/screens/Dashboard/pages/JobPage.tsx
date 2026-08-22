@@ -26,6 +26,8 @@ import {
   Zap,
   Crown,
   X,
+  Pencil,
+  Globe,
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -50,7 +52,7 @@ import {
 } from "../../../hooks/useJobsQueue";
 import { useResumes } from "../../../hooks/useResumes";
 import { Card } from "../../../components/ui/card";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import useMediaQuery from "../../../hooks/use-media-query";
 import { createClient } from "../../../lib/supabaseClient";
 import {
@@ -1373,6 +1375,11 @@ export const JobPage = (): JSX.Element => {
     message: string;
     creditsRefunded?: boolean;
   } | null>(null);
+  const [editSearchModal, setEditSearchModal] = useState<"title" | "location" | null>(null);
+  const [tempSearchQuery, setTempSearchQuery] = useState("");
+  const [tempLocation, setTempLocation] = useState("");
+  const [tempLocationScope, setTempLocationScope] = useState<"city" | "country" | "global">("city");
+  const [isSavingProfilePreference, setIsSavingProfilePreference] = useState(false);
   const backgroundEvaluationFailedRef = useRef<Set<string>>(new Set());
   const activeTaskIdRef = useRef<string | null>(null);
   const canceledTaskIdsRef = useRef<Set<string>>(new Set());
@@ -1387,7 +1394,7 @@ export const JobPage = (): JSX.Element => {
   } = useProfileSettings();
   // Load user resumes for selection (used by the Auto Apply -> "Choose a resume" dialog)
   const { resumes, loading: resumesLoading } = useResumes();
-  const { info, error: toastError } = useToast();
+  const { info, error: toastError, success } = useToast();
 
   useEffect(() => {
     if (!profile) return;
@@ -2667,6 +2674,64 @@ export const JobPage = (): JSX.Element => {
       locationScope,
       subscriptionTier,
     ],
+  );
+
+  const handleOpenEditTitle = useCallback(() => {
+    setTempSearchQuery(searchQuery || profile?.job_title || "");
+    setEditSearchModal("title");
+  }, [searchQuery, profile?.job_title]);
+
+  const handleOpenEditLocation = useCallback(() => {
+    setTempLocation(selectedLocation || profile?.location || "Remote");
+    setTempLocationScope(locationScope || profile?.location_scope || "city");
+    setEditSearchModal("location");
+  }, [selectedLocation, locationScope, profile?.location, profile?.location_scope]);
+
+  const handleSaveTitle = useCallback(
+    async (triggerSearch = false) => {
+      const trimmed = tempSearchQuery.trim();
+      if (!trimmed) return;
+      setIsSavingProfilePreference(true);
+      try {
+        setSearchQuery(trimmed);
+        await updateProfile({ job_title: trimmed } as Partial<Profile>);
+        success("Target Role Updated", "Saved target job title to your profile.");
+        setEditSearchModal(null);
+        if (triggerSearch) {
+          void populateQueue(trimmed, selectedLocation);
+        }
+      } catch (err: any) {
+        toastError("Failed to save", err.message || "Could not update target role");
+      } finally {
+        setIsSavingProfilePreference(false);
+      }
+    },
+    [tempSearchQuery, updateProfile, success, toastError, selectedLocation, populateQueue],
+  );
+
+  const handleSaveLocation = useCallback(
+    async (triggerSearch = false) => {
+      const trimmed = tempLocation.trim() || "Remote";
+      setIsSavingProfilePreference(true);
+      try {
+        setSelectedLocation(trimmed);
+        setLocationScope(tempLocationScope);
+        await updateProfile({
+          location: trimmed,
+          location_scope: tempLocationScope,
+        } as Partial<Profile>);
+        success("Location Updated", "Saved location preference to your profile.");
+        setEditSearchModal(null);
+        if (triggerSearch) {
+          void populateQueue(searchQuery, trimmed);
+        }
+      } catch (err: any) {
+        toastError("Failed to save", err.message || "Could not update location");
+      } finally {
+        setIsSavingProfilePreference(false);
+      }
+    },
+    [tempLocation, tempLocationScope, updateProfile, success, toastError, searchQuery, populateQueue],
   );
 
   // Listen for background task changes via real-time subscription
@@ -4654,18 +4719,30 @@ export const JobPage = (): JSX.Element => {
           data-tour='jobs-search-filters'
         >
           <div className='relative z-10 flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-stretch'>
-            <div className='relative min-w-0 flex-1'>
-              <div
+            <div className='relative min-w-0 flex-1 group'>
+              <motion.div
+                layoutId='morph-search-title-card'
                 id='jobs-search'
                 data-tour='jobs-search'
-                aria-label={`Search query ${searchQuery || "No query"}`}
-                role='status'
-                className='flex h-12 w-full items-center rounded-xl border border-foreground/10 pl-4 pr-[8.25rem] sm:pr-36 text-base font-medium text-foreground'
+                onClick={handleOpenEditTitle}
+                aria-label={`Click to edit target job title. Current: ${searchQuery || "No query"}`}
+                role='button'
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleOpenEditTitle();
+                  }
+                }}
+                className='flex h-12 w-full cursor-pointer items-center rounded-xl border border-foreground/10 bg-background/50 pl-4 pr-[8.25rem] sm:pr-36 text-base font-medium text-foreground shadow-sm transition-all duration-200 hover:border-brand/50 hover:bg-brand/[0.03] focus:outline-none focus:ring-2 focus:ring-brand/50'
               >
                 <span className={`min-w-0 truncate ${!searchQuery ? "text-foreground/40" : ""}`}>
                   {searchQuery || "Search jobs, companies, keywords..."}
                 </span>
-              </div>
+                <span className='ml-2 inline-flex items-center text-xs text-foreground/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100'>
+                  <Pencil className='h-3.5 w-3.5 text-brand/80' />
+                </span>
+              </motion.div>
               <div className='pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 h-10 items-center justify-center gap-2'>
                 <span className='text-[10px] font-medium text-brand/90 bg-gradient-to-br from-brand/15 to-brand/5 px-2.5 py-1 rounded-lg border border-brand/30 whitespace-nowrap shadow-sm'>
                   {subscriptionTier === "Ultimate"
@@ -4681,26 +4758,41 @@ export const JobPage = (): JSX.Element => {
               </div>
             </div>
             <div className='flex basis-full xl:basis-1/2 xl:justify-end xl:flex-row flex-col gap-2 lg:shrink-0 '>
-              <div className='relative w-full'>
+              <div className='relative w-full group'>
                 <MapPin className='pointer-events-none absolute right-3 top-1/2 z-[1] w-5 -translate-y-1/2 text-brand/60' />
-                <div
+                <motion.div
+                  layoutId='morph-search-location-card'
                   id='jobs-location'
                   data-tour='jobs-location'
-                  aria-label={`Selected location ${selectedLocation || "Remote"}`}
-                  role='status'
-                  className='flex h-12 items-center rounded-xl border border-foreground/10 pl-4 pr-11 text-base font-medium text-foreground'
+                  onClick={handleOpenEditLocation}
+                  aria-label={`Click to edit target location. Current: ${selectedLocation || "Remote"}`}
+                  role='button'
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleOpenEditLocation();
+                    }
+                  }}
+                  className='flex h-12 w-full cursor-pointer items-center rounded-xl border border-foreground/10 bg-background/50 pl-4 pr-11 text-base font-medium text-foreground shadow-sm transition-all duration-200 hover:border-brand/50 hover:bg-brand/[0.03] focus:outline-none focus:ring-2 focus:ring-brand/50'
                 >
                   <span className='min-w-0 truncate'>
                     {selectedLocation || "Remote"}
                   </span>
-                </div>
+                  <span className='ml-2 inline-flex items-center text-xs text-foreground/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100'>
+                    <Pencil className='h-3.5 w-3.5 text-brand/80' />
+                  </span>
+                </motion.div>
               </div>
               <div className='flex w-full gap-0.5 rounded-lg border border-foreground/10 p-0.5'>
                 {(["city", "country", "global"] as const).map((scope) => (
                   <button
                     key={scope}
                     type='button'
-                    onClick={() => setLocationScope(scope)}
+                    onClick={() => {
+                      setLocationScope(scope);
+                      void updateProfile({ location_scope: scope } as Partial<Profile>);
+                    }}
                     className={`min-h-[2rem] flex-1 px-1.5 py-1.5 text-[10px] font-semibold leading-tight rounded-md transition-all duration-200 sm:px-2.5 ${
                       locationScope === scope
                         ? "bg-brand/15 text-brand border border-brand/30"
@@ -7609,6 +7701,292 @@ export const JobPage = (): JSX.Element => {
           </div>
         </div>
       </Modal>
+
+      {/* Seamless Morphing Edit Modal for Target Role / Title and Location */}
+      <AnimatePresence>
+        {editSearchModal && (
+          <div className='fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6'>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => !isSavingProfilePreference && setEditSearchModal(null)}
+              className='fixed inset-0 bg-black/80 backdrop-blur-md'
+            />
+
+            {/* Morphing Modal Card */}
+            <motion.div
+              layoutId={
+                editSearchModal === "title"
+                  ? "morph-search-title-card"
+                  : "morph-search-location-card"
+              }
+              initial={{ opacity: 0, scale: 0.93, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.93, y: 12 }}
+              transition={{ type: "spring", damping: 26, stiffness: 360 }}
+              className='relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-foreground/15 bg-neutral-950 p-6 shadow-2xl text-foreground sm:p-7'
+            >
+              <div className='flex items-center justify-between border-b border-foreground/10 pb-4'>
+                <div className='flex items-center gap-2.5'>
+                  <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-brand/10 border border-brand/20 text-brand'>
+                    {editSearchModal === "title" ? (
+                      <Search className='h-5 w-5' />
+                    ) : (
+                      <MapPin className='h-5 w-5' />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className='text-base font-semibold text-foreground'>
+                      {editSearchModal === "title"
+                        ? "Edit Target Job Title"
+                        : "Edit Job Location & Scope"}
+                    </h3>
+                    <p className='text-xs text-foreground/60'>
+                      {editSearchModal === "title"
+                        ? "Updates your target role in the database for auto-discovery and matching."
+                        : "Updates your geographic search boundary in your user profile."}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type='button'
+                  onClick={() => !isSavingProfilePreference && setEditSearchModal(null)}
+                  className='rounded-lg p-1.5 text-foreground/50 hover:bg-foreground/10 hover:text-foreground transition-colors'
+                  aria-label='Close modal'
+                >
+                  <X className='h-4 w-4' />
+                </button>
+              </div>
+
+              {editSearchModal === "title" ? (
+                <div className='mt-5 space-y-4'>
+                  <div className='space-y-1.5'>
+                    <label className='text-xs font-medium text-foreground/80'>
+                      Target Role / Job Title
+                    </label>
+                    <input
+                      type='text'
+                      value={tempSearchQuery}
+                      onChange={(e) => setTempSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleSaveTitle(true);
+                        }
+                      }}
+                      placeholder='e.g. Senior AI & Backend Developer'
+                      autoFocus
+                      className='w-full rounded-xl border border-foreground/15 bg-neutral-900 px-3.5 py-2.5 text-sm text-foreground placeholder:text-foreground/30 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand'
+                    />
+                  </div>
+
+                  {/* Role suggestions */}
+                  <div className='space-y-1.5'>
+                    <span className='text-[11px] font-medium text-foreground/50'>
+                      Suggested Roles:
+                    </span>
+                    <div className='flex flex-wrap gap-1.5'>
+                      {[
+                        "Senior AI & Backend Developer",
+                        "Full Stack Engineer",
+                        "AI Engineer",
+                        "Backend Developer",
+                        "Frontend Developer",
+                        "Machine Learning Engineer",
+                        "DevOps Engineer",
+                      ].map((role) => (
+                        <button
+                          key={role}
+                          type='button'
+                          onClick={() => setTempSearchQuery(role)}
+                          className={`rounded-lg px-2.5 py-1 text-xs transition-all ${
+                            tempSearchQuery.toLowerCase() === role.toLowerCase()
+                              ? "bg-brand/20 text-brand border border-brand/40 font-medium"
+                              : "bg-neutral-900 border border-foreground/10 text-foreground/70 hover:border-foreground/20 hover:text-foreground"
+                          }`}
+                        >
+                          {role}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className='flex items-center justify-between pt-4 border-t border-foreground/10'>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='sm'
+                      disabled={isSavingProfilePreference}
+                      onClick={() => setEditSearchModal(null)}
+                      className='text-foreground/70 hover:text-foreground'
+                    >
+                      Cancel
+                    </Button>
+                    <div className='flex items-center gap-2'>
+                      <Button
+                        type='button'
+                        variant='secondary'
+                        size='sm'
+                        disabled={isSavingProfilePreference || !tempSearchQuery.trim()}
+                        onClick={() => void handleSaveTitle(false)}
+                      >
+                        {isSavingProfilePreference ? (
+                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                        ) : (
+                          <Check className='mr-2 h-4 w-4 text-emerald-400' />
+                        )}
+                        Save to Profile
+                      </Button>
+                      <Button
+                        type='button'
+                        variant='default'
+                        size='sm'
+                        disabled={isSavingProfilePreference || !tempSearchQuery.trim()}
+                        onClick={() => void handleSaveTitle(true)}
+                        className='bg-brand text-brand-foreground hover:bg-brand/90 shadow-md'
+                      >
+                        {isSavingProfilePreference ? (
+                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                        ) : (
+                          <Search className='mr-2 h-4 w-4' />
+                        )}
+                        Save & Search
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className='mt-5 space-y-4'>
+                  <div className='space-y-1.5'>
+                    <label className='text-xs font-medium text-foreground/80'>
+                      Location Preference
+                    </label>
+                    <input
+                      type='text'
+                      value={tempLocation}
+                      onChange={(e) => setTempLocation(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleSaveLocation(true);
+                        }
+                      }}
+                      placeholder='e.g. Enugu, Nigeria or Remote'
+                      autoFocus
+                      className='w-full rounded-xl border border-foreground/15 bg-neutral-900 px-3.5 py-2.5 text-sm text-foreground placeholder:text-foreground/30 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand'
+                    />
+                  </div>
+
+                  {/* Scope Selector */}
+                  <div className='space-y-1.5'>
+                    <label className='text-xs font-medium text-foreground/80'>
+                      Geographic Scope
+                    </label>
+                    <div className='grid grid-cols-3 gap-1.5 rounded-xl border border-foreground/10 bg-neutral-900/80 p-1'>
+                      {(["city", "country", "global"] as const).map((scope) => (
+                        <button
+                          key={scope}
+                          type='button'
+                          onClick={() => setTempLocationScope(scope)}
+                          className={`rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                            tempLocationScope === scope
+                              ? "bg-brand/20 text-brand border border-brand/30 shadow-sm"
+                              : "text-foreground/60 hover:text-foreground border border-transparent"
+                          }`}
+                        >
+                          {scope === "city"
+                            ? "City Scope"
+                            : scope === "country"
+                              ? "Country Scope"
+                              : "Global / Remote"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Popular location chips */}
+                  <div className='space-y-1.5'>
+                    <span className='text-[11px] font-medium text-foreground/50'>
+                      Popular Choices:
+                    </span>
+                    <div className='flex flex-wrap gap-1.5'>
+                      {[
+                        "Remote",
+                        "Enugu, Nigeria",
+                        "Lagos, Nigeria",
+                        "United States",
+                        "United Kingdom",
+                        "Canada",
+                        "Germany",
+                      ].map((loc) => (
+                        <button
+                          key={loc}
+                          type='button'
+                          onClick={() => setTempLocation(loc)}
+                          className={`rounded-lg px-2.5 py-1 text-xs transition-all ${
+                            tempLocation.toLowerCase() === loc.toLowerCase()
+                              ? "bg-brand/20 text-brand border border-brand/40 font-medium"
+                              : "bg-neutral-900 border border-foreground/10 text-foreground/70 hover:border-foreground/20 hover:text-foreground"
+                          }`}
+                        >
+                          {loc}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className='flex items-center justify-between pt-4 border-t border-foreground/10'>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='sm'
+                      disabled={isSavingProfilePreference}
+                      onClick={() => setEditSearchModal(null)}
+                      className='text-foreground/70 hover:text-foreground'
+                    >
+                      Cancel
+                    </Button>
+                    <div className='flex items-center gap-2'>
+                      <Button
+                        type='button'
+                        variant='secondary'
+                        size='sm'
+                        disabled={isSavingProfilePreference}
+                        onClick={() => void handleSaveLocation(false)}
+                      >
+                        {isSavingProfilePreference ? (
+                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                        ) : (
+                          <Check className='mr-2 h-4 w-4 text-emerald-400' />
+                        )}
+                        Save to Profile
+                      </Button>
+                      <Button
+                        type='button'
+                        variant='default'
+                        size='sm'
+                        disabled={isSavingProfilePreference}
+                        onClick={() => void handleSaveLocation(true)}
+                        className='bg-brand text-brand-foreground hover:bg-brand/90 shadow-md'
+                      >
+                        {isSavingProfilePreference ? (
+                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                        ) : (
+                          <Search className='mr-2 h-4 w-4' />
+                        )}
+                        Save & Search
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
