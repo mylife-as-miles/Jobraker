@@ -42,7 +42,7 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
   try {
     const { data: app, error } = await supabase
       .from("applications")
-      .select("*, profiles(*)")
+      .select("*")
       .eq("id", applicationId)
       .single();
 
@@ -50,6 +50,12 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
       console.warn("[process-auto-apply-queue] Application not found:", applicationId);
       return;
     }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", app.user_id)
+      .maybeSingle();
 
     const nowIso = new Date().toISOString();
     await supabase
@@ -63,12 +69,12 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
       .eq("id", applicationId);
 
     const applyUrl = app.app_url || "";
-    const candidateName = `${app.profiles?.first_name || ""} ${app.profiles?.last_name || ""}`.trim() || "Candidate";
-    const candidateEmail = app.profiles?.email || "";
-    const candidatePhone = app.profiles?.phone || "";
-    const candidateLocation = app.profiles?.location || "";
-    const candidateLinkedIn = app.profiles?.linkedin_url || "";
-    const candidateGithub = app.profiles?.github_url || "";
+    const candidateName = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || "Candidate";
+    const candidateEmail = profile?.email || "";
+    const candidatePhone = profile?.phone || "";
+    const candidateLocation = profile?.location || "";
+    const candidateLinkedIn = profile?.linkedin_url || "";
+    const candidateGithub = profile?.github_url || "";
     const autoSubmit = Boolean(app.auto_apply_auto_submit ?? true);
 
     const prompt = [
@@ -205,10 +211,14 @@ serve(async (req) => {
         .filter((id): id is string => typeof id === "string" && id.length > 0)
       : [];
 
-    // Trigger direct cloud execution for claimed applications
-    for (const applicationId of applicationIds) {
-      // Execute asynchronously in background isolate
-      void executeRtrvrApplicationDirect(supabase, applicationId, rtrvrApiKey);
+    // Trigger direct cloud execution for claimed applications with EdgeRuntime.waitUntil
+    const executionPromise = Promise.all(
+      applicationIds.map((id) => executeRtrvrApplicationDirect(supabase, id, rtrvrApiKey))
+    );
+    if (typeof (globalThis as any).EdgeRuntime?.waitUntil === "function") {
+      (globalThis as any).EdgeRuntime.waitUntil(executionPromise);
+    } else {
+      void executionPromise;
     }
 
     return new Response(JSON.stringify({
