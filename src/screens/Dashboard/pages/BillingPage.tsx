@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/toast";
+import { OutOfCreditsModal } from "@/components/OutOfCreditsModal";
 import {
   BILLING_CONCURRENCY_PACK_DEFINITIONS,
   BILLING_CREDIT_PACK_DEFINITIONS,
@@ -466,6 +467,7 @@ function getUltimatePricingDisplay(
 }
 export const BillingPage = () => {
   const [currentCredits, setCurrentCredits] = useState(0);
+  const [autoRefillModalOpen, setAutoRefillModalOpen] = useState(false);
   const [subscriptionTier, setSubscriptionTier] = useState<
     "Free" | "Basics" | "Pro" | "Ultimate"
   >("Free");
@@ -2262,6 +2264,34 @@ export const BillingPage = () => {
                 </p>
               </div>
 
+              {/* Auto-Refill Feature Banner */}
+              <div className='rounded-2xl border border-[#d4ff00]/30 bg-gradient-to-r from-[#d4ff00]/10 via-background to-background p-6 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-6'>
+                <div className='flex items-start gap-4'>
+                  <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#d4ff00]/40 bg-[#d4ff00]/15 text-[#d4ff00]'>
+                    <Zap className='h-6 w-6' />
+                  </div>
+                  <div>
+                    <div className='flex items-center gap-2'>
+                      <h3 className='text-lg font-bold text-foreground'>
+                        Automatic Credit Refill
+                      </h3>
+                      <span className='rounded-full bg-[#d4ff00]/20 px-2.5 py-0.5 text-[10px] font-bold text-[#d4ff00] uppercase tracking-wider'>
+                        Smart Refill
+                      </span>
+                    </div>
+                    <p className='mt-1 text-sm text-muted-foreground max-w-xl'>
+                      Never run out of juice mid-search. Automatically top up credits whenever your balance drops below 300 so your AI chat, Scout agents, and auto-apply runs never stall.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => setAutoRefillModalOpen(true)}
+                  className='shrink-0 rounded-full bg-[#d4ff00] hover:bg-[#c2eb00] text-black font-bold px-6 py-2.5 text-sm shadow-[0_0_20px_rgba(212,255,0,0.25)]'
+                >
+                  Configure Auto-Refill
+                </Button>
+              </div>
+
               <div className='grid gap-6 sm:grid-cols-2 lg:grid-cols-4'>
                 {creditPacks.map((pack, index) => (
                   <motion.div
@@ -3309,6 +3339,12 @@ export const BillingPage = () => {
 
         <BillingFAQSection />
       </div>
+
+      <OutOfCreditsModal
+        open={autoRefillModalOpen}
+        onOpenChange={setAutoRefillModalOpen}
+        threshold={300}
+      />
     </div>
   );
 };

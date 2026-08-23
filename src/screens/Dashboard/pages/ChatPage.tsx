@@ -1906,6 +1906,13 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           try {
             const parsed = JSON.parse(errorBody);
             if (parsed.code === "insufficient_credits") {
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(
+                  new CustomEvent("jobraker:open-out-of-credits", {
+                    detail: { threshold: 300 },
+                  }),
+                );
+              }
               errorMessage =
                 parsed.error ||
                 "Your Career Command Center has used its included capacity. Upgrade to Pro or add credits to keep Agent Mode searching, evaluating, and drafting for you.";

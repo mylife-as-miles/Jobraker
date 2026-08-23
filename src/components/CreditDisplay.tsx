@@ -142,9 +142,19 @@ export const CreditDisplay = () => {
 
   return (
     <button
-      onClick={() => navigate("/dashboard/billing")}
+      onClick={() => {
+        if (credits <= 0) {
+          window.dispatchEvent(
+            new CustomEvent("jobraker:open-out-of-credits", {
+              detail: { threshold: 300 },
+            }),
+          );
+        } else {
+          navigate("/dashboard/billing");
+        }
+      }}
       className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border backdrop-blur-sm hover:brightness-125 transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] cursor-pointer ${tierClasses[subscriptionTier] || tierClasses.Free}`}
-      title={`${subscriptionTier} Plan - ${credits} credits remaining. Click to view billing.`}
+      title={`${subscriptionTier} Plan - ${credits} credits remaining. Click to manage billing & auto-refill.`}
     >
       <Coins className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${tierIconClasses[subscriptionTier] || tierIconClasses.Free}`} />
       <span className='font-bold text-xs sm:text-sm whitespace-nowrap'>

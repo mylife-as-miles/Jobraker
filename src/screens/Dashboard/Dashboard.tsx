@@ -9,6 +9,7 @@ import {
   CreditsExhaustedUpgradeDialog,
   readExhaustedCreditsSnoozeUntil,
 } from "@/components/CreditsExhaustedUpgradeDialog";
+import { OutOfCreditsModal } from "@/components/OutOfCreditsModal";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import {
@@ -376,14 +377,30 @@ export const Dashboard = (): JSX.Element => {
   const [lowCreditModalOpen, setLowCreditModalOpen] = useState(false);
   const [creditsExhaustedModalOpen, setCreditsExhaustedModalOpen] =
     useState(false);
+  const [outOfCreditsModalOpen, setOutOfCreditsModalOpen] = useState(false);
+  const [outOfCreditsThreshold, setOutOfCreditsThreshold] = useState(300);
   const [sidebarSubscriptionTier, setSidebarSubscriptionTier] =
     useState<SubscriptionTier | null>(null);
+
+  useEffect(() => {
+    const handleOpenOutOfCredits = (e: Event) => {
+      const customEvent = e as CustomEvent<{ threshold?: number }>;
+      if (customEvent.detail?.threshold) {
+        setOutOfCreditsThreshold(customEvent.detail.threshold);
+      }
+      setOutOfCreditsModalOpen(true);
+    };
+    window.addEventListener("jobraker:open-out-of-credits", handleOpenOutOfCredits);
+    return () =>
+      window.removeEventListener("jobraker:open-out-of-credits", handleOpenOutOfCredits);
+  }, []);
 
   useEffect(() => {
     if (creditsLoading) return;
     if (currentPage === "billing") {
       setLowCreditModalOpen(false);
       setCreditsExhaustedModalOpen(false);
+      setOutOfCreditsModalOpen(false);
       return;
     }
     if (!creditBalance) return;
@@ -391,6 +408,7 @@ export const Dashboard = (): JSX.Element => {
     if (!creditPressure.shouldAlert) {
       setLowCreditModalOpen(false);
       setCreditsExhaustedModalOpen(false);
+      setOutOfCreditsModalOpen(false);
       return;
     }
     const creditsExhausted = Math.max(0, Number(creditBalance.balance) || 0) <= 0;
@@ -398,10 +416,11 @@ export const Dashboard = (): JSX.Element => {
       setLowCreditModalOpen(false);
       const snoozeUntil = readExhaustedCreditsSnoozeUntil();
       if (!snoozeUntil || Date.now() >= snoozeUntil) {
-        setCreditsExhaustedModalOpen(true);
+        setOutOfCreditsModalOpen(true);
       }
       return;
     }
+    setOutOfCreditsModalOpen(false);
     setCreditsExhaustedModalOpen(false);
     const snoozeUntil = readSnoozeUntil();
     if (snoozeUntil && Date.now() < snoozeUntil) return;
@@ -1315,6 +1334,12 @@ export const Dashboard = (): JSX.Element => {
           currentPlan={sidebarSubscriptionTier}
           onExplorePlans={() => navigate("/dashboard/billing?tab=subscription")}
           onExplorePacks={() => navigate("/dashboard/billing?tab=packs")}
+        />
+        <OutOfCreditsModal
+          open={outOfCreditsModalOpen}
+          onOpenChange={setOutOfCreditsModalOpen}
+          threshold={outOfCreditsThreshold}
+          onBuyPacks={() => navigate("/dashboard/billing?tab=packs")}
         />
         {currentPage === "overview" && (
           <OnboardingChecklist
