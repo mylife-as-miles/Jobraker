@@ -478,10 +478,129 @@ const isLegacyQueuedAssistant = (message: any) =>
       String(event?.detail || "").includes("continue chatting while this request runs"),
   );
 
+export function parseCustomApproveActionTag(rawContent: string): {
+  cleanContent: string;
+  approvalRequest?: AgentApprovalRequest;
+} {
+  if (typeof rawContent !== "string") return { cleanContent: "" };
+
+  const tagRegex = /<jobraker-approve-action>([\s\S]*?)<\/jobraker-approve-action>/i;
+  const match = rawContent.match(tagRegex);
+  if (!match) {
+    return { cleanContent: rawContent };
+  }
+
+  const cleanContent = rawContent.replace(tagRegex, "").trim();
+  try {
+    const jsonStr = match[1].trim();
+    const parsed = JSON.parse(jsonStr);
+    const planItems: string[] = Array.isArray(parsed.plan)
+      ? parsed.plan
+      : Array.isArray(parsed.steps)
+      ? parsed.steps
+      : [];
+    const title = typeof parsed.title === "string" ? parsed.title : "Approve Plan & Actions";
+
+    if (planItems.length > 0) {
+      const steps: AgentApprovalStep[] = planItems.map((stepText, idx) => {
+        const text = String(stepText);
+        const isEmail = /email|gmail|outreach|message|draft/i.test(text);
+        const isBrowser = /browser|apply|form|website|portal/i.test(text);
+        return {
+          approvalKey: `plan_step_${idx}_${nanoid(6)}`,
+          toolName: isEmail
+            ? "create_gmail_job_draft"
+            : isBrowser
+            ? "rtrvr_act_on_page"
+            : "custom_action",
+          title: text,
+          detail: text,
+          kind: isEmail ? "email" : isBrowser ? "application" : "plan",
+        };
+      });
+
+      return {
+        cleanContent,
+        approvalRequest: {
+          id: nanoid(),
+          title,
+          description: "Review and approve the actions before JobRaker proceeds.",
+          steps,
+          createdAt: Date.now(),
+        },
+      };
+    }
+  } catch (err) {
+    console.warn("Failed to parse <jobraker-approve-action> JSON:", err);
+  }
+
+  return { cleanContent };
+}
+
 const normalizeBasicMessage = (message: any): BasicMessage => {
   const legacyQueuedAssistant = isLegacyQueuedAssistant(message);
   const legacyQueueMessage =
     "This request did not complete. Send it again to receive a streamed response.";
+
+  const rawContent = legacyQueuedAssistant
+    ? legacyQueueMessage
+    : typeof message?.content === "string"
+      ? message.content
+      : "";
+
+  const { cleanContent, approvalRequest: extractedApproval } =
+    parseCustomApproveActionTag(rawContent);
+
+  const existingApproval =
+    message?.approvalRequest && typeof message.approvalRequest === "object"
+      ? {
+          id:
+            typeof message.approvalRequest.id === "string"
+              ? message.approvalRequest.id
+              : nanoid(),
+          title:
+            typeof message.approvalRequest.title === "string"
+              ? message.approvalRequest.title
+              : "Approve this action?",
+          description:
+            typeof message.approvalRequest.description === "string"
+              ? message.approvalRequest.description
+              : "Review the proposed action before JobRaker continues.",
+          steps: Array.isArray(message.approvalRequest.steps)
+            ? message.approvalRequest.steps
+                .filter(
+                  (step: any) =>
+                    step &&
+                    typeof step.approvalKey === "string" &&
+                    typeof step.toolName === "string" &&
+                    typeof step.title === "string",
+                )
+                .map((step: any) => ({
+                  approvalKey: step.approvalKey,
+                  toolName: step.toolName,
+                  title: step.title,
+                  detail: typeof step.detail === "string" ? step.detail : "",
+                  kind:
+                    step.kind === "browser" ||
+                    step.kind === "application" ||
+                    step.kind === "email" ||
+                    step.kind === "data" ||
+                    step.kind === "credits"
+                      ? step.kind
+                      : "plan",
+                }))
+            : [],
+          createdAt:
+            typeof message.approvalRequest.createdAt === "number"
+              ? message.approvalRequest.createdAt
+              : Date.now(),
+          decision:
+            message.approvalRequest.decision === "approved" ||
+            message.approvalRequest.decision === "declined"
+              ? message.approvalRequest.decision
+              : undefined,
+        }
+      : extractedApproval;
 
   return {
   id: typeof message?.id === "string" ? message.id : nanoid(),
@@ -489,20 +608,20 @@ const normalizeBasicMessage = (message: any): BasicMessage => {
     message?.role === "assistant" || message?.role === "skill"
       ? message.role
       : "user",
-  content: legacyQueuedAssistant
-    ? legacyQueueMessage
-    : typeof message?.content === "string"
-      ? message.content
-      : "",
+  content: cleanContent,
   parts:
     legacyQueuedAssistant
       ? [{ type: "text" as const, text: legacyQueueMessage }]
       : Array.isArray(message?.parts) && message.parts.length > 0
-      ? message.parts
+      ? message.parts.map((p: any) =>
+          p.type === "text" && typeof p.text === "string"
+            ? { ...p, text: parseCustomApproveActionTag(p.text).cleanContent }
+            : p,
+        )
       : [
           {
             type: "text" as const,
-            text: typeof message?.content === "string" ? message.content : "",
+            text: cleanContent,
           },
         ],
   streaming: legacyQueuedAssistant ? false : Boolean(message?.streaming),
@@ -594,56 +713,7 @@ const normalizeBasicMessage = (message: any): BasicMessage => {
             typeof entry.toolCount === "number" ? entry.toolCount : undefined,
         }))
     : undefined,
-  approvalRequest:
-    message?.approvalRequest && typeof message.approvalRequest === "object"
-      ? {
-          id:
-            typeof message.approvalRequest.id === "string"
-              ? message.approvalRequest.id
-              : nanoid(),
-          title:
-            typeof message.approvalRequest.title === "string"
-              ? message.approvalRequest.title
-              : "Approve this action?",
-          description:
-            typeof message.approvalRequest.description === "string"
-              ? message.approvalRequest.description
-              : "Review the proposed action before JobRaker continues.",
-          steps: Array.isArray(message.approvalRequest.steps)
-            ? message.approvalRequest.steps
-                .filter(
-                  (step: any) =>
-                    step &&
-                    typeof step.approvalKey === "string" &&
-                    typeof step.toolName === "string" &&
-                    typeof step.title === "string",
-                )
-                .map((step: any) => ({
-                  approvalKey: step.approvalKey,
-                  toolName: step.toolName,
-                  title: step.title,
-                  detail: typeof step.detail === "string" ? step.detail : "",
-                  kind:
-                    step.kind === "browser" ||
-                    step.kind === "application" ||
-                    step.kind === "email" ||
-                    step.kind === "data" ||
-                    step.kind === "credits"
-                      ? step.kind
-                      : "plan",
-                }))
-            : [],
-          createdAt:
-            typeof message.approvalRequest.createdAt === "number"
-              ? message.approvalRequest.createdAt
-              : Date.now(),
-          decision:
-            message.approvalRequest.decision === "approved" ||
-            message.approvalRequest.decision === "declined"
-              ? message.approvalRequest.decision
-              : undefined,
-        }
-      : undefined,
+  approvalRequest: existingApproval,
   skillCall:
     message?.skillCall && typeof message.skillCall === "object"
       ? (message.skillCall as ChatSkillCall)
@@ -4394,7 +4464,7 @@ export const ChatPage = () => {
                             })()}
                             {m.role === "assistant" && m.streaming && m.content ? (
                               <TokenStream
-                                text={m.content}
+                                text={parseCustomApproveActionTag(m.content).cleanContent}
                                 isStreaming
                                 className="leading-relaxed text-muted-foreground"
                                 staggerDelay={0.012}
@@ -4698,16 +4768,16 @@ export const ChatPage = () => {
                                 ),
                               }}
                             >
-                              {m.content}
+                              {parseCustomApproveActionTag(m.content).cleanContent}
                             </ReactMarkdown>
                             )}
                             <ApplicationStatusPreview
                               message={m}
                               requested={applicationListRequested}
                             />
-                            {m.role === "assistant" && m.approvalRequest ? (
+                            {m.role === "assistant" && (m.approvalRequest || parseCustomApproveActionTag(m.content).approvalRequest) ? (
                               <AgentApprovalCard
-                                request={m.approvalRequest}
+                                request={(m.approvalRequest || parseCustomApproveActionTag(m.content).approvalRequest)!}
                                 disabled={isChatBusy}
                                 onApprove={handleApprovalApprove}
                                 onAdjust={handleApprovalAdjust}
