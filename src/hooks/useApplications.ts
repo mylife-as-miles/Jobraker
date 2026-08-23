@@ -53,6 +53,8 @@ export interface ApplicationRecord {
   automation_fallback_reason?: string | null;
   automation_device_id?: string | null;
   automation_idempotency_key?: string | null;
+  automation_heartbeat_at?: string | null;
+  retry_count?: number | null;
   /** Full Skyvern webhook / run payload (workflow block outputs). */
   provider_run_output?: Record<string, unknown> | null;
 }

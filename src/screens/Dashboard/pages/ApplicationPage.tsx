@@ -314,13 +314,38 @@ function getApplicationStatusColor(status: ApplicationStatus) {
 function isQueuedApplication(status: ApplicationStatus, providerStatus?: string | null) {
   return (
     status === "Pending" &&
-    ["waiting", "waiting_worker", "launching"].includes(providerStatus || "")
+    ["waiting", "waiting_worker", "launching", "retrying", "queued"].includes(providerStatus || "")
   );
 }
 
-function getApplicationStatusDisplay(status: ApplicationStatus, providerStatus?: string | null) {
+function isStaleRunningApplication(
+  providerStatus?: string | null,
+  updatedAt?: string | null,
+  heartbeatAt?: string | null,
+) {
+  if (providerStatus !== "rtrvr_running") return false;
+  const lastActive = heartbeatAt
+    ? new Date(heartbeatAt).getTime()
+    : updatedAt
+    ? new Date(updatedAt).getTime()
+    : 0;
+  if (!lastActive) return false;
+  return Date.now() - lastActive > 10 * 60_000;
+}
+
+function getApplicationStatusDisplay(
+  status: ApplicationStatus,
+  providerStatus?: string | null,
+  updatedAt?: string | null,
+  heartbeatAt?: string | null,
+) {
   if (isQueuedApplication(status, providerStatus)) return "Queued";
-  if (providerStatus === "rtrvr_running") return "Running";
+  if (providerStatus === "rtrvr_running") {
+    if (isStaleRunningApplication(providerStatus, updatedAt, heartbeatAt)) {
+      return "Stalled";
+    }
+    return "Running";
+  }
   if (providerStatus === "waiting_for_user") return "Needs attention";
   if (providerStatus === "prepared") return "Prepared";
   return status;
@@ -329,9 +354,16 @@ function getApplicationStatusDisplay(status: ApplicationStatus, providerStatus?:
 function getApplicationStatusDisplayColor(
   status: ApplicationStatus,
   providerStatus?: string | null,
+  updatedAt?: string | null,
+  heartbeatAt?: string | null,
 ) {
   if (isQueuedApplication(status, providerStatus)) return "#38bdf8";
-  if (providerStatus === "rtrvr_running") return "#2fd968";
+  if (providerStatus === "rtrvr_running") {
+    if (isStaleRunningApplication(providerStatus, updatedAt, heartbeatAt)) {
+      return "#f59e0b";
+    }
+    return "#2fd968";
+  }
   if (providerStatus === "waiting_for_user") return "#f59e0b";
   if (providerStatus === "prepared") return "#a78bfa";
   return getApplicationStatusColor(status);
@@ -340,12 +372,16 @@ function getApplicationStatusDisplayColor(
 function StatusBadge({
   status,
   providerStatus,
+  updatedAt,
+  heartbeatAt,
 }: {
   status: ApplicationStatus;
   providerStatus?: string | null;
+  updatedAt?: string | null;
+  heartbeatAt?: string | null;
 }) {
-  const label = getApplicationStatusDisplay(status, providerStatus);
-  const dc = getApplicationStatusDisplayColor(status, providerStatus);
+  const label = getApplicationStatusDisplay(status, providerStatus, updatedAt, heartbeatAt);
+  const dc = getApplicationStatusDisplayColor(status, providerStatus, updatedAt, heartbeatAt);
   const badge = (
     <span
       className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border'
@@ -1763,6 +1799,8 @@ function ApplicationPage() {
                 <StatusBadge
                   status={detailApp.status}
                   providerStatus={detailApp.provider_status}
+                  updatedAt={detailApp.updated_at}
+                  heartbeatAt={(detailApp as any).automation_heartbeat_at}
                 />
               </div>
               <div className='space-y-2 pr-32'>
@@ -1829,21 +1867,26 @@ function ApplicationPage() {
             {(detailApp.provider_status === "rtrvr_running" ||
               detailApp.provider_status === "waiting_for_user" ||
               detailApp.provider_status === "prepared" ||
-              detailApp.automation_fallback_applied) && (
+              detailApp.automation_fallback_applied ||
+              isQueuedApplication(detailApp.status, detailApp.provider_status)) && (
               <div className='rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4'>
                 <div className='flex items-start gap-3'>
                   <div className='mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[#2fd968]/25 bg-[#2fd968]/10 text-[#2fd968]'>
                     <Clock className='h-4 w-4' />
                   </div>
-                  <div className='min-w-0 space-y-2'>
+                  <div className='min-w-0 space-y-2 flex-1'>
                     <div className='text-sm font-semibold text-foreground/90'>
                       {detailApp.provider_status === "waiting_for_user"
                         ? "Security verification requires your attention"
                         : detailApp.provider_status === "prepared"
                           ? "Application prepared for review"
-                          : detailApp.automation_fallback_applied
-                            ? "Continuing with advanced fallback"
-                            : "Automation running"}
+                          : isStaleRunningApplication(detailApp.provider_status, detailApp.updated_at, (detailApp as any).automation_heartbeat_at)
+                            ? "Runner stalled (Saved Draft Available)"
+                            : detailApp.automation_fallback_applied
+                              ? "Continuing with advanced fallback"
+                              : detailApp.provider_status === "rtrvr_running"
+                                ? "Automation running"
+                                : "Application Queued"}
                     </div>
                     <div className='flex flex-wrap gap-2 text-xs text-foreground/60'>
                       {detailApp.automation_provider && (
@@ -1867,6 +1910,35 @@ function ApplicationPage() {
                         {detailApp.failure_reason || detailApp.automation_fallback_reason}
                       </p>
                     )}
+                    <div className='mt-2 pt-2 border-t border-foreground/10 flex flex-wrap items-center gap-2'>
+                      <button
+                        type='button'
+                        onClick={async () => {
+                          await update(detailApp.id, {
+                            status: "Draft",
+                            canonical_stage: "draft_ready",
+                            provider_status: "failed",
+                            failure_reason: "Reset to Draft by user.",
+                          });
+                        }}
+                        className='px-3 py-1.5 text-xs font-semibold rounded-lg border border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 transition-colors'
+                      >
+                        Reset to Draft
+                      </button>
+                      <button
+                        type='button'
+                        onClick={async () => {
+                          await update(detailApp.id, {
+                            status: "Applied",
+                            canonical_stage: "submitted",
+                            provider_status: "succeeded",
+                          });
+                        }}
+                        className='px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#2fd968]/40 bg-[#2fd968]/10 text-[#2fd968] hover:bg-[#2fd968]/20 transition-colors'
+                      >
+                        Mark as Applied
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3238,10 +3310,14 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           const displayValue = getApplicationStatusDisplay(
             value as ApplicationStatus,
             row.provider_status,
+            row.updated_at,
+            (row as any).automation_heartbeat_at,
           );
           const color = getApplicationStatusDisplayColor(
             value as ApplicationStatus,
             row.provider_status,
+            row.updated_at,
+            (row as any).automation_heartbeat_at,
           );
           return (
             <div

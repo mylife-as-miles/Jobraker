@@ -7,35 +7,52 @@ async function recoverStaleRtrvrRows(serviceClient: any) {
   const staleBefore = new Date(Date.now() - 10 * 60_000).toISOString();
   const { data: rows, error } = await serviceClient
     .from("applications")
-    .select("id, provider_status, automation_heartbeat_at")
-    .eq("automation_provider", "rtrvr")
+    .select("id, user_id, job_title, company, provider_status, automation_heartbeat_at, retry_count")
     .eq("canonical_stage", "queued")
-    .in("provider_status", ["rtrvr_running", "waiting", "launching"])
+    .in("provider_status", ["rtrvr_running", "waiting", "launching", "retrying", "waiting_worker"])
     .lt("updated_at", staleBefore)
     .limit(200);
   if (error) throw error;
 
-  let requeued = 0;
+  let recovered = 0;
   for (const row of rows || []) {
     const heartbeat = row.automation_heartbeat_at
       ? new Date(row.automation_heartbeat_at).getTime()
       : 0;
     if (heartbeat > Date.now() - 10 * 60_000) continue;
-    const { error: updateError } = await serviceClient
-      .from("applications")
-      .update({
-        provider_status: "retrying",
-        automation_claimed_by: null,
-        automation_lease_token: null,
-        automation_lease_expires_at: null,
-        failure_reason: "Recovered stale RTRVR worker lease; retrying.",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", row.id)
-      .eq("automation_provider", "rtrvr");
-    if (!updateError) requeued += 1;
+
+    const retryCount = Number(row.retry_count || 0);
+    if (retryCount >= 2) {
+      await serviceClient
+        .from("applications")
+        .update({
+          status: "Draft",
+          canonical_stage: "draft_ready",
+          provider_status: "failed",
+          automation_claimed_by: null,
+          automation_lease_token: null,
+          automation_lease_expires_at: null,
+          failure_reason: "Automation timed out after retries; saved as Draft for manual submission.",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.id);
+    } else {
+      await serviceClient
+        .from("applications")
+        .update({
+          provider_status: "waiting",
+          automation_claimed_by: null,
+          automation_lease_token: null,
+          automation_lease_expires_at: null,
+          retry_count: retryCount + 1,
+          failure_reason: "Recovered stale runner lease; retrying.",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.id);
+    }
+    recovered += 1;
   }
-  return { requeued };
+  return { recovered };
 }
 
 async function executeRtrvrApplicationDirect(supabase: any, applicationId: string, rtrvrApiKey: string) {
@@ -110,6 +127,7 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
 
     const result = await rtrvrRes.json().catch(() => ({}));
     const finishedAt = new Date().toISOString();
+    const currentRetries = Number(app.retry_count || 0);
 
     if (rtrvrRes.ok) {
       const isDraftOnly = !autoSubmit || result?.status === "prepared";
@@ -117,7 +135,7 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
         .from("applications")
         .update({
           status: isDraftOnly ? "Draft" : "Applied",
-          canonical_stage: isDraftOnly ? "draft" : "applied",
+          canonical_stage: isDraftOnly ? "draft_ready" : "submitted",
           provider_status: isDraftOnly ? "prepared" : "succeeded",
           applied_date: finishedAt,
           updated_at: finishedAt,
@@ -144,20 +162,35 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
         console.warn("[process-auto-apply-queue] notification failed:", e);
       }
     } else {
-      console.warn("[process-auto-apply-queue] RTRVR execution result:", result);
+      console.warn("[process-auto-apply-queue] RTRVR execution result:", rtrvrRes.status, result);
+      const isNonRetryable = rtrvrRes.status === 401 || rtrvrRes.status === 403 || rtrvrRes.status === 404 || currentRetries >= 2;
       await supabase
         .from("applications")
         .update({
-          status: "Pending",
-          canonical_stage: "queued",
-          provider_status: "waiting_worker",
-          failure_reason: result?.error || result?.message || "RTRVR cloud run error",
+          status: isNonRetryable ? "Draft" : "Pending",
+          canonical_stage: isNonRetryable ? "draft_ready" : "queued",
+          provider_status: isNonRetryable ? "failed" : "waiting",
+          retry_count: currentRetries + 1,
+          failure_reason: isNonRetryable
+            ? `Cloud automation error (${result?.message || result?.error || `HTTP ${rtrvrRes.status}`}). Saved as Draft for manual review.`
+            : (result?.error || result?.message || "RTRVR temporary error"),
           updated_at: finishedAt,
+          automation_heartbeat_at: finishedAt,
         })
         .eq("id", applicationId);
     }
   } catch (err: any) {
     console.error("[process-auto-apply-queue] executeRtrvrApplicationDirect error:", err);
+    await supabase
+      .from("applications")
+      .update({
+        status: "Draft",
+        canonical_stage: "draft_ready",
+        provider_status: "failed",
+        failure_reason: `Automation error: ${err?.message || "Unexpected exception"}. Saved as Draft.`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", applicationId);
   }
 }
 
