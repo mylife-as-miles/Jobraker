@@ -306,20 +306,58 @@ function describeAgentApprovalStep(
   };
 }
 
-function toolNeedsAgentApproval(toolName: string, credits: number) {
+/** Browser tools that act on a page rather than just reading it. */
+function isMutatingRtrvrTool(toolName: string) {
   return (
-    credits > 0 ||
-    toolName === "apply_to_job" ||
-    toolName === "auto_apply_from_url" ||
-    toolName === "reapply_job" ||
-    toolName === "create_gmail_job_draft" ||
-    toolName === "send_gmail_job_email" ||
-    toolName === "label_gmail_job_emails" ||
-    toolName === "invoke_composio_tool" ||
-    toolName.startsWith("rtrvr_") ||
-    toolName.startsWith("delete_") ||
-    toolName === "clear_all_jobs"
+    toolName === "rtrvr_run" ||
+    toolName === "rtrvr_act_on_page" ||
+    toolName === "rtrvr_linkedin_connect" ||
+    toolName === "rtrvr_send_linkedin_connection_request"
   );
+}
+
+/**
+ * Tools that take a real-world, hard-to-undo action on the user's behalf and
+ * therefore need a human in the loop.
+ *
+ * Deliberately narrow. Approval is NOT gated on credit cost or on how many
+ * tools a turn happens to use: reading, searching and summarizing are what
+ * Agent Mode is for, and prompting for those turned every request into an
+ * approval dialog.
+ */
+const ALWAYS_APPROVE_TOOLS = new Set([
+  // Submits an application in the user's name.
+  "apply_to_job",
+  "auto_apply_from_url",
+  "reapply_job",
+  // Puts mail in, or sends mail from, the user's mailbox.
+  "create_gmail_job_draft",
+  "send_gmail_job_email",
+  // Destructive.
+  "clear_all_jobs",
+]);
+
+/** Composio tool slugs that only read; everything else writes to a third party. */
+const READ_ONLY_COMPOSIO_SLUG =
+  /(_GET_|_LIST_|_FETCH_|_SEARCH_|_READ_|_FIND_)|^[A-Z]+_(GET|LIST|FETCH|SEARCH|READ|FIND)_/;
+
+function toolNeedsAgentApproval(
+  toolName: string,
+  _credits: number,
+  args: Record<string, unknown> = {},
+) {
+  if (ALWAYS_APPROVE_TOOLS.has(toolName)) return true;
+  // Deleting user data is irreversible.
+  if (toolName.startsWith("delete_")) return true;
+  // Browser automation only needs sign-off when it acts on a page rather than
+  // reading one.
+  if (toolName.startsWith("rtrvr_")) return isMutatingRtrvrTool(toolName);
+  // Third-party integrations need sign-off only when they write.
+  if (toolName === "invoke_composio_tool") {
+    const slug = asString(args.tool_slug).toUpperCase();
+    return Boolean(slug) && !READ_ONLY_COMPOSIO_SLUG.test(slug);
+  }
+  return false;
 }
 
 function summarizeCount(value: unknown, fallback = 0) {
@@ -3887,7 +3925,7 @@ Evidence and failure reporting:
 - Never claim that a task, upload, submission, or browser action succeeded until the relevant tool returns a successful result and confirms the outcome.
 - Keep failure messages brief and practical. Do not expose internal implementation names, speculative recovery attempts, or a list of imagined options.`;
       systemInstruction =
-        `You are JobRaker Agent, a career automation engine. Execute requested career tasks using the available tools. Before a browser action, application automation, email draft/send, deletion, connected-integration action, credit-bearing action, or multi-step plan runs, the system may pause to request a user-facing approval card. Never claim a paused or proposed action has happened. Do not expose private reasoning; state only a concise, user-facing plan and result.\nAfter every completed batch of tool calls, reply in plain language: what you did, the result, and the next step or a direct answer (never end with only tools and no message).\n\n${gmailJobRules.trim()}\n\n${agentCapabilityRules.trim()}\n\n${systemInstruction}`;
+        `You are JobRaker Agent, a career automation engine. Execute requested career tasks using the available tools. The system pauses for a user-facing approval card only before a genuinely irreversible action: submitting an application, drafting or sending mail, deleting data, acting on a page through the browser tool, or writing to a connected integration. Reading, searching, summarizing and other reversible steps run without asking, however many are needed. Never ask the user to approve a plan, and never narrate a plan back for sign-off before doing reversible work — just do it and report the result. Never claim a paused or proposed action has happened. Do not expose private reasoning; state only a concise, user-facing result.\nAfter every completed batch of tool calls, reply in plain language: what you did, the result, and the next step or a direct answer (never end with only tools and no message).\n\n${gmailJobRules.trim()}\n\n${agentCapabilityRules.trim()}\n\n${systemInstruction}`;
     }
 
     systemInstruction = `${systemInstruction}${FOLLOW_UP_GENERATION_RULES}`;
@@ -4088,16 +4126,24 @@ Evidence and failure reporting:
                 const args = isRecord(fn.args) ? fn.args : {};
                 return calculateAgentToolCreditCharge(fn.name, args);
               });
-              const isMultiStepPlan = functionCalls.length > 1;
+              // Approval is per-action and only for genuinely risky work. It is
+              // NOT triggered by how many tools a turn uses: gating on batch
+              // size turned ordinary multi-step research into an approval
+              // prompt, and Agent Mode exists to do the work rather than narrate
+              // a plan back for sign-off.
               const pendingApprovalSteps: AgentApprovalStep[] = [];
+              const seenApprovalKeys = new Set<string>();
               for (let approvalIndex = 0; approvalIndex < functionCalls.length; approvalIndex += 1) {
                 const fn = functionCalls[approvalIndex].functionCall;
                 const args = isRecord(fn.args) ? fn.args : {};
                 const toolCharge = toolCharges[approvalIndex]?.credits ?? 0;
                 const approvalKey = createAgentApprovalKey(fn.name, args);
-                const needsApproval =
-                  isMultiStepPlan || toolNeedsAgentApproval(fn.name, toolCharge);
-                if (!needsApproval || approvedToolCallKeys.has(approvalKey)) continue;
+                if (!toolNeedsAgentApproval(fn.name, toolCharge, args)) continue;
+                if (approvedToolCallKeys.has(approvalKey)) continue;
+                // Identical calls inside one batch share a key; listing the same
+                // action twice is part of what made the card look like a loop.
+                if (seenApprovalKeys.has(approvalKey)) continue;
+                seenApprovalKeys.add(approvalKey);
                 pendingApprovalSteps.push({
                   approvalKey,
                   ...describeAgentApprovalStep(fn.name, args, toolCharge),
@@ -4105,31 +4151,25 @@ Evidence and failure reporting:
               }
 
               if (pendingApprovalSteps.length > 0) {
-                const totalSteps = functionCalls.length;
-                const isPlanApproval = isMultiStepPlan;
+                const actionCount = pendingApprovalSteps.length;
                 await enqueueEvent("agent_activity", {
                   kind: "status",
                   status: "done",
                   title: "Waiting for your approval",
-                  detail: isPlanApproval
-                    ? `Review the ${totalSteps}-step plan before JobRaker takes action.`
-                    : "Review the requested action before JobRaker takes it.",
+                  detail: "Review the requested action before JobRaker takes it.",
                   created_at: Date.now(),
                   round: toolRounds,
                 });
                 await enqueueEvent("approval_request", {
                   id: crypto.randomUUID(),
-                  title: isPlanApproval
-                    ? `Approve this ${totalSteps}-step plan?`
-                    : "Approve this action?",
-                  description: isPlanApproval
-                    ? "JobRaker will not start any of these steps until you approve the plan."
-                    : "JobRaker will not take this action until you approve it.",
+                  title: actionCount === 1
+                    ? "Approve this action?"
+                    : `Approve these ${actionCount} actions?`,
+                  description: actionCount === 1
+                    ? "JobRaker will not take this action until you approve it."
+                    : "JobRaker will not take these actions until you approve them.",
                   steps: pendingApprovalSteps,
                   created_at: Date.now(),
-                });
-                await enqueueEvent("message", {
-                  delta: "\n\nI have a plan ready. Review the approval card below before I take these actions.",
                 });
                 streamedFinalAssistantText = true;
                 break;
@@ -4844,11 +4884,7 @@ Evidence and failure reporting:
                       limit: asNumber(args.limit) || undefined,
                     });
                   } else if (fn.name.startsWith("rtrvr_")) {
-                    const mutatingRtrvrTool =
-                      fn.name === "rtrvr_run" ||
-                      fn.name === "rtrvr_act_on_page" ||
-                      fn.name === "rtrvr_linkedin_connect" ||
-                      fn.name === "rtrvr_send_linkedin_connection_request";
+                    const mutatingRtrvrTool = isMutatingRtrvrTool(fn.name);
                     result = await invokeEdgeFunctionByName({
                       authHeader: authHeader!,
                       name: "rtrvr-tools",

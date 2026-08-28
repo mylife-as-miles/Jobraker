@@ -324,6 +324,11 @@ type ChatRequestOptions = {
   system?: string;
   mode?: ChatMode;
   approvedToolCalls?: ApprovedToolCall[];
+  /**
+   * Resume the current turn without showing another user bubble. Approving an
+   * action continues the same conversation; it is not a new request.
+   */
+  hiddenUserMessage?: boolean;
 };
 type ChatUiAction = {
   type?: string;
@@ -367,6 +372,8 @@ interface BasicMessage {
   approvalRequest?: AgentApprovalRequest;
   streamFrameCount?: number;
   skillCall?: ChatSkillCall;
+  /** Sent to the model for context but not rendered (e.g. approval resume). */
+  hiddenFromUi?: boolean;
   /** Persisted: user message included an image (bytes live in IndexedDB). */
   hasPastedImage?: boolean;
   attachmentCount?: number;
@@ -490,50 +497,10 @@ export function parseCustomApproveActionTag(rawContent: string): {
     return { cleanContent: rawContent };
   }
 
+  // The tag is stripped from display only. Approval cards must come from the
+  // backend `approval_request` event: keys minted here are not the server's
+  // approval keys, so approving them re-prompted forever.
   const cleanContent = rawContent.replace(tagRegex, "").trim();
-  try {
-    const jsonStr = match[1].trim();
-    const parsed = JSON.parse(jsonStr);
-    const planItems: string[] = Array.isArray(parsed.plan)
-      ? parsed.plan
-      : Array.isArray(parsed.steps)
-      ? parsed.steps
-      : [];
-    const title = typeof parsed.title === "string" ? parsed.title : "Approve Plan & Actions";
-
-    if (planItems.length > 0) {
-      const steps: AgentApprovalStep[] = planItems.map((stepText, idx) => {
-        const text = String(stepText);
-        const isEmail = /email|gmail|outreach|message|draft/i.test(text);
-        const isBrowser = /browser|apply|form|website|portal/i.test(text);
-        return {
-          approvalKey: `plan_step_${idx}_${nanoid(6)}`,
-          toolName: isEmail
-            ? "create_gmail_job_draft"
-            : isBrowser
-            ? "rtrvr_act_on_page"
-            : "custom_action",
-          title: text,
-          detail: text,
-          kind: isEmail ? "email" : isBrowser ? "application" : "plan",
-        };
-      });
-
-      return {
-        cleanContent,
-        approvalRequest: {
-          id: nanoid(),
-          title,
-          description: "Review and approve the actions before JobRaker proceeds.",
-          steps,
-          createdAt: Date.now(),
-        },
-      };
-    }
-  } catch (err) {
-    console.warn("Failed to parse <jobraker-approve-action> JSON:", err);
-  }
-
   return { cleanContent };
 }
 
@@ -548,7 +515,7 @@ const normalizeBasicMessage = (message: any): BasicMessage => {
       ? message.content
       : "";
 
-  const { cleanContent, approvalRequest: extractedApproval } =
+  const { cleanContent } =
     parseCustomApproveActionTag(rawContent);
 
   const existingApproval =
@@ -600,7 +567,7 @@ const normalizeBasicMessage = (message: any): BasicMessage => {
               ? message.approvalRequest.decision
               : undefined,
         }
-      : extractedApproval;
+      : undefined;
 
   return {
   id: typeof message?.id === "string" ? message.id : nanoid(),
@@ -1802,6 +1769,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         id: nanoid(),
         role: "user",
         content: textContent,
+        hiddenFromUi: chatOpts?.hiddenUserMessage === true,
         hasPastedImage: Boolean(m.images?.length),
         attachmentCount: m.images?.length || 0,
         createdAt: Date.now(),
@@ -2843,6 +2811,18 @@ export const ChatPage = () => {
     liveTaskRows.length > 0 &&
     (showExtendedWait || hasKnownLongRunningTask || isBackgroundTask);
 
+  /**
+   * Approval keys the user has already granted in this conversation. Kept in a
+   * ref so every later request replays them and the agent never re-asks for an
+   * action that was already approved.
+   */
+  const approvedToolCallKeysRef = useRef<Set<string>>(new Set());
+
+  // Approvals are scoped to one conversation, never carried into another.
+  useEffect(() => {
+    approvedToolCallKeysRef.current = new Set();
+  }, [activeSessionId]);
+
   const updateApprovalDecision = useCallback(
     (requestId: string, decision: "approved" | "declined") => {
       setMessages((previous) =>
@@ -2866,16 +2846,28 @@ export const ChatPage = () => {
     (request: AgentApprovalRequest) => {
       if (isChatBusy || request.steps.length === 0) return;
       updateApprovalDecision(request.id, "approved");
+
+      // Approvals accumulate for the whole conversation. Sending only the keys
+      // from this one card meant a later round re-asked for an action the user
+      // had already approved, which read as the card looping.
+      for (const { approvalKey } of request.steps) {
+        approvedToolCallKeysRef.current.add(approvalKey);
+      }
+
       append(
         {
           role: "user",
-          content: "I approve the proposed plan. Continue only with the approved steps.",
+          content: "Approved. Continue with the approved actions.",
         },
         {
           model: DEFAULT_CHAT_MODEL,
           mode: "agent",
           webSearch: true,
-          approvedToolCalls: request.steps.map(({ approvalKey }) => ({ approvalKey })),
+          // Resume the same turn instead of posting a visible new request.
+          hiddenUserMessage: true,
+          approvedToolCalls: Array.from(approvedToolCallKeysRef.current).map(
+            (approvalKey) => ({ approvalKey }),
+          ),
         },
       );
     },
@@ -4408,6 +4400,9 @@ export const ChatPage = () => {
                   isFocusMode ? "max-w-5xl" : "max-w-4xl"
                 }`}>
                   {messages.map((m, idx) => {
+                    // Approval resumes are sent for model context only; showing
+                    // them would make continuing look like a brand-new request.
+                    if (m.hiddenFromUi) return null;
                     const applicationListRequested = isApplicationListRequest(
                       messages
                         .slice(0, idx)
@@ -4782,9 +4777,9 @@ export const ChatPage = () => {
                               message={m}
                               requested={applicationListRequested}
                             />
-                            {m.role === "assistant" && (m.approvalRequest || parseCustomApproveActionTag(m.content).approvalRequest) ? (
+                            {m.role === "assistant" && m.approvalRequest ? (
                               <AgentApprovalCard
-                                request={(m.approvalRequest || parseCustomApproveActionTag(m.content).approvalRequest)!}
+                                request={m.approvalRequest}
                                 disabled={isChatBusy}
                                 onApprove={handleApprovalApprove}
                                 onAdjust={handleApprovalAdjust}
