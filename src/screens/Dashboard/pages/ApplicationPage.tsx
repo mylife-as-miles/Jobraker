@@ -10,11 +10,18 @@ import { applyMicro1ReferralToUrl } from "../../../utils/micro1Referral";
 import { APPLICATION_STATUS_OPTIONS } from "@/lib/applicationState";
 
 /** All + pipeline statuses for filters, URL params, and prefs */
-const APPLICATION_STATUS_FILTERS = ["All", "🤖 AI Tasks", ...APPLICATION_STATUS_OPTIONS] as const;
+const APPLICATION_STATUS_FILTERS = [
+  "All",
+  "🤖 AI Tasks",
+  ...APPLICATION_STATUS_OPTIONS,
+] as const;
 import { Skeleton } from "../../../components/ui/skeleton";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
-import { scheduleInterviewViaEdge, type ScheduleInterviewResponse } from "../../../services/ai/scheduleInterview";
+import {
+  scheduleInterviewViaEdge,
+  type ScheduleInterviewResponse,
+} from "../../../services/ai/scheduleInterview";
 import { useGamification } from "../../../hooks/useGamification";
 import {
   fetchJobEvaluationReport,
@@ -103,6 +110,7 @@ import { useEmailIntegrationAccess } from "@/hooks/useEmailIntegrationAccess";
 import { getProxiedLogoUrl } from "../../../lib/utils";
 
 type SortOption = "score" | "recent" | "company" | "status";
+import Seo from "@/components/seo/Seo";
 
 function getCompanyInitials(company?: string | null, jobTitle?: string | null) {
   const source = (company || jobTitle || "")
@@ -196,7 +204,11 @@ function CompanyMark({
   const paddingClass =
     size === "sm" ? "p-2.5" : size === "lg" ? "p-3.5" : "p-3";
   const textClass =
-    size === "sm" ? "text-xs" : size === "lg" ? "text-lg tracking-[0.18em]" : "text-sm";
+    size === "sm"
+      ? "text-xs"
+      : size === "lg"
+        ? "text-lg tracking-[0.18em]"
+        : "text-sm";
 
   return (
     <div
@@ -207,6 +219,7 @@ function CompanyMark({
         sizeClass,
       ].join(" ")}
     >
+      <Seo title='Jobraker | Application' />
       <div className='pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.14),transparent_45%)] opacity-60' />
       {logoUrl && !didError ? (
         <img
@@ -241,25 +254,26 @@ const ReceiptCard: React.FC<{
   return (
     <a
       href={url}
-      target="_blank"
-      rel="noreferrer"
-      className="group relative block overflow-hidden rounded-xl border border-foreground/10 bg-slate-950/80 transition-all hover:border-[#2fd968]/50 hover:shadow-[0_0_20px_rgba(47,217,104,0.15)] aspect-[4/3]"
+      target='_blank'
+      rel='noreferrer'
+      className='group relative block overflow-hidden rounded-xl border border-foreground/10 bg-slate-950/80 transition-all hover:border-[#2fd968]/50 hover:shadow-[0_0_20px_rgba(47,217,104,0.15)] aspect-[4/3]'
     >
       {/* Background Graphic / Fallback UI when image is loading or fails */}
       {(!imgLoaded || imgError) && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950/40 text-center z-0">
-          <div className="w-10 h-10 rounded-full bg-[#2fd968]/10 border border-[#2fd968]/30 flex items-center justify-center mb-2 text-[#2fd968] group-hover:scale-110 transition-transform">
+        <div className='absolute inset-0 flex flex-col items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950/40 text-center z-0'>
+          <div className='w-10 h-10 rounded-full bg-[#2fd968]/10 border border-[#2fd968]/30 flex items-center justify-center mb-2 text-[#2fd968] group-hover:scale-110 transition-transform'>
             {iconType === "success" ? (
-              <CheckCircle2 className="w-5 h-5 text-[#2fd968]" />
+              <CheckCircle2 className='w-5 h-5 text-[#2fd968]' />
             ) : (
-              <FileText className="w-5 h-5 text-[#2fd968]" />
+              <FileText className='w-5 h-5 text-[#2fd968]' />
             )}
           </div>
-          <span className="text-xs font-semibold text-slate-200 group-hover:text-white transition-colors">
+          <span className='text-xs font-semibold text-slate-200 group-hover:text-white transition-colors'>
             {title}
           </span>
-          <span className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-            <ExternalLink className="w-3 h-3 text-[#2fd968]" /> View Details & Receipt
+          <span className='text-[10px] text-slate-400 mt-1 flex items-center gap-1'>
+            <ExternalLink className='w-3 h-3 text-[#2fd968]' /> View Details &
+            Receipt
           </span>
         </div>
       )}
@@ -278,8 +292,8 @@ const ReceiptCard: React.FC<{
       )}
 
       {/* Overlay gradient & bottom bar */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between pointer-events-none">
+      <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 pointer-events-none' />
+      <div className='absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between pointer-events-none'>
         <span
           className={`text-xs font-medium ${
             iconType === "success" ? "text-[#2fd968]" : "text-foreground"
@@ -287,11 +301,26 @@ const ReceiptCard: React.FC<{
         >
           {badgeLabel}
         </span>
-        <svg className={`w-4 h-4 ${iconType === "success" ? "text-[#2fd968]" : "text-foreground"} opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0`} fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+        <svg
+          className={`w-4 h-4 ${iconType === "success" ? "text-[#2fd968]" : "text-foreground"} opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0`}
+          fill='none'
+          viewBox='0 0 24 24'
+          stroke='currentColor'
+        >
           {iconType === "success" ? (
-            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' />
+            <path
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              strokeWidth={2}
+              d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
+            />
           ) : (
-            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' />
+            <path
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              strokeWidth={2}
+              d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14'
+            />
           )}
         </svg>
       </div>
@@ -311,14 +340,20 @@ function getApplicationStatusColor(status: ApplicationStatus) {
   return "#6B7280";
 }
 
-function isQueuedApplication(status: ApplicationStatus, providerStatus?: string | null) {
+function isQueuedApplication(
+  status: ApplicationStatus,
+  providerStatus?: string | null,
+) {
   return (
     status === "Pending" &&
     ["waiting", "waiting_worker", "launching"].includes(providerStatus || "")
   );
 }
 
-function getApplicationStatusDisplay(status: ApplicationStatus, providerStatus?: string | null) {
+function getApplicationStatusDisplay(
+  status: ApplicationStatus,
+  providerStatus?: string | null,
+) {
   if (isQueuedApplication(status, providerStatus)) return "Queued";
   if (providerStatus === "rtrvr_running") return "Running";
   if (providerStatus === "waiting_for_user") return "Needs attention";
@@ -434,11 +469,7 @@ export function ApplicationsListView({
           if (rows.length === 0 && selectedStatus !== "All") return null;
 
           return (
-            <ListGroup
-              key={status}
-              id={status}
-              className='flex flex-col'
-            >
+            <ListGroup key={status} id={status} className='flex flex-col'>
               <ListHeader
                 name={status}
                 color={color}
@@ -513,7 +544,7 @@ export function ApplicationsListView({
                                           text: `Evaluate my resume fit and calculate a match score for ${a.job_title} at ${a.company || "target company"}`,
                                           mode: "quote",
                                         },
-                                      })
+                                      }),
                                     );
                                   }}
                                 />
@@ -594,7 +625,9 @@ export function ApplicationsListView({
                                   />
                                 </svg>
                                 Interview{" "}
-                                {new Date(a.interview_date).toLocaleDateString()}
+                                {new Date(
+                                  a.interview_date,
+                                ).toLocaleDateString()}
                               </span>
                             )}
                           </div>
@@ -661,12 +694,24 @@ function ApplicationPage() {
       const companyLower = (app.company || "").toLowerCase().trim();
       const titleLower = (app.job_title || "").toLowerCase().trim();
       return aiTasks.filter((t) => {
-        const tComp = String(t.params?.company || "").toLowerCase().trim();
-        const tAppId = String(t.params?.application_id || t.params?.applicationId || "");
+        const tComp = String(t.params?.company || "")
+          .toLowerCase()
+          .trim();
+        const tAppId = String(
+          t.params?.application_id || t.params?.applicationId || "",
+        );
         const tJobId = String(t.params?.job_id || t.params?.jobId || "");
         if (app.id && (tAppId === app.id || tJobId === app.id)) return true;
-        if (!companyLower || companyLower === "job openings" || companyLower === "greenhouse" || companyLower === "lever") return false;
-        return tComp && (companyLower === tComp || companyLower.includes(tComp));
+        if (
+          !companyLower ||
+          companyLower === "job openings" ||
+          companyLower === "greenhouse" ||
+          companyLower === "lever"
+        )
+          return false;
+        return (
+          tComp && (companyLower === tComp || companyLower.includes(tComp))
+        );
       });
     },
     [aiTasks],
@@ -680,8 +725,8 @@ function ApplicationPage() {
   >("All");
   const [sortBy, setSortBy] = useState<SortOption>("score");
   const [viewMode, setViewMode] = useState<
-    "gantt" | "kanban" | "calendar" | "table"
-  >("gantt");
+    "table" | "gantt" | "kanban" | "calendar"
+  >("table");
   const [ganttZoom, setGanttZoom] = useState(() => {
     const z = Number(localStorage.getItem("jr.apps.gantt.zoom") || "1");
     return Number.isFinite(z) ? Math.min(4, Math.max(0, z)) : 1;
@@ -690,7 +735,8 @@ function ApplicationPage() {
     () => localStorage.getItem("jr.apps.gantt.future") !== "0",
   );
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [pendingDeepLinkApplicationId, setPendingDeepLinkApplicationId] = useState<string | null>(null);
+  const [pendingDeepLinkApplicationId, setPendingDeepLinkApplicationId] =
+    useState<string | null>(null);
   const [nextStepOpen, setNextStepOpen] = useState(false);
   const [nextStepText, setNextStepText] = useState("");
   const [editingNotes, setEditingNotes] = useState(false);
@@ -707,14 +753,18 @@ function ApplicationPage() {
   const [interviewAgentOpen, setInterviewAgentOpen] = useState(false);
   const [interviewEmailText, setInterviewEmailText] = useState("");
   const [interviewAgentLoading, setInterviewAgentLoading] = useState(false);
-  const [interviewAgentResult, setInterviewAgentResult] = useState<ScheduleInterviewResponse | null>(null);
+  const [interviewAgentResult, setInterviewAgentResult] =
+    useState<ScheduleInterviewResponse | null>(null);
   const [gmailSyncing, setGmailSyncing] = useState(false);
   const [isGmailConnected, setIsGmailConnected] = useState(false);
   const [gmailConnectedEmail, setGmailConnectedEmail] = useState<string | null>(
     null,
   );
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
-  const hasInterviewAssistantAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
+  const hasInterviewAssistantAccess = hasSubscriptionAccess(
+    subscriptionTier,
+    "Pro",
+  );
   const {
     hasEmailIntegrationAccess: hasGmailIntegrationAccess,
     loadingEmailIntegrationAccess,
@@ -799,7 +849,10 @@ function ApplicationPage() {
       const qsQuery = u.searchParams.get("q");
       const qsView = u.searchParams.get("view");
       const qsApplication = u.searchParams.get("application");
-      if (qsStatus && (APPLICATION_STATUS_FILTERS as readonly string[]).includes(qsStatus))
+      if (
+        qsStatus &&
+        (APPLICATION_STATUS_FILTERS as readonly string[]).includes(qsStatus)
+      )
         setSelectedStatus(qsStatus as any);
       if (typeof qsQuery === "string" && qsQuery.length)
         setSearchQuery(qsQuery);
@@ -829,7 +882,9 @@ function ApplicationPage() {
           setViewMode(p.viewMode);
         if (
           !qsStatus &&
-          (APPLICATION_STATUS_FILTERS as readonly string[]).includes(p.selectedStatus)
+          (APPLICATION_STATUS_FILTERS as readonly string[]).includes(
+            p.selectedStatus,
+          )
         )
           setSelectedStatus(p.selectedStatus as any);
         if (["score", "recent", "company", "status"].includes(p.sortBy))
@@ -837,12 +892,16 @@ function ApplicationPage() {
         if (!qsQuery && typeof p.searchQuery === "string")
           setSearchQuery(p.searchQuery);
       }
-    } catch { }
+    } catch {}
   }, []);
 
   useEffect(() => {
     if (!pendingDeepLinkApplicationId) return;
-    if (!applications.some((application) => application.id === pendingDeepLinkApplicationId)) {
+    if (
+      !applications.some(
+        (application) => application.id === pendingDeepLinkApplicationId,
+      )
+    ) {
       return;
     }
     setDetailId(pendingDeepLinkApplicationId);
@@ -854,18 +913,18 @@ function ApplicationPage() {
     try {
       const payload = { viewMode, selectedStatus, sortBy, searchQuery };
       localStorage.setItem("jr.apps.prefs.v1", JSON.stringify(payload));
-    } catch { }
+    } catch {}
   }, [viewMode, selectedStatus, sortBy, searchQuery]);
 
   useEffect(() => {
     try {
       localStorage.setItem("jr.apps.gantt.zoom", String(ganttZoom));
-    } catch { }
+    } catch {}
   }, [ganttZoom]);
   useEffect(() => {
     try {
       localStorage.setItem("jr.apps.gantt.future", showFuture ? "1" : "0");
-    } catch { }
+    } catch {}
   }, [showFuture]);
 
   useEffect(() => {
@@ -902,9 +961,7 @@ function ApplicationPage() {
           setIsGmailConnected(connected);
           const raw = payload.email;
           setGmailConnectedEmail(
-            connected &&
-              typeof raw === "string" &&
-              raw.trim().length > 0
+            connected && typeof raw === "string" && raw.trim().length > 0
               ? raw.trim()
               : null,
           );
@@ -936,8 +993,8 @@ function ApplicationPage() {
         <>
           Connect your account under{" "}
           <button
-            type="button"
-            className="font-semibold text-[#2fd968] underline underline-offset-2 hover:brightness-110"
+            type='button'
+            className='font-semibold text-[#2fd968] underline underline-offset-2 hover:brightness-110'
             onClick={() => navigate("/dashboard/settings/integrations")}
           >
             Settings → Integrations
@@ -1050,7 +1107,12 @@ function ApplicationPage() {
         selectedStatus === "All"
           ? true
           : (selectedStatus as string) === "🤖 AI Tasks"
-            ? (getLinkedAiTasks(a).length > 0 || Boolean(a.run_id || a.automation_provider)) && (a.canonical_stage === "queued" || a.canonical_stage === "draft_ready" || a.status === "Pending" || a.status === "Draft")
+            ? (getLinkedAiTasks(a).length > 0 ||
+                Boolean(a.run_id || a.automation_provider)) &&
+              (a.canonical_stage === "queued" ||
+                a.canonical_stage === "draft_ready" ||
+                a.status === "Pending" ||
+                a.status === "Draft")
             : a.status === selectedStatus;
       return matchesQ && matchesStatus;
     });
@@ -1080,7 +1142,8 @@ function ApplicationPage() {
           const scoreB = extractScore(b);
           if (scoreA == null && scoreB == null) {
             return (
-              new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+              new Date(b.updated_at).getTime() -
+              new Date(a.updated_at).getTime()
             );
           }
           if (scoreA == null) return 1;
@@ -1116,7 +1179,7 @@ function ApplicationPage() {
     return () => {
       try {
         delete (window as any).__apps_update;
-      } catch { }
+      } catch {}
     };
   }, [update]);
 
@@ -1264,10 +1327,8 @@ function ApplicationPage() {
         </div>
       </div>
 
-
-
       {/* Toolbar */}
-      <Card className='relative overflow-hidden border-none'>
+      <Card className='relative overflow-visible border-none'>
         <div className='relative z-10 flex flex-col gap-5'>
           <div className='flex flex-col sm:flex-row gap-4'>
             <div className='flex-1 relative group'>
@@ -1284,7 +1345,7 @@ function ApplicationPage() {
               <SortDropdown
                 value={sortBy}
                 onChange={(newSortBy) => setSortBy(newSortBy as SortOption)}
-                className="flex-1 sm:flex-initial sm:w-[180px]"
+                className='flex-1 sm:flex-initial sm:w-[180px]'
               />
 
               <div
@@ -1292,6 +1353,16 @@ function ApplicationPage() {
                 className='inline-flex rounded-xl border border-[#2fd968]/30 overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  backdrop-blur-sm shadow-lg flex-shrink-0'
                 data-tour='application-view-toggle'
               >
+                <button
+                  className={`group px-3 py-2 sm:px-4 sm:py-3 text-sm transition-all duration-200 border-l border-[#2fd968]/20 relative ${viewMode === "table" ? "bg-gradient-to-br from-[#2fd968]/20 to-[#2fd968]/10 text-[#2fd968] shadow-[0_0_15px_rgba(47,217,104,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
+                  title='Table view'
+                  onClick={() => setViewMode("table")}
+                >
+                  <TableIcon className='w-5 h-5' />
+                  {viewMode === "table" && (
+                    <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#2fd968] to-transparent'></div>
+                  )}
+                </button>
                 <button
                   className={`group px-3 py-2 sm:px-4 sm:py-3 text-sm transition-all duration-200 relative ${viewMode === "gantt" ? "bg-gradient-to-br from-[#2fd968]/20 to-[#2fd968]/10 text-[#2fd968] shadow-[0_0_15px_rgba(47,217,104,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
                   title='Gantt view'
@@ -1322,16 +1393,6 @@ function ApplicationPage() {
                     <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#2fd968] to-transparent'></div>
                   )}
                 </button>
-                <button
-                  className={`group px-3 py-2 sm:px-4 sm:py-3 text-sm transition-all duration-200 border-l border-[#2fd968]/20 relative ${viewMode === "table" ? "bg-gradient-to-br from-[#2fd968]/20 to-[#2fd968]/10 text-[#2fd968] shadow-[0_0_15px_rgba(47,217,104,0.2)]" : "text-foreground/60 hover:text-foreground hover:bg-foreground/5"}`}
-                  title='Table view'
-                  onClick={() => setViewMode("table")}
-                >
-                  <TableIcon className='w-5 h-5' />
-                  {viewMode === "table" && (
-                    <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#2fd968] to-transparent'></div>
-                  )}
-                </button>
               </div>
             </div>
           </div>
@@ -1351,10 +1412,11 @@ function ApplicationPage() {
                   size='sm'
                   variant='ghost'
                   onClick={() => setSelectedStatus(s)}
-                  className={`text-sm px-4 py-2 rounded-xl transition-all duration-200 border ${isActive
-                    ? "border-[#2fd968]/50 bg-gradient-to-br from-[#2fd968]/20 to-[#2fd968]/5 text-[#2fd968] shadow-[0_0_15px_rgba(47,217,104,0.2)]"
-                    : "border-foreground/10 text-foreground/70 hover:text-foreground hover:bg-foreground/5 hover:border-foreground/20"
-                    }`}
+                  className={`text-sm px-4 py-2 rounded-xl transition-all duration-200 border ${
+                    isActive
+                      ? "border-[#2fd968]/50 bg-gradient-to-br from-[#2fd968]/20 to-[#2fd968]/5 text-[#2fd968] shadow-[0_0_15px_rgba(47,217,104,0.2)]"
+                      : "border-foreground/10 text-foreground/70 hover:text-foreground hover:bg-foreground/5 hover:border-foreground/20"
+                  }`}
                   style={isActive ? {} : { color: color + "b3" }}
                 >
                   {isActive && (
@@ -1627,10 +1689,18 @@ function ApplicationPage() {
                   try {
                     await update(id, { status: toColumn as ApplicationStatus });
                     // Gamification: emit XP events for status transitions
-                    if (toColumn === 'Interview') {
-                      try { gamificationHook.recordEvent('interview_scheduled', { applicationId: id }); } catch { }
-                    } else if (toColumn === 'Offer') {
-                      try { gamificationHook.recordEvent('offer_received', { applicationId: id }); } catch { }
+                    if (toColumn === "Interview") {
+                      try {
+                        gamificationHook.recordEvent("interview_scheduled", {
+                          applicationId: id,
+                        });
+                      } catch {}
+                    } else if (toColumn === "Offer") {
+                      try {
+                        gamificationHook.recordEvent("offer_received", {
+                          applicationId: id,
+                        });
+                      } catch {}
                     }
                   } catch {
                     await refresh();
@@ -1684,12 +1754,15 @@ function ApplicationPage() {
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       window.dispatchEvent(
-                                        new CustomEvent("jobraker:add-to-chat", {
-                                          detail: {
-                                            text: `Evaluate my resume fit and calculate a match score for ${a.job_title} at ${a.company || "target company"}`,
-                                            mode: "quote",
+                                        new CustomEvent(
+                                          "jobraker:add-to-chat",
+                                          {
+                                            detail: {
+                                              text: `Evaluate my resume fit and calculate a match score for ${a.job_title} at ${a.company || "target company"}`,
+                                              mode: "quote",
+                                            },
                                           },
-                                        })
+                                        ),
                                       );
                                     }}
                                   />
@@ -1708,8 +1781,7 @@ function ApplicationPage() {
                                 </span>
                                 {a.location && (
                                   <span className='inline-flex max-w-full items-center rounded-full border border-foreground/10 bg-foreground/[0.03] px-2 py-1'>
-                                      •
-                                    {a.location}
+                                    •{a.location}
                                   </span>
                                 )}
                               </div>
@@ -1766,7 +1838,10 @@ function ApplicationPage() {
               </div>
             </div>
 
-            {isQueuedApplication(detailApp.status, detailApp.provider_status) && (
+            {isQueuedApplication(
+              detailApp.status,
+              detailApp.provider_status,
+            ) && (
               <div className='rounded-xl border border-sky-400/25 bg-sky-400/10 p-4'>
                 <div className='flex items-start gap-3'>
                   <div className='mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-sky-300/25 bg-sky-300/10 text-sky-300'>
@@ -1780,10 +1855,13 @@ function ApplicationPage() {
                           <TooltipTrigger asChild>
                             <Info className='h-3.5 w-3.5 cursor-help text-sky-200/75' />
                           </TooltipTrigger>
-                          <TooltipContent side='bottom' className='max-w-72 leading-relaxed'>
-                            JobRaker starts queued applications by subscription tier,
-                            then rotates between users in the same tier so one account
-                            cannot consume every platform slot.
+                          <TooltipContent
+                            side='bottom'
+                            className='max-w-72 leading-relaxed'
+                          >
+                            JobRaker starts queued applications by subscription
+                            tier, then rotates between users in the same tier so
+                            one account cannot consume every platform slot.
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -1825,7 +1903,10 @@ function ApplicationPage() {
                       )}
                       {detailApp.automation_selected_mode && (
                         <span className='rounded-md border border-foreground/10 px-2 py-1'>
-                          Mode: {detailApp.automation_selected_mode === "extension" ? "My Chrome" : "Jobraker Cloud"}
+                          Mode:{" "}
+                          {detailApp.automation_selected_mode === "extension"
+                            ? "My Chrome"
+                            : "Jobraker Cloud"}
                         </span>
                       )}
                       {detailApp.automation_fallback_applied && (
@@ -1834,9 +1915,11 @@ function ApplicationPage() {
                         </span>
                       )}
                     </div>
-                    {(detailApp.failure_reason || detailApp.automation_fallback_reason) && (
+                    {(detailApp.failure_reason ||
+                      detailApp.automation_fallback_reason) && (
                       <p className='text-sm leading-relaxed text-foreground/70'>
-                        {detailApp.failure_reason || detailApp.automation_fallback_reason}
+                        {detailApp.failure_reason ||
+                          detailApp.automation_fallback_reason}
                       </p>
                     )}
                   </div>
@@ -1845,31 +1928,50 @@ function ApplicationPage() {
             )}
 
             {/* Draft Status & AI Confidence Badges */}
-            {(detailApp.draft_status || detailApp.ai_confidence_score != null) && (
+            {(detailApp.draft_status ||
+              detailApp.ai_confidence_score != null) && (
               <div className='flex flex-wrap items-center gap-2'>
-                {detailApp.draft_status && detailApp.draft_status !== 'sent' && (
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider border ${detailApp.draft_status === 'draft'
-                      ? 'bg-[#2fd968]/10 text-[#2fd968] border-[#2fd968]/20'
-                      : 'bg-[#2fd968]/10 text-[#2fd968] border-[#2fd968]/20'
+                {detailApp.draft_status &&
+                  detailApp.draft_status !== "sent" && (
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider border ${
+                        detailApp.draft_status === "draft"
+                          ? "bg-[#2fd968]/10 text-[#2fd968] border-[#2fd968]/20"
+                          : "bg-[#2fd968]/10 text-[#2fd968] border-[#2fd968]/20"
                       }`}
-                  >
-                    <div className={`h-1.5 w-1.5 rounded-full ${detailApp.draft_status === 'draft' ? 'bg-[#2fd968]' : 'bg-[#2fd968]'
-                      }`} />
-                    {detailApp.draft_status}
-                  </span>
-                )}
+                    >
+                      <div
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          detailApp.draft_status === "draft"
+                            ? "bg-[#2fd968]"
+                            : "bg-[#2fd968]"
+                        }`}
+                      />
+                      {detailApp.draft_status}
+                    </span>
+                  )}
                 {detailApp.ai_confidence_score != null && (
                   <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border ${detailApp.ai_confidence_score >= 70
-                      ? 'bg-[#2fd968]/10 text-[#2fd968] border-[#2fd968]/20'
-                      : detailApp.ai_confidence_score >= 40
-                        ? 'bg-[#2fd968]/10 text-[#2fd968] border-[#2fd968]/20'
-                        : 'bg-rose-400/10 text-rose-400 border-rose-400/20'
-                      }`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border ${
+                      detailApp.ai_confidence_score >= 70
+                        ? "bg-[#2fd968]/10 text-[#2fd968] border-[#2fd968]/20"
+                        : detailApp.ai_confidence_score >= 40
+                          ? "bg-[#2fd968]/10 text-[#2fd968] border-[#2fd968]/20"
+                          : "bg-rose-400/10 text-rose-400 border-rose-400/20"
+                    }`}
                   >
-                    <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' />
+                    <svg
+                      className='w-3.5 h-3.5'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                    >
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        strokeWidth={2}
+                        d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+                      />
                     </svg>
                     AI Confidence: {detailApp.ai_confidence_score}%
                   </span>
@@ -1892,7 +1994,8 @@ function ApplicationPage() {
                       </span>
                     </h3>
                     <p className='text-xs text-muted-foreground'>
-                      Every scheduled, queued, or running AI task linked to {detailApp.company}
+                      Every scheduled, queued, or running AI task linked to{" "}
+                      {detailApp.company}
                     </p>
                   </div>
                 </div>
@@ -1936,23 +2039,33 @@ function ApplicationPage() {
                         </div>
                       </div>
                       <p className='text-foreground/80 leading-relaxed'>
-                        {formatTaskMessage(task.message) || "Executing AI workflow step..."}
+                        {formatTaskMessage(task.message) ||
+                          "Executing AI workflow step..."}
                       </p>
                       <div className='flex flex-wrap items-center justify-between text-[10px] text-muted-foreground pt-2 border-t border-foreground/5'>
                         <span>
-                          Target: <strong className='text-foreground'>{detailApp.company}</strong> ({detailApp.job_title})
+                          Target:{" "}
+                          <strong className='text-foreground'>
+                            {detailApp.company}
+                          </strong>{" "}
+                          ({detailApp.job_title})
                         </span>
-                        <span>Created: {new Date(task.created_at).toLocaleString()}</span>
+                        <span>
+                          Created: {new Date(task.created_at).toLocaleString()}
+                        </span>
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className='rounded-xl border border-dashed border-foreground/15 p-4 text-center text-xs text-muted-foreground space-y-3'>
-                    <p className='font-medium text-foreground/80'>No active background task currently linked to this application.</p>
+                    <p className='font-medium text-foreground/80'>
+                      No active background task currently linked to this
+                      application.
+                    </p>
                     <p className='text-[11px] text-muted-foreground'>
                       You can queue a{" "}
                       <button
-                        type="button"
+                        type='button'
                         onClick={() => {
                           window.dispatchEvent(
                             new CustomEvent("jobraker:add-to-chat", {
@@ -1960,16 +2073,16 @@ function ApplicationPage() {
                                 text: `@RecruiterScout find the hiring manager and verified recruiter contacts for ${detailApp.job_title} at ${detailApp.company}`,
                                 mode: "quote",
                               },
-                            })
+                            }),
                           );
                         }}
                         className='font-bold text-[#2fd968] hover:underline underline-offset-2 hover:brightness-125 transition-all cursor-pointer inline-flex items-center gap-1 bg-[#2fd968]/10 px-2 py-0.5 rounded border border-[#2fd968]/30'
                       >
-                        <Bot className="w-3 h-3" /> @RecruiterScout
+                        <Bot className='w-3 h-3' /> @RecruiterScout
                       </button>{" "}
                       search or launch{" "}
                       <button
-                        type="button"
+                        type='button'
                         onClick={() => {
                           window.dispatchEvent(
                             new CustomEvent("jobraker:add-to-chat", {
@@ -1977,18 +2090,18 @@ function ApplicationPage() {
                                 text: `/direct-apply ${detailApp.job_title} at ${detailApp.company}`,
                                 mode: "quote",
                               },
-                            })
+                            }),
                           );
                         }}
                         className='font-bold text-[#2fd968] hover:underline underline-offset-2 hover:brightness-125 transition-all cursor-pointer inline-flex items-center gap-1 bg-[#2fd968]/10 px-2 py-0.5 rounded border border-[#2fd968]/30'
                       >
-                        <Zap className="w-3 h-3" /> Auto Apply
+                        <Zap className='w-3 h-3' /> Auto Apply
                       </button>{" "}
                       in Chat anytime.
                     </p>
-                    <div className="flex flex-wrap items-center justify-center gap-2 pt-2 border-t border-foreground/5">
+                    <div className='flex flex-wrap items-center justify-center gap-2 pt-2 border-t border-foreground/5'>
                       <button
-                        type="button"
+                        type='button'
                         onClick={() => {
                           window.dispatchEvent(
                             new CustomEvent("jobraker:add-to-chat", {
@@ -1996,16 +2109,16 @@ function ApplicationPage() {
                                 text: `@RecruiterScout find the hiring manager and recruiter contacts for ${detailApp.job_title} at ${detailApp.company}`,
                                 mode: "quote",
                               },
-                            })
+                            }),
                           );
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2fd968]/10 hover:bg-[#2fd968]/20 border border-[#2fd968]/30 text-[#2fd968] text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                        className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2fd968]/10 hover:bg-[#2fd968]/20 border border-[#2fd968]/30 text-[#2fd968] text-xs font-medium transition-all active:scale-95 cursor-pointer'
                       >
-                        <Bot className="w-3.5 h-3.5" />
+                        <Bot className='w-3.5 h-3.5' />
                         Run @RecruiterScout
                       </button>
                       <button
-                        type="button"
+                        type='button'
                         onClick={() => {
                           window.dispatchEvent(
                             new CustomEvent("jobraker:add-to-chat", {
@@ -2013,16 +2126,16 @@ function ApplicationPage() {
                                 text: `/direct-apply ${detailApp.job_title} at ${detailApp.company}`,
                                 mode: "quote",
                               },
-                            })
+                            }),
                           );
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2fd968]/10 hover:bg-[#2fd968]/20 border border-[#2fd968]/30 text-[#2fd968] text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                        className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2fd968]/10 hover:bg-[#2fd968]/20 border border-[#2fd968]/30 text-[#2fd968] text-xs font-medium transition-all active:scale-95 cursor-pointer'
                       >
-                        <Zap className="w-3.5 h-3.5" />
+                        <Zap className='w-3.5 h-3.5' />
                         Launch Auto Apply
                       </button>
                       <button
-                        type="button"
+                        type='button'
                         onClick={() => {
                           window.dispatchEvent(
                             new CustomEvent("jobraker:add-to-chat", {
@@ -2030,12 +2143,12 @@ function ApplicationPage() {
                                 text: `@OutreachWriter draft cold outreach email to hiring manager for ${detailApp.job_title} at ${detailApp.company}`,
                                 mode: "quote",
                               },
-                            })
+                            }),
                           );
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                        className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 text-xs font-medium transition-all active:scale-95 cursor-pointer'
                       >
-                        <Sparkles className="w-3.5 h-3.5" />
+                        <Sparkles className='w-3.5 h-3.5' />
                         Draft Outreach
                       </button>
                     </div>
@@ -2162,8 +2275,18 @@ function ApplicationPage() {
             {detailApp.match_reasons && detailApp.match_reasons.length > 0 && (
               <div className='space-y-3'>
                 <h3 className='text-xs font-semibold flex items-center gap-2 uppercase tracking-wider text-[#2fd968]'>
-                  <svg className='w-4 h-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' />
+                  <svg
+                    className='w-4 h-4'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                  >
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      strokeWidth={2}
+                      d='M13 10V3L4 14h7v7l9-11h-7z'
+                    />
                   </svg>
                   Why this match?
                 </h3>
@@ -2192,8 +2315,18 @@ function ApplicationPage() {
                     onClick={() => setEditingSalary(true)}
                     className='text-xs text-[#2fd968] hover:text-[#2fd968]/80 transition-colors flex items-center gap-1'
                   >
-                    <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' />
+                    <svg
+                      className='w-3.5 h-3.5'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                    >
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        strokeWidth={2}
+                        d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+                      />
                     </svg>
                     {detailApp.salary ? "Edit" : "Add"}
                   </button>
@@ -2268,11 +2401,14 @@ function ApplicationPage() {
                       />
                     </svg>
                     {detailApp.salary ? (
-                      <span className='text-lg font-bold text-[#2fd968] leading-snug'>{detailApp.salary}</span>
+                      <span className='text-lg font-bold text-[#2fd968] leading-snug'>
+                        {detailApp.salary}
+                      </span>
                     ) : (
                       <div className='space-y-2'>
                         <span className='block text-sm text-foreground/45 italic'>
-                          Click to add listing or offer comp (used in Analytics pipeline estimates)
+                          Click to add listing or offer comp (used in Analytics
+                          pipeline estimates)
                         </span>
                         {aiCompensationSummary ? (
                           <p className='text-sm text-foreground/70 leading-relaxed'>
@@ -2328,7 +2464,8 @@ function ApplicationPage() {
                   />
                   {!compactText(detailApp?.notes) && aiNotesText ? (
                     <p className='text-xs text-foreground/50'>
-                      AI drafted these notes from the evaluation report. Edit before saving if needed.
+                      AI drafted these notes from the evaluation report. Edit
+                      before saving if needed.
                     </p>
                   ) : null}
                   <div className='flex justify-end gap-2'>
@@ -2383,7 +2520,8 @@ function ApplicationPage() {
                   </div>
                   {!compactText(detailApp.notes) && displayedNotesText ? (
                     <p className='text-xs text-foreground/45'>
-                      Showing AI-generated notes until you save your own version.
+                      Showing AI-generated notes until you save your own
+                      version.
                     </p>
                   ) : null}
                 </>
@@ -2391,30 +2529,56 @@ function ApplicationPage() {
             </div>
 
             {/* Failure Handoff */}
-            {detailApp.provider_status === 'failed' && (
+            {detailApp.provider_status === "failed" && (
               <div className='space-y-3'>
                 <div className='p-4 rounded-xl border border-[#2fd968]/35 bg-[#2fd968]/10'>
                   <div className='flex items-center gap-2 text-sm font-medium text-[#2fd968] mb-2'>
-                    <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' />
+                    <svg
+                      className='w-5 h-5'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                    >
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        strokeWidth={2}
+                        d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
+                      />
                     </svg>
                     Automation Failed
                   </div>
                   <p className='text-sm text-foreground/80 mb-4'>
-                    I couldn't finish this, but I did the heavy lifting. Click here to finish.
+                    I couldn't finish this, but I did the heavy lifting. Click
+                    here to finish.
                   </p>
                   <Button
                     onClick={() => {
-                      const sourceUrl = detailApp.app_url || (detailApp.notes?.includes("Source:") ? detailApp.notes.split("Source:")[1].split('\n')[0].trim() : "");
-                      const openUrl = sourceUrl ? applyMicro1ReferralToUrl(sourceUrl) : "";
+                      const sourceUrl =
+                        detailApp.app_url ||
+                        (detailApp.notes?.includes("Source:")
+                          ? detailApp.notes
+                              .split("Source:")[1]
+                              .split("\n")[0]
+                              .trim()
+                          : "");
+                      const openUrl = sourceUrl
+                        ? applyMicro1ReferralToUrl(sourceUrl)
+                        : "";
                       const summaryData = `Role: ${detailApp.job_title}\nCompany: ${detailApp.company}`;
 
                       if (navigator.clipboard?.writeText) {
                         navigator.clipboard.writeText(summaryData).then(() => {
-                          if (openUrl) window.open(openUrl, '_blank', 'noopener,noreferrer');
+                          if (openUrl)
+                            window.open(
+                              openUrl,
+                              "_blank",
+                              "noopener,noreferrer",
+                            );
                         });
                       } else {
-                        if (openUrl) window.open(openUrl, '_blank', 'noopener,noreferrer');
+                        if (openUrl)
+                          window.open(openUrl, "_blank", "noopener,noreferrer");
                       }
                     }}
                     className='w-full bg-[#2fd968]/15 hover:bg-[#2fd968]/25 text-[#2fd968] border border-[#2fd968]/50 transition-colors py-2 h-auto whitespace-normal text-left sm:text-center block break-words'
@@ -2435,17 +2599,17 @@ function ApplicationPage() {
                   {detailApp.receipt_url && (
                     <ReceiptCard
                       url={detailApp.receipt_url}
-                      title="Application Form Receipt"
-                      badgeLabel="View Form Data"
-                      iconType="receipt"
+                      title='Application Form Receipt'
+                      badgeLabel='View Form Data'
+                      iconType='receipt'
                     />
                   )}
                   {detailApp.success_url && (
                     <ReceiptCard
                       url={detailApp.success_url}
-                      title="Success Confirmation"
-                      badgeLabel="Success Screenshot"
-                      iconType="success"
+                      title='Success Confirmation'
+                      badgeLabel='Success Screenshot'
+                      iconType='success'
                     />
                   )}
                 </div>
@@ -2458,23 +2622,24 @@ function ApplicationPage() {
                 Quick Actions
               </h3>
               <div className='flex flex-wrap gap-2'>
-                {(detailApp.status === "Draft" || detailApp.status === "Failed") &&
+                {(detailApp.status === "Draft" ||
+                  detailApp.status === "Failed") &&
                   detailApp.job_id && (
-                  <button
-                    type='button'
-                    onClick={() =>
-                      navigate(
-                        `/dashboard/jobs?autoApplyJobId=${encodeURIComponent(detailApp.job_id!)}`,
-                      )
-                    }
-                    className='inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#2fd968]/15 border border-[#2fd968]/40 text-[#2fd968] hover:bg-[#2fd968]/25 hover:shadow-[0_0_20px_rgba(47,217,104,0.25)] transition-all duration-200 text-sm font-medium'
-                  >
-                    <Zap className='w-4 h-4' />
-                    {detailApp.status === "Failed"
-                      ? "Retry auto-apply"
-                      : "Continue auto-apply"}
-                  </button>
-                )}
+                    <button
+                      type='button'
+                      onClick={() =>
+                        navigate(
+                          `/dashboard/jobs?autoApplyJobId=${encodeURIComponent(detailApp.job_id!)}`,
+                        )
+                      }
+                      className='inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#2fd968]/15 border border-[#2fd968]/40 text-[#2fd968] hover:bg-[#2fd968]/25 hover:shadow-[0_0_20px_rgba(47,217,104,0.25)] transition-all duration-200 text-sm font-medium'
+                    >
+                      <Zap className='w-4 h-4' />
+                      {detailApp.status === "Failed"
+                        ? "Retry auto-apply"
+                        : "Continue auto-apply"}
+                    </button>
+                  )}
                 {detailApp.app_url && (
                   <a
                     href={applyMicro1ReferralToUrl(detailApp.app_url)}
@@ -2592,11 +2757,11 @@ function ApplicationPage() {
                 Your Review Notes
               </h3>
               <textarea
-                defaultValue={detailApp.user_review_notes || ''}
+                defaultValue={detailApp.user_review_notes || ""}
                 placeholder='Add personal review notes about this application…'
                 onBlur={(e) => {
                   const val = e.target.value.trim();
-                  if (val !== (detailApp.user_review_notes || '')) {
+                  if (val !== (detailApp.user_review_notes || "")) {
                     update(detailApp.id, { user_review_notes: val || null });
                   }
                 }}
@@ -2654,7 +2819,8 @@ function ApplicationPage() {
             <span className='font-medium text-foreground'>
               {detailApp?.job_title}
             </span>
-            {detailApp?.company ? ` at ${detailApp.company}` : ""}? This removes it from your tracker.
+            {detailApp?.company ? ` at ${detailApp.company}` : ""}? This removes
+            it from your tracker.
           </p>
           <div className='flex justify-end gap-2'>
             <Button
@@ -2700,10 +2866,15 @@ function ApplicationPage() {
           <div className='p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3 text-rose-300 text-xs leading-relaxed'>
             <AlertTriangle className='w-5 h-5 text-rose-400 shrink-0 mt-0.5' />
             <div>
-              <p className='font-bold text-rose-200 mb-1'>Warning: Permanent deletion</p>
+              <p className='font-bold text-rose-200 mb-1'>
+                Warning: Permanent deletion
+              </p>
               Are you sure you want to delete all{" "}
-              <span className='font-bold text-white'>{applications.length}</span>{" "}
-              application{applications.length !== 1 ? "s" : ""}? This will permanently remove them from your tracker and cannot be undone.
+              <span className='font-bold text-white'>
+                {applications.length}
+              </span>{" "}
+              application{applications.length !== 1 ? "s" : ""}? This will
+              permanently remove them from your tracker and cannot be undone.
             </div>
           </div>
           <div className='flex justify-end gap-2 pt-2'>
@@ -2729,7 +2900,9 @@ function ApplicationPage() {
                 }
               }}
             >
-              {bulkDeleting ? "Deleting all..." : `Delete all (${applications.length})`}
+              {bulkDeleting
+                ? "Deleting all..."
+                : `Delete all (${applications.length})`}
             </Button>
           </div>
         </div>
@@ -2787,7 +2960,7 @@ function ApplicationPage() {
       <Modal
         open={interviewAgentOpen}
         onClose={() => setInterviewAgentOpen(false)}
-        title="Interview Scheduling Agent"
+        title='Interview Scheduling Agent'
       >
         <div className='space-y-4'>
           {loadingTier ? (
@@ -2806,7 +2979,9 @@ function ApplicationPage() {
           ) : !interviewAgentResult ? (
             <>
               <p className='text-sm text-foreground/70'>
-                Paste the email from the recruiter below. The AI will extract booking links or draft a professional reply offering your availability.
+                Paste the email from the recruiter below. The AI will extract
+                booking links or draft a professional reply offering your
+                availability.
               </p>
               <textarea
                 value={interviewEmailText}
@@ -2831,7 +3006,7 @@ function ApplicationPage() {
                       const res = await scheduleInterviewViaEdge({
                         emailText: interviewEmailText,
                         applicantName: "Candidate",
-                        companyName: detailApp?.company || "the company"
+                        companyName: detailApp?.company || "the company",
                       });
                       setInterviewAgentResult(res);
                     } catch (e) {
@@ -2868,7 +3043,12 @@ function ApplicationPage() {
                   <p className='text-sm text-foreground/80'>
                     The recruiter provided a direct link to book your interview:
                   </p>
-                  <a href={interviewAgentResult.booking_link} target='_blank' rel='noreferrer' className='inline-flex items-center gap-2 text-[#2fd968] underline text-sm break-all'>
+                  <a
+                    href={interviewAgentResult.booking_link}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='inline-flex items-center gap-2 text-[#2fd968] underline text-sm break-all'
+                  >
                     {interviewAgentResult.booking_link}
                   </a>
                 </div>
@@ -2879,18 +3059,23 @@ function ApplicationPage() {
                     No direct link found
                   </div>
                   <p className='text-sm text-foreground/80'>
-                    I've drafted a polite reply offering your availability instead.
+                    I've drafted a polite reply offering your availability
+                    instead.
                   </p>
                 </div>
               )}
 
               <div className='space-y-2'>
                 <div className='flex items-center justify-between'>
-                  <label className='text-xs font-semibold text-foreground/60 uppercase tracking-wider'>Suggested Reply</label>
+                  <label className='text-xs font-semibold text-foreground/60 uppercase tracking-wider'>
+                    Suggested Reply
+                  </label>
                   <button
                     onClick={() => {
                       if (navigator.clipboard?.writeText) {
-                        navigator.clipboard.writeText(interviewAgentResult.suggested_reply);
+                        navigator.clipboard.writeText(
+                          interviewAgentResult.suggested_reply,
+                        );
                       }
                     }}
                     className='text-xs text-[#b347ff] hover:text-[#b347ff]/80 font-medium flex items-center gap-1'
@@ -3389,7 +3574,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
                     text: `Evaluate my resume fit and calculate a match score for ${app.job_title} at ${app.company || "target company"}`,
                     mode: "quote",
                   },
-                })
+                }),
               );
             }}
           />

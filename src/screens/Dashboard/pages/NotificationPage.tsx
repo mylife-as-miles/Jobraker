@@ -32,6 +32,7 @@ import {
   type NotificationSource,
 } from "../../../hooks/useNotifications";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
+import Seo from "@/components/seo/Seo";
 
 type GmailStatus = {
   isConnected: boolean;
@@ -641,6 +642,8 @@ export const NotificationPage = (): JSX.Element => {
 
   return (
     <div className="product-page-shell min-h-full">
+    <Seo title='Jobraker | Notifications' />
+
       <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col gap-4 mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

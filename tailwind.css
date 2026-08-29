@@ -579,14 +579,29 @@
     background: var(--scrollbar-track-hover);
   }
 
-  .no-scrollbar,
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+.no-scrollbar,
+   .scrollbar-hide {
+     -ms-overflow-style: none;
+     scrollbar-width: none;
+   }
 
-  .no-scrollbar::-webkit-scrollbar,
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-}
+   .no-scrollbar::-webkit-scrollbar,
+   .scrollbar-hide::-webkit-scrollbar {
+     display: none;
+   }
+ 
+   @keyframes slide-up {
+     from {
+       opacity: 0;
+       transform: translateY(100%);
+     }
+     to {
+       opacity: 1;
+       transform: translateY(0);
+     }
+   }
+ 
+   .animate-slide-up {
+     animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+   }
+ }

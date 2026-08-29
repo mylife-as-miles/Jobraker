@@ -185,9 +185,7 @@ export const BentoGrid = () => {
                 Rehearse answers against the role you actually want. Get focused
                 feedback before the recruiter call, not after it.
               </p>
-              <button className='text-foreground flex items-center text-sm font-semibold hover:text-brand transition-colors'>
-                Practice the pitch <ArrowRight className='w-4 h-4 ml-2' />
-              </button>
+              
             </div>
 
             {/* New Visual Component */}

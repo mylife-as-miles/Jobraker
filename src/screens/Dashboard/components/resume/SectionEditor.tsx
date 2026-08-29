@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useArtboardStore } from "../../../../store/artboard";
 import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
@@ -182,13 +182,17 @@ export const SectionEditor = ({ sectionId }: SectionEditorProps) => {
                     <input
                       type='text'
                       placeholder='MM/YYYY'
+                      maxLength={7}
                       className='product-input-surface rounded-xl px-3 py-2 text-sm w-full border border-border/40 bg-transparent'
                       value={item.startDate || ""}
-                      onChange={(e) =>
-                        updateSectionItem(sectionId, item.id, {
-                          startDate: e.target.value,
-                        })
-                      }
+                      onChange={(e) => {
+                        let v = e.target.value.replace(/[^0-9\/]/g, "");
+                        // Auto-insert slash after 2-digit month
+                        if (v.length === 2 && !v.includes("/") && (item.startDate || "").length < 2) {
+                          v = v + "/";
+                        }
+                        updateSectionItem(sectionId, item.id, { startDate: v });
+                      }}
                     />
                   </div>
                   <div>
@@ -198,13 +202,23 @@ export const SectionEditor = ({ sectionId }: SectionEditorProps) => {
                     <input
                       type='text'
                       placeholder='MM/YYYY or Present'
+                      maxLength={7}
                       className='product-input-surface rounded-xl px-3 py-2 text-sm w-full border border-border/40 bg-transparent'
                       value={item.endDate || ""}
-                      onChange={(e) =>
-                        updateSectionItem(sectionId, item.id, {
-                          endDate: e.target.value,
-                        })
-                      }
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        // Allow "Present" to be typed freely
+                        if (/^[Pp]/i.test(raw)) {
+                          const capped = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+                          updateSectionItem(sectionId, item.id, { endDate: capped.slice(0, 7) });
+                          return;
+                        }
+                        let v = raw.replace(/[^0-9\/]/g, "");
+                        if (v.length === 2 && !v.includes("/") && (item.endDate || "").length < 2) {
+                          v = v + "/";
+                        }
+                        updateSectionItem(sectionId, item.id, { endDate: v });
+                      }}
                     />
                   </div>
 

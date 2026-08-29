@@ -13,6 +13,7 @@ import { RouteLoadingFallback } from "@/components/system/RouteLoadingFallback";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { CandidateMemoryEditor } from "../components/CandidateMemoryEditor";
 import { cn } from "@/lib/utils";
+import Seo from "@/components/seo/Seo";
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 type Granularity = "day" | "week" | "month";
@@ -117,6 +118,7 @@ export function AnalyticsPage() {
 
   return (
     <div className='relative min-h-full '>
+      <Seo title='Jobraker | Analytics' />
       {/* Ambient Background Glow */}
       <div className='fixed top-20 right-0 h-96 w-96 bg-brand/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10'></div>
       <div className='fixed bottom-0 left-0 h-96 w-96 bg-brand/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10'></div>

@@ -103,15 +103,14 @@ import {
   VISIBLE_JOB_QUEUE_STATES,
   type JobCanonicalStatus,
 } from "@/lib/applicationState";
-import {
-  buildExplainableJobOpportunities,
-} from "@/services/intelligence/opportunityScoreEngine";
+import { buildExplainableJobOpportunities } from "@/services/intelligence/opportunityScoreEngine";
 import type {
   CandidateProfileInput,
   ExplainableJobOpportunity,
 } from "@/services/intelligence/types";
 import { ConcurrencyLimitModal } from "../../../components/ConcurrencyLimitModal";
 import { BILLING_PLAN_DEFINITIONS } from "@/lib/billingCatalog";
+import Seo from "@/components/seo/Seo";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -240,7 +239,9 @@ const extractSearchTargetDomains = (value: unknown): string[] => {
 
   for (const item of inputs) {
     const text = String(item || "");
-    for (const match of text.matchAll(/\bsite:([a-z0-9.-]+\.[a-z]{2,})(?:\/[^\s)"']*)?/gi)) {
+    for (const match of text.matchAll(
+      /\bsite:([a-z0-9.-]+\.[a-z]{2,})(?:\/[^\s)"']*)?/gi,
+    )) {
       const domain = normalizeSearchDomain(match[1]);
       if (domain) seen.add(domain);
     }
@@ -665,7 +666,11 @@ const composeCoverLetterPayload = (
   const data = entry.data as Record<string, unknown>;
 
   // Helper to read nested or flat string values
-  const getVal = (nestedObjKey: string, flatKey: string, nestedSubKey: string): string | undefined => {
+  const getVal = (
+    nestedObjKey: string,
+    flatKey: string,
+    nestedSubKey: string,
+  ): string | undefined => {
     const obj = data[nestedObjKey];
     if (obj && typeof obj === "object" && !Array.isArray(obj)) {
       const val = (obj as Record<string, unknown>)[nestedSubKey];
@@ -724,16 +729,20 @@ const composeCoverLetterPayload = (
   // 3. Recipient Section
   const recipientName = getVal("recipient", "recipient", "name");
   const recipientTitle = getVal("recipient", "recipientTitle", "title");
-  const recipientCompany = getVal("recipient", "company", "company") || (typeof data.company === "string" ? data.company : undefined);
+  const recipientCompany =
+    getVal("recipient", "company", "company") ||
+    (typeof data.company === "string" ? data.company : undefined);
   const recipientAddress = getVal("recipient", "recipientAddress", "address");
 
   const recipientLines: string[] = [];
-  [recipientName, recipientTitle, recipientCompany, recipientAddress].forEach((val) => {
-    if (val) {
-      const trimmed = val.trim();
-      if (trimmed.length > 0) recipientLines.push(trimmed);
-    }
-  });
+  [recipientName, recipientTitle, recipientCompany, recipientAddress].forEach(
+    (val) => {
+      if (val) {
+        const trimmed = val.trim();
+        if (trimmed.length > 0) recipientLines.push(trimmed);
+      }
+    },
+  );
   if (recipientLines.length) {
     lines.push(...recipientLines);
     pushSeparator();
@@ -762,7 +771,11 @@ const composeCoverLetterPayload = (
   // 6. Body Paragraphs Section
   let paragraphs: string[] = [];
   const contentObj = data.content;
-  if (contentObj && typeof contentObj === "object" && !Array.isArray(contentObj)) {
+  if (
+    contentObj &&
+    typeof contentObj === "object" &&
+    !Array.isArray(contentObj)
+  ) {
     const nestedParagraphs = (contentObj as Record<string, unknown>).paragraphs;
     if (Array.isArray(nestedParagraphs)) {
       paragraphs = nestedParagraphs
@@ -779,7 +792,11 @@ const composeCoverLetterPayload = (
   }
 
   let body: string | undefined;
-  if (contentObj && typeof contentObj === "object" && !Array.isArray(contentObj)) {
+  if (
+    contentObj &&
+    typeof contentObj === "object" &&
+    !Array.isArray(contentObj)
+  ) {
     const nestedRawBody = (contentObj as Record<string, unknown>).rawBody;
     if (typeof nestedRawBody === "string") {
       body = nestedRawBody;
@@ -815,7 +832,10 @@ const composeCoverLetterPayload = (
   }
 
   // 8. Signature Section
-  const signature = getVal("content", "signature", "signature") || getVal("content", "signatureName", "signature") || getVal("sender", "senderName", "name");
+  const signature =
+    getVal("content", "signature", "signature") ||
+    getVal("content", "signatureName", "signature") ||
+    getVal("sender", "senderName", "name");
   if (signature) {
     const trimmedSignature = signature.trim();
     if (trimmedSignature.length > 0) {
@@ -936,7 +956,8 @@ const extractAutomationMetadata = (
       recordingUrl: null,
     } as const;
   }
-  const skyvern = result.skyvern ?? result.automation ?? result.provider ?? null;
+  const skyvern =
+    result.skyvern ?? result.automation ?? result.provider ?? null;
   const runId =
     skyvern?.run?.id ??
     skyvern?.id ??
@@ -1008,9 +1029,7 @@ const getCompanyLogoUrl = (
     }
 
     if (!domain) {
-      const cleanCompany = companyName
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, ""); // strip non-alphanumeric
+      const cleanCompany = companyName.toLowerCase().replace(/[^a-z0-9]/g, ""); // strip non-alphanumeric
       domain = `www.${cleanCompany}.com`;
     }
 
@@ -1106,7 +1125,8 @@ function JobQualityAndFeedback({
           {
             icon: <ShieldCheck className='h-5 w-5' />,
             title: "Lead trust checks",
-            description: "Spot thin, vague, stale, or suspicious postings faster.",
+            description:
+              "Spot thin, vague, stale, or suspicious postings faster.",
           },
           {
             icon: <Target className='h-5 w-5' />,
@@ -1155,7 +1175,8 @@ function JobQualityAndFeedback({
           </span>
         ) : null}
       </div>
-      {Array.isArray(job.lead_quality_tags) && job.lead_quality_tags.length > 0 ? (
+      {Array.isArray(job.lead_quality_tags) &&
+      job.lead_quality_tags.length > 0 ? (
         <div className='flex flex-wrap gap-1.5'>
           {job.lead_quality_tags.slice(0, 8).map((tag) => (
             <span
@@ -1242,9 +1263,7 @@ export const JobPage = (): JSX.Element => {
   const [automationFinished, setAutomationFinished] = useState(false);
   const [sortBy, setSortBy] = useState<
     "opportunity" | "recent" | "company" | "deadline"
-  >(
-    "opportunity",
-  );
+  >("opportunity");
   const [clearingJobs, setClearingJobs] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   // Resume attach dialog state
@@ -1284,37 +1303,50 @@ export const JobPage = (): JSX.Element => {
       if (!userId) return;
 
       const nowIso = new Date().toISOString();
-      const threeHoursAgoIso = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
-      const [{ data: quotaRows }, { count: queuedRunsCount }] = await Promise.all([
-        supabase
-          .from("user_feature_quotas")
-          .select("included_quantity")
-          .eq("user_id", userId)
-          .eq("feature_key", "auto_apply_concurrency")
-          .eq("source", "addon")
-          .lte("period_start", nowIso)
-          .gt("period_end", nowIso),
-        supabase
-          .from("applications")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .eq("canonical_stage", "queued")
-          .neq("provider_status", "waiting")
-          .gt("updated_at", threeHoursAgoIso),
-      ]);
+      const threeHoursAgoIso = new Date(
+        Date.now() - 3 * 60 * 60 * 1000,
+      ).toISOString();
+      const [{ data: quotaRows }, { count: queuedRunsCount }] =
+        await Promise.all([
+          supabase
+            .from("user_feature_quotas")
+            .select("included_quantity")
+            .eq("user_id", userId)
+            .eq("feature_key", "auto_apply_concurrency")
+            .eq("source", "addon")
+            .lte("period_start", nowIso)
+            .gt("period_end", nowIso),
+          supabase
+            .from("applications")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId)
+            .eq("canonical_stage", "queued")
+            .neq("provider_status", "waiting")
+            .gt("updated_at", threeHoursAgoIso),
+        ]);
 
       const boostSlots = Array.isArray(quotaRows)
-        ? quotaRows.reduce((sum, row) => sum + Math.max(0, Number(row.included_quantity || 0)), 0)
+        ? quotaRows.reduce(
+            (sum, row) => sum + Math.max(0, Number(row.included_quantity || 0)),
+            0,
+          )
         : 0;
 
-      const plan = BILLING_PLAN_DEFINITIONS.find((p) => p.name === subscriptionTier);
+      const plan = BILLING_PLAN_DEFINITIONS.find(
+        (p) => p.name === subscriptionTier,
+      );
       const baseLimit = plan ? plan.autoApplyConcurrency : 1;
       const totalLimit = baseLimit + boostSlots;
-      const activeRuns = typeof queuedRunsCount === "number" ? queuedRunsCount : 0;
+      const activeRuns =
+        typeof queuedRunsCount === "number" ? queuedRunsCount : 0;
 
       const info = { activeRuns, totalLimit };
       setConcurrencyInfo(info);
-      return { activeRuns, totalLimit, availableSlots: Math.max(0, totalLimit - activeRuns) };
+      return {
+        activeRuns,
+        totalLimit,
+        availableSlots: Math.max(0, totalLimit - activeRuns),
+      };
     } catch (err) {
       console.warn("Failed to fetch concurrency info:", err);
       return null;
@@ -1327,11 +1359,7 @@ export const JobPage = (): JSX.Element => {
     }
   }, [subscriptionTier, fetchConcurrencyInfo]);
 
-  const {
-    tasks: jobTasks,
-    createTask,
-    cancelTask,
-  } = useJobIntelligenceTasks();
+  const { tasks: jobTasks, createTask, cancelTask } = useJobIntelligenceTasks();
   const hasPaidInsightsAccess = hasSubscriptionAccess(
     subscriptionTier,
     "Basics",
@@ -1392,7 +1420,9 @@ export const JobPage = (): JSX.Element => {
   const saveBrowserExecutionPreference = useCallback(
     (preference: "automatic" | "my_chrome" | "jobraker_cloud") => {
       setBrowserExecutionPreference(preference);
-      void updateProfile({ browser_execution_preference: preference } as Partial<Profile>);
+      void updateProfile({
+        browser_execution_preference: preference,
+      } as Partial<Profile>);
     },
     [updateProfile],
   );
@@ -1400,7 +1430,9 @@ export const JobPage = (): JSX.Element => {
   const saveAutoSubmitPreference = useCallback(
     (enabled: boolean) => {
       setAutoSubmitApplications(enabled);
-      void updateProfile({ auto_apply_auto_submit: enabled } as Partial<Profile>);
+      void updateProfile({
+        auto_apply_auto_submit: enabled,
+      } as Partial<Profile>);
     },
     [updateProfile],
   );
@@ -1663,7 +1695,6 @@ export const JobPage = (): JSX.Element => {
     isSearching: boolean;
   }) => (
     <Card className='relative overflow-hidden bg-gradient-to-br from-brand/5 via-background to-background  border border-brand/20 p-5 mb-6 rounded-2xl'>
-   
       <div className='relative z-10 flex flex-col sm:flex-row items-center gap-4'>
         <div className='flex-shrink-0 w-12 h-12 rounded-full bg-brand/10 flex items-center justify-center border border-brand/20'>
           {isSearching ? (
@@ -1841,7 +1872,9 @@ export const JobPage = (): JSX.Element => {
     ],
   );
 
-  const opportunityCacheRef = useRef<Map<string, ExplainableJobOpportunity[]>>(new Map());
+  const opportunityCacheRef = useRef<Map<string, ExplainableJobOpportunity[]>>(
+    new Map(),
+  );
 
   const decorateJobsRef = useRef<(list: Job[]) => Promise<Job[]>>(
     async (list) => list,
@@ -1885,7 +1918,10 @@ export const JobPage = (): JSX.Element => {
       }
 
       const opportunityByJobId = new Map(
-        finalOpportunities.map((opportunity) => [opportunity.jobId, opportunity]),
+        finalOpportunities.map((opportunity) => [
+          opportunity.jobId,
+          opportunity,
+        ]),
       );
 
       return withMatchInsights.map((job) => ({
@@ -2084,7 +2120,9 @@ export const JobPage = (): JSX.Element => {
 
       // 1. Fetch from Supabase
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (user) {
           const { data, error } = await supabase
             .from("cover_letters")
@@ -2103,7 +2141,10 @@ export const JobPage = (): JSX.Element => {
               ) {
                 return {
                   id: record.id,
-                  name: record.name || (payload as any).title || "Untitled Cover Letter",
+                  name:
+                    record.name ||
+                    (payload as any).title ||
+                    "Untitled Cover Letter",
                   updatedAt: record.updated_at || record.created_at,
                   data: payload,
                 };
@@ -2136,8 +2177,14 @@ export const JobPage = (): JSX.Element => {
                     address: record.recipient_address || "",
                   },
                   content: {
-                    date: record.date || new Date(record.created_at || Date.now()).toISOString().slice(0, 10),
-                    subject: record.subject || (record.role ? `Application for ${record.role}` : ""),
+                    date:
+                      record.date ||
+                      new Date(record.created_at || Date.now())
+                        .toISOString()
+                        .slice(0, 10),
+                    subject:
+                      record.subject ||
+                      (record.role ? `Application for ${record.role}` : ""),
                     salutation: record.salutation || "Dear Hiring Manager,",
                     paragraphs: paragraphs,
                     closing: record.closing || "Best regards,",
@@ -2175,8 +2222,12 @@ export const JobPage = (): JSX.Element => {
           if (!entries.some((e) => e.id === "__draft__")) {
             const paragraphs = Array.isArray(parsedDraft?.content?.paragraphs)
               ? parsedDraft.content.paragraphs
-              : typeof parsedDraft?.content?.rawBody === "string" && parsedDraft.content.rawBody.trim()
-                ? parsedDraft.content.rawBody.split(/\n\s*\n+/).map((p: any) => p.trim()).filter(Boolean)
+              : typeof parsedDraft?.content?.rawBody === "string" &&
+                  parsedDraft.content.rawBody.trim()
+                ? parsedDraft.content.rawBody
+                    .split(/\n\s*\n+/)
+                    .map((p: any) => p.trim())
+                    .filter(Boolean)
                 : [];
             entries.push({
               id: "__draft__",
@@ -2198,7 +2249,8 @@ export const JobPage = (): JSX.Element => {
                   address: parsedDraft?.recipientAddress || "",
                 },
                 content: parsedDraft?.content || {
-                  date: parsedDraft?.date || new Date().toISOString().slice(0, 10),
+                  date:
+                    parsedDraft?.date || new Date().toISOString().slice(0, 10),
                   subject: parsedDraft?.subject || "",
                   salutation: parsedDraft?.salutation || "Dear Hiring Manager,",
                   paragraphs: paragraphs,
@@ -2363,7 +2415,10 @@ export const JobPage = (): JSX.Element => {
             }
 
             if (!scopedSearchQuery) {
-              const { data, error: fetchError } = await queryBuilder.order("created_at", { ascending: false });
+              const { data, error: fetchError } = await queryBuilder.order(
+                "created_at",
+                { ascending: false },
+              );
               if (fetchError) throw fetchError;
               return data || [];
             }
@@ -2411,7 +2466,9 @@ export const JobPage = (): JSX.Element => {
               { p_agent_run_id: scope.agentRunId },
             );
             if (rpcError) throw rpcError;
-            rawRows = ((runResults as RunResultRow[] | null) ?? []).map(runResultRowToJobsRow);
+            rawRows = ((runResults as RunResultRow[] | null) ?? []).map(
+              runResultRowToJobsRow,
+            );
             if (rawRows.length === 0 && scope.searchQuery?.trim()) {
               console.warn(
                 "[fetchJobQueue] V2 RPC returned zero rows, falling back to legacy query",
@@ -2459,7 +2516,6 @@ export const JobPage = (): JSX.Element => {
     },
     [incrementalMode, isMobile],
   );
-
 
   const executeClearAllJobs = useCallback(async () => {
     setConfirmDeleteOpen(false);
@@ -2556,9 +2612,13 @@ export const JobPage = (): JSX.Element => {
         }
 
         const trimmedQuery = query.trim();
-        const effectiveLocation = (_location || selectedLocation || "Remote").trim() || "Remote";
+        const effectiveLocation =
+          (_location || selectedLocation || "Remote").trim() || "Remote";
         const optionSources = Array.isArray(options?.sources)
-          ? options.sources.filter((source): source is string => typeof source === "string" && source.trim().length > 0)
+          ? options.sources.filter(
+              (source): source is string =>
+                typeof source === "string" && source.trim().length > 0,
+            )
           : [];
         const explicitTargetDomains = Array.isArray(options?.targetDomains)
           ? options.targetDomains
@@ -2579,7 +2639,8 @@ export const JobPage = (): JSX.Element => {
 
         const currentSearchScope: JobsQueueScope = {
           searchQuery: trimmedQuery,
-          location: effectiveLocationScope === "global" ? "Remote" : effectiveLocation,
+          location:
+            effectiveLocationScope === "global" ? "Remote" : effectiveLocation,
           limit: maxResultsPerSearch,
           startedAt: new Date(Date.now() - 30 * 1000).toISOString(),
         };
@@ -2600,9 +2661,10 @@ export const JobPage = (): JSX.Element => {
           setDbgSearchReq(searchPayload);
         }
 
-        const { data: searchData, error: invokeErr } = await supabase.functions.invoke("jobs-search", {
-          body: searchPayload,
-        });
+        const { data: searchData, error: invokeErr } =
+          await supabase.functions.invoke("jobs-search", {
+            body: searchPayload,
+          });
 
         if (invokeErr) {
           throw new Error(invokeErr.message || "Job search invocation failed.");
@@ -2683,9 +2745,10 @@ export const JobPage = (): JSX.Element => {
           setCurrentSource(activeTask.message);
         }
       } else if (activeTask.status === "completed") {
-        const finalCount = typeof activeTask.result?.count === "number"
-          ? activeTask.result.count
-          : insertedThisRun;
+        const finalCount =
+          typeof activeTask.result?.count === "number"
+            ? activeTask.result.count
+            : insertedThisRun;
         setInsertedThisRun(finalCount);
         setStepIndex(2);
 
@@ -2696,11 +2759,11 @@ export const JobPage = (): JSX.Element => {
         const taskSearchQuery =
           typeof activeTask.params?.search_query === "string"
             ? activeTask.params.search_query
-            : activeSearchScopeRef.current?.searchQuery ?? "";
+            : (activeSearchScopeRef.current?.searchQuery ?? "");
         const taskLocation =
           typeof activeTask.params?.location === "string"
             ? activeTask.params.location
-            : activeSearchScopeRef.current?.location ?? "Remote";
+            : (activeSearchScopeRef.current?.location ?? "Remote");
         const taskLimit =
           typeof activeTask.params?.limit === "number"
             ? activeTask.params.limit
@@ -2717,7 +2780,9 @@ export const JobPage = (): JSX.Element => {
                 limit: taskLimit,
                 startedAt: taskStartedAt,
                 agentRunId:
-                  taskAgentRunId ?? activeSearchScopeRef.current?.agentRunId ?? null,
+                  taskAgentRunId ??
+                  activeSearchScopeRef.current?.agentRunId ??
+                  null,
               }
             : activeSearchScopeRef.current;
 
@@ -2765,7 +2830,6 @@ export const JobPage = (): JSX.Element => {
             ? `Found and saved ${finalCount} jobs.`
             : "No jobs found for this search.",
         );
-
       } else if (["failed", "canceled"].includes(activeTask.status)) {
         setIncrementalMode(false);
         setQueueStatus(jobs.length > 0 ? "ready" : "empty");
@@ -2787,13 +2851,19 @@ export const JobPage = (): JSX.Element => {
         }
       } else if (activeTask.status === "completed") {
         void fetchJobQueue();
-        safeInfo("Re-evaluation complete", activeTask.message || "All visible jobs re-evaluated.");
+        safeInfo(
+          "Re-evaluation complete",
+          activeTask.message || "All visible jobs re-evaluated.",
+        );
         if (activeTaskIdRef.current === activeTaskId) {
           activeTaskIdRef.current = null;
         }
       } else if (["failed", "canceled"].includes(activeTask.status)) {
         if (activeTask.status === "failed") {
-          toastError("Re-evaluation failed", activeTask.message || "AI Fit evaluation failed.");
+          toastError(
+            "Re-evaluation failed",
+            activeTask.message || "AI Fit evaluation failed.",
+          );
         }
         if (activeTaskIdRef.current === activeTaskId) {
           activeTaskIdRef.current = null;
@@ -2804,7 +2874,9 @@ export const JobPage = (): JSX.Element => {
     // 3. Pipeline Cleanup task progress handling
     if (activeTask.type === "pipeline_cleanup") {
       if (activeTask.status === "completed") {
-        const cleanedIds = (activeTask.result?.cleaned_job_ids || activeTask.params?.job_ids || []) as string[];
+        const cleanedIds = (activeTask.result?.cleaned_job_ids ||
+          activeTask.params?.job_ids ||
+          []) as string[];
         if (cleanedIds.length > 0) {
           setJobs((prev) => prev.filter((job) => !cleanedIds.includes(job.id)));
           void queryClient.invalidateQueries({ queryKey: jobsQueueKeys.all });
@@ -2818,14 +2890,26 @@ export const JobPage = (): JSX.Element => {
         }
       } else if (["failed", "canceled"].includes(activeTask.status)) {
         if (activeTask.status === "failed") {
-          toastError("Cleanup failed", activeTask.message || "Pipeline cleanup failed.");
+          toastError(
+            "Cleanup failed",
+            activeTask.message || "Pipeline cleanup failed.",
+          );
         }
         if (activeTaskIdRef.current === activeTaskId) {
           activeTaskIdRef.current = null;
         }
       }
     }
-  }, [jobTasks, fetchJobQueue, insertedThisRun, isMobile, safeInfo, toastError, queryClient, jobs.length]);
+  }, [
+    jobTasks,
+    fetchJobQueue,
+    insertedThisRun,
+    isMobile,
+    safeInfo,
+    toastError,
+    queryClient,
+    jobs.length,
+  ]);
 
   // Removed old process-and-match and polling logic - jobs are now saved directly
 
@@ -2875,7 +2959,7 @@ export const JobPage = (): JSX.Element => {
       setAiEvaluation(null);
       setForceSubmit(false);
       setJobToAutoApply(targetJob);
-      
+
       const res = await fetchConcurrencyInfo();
       if (res && res.availableSlots <= 0) {
         setConcurrencyModalOpen(true);
@@ -3095,7 +3179,10 @@ export const JobPage = (): JSX.Element => {
             "The selected resume appears to belong to a different person than the account profile. Do not replace the resume candidate's name or contact details with the account profile's details.",
           );
         }
-        const draftInstructions = [identityInstructions.join("\n"), instructions]
+        const draftInstructions = [
+          identityInstructions.join("\n"),
+          instructions,
+        ]
           .filter(Boolean)
           .join("\n\n");
         const [tailoredResume, tailoredCoverLetter] = await Promise.all([
@@ -3217,7 +3304,10 @@ export const JobPage = (): JSX.Element => {
             return;
           }
         } catch (concurrencyErr) {
-          console.warn("Failed to verify concurrency prior to launch:", concurrencyErr);
+          console.warn(
+            "Failed to verify concurrency prior to launch:",
+            concurrencyErr,
+          );
         } finally {
           setApplyingAll(false);
         }
@@ -3238,7 +3328,9 @@ export const JobPage = (): JSX.Element => {
                 ? (job.raw_data as Record<string, unknown>)
                 : {};
             const evaluation =
-              jobToAutoApply?.id === job.id ? aiEvaluation || undefined : undefined;
+              jobToAutoApply?.id === job.id
+                ? aiEvaluation || undefined
+                : undefined;
             const matchedKeywords =
               evaluation?.matched_keywords ||
               job.evaluation_summary?.matched_keywords ||
@@ -3307,21 +3399,28 @@ export const JobPage = (): JSX.Element => {
                       ? ((nextDraftPayload as any).resumeText as string)
                       : null,
                   coverLetter:
-                    typeof (nextDraftPayload as any)?.coverLetterText === "string"
+                    typeof (nextDraftPayload as any)?.coverLetterText ===
+                    "string"
                       ? ((nextDraftPayload as any).coverLetterText as string)
                       : null,
                   fitBullets: [
                     ...(job.evaluation_summary?.exact_fit_evidence ?? []),
-                    ...matchedKeywords.map((keyword) => `Keyword fit: ${keyword}`),
+                    ...matchedKeywords.map(
+                      (keyword) => `Keyword fit: ${keyword}`,
+                    ),
                   ].slice(0, 8),
                   metadata: {
                     source: "auto_apply_draft",
-                    source_resume_id: (nextDraftPayload as any)?.sourceResumeId ?? null,
+                    source_resume_id:
+                      (nextDraftPayload as any)?.sourceResumeId ?? null,
                     saved_at: savedAt,
                   },
                 });
               } catch (packageError) {
-                console.warn("Failed to save application package", packageError);
+                console.warn(
+                  "Failed to save application package",
+                  packageError,
+                );
               }
             }
             savedCount += 1;
@@ -3737,7 +3836,8 @@ export const JobPage = (): JSX.Element => {
                 cover_letter: jobCoverLetter,
                 browser_execution_preference: browserExecutionPreference,
                 rtrvr_device_id: profile?.rtrvr_device_id ?? null,
-                rtrvr_prefer_extension: profile?.rtrvr_prefer_extension !== false,
+                rtrvr_prefer_extension:
+                  profile?.rtrvr_prefer_extension !== false,
                 auto_submit: autoSubmitApplications,
                 ...(profileSnapshot
                   ? { additional_information: profileSnapshot }
@@ -4123,7 +4223,10 @@ export const JobPage = (): JSX.Element => {
 
   const exportVisibleJobsCSV = useCallback(() => {
     if (!hasBulkPipelineAccess) {
-      toastError("Upgrade Required", "Bulk export is available on Basics and above.");
+      toastError(
+        "Upgrade Required",
+        "Bulk export is available on Basics and above.",
+      );
       return;
     }
     if (!sortedJobs.length) return;
@@ -4199,16 +4302,12 @@ export const JobPage = (): JSX.Element => {
       activeTaskIdRef.current = task.id;
     } catch (cleanupError) {
       const message =
-        cleanupError instanceof Error ? cleanupError.message : "Cleanup failed.";
+        cleanupError instanceof Error
+          ? cleanupError.message
+          : "Cleanup failed.";
       toastError("Cleanup failed", message);
     }
-  }, [
-    createTask,
-    hasPipelineCleanupAccess,
-    jobs,
-    safeInfo,
-    toastError,
-  ]);
+  }, [createTask, hasPipelineCleanupAccess, jobs, safeInfo, toastError]);
 
   const handleStopJobTask = useCallback(
     (task: JobIntelligenceTask) => {
@@ -4234,7 +4333,9 @@ export const JobPage = (): JSX.Element => {
             ? params.search_query
             : searchQuery;
         const location =
-          typeof params.location === "string" ? params.location : selectedLocation;
+          typeof params.location === "string"
+            ? params.location
+            : selectedLocation;
         const limit =
           typeof params.limit === "number" ? params.limit : undefined;
         void populateQueue(query, location, limit, {
@@ -4249,12 +4350,7 @@ export const JobPage = (): JSX.Element => {
         return;
       }
     },
-    [
-      cleanLowQualityJobs,
-      populateQueue,
-      searchQuery,
-      selectedLocation,
-    ],
+    [cleanLowQualityJobs, populateQueue, searchQuery, selectedLocation],
   );
 
   // Small helper for relative timestamps
@@ -4293,6 +4389,8 @@ export const JobPage = (): JSX.Element => {
 
   return (
     <div className='relative min-h-full' role='main' aria-label='Job search'>
+      <Seo title='Jobraker | Jobs' />
+
       {/* Animated SVG Background */}
       <AnimatedSVGBackground />
 
@@ -4428,13 +4526,15 @@ export const JobPage = (): JSX.Element => {
                     <DropdownMenuTrigger asChild>
                       <Button
                         className={`group relative flex-1 sm:flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 sm:whitespace-nowrap ${
-                          queueStatus === "populating" || queueStatus === "loading"
+                          queueStatus === "populating" ||
+                          queueStatus === "loading"
                             ? "border-foreground/60 text-foreground bg-foreground/15"
                             : "border-foreground/20 text-foreground bg-foreground/5 hover:text-brand hover:border-brand/60 hover:bg-brand/10"
                         }`}
                         title='Find a fresh batch of jobs'
                         disabled={
-                          queueStatus === "populating" || queueStatus === "loading"
+                          queueStatus === "populating" ||
+                          queueStatus === "loading"
                         }
                       >
                         <span className='relative inline-flex items-center justify-center gap-1.5 sm:gap-2'>
@@ -4456,14 +4556,36 @@ export const JobPage = (): JSX.Element => {
                         </span>
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 bg-background/95 backdrop-blur-md border border-foreground/10 text-foreground rounded-xl p-1.5 shadow-xl">
+                    <DropdownMenuContent
+                      align='end'
+                      className='w-56 bg-background/95 backdrop-blur-md border border-foreground/10 text-foreground rounded-xl p-1.5 shadow-xl'
+                    >
                       {[
-                        { limit: 10, tier: "Free" as const, label: "10 Jobs (Free)" },
-                        { limit: 20, tier: "Basics" as const, label: "20 Jobs (Basics)" },
-                        { limit: 50, tier: "Pro" as const, label: "50 Jobs (Pro)" },
-                        { limit: 100, tier: "Ultimate" as const, label: "100 Jobs (Ultimate)" },
+                        {
+                          limit: 10,
+                          tier: "Free" as const,
+                          label: "10 Jobs (Free)",
+                        },
+                        {
+                          limit: 20,
+                          tier: "Basics" as const,
+                          label: "20 Jobs (Basics)",
+                        },
+                        {
+                          limit: 50,
+                          tier: "Pro" as const,
+                          label: "50 Jobs (Pro)",
+                        },
+                        {
+                          limit: 100,
+                          tier: "Ultimate" as const,
+                          label: "100 Jobs (Ultimate)",
+                        },
                       ].map((opt) => {
-                        const isLocked = !hasSubscriptionAccess(subscriptionTier, opt.tier);
+                        const isLocked = !hasSubscriptionAccess(
+                          subscriptionTier,
+                          opt.tier,
+                        );
                         return (
                           <DropdownMenuItem
                             key={opt.limit}
@@ -4471,27 +4593,33 @@ export const JobPage = (): JSX.Element => {
                               if (isLocked) {
                                 toastError(
                                   "Upgrade Required",
-                                  `Searching ${opt.limit} jobs requires the ${opt.tier} plan.`
+                                  `Searching ${opt.limit} jobs requires the ${opt.tier} plan.`,
                                 );
                               } else {
-                                populateQueue(searchQuery, selectedLocation, opt.limit);
+                                populateQueue(
+                                  searchQuery,
+                                  selectedLocation,
+                                  opt.limit,
+                                );
                               }
                             }}
-                            className="flex items-center justify-between cursor-pointer px-3 py-2 rounded-lg text-left text-xs sm:text-sm font-medium transition-colors hover:bg-foreground/5 focus:bg-foreground/5"
+                            className='flex items-center justify-between cursor-pointer px-3 py-2 rounded-lg text-left text-xs sm:text-sm font-medium transition-colors hover:bg-foreground/5 focus:bg-foreground/5'
                           >
-                            <span className="flex items-center gap-2">
+                            <span className='flex items-center gap-2'>
                               {opt.tier === "Free" ? (
-                                <Search className="h-4 w-4 text-foreground/50" />
+                                <Search className='h-4 w-4 text-foreground/50' />
                               ) : opt.tier === "Basics" ? (
-                                <Sparkles className="h-4 w-4 text-brand" />
+                                <Sparkles className='h-4 w-4 text-brand' />
                               ) : opt.tier === "Pro" ? (
-                                <Zap className="h-4 w-4 text-cyan-400" />
+                                <Zap className='h-4 w-4 text-cyan-400' />
                               ) : (
-                                <Crown className="h-4 w-4 text-yellow-400" />
+                                <Crown className='h-4 w-4 text-yellow-400' />
                               )}
                               <span>{opt.label}</span>
                             </span>
-                            {isLocked && <Lock className="h-3.5 w-3.5 text-foreground/45" />}
+                            {isLocked && (
+                              <Lock className='h-3.5 w-3.5 text-foreground/45' />
+                            )}
                           </DropdownMenuItem>
                         );
                       })}
@@ -4633,7 +4761,9 @@ export const JobPage = (): JSX.Element => {
                 role='status'
                 className='flex h-12 w-full items-center rounded-xl border border-foreground/10 pl-4 pr-[8.25rem] sm:pr-36 text-base font-medium text-foreground'
               >
-                <span className={`min-w-0 truncate ${!searchQuery ? "text-foreground/40" : ""}`}>
+                <span
+                  className={`min-w-0 truncate ${!searchQuery ? "text-foreground/40" : ""}`}
+                >
                   {searchQuery || "Search jobs, companies, keywords..."}
                 </span>
               </div>
@@ -4716,13 +4846,15 @@ export const JobPage = (): JSX.Element => {
                           onClick={async () => {
                             setActiveSearchScope(null);
                             activeSearchScopeRef.current = null;
-                            await queryClient.invalidateQueries({ queryKey: jobsQueueKeys.all });
+                            await queryClient.invalidateQueries({
+                              queryKey: jobsQueueKeys.all,
+                            });
                           }}
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2.5 rounded-lg text-xs font-semibold bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 flex items-center gap-1.5 transition-all duration-200 whitespace-nowrap"
+                          variant='ghost'
+                          size='sm'
+                          className='h-7 px-2.5 rounded-lg text-xs font-semibold bg-brand/10 hover:bg-brand/20 text-brand border border-brand/30 flex items-center gap-1.5 transition-all duration-200 whitespace-nowrap'
                         >
-                          <X className="h-3 w-3 shrink-0" />
+                          <X className='h-3 w-3 shrink-0' />
                           <span>Clear Search</span>
                         </Button>
                       )}
@@ -5253,7 +5385,6 @@ export const JobPage = (): JSX.Element => {
 
                           {/* Badges */}
                           <div className='flex flex-wrap items-center gap-2 flex-shrink-0'>
-
                             {(() => {
                               if (!job.posted_at) return null;
                               const postedTs = Date.parse(job.posted_at);
@@ -5277,11 +5408,11 @@ export const JobPage = (): JSX.Element => {
                             )}
                             {hasJobQualityAccess &&
                               typeof job.lead_quality_score === "number" && (
-                              <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-foreground/5 text-foreground/55 border border-foreground/10'>
-                                <ShieldCheck className='w-3 h-3' />
-                                {job.lead_quality_score}% Quality
-                              </span>
-                            )}
+                                <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-foreground/5 text-foreground/55 border border-foreground/10'>
+                                  <ShieldCheck className='w-3 h-3' />
+                                  {job.lead_quality_score}% Quality
+                                </span>
+                              )}
                             {job.status && (
                               <span
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
@@ -5687,7 +5818,7 @@ export const JobPage = (): JSX.Element => {
                             className='relative overflow-hidden border border-brand/20 bg-gradient-to-br from-background via-background to-background p-0 flex flex-row items-stretch'
                           >
                             <span className='pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-brand/20 blur-3xl opacity-60' />
-                            
+
                             {/* Logo: full height on the left, width proportional */}
                             <div className='relative w-24 h-24 aspect-square shrink-0 bg-foreground/5 flex items-center justify-center overflow-hidden border-r border-brand/10'>
                               {job.logoUrl && !logoError[job.id] ? (
@@ -5754,8 +5885,7 @@ export const JobPage = (): JSX.Element => {
                                       )}
                                       {job.posted_at && (
                                         <span className='text-[11px] px-2 py-1 rounded-full border border-foreground/10 text-foreground/50 bg-foreground/5 whitespace-nowrap flex-shrink-0'>
-                                          Posted{" "}
-                                          {formatRelative(job.posted_at)}
+                                          Posted {formatRelative(job.posted_at)}
                                         </span>
                                       )}
                                     </div>
@@ -5789,11 +5919,11 @@ export const JobPage = (): JSX.Element => {
                               </div>
 
                               {metaTiles.length > 0 && (
-                                <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3'>
+                                <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-0'>
                                   {metaTiles.map((tile) => (
                                     <div
                                       key={`${tile.label}-${tile.value}`}
-                                      className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-2.5 min-w-0'
+                                      className='rounded-xl border w-fit border-foreground/10 bg-foreground/5 px-3 py-2.5 min-w-0'
                                     >
                                       <div className='text-[11px] uppercase tracking-wide text-foreground/40'>
                                         {tile.label}
@@ -6570,8 +6700,12 @@ export const JobPage = (): JSX.Element => {
                     <div className='flex items-center justify-between gap-4'>
                       <div className='text-sm font-medium text-foreground/80 flex items-center gap-2'>
                         <span>Final submit</span>
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${autoSubmitApplications ? "bg-brand/15 text-brand border border-brand/20" : "bg-foreground/10 text-foreground/70"}`}>
-                          {autoSubmitApplications ? "Autopilot Mode" : "Draft / Review Mode"}
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${autoSubmitApplications ? "bg-brand/15 text-brand border border-brand/20" : "bg-foreground/10 text-foreground/70"}`}
+                        >
+                          {autoSubmitApplications
+                            ? "Autopilot Mode"
+                            : "Draft / Review Mode"}
                         </span>
                       </div>
                       <button
@@ -6591,11 +6725,23 @@ export const JobPage = (): JSX.Element => {
                     <p className='text-xs text-foreground/65 leading-relaxed pt-1 border-t border-foreground/5'>
                       {autoSubmitApplications ? (
                         <>
-                          <strong className='text-brand font-medium'>ON (Autopilot):</strong> The AI agent navigates the job page, fills in all form fields (contact info, resume, cover letter, custom screening answers), and automatically submits the application for you.
+                          <strong className='text-brand font-medium'>
+                            ON (Autopilot):
+                          </strong>{" "}
+                          The AI agent navigates the job page, fills in all form
+                          fields (contact info, resume, cover letter, custom
+                          screening answers), and automatically submits the
+                          application for you.
                         </>
                       ) : (
                         <>
-                          <strong className='text-foreground/90 font-medium'>OFF (Draft / Review Mode):</strong> The AI agent fills out all form fields and pre-populates everything, but stops before clicking Submit so you can review and double-check inputs yourself.
+                          <strong className='text-foreground/90 font-medium'>
+                            OFF (Draft / Review Mode):
+                          </strong>{" "}
+                          The AI agent fills out all form fields and
+                          pre-populates everything, but stops before clicking
+                          Submit so you can review and double-check inputs
+                          yourself.
                         </>
                       )}
                     </p>
@@ -7211,7 +7357,7 @@ export const JobPage = (): JSX.Element => {
                   return (
                     <Card className='relative overflow-hidden border border-brand/25 bg-gradient-to-br from-background via-background to-background p-0 flex flex-row items-stretch'>
                       <span className='pointer-events-none absolute -top-20 -right-10 h-40 w-40 rounded-full bg-brand/20 blur-3xl opacity-50' />
-                      
+
                       {/* Logo Column */}
                       <div className='relative self-stretch w-24 sm:w-32 md:w-36 flex-shrink-0 bg-foreground/5 flex items-stretch justify-center overflow-hidden border-r border-brand/10'>
                         {j.logoUrl && !logoError[j.id] ? (

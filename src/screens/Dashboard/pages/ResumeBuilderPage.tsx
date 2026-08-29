@@ -114,6 +114,11 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const editorHydrationObservedRef = useRef(false);
 
+  // Drag-to-pan state (refs only — no re-render needed)
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+
   const {
     hydrationReady,
     lastDraftSavedAt,
@@ -133,21 +138,63 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
   const [headerVisible, setHeaderVisible] = useState(true);
   const lastScrollTopRef = useRef(0);
+  const headerCooldownRef = useRef(false);
+
+  // Drag-to-pan handlers for the preview panel
+  const handlePanStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    // Only pan on primary button (left click) and when zoomed in
+    if (e.button !== 0 || zoom <= 0.85) return;
+    // Don't intercept clicks on buttons or other interactive elements
+    if ((e.target as HTMLElement).closest("button, a, input, select, textarea")) return;
+    const el = previewPanelRef.current;
+    if (!el) return;
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      scrollLeft: el.scrollLeft,
+      scrollTop: el.scrollTop,
+    };
+  }, [zoom]);
+
+  const handlePanMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return;
+    const el = previewPanelRef.current;
+    if (!el) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    el.scrollLeft = dragStartRef.current.scrollLeft - dx;
+    el.scrollTop = dragStartRef.current.scrollTop - dy;
+  }, []);
+
+  const handlePanEnd = useCallback(() => {
+    isDraggingRef.current = false;
+    setIsDragging(false);
+  }, []);
 
   const handleScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       if (!isMobile) return;
       const currentScrollTop = e.currentTarget.scrollTop;
       const diff = currentScrollTop - lastScrollTopRef.current;
+      lastScrollTopRef.current = currentScrollTop;
+
+      if (headerCooldownRef.current) return;
 
       if (currentScrollTop < 20) {
         setHeaderVisible(true);
-      } else if (diff > 8 && currentScrollTop > 40) {
+      } else if (diff > 12 && currentScrollTop > 50) {
         setHeaderVisible(false);
-      } else if (diff < -8) {
+        headerCooldownRef.current = true;
+        setTimeout(() => { headerCooldownRef.current = false; }, 150);
+      } else if (diff < -12) {
         setHeaderVisible(true);
+        headerCooldownRef.current = true;
+        setTimeout(() => { headerCooldownRef.current = false; }, 150);
       }
-      lastScrollTopRef.current = currentScrollTop;
     },
     [isMobile],
   );
@@ -433,12 +480,14 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
       {/* Header toolbar */}
       <header
-        className={`shrink-0 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex flex-col gap-3 md:flex-row md:items-center md:justify-between z-10 transition-all duration-300 overflow-hidden ${
+        className={`shrink-0 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex flex-col gap-3 md:flex-row md:items-center md:justify-between z-10 will-change-transform ${
           isMobile
-            ? headerVisible
-              ? "max-h-[300px] px-3 py-3 opacity-100"
-              : "max-h-0 px-3 py-0 opacity-0 border-b-0 pointer-events-none"
-            : "md:h-16 md:px-6 md:py-0 opacity-100"
+            ? "px-3 py-3 transition-transform duration-300 ease-in-out"
+            : "md:h-16 md:px-6 md:py-0"
+        } ${
+          isMobile && !headerVisible
+            ? "translate-y-0 border-b-0 pointer-events-none"
+            : ""
         }`}
       >
         <div className='flex min-w-0 items-center gap-3 md:gap-4'>
@@ -502,7 +551,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             disabled={aiLoading || loadingTier}
             className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-brand/60 hover:bg-brand/15 dark:hover:bg-foreground/10 dark:hover:border-foreground/20'
           >
-            <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
+            <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-pulse" : ""}`} />
             <span className='hidden sm:inline'>
               {aiLoading ? "Generating..." : "AI Generate"}
             </span>
@@ -824,7 +873,11 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
         <div
           ref={previewPanelRef}
           onScroll={handleScroll}
-          className={`${isMobile && mobileView !== "preview" ? "hidden" : "flex"} flex-1 overflow-auto justify-center p-3 md:p-8 relative custom-scrollbar bg-[hsl(var(--product-surface-muted))] dark:bg-background ${isMobile ? "pb-6 pt-4" : ""}`}
+          onPointerDown={!isMobile ? handlePanStart : undefined}
+          onPointerMove={!isMobile ? handlePanMove : undefined}
+          onPointerUp={!isMobile ? handlePanEnd : undefined}
+          onPointerLeave={!isMobile ? handlePanEnd : undefined}
+          className={`${isMobile && mobileView !== "preview" ? "hidden" : "flex"} flex-1 overflow-auto justify-center p-3 md:p-8 relative custom-scrollbar bg-[hsl(var(--product-surface-muted))] dark:bg-background ${isMobile ? "pb-6 pt-4" : ""} ${!isMobile && zoom > 0.85 ? (isDragging ? "cursor-grabbing" : "cursor-grab") : ""}`}
         >
           {!isMobile && (
             <div className='absolute right-4 top-4 z-10 flex flex-col gap-2 md:right-8 md:top-8'>
@@ -844,7 +897,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           )}
 
           <div
-            className='shrink-0 transition-[width] duration-200 bg-white shadow-2xl relative'
+            className='shrink-0 transition-[width] duration-200 bg-white shadow-2xl relative select-none'
             style={{
               width: `${previewFrameWidth}px`,
             }}

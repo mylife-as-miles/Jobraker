@@ -24,6 +24,7 @@ import { useToast } from "@/components/ui/toast";
 import { downloadResumePDF } from "@/utils/resume-download";
 import { normalizeResumeDataForEditor } from "@/lib/resumeHydration";
 import { Modal } from "../../../components/ui/modal";
+import Seo from "@/components/seo/Seo";
 
 export const ResumeHomePage = () => {
   const navigate = useNavigate();
@@ -146,6 +147,7 @@ export const ResumeHomePage = () => {
     <div
       className={`product-page-shell flex flex-col h-full bg-background text-foreground overflow-y-auto ${isMobile ? "p-4 pb-20" : "p-8"}`}
     >
+      <Seo title='Jobraker | Resumes' />
       <input
         type='file'
         ref={fileInputRef}

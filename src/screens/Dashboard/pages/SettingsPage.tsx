@@ -90,6 +90,7 @@ import { IntegrationsPanel } from "../components/IntegrationsPanel";
 import { AiUsageLimitsPanel } from "../components/AiUsageLimitsPanel";
 
 type TwoFAStep = "preparing" | "scan" | "verify" | "backup" | "success";
+import Seo from "@/components/seo/Seo";
 
 const SignOutDialog = ({
   open,
@@ -1486,6 +1487,8 @@ export const SettingsPage = (): JSX.Element => {
             data-tour='settings-tab-profile'
             className='space-y-6 mb-20'
           >
+            <Seo title='Jobraker | Settings' />
+
             {/* Avatar Section */}
             <div className='bg-card border border-border/40 rounded-xl p-4 sm:p-6 shadow-sm ring-1 ring-foreground/5'>
               <h3 className='text-base font-medium text-foreground mb-6'>
@@ -1502,7 +1505,8 @@ export const SettingsPage = (): JSX.Element => {
                   ) : (
                     <HashvatarAvatar
                       seed={
-                        formData.email || `${formData.firstName} ${formData.lastName}`
+                        formData.email ||
+                        `${formData.firstName} ${formData.lastName}`
                       }
                     />
                   )}

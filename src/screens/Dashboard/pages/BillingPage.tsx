@@ -165,7 +165,8 @@ function normalizeCreditTransaction(
   return {
     ...transaction,
     transaction_type: transactionType,
-    amount: debitTypes.has(transactionType) && rawAmount > 0 ? -rawAmount : rawAmount,
+    amount:
+      debitTypes.has(transactionType) && rawAmount > 0 ? -rawAmount : rawAmount,
     balance_before:
       transaction.balance_before ?? transaction.balanceBefore ?? 0,
     balance_after: transaction.balance_after ?? transaction.balanceAfter ?? 0,
@@ -392,7 +393,8 @@ function getUltimatePricingDisplay(
     );
   }
   const ratio = selectedCredits / def.creditsPerMonth;
-  const originalMonthly = (def.monthlyPriceUsd ?? fallbackMonthlyFromDb) * ratio;
+  const originalMonthly =
+    (def.monthlyPriceUsd ?? fallbackMonthlyFromDb) * ratio;
   const monthlyUsd = promoApplied
     ? originalMonthly * LOW_CREDIT_RESCUE_MULTIPLIER
     : originalMonthly;
@@ -456,7 +458,9 @@ function getUltimatePricingDisplay(
       maximumFractionDigits: 0,
     }),
     suffix: "/mo",
-    compareAt: promoApplied ? `Original: ${Math.round(originalMonthly)}/mo` : null,
+    compareAt: promoApplied
+      ? `Original: ${Math.round(originalMonthly)}/mo`
+      : null,
     subline: promoApplied
       ? `Low-credit rescue: ${LOW_CREDIT_RESCUE_DISCOUNT_PCT}% OFF applied`
       : "Billed monthly, cancel anytime",
@@ -495,7 +499,11 @@ export const BillingPage = () => {
   const [boostedConcurrencySlots, setBoostedConcurrencySlots] = useState(0);
   const [selectedConcurrencyPackSku, setSelectedConcurrencyPackSku] = useState<
     string | null
-  >(defaultConcurrencyPacks.find((pack) => pack.is_popular)?.sku ?? defaultConcurrencyPacks[0]?.sku ?? null);
+  >(
+    defaultConcurrencyPacks.find((pack) => pack.is_popular)?.sku ??
+      defaultConcurrencyPacks[0]?.sku ??
+      null,
+  );
   /** Billing cadence toggle (quarterly applies to Pro & Ultimate only at checkout). */
   const [billingInterval, setBillingInterval] =
     useState<BillingInterval>("monthly");
@@ -563,7 +571,9 @@ export const BillingPage = () => {
 
   const selectedConcurrencyPack = useMemo(
     () =>
-      concurrencyPacks.find((pack) => pack.sku === selectedConcurrencyPackSku) ??
+      concurrencyPacks.find(
+        (pack) => pack.sku === selectedConcurrencyPackSku,
+      ) ??
       concurrencyPacks[0] ??
       null,
     [concurrencyPacks, selectedConcurrencyPackSku],
@@ -592,9 +602,11 @@ export const BillingPage = () => {
 
         if (cancelled) return;
 
-        const result = data as
-          | { success?: boolean; status?: string; error?: string }
-          | null;
+        const result = data as {
+          success?: boolean;
+          status?: string;
+          error?: string;
+        } | null;
 
         if (error || result?.error || !result?.success) {
           console.error("Payment verification failed:", error || result?.error);
@@ -726,12 +738,10 @@ export const BillingPage = () => {
 
       if (!resolvedCycle) {
         const lastSubOrder = (
-          recentSubscriptionOrders as
-            | Array<{
-                payment_cycle?: string;
-                metadata?: { billing_cycle?: string };
-              }>
-            | null
+          recentSubscriptionOrders as Array<{
+            payment_cycle?: string;
+            metadata?: { billing_cycle?: string };
+          }> | null
         )?.[0];
         const pc = lastSubOrder?.payment_cycle;
         const meta = lastSubOrder?.metadata;
@@ -828,7 +838,9 @@ export const BillingPage = () => {
       }
 
       const nowIso = new Date().toISOString();
-      const threeHoursAgoIso = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+      const threeHoursAgoIso = new Date(
+        Date.now() - 3 * 60 * 60 * 1000,
+      ).toISOString();
       const [{ data: concurrencyQuotaRows }, { count: queuedRunsCount }] =
         await Promise.all([
           supabase
@@ -855,7 +867,9 @@ export const BillingPage = () => {
           )
         : 0;
       setBoostedConcurrencySlots(boostSlots);
-      setActiveAutoApplyRuns(typeof queuedRunsCount === "number" ? queuedRunsCount : 0);
+      setActiveAutoApplyRuns(
+        typeof queuedRunsCount === "number" ? queuedRunsCount : 0,
+      );
 
       // Fetch credit costs
       const { data: costsData } = await supabase
@@ -900,7 +914,10 @@ export const BillingPage = () => {
         description: "Fetching your full transaction history...",
       });
 
-      const allTransactions = await CreditService.getCreditHistory(userId, 1000);
+      const allTransactions = await CreditService.getCreditHistory(
+        userId,
+        1000,
+      );
       const txList = allTransactions.map(normalizeCreditTransaction);
 
       if (txList.length === 0) {
@@ -933,7 +950,9 @@ export const BillingPage = () => {
 
       const csv = [
         headers.join(","),
-        ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")),
+        ...rows.map((r) =>
+          r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","),
+        ),
       ].join("\n");
 
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -1054,7 +1073,10 @@ export const BillingPage = () => {
             analyticsProperties,
           );
         } else {
-          captureClientEvent("credit_pack_checkout_started", analyticsProperties);
+          captureClientEvent(
+            "credit_pack_checkout_started",
+            analyticsProperties,
+          );
         }
         window.location.href = body.url;
         return;
@@ -1179,17 +1201,23 @@ export const BillingPage = () => {
     const groupedRuns: GroupedRunItem[] = [];
 
     runsMap.forEach((txs, runId) => {
-      const sortedTxs = [...txs].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      const sortedTxs = [...txs].sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
       const netAmount = sortedTxs.reduce((sum, t) => sum + t.amount, 0);
-      const reservationTx = sortedTxs.find(t => t.amount < 0) || sortedTxs[0];
-      const refundTx = sortedTxs.find(t => t.amount > 0 && t !== reservationTx);
+      const reservationTx = sortedTxs.find((t) => t.amount < 0) || sortedTxs[0];
+      const refundTx = sortedTxs.find(
+        (t) => t.amount > 0 && t !== reservationTx,
+      );
       const latestTx = sortedTxs[sortedTxs.length - 1];
       const balanceAfter = latestTx.balance_after;
 
-      let desc = reservationTx.description || `Agent Run (${runId.slice(0, 8)})`;
+      let desc =
+        reservationTx.description || `Agent Run (${runId.slice(0, 8)})`;
       if (refundTx) {
         desc = desc.replace("Reservation for ", "") + " (Completed & Settled)";
-      } else if (sortedTxs.some(t => t.description?.includes("Refund"))) {
+      } else if (sortedTxs.some((t) => t.description?.includes("Refund"))) {
         desc = "Agent Run - Refunded";
       }
 
@@ -1204,8 +1232,8 @@ export const BillingPage = () => {
       });
     });
 
-    type DisplayItem = 
-      | (CreditTransaction & { isGroupedRun?: false }) 
+    type DisplayItem =
+      | (CreditTransaction & { isGroupedRun?: false })
       | (GroupedRunItem & { id: string });
 
     const combined: DisplayItem[] = [
@@ -1214,7 +1242,8 @@ export const BillingPage = () => {
     ];
 
     return combined.sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
   }, [transactions]);
 
@@ -1393,7 +1422,9 @@ export const BillingPage = () => {
                               })
                             : "Not scheduled"}
                         </p>
-                        <p className='text-xs text-muted-foreground pt-1'>{primary}</p>
+                        <p className='text-xs text-muted-foreground pt-1'>
+                          {primary}
+                        </p>
                         {secondary ? (
                           <p className='text-[11px] text-gray-600 leading-snug pt-0.5'>
                             {secondary}
@@ -1423,7 +1454,8 @@ export const BillingPage = () => {
                     Low-credit rescue offer active
                   </h3>
                   <p className='text-xs text-muted-foreground mt-0.5'>
-                    Your one-time 15% rescue offer is active for the next hour on Basics, Pro, and Ultimate.
+                    Your one-time 15% rescue offer is active for the next hour
+                    on Basics, Pro, and Ultimate.
                   </p>
                 </div>
               </div>
@@ -1893,12 +1925,16 @@ export const BillingPage = () => {
                                             featureName,
                                           )
                                         ) {
-                                          featureName = "Cold outreach email drafts";
+                                          featureName =
+                                            "Cold outreach email drafts";
                                         } else if (
                                           plan.name === "Starter" &&
-                                          /manual application workflow/i.test(featureName)
+                                          /manual application workflow/i.test(
+                                            featureName,
+                                          )
                                         ) {
-                                          featureName = "Flexible application workflow";
+                                          featureName =
+                                            "Flexible application workflow";
                                         }
                                         if (isUltimate) {
                                           if (
@@ -2058,12 +2094,14 @@ export const BillingPage = () => {
                       Parallel Auto-Apply Boost
                     </div>
                     <h2 className='text-3xl font-black uppercase leading-[0.95] text-foreground sm:text-4xl lg:text-5xl'>
-                      Clear your ready queue faster without changing your main plan
+                      Clear your ready queue faster without changing your main
+                      plan
                     </h2>
                     <p className='mt-4 max-w-2xl text-sm leading-7 text-foreground/80 sm:text-base'>
                       Your subscription sets the baseline automation speed.
                       Boost packs stack on top for the current billing period so
-                      queued opportunities can keep moving when search volume spikes.
+                      queued opportunities can keep moving when search volume
+                      spikes.
                     </p>
                   </div>
 
@@ -2141,7 +2179,9 @@ export const BillingPage = () => {
                             <div className='mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand/15 text-brand'>
                               <Check className='h-3.5 w-3.5' />
                             </div>
-                            <p className='text-sm leading-6 text-foreground/80'>{item}</p>
+                            <p className='text-sm leading-6 text-foreground/80'>
+                              {item}
+                            </p>
                           </div>
                         ))}
                       </div>
@@ -2150,12 +2190,15 @@ export const BillingPage = () => {
 
                   <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
                     {concurrencyPacks.map((pack) => {
-                      const isSelected = selectedConcurrencyPack?.sku === pack.sku;
+                      const isSelected =
+                        selectedConcurrencyPack?.sku === pack.sku;
                       return (
                         <button
                           key={pack.sku}
                           type='button'
-                          onClick={() => setSelectedConcurrencyPackSku(pack.sku)}
+                          onClick={() =>
+                            setSelectedConcurrencyPackSku(pack.sku)
+                          }
                           className={`group rounded-[1.6rem] border p-5 text-left transition-all duration-300 ${
                             isSelected
                               ? "border-brand bg-brand/10 shadow-[0_0_28px_rgba(47,217,104,0.18)]"
@@ -2167,7 +2210,9 @@ export const BillingPage = () => {
                               <p className='text-lg font-bold text-foreground'>
                                 +{pack.parallel_slots} parallel
                               </p>
-                              <p className='mt-1 text-sm text-muted-foreground'>{pack.name}</p>
+                              <p className='mt-1 text-sm text-muted-foreground'>
+                                {pack.name}
+                              </p>
                             </div>
                             {pack.is_popular ? (
                               <span className='rounded-full border border-brand/25 bg-brand/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-brand'>
@@ -2210,13 +2255,15 @@ export const BillingPage = () => {
                         </p>
                         <p className='mt-2 text-2xl font-bold text-foreground'>
                           {selectedConcurrencyPack.name} adds +
-                          {selectedConcurrencyPack.parallel_slots} parallel auto-apply
-                          slot
-                          {selectedConcurrencyPack.parallel_slots === 1 ? "" : "s"}
+                          {selectedConcurrencyPack.parallel_slots} parallel
+                          auto-apply slot
+                          {selectedConcurrencyPack.parallel_slots === 1
+                            ? ""
+                            : "s"}
                         </p>
                         <p className='mt-2 text-sm leading-6 text-muted-foreground'>
-                          Your live capacity would move from {baseConcurrencySlots}
-                          {" "}to{" "}
+                          Your live capacity would move from{" "}
+                          {baseConcurrencySlots} to{" "}
                           {baseConcurrencySlots +
                             boostedConcurrencySlots +
                             selectedConcurrencyPack.parallel_slots}{" "}
@@ -2227,7 +2274,10 @@ export const BillingPage = () => {
                         className='h-14 min-w-[220px] rounded-full bg-brand px-8 text-base font-bold text-background shadow-[0_0_32px_rgba(47,217,104,0.28)] hover:bg-brand hover:brightness-110'
                         disabled={processingPayment}
                         onClick={() =>
-                          handlePayment("concurrency_pack", selectedConcurrencyPack)
+                          handlePayment(
+                            "concurrency_pack",
+                            selectedConcurrencyPack,
+                          )
                         }
                       >
                         {processingPayment ? (
@@ -2257,8 +2307,9 @@ export const BillingPage = () => {
                   One-Time Momentum Packs
                 </h2>
                 <p className='text-muted-foreground'>
-                  Credit packs are emergency fuel for active opportunities. Plans
-                  are still the better deal when you want JobRaker running every week.
+                  Credit packs are emergency fuel for active opportunities.
+                  Plans are still the better deal when you want JobRaker running
+                  every week.
                 </p>
               </div>
 
@@ -2381,7 +2432,9 @@ export const BillingPage = () => {
                     <p className='font-bold text-foreground mb-1'>
                       {benefit.title}
                     </p>
-                    <p className='text-sm text-muted-foreground'>{benefit.desc}</p>
+                    <p className='text-sm text-muted-foreground'>
+                      {benefit.desc}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -2403,7 +2456,10 @@ export const BillingPage = () => {
                   Feature Metering & Tool Costs
                 </h2>
                 <p className='text-muted-foreground max-w-2xl mx-auto'>
-                  All AI model features (AI Chat, Resume Analysis, Cover Letters, Content Polishing) consume your plan&apos;s AI Usage Limits based on model token usage. Tool credits are used exclusively for external web automation tools.
+                  All AI model features (AI Chat, Resume Analysis, Cover
+                  Letters, Content Polishing) consume your plan&apos;s AI Usage
+                  Limits based on model token usage. Tool credits are used
+                  exclusively for external web automation tools.
                 </p>
               </div>
 
@@ -3102,45 +3158,47 @@ export const BillingPage = () => {
                           const createdAt = item.created_at;
                           const description = item.description;
                           const runId = item.agent_run_id;
-                          const hasAuthoritativeBalance = item.transactions.some(
-                            (tx) => tx.source === "v2",
-                          );
+                          const hasAuthoritativeBalance =
+                            item.transactions.some((tx) => tx.source === "v2");
 
                           // Use Receipt icon for grouped agent run
                           const iconData = {
-                            icon: <Receipt className="w-4 h-4" />,
+                            icon: <Receipt className='w-4 h-4' />,
                             color: "text-brand bg-brand/10 border-brand/20",
                           };
 
                           return (
-                            <div key={runId} className="border-b border-foreground/5 last:border-0">
+                            <div
+                              key={runId}
+                              className='border-b border-foreground/5 last:border-0'
+                            >
                               <div
                                 onClick={() => toggleRunExpansion(runId)}
-                                className="p-4 sm:p-6 hover:bg-foreground/[0.02] transition-colors duration-200 flex items-center justify-between gap-4 cursor-pointer group"
+                                className='p-4 sm:p-6 hover:bg-foreground/[0.02] transition-colors duration-200 flex items-center justify-between gap-4 cursor-pointer group'
                               >
-                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                <div className='flex items-center gap-4 flex-1 min-w-0'>
                                   <div
                                     className={`p-2.5 rounded-xl border ${iconData.color} group-hover:scale-110 transition-transform`}
                                   >
                                     {iconData.icon}
                                   </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-foreground font-medium truncate">
+                                  <div className='flex-1 min-w-0'>
+                                    <div className='flex items-center gap-2'>
+                                      <p className='text-foreground font-medium truncate'>
                                         {description}
                                       </p>
-                                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-foreground/5 text-muted-foreground font-medium">
+                                      <span className='text-[10px] px-2 py-0.5 rounded-full bg-foreground/5 text-muted-foreground font-medium'>
                                         Run Receipt
                                       </span>
                                     </div>
-                                    <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                                    <p className='text-xs text-muted-foreground font-mono mt-0.5'>
                                       {formatDate(createdAt)}
                                     </p>
                                   </div>
                                 </div>
-                                
-                                <div className="flex items-center gap-4">
-                                  <div className="text-right flex-shrink-0">
+
+                                <div className='flex items-center gap-4'>
+                                  <div className='text-right flex-shrink-0'>
                                     <p
                                       className={`text-lg font-bold font-mono ${
                                         netAmount > 0
@@ -3153,17 +3211,17 @@ export const BillingPage = () => {
                                       {netAmount > 0 ? "+" : ""}
                                       {netAmount}
                                     </p>
-                                    <p className="text-xs text-muted-foreground">
+                                    <p className='text-xs text-muted-foreground'>
                                       {hasAuthoritativeBalance
                                         ? `Balance: ${balanceAfter}`
                                         : "Legacy receipt"}
                                     </p>
                                   </div>
-                                  <div className="text-muted-foreground group-hover:text-foreground transition-colors">
+                                  <div className='text-muted-foreground group-hover:text-foreground transition-colors'>
                                     {isExpanded ? (
-                                      <ChevronDown className="w-5 h-5" />
+                                      <ChevronDown className='w-5 h-5' />
                                     ) : (
-                                      <ChevronRight className="w-5 h-5" />
+                                      <ChevronRight className='w-5 h-5' />
                                     )}
                                   </div>
                                 </div>
@@ -3175,64 +3233,102 @@ export const BillingPage = () => {
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: "auto", opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
-                                    transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
-                                    className="overflow-hidden bg-foreground/[0.01] border-t border-foreground/5"
+                                    transition={{
+                                      duration: 0.5,
+                                      ease: [0.34, 1.56, 0.64, 1],
+                                    }}
+                                    className='overflow-hidden bg-foreground/[0.01] border-t border-foreground/5'
                                   >
-                                    <div className="p-4 sm:p-6 pl-12 sm:pl-16 space-y-4">
-                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border border-foreground/5 rounded-xl p-4 bg-background/50">
+                                    <div className='p-4 sm:p-6 pl-12 sm:pl-16 space-y-4'>
+                                      <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 border border-foreground/5 rounded-xl p-4 bg-background/50'>
                                         <div>
-                                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Reserved Amount</p>
-                                          <p className="text-base font-bold font-mono text-foreground mt-1">
+                                          <p className='text-xs text-muted-foreground font-medium uppercase tracking-wider'>
+                                            Reserved Amount
+                                          </p>
+                                          <p className='text-base font-bold font-mono text-foreground mt-1'>
                                             {(() => {
-                                              const resTx = item.transactions.find(t => t.amount < 0);
-                                              return resTx ? `${resTx.amount} credits` : "0 credits";
+                                              const resTx =
+                                                item.transactions.find(
+                                                  (t) => t.amount < 0,
+                                                );
+                                              return resTx
+                                                ? `${resTx.amount} credits`
+                                                : "0 credits";
                                             })()}
                                           </p>
                                         </div>
                                         <div>
-                                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Refunded Amount</p>
-                                          <p className="text-base font-bold font-mono text-brand mt-1">
+                                          <p className='text-xs text-muted-foreground font-medium uppercase tracking-wider'>
+                                            Refunded Amount
+                                          </p>
+                                          <p className='text-base font-bold font-mono text-brand mt-1'>
                                             {(() => {
-                                              const refTx = item.transactions.find(t => t.amount > 0);
-                                              return refTx ? `+${refTx.amount} credits` : "0 credits";
+                                              const refTx =
+                                                item.transactions.find(
+                                                  (t) => t.amount > 0,
+                                                );
+                                              return refTx
+                                                ? `+${refTx.amount} credits`
+                                                : "0 credits";
                                             })()}
                                           </p>
                                         </div>
                                         <div>
-                                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Net Charged</p>
-                                          <p className="text-base font-bold font-mono text-foreground mt-1">
+                                          <p className='text-xs text-muted-foreground font-medium uppercase tracking-wider'>
+                                            Net Charged
+                                          </p>
+                                          <p className='text-base font-bold font-mono text-foreground mt-1'>
                                             {netAmount} credits
                                           </p>
                                         </div>
                                       </div>
 
-                                      <div className="space-y-2">
-                                        <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Ledger Breakdown</h4>
-                                        <div className="border border-foreground/5 rounded-xl overflow-hidden divide-y divide-foreground/5 bg-background/20">
+                                      <div className='space-y-2'>
+                                        <h4 className='text-xs font-semibold text-foreground uppercase tracking-wider'>
+                                          Ledger Breakdown
+                                        </h4>
+                                        <div className='border border-foreground/5 rounded-xl overflow-hidden divide-y divide-foreground/5 bg-background/20'>
                                           {item.transactions.map((tx) => {
-                                            const subIconData = getTransactionIcon(tx.transaction_type ?? tx.type ?? "refill");
+                                            const subIconData =
+                                              getTransactionIcon(
+                                                tx.transaction_type ??
+                                                  tx.type ??
+                                                  "refill",
+                                              );
                                             return (
-                                              <div key={tx.id} className="p-3 flex items-center justify-between text-sm">
-                                                <div className="flex items-center gap-3">
-                                                  <div className={`p-1.5 rounded-lg border ${subIconData.color}`}>
+                                              <div
+                                                key={tx.id}
+                                                className='p-3 flex items-center justify-between text-sm'
+                                              >
+                                                <div className='flex items-center gap-3'>
+                                                  <div
+                                                    className={`p-1.5 rounded-lg border ${subIconData.color}`}
+                                                  >
                                                     {subIconData.icon}
                                                   </div>
                                                   <div>
-                                                    <p className="text-foreground font-medium text-xs sm:text-sm">
+                                                    <p className='text-foreground font-medium text-xs sm:text-sm'>
                                                       {tx.description}
                                                     </p>
-                                                    <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
-                                                      {formatDate(tx.created_at)}
+                                                    <p className='text-[10px] text-muted-foreground font-mono mt-0.5'>
+                                                      {formatDate(
+                                                        tx.created_at,
+                                                      )}
                                                     </p>
                                                   </div>
                                                 </div>
-                                                <div className="text-right">
-                                                  <p className={`font-semibold font-mono text-xs sm:text-sm ${
-                                                    tx.amount > 0 ? "text-brand" : "text-foreground"
-                                                  }`}>
-                                                    {tx.amount > 0 ? "+" : ""}{tx.amount}
+                                                <div className='text-right'>
+                                                  <p
+                                                    className={`font-semibold font-mono text-xs sm:text-sm ${
+                                                      tx.amount > 0
+                                                        ? "text-brand"
+                                                        : "text-foreground"
+                                                    }`}
+                                                  >
+                                                    {tx.amount > 0 ? "+" : ""}
+                                                    {tx.amount}
                                                   </p>
-                                                  <p className="text-[10px] text-muted-foreground">
+                                                  <p className='text-[10px] text-muted-foreground'>
                                                     {tx.source === "v2"
                                                       ? `After: ${tx.balance_after}`
                                                       : "Legacy receipt"}
@@ -3251,9 +3347,7 @@ export const BillingPage = () => {
                           );
                         } else {
                           const iconData = getTransactionIcon(
-                            item.transaction_type ??
-                              item.type ??
-                              "refill",
+                            item.transaction_type ?? item.type ?? "refill",
                           );
                           return (
                             <motion.div

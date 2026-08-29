@@ -150,6 +150,7 @@ import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 import { motion } from "framer-motion";
 import { RouteLoadingFallback } from "@/components/system/RouteLoadingFallback";
+import Seo from "@/components/seo/Seo";
 
 // Custom styles for the new design
 const customStyles = `
@@ -1201,6 +1202,8 @@ const AgentResultPreview = ({ message }: { message: BasicMessage }) => {
 
   return (
     <div className='mb-3 rounded-xl border border-brand/20 bg-brand/[0.04] p-3 text-[13px] text-muted-foreground'>
+    <Seo title='Jobraker | Chat' />
+
       <div className='mb-2 flex items-center gap-2 font-medium text-foreground/85'>
         <ListChecks className='h-3.5 w-3.5 text-brand' />
         Live results while JobRaker keeps working - {uniqueJobs.length} job

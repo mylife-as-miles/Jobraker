@@ -64,6 +64,7 @@ import {
   type LinkedInCsvField,
   type LinkedInCsvInspection,
 } from "@/lib/parseLinkedInConnectionsCsv";
+import Seo from "@/components/seo/Seo";
 
 const LINKEDIN_DATA_EXPORT_URL =
   "https://www.linkedin.com/mypreferences/d/download-my-data";
@@ -226,6 +227,8 @@ function CheckCandidateFitModal({
 
   return (
     <Modal open={open} onClose={handleClose} size='lg'>
+      <Seo title='Jobraker | Referrals' />
+
       <div className='space-y-5'>
         <div className='flex items-start justify-between gap-4 border-b border-border/60 pb-4'>
           <div>

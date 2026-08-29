@@ -93,8 +93,7 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[520px] bg-white dark:bg-[#09090b] border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-50 rounded-3xl shadow-2xl p-0 overflow-visible'>
-        <div className='p-8'>
+      <DialogContent className=' max-w-fit max-h-[90vh] overflow-y-auto bg-white dark:bg-[#09090b] border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-50 rounded-3xl shadow-2xl p-4'>
           <DialogHeader className='mb-6'>
             <DialogTitle className='text-xl font-bold tracking-tight'>
               Share Resume
@@ -104,7 +103,7 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className='flex items-center justify-between p-5 bg-zinc-50 dark:bg-foreground/5 rounded-2xl border border-zinc-200 dark:border-foreground/10 mb-8'>
+          <div className='flex w-fit items-center justify-between p-5 bg-zinc-50 dark:bg-foreground/5 rounded-2xl border border-zinc-200 dark:border-foreground/10 mb-8'>
             <div className='flex flex-col gap-1'>
               <span className='font-bold text-sm tracking-tight text-zinc-900 dark:text-zinc-100'>
                 Public Access
@@ -124,7 +123,7 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
           </div>
 
           {canShare && isPublic && (
-            <div className='space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300'>
+            <div className='space-y-6 w-fit animate-in fade-in slide-in-from-bottom-2 duration-300'>
               <div className='space-y-3'>
                 <label className='text-[10px] font-bold text-muted-foreground dark:text-muted-foreground uppercase tracking-[0.2em] ml-1'>
                   Share Link
@@ -175,7 +174,7 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
               </div>
             </div>
           )}
-        </div>
+        
       </DialogContent>
     </Dialog>
   );

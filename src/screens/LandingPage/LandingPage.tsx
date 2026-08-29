@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { capturePendingReferralCodeFromSearch } from "../../lib/referralAttribution";
 import { captureClientEvent } from "@/lib/analytics";
@@ -41,6 +41,28 @@ export const LandingPage = () => {
       destination,
       location: locationLabel,
     });
+  };
+
+  const [showCookieConsent, setShowCookieConsent] = useState(false);
+
+  useEffect(() => {
+    const consent = localStorage.getItem("cookieConsent");
+    if (!consent) {
+      const timer = setTimeout(() => setShowCookieConsent(true), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const acceptCookies = () => {
+    localStorage.setItem("cookieConsent", "accepted");
+    captureClientEvent("cookie_consent_accepted", {});
+    setShowCookieConsent(false);
+  };
+
+  const declineCookies = () => {
+    localStorage.setItem("cookieConsent", "declined");
+    captureClientEvent("cookie_consent_declined", {});
+    setShowCookieConsent(false);
   };
 
   return (
@@ -187,6 +209,50 @@ export const LandingPage = () => {
           <FooterSection />
         </AnimatedSection>
       </div>
+
+      {/* Cookie Consent Popup */}
+      {showCookieConsent && (
+        <div
+          className='fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 md:max-w-md md:left-auto md:right-6 z-50 animate-slide-up'
+          role='dialog'
+          aria-label='Cookie consent'
+        >
+          <div className='bg-background border border-brand/20 rounded-xl p-4 sm:p-5 shadow-2xl'>
+            <div className='flex items-start space-x-3'>
+              <div className='flex-shrink-0 w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center'>
+                <svg className='w-4 h-4 text-brand' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' />
+                </svg>
+              </div>
+              <div className='flex-1 min-w-0'>
+                <p className='text-sm font-medium text-foreground'>
+                  We use cookies to improve your experience
+                </p>
+                <p className='mt-1 text-sm text-muted-foreground'>
+                  By clicking "Accept", you agree to store cookies on your device to enhance site navigation, analyze usage.
+                </p>
+              </div>
+            </div>
+            <div className='mt-4 flex items-center space-x-2 sm:justify-end'>
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={declineCookies}
+                className='text-sm text-muted-foreground hover:text-foreground'
+              >
+                Decline
+              </Button>
+              <Button
+                size='sm'
+                onClick={acceptCookies}
+                className='bg-brand text-black hover:bg-brand/90'
+              >
+                Accept
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
