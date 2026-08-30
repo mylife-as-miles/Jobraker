@@ -82,7 +82,6 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
 
     const check = async () => {
       try {
-        const cachedSnapshot = await getCachedAuthSnapshot();
         const {
           data: { session },
           error: sessionError,
@@ -94,6 +93,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
         if (sessionError) {
           console.error("Session error:", sessionError);
           if ((isOffline() || isNetworkError(sessionError)) && (await applyCachedAccess())) return;
+          await clearCachedAuthSnapshot();
           if (!mounted) return;
           navigate(ROUTES.SIGNIN, { replace: true });
           return;
@@ -254,6 +254,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
       } catch (error) {
         console.error("Auth check error:", error);
         if ((isOffline() || isNetworkError(error)) && (await applyCachedAccess())) return;
+        await clearCachedAuthSnapshot();
         if (!mounted) return;
         navigate(ROUTES.SIGNIN, { replace: true });
       }
