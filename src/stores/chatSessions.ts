@@ -45,6 +45,7 @@ interface ChatSessionsState {
   saveSnippet: (messageId: string, content: string) => void;
   deleteSnippet: (id: string) => void;
   search: (sessionId: string, query: string) => { message: ChatMessageRecord; score: number }[];
+  reset: () => void;
 }
 
 const tokenize = (text: string) => text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
@@ -85,6 +86,12 @@ export const useChatSessions = create<ChatSessionsState>()(persist((set, get) =>
   unpinMessage: (sessionId, messageId) => set(s => ({ sessions: { ...s.sessions, [sessionId]: { ...s.sessions[sessionId], pinned: (s.sessions[sessionId].pinned||[]).filter(id => id !== messageId) }}})),
   saveSnippet: (messageId, content) => set(s => ({ snippets: [...s.snippets, { id: uuid(), messageId, content, createdAt: Date.now(), tags: [], title: content.slice(0, 48) + (content.length>48?'…':'') }] })),
   deleteSnippet: (id) => set(s => ({ snippets: s.snippets.filter(sn => sn.id !== id) })),
+  reset: () => set({
+    sessions: {},
+    messages: {},
+    activeSessionId: null,
+    snippets: [],
+  }),
   search: (sessionId, query) => {
     const qTokens = tokenize(query);
     const msgs = get().messages[sessionId] || [];
