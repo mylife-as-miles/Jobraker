@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import {
-  cacheAuthSnapshot,
+  cacheAuthenticatedUser,
   clearCachedAuthSnapshot,
   getCachedAuthSnapshot,
 } from "@/lib/offlineAppCache";
@@ -95,12 +95,7 @@ export const useAuth = () => {
             email: authUser.email,
           };
           setUser(nextUser);
-          await cacheAuthSnapshot({
-            hasSession: true,
-            user: nextUser,
-            onboardingComplete: (await getCachedAuthSnapshot())
-              ?.onboardingComplete ?? null,
-          });
+          await cacheAuthenticatedUser(nextUser);
           return;
         }
 
@@ -110,6 +105,7 @@ export const useAuth = () => {
         }
 
         setUser(null);
+        await clearCachedAuthSnapshot();
       } catch (error) {
         console.error("Error getting session:", error);
         if (isOffline() || isNetworkError(error)) {
@@ -118,6 +114,7 @@ export const useAuth = () => {
         }
         if (!mounted) return;
         setUser(null);
+        await clearCachedAuthSnapshot();
       } finally {
         if (mounted) {
           setLoading(false);
@@ -136,12 +133,7 @@ export const useAuth = () => {
             email: session.user.email,
           };
           setUser(nextUser);
-          await cacheAuthSnapshot({
-            hasSession: true,
-            user: nextUser,
-            onboardingComplete: (await getCachedAuthSnapshot())
-              ?.onboardingComplete ?? null,
-          });
+          await cacheAuthenticatedUser(nextUser);
         } else {
           if (isOffline()) {
             const cachedSnapshot = await getCachedAuthSnapshot();
