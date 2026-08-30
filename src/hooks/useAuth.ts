@@ -1,19 +1,19 @@
 // Simple useAuth hook for compatibility with the credit system
-// Wraps the existing auth store to provide user information
+// Wraps the existing Supabase session while preserving strict account isolation.
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import {
   cacheAuthSnapshot,
-  clearCachedAuthSnapshot,
   getCachedAuthSnapshot,
+  getCachedAuthSnapshotForUser,
 } from "@/lib/offlineAppCache";
+import { clearUserScopedClientState } from "@/lib/sessionIsolation";
 
 const AUTH_SESSION_TIMEOUT_MS = 45_000;
 
 interface User {
   id: string;
   email?: string;
-  // Add other user properties as needed
 }
 
 export const useAuth = () => {
@@ -23,20 +23,7 @@ export const useAuth = () => {
 
   useEffect(() => {
     let mounted = true;
-    const isOffline = () =>
-      typeof navigator !== "undefined" && navigator.onLine === false;
-    const isNetworkError = (error: any) => {
-      if (!error) return false;
-      const msg = String(error.message || error).toLowerCase();
-      return (
-        msg.includes("fetch") ||
-        msg.includes("network") ||
-        msg.includes("timeout") ||
-        msg.includes("timed out") ||
-        msg.includes("err_") ||
-        error instanceof TypeError
-      );
-    };
+
     const withTimeout = async <T,>(promise: Promise<T>, ms: number) => {
       let timeoutId: number | undefined;
       try {
@@ -54,15 +41,31 @@ export const useAuth = () => {
       }
     };
 
-    const applyCachedUser = async () => {
-      const cachedSnapshot = await getCachedAuthSnapshot();
+    const applySessionUser = async (authUser: {
+      id: string;
+      email?: string;
+    }) => {
+      const existing = await getCachedAuthSnapshot();
+      const sameUserSnapshot =
+        await getCachedAuthSnapshotForUser(authUser.id);
+
+      if (existing?.user?.id && existing.user.id !== authUser.id) {
+        await clearUserScopedClientState();
+      }
+
       if (!mounted) return;
-      setUser(
-        cachedSnapshot?.hasSession && cachedSnapshot.user
-          ? cachedSnapshot.user
-          : null,
-      );
-      setLoading(false);
+
+      const nextUser = {
+        id: authUser.id,
+        email: authUser.email,
+      };
+
+      setUser(nextUser);
+      await cacheAuthSnapshot({
+        hasSession: true,
+        user: nextUser,
+        onboardingComplete: sameUserSnapshot?.onboardingComplete ?? null,
+      });
     };
 
     const getUser = async () => {
@@ -75,49 +78,32 @@ export const useAuth = () => {
           AUTH_SESSION_TIMEOUT_MS,
         );
 
+        if (!mounted) return;
+
         if (error) {
           console.error("Error getting session:", error);
-          if (isOffline() || isNetworkError(error)) {
-            await applyCachedUser();
-            return;
-          }
-          if (!mounted) return;
           setUser(null);
+          await clearUserScopedClientState();
           return;
         }
 
-        const authUser = session?.user;
-        if (!mounted) return;
-
-        if (authUser) {
-          const nextUser = {
-            id: authUser.id,
-            email: authUser.email,
-          };
-          setUser(nextUser);
-          await cacheAuthSnapshot({
-            hasSession: true,
-            user: nextUser,
-            onboardingComplete: (await getCachedAuthSnapshot())
-              ?.onboardingComplete ?? null,
+        if (session?.user?.id) {
+          await applySessionUser({
+            id: session.user.id,
+            email: session.user.email,
           });
           return;
         }
 
-        if (isOffline()) {
-          await applyCachedUser();
-          return;
-        }
-
+        // Never restore identity from IndexedDB/localStorage when Supabase has
+        // no session. This prevents account A from being shown as account B.
         setUser(null);
+        await clearUserScopedClientState();
       } catch (error) {
         console.error("Error getting session:", error);
-        if (isOffline() || isNetworkError(error)) {
-          await applyCachedUser();
-          return;
-        }
         if (!mounted) return;
         setUser(null);
+        await clearUserScopedClientState();
       } finally {
         if (mounted) {
           setLoading(false);
@@ -125,38 +111,27 @@ export const useAuth = () => {
       }
     };
 
-    getUser();
+    void getUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!mounted) return;
-        if (session?.user) {
-          const nextUser = {
-            id: session.user.id,
-            email: session.user.email,
-          };
-          setUser(nextUser);
-          await cacheAuthSnapshot({
-            hasSession: true,
-            user: nextUser,
-            onboardingComplete: (await getCachedAuthSnapshot())
-              ?.onboardingComplete ?? null,
-          });
-        } else {
-          if (isOffline()) {
-            const cachedSnapshot = await getCachedAuthSnapshot();
-            if (cachedSnapshot?.hasSession && cachedSnapshot.user) {
-              setUser(cachedSnapshot.user);
-              setLoading(false);
-              return;
-            }
-          }
-          setUser(null);
-          await clearCachedAuthSnapshot();
-        }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
+
+      if (session?.user?.id) {
+        await applySessionUser({
+          id: session.user.id,
+          email: session.user.email,
+        });
+      } else {
+        setUser(null);
+        await clearUserScopedClientState();
+      }
+
+      if (mounted) {
         setLoading(false);
       }
-    );
+    });
 
     return () => {
       mounted = false;

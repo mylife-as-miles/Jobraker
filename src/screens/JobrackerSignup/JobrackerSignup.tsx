@@ -39,6 +39,10 @@ import { useToast } from "../../components/ui/toast-provider";
 import Modal from "../../components/ui/modal";
 import { SelfSolvingCube } from "./components/SelfSolvingCube";
 import { sanitizeTextValue } from "@/lib/inputSecurity";
+import {
+  clearUserScopedClientState,
+  prepareForFreshAuthentication,
+} from "../../lib/sessionIsolation";
 
 function isAdminHost() {
   return window.location.hostname.startsWith("admin.");
@@ -274,7 +278,8 @@ export const JobrackerSignup = (): JSX.Element => {
       (factor) => factor.status === "verified",
     );
     if (!verifiedTotp) {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
+      await clearUserScopedClientState();
       throw new Error("Two-factor authentication is enabled, but no verified authenticator was found. Please contact support.");
     }
     setMfaFactorId(verifiedTotp.id);
@@ -422,7 +427,8 @@ export const JobrackerSignup = (): JSX.Element => {
     setUseBackupCode(false);
     setBackupCodeInput("");
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
+      await clearUserScopedClientState();
     } catch {}
   };
   const passwordCheck = useMemo(
@@ -471,6 +477,7 @@ export const JobrackerSignup = (): JSX.Element => {
         if (isSignUp) {
           captureClientEvent("signup_started", { auth_method: provider });
         }
+        await prepareForFreshAuthentication(supabase);
         localStorage.setItem("lastUsedProvider", provider);
         setLastUsedProvider(provider);
         const authApi = (supabase as any).auth;
@@ -543,6 +550,7 @@ export const JobrackerSignup = (): JSX.Element => {
         }
 
         setSubmitting(true);
+        await prepareForFreshAuthentication(supabase);
         captureClientEvent("signup_started", {
           auth_method: "email",
           signup_surface: "jobracker_signup",
@@ -577,6 +585,7 @@ export const JobrackerSignup = (): JSX.Element => {
         }
 
         setSubmitting(true);
+        await prepareForFreshAuthentication(supabase);
         const { data: signInData, error } =
           await supabase.auth.signInWithPassword({
             email: sanitizedEmail,
@@ -607,7 +616,8 @@ export const JobrackerSignup = (): JSX.Element => {
               `Login blocked: ${securityCheck.reason || "Security policy violation"}`,
               "medium"
             );
-            await supabase.auth.signOut();
+            await supabase.auth.signOut({ scope: "local" });
+            await clearUserScopedClientState();
             toastError(
               "Login blocked",
               securityCheck.reason || "Security policy violation",

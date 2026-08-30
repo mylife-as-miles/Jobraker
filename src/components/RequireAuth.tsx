@@ -1,15 +1,15 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../routes";
 import { createClient } from "../lib/supabaseClient";
 import { events } from "@/lib/analytics";
 import {
   cacheAuthSnapshot,
-  clearCachedAuthSnapshot,
   getCachedAuthSnapshot,
+  getCachedAuthSnapshotForUser,
   updateCachedOnboardingStatus,
 } from "@/lib/offlineAppCache";
-
+import { clearUserScopedClientState } from "@/lib/sessionIsolation";
 import { RouteLoadingFallback } from "./system/RouteLoadingFallback";
 
 type Props = { children: React.ReactNode };
@@ -35,19 +35,6 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
     const isOffline = () =>
       typeof navigator !== "undefined" && navigator.onLine === false;
 
-    const isNetworkError = (error: any) => {
-      if (!error) return false;
-      const msg = String(error.message || error).toLowerCase();
-      return (
-        msg.includes("fetch") ||
-        msg.includes("network") ||
-        msg.includes("timeout") ||
-        msg.includes("timed out") ||
-        msg.includes("err_") ||
-        error instanceof TypeError
-      );
-    };
-
     const withTimeout = async <T,>(promise: Promise<T>, ms: number) => {
       let timeoutId: number | undefined;
       try {
@@ -65,26 +52,14 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
       }
     };
 
-    const applyCachedAccess = async () => {
-      const cachedSnapshot = await getCachedAuthSnapshot();
-      if (!cachedSnapshot?.hasSession || !cachedSnapshot.user || !mounted) {
-        return false;
-      }
-
-      const complete = cachedSnapshot.onboardingComplete !== false;
-      setOnboardingCheck({ done: true, complete });
-      setChecking(false);
-
-      if (!complete && window.location.pathname !== ROUTES.ONBOARDING) {
-        navigate(ROUTES.ONBOARDING, { replace: true });
-      }
-
-      return true;
+    const rejectAccess = async () => {
+      await clearUserScopedClientState();
+      if (!mounted) return;
+      navigate(ROUTES.SIGNIN, { replace: true });
     };
 
     const check = async () => {
       try {
-        const cachedSnapshot = await getCachedAuthSnapshot();
         const {
           data: { session },
           error: sessionError,
@@ -95,36 +70,42 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
 
         if (sessionError) {
           console.error("Session error:", sessionError);
-          if ((isOffline() || isNetworkError(sessionError)) && (await applyCachedAccess())) return;
-          if (!mounted) return;
-          navigate(ROUTES.SIGNIN, { replace: true });
+          await rejectAccess();
           return;
         }
 
-        if (!session?.access_token) {
-          if (isOffline() && (await applyCachedAccess())) return;
-          if (!mounted) return;
-          navigate(ROUTES.SIGNIN, { replace: true });
+        // Cached JobRaker state is never authorization. A real Supabase
+        // persisted/current session is required before protected UI renders.
+        if (!session?.access_token || !session.user?.id) {
+          await rejectAccess();
           return;
         }
 
-        const authUser = session.user
-          ? {
-              id: session.user.id,
-              email: session.user.email,
-            }
-          : cachedSnapshot?.user ?? null;
+        const authUser = {
+          id: session.user.id,
+          email: session.user.email,
+        };
+
+        const cachedSnapshot = await getCachedAuthSnapshot();
+        const matchingCachedSnapshot =
+          await getCachedAuthSnapshotForUser(authUser.id);
+
+        // Account A -> account B in the same browser must invalidate every
+        // user-scoped client cache before B's state can be hydrated.
+        if (
+          cachedSnapshot?.user?.id &&
+          cachedSnapshot.user.id !== authUser.id
+        ) {
+          await clearUserScopedClientState();
+        }
 
         if (!mounted) return;
-        if (!authUser?.id) {
-          navigate(ROUTES.SIGNIN, { replace: true });
-          return;
-        }
 
         await cacheAuthSnapshot({
           hasSession: true,
           user: authUser,
-          onboardingComplete: cachedSnapshot?.onboardingComplete ?? null,
+          onboardingComplete:
+            matchingCachedSnapshot?.onboardingComplete ?? null,
         });
 
         if (!isOffline()) {
@@ -136,7 +117,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
               assurance?.currentLevel !== "aal2" &&
               assurance?.nextLevel === "aal2"
             ) {
-              await clearCachedAuthSnapshot();
+              await clearUserScopedClientState();
               if (!mounted) return;
               navigate(`${ROUTES.SIGNIN}?mfa=required`, { replace: true });
               return;
@@ -151,8 +132,8 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
 
             const securityCheck = await checkSecuritySettings(authUser.id);
             if (!securityCheck.allowed) {
-              await supabase.auth.signOut();
-              await clearCachedAuthSnapshot();
+              await supabase.auth.signOut({ scope: "local" });
+              await clearUserScopedClientState();
               if (!mounted) return;
               navigate(ROUTES.SIGNIN, { replace: true });
               return;
@@ -178,24 +159,30 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
               const sessionAge =
                 Date.now() -
                 (session.expires_at ? session.expires_at * 1000 : Date.now());
-              const timeoutMs = secSettings.session_timeout_minutes * 60 * 1000;
+              const timeoutMs =
+                secSettings.session_timeout_minutes * 60 * 1000;
+
               if (sessionAge > timeoutMs) {
-                await supabase.auth.signOut();
-                await clearCachedAuthSnapshot();
+                await supabase.auth.signOut({ scope: "local" });
+                await clearUserScopedClientState();
                 if (!mounted) return;
                 navigate(ROUTES.SIGNIN, { replace: true });
                 return;
               }
             }
-          } catch (e) {
-            console.warn("Session management error:", e);
+          } catch (error) {
+            console.warn("Session management error:", error);
           }
         }
 
         if (isOffline()) {
-          const complete = cachedSnapshot?.onboardingComplete !== false;
+          // Offline onboarding hints are allowed only after a real Supabase
+          // session has been established AND only for the same user id.
+          const complete =
+            matchingCachedSnapshot?.onboardingComplete !== false;
           setOnboardingCheck({ done: true, complete });
           setChecking(false);
+
           if (!complete && window.location.pathname !== ROUTES.ONBOARDING) {
             navigate(ROUTES.ONBOARDING, { replace: true });
           }
@@ -223,6 +210,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
 
           await updateCachedOnboardingStatus(false, authUser);
           setOnboardingCheck({ done: true, complete: false });
+
           if (window.location.pathname !== ROUTES.ONBOARDING) {
             try {
               events.onboardingRedirect("missing_profile");
@@ -256,41 +244,44 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
         setChecking(false);
       } catch (error) {
         console.error("Auth check error:", error);
-        if ((isOffline() || isNetworkError(error)) && (await applyCachedAccess())) return;
-        if (!mounted) return;
-        navigate(ROUTES.SIGNIN, { replace: true });
+        await rejectAccess();
       }
     };
 
-    check();
+    void check();
 
     const { data: sub } = supabase.auth.onAuthStateChange(
       async (_event: any, session: any) => {
-        if (session?.user) {
+        if (session?.user?.id) {
+          const existing = await getCachedAuthSnapshot();
+          if (
+            existing?.user?.id &&
+            existing.user.id !== session.user.id
+          ) {
+            await clearUserScopedClientState();
+          }
+
           await cacheAuthSnapshot({
             hasSession: true,
-            user: { id: session.user.id, email: session.user.email },
-            onboardingComplete: onboardingCheckRef.current.done
-              ? onboardingCheckRef.current.complete
-              : null,
+            user: {
+              id: session.user.id,
+              email: session.user.email,
+            },
+            onboardingComplete:
+              existing?.user?.id === session.user.id &&
+              onboardingCheckRef.current.done
+                ? onboardingCheckRef.current.complete
+                : null,
           });
           return;
         }
 
-        // If the initial check is still running, let it handle the initial state
-        if (checkingRef.current) {
-          return;
-        }
+        // Do not resurrect a cached account when Supabase says there is no
+        // session. This is the critical session-isolation boundary.
+        if (checkingRef.current) return;
 
-        // If session is null, check if we are offline before redirecting
-        if (isOffline()) {
-          const cachedSnapshot = await getCachedAuthSnapshot();
-          if (cachedSnapshot?.hasSession) {
-            return;
-          }
-        }
-
-        await clearCachedAuthSnapshot();
+        await clearUserScopedClientState();
+        if (!mounted) return;
         navigate(ROUTES.SIGNIN, { replace: true });
       },
     );
@@ -304,5 +295,6 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
   if (checking || !onboardingCheck.done) {
     return <RouteLoadingFallback />;
   }
+
   return <>{children}</>;
 };

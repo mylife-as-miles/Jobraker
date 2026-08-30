@@ -25,6 +25,12 @@ import { initSentry, Sentry } from "./lib/sentry";
 import { PostHogProvider } from "posthog-js/react";
 import { HelmetProvider } from "react-helmet-async";
 import { usePostHogAuthBridge } from "./hooks/usePostHogAuthBridge";
+import { createClient } from "./lib/supabaseClient";
+import {
+  AUTH_CACHE_RESET_EVENT,
+  clearUserScopedClientState,
+} from "./lib/sessionIsolation";
+import { useChatSessions } from "./stores/chatSessions";
 
 import { lazyWithRetry } from "./utils/lazyWithRetry";
 import { RouteLoadingFallback } from "./components/system/RouteLoadingFallback";
@@ -437,6 +443,66 @@ function SubdomainGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AuthCacheIsolationBridge({
+  queryClient,
+}: {
+  queryClient: QueryClient;
+}) {
+  const lastUserIdRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    const clearInMemoryCaches = async () => {
+      queryClient.clear();
+      useChatSessions.getState().reset();
+      await useChatSessions.persist.clearStorage();
+    };
+
+    const handleExplicitReset = () => {
+      void clearInMemoryCaches();
+    };
+
+    window.addEventListener(AUTH_CACHE_RESET_EVENT, handleExplicitReset);
+
+    const supabase = createClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      const nextUserId = session?.user?.id ?? null;
+      const previousUserId = lastUserIdRef.current;
+
+      if (event === "INITIAL_SESSION") {
+        lastUserIdRef.current = nextUserId;
+        return;
+      }
+
+      if (event === "SIGNED_OUT" || !nextUserId) {
+        lastUserIdRef.current = null;
+        queryClient.clear();
+        useChatSessions.getState().reset();
+        void useChatSessions.persist.clearStorage();
+        void clearUserScopedClientState();
+        return;
+      }
+
+      if (previousUserId && previousUserId !== nextUserId) {
+        queryClient.clear();
+        useChatSessions.getState().reset();
+        void useChatSessions.persist.clearStorage();
+        void clearUserScopedClientState();
+      }
+
+      lastUserIdRef.current = nextUserId;
+    });
+
+    return () => {
+      window.removeEventListener(AUTH_CACHE_RESET_EVENT, handleExplicitReset);
+      subscription.unsubscribe();
+    };
+  }, [queryClient]);
+
+  return null;
+}
+
 function App() {
   const [queryClient] = React.useState(() => new QueryClient());
   usePostHogAuthBridge();
@@ -445,6 +511,7 @@ function App() {
     <HelmetProvider>
       <PostHogProvider client={posthog}>
         <QueryClientProvider client={queryClient}>
+          <AuthCacheIsolationBridge queryClient={queryClient} />
           <BrowserRouter>
             {/* Global providers */}
             <ToastProvider>

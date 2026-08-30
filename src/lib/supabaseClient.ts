@@ -1,6 +1,7 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient, AuthError } from "@supabase/supabase-js";
 import { sanitizeStructuredPayload } from "@/lib/inputSecurity";
+import { clearUserScopedClientState } from "@/lib/sessionIsolation";
 
 let _cached: SupabaseClient | null = null;
 
@@ -154,9 +155,8 @@ export function createClient(): SupabaseClient {
       handledInvalidToken = true;
       console.warn("Session lost, clearing auth state");
       try {
-        await client.auth.signOut();
-        // Clear any stale tokens from localStorage
-        localStorage.removeItem("supabase.auth.token");
+        await client.auth.signOut({ scope: "local" });
+        await clearUserScopedClientState();
         // Redirect to login if not already there
         if (
           window.location.pathname !== "/signin" &&
@@ -191,9 +191,8 @@ export function createClient(): SupabaseClient {
         handledInvalidToken = true;
         console.warn("Invalid refresh token detected, signing out");
         try {
-          await client.auth.signOut();
-          // Clear any stale tokens from localStorage
-          localStorage.removeItem("supabase.auth.token");
+          await client.auth.signOut({ scope: "local" });
+          await clearUserScopedClientState();
           // Redirect to login only if we're on a protected route
           const isPublicRoute = isPublicBrowserRoute(window.location.pathname);
           if (
