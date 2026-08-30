@@ -741,6 +741,105 @@ async function notifyTaskFailure(supabase: any, userId: string, task: any, error
   }
 }
 
+async function executeAutoApplyAgent(
+  supabase: any,
+  userId: string,
+  params: any,
+  progress: any,
+) {
+  const goal = typeof params?.goal === "string" ? params.goal : (params?.title || "Auto apply to targeted jobs");
+  const searchQuery = params?.parameters?.query || params?.query || "";
+  const limit = params?.parameters?.limit || params?.limit || 10;
+
+  await progress.updateProgress(1, 4, "Analyzing automation criteria...", [
+    { time: new Date().toISOString(), event: "start", message: `Auto Apply objective: ${goal}` },
+  ]);
+
+  if (!searchQuery) {
+    throw new Error("A search query is required for the auto apply agent to target the correct jobs.");
+  }
+
+  await progress.updateProgress(2, 4, `Fetching jobs matching: "${searchQuery}"...`, [
+    { time: new Date().toISOString(), event: "search", message: "Scanning job queue" },
+  ]);
+
+  // Fetch jobs that match the search query
+  const { data: jobs, error: jobsError } = await supabase
+    .from("jobs")
+    .select("id, title, company, location, apply_url, source_id, raw_data, evaluation_summary")
+    .eq("user_id", userId)
+    .contains("raw_data", { discovery: { search_query: searchQuery } })
+    .not("canonical_status", "in", '("APPLIED", "REJECTED", "INTERVIEWING", "OFFER")')
+    .order("created_at", { ascending: false })
+    .limit(limit * 2);
+
+  if (jobsError) {
+    throw new Error(`Failed to fetch jobs: ${jobsError.message}`);
+  }
+
+  if (!jobs || jobs.length === 0) {
+    return {
+      summary: `No available jobs found matching query: "${searchQuery}". Please run a job search first.`,
+      goal,
+    };
+  }
+
+  // Filter out jobs that already have applications
+  const jobIds = jobs.map((j: any) => j.id);
+  const { data: existingApps } = await supabase
+    .from("applications")
+    .select("job_id")
+    .eq("user_id", userId)
+    .in("job_id", jobIds);
+  
+  const appliedJobIds = new Set((existingApps || []).map((a: any) => a.job_id));
+  const targetJobs = jobs.filter((j: any) => !appliedJobIds.has(j.id)).slice(0, limit);
+
+  if (targetJobs.length === 0) {
+    return {
+      summary: `All found jobs for "${searchQuery}" have already been applied to or queued.`,
+      goal,
+    };
+  }
+
+  await progress.updateProgress(3, 4, `Found ${targetJobs.length} eligible jobs. Dispatching to auto-apply queue...`, [
+    { time: new Date().toISOString(), event: "dispatch", message: "Sending to application engine" },
+  ]);
+
+  // Call the apply-to-jobs edge function using service role
+  const jobsPayload = targetJobs.map((j: any) => ({
+    sourceUrl: j.apply_url || j.source_id,
+    url: j.apply_url || j.source_id,
+    source_url: j.source_id,
+    job_id: j.id,
+    job_title: j.title,
+    company: j.company,
+    location: j.location,
+    match_score: j.evaluation_summary?.confidence_score,
+  }));
+
+  const { data: applyResponse, error: applyError } = await supabase.functions.invoke("apply-to-jobs", {
+    body: { jobs: jobsPayload, user_id: userId },
+    headers: {
+      Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+    },
+  });
+
+  if (applyError) {
+    throw new Error(`Failed to dispatch jobs to auto-apply queue: ${applyError.message}`);
+  }
+
+  await progress.updateProgress(4, 4, "Auto-apply background dispatch complete.", [
+    { time: new Date().toISOString(), event: "complete", message: `Queued ${targetJobs.length} jobs` },
+  ]);
+
+  return {
+    summary: `Successfully queued ${targetJobs.length} jobs matching "${searchQuery}" for autonomous application.`,
+    target_count: targetJobs.length,
+    goal,
+  };
+}
+
 Deno.serve(async (req) => {
   // Database triggers call process-task Edge Function directly
   const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
@@ -873,7 +972,9 @@ Deno.serve(async (req) => {
           result = await executeResearchAgent(supabase, task.user_id, task.params, progressHelper);
         } else if (task.type === "outreach_agent") {
           result = await executeOutreachAgent(supabase, task.user_id, task.params, progressHelper);
-        } else if (task.type === "custom_agent" || task.type === "monitoring_agent" || task.type === "auto_apply_agent") {
+        } else if (task.type === "auto_apply_agent") {
+          result = await executeAutoApplyAgent(supabase, task.user_id, task.params, progressHelper);
+        } else if (task.type === "custom_agent" || task.type === "monitoring_agent") {
           result = await executeCustomAgent(supabase, task.user_id, task.params, progressHelper);
         } else {
           throw new Error(`Unsupported task type: ${task.type}`);

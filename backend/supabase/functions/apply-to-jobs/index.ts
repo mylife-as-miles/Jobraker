@@ -460,17 +460,45 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(
-      req,
-      "Free",
-      "Auto apply",
-    );
+    
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.replace(/^Bearer\\s+/i, "").trim();
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const isSystemTrigger = token && serviceRoleKey && token === serviceRoleKey;
 
-    const userId = user.id;
-    const email =
-      typeof body?.email === "string" && body.email.trim()
-        ? body.email.trim()
-        : user.email || "";
+    let userId: string;
+    let subscriptionTier: string;
+    let serviceClient: any;
+    let email = "";
+
+    if (isSystemTrigger) {
+      if (!body?.user_id) {
+         return new Response(JSON.stringify({ error: "user_id required for system calls" }), {
+           status: 400,
+           headers: { ...corsHeaders, "content-type": "application/json" }
+         });
+      }
+      userId = body.user_id;
+      
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+      serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        { auth: { persistSession: false } }
+      );
+      
+      const { resolveSubscriptionTier } = await import("../_shared/subscription.ts");
+      subscriptionTier = await resolveSubscriptionTier(userId, serviceClient);
+      
+      const { data: userProfile } = await serviceClient.from("profiles").select("email").eq("id", userId).maybeSingle();
+      email = typeof body?.email === "string" && body.email.trim() ? body.email.trim() : (userProfile?.email || "");
+    } else {
+      const authCtx = await requireSubscriptionTier(req, "Free", "Auto apply");
+      userId = authCtx.user.id;
+      subscriptionTier = authCtx.subscriptionTier;
+      serviceClient = authCtx.serviceClient;
+      email = typeof body?.email === "string" && body.email.trim() ? body.email.trim() : (authCtx.user.email || "");
+    }
     const jobUrlsFromJobUrls = extractJobUrls(body?.job_urls);
     const jobUrlsFromJobs = extractJobUrls(body?.jobs);
     const jobUrls = (
