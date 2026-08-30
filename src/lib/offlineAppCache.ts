@@ -131,6 +131,11 @@ export async function getCachedAuthSnapshot() {
   return readIndexedDbSnapshot();
 }
 
+export async function getCachedAuthSnapshotForUser(userId: string) {
+  const snapshot = await getCachedAuthSnapshot();
+  return snapshot?.user?.id === userId ? snapshot : null;
+}
+
 export async function cacheAuthSnapshot(
   snapshot: Omit<CachedAuthSnapshot, "updatedAt">,
 ) {
@@ -145,9 +150,12 @@ export async function updateCachedOnboardingStatus(
   user?: CachedAuthUser | null,
 ) {
   const existing = await getCachedAuthSnapshot();
+  const sameUserExisting =
+    user && existing?.user?.id === user.id ? existing : !user ? existing : null;
+
   await cacheAuthSnapshot({
-    hasSession: existing?.hasSession ?? Boolean(user),
-    user: user ?? existing?.user ?? null,
+    hasSession: user ? true : sameUserExisting?.hasSession ?? false,
+    user: user ?? sameUserExisting?.user ?? null,
     onboardingComplete,
   });
 }
