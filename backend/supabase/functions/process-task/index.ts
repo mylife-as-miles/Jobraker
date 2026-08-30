@@ -11,7 +11,7 @@ import { resolveJobSearchExecutionLimits } from "../_shared/subscription.ts";
 import { evaluateAndPersistJobFit } from "../_shared/job-evaluation.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createNotificationRecord } from "../_shared/notification-center.ts";
-import { createGeminiClient, GEMINI_MODEL } from "../_shared/gemini.ts";
+import { createGeminiClient, GEMINI_MODEL, formatGeminiErrorMessage } from "../_shared/gemini.ts";
 
 
 class TaskCanceledError extends Error {
@@ -23,6 +23,13 @@ class TaskCanceledError extends Error {
 
 function serializeError(err: any): string {
   if (err == null) return "Unknown error";
+  
+  // Format and sanitize AI errors
+  const formattedAi = formatGeminiErrorMessage(err);
+  if (formattedAi && formattedAi !== "AI is temporarily unavailable. Please try again shortly." && !formattedAi.includes("Unknown error")) {
+    return formattedAi;
+  }
+
   let rawMsg = "";
   if (typeof err === "string") {
     rawMsg = err;
@@ -31,7 +38,7 @@ function serializeError(err: any): string {
     if (anyErr.response?.data) {
       rawMsg = `${err.message}: ${JSON.stringify(anyErr.response.data)}`;
     } else {
-      rawMsg = err.message || err.stack || String(err);
+      rawMsg = err.message || String(err);
     }
   } else if (typeof err === "object") {
     if (err.message) {
@@ -53,6 +60,11 @@ function serializeError(err: any): string {
   // Clean up database internal constraint errors into human-friendly explanations
   if (/23505|duplicate key|jobs_user_fingerprint_idx/i.test(rawMsg)) {
     return "Duplicate job entry detected — merged into application queue.";
+  }
+
+  // Strip stack trace lines
+  if (rawMsg.includes("\n    at ") || rawMsg.includes("    at ")) {
+    rawMsg = rawMsg.split(/\n\s*at\s+/)[0].trim();
   }
 
   return rawMsg;

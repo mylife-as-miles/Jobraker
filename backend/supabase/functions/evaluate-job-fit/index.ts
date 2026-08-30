@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { createSafeAiErrorResponse } from "../_shared/gemini.ts";
 import {
   SubscriptionAccessError,
   requireSubscriptionTier,
@@ -87,15 +88,6 @@ serve(async (req) => {
       return subscriptionErrorResponse(error, corsHeaders);
     }
     console.error("Error in evaluate-job-fit function:", error);
-    return new Response(
-      JSON.stringify({
-        error:
-          error instanceof Error ? error.message : "Internal server error",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return createSafeAiErrorResponse(error, corsHeaders);
   }
 });

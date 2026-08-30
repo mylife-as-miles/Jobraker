@@ -6,6 +6,7 @@ import {
   GEMINI_MODEL,
   runMeteredAiCall,
   withModelFallback,
+  formatGeminiErrorMessage,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -188,7 +189,7 @@ Rules:
           "Canada",
           "Germany",
         ],
-        warning: err.message,
+        warning: formatGeminiErrorMessage(err),
       }),
       {
         status: 200,

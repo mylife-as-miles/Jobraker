@@ -7,6 +7,7 @@ import {
   isGeminiAccessDeniedError,
   withModelFallback,
   runMeteredAiCall,
+  createSafeAiErrorResponse,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -226,9 +227,6 @@ serve(async (req) => {
       return subscriptionErrorResponse(error, corsHeaders);
     }
     console.error("Error in generate-outreach:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createSafeAiErrorResponse(error, corsHeaders);
   }
 });

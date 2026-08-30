@@ -45,26 +45,84 @@ async function getFreshAccessToken() {
   return session.access_token;
 }
 
+export function sanitizeClientAiError(message: string, status?: number): string {
+  if (!message || typeof message !== "string") {
+    return status === 429
+      ? "AI capacity is temporarily limited due to high demand. Please try again in a moment."
+      : "An unexpected error occurred. Please try again.";
+  }
+
+  const lower = message.toLowerCase();
+  if (
+    status === 429 ||
+    lower.includes("429") ||
+    lower.includes("resource_exhausted") ||
+    lower.includes("googlegenerativeai") ||
+    lower.includes("generativelanguage.googleapis.com") ||
+    lower.includes("quota") ||
+    lower.includes("rate limit") ||
+    lower.includes("rate_limit") ||
+    lower.includes("too many requests") ||
+    lower.includes("exhausted your capacity") ||
+    lower.includes("prepaid credits") ||
+    lower.includes("check quota")
+  ) {
+    return "AI generation is temporarily experiencing high demand. Please try again in a few moments.";
+  }
+
+  if (
+    status === 403 ||
+    lower.includes("permission_denied") ||
+    lower.includes("denied access") ||
+    lower.includes("provider_access_denied")
+  ) {
+    return "The AI service is temporarily undergoing maintenance. Please try again shortly.";
+  }
+
+  if (
+    status === 502 ||
+    status === 503 ||
+    status === 504 ||
+    lower.includes("overloaded") ||
+    lower.includes("service unavailable") ||
+    lower.includes("provider_temporarily_unavailable")
+  ) {
+    return "The AI service is temporarily taking longer than usual to respond. Please try again in a moment.";
+  }
+
+  // Strip stack trace leaks (e.g. "at file:///...", "at Object...", "at ModuleLoader...")
+  if (message.includes("\n    at ") || message.includes("    at ")) {
+    return message.split(/\n\s*at\s+/)[0].trim() || "An error occurred while processing your request.";
+  }
+
+  return message;
+}
+
 function extractFunctionErrorMessage(
   payload: unknown,
   functionName: string,
   status: number,
 ) {
+  let message = "";
   if (typeof payload === "string" && payload.trim()) {
-    return payload;
-  }
-
-  if (payload && typeof payload === "object") {
+    message = payload;
+  } else if (payload && typeof payload === "object") {
     const record = payload as Record<string, unknown>;
-    const message =
+    message =
       (typeof record.error === "string" && record.error) ||
       (typeof record.message === "string" && record.message) ||
-      (typeof record.code === "string" && record.code);
-
-    if (message) return message;
+      (typeof record.code === "string" && record.code) ||
+      "";
   }
 
-  return `Failed to invoke ${functionName} (${status})`;
+  if (!message) {
+    if (status === 429) {
+      return "AI generation is temporarily experiencing high demand. Please try again in a few moments.";
+    }
+    return `Failed to invoke ${functionName} (${status})`;
+  }
+
+  return sanitizeClientAiError(message, status);
 }
 
 function buildFunctionRequest(functionName: string, options: InvokeProtectedFunctionOptions) {

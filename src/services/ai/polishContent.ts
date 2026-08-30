@@ -29,6 +29,7 @@ export async function polishContent(content: string, instruction?: string): Prom
 
   } catch (err: any) {
     console.error("Polish service error:", err);
-    throw new Error(`Failed to polish content: ${err.message || err}`);
+    const msg = err?.message || "Failed to polish content. Please try again.";
+    throw new Error(msg);
   }
 }

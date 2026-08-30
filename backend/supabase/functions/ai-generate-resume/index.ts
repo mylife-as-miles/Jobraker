@@ -8,7 +8,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createGeminiClient, GEMINI_MODEL, runMeteredAiCall } from "../_shared/gemini.ts";
+import { createGeminiClient, GEMINI_MODEL, runMeteredAiCall, createSafeAiErrorResponse } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
@@ -334,11 +334,7 @@ ${targetRole ? `- Tailor the resume for the target role: ${targetRole}` : ""}
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
-    const msg = e?.message ? String(e.message) : "Unknown error";
-    console.error("ai-generate-resume error", msg);
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("ai-generate-resume error", e);
+    return createSafeAiErrorResponse(e, corsHeaders);
   }
 });

@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText, withModelFallback, runMeteredAiCall } from "../_shared/gemini.ts";
+import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText, withModelFallback, runMeteredAiCall, createSafeAiErrorResponse } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
 import {
@@ -235,9 +235,6 @@ serve(async (req) => {
       return subscriptionErrorResponse(error, corsHeaders);
     }
     console.error("Error in analyze-resume function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return createSafeAiErrorResponse(error, corsHeaders);
   }
 });
