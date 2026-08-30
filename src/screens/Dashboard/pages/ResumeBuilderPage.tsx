@@ -77,7 +77,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const navigate = useNavigate();
   const { success, error: toastError, info } = useToast();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
-  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Free");
+  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Starter");
   const { save: persistResume } = useResumePersistence(resumeId);
   const { downloadPdf, exporting } = useResumeExport((message) => {
     toastError("PDF export failed", message);
@@ -308,7 +308,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
     if (!hasResumeAiAccess) {
       toastError(
         "Upgrade required",
-        "Resume AI tools are available on Basics and above.",
+        "Resume AI tools are available on Starter and above.",
       );
       return;
     }

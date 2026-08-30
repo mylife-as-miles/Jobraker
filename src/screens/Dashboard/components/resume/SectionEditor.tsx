@@ -3,7 +3,9 @@ import { useArtboardStore } from "../../../../store/artboard";
 import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
-import { Textarea } from "../../../../components/ui/textarea"; // Assuming textarea exists
+import { PolishableTextArea } from "./PolishableTextArea";
+import { polishContent } from "../../../../services/ai/polishContent";
+import { useToast } from "../../../../hooks/use-toast";
 
 interface SectionEditorProps {
   sectionId: string;
@@ -22,8 +24,39 @@ export const SectionEditor = ({ sectionId }: SectionEditorProps) => {
     (state) => state.removeSectionItem,
   );
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [polishingItemId, setPolishingItemId] = useState<string | null>(null);
+  const { error: toastError, success } = useToast();
 
   if (!section) return null;
+
+  const handlePolishItem = async (itemId: string, content: string) => {
+    if (!content.trim()) return;
+    setPolishingItemId(itemId);
+    try {
+      const suggestions = await polishContent(
+        content,
+        "Make this bullet point highly impactful and action-oriented."
+      );
+      const nextContent =
+        suggestions.find((item) => item.isRecommended)?.content ||
+        suggestions[0]?.content ||
+        "";
+      if (!nextContent) throw new Error("No AI suggestion was returned.");
+      
+      updateSectionItem(sectionId, itemId, {
+        description: nextContent,
+        highlights: nextContent.split("\n").filter(Boolean),
+      });
+      success("Bullet polished", "AI successfully enhanced your description.");
+    } catch (e: any) {
+      toastError(
+        "AI polish failed",
+        e?.message || "AI is temporarily unavailable."
+      );
+    } finally {
+      setPolishingItemId(null);
+    }
+  };
 
   const handleAddItem = () => {
     const newItem = {
@@ -212,13 +245,15 @@ export const SectionEditor = ({ sectionId }: SectionEditorProps) => {
                     <label className='product-helper-text mb-1 block text-xs font-medium'>
                       Description / Highlights
                     </label>
-                    <textarea
+                    <PolishableTextArea
                       rows={3}
                       className='product-input-surface rounded-xl px-3 py-2 text-sm w-full border border-border/40 bg-transparent'
                       value={
                         item.description ||
                         (item.highlights ? item.highlights.join("\n") : "")
                       }
+                      isPolishing={polishingItemId === item.id}
+                      onPolish={(_, value) => handlePolishItem(item.id, value)}
                       onChange={(e) =>
                         updateSectionItem(sectionId, item.id, {
                           description: e.target.value,
