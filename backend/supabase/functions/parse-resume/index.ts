@@ -96,8 +96,8 @@ const PARSING_SCHEMA = {
   required: ["firstName", "lastName", "email", "jobTitle", "about", "skills", "education", "experience"]
 };
 
-function buildPrompt(resumeText: string): string {
-  return `You are a lossless resume/CV parser. Your task is to extract structured profile data while preserving the candidate's original detail.
+function buildPrompt(resumeText: string | null): string {
+  const basePrompt = `You are a lossless resume/CV parser. Your task is to extract structured profile data while preserving the candidate's original detail.
 
 Extract into the following JSON structure:
 ${JSON.stringify(PARSING_SCHEMA, null, 2)}
@@ -114,12 +114,12 @@ Requirements:
 - For each experience.description, preserve the vital details from that role: responsibilities, achievements, metrics, customers/industries, tools, leadership scope, and named initiatives.
 - Do not compress a role to 1-2 generic sentences. Use newline-separated bullet-like lines inside the description string when the source has multiple bullets.
 - Never drop older roles, extra bullets, metrics, or technical/domain keywords merely to make the output shorter.
-- Keep dates as written when month precision is unavailable. Use End Date "Present" only when the CV indicates the role is current.
+- Keep dates as written when month precision is unavailable. Use End Date "Present" only when the CV indicates the role is current.`;
 
-RESUME CONTENT:
-${resumeText}
-
-Return ONLY valid JSON.`;
+  if (resumeText) {
+    return `${basePrompt}\n\nRESUME CONTENT:\n${resumeText}\n\nReturn ONLY valid JSON.`;
+  }
+  return `${basePrompt}\n\nI have attached the resume PDF. Return ONLY valid JSON.`;
 }
 
 function stripCodeFences(text: string): string {
@@ -265,37 +265,35 @@ serve(async (req) => {
 
     const requestBody = (await req.json()) as ParseResumeRequest;
     const pdfBase64 = requestBody.pdfBase64;
-    let resumeText = "";
+    let resumeText = requestBody.resumeText || "";
     
-    if (pdfBase64) {
-      try {
-        const cleanBase64 = pdfBase64.replace(/^data:application\/pdf;base64,/, "").trim();
-        const pdfBytes = Uint8Array.from(atob(cleanBase64), c => c.charCodeAt(0));
-        resumeText = await extractTextFromPdf(pdfBytes);
-      } catch (extractError: any) {
-        console.error("Server-side PDF text extraction failed:", extractError);
-        if (requestBody.resumeText) {
-          resumeText = requestBody.resumeText;
-        } else {
-          return new Response(JSON.stringify({ error: `Failed to extract text from PDF: ${extractError.message}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-      }
-    } else {
-      resumeText = requestBody.resumeText || "";
-    }
+    let parts: any[] = [];
+    let promptLength = 0;
 
-    if (!resumeText || !resumeText.trim()) {
-      return new Response(JSON.stringify({ error: "resumeText or pdfBase64 is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (pdfBase64) {
+      const cleanBase64 = pdfBase64.replace(/^data:application\/pdf;base64,/, "").trim();
+      const prompt = buildPrompt(null);
+      parts = [
+        { text: prompt },
+        { inlineData: { mimeType: "application/pdf", data: cleanBase64 } }
+      ];
+      promptLength = prompt.length + cleanBase64.length;
+    } else {
+      if (!resumeText || !resumeText.trim()) {
+        return new Response(JSON.stringify({ error: "resumeText or pdfBase64 is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const prompt = buildPrompt(resumeText.slice(0, 60000));
+      parts = [{ text: prompt }];
+      promptLength = prompt.length;
     }
 
     const ai = createGeminiClient();
-    const prompt = buildPrompt(resumeText.slice(0, 60000));
 
     const metered = await runMeteredAiCall({
       userId: user.id,
       featureKey: "parse_resume",
       model: GEMINI_MODEL,
-      promptTextLength: prompt.length,
+      promptTextLength: promptLength,
       execute: async () => {
         const { result: rawResponse, modelUsed } = await withModelFallback(
           (model) => withGeminiRetry(() => ai.models.generateContent({
@@ -306,7 +304,7 @@ serve(async (req) => {
                 includeTools: false,
                 thinkingLevel: "LOW",
               }, model),
-              contents: [{ role: 'user', parts: [{ text: prompt }] }]
+              contents: [{ role: 'user', parts }]
           })),
         );
         return {
@@ -335,7 +333,7 @@ serve(async (req) => {
       serviceClient,
       subscriptionTier,
       metadata: {
-        resume_length: resumeText.length,
+        resume_length: resumeText.length || (pdfBase64 ? pdfBase64.length : 0),
       },
     });
 
