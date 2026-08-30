@@ -110,11 +110,13 @@ Requirements:
 - Extract all clearly stated Skills, tools, technologies, languages, certifications, and domain keywords. Do not cap the list at 20 when the CV contains more relevant skills.
 - Extract Education history (School, Degree, Start Year, End Year).
 - Extract the full Experience history in reverse chronological order.
-- Extract Projects and Certifications when present instead of folding them into summary text.
+- Extract Projects and Certifications when present. They must be placed in their respective arrays, NEVER folded into summary text or experience descriptions.
 - For each experience.description, preserve the vital details from that role: responsibilities, achievements, metrics, customers/industries, tools, leadership scope, and named initiatives.
 - Do not compress a role to 1-2 generic sentences. Use newline-separated bullet-like lines inside the description string when the source has multiple bullets.
 - Never drop older roles, extra bullets, metrics, or technical/domain keywords merely to make the output shorter.
-- Keep dates as written when month precision is unavailable. Use End Date "Present" only when the CV indicates the role is current.`;
+- Keep dates as written when month precision is unavailable. Use End Date "Present" only when the CV indicates the role is current.
+- STRICT SEGMENTATION: Do not merge distinct sections. The 'Experience' array must ONLY contain actual employment and work history.
+- STRICT SEGMENTATION: Do NOT fold 'Projects', 'Education', 'Skills', or 'Certifications' into the 'Experience' array or its descriptions under any circumstances. They MUST be extracted to their own distinct JSON arrays.`;
 
   if (resumeText) {
     return `${basePrompt}\n\nRESUME CONTENT:\n${resumeText}\n\nReturn ONLY valid JSON.`;
