@@ -60,6 +60,7 @@ import { useNotificationSettings } from "../../../hooks/useNotificationSettings"
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
 import { useSecuritySettings } from "../../../hooks/useSecuritySettings";
 import { createClient } from "../../../lib/supabaseClient";
+import { clearUserScopedClientState } from "../../../lib/sessionIsolation";
 import { useAppearance } from "../../../providers/AppearanceProvider";
 import { setThemeToggleOrigin } from "../../../hooks/useAppearanceSettings";
 import { useToast } from "../../../components/ui/toast";
@@ -5490,8 +5491,10 @@ export const SettingsPage = (): JSX.Element => {
 
                   await Promise.all(deletePromises);
 
-                  // Sign out and redirect
-                  await supabase.auth.signOut();
+                  // Sign out locally and purge every user-scoped browser cache
+                  // before redirecting so the next account cannot inherit state.
+                  await supabase.auth.signOut({ scope: "local" });
+                  await clearUserScopedClientState();
                   success("Account deleted successfully");
 
                   // Small delay before redirect to show success message
@@ -5695,7 +5698,8 @@ export const SettingsPage = (): JSX.Element => {
         onConfirm={async () => {
           setIsSigningOut(true);
           try {
-            await supabase.auth.signOut();
+            await supabase.auth.signOut({ scope: "local" });
+            await clearUserScopedClientState();
             window.location.href = "/signin";
           } catch (error) {
             console.error("Sign out error:", error);
