@@ -165,22 +165,30 @@ const JOB_SIGNAL_WORDS = [
   "job",
   "application",
   "applied",
+  "applying",
   "interview",
+  "interviewing",
   "position",
   "role",
   "offer",
   "recruiter",
+  "recruiting",
+  "recruitment",
   "hiring",
   "career",
+  "careers",
   "resume",
   "cv",
   "candidate",
   "requisition",
   "screen",
+  "screening",
   "assessment",
   "thank you",
+  "thanks",
   "follow up",
   "follow-up",
+  "following up",
   "company",
   "team",
   "onboarding",
@@ -189,6 +197,61 @@ const JOB_SIGNAL_WORDS = [
   "withdraw",
   "rejection",
   "schedule",
+  "scheduling",
+  "opportunity",
+  "opportunities",
+  "intro",
+  "introduction",
+  "introducing",
+  "connect",
+  "connecting",
+  "reach",
+  "reaching",
+  "touch base",
+  "inquire",
+  "inquiry",
+  "inquiries",
+  "interest",
+  "interested",
+  "discuss",
+  "discussing",
+  "discussion",
+  "conversation",
+  "chat",
+  "profile",
+  "background",
+  "experience",
+  "skills",
+  "portfolio",
+  "work",
+  "hired",
+  "talent",
+  "sourcing",
+  "outreach",
+  "networking",
+  "referral",
+  "referrals",
+  "update",
+  "feedback",
+  "status",
+  "portal",
+  "posting",
+  "postings",
+  "vacancy",
+  "vacancies",
+  "opening",
+  "openings",
+  "submit",
+  "submitted",
+  "submission",
+  "letter",
+  "cover letter",
+  "attached",
+  "attachment",
+  "availab",
+  "regards",
+  "sincerely",
+  "best",
 ];
 
 const OUTBOUND_BLOCKLIST = [
@@ -232,17 +295,17 @@ function validateJobEmailDraft(
       code: "invalid_to",
     };
   }
-  if (!subject || subject.length > 200) {
+  if (!subject || subject.length > 250) {
     return {
       ok: false as const,
-      error: "Subject is required (max 200 characters).",
+      error: "Subject is required (max 250 characters).",
       code: "invalid_subject",
     };
   }
-  if (body.length < 30 || body.length > 12_000) {
+  if (body.length < 5 || body.length > 25_000) {
     return {
       ok: false as const,
-      error: "Body must be between 30 and 12000 characters.",
+      error: "Body must be between 5 and 25000 characters.",
       code: "invalid_body",
     };
   }
@@ -256,11 +319,11 @@ function validateJobEmailDraft(
       code: "content_blocked",
     };
   }
-  if (countJobSignals(combined) < 2) {
+  if (countJobSignals(combined) < 1) {
     return {
       ok: false as const,
       error:
-        "Email must clearly relate to your job search (e.g. mention role, company, interview, application, or recruiter).",
+        "Email must relate to your job search, networking, or professional outreach (e.g. mention role, company, interview, application, or recruiter).",
       code: "not_job_related",
     };
   }

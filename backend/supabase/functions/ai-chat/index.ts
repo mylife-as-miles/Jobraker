@@ -3675,12 +3675,14 @@ Deno.serve(async (req) => {
 
     if (mode === "agent") {
       const gmailJobRules = canUseEmailIntegrations ? `
-Job-related Gmail (only when tools are available):
-- search_gmail_job_emails searches using a fixed job-search filter on the server; it is not a full inbox search.
-- create_gmail_job_draft creates Gmail drafts only for clearly job-related messages after showing the exact draft to the user.
-- send_gmail_job_email sends only if the message clearly relates to the user's job search; the server may reject other content. Always show the user the exact To, Subject, and body and obtain explicit confirmation before sending.
-- label_gmail_job_emails labels only job-search correspondence using explicit message IDs or the fixed job-related server query.
-Never use Gmail tools for personal, medical, financial (non-compensation job offer), or unrelated topics.` : "";
+Email & Outreach via Composio / Gmail:
+- You HAVE FULL ABILITY to search, read, write, draft, and send emails through the user's connected Gmail/Composio account.
+- When asked to write, draft, prepare, or send an email or outreach to a recruiter, company, hiring manager, or contact:
+  1. create_gmail_job_draft: Use this tool to save a clean, professional draft directly in the user's connected Gmail account so it is ready in their drafts folder.
+  2. send_gmail_job_email: Use this tool to send the email directly after confirming the recipient (To), Subject, and Body with the user.
+  3. search_gmail_job_emails: Search recent application and recruiter correspondence.
+  4. label_gmail_job_emails: Organize and label application threads in Gmail.
+- Never state or imply that you can only read emails. You can both read and write/draft/send emails via Composio.` : "";
       const agentCapabilityRules = `
 Profile, resume, and in-app data (execute directly — do not ask the user to copy-paste):
 - update_profile, list_profile_records, add_skill, remove_skill, add_experience, update_experience, delete_experience, add_education, update_education, delete_education, save_cover_letter, update_resume, create_application_tracker_entry, update_application_status, update_application, delete_application, bookmark_job, hide_job, delete_job, clear_all_jobs, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
@@ -3791,15 +3793,19 @@ Text to PDF via Composio (no-auth document export):
 - After a successful conversion, return the PDF URL from data.file.s3url when available, plus data.file.name and data.file.mimetype if present. If the PDF URL is missing, summarize the tool response and explain what must be retried.
 - Do not send private Google Drive/Docs/Notion content to Text to PDF unless the user asked to export that content and the exact content has already been read or drafted in the chat context. For private documents, prefer native Google Docs export when the user wants the original document layout.
 
-Web search and page scraping via RTRVR (preferred for all web lookups):
-- For ANY request to search the web, look up a URL, read a public page, research a company, check salary data, or extract structured data from a site, use RTRVR tools FIRST — before Browser Tool or any other scraper.
-- Use rtrvr_scrape for reading a single public URL (company pages, job boards, blog posts, salary pages). Pass the url argument.
-- Use rtrvr_extract_from_page when you need structured data extracted from a specific page with a schema. Pass url and schema.
-- Use rtrvr_job_aggregator for broad multi-platform job searches across LinkedIn, Indeed, and Glassdoor.
-- Use rtrvr_linkedin_job_hunter for LinkedIn-specific job searches.
-- Use rtrvr_hiring_signals to research a company's hiring activity and open roles.
-- Use rtrvr_brand_mention_scanner for brand/company mention research across Twitter/X, Reddit, and HackerNews.
-- Use rtrvr_yc_startup_jobs for YC company job listings.
+Web search, live job extraction, and auto-applying via RTRVR:
+- For ANY request to search for jobs across the web, look up job openings, or extract listings from LinkedIn, Indeed, Glassdoor, or Y Combinator, use RTRVR tools:
+  - rtrvr_job_aggregator: Multi-platform live job searches across LinkedIn, Indeed, and Glassdoor with deduplication and salary signals. Pass title, location, salary_min, limit.
+  - rtrvr_linkedin_job_hunter: Extract fresh job openings directly from LinkedIn with role/location/experience filters. Pass query, location, limit.
+  - rtrvr_yc_startup_jobs: Extract live startup jobs from Y Combinator companies (ycombinator.com/jobs).
+  - rtrvr_hiring_signals: Analyze hiring activity, new department expansion, and open roles at target companies.
+  - rtrvr_brand_mention_scanner: Compile mention and sentiment reports across Twitter/X, Reddit, and HackerNews.
+  - rtrvr_scrape & rtrvr_extract_from_page: Scrape and extract complete job descriptions or candidate requirements from any career URL.
+  - rtrvr_linkedin_connect & rtrvr_send_linkedin_connection_request: Send personalized networking or connection invites to hiring managers and recruiters.
+- AUTO-APPLYING WITH RTRVR & AUTOMATION:
+  - For ANY request to auto apply, submit an application, or fill job application forms:
+    - Use auto_apply_from_url (or apply_to_job): Loads the user's uploaded resume, profile snapshot, generated cover letter, and answer bank to automatically fill and submit the job application!
+    - Use rtrvr_run or rtrvr_act_on_page for direct browser interactions, candidate portal workflows, and web tasks.
 - NEVER mention or suggest Firecrawl to the user. RTRVR is the only web search and scraping provider.
 
 Browser Tool via Composio (no-auth cloud browser automation, confirm-before-action):

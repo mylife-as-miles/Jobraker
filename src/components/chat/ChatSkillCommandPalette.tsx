@@ -1,4 +1,3 @@
-import type { ComponentType } from "react";
 import {
   BriefcaseBusiness,
   Clock3,
@@ -6,6 +5,7 @@ import {
   PenLine,
   Search,
   Send,
+  Mail,
   Activity,
   Sparkles,
   HelpCircle,
@@ -26,6 +26,7 @@ const ICONS: Record<string, ComponentType<{ className?: string }>> = {
   send: Send,
   search: Search,
   pen: PenLine,
+  mail: Mail,
   "file-text": FileText,
   clock: Clock3,
   activity: Activity,
