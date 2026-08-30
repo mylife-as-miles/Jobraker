@@ -4891,7 +4891,7 @@ Evidence and failure reporting:
                     });
                   } else if (fn.name.startsWith("rtrvr_")) {
                     const mutatingRtrvrTool = isMutatingRtrvrTool(fn.name);
-                    result = await invokeEdgeFunctionByName({
+                    const rtrvrRes = await invokeEdgeFunctionByName({
                       authHeader: authHeader!,
                       name: "rtrvr-tools",
                       timeoutMs: mutatingRtrvrTool ? 300_000 : 120_000,
@@ -4901,6 +4901,48 @@ Evidence and failure reporting:
                         approved: mutatingRtrvrTool ? args.approved === true : true,
                       },
                     });
+                    if (isRecord(rtrvrRes) && rtrvrRes.success !== false) {
+                      result = rtrvrRes;
+                    } else if (fn.name === "rtrvr_scrape" || fn.name === "rtrvr_extract_from_page") {
+                      // Automatic direct fetch fallback so scrape never fails
+                      const targetUrl = asString(args.url) || (Array.isArray(args.urls) ? asString(args.urls[0]) : "");
+                      if (targetUrl && targetUrl.startsWith("http")) {
+                        try {
+                          const directFetchRes = await fetch(targetUrl, {
+                            headers: {
+                              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                              Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                            },
+                          });
+                          if (directFetchRes.ok) {
+                            const html = await directFetchRes.text();
+                            const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+                            const cleanText = html
+                              .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+                              .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+                              .replace(/<[^>]+>/g, " ")
+                              .replace(/\s+/g, " ")
+                              .trim()
+                              .slice(0, 15000);
+                            result = {
+                              success: true,
+                              source: "direct_fetch_fallback",
+                              title: titleMatch ? titleMatch[1].trim() : "",
+                              text: cleanText,
+                              markdown: cleanText,
+                            };
+                          } else {
+                            result = rtrvrRes;
+                          }
+                        } catch {
+                          result = rtrvrRes;
+                        }
+                      } else {
+                        result = rtrvrRes;
+                      }
+                    } else {
+                      result = rtrvrRes;
+                    }
                   } else if (fn.name === "list_resumes") {
                     const { data, error } = await supabaseUser
                       .from("resumes")
