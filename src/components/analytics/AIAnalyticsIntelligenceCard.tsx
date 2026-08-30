@@ -17,26 +17,47 @@ export function AIAnalyticsIntelligenceCard() {
   const [loading, setLoading] = useState(true);
   const [insights, setInsights] = useState<AIInsights | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isFallback, setIsFallback] = useState(false);
+  const [fallbackReason, setFallbackReason] = useState<string | null>(null);
 
   const fetchAIInsights = async () => {
     setLoading(true);
     setError(null);
+    setIsFallback(false);
+    setFallbackReason(null);
     try {
       const res = await invokeProtectedFunction<{
         success?: boolean;
         insights?: AIInsights;
         error?: string;
+        isFallback?: boolean;
+        fallbackReason?: string;
       }>("ai-analytics-insights");
 
       if (res.error) throw new Error(res.error);
-      if (res.insights) setInsights(res.insights);
+      if (res.insights) {
+        setInsights(res.insights);
+        if (res.isFallback) setIsFallback(true);
+        if (res.fallbackReason) setFallbackReason(res.fallbackReason);
+      }
     } catch (err: any) {
       console.error("Failed to fetch AI insights:", err);
-      setError(err.message || "Failed to generate AI analytics diagnosis.");
+      const msg = err.message || "";
+      if (
+        msg.includes("429") || 
+        msg.toLowerCase().includes("exhausted") || 
+        msg.toLowerCase().includes("quota") || 
+        msg.includes("GoogleGenerativeAI")
+      ) {
+        setError("Our AI diagnostics are currently experiencing high demand. Please try again in a moment.");
+      } else {
+        setError(msg || "Failed to generate AI analytics diagnosis.");
+      }
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchAIInsights();
@@ -55,12 +76,20 @@ export function AIAnalyticsIntelligenceCard() {
           <div>
             <h3 className='text-xl font-bold text-foreground flex items-center gap-2'>
               Gemini AI Career Diagnostics & CRM Suite
-              <span className='px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold rounded-full bg-brand/20 text-brand border border-brand/30'>
-                Live AI Engine
-              </span>
+              {isFallback ? (
+                <span className='px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/30'>
+                  Rule-Based Diagnostics
+                </span>
+              ) : (
+                <span className='px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold rounded-full bg-brand/20 text-brand border border-brand/30'>
+                  Live AI Engine
+                </span>
+              )}
             </h3>
             <p className='text-xs text-foreground/60'>
-              Automated root-cause rejection analysis, success drivers, ATS optimization & CRM coaching
+              {isFallback && fallbackReason 
+                ? fallbackReason 
+                : "Automated root-cause rejection analysis, success drivers, ATS optimization & CRM coaching"}
             </p>
           </div>
         </div>
@@ -85,10 +114,12 @@ export function AIAnalyticsIntelligenceCard() {
           </p>
         </div>
       ) : error ? (
-        <div className='p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm flex items-center justify-between'>
-          <span>{error}</span>
-          <Button onClick={fetchAIInsights} size='sm' variant='ghost' className='text-xs text-rose-300 underline'>
-            Retry
+        <div className='p-5 rounded-xl bg-muted/40 border border-border text-foreground/80 text-sm flex flex-col items-center justify-center space-y-3 text-center'>
+          <AlertTriangle className='w-8 h-8 text-muted-foreground/50' />
+          <p>{error}</p>
+          <Button onClick={fetchAIInsights} size='sm' variant='outline' className='text-xs mt-2'>
+            <RefreshCw className='w-3.5 h-3.5 mr-2' />
+            Try Again
           </Button>
         </div>
       ) : insights ? (

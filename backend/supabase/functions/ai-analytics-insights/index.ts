@@ -8,7 +8,53 @@ import {
   GEMINI_MODEL,
   withModelFallback,
   runMeteredAiCall,
+  formatGeminiErrorMessage,
+  isGeminiQuotaError,
+  isGeminiTransientProviderError,
 } from "../_shared/gemini.ts";
+
+function generateHeuristicFallbackInsights(metrics: any) {
+  const { totalApps, applied, interviews, offers, failed, pending, failureReasons, profile } = metrics;
+  
+  const conversionRate = totalApps > 0 ? Math.round(((interviews + offers) / totalApps) * 100) : 0;
+  let executiveSummary = `You have tracked ${totalApps} applications. `;
+  if (conversionRate > 20) {
+    executiveSummary += `Your interview conversion rate of ${conversionRate}% is strong, indicating good initial alignment.`;
+  } else if (totalApps > 10) {
+    executiveSummary += `Your conversion rate of ${conversionRate}% suggests room to optimize your resume for your target roles.`;
+  } else {
+    executiveSummary += `Keep applying to build more data for deeper career insights.`;
+  }
+
+  const successFactors = interviews + offers > 0 
+    ? ["Your profile is generating interest and passing initial screens."] 
+    : [];
+
+  const failureDiagnostics = failureReasons.length > 0
+    ? failureReasons.slice(0, 2)
+    : (failed > 0 ? ["Some applications were rejected at the initial review stage."] : []);
+
+  const actionableTips = conversionRate < 10 && totalApps > 10
+    ? ["Review your resume keywords against typical job descriptions in your target roles."]
+    : ["Continue tailoring your resume for each application to maintain strong conversion."];
+
+  const crmNextSteps = pending > 0 
+    ? ["Follow up on your pending applications if it has been more than a week."] 
+    : ["Find and apply to 3 new roles this week to build pipeline."];
+    
+  const skillGapAnalysis = profile?.target_roles?.length 
+    ? [`Ensure your resume highlights the core skills required for: ${profile.target_roles.join(", ")}.`]
+    : [];
+
+  return {
+    executiveSummary,
+    successFactors,
+    failureDiagnostics,
+    actionableTips,
+    crmNextSteps,
+    skillGapAnalysis
+  };
+}
 
 function jsonResponse(req: Request, data: Record<string, unknown>, status = 200) {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
@@ -128,50 +174,71 @@ Provide your strategic evaluation in JSON format with the exact following schema
   ]
 }`;
 
-    const ai = createGeminiClient();
-    const metered = await runMeteredAiCall({
-      userId: user.id,
-      featureKey: "ai_analytics_insights",
-      model: GEMINI_MODEL,
-      promptTextLength: prompt.length,
-      execute: async () => {
-        const { result: rawResponse, modelUsed } = await withModelFallback((model) =>
-          ai.models.generateContent({
-            model,
-            config: createGeminiConfig({
-              systemInstruction:
-                "You are an executive AI career coach. Return ONLY valid JSON matching the requested schema.",
-              responseMimeType: "application/json",
-            }),
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-          })
-        );
-        return {
-          result: rawResponse,
-          usageMetadata: (rawResponse as any)?.usageMetadata,
-          modelUsed,
-        };
-      },
-    });
-
-    const aiText = extractGeminiText(metered.result);
     let parsed = {};
+    let isFallback = false;
+    let fallbackReason = "";
+
     try {
-      parsed = JSON.parse(aiText);
-    } catch {
-      parsed = { executiveSummary: aiText };
+      const ai = createGeminiClient();
+      const metered = await runMeteredAiCall({
+        userId: user.id,
+        featureKey: "ai_analytics_insights",
+        model: GEMINI_MODEL,
+        promptTextLength: prompt.length,
+        execute: async () => {
+          const { result: rawResponse, modelUsed } = await withModelFallback((model) =>
+            ai.models.generateContent({
+              model,
+              config: createGeminiConfig({
+                systemInstruction:
+                  "You are an executive AI career coach. Return ONLY valid JSON matching the requested schema.",
+                responseMimeType: "application/json",
+              }),
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+            })
+          );
+          return {
+            result: rawResponse,
+            usageMetadata: (rawResponse as any)?.usageMetadata,
+            modelUsed,
+          };
+        },
+      });
+
+      const aiText = extractGeminiText(metered.result);
+      try {
+        parsed = JSON.parse(aiText);
+      } catch {
+        parsed = { executiveSummary: aiText };
+      }
+    } catch (providerError) {
+      if (isGeminiQuotaError(providerError) || isGeminiTransientProviderError(providerError)) {
+        console.warn("[ai-analytics-insights] Gemini provider unavailable, generating heuristic fallback:", providerError);
+        parsed = generateHeuristicFallbackInsights({
+          totalApps, applied, interviews, offers, failed, pending, failureReasons, profile
+        });
+        isFallback = true;
+        fallbackReason = "Live AI engine temporarily resting. Showing metric-based assessment.";
+      } else {
+        throw providerError;
+      }
     }
 
     return jsonResponse(req, {
       success: true,
       insights: parsed,
+      isFallback,
+      fallbackReason,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("ai-analytics-insights error:", error);
     return jsonResponse(
       req,
-      { error: error instanceof Error ? error.message : "Failed to generate AI analytics insights" },
+      { 
+        error: formatGeminiErrorMessage(error),
+        code: "AI_UNAVAILABLE" 
+      },
       500,
     );
   }
