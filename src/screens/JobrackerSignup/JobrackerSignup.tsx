@@ -278,7 +278,8 @@ export const JobrackerSignup = (): JSX.Element => {
       (factor) => factor.status === "verified",
     );
     if (!verifiedTotp) {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
+      await clearUserScopedClientState();
       throw new Error("Two-factor authentication is enabled, but no verified authenticator was found. Please contact support.");
     }
     setMfaFactorId(verifiedTotp.id);
@@ -426,7 +427,8 @@ export const JobrackerSignup = (): JSX.Element => {
     setUseBackupCode(false);
     setBackupCodeInput("");
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
+      await clearUserScopedClientState();
     } catch {}
   };
   const passwordCheck = useMemo(
