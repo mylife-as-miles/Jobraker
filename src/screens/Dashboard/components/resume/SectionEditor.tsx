@@ -5,7 +5,7 @@ import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
 import { PolishableTextArea } from "./PolishableTextArea";
 import { polishContent } from "../../../../services/ai/polishContent";
-import { useToast } from "../../../../hooks/use-toast";
+import { useToast } from "../../../../components/ui/toast";
 
 interface SectionEditorProps {
   sectionId: string;
