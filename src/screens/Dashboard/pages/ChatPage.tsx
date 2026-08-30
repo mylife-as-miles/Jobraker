@@ -4880,6 +4880,15 @@ export const ChatPage = () => {
                     onClose={() => setSourceLauncherOpen(false)}
                     onUpload={() => fileInputRef.current?.click()}
                   />
+                  <div className='absolute bottom-full left-0 right-0 mb-2 z-40'>
+                    <ChatSkillCommandPalette
+                      open={skillPaletteOpen && !sourceLauncherOpen}
+                      mode={skillPaletteTrigger?.mode || "slash"}
+                      skills={skillPaletteSkills}
+                      activeIndex={skillPaletteActiveIndex}
+                      onSelect={selectSkillFromPalette}
+                    />
+                  </div>
                   <div
                     className={`beam relative rounded-[32px] shadow-2xl transition-all duration-300 ${
                     isListening
@@ -5025,16 +5034,6 @@ export const ChatPage = () => {
                             target.style.height = `${target.scrollHeight}px`;
                           });
                         }}
-                      />
-                    </div>
-
-                    <div className='absolute bottom-full left-0 right-0 mb-2'>
-                      <ChatSkillCommandPalette
-                        open={skillPaletteOpen && !sourceLauncherOpen}
-                        mode={skillPaletteTrigger?.mode || "slash"}
-                        skills={skillPaletteSkills}
-                        activeIndex={skillPaletteActiveIndex}
-                        onSelect={selectSkillFromPalette}
                       />
                     </div>
 

@@ -53,10 +53,28 @@ export const jobrakerChatSkills: JobrakerChatSkill[] = [
   createPlaceholderSkill({
     id: "resume_tailor",
     name: "Resume Tailor",
-    aliases: ["@ResumeTailor", "/resume-tailor", "/tailor-resume"],
+    aliases: ["@ResumeTailor", "@Resume", "/resume", "/resume-tailor", "/tailor-resume"],
     description: "Tailor CV, resume, and profile evidence to a selected role.",
     icon: "file-text",
     category: "profile",
+    triggerType: "both",
+  }),
+  createPlaceholderSkill({
+    id: "jobs_summary",
+    name: "Jobs Summary",
+    aliases: ["@Jobs", "@JobSearch", "/jobs", "/search-jobs", "/find-jobs"],
+    description: "Search and summarize recent active job openings matching your profile.",
+    icon: "search",
+    category: "discovery",
+    triggerType: "both",
+  }),
+  createPlaceholderSkill({
+    id: "application_insights",
+    name: "Application Insights",
+    aliases: ["@Applications", "@Pipeline", "/applications", "/pipeline", "/app-insights"],
+    description: "Analyze your active application pipeline, stages, and response rates.",
+    icon: "file-text",
+    category: "tracking",
     triggerType: "both",
   }),
   createPlaceholderSkill({
@@ -66,6 +84,15 @@ export const jobrakerChatSkills: JobrakerChatSkill[] = [
     description: "Prepare follow-up messages for previous applications.",
     icon: "clock",
     category: "tracking",
+    triggerType: "both",
+  }),
+  createPlaceholderSkill({
+    id: "help_menu",
+    name: "Help & Commands",
+    aliases: ["@Help", "/help", "/commands"],
+    description: "Show available skills and career assistant commands.",
+    icon: "clock",
+    category: "system",
     triggerType: "both",
   }),
 ];
@@ -99,12 +126,17 @@ export const getSkillSuggestions = (
       skill.name,
       skill.description,
       skill.category,
-      ...skill.aliases.filter((alias) => alias.startsWith(prefix)),
+      ...skill.aliases,
     ]
       .join(" ")
       .toLowerCase();
 
-    return searchable.includes(normalizedQuery);
+    return (
+      searchable.includes(normalizedQuery) ||
+      skill.aliases.some((alias) =>
+        alias.toLowerCase().includes(`${prefix}${normalizedQuery}`),
+      )
+    );
   });
 };
 
