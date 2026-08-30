@@ -203,15 +203,19 @@ serve(async (req) => {
         featureKey: "polish_content",
         model: GEMINI_MODEL,
         promptTextLength: prompt.length,
-        execute: async () => {
-          const { result: rawResponse, modelUsed } = await withModelFallback((model) => ai.models.generateContent({
-            model,
-            config: createGeminiConfig({ 
+        execute: async ({ maxOutputTokens }) => {
+          const { result: rawResponse, modelUsed } = await withModelFallback(
+            (model) => withGeminiRetry(() => ai.models.generateContent({
+              model,
+              config: createGeminiConfig({ 
                 systemInstruction: "You are a resume polishing assistant. Return ONLY valid JSON matching the requested schema.",
-                responseMimeType: "application/json"
-            }),
-            contents: [{ role: 'user', parts: [{ text: prompt }] }]
-          }));
+                responseMimeType: "application/json",
+                maxOutputTokens,
+              }),
+              contents: [{ role: 'user', parts: [{ text: prompt }] }]
+            })),
+            GEMINI_MODEL
+          );
           return {
             result: rawResponse,
             usageMetadata: (rawResponse as any)?.usageMetadata,
