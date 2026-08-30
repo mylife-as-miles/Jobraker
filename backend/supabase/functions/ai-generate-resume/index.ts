@@ -212,8 +212,8 @@ Schema Reference:
           "id": "uuid-here",
           "hidden": false,
           "name": "Skill Name",
-          "proficiency": "Advanced",
-          "level": 4,
+          "proficiency": "",
+          "level": 0,
           "keywords": []
         }
       ]

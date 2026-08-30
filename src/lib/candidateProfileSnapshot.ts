@@ -44,12 +44,13 @@ const formatPeriod = (start: unknown, end: unknown, current = false) => {
   return [startValue, endValue].filter(Boolean).join(" - ");
 };
 
-const skillLevel = (value: ProfileSkillRecord["level"]) => {
+const skillLevel = (value: ProfileSkillRecord["level"] | null | undefined) => {
+  if (!value) return 0;
   if (value === "Beginner") return 1;
   if (value === "Intermediate") return 2;
   if (value === "Advanced") return 4;
   if (value === "Expert") return 5;
-  return 3;
+  return 0;
 };
 
 const profileLink = (
