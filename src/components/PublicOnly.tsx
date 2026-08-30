@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { createClient } from "../lib/supabaseClient";
 import { ROUTES } from "../routes";
 import { RouteLoadingFallback } from "./system/RouteLoadingFallback";
+import { prepareForFreshAuthentication } from "../lib/sessionIsolation";
 
 const AUTH_SESSION_TIMEOUT_MS = 30_000;
 
@@ -16,6 +17,7 @@ function getAuthenticatedRedirectPath() {
 
 export const PublicOnly: React.FC<Props> = ({ children }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const supabase = createClient();
   const [checking, setChecking] = useState(true);
   const checkingRef = useRef(checking);
@@ -49,6 +51,14 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
 
     const check = async () => {
       try {
+        // Registration is an explicit account-boundary action. Clear any
+        // previous local Supabase session before the signup UI can hydrate.
+        if (location.pathname === ROUTES.SIGNUP) {
+          await prepareForFreshAuthentication(supabase);
+          if (mounted) setChecking(false);
+          return;
+        }
+
         const {
           data: { session },
           error,
@@ -122,7 +132,7 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
       mounted = false;
       sub.subscription.unsubscribe();
     };
-  }, [navigate, supabase]);
+  }, [location.pathname, navigate, supabase]);
 
   if (checking) {
     return <RouteLoadingFallback />;
