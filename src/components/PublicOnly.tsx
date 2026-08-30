@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createClient } from "../lib/supabaseClient";
 import { ROUTES } from "../routes";
-import { getCachedAuthSnapshot } from "@/lib/offlineAppCache";
 import { RouteLoadingFallback } from "./system/RouteLoadingFallback";
 
 const AUTH_SESSION_TIMEOUT_MS = 30_000;
@@ -30,108 +29,92 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
 
   useEffect(() => {
     let mounted = true;
-    const isOffline = () =>
-      typeof navigator !== "undefined" && navigator.onLine === false;
 
-    const isNetworkError = (error: any) => {
-      if (!error) return false;
-      const msg = String(error.message || error).toLowerCase();
-      return (
-        msg.includes("fetch") ||
-        msg.includes("network") ||
-        msg.includes("timeout") ||
-        msg.includes("timed out") ||
-        msg.includes("err_") ||
-        error instanceof TypeError
-      );
+    const withTimeout = async <T,>(promise: Promise<T>, ms: number) => {
+      let timeoutId: number | undefined;
+      try {
+        return await Promise.race<T>([
+          promise,
+          new Promise<T>((_, reject) => {
+            timeoutId = window.setTimeout(
+              () => reject(new Error("Timed out")),
+              ms,
+            );
+          }),
+        ]);
+      } finally {
+        if (timeoutId) window.clearTimeout(timeoutId);
+      }
     };
-
-    const withTimeout = async <T,>(promise: Promise<T>, ms: number) =>
-      await Promise.race<T>([
-        promise,
-        new Promise<T>((_, reject) =>
-          window.setTimeout(() => reject(new Error("Timed out")), ms),
-        ),
-      ]);
 
     const check = async () => {
       try {
-        const cachedSnapshot = await getCachedAuthSnapshot();
+        const {
+          data: { session },
+          error,
+        } = await withTimeout(
+          supabase.auth.getSession(),
+          AUTH_SESSION_TIMEOUT_MS,
+        );
 
-        if (isOffline()) {
-          if (cachedSnapshot?.hasSession) {
-            navigate(getAuthenticatedRedirectPath(), { replace: true });
-            return;
-          }
+        if (!mounted) return;
+
+        if (error) {
+          console.error("Public auth check error:", error);
+          setChecking(false);
+          return;
+        }
+
+        // A cached app snapshot is never sufficient to treat a public route
+        // as authenticated. Only Supabase's persisted/current session can
+        // redirect the browser to protected pages.
+        if (!session?.user) {
           setChecking(false);
           return;
         }
 
         try {
-          const {
-            data: { session },
-          } = await withTimeout(supabase.auth.getSession(), AUTH_SESSION_TIMEOUT_MS);
-
-          if (!mounted) return;
-          if (session?.user) {
-            if (await needsMfaChallenge()) {
-              setChecking(false);
-              return;
-            }
-            navigate(getAuthenticatedRedirectPath(), { replace: true });
+          if (await needsMfaChallenge()) {
+            setChecking(false);
             return;
           }
         } catch (error) {
-          if (!mounted) return;
-          if (isNetworkError(error)) {
-            if (cachedSnapshot?.hasSession) {
-              navigate(getAuthenticatedRedirectPath(), { replace: true });
-              return;
-            }
-            setChecking(false);
-            return;
-          }
-          throw error;
+          console.error("MFA assurance check failed:", error);
+          setChecking(false);
+          return;
         }
+
+        navigate(getAuthenticatedRedirectPath(), { replace: true });
       } catch (error) {
         if (!mounted) return;
         console.error("Public auth check error:", error);
+        // Fail open to the public auth page on network/offline errors. A
+        // stale offline snapshot must never redirect a logged-out/new user.
+        setChecking(false);
       }
-      if (!mounted) return;
-      setChecking(false);
     };
-    check();
+
+    void check();
 
     const { data: sub } = supabase.auth.onAuthStateChange(
       async (_event: any, session: any) => {
-        if (session?.user) {
-          // If the initial check is still running, let it handle the initial state
-          if (checkingRef.current) {
-            return;
-          }
+        if (!mounted || !session?.user) return;
 
-          if (isOffline()) {
-            getCachedAuthSnapshot().then((cachedSnapshot) => {
-              if (cachedSnapshot?.hasSession && mounted) {
-                navigate(getAuthenticatedRedirectPath(), { replace: true });
-              }
-            });
-            return;
-          }
+        // If the initial storage-backed check is still running, let it own
+        // the first redirect to avoid duplicate navigation.
+        if (checkingRef.current) return;
 
-          try {
-            if (await needsMfaChallenge()) {
-              setChecking(false);
-              return;
-            }
-          } catch (error) {
-            console.error("MFA assurance check failed:", error);
+        try {
+          if (await needsMfaChallenge()) {
             setChecking(false);
             return;
           }
-
-          navigate(getAuthenticatedRedirectPath(), { replace: true });
+        } catch (error) {
+          console.error("MFA assurance check failed:", error);
+          return;
         }
+
+        navigate(getAuthenticatedRedirectPath(), { replace: true });
       },
     );
 
@@ -144,5 +127,6 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
   if (checking) {
     return <RouteLoadingFallback />;
   }
+
   return <>{children}</>;
 };
