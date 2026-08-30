@@ -83,6 +83,7 @@ export const useAuth = () => {
           }
           if (!mounted) return;
           setUser(null);
+          await clearCachedAuthSnapshot();
           return;
         }
 
