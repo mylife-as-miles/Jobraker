@@ -4,9 +4,10 @@ import { ROUTES } from "../routes";
 import { createClient } from "../lib/supabaseClient";
 import { events } from "@/lib/analytics";
 import {
-  cacheAuthSnapshot,
+  cacheAuthenticatedUser,
   clearCachedAuthSnapshot,
   getCachedAuthSnapshot,
+  getCachedAuthSnapshotForUser,
   updateCachedOnboardingStatus,
 } from "@/lib/offlineAppCache";
 
@@ -27,9 +28,6 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
     done: boolean;
     complete: boolean;
   }>({ done: false, complete: false });
-  const onboardingCheckRef = useRef(onboardingCheck);
-  onboardingCheckRef.current = onboardingCheck;
-
   useEffect(() => {
     let mounted = true;
     const isOffline = () =>
@@ -84,7 +82,6 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
 
     const check = async () => {
       try {
-        const cachedSnapshot = await getCachedAuthSnapshot();
         const {
           data: { session },
           error: sessionError,
@@ -96,6 +93,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
         if (sessionError) {
           console.error("Session error:", sessionError);
           if ((isOffline() || isNetworkError(sessionError)) && (await applyCachedAccess())) return;
+          await clearCachedAuthSnapshot();
           if (!mounted) return;
           navigate(ROUTES.SIGNIN, { replace: true });
           return;
@@ -103,6 +101,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
 
         if (!session?.access_token) {
           if (isOffline() && (await applyCachedAccess())) return;
+          await clearCachedAuthSnapshot();
           if (!mounted) return;
           navigate(ROUTES.SIGNIN, { replace: true });
           return;
@@ -113,19 +112,17 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
               id: session.user.id,
               email: session.user.email,
             }
-          : cachedSnapshot?.user ?? null;
+          : null;
 
         if (!mounted) return;
         if (!authUser?.id) {
+          await clearCachedAuthSnapshot();
           navigate(ROUTES.SIGNIN, { replace: true });
           return;
         }
 
-        await cacheAuthSnapshot({
-          hasSession: true,
-          user: authUser,
-          onboardingComplete: cachedSnapshot?.onboardingComplete ?? null,
-        });
+        const scopedCachedSnapshot = await getCachedAuthSnapshotForUser(authUser.id);
+        await cacheAuthenticatedUser(authUser);
 
         if (!isOffline()) {
           try {
@@ -193,7 +190,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
         }
 
         if (isOffline()) {
-          const complete = cachedSnapshot?.onboardingComplete !== false;
+          const complete = scopedCachedSnapshot?.onboardingComplete !== false;
           setOnboardingCheck({ done: true, complete });
           setChecking(false);
           if (!complete && window.location.pathname !== ROUTES.ONBOARDING) {
@@ -257,6 +254,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
       } catch (error) {
         console.error("Auth check error:", error);
         if ((isOffline() || isNetworkError(error)) && (await applyCachedAccess())) return;
+        await clearCachedAuthSnapshot();
         if (!mounted) return;
         navigate(ROUTES.SIGNIN, { replace: true });
       }
@@ -267,12 +265,9 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
     const { data: sub } = supabase.auth.onAuthStateChange(
       async (_event: any, session: any) => {
         if (session?.user) {
-          await cacheAuthSnapshot({
-            hasSession: true,
-            user: { id: session.user.id, email: session.user.email },
-            onboardingComplete: onboardingCheckRef.current.done
-              ? onboardingCheckRef.current.complete
-              : null,
+          await cacheAuthenticatedUser({
+            id: session.user.id,
+            email: session.user.email,
           });
           return;
         }

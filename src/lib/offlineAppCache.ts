@@ -140,16 +140,50 @@ export async function cacheAuthSnapshot(
   });
 }
 
+export async function getCachedAuthSnapshotForUser(userId: string) {
+  const snapshot = await getCachedAuthSnapshot();
+  return snapshot?.user?.id === userId ? snapshot : null;
+}
+
+export async function cacheAuthenticatedUser(
+  user: CachedAuthUser,
+  onboardingComplete?: boolean | null,
+) {
+  const existing = await getCachedAuthSnapshot();
+  const sameUser = existing?.user?.id === user.id;
+
+  await cacheAuthSnapshot({
+    hasSession: true,
+    user,
+    onboardingComplete:
+      onboardingComplete !== undefined
+        ? onboardingComplete
+        : sameUser
+          ? existing?.onboardingComplete ?? null
+          : null,
+  });
+}
+
 export async function updateCachedOnboardingStatus(
   onboardingComplete: boolean,
   user?: CachedAuthUser | null,
 ) {
+  if (user) {
+    await cacheAuthenticatedUser(user, onboardingComplete);
+    return;
+  }
+
   const existing = await getCachedAuthSnapshot();
-  await cacheAuthSnapshot({
-    hasSession: existing?.hasSession ?? Boolean(user),
-    user: user ?? existing?.user ?? null,
-    onboardingComplete,
-  });
+  if (!existing?.user) {
+    await cacheAuthSnapshot({
+      hasSession: false,
+      user: null,
+      onboardingComplete: null,
+    });
+    return;
+  }
+
+  await cacheAuthenticatedUser(existing.user, onboardingComplete);
 }
 
 export async function clearCachedAuthSnapshot() {
