@@ -9,6 +9,7 @@ type KanbanContextValue = {
   data: Item[];
   onDataChange?: (items: Item[]) => void;
   onItemMove?: (id: string, toColumn: string) => void;
+  isDragDisabled?: boolean;
 };
 
 const KanbanContext = createContext<KanbanContextValue | null>(null);
@@ -18,17 +19,19 @@ export function KanbanProvider({
   data,
   onDataChange,
   onItemMove,
+  isDragDisabled,
   children,
 }: {
   columns: Column[];
   data: Item[];
   onDataChange?: (items: Item[]) => void;
   onItemMove?: (id: string, toColumn: string) => void;
+  isDragDisabled?: boolean;
   children: (column: Column) => React.ReactNode;
 }) {
   const value = useMemo(
-    () => ({ columns, data, onDataChange, onItemMove }),
-    [columns, data, onDataChange, onItemMove],
+    () => ({ columns, data, onDataChange, onItemMove, isDragDisabled }),
+    [columns, data, onDataChange, onItemMove, isDragDisabled],
   );
   return (
     <KanbanContext.Provider value={value}>
@@ -92,7 +95,7 @@ export function KanbanCards<T extends Item>({
   id: string;
   children: (item: T) => React.ReactNode;
 }) {
-  const { data, onItemMove } = useKanban();
+  const { data, onItemMove, isDragDisabled } = useKanban();
   const items = useMemo(
     () => data.filter((i) => i.column === id) as T[],
     [data, id],
@@ -102,13 +105,13 @@ export function KanbanCards<T extends Item>({
   return (
     <div
       className={`space-y-3 min-h-[120px] rounded-lg transition-colors duration-200 ${isDragOver ? "bg-foreground/5 ring-2 ring-foreground/20 ring-inset border-2 border-dashed border-foreground/20" : ""}`}
-      onDragOver={(e) => {
+      onDragOver={isDragDisabled ? undefined : (e) => {
         if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
         e.preventDefault();
         setIsDragOver(true);
       }}
-      onDragLeave={() => setIsDragOver(false)}
-      onDrop={(e) => {
+      onDragLeave={isDragDisabled ? undefined : () => setIsDragOver(false)}
+      onDrop={isDragDisabled ? undefined : (e) => {
         e.preventDefault();
         setIsDragOver(false);
         const movedId = e.dataTransfer?.getData("text/plain");
@@ -142,10 +145,11 @@ export function KanbanCard({
   column?: string;
   children: React.ReactNode;
 }) {
+  const { isDragDisabled } = useKanban();
   const [isDragging, setIsDragging] = React.useState(false);
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-    if (!id) return;
+    if (!id || isDragDisabled) return;
     setIsDragging(true);
     e.dataTransfer.setData("text/plain", id);
     e.dataTransfer.effectAllowed = "move";
@@ -157,14 +161,14 @@ export function KanbanCard({
 
   return (
     <div
-      className={`group relative rounded-lg border bg-gradient-to-br from-background to-background/95 p-4 transition-all duration-200 cursor-grab active:cursor-grabbing ${
+      className={`group relative rounded-lg border bg-gradient-to-br from-background to-background/95 p-4 transition-all duration-200 ${!isDragDisabled ? "cursor-grab active:cursor-grabbing" : ""} ${
         isDragging
           ? "border-brand/50 shadow-[0_0_30px_rgba(47,217,104,0.3)] scale-105 opacity-50"
           : "border-foreground/8 hover:border-foreground/15 hover:translate-y-[-1px] bg-background shadow-sm hover:shadow-md"
       }`}
-      draggable
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
+      draggable={!isDragDisabled}
+      onDragStart={isDragDisabled ? undefined : handleDragStart}
+      onDragEnd={isDragDisabled ? undefined : handleDragEnd}
     >
       {/* Subtle gradient overlay on hover */}
       <div className='absolute inset-0 rounded-lg bg-gradient-to-br from-white/[0.015] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none' />

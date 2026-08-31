@@ -1672,6 +1672,7 @@ function ApplicationPage() {
             )}
             {viewMode === "kanban" && (
               <KanbanProvider
+                isDragDisabled={true}
                 columns={APPLICATION_STATUS_OPTIONS.map((id) => ({
                   id,
                   name: id,
