@@ -467,6 +467,13 @@ verify_jwt = false
 import_map = "./functions/generate-outreach/deno.json"
 entrypoint = "./functions/generate-outreach/index.ts"
 
+[functions.cold-mail]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; auth is enforced in requireSubscriptionTier.
+verify_jwt = false
+import_map = "./functions/cold-mail/deno.json"
+entrypoint = "./functions/cold-mail/index.ts"
+
 [functions.scout-company]
 enabled = true
 verify_jwt = false

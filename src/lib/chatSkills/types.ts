@@ -174,3 +174,27 @@ export type DirectApplyOutput = {
     detail: string;
   };
 };
+
+export type ColdMailRecipient = {
+  email: string;
+  name?: string;
+  title?: string;
+  source: string;
+  confidence: "high" | "medium";
+};
+
+export type ColdMailOutput = {
+  preparation: {
+    jobId: string | null;
+    companyName: string;
+    jobTitle: string;
+    recipient: ColdMailRecipient;
+    subject: string;
+    body: string;
+  };
+  preparationToken: string;
+  agents: Array<{
+    id: string;
+    status: "completed" | "awaiting_approval";
+  }>;
+};

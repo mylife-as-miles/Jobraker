@@ -63,6 +63,21 @@ describe("Chat Skills Palette Triggers & Suggestions", () => {
     expect(resumeSkills.some((s) => s.id === "resume_tailor")).toBe(true);
   });
 
+  it("registers Cold Mail as an independent skill from Outreach Writer", () => {
+    const coldMail = jobrakerChatSkills.find((skill) => skill.id === "cold_mail");
+    const outreachWriter = jobrakerChatSkills.find(
+      (skill) => skill.id === "outreach_writer",
+    );
+
+    expect(coldMail).toMatchObject({
+      name: "Cold Mail",
+      category: "writing",
+      aliases: expect.arrayContaining(["@ColdMail", "/cold-mail"]),
+    });
+    expect(outreachWriter).toBeDefined();
+    expect(coldMail).not.toBe(outreachWriter);
+  });
+
   it("correctly replaces the trigger token with selected skill alias", () => {
     const text = "Please use /";
     const trigger = detectSkillPaletteTrigger(text, text.length)!;
