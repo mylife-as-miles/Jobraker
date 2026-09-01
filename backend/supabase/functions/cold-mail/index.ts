@@ -125,11 +125,20 @@ async function resolveJob(
   if (jobId) {
     const { data, error } = await serviceClient
       .from("jobs")
-      .select("id, title, company, description, job_description, apply_url")
+      .select("id, title, company, description, apply_url")
       .eq("id", jobId)
       .eq("user_id", userId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("cold-mail job lookup failed", {
+        code: error.code,
+        message: error.message,
+      });
+      throw new RequestError(
+        500,
+        "Cold Mail could not load the selected job. Please try again.",
+      );
+    }
     if (!data) throw new RequestError(404, "The selected job could not be found.");
     return data as Record<string, unknown>;
   }
@@ -143,7 +152,7 @@ async function resolveJob(
 
   const { data, error } = await serviceClient
     .from("jobs")
-    .select("id, title, company, description, job_description, apply_url, created_at")
+    .select("id, title, company, description, apply_url, created_at")
     .eq("user_id", userId)
     .ilike("company", companyName)
     .order("created_at", { ascending: false })
@@ -289,8 +298,7 @@ async function prepareColdMail(
   const job = await resolveJob(serviceClient, userId, safeRequest);
   const companyName = asString(job.company);
   const jobTitle = asString(job.title) || asString(request.jobTitle);
-  const jobDescription =
-    asString(job.description) || asString(job.job_description);
+  const jobDescription = asString(job.description);
   if (!companyName || !jobTitle) {
     throw new RequestError(422, "The selected job is missing its company or title.");
   }
