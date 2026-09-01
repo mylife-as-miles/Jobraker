@@ -157,7 +157,16 @@ async function resolveJob(
     .ilike("company", companyName)
     .order("created_at", { ascending: false })
     .limit(10);
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("cold-mail job lookup failed", {
+      code: error.code,
+      message: error.message,
+    });
+    throw new RequestError(
+      500,
+      "Cold Mail could not load the selected job. Please try again.",
+    );
+  }
 
   const jobs = Array.isArray(data) ? data : [];
   const requestedTitleLower = requestedTitle.toLowerCase();
