@@ -2,6 +2,7 @@ import { directApplySkill } from "./directApply";
 import { outreachWriterSkill } from "./outreachWriter";
 import { companyScoutSkill } from "./companyScout";
 import { heartbeatCheckupSkill } from "./heartbeatCheckup";
+import { coldMailSkill } from "./coldMail";
 import {
   addPortalSkill,
   htmlReportSkill,
@@ -43,6 +44,7 @@ const createPlaceholderSkill = (
 export const jobrakerChatSkills: JobrakerChatSkill[] = [
   directApplySkill,
   companyScoutSkill,
+  coldMailSkill,
   outreachWriterSkill,
   heartbeatCheckupSkill,
   interviewPrepSkill,
