@@ -121,80 +121,98 @@ serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const runId = body?.run_id;
-    if (!runId || typeof runId !== "string") {
-      return new Response(JSON.stringify({ error: "run_id is required" }), {
+    const runId = body?.run_id ? String(body.run_id).trim() : null;
+    const applicationId = (body?.application_id || body?.id) ? String(body.application_id || body.id).trim() : null;
+
+    if (!runId && !applicationId) {
+      return new Response(JSON.stringify({ error: "run_id or application_id is required" }), {
         status: 400,
         headers: { ...corsHeaders, "content-type": "application/json" },
       });
     }
 
-    const skyvernKey = Deno.env.get("SKYVERN_API_KEY") || "";
-    if (!skyvernKey) {
-      return new Response(JSON.stringify({ error: "Automation key not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "content-type": "application/json" },
-      });
-    }
-
-    let run = await fetchSkyvernRun(runId, skyvernKey);
-    if (run?.__error) {
-      if (run.__error.status === 404) {
-        run = {
-          status: "failed",
-          failure_reason: "Automation run not found on provider (404).",
-          error: "Automation run not found on provider (404)."
-        };
-      } else {
-        return new Response(JSON.stringify(run.__error), {
-          status: 502,
-          headers: { ...corsHeaders, "content-type": "application/json" },
-        });
-      }
-    }
-
-    const { providerStatus, appStatus, canonicalStage } = mapSkyvernStatus(run?.status);
-    const failureReason = run?.failure_reason || run?.error || null;
-
     const serviceClient = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false },
     });
 
-    const patch: Record<string, unknown> = {
-      provider_status: providerStatus || null,
-      updated_at: new Date().toISOString(),
-      ...(appStatus && { status: appStatus }),
-      ...(canonicalStage && { canonical_stage: canonicalStage }),
-      failure_reason: TERMINAL_FAIL.includes(providerStatus) ? failureReason : null,
-      ...(run?.recording_url && { recording_url: run.recording_url }),
-      ...(run?.app_url && { app_url: run.app_url }),
-      provider_run_output: run,
-    };
-
-    const { error: updateErr } = await serviceClient
+    let appQuery = serviceClient
       .from("applications")
-      .update(patch)
-      .eq("run_id", runId)
+      .select("id, user_id, job_id, run_id, status, canonical_stage, provider_status, automation_provider, failure_reason, app_url, updated_at")
       .eq("user_id", user.id);
 
-    if (updateErr) {
-      console.error("sync-provider-status update error", updateErr);
+    if (applicationId) {
+      appQuery = appQuery.eq("id", applicationId);
+    } else if (runId) {
+      appQuery = appQuery.eq("run_id", runId);
     }
 
-    try {
-      await recordSkyvernUsageFromOutput(serviceClient, run, {
-        runId,
-        status: providerStatus,
-        userId: user.id,
-        source: "sync-provider-status",
+    const { data: appRow, error: appFetchErr } = await appQuery.maybeSingle();
+    if (appFetchErr || !appRow) {
+      return new Response(JSON.stringify({ error: "Application not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "content-type": "application/json" },
       });
-    } catch (creditError) {
-      console.warn("sync-provider-status credit record failed", creditError);
+    }
+
+    const effectiveRunId = runId || appRow.run_id;
+    let providerStatus = appRow.provider_status;
+    let appStatus = appRow.status;
+    let canonicalStage = appRow.canonical_stage;
+    let failureReason = appRow.failure_reason;
+
+    const skyvernKey = Deno.env.get("SKYVERN_API_KEY") || "";
+    if (effectiveRunId && skyvernKey) {
+      let run = await fetchSkyvernRun(effectiveRunId, skyvernKey);
+      if (run && !run.__error) {
+        const mapped = mapSkyvernStatus(run?.status);
+        providerStatus = mapped.providerStatus || providerStatus;
+        if (mapped.appStatus) appStatus = mapped.appStatus;
+        if (mapped.canonicalStage) canonicalStage = mapped.canonicalStage;
+        failureReason = run?.failure_reason || run?.error || failureReason;
+
+        const patch: Record<string, unknown> = {
+          provider_status: providerStatus,
+          updated_at: new Date().toISOString(),
+          ...(appStatus && { status: appStatus }),
+          ...(canonicalStage && { canonical_stage: canonicalStage }),
+          failure_reason: TERMINAL_FAIL.includes(providerStatus) ? failureReason : null,
+          ...(run?.recording_url && { recording_url: run.recording_url }),
+          ...(run?.app_url && { app_url: run.app_url }),
+          provider_run_output: run,
+        };
+
+        await serviceClient
+          .from("applications")
+          .update(patch)
+          .eq("id", appRow.id);
+
+        try {
+          await recordSkyvernUsageFromOutput(serviceClient, run, {
+            runId: effectiveRunId,
+            status: providerStatus,
+            userId: user.id,
+            source: "sync-provider-status",
+          });
+        } catch (creditError) {
+          console.warn("sync-provider-status credit record failed", creditError);
+        }
+      }
+    }
+
+    // If job_id exists, sync jobs canonical_status
+    if (appRow.job_id && canonicalStage) {
+      const jobCanonicalStatus = canonicalStage === "submitted" ? "submitted" : canonicalStage === "failed" ? "failed" : "queued";
+      await serviceClient
+        .from("jobs")
+        .update({ canonical_status: jobCanonicalStatus, updated_at: new Date().toISOString() })
+        .eq("id", appRow.job_id)
+        .eq("user_id", user.id);
     }
 
     return new Response(JSON.stringify({
       ok: true,
-      run_id: runId,
+      application_id: appRow.id,
+      run_id: effectiveRunId,
       provider_status: providerStatus,
       app_status: appStatus,
       canonical_stage: canonicalStage,

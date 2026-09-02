@@ -383,6 +383,7 @@ Deno.serve(async (req) => {
         subscriptionTier,
       });
 
+      const pendingFormatting: Promise<unknown>[] = [];
       const result = await discoverJobsHybrid(
         {
           serviceClient,
@@ -395,7 +396,7 @@ Deno.serve(async (req) => {
           freshnessDays,
         },
         async (batch) => {
-          const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
+          const { jobsInserted: batchInserted, formattingTask } = await persistDiscoveredJobs(
             serviceClient,
             batch,
             {
@@ -410,12 +411,18 @@ Deno.serve(async (req) => {
               agentRunId,
             },
           );
+          if (formattingTask) pendingFormatting.push(formattingTask);
           totalInserted += batchInserted;
         },
       );
       
       discoveredJobs = result.jobs;
       warnings = result.warnings;
+
+      // Deferred cosmetic formatting must land before this request returns.
+      if (pendingFormatting.length > 0) {
+        await Promise.allSettled(pendingFormatting);
+      }
 
     } catch (err: any) {
       console.error("[jobs-search] Search failed", err);

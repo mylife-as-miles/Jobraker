@@ -96,6 +96,7 @@ async function runDiscoveryForUser(
 
   const searchStartedAt = new Date().toISOString();
   let totalInserted = 0;
+  const pendingFormatting: Promise<unknown>[] = [];
   const { jobs: discoveredJobs } = await discoverJobsHybrid(
     {
       serviceClient,
@@ -105,22 +106,29 @@ async function runDiscoveryForUser(
       limit: effectiveLimit,
     },
     async (batch) => {
-      const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
-        serviceClient,
-        batch,
-        {
-          userId,
-          searchQuery,
-          location,
-          trigger,
-          requestedLimit,
-          effectiveLimit,
-          subscriptionTier,
-        },
-      );
+      const { jobsInserted: batchInserted, formattingTask } =
+        await persistDiscoveredJobs(
+          serviceClient,
+          batch,
+          {
+            userId,
+            searchQuery,
+            location,
+            trigger,
+            requestedLimit,
+            effectiveLimit,
+            subscriptionTier,
+          },
+        );
+      if (formattingTask) pendingFormatting.push(formattingTask);
       totalInserted += batchInserted;
     },
   );
+
+  // Deferred cosmetic formatting must finish before this run exits.
+  if (pendingFormatting.length > 0) {
+    await Promise.allSettled(pendingFormatting);
+  }
 
   let creditDeduction: unknown = null;
   const displayableJobCount = await countDisplayableJobsForSearch(serviceClient, {

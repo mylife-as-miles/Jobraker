@@ -616,7 +616,7 @@ export const JobrackerSignup = (): JSX.Element => {
           selected_plan: selectedPlan,
           billing_interval: selectedBilling,
         });
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email: sanitizedEmail,
           password: formData.password,
           options: {
@@ -631,8 +631,24 @@ export const JobrackerSignup = (): JSX.Element => {
           selected_plan: selectedPlan,
           billing_interval: selectedBilling,
         });
-        // Always require email verification; route to login
-        // Show centered success modal with actions
+
+        // If email was autoconfirmed and session is returned, proceed directly into the app
+        if (signUpData?.session && signUpData?.user) {
+          success("Account created successfully", "Welcome to JobRaker!");
+          const { createActiveSession } = await import("../../utils/sessionManagement");
+          const expiresAt = signUpData.session.expires_at
+            ? new Date(signUpData.session.expires_at * 1000)
+            : undefined;
+          await createActiveSession(
+            signUpData.user.id,
+            signUpData.session.access_token,
+            expiresAt,
+          );
+          navigate(getPostSignInPath());
+          return;
+        }
+
+        // Otherwise show verification modal
         success(
           "Sign up successful",
           "We sent a verification link to your email.",
@@ -770,19 +786,31 @@ export const JobrackerSignup = (): JSX.Element => {
           captchaToken: captchaToken ?? undefined,
         },
       });
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes("already confirmed") || error.message?.includes("verified")) {
+          success("Email already verified", "Your email is already verified. You can now sign in.");
+          setShowVerifyModal(false);
+          setIsSignUp(false);
+          return;
+        }
+        throw error;
+      }
       success("Verification email resent");
     } catch (e: any) {
       const rawMessage = e?.message || String(e);
       let userFriendlyMessage = "Failed to resend verification link. Please try again.";
-      if (rawMessage.includes("rate limit") || rawMessage.includes("too many requests")) {
+      if (rawMessage.includes("already confirmed") || rawMessage.includes("verified")) {
+        userFriendlyMessage = "Your email is already verified. Please sign in.";
+        setShowVerifyModal(false);
+        setIsSignUp(false);
+      } else if (rawMessage.includes("rate limit") || rawMessage.includes("too many requests")) {
         userFriendlyMessage = "Too many requests. Please wait a few minutes before requesting another link.";
       } else if (rawMessage.includes("CAPTCHA") || rawMessage.includes("captcha")) {
         userFriendlyMessage = "Security verification expired. Please complete the CAPTCHA again.";
       } else if (rawMessage.length < 80) {
         userFriendlyMessage = rawMessage;
       }
-      toastError("Resend failed", userFriendlyMessage);
+      toastError("Resend info", userFriendlyMessage);
     } finally {
       setResending(false);
       if (turnstileEnabled) {

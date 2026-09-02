@@ -181,6 +181,7 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
   await progress.updateProgress(1, 3, "Searching web and parsing jobs...");
 
   let totalInserted = 0;
+  const pendingFormatting: Promise<unknown>[] = [];
   const { jobs: discoveredJobs, warnings } = await discoverJobsFirecrawl(
     {
       serviceClient: supabase,
@@ -193,25 +194,35 @@ async function executeScoutSearch(supabase: any, userId: string, params: any, pr
       freshnessDays,
     },
     async (batch) => {
-      const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
-        supabase,
-        batch,
-        {
-          userId,
-          searchQuery,
-          location,
-          trigger: "live_search",
-          requestedLimit,
-          effectiveLimit,
-          subscriptionTier,
-          agentRunId,
-        },
-      );
+      const { jobsInserted: batchInserted, formattingTask } =
+        await persistDiscoveredJobs(
+          supabase,
+          batch,
+          {
+            userId,
+            searchQuery,
+            location,
+            trigger: "live_search",
+            requestedLimit,
+            effectiveLimit,
+            subscriptionTier,
+            agentRunId,
+          },
+        );
+      // Cosmetic reformatting runs alongside the rest of the search instead of
+      // gating this batch; it is awaited once before the task finishes.
+      if (formattingTask) pendingFormatting.push(formattingTask);
       totalInserted += batchInserted;
       // Update progress intermediate
       await progress.updateProgress(2, 3, `Found and saved ${totalInserted} jobs...`);
     },
   );
+
+  // Let deferred formatting finish before the worker exits, otherwise the
+  // in-flight updates would be cut short when the function shuts down.
+  if (pendingFormatting.length > 0) {
+    await Promise.allSettled(pendingFormatting);
+  }
 
   const searchStartedAt = typeof params.search_started_at === "string"
     ? params.search_started_at
@@ -775,29 +786,61 @@ async function executeAutoApplyAgent(
     { time: new Date().toISOString(), event: "search", message: "Scanning job queue" },
   ]);
 
-  // Fetch jobs that match the search query
-  const { data: jobs, error: jobsError } = await supabase
+  const cleanQuery = searchQuery.trim();
+  const queryTerms = cleanQuery.toLowerCase().split(/\s+/).filter((t: string) => t.length > 1);
+
+  // Fetch jobs that match the search query either via discovery metadata or text matching
+  let { data: jobs, error: jobsError } = await supabase
     .from("jobs")
-    .select("id, title, company, location, apply_url, source_id, raw_data, evaluation_summary")
+    .select("id, title, company, location, apply_url, source_id, raw_data, evaluation_summary, description")
     .eq("user_id", userId)
-    .contains("raw_data", { discovery: { search_query: searchQuery } })
+    .contains("raw_data", { discovery: { search_query: cleanQuery } })
     .not("canonical_status", "in", '("APPLIED", "REJECTED", "INTERVIEWING", "OFFER")')
     .order("created_at", { ascending: false })
-    .limit(limit * 2);
+    .limit(limit * 3);
+
+  if (!jobs || jobs.length === 0) {
+    const { data: textMatchedJobs, error: textErr } = await supabase
+      .from("jobs")
+      .select("id, title, company, location, apply_url, source_id, raw_data, evaluation_summary, description")
+      .eq("user_id", userId)
+      .or(`title.ilike.%${cleanQuery}%,company.ilike.%${cleanQuery}%,description.ilike.%${cleanQuery}%`)
+      .not("canonical_status", "in", '("APPLIED", "REJECTED", "INTERVIEWING", "OFFER")')
+      .order("created_at", { ascending: false })
+      .limit(limit * 3);
+
+    if (!textErr && textMatchedJobs) {
+      jobs = textMatchedJobs;
+    }
+  }
 
   if (jobsError) {
     throw new Error(`Failed to fetch jobs: ${jobsError.message}`);
   }
 
-  if (!jobs || jobs.length === 0) {
+  // Strict constraint: Ensure EVERY candidate job strictly matches the searched query terms
+  const strictlyMatchedJobs = (jobs || []).filter((j: any) => {
+    const haystack = [
+      j.title,
+      j.company,
+      j.description,
+      j.raw_data?.discovery?.search_query,
+      ...(j.evaluation_summary?.matched_keywords || []),
+    ].filter(Boolean).join(" ").toLowerCase();
+
+    if (queryTerms.length === 0) return true;
+    return queryTerms.every((t: string) => haystack.includes(t)) || haystack.includes(cleanQuery.toLowerCase());
+  });
+
+  if (!strictlyMatchedJobs || strictlyMatchedJobs.length === 0) {
     return {
-      summary: `No available jobs found matching query: "${searchQuery}". Please run a job search first.`,
+      summary: `No available jobs found matching query: "${cleanQuery}". Please run a job search for "${cleanQuery}" first.`,
       goal,
     };
   }
 
   // Filter out jobs that already have applications
-  const jobIds = jobs.map((j: any) => j.id);
+  const jobIds = strictlyMatchedJobs.map((j: any) => j.id);
   const { data: existingApps } = await supabase
     .from("applications")
     .select("job_id")
@@ -805,7 +848,7 @@ async function executeAutoApplyAgent(
     .in("job_id", jobIds);
   
   const appliedJobIds = new Set((existingApps || []).map((a: any) => a.job_id));
-  const targetJobs = jobs.filter((j: any) => !appliedJobIds.has(j.id)).slice(0, limit);
+  const targetJobs = strictlyMatchedJobs.filter((j: any) => !appliedJobIds.has(j.id)).slice(0, limit);
 
   if (targetJobs.length === 0) {
     return {

@@ -3466,8 +3466,22 @@ export const JobPage = (): JSX.Element => {
         }
       }
 
-      const targetJobs = jobToAutoApply ? [jobToAutoApply] : jobs;
-      if (!targetJobs.length) return;
+      const activeSearchCriteria = (activeSearchScope?.searchQuery || searchQuery || "").trim();
+      const baseCandidateJobs = jobToAutoApply ? [jobToAutoApply] : sortedJobs;
+      const targetJobs = jobToAutoApply
+        ? baseCandidateJobs
+        : activeSearchCriteria
+          ? baseCandidateJobs.filter((job) => matchesJobSearchCriteria(job, activeSearchCriteria))
+          : baseCandidateJobs;
+      if (!targetJobs.length) {
+        safeInfo(
+          "No matching jobs",
+          activeSearchCriteria
+            ? `No jobs match "${activeSearchCriteria}". Try searching for jobs before running auto-apply.`
+            : "No jobs available to apply to.",
+        );
+        return;
+      }
 
       if (saveAsDraftOnly) {
         setApplyingAll(true);
@@ -3816,10 +3830,15 @@ export const JobPage = (): JSX.Element => {
                 const confidence = tailoredConfidence ?? evaluation.confidence_score ?? 0;
                 const hardBlockers = evaluation.blockers?.length ?? 0;
 
+                // When user launches Auto Apply, allow jobs to proceed if tailored (~95%),
+                // or if confidence is acceptable, reserving draft only for genuine hard blockers
                 const safeToLaunch =
-                  (decision === "strong_yes" || decision === "draft_first") &&
-                  confidence >= 65 &&
-                  hardBlockers === 0;
+                  !saveAsDraftOnly && (
+                    (tailoredConfidence && tailoredConfidence >= 70) ||
+                    decision === "strong_yes" ||
+                    decision === "draft_first" ||
+                    confidence >= 50
+                  ) && hardBlockers === 0;
 
                 if (safeToLaunch) {
                   jobsToAutoApply.push(item);
@@ -4258,7 +4277,34 @@ export const JobPage = (): JSX.Element => {
     }
   }, [profile, searchQuery]);
 
-  const visibleJobs = useMemo(() => jobs, [jobs]);
+function matchesJobSearchCriteria(job: Job, query: string): boolean {
+  if (!query || !query.trim()) return true;
+  const terms = query.toLowerCase().trim().split(/\s+/).filter((t) => t.length > 1);
+  if (terms.length === 0) return true;
+  const haystack = [
+    job.title,
+    job.company,
+    job.description,
+    job.location,
+    ...(job.matchKeywords || []),
+    ...(job.evaluation_summary?.matched_keywords || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    terms.every((term) => haystack.includes(term)) ||
+    haystack.includes(query.toLowerCase().trim())
+  );
+}
+
+  const visibleJobs = useMemo(() => {
+    const activeQuery = (activeSearchScope?.searchQuery || searchQuery || "").trim();
+    if (!activeQuery) return jobs;
+    const filtered = jobs.filter((job) => matchesJobSearchCriteria(job, activeQuery));
+    return filtered.length > 0 ? filtered : jobs;
+  }, [jobs, activeSearchScope?.searchQuery, searchQuery]);
 
   const sortedJobs = useMemo(() => {
     const arr = [...visibleJobs];

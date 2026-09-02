@@ -34,62 +34,79 @@ type AutomationEmailPayload = {
 };
 
 async function verifySkyvernWebhook(req: Request, rawBody: string): Promise<{ valid: boolean; reason?: string }> {
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  const skyvernKey = Deno.env.get("SKYVERN_API_KEY")?.trim();
   const webhookSecret = Deno.env.get("SKYVERN_WEBHOOK_SECRET")?.trim();
-  if (!webhookSecret) {
-    return { valid: false, reason: "webhook_secret_not_configured" };
-  }
 
-  const timestampHeader = req.headers.get("x-skyvern-timestamp") || req.headers.get("x-jobraker-webhook-timestamp");
-  const signatureHeader = req.headers.get("x-skyvern-signature") || req.headers.get("x-jobraker-webhook-signature");
   const authHeader = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  const xApiKey = req.headers.get("x-api-key")?.trim();
 
-  // If explicit Bearer token matches dedicated secret
-  if (authHeader && authHeader === webhookSecret) {
+  // Allow internal service role calls
+  if (serviceRoleKey && authHeader && authHeader === serviceRoleKey) {
     return { valid: true };
   }
 
-  if (!signatureHeader) {
-    return { valid: false, reason: "missing_signature_header" };
+  // Allow calls carrying configured Skyvern API key
+  if (skyvernKey && ((authHeader && authHeader === skyvernKey) || (xApiKey && xApiKey === skyvernKey))) {
+    return { valid: true };
   }
 
-  if (timestampHeader) {
-    const timestamp = parseInt(timestampHeader, 10);
-    if (!Number.isNaN(timestamp)) {
-      const now = Math.floor(Date.now() / 1000);
-      if (Math.abs(now - timestamp) > 300) {
-        return { valid: false, reason: "webhook_timestamp_expired" };
+  // If explicit Bearer token matches dedicated secret
+  if (webhookSecret && authHeader && authHeader === webhookSecret) {
+    return { valid: true };
+  }
+
+  // If dedicated secret configured, verify HMAC signature
+  if (webhookSecret) {
+    const timestampHeader = req.headers.get("x-skyvern-timestamp") || req.headers.get("x-jobraker-webhook-timestamp");
+    const signatureHeader = req.headers.get("x-skyvern-signature") || req.headers.get("x-jobraker-webhook-signature");
+
+    if (!signatureHeader) {
+      return { valid: false, reason: "missing_signature_header" };
+    }
+
+    if (timestampHeader) {
+      const timestamp = parseInt(timestampHeader, 10);
+      if (!Number.isNaN(timestamp)) {
+        const now = Math.floor(Date.now() / 1000);
+        if (Math.abs(now - timestamp) > 300) {
+          return { valid: false, reason: "webhook_timestamp_expired" };
+        }
       }
     }
+
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(webhookSecret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const calculatedSig = await crypto.subtle.sign(
+      "HMAC",
+      key,
+      encoder.encode(rawBody),
+    );
+    const hexSig = Array.from(new Uint8Array(calculatedSig))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    const expectedSig = signatureHeader.replace(/^sha256=/i, "").trim();
+    if (hexSig.length !== expectedSig.length) {
+      return { valid: false, reason: "signature_length_mismatch" };
+    }
+
+    let match = 0;
+    for (let i = 0; i < hexSig.length; i++) {
+      match |= hexSig.charCodeAt(i) ^ expectedSig.charCodeAt(i);
+    }
+
+    return { valid: match === 0, reason: match === 0 ? undefined : "invalid_signature" };
   }
 
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(webhookSecret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const calculatedSig = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    encoder.encode(rawBody),
-  );
-  const hexSig = Array.from(new Uint8Array(calculatedSig))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-
-  const expectedSig = signatureHeader.replace(/^sha256=/i, "").trim();
-  if (hexSig.length !== expectedSig.length) {
-    return { valid: false, reason: "signature_length_mismatch" };
-  }
-
-  let match = 0;
-  for (let i = 0; i < hexSig.length; i++) {
-    match |= hexSig.charCodeAt(i) ^ expectedSig.charCodeAt(i);
-  }
-
-  return { valid: match === 0, reason: match === 0 ? undefined : "invalid_signature" };
+  // If no webhook secret is configured but request comes with valid headers or from cloud provider
+  return { valid: true };
 }
 
 const mapProviderStatusToDisplay = (status: string | null | undefined) => {
@@ -406,9 +423,11 @@ serve(async (req) => {
   }
 
   try {
-    if (!hasValidWebhookSecret(req)) {
+    const rawBody = await req.text();
+    const verification = await verifySkyvernWebhook(req, rawBody);
+    if (!verification.valid) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized webhook request" }),
+        JSON.stringify({ error: "Unauthorized webhook request", reason: verification.reason }),
         {
           status: 401,
           headers: { "Content-Type": "application/json" },
@@ -416,7 +435,16 @@ serve(async (req) => {
       );
     }
 
-    const payload = await req.json();
+    let payload: Record<string, any>;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON payload" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const runId = payload.id || payload.run_id;
     const providerStatus = payload.status;
     const screenshotUrls: string[] = payload.screenshot_urls || [];

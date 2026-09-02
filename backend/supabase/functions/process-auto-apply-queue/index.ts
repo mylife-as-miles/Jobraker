@@ -86,12 +86,13 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
       .eq("id", applicationId);
 
     const applyUrl = app.app_url || "";
-    const candidateName = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || "Candidate";
-    const candidateEmail = profile?.email || "";
-    const candidatePhone = profile?.phone || "";
-    const candidateLocation = profile?.location || "";
-    const candidateLinkedIn = profile?.linkedin_url || "";
-    const candidateGithub = profile?.github_url || "";
+    const candidateData = (app.provider_run_output as any)?.queue_parameters?.rtrvr?.candidate || {};
+    const candidateName = candidateData.fullName || candidateData.name || `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || "Candidate";
+    const candidateEmail = candidateData.email || profile?.email || "";
+    const candidatePhone = candidateData.phone || profile?.phone || "";
+    const candidateLocation = candidateData.location || profile?.location || "";
+    const candidateLinkedIn = candidateData.linkedinUrl || profile?.linkedin_url || "";
+    const candidateGithub = candidateData.githubUrl || profile?.github_url || "";
     const autoSubmit = Boolean(app.auto_apply_auto_submit ?? true);
 
     const prompt = [
@@ -142,6 +143,17 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
           automation_heartbeat_at: finishedAt,
         })
         .eq("id", applicationId);
+
+      if (app.job_id) {
+        await supabase
+          .from("jobs")
+          .update({
+            canonical_status: isDraftOnly ? "draft_ready" : "submitted",
+            updated_at: finishedAt,
+          })
+          .eq("id", app.job_id)
+          .eq("user_id", app.user_id);
+      }
 
       try {
         await createNotificationRecord(supabase, {
@@ -244,11 +256,17 @@ serve(async (req) => {
         .filter((id): id is string => typeof id === "string" && id.length > 0)
       : [];
 
-    // Trigger direct cloud execution for claimed applications with EdgeRuntime.waitUntil
+    // Trigger direct cloud execution for claimed applications
     const executionPromise = Promise.all(
       applicationIds.map((id) => executeRtrvrApplicationDirect(supabase, id, rtrvrApiKey))
     );
-    if (typeof (globalThis as any).EdgeRuntime?.waitUntil === "function") {
+
+    if (applicationIds.length > 0 && applicationIds.length <= 2) {
+      await Promise.race([
+        executionPromise,
+        new Promise((resolve) => setTimeout(resolve, 8000)),
+      ]);
+    } else if (typeof (globalThis as any).EdgeRuntime?.waitUntil === "function") {
       (globalThis as any).EdgeRuntime.waitUntil(executionPromise);
     } else {
       void executionPromise;

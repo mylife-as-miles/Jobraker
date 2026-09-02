@@ -111,6 +111,117 @@ Return only a valid JSON object matching this schema:
 
 export const formatJobTitleAndDescriptionWithAi = cleanJobDescriptionWithAI;
 
+/* ------------------------- deferred AI job formatting ----------------------- */
+
+/** Formatting is cosmetic, so a slow model must never hold up job visibility. */
+const JOB_FORMAT_TIMEOUT_MS = 20_000;
+/** Bounded so a batch cannot fire N concurrent Gemini calls and self-inflict 429s. */
+const JOB_FORMAT_CONCURRENCY = 3;
+
+type PendingJobFormat = {
+  jobId: string;
+  title: string;
+  description: string;
+};
+
+/**
+ * Cheap gate: a posting that already looks like clean markdown gains little
+ * from a model round trip, so skip it entirely.
+ */
+function alreadyLooksFormatted(title: string, description: string): boolean {
+  const desc = description.trim();
+  if (desc.length < 200) return true; // nothing meaningful to restructure
+  const hasMarkdownHeadings = /^#{2,4}\s+\S/m.test(desc);
+  const hasBullets = /^[-*]\s+\S/m.test(desc);
+  const hasHtmlArtifacts = /<[a-z][^>]*>/i.test(desc);
+  const titleIsNoisy = /[\[\]{}|]|\b(remote|hybrid|onsite|full[- ]time|part[- ]time)\b/i
+    .test(title);
+  return hasMarkdownHeadings && hasBullets && !hasHtmlArtifacts && !titleIsNoisy;
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: number | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`job formatting timed out after ${ms}ms`)),
+          ms,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
+ * Reformat already-persisted jobs and update them in place.
+ *
+ * Runs OFF the discovery critical path: jobs are saved with their scraped text
+ * first so they appear immediately, then this tidies them up. Never throws —
+ * a formatting failure must not fail a search.
+ */
+export async function formatPersistedJobs(
+  serviceClient: any,
+  userId: string,
+  pending: PendingJobFormat[],
+): Promise<void> {
+  const work = pending.filter(
+    (entry) =>
+      entry.jobId &&
+      !alreadyLooksFormatted(entry.title, entry.description || ""),
+  );
+  if (!work.length) return;
+
+  let cursor = 0;
+  const runWorker = async () => {
+    while (cursor < work.length) {
+      const entry = work[cursor];
+      cursor += 1;
+      try {
+        const formatted = await withTimeout(
+          formatJobTitleAndDescriptionWithAi(entry.title, entry.description || ""),
+          JOB_FORMAT_TIMEOUT_MS,
+        );
+        const nextTitle = formatted.title?.trim() || entry.title;
+        const nextDescription = formatted.description?.trim() ||
+          entry.description;
+        if (
+          nextTitle === entry.title && nextDescription === entry.description
+        ) {
+          continue;
+        }
+        const { error } = await serviceClient
+          .from("jobs")
+          .update({ title: nextTitle, description: nextDescription })
+          .eq("id", entry.jobId)
+          .eq("user_id", userId);
+        if (error) {
+          console.warn("[formatPersistedJobs] update failed", {
+            jobId: entry.jobId,
+            error,
+          });
+        }
+      } catch (error) {
+        // Cosmetic step: leave the scraped text in place and move on.
+        console.warn("[formatPersistedJobs] formatting skipped", {
+          jobId: entry.jobId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  };
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(JOB_FORMAT_CONCURRENCY, work.length) },
+      () => runWorker(),
+    ),
+  );
+}
+
 type JobRowInput = Record<string, unknown> & {
   id?: string;
   user_id: string;
@@ -215,27 +326,11 @@ export async function persistDiscoveredJobs(
     options.userId,
   );
 
-  const formattedJobs = await Promise.all(
-    jobs.map(async (job) => {
-      try {
-        const formatted = await formatJobTitleAndDescriptionWithAi(
-          job.title,
-          job.description || "",
-        );
-        return {
-          ...job,
-          title: formatted.title || job.title,
-          description: formatted.description || job.description,
-        };
-      } catch (err) {
-        console.warn("[persistDiscoveredJobs] AI formatting fallback", err);
-        return job;
-      }
-    }),
-  );
-
+  // AI formatting used to run here, one Gemini call per job, blocking the batch
+  // before anything could be shown. Jobs are now persisted with their scraped
+  // text immediately and tidied up afterwards by formatPersistedJobs().
   const results = await Promise.all(
-    formattedJobs.map(async (job) => {
+    jobs.map(async (job) => {
       const rawData = toRecord(job.raw_data);
       const discovery = toRecord(rawData.discovery);
       const baseLeadQuality = scoreDiscoveredJobQuality(job, {
@@ -419,12 +514,35 @@ export async function persistDiscoveredJobs(
     } satisfies JobRowInput;
   });
 
+  // Kick off cosmetic reformatting without awaiting it, so the caller can show
+  // these jobs now. `waitUntil` keeps it alive past a short-lived response;
+  // long-running workers can also await `formattingTask` before exiting.
+  const formattingTask = formatPersistedJobs(
+    serviceClient,
+    options.userId,
+    results.map((res) => ({
+      jobId: res.job_id,
+      title: res.job.title,
+      description: res.job.description || "",
+    })),
+  ).catch((error) => {
+    console.warn("[persistDiscoveredJobs] deferred formatting failed", error);
+  });
+
+  const runtime = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } })
+    .EdgeRuntime;
+  if (typeof runtime?.waitUntil === "function") {
+    runtime.waitUntil(formattingTask);
+  }
+
   return {
     jobsInserted: newResultCount,
     jobsProcessed: results.length,
     duplicateCount: duplicateResultCount,
     displayableCount: newResultCount,
     rows,
+    /** Resolves when deferred AI formatting has finished. Safe to ignore. */
+    formattingTask,
   };
 }
 

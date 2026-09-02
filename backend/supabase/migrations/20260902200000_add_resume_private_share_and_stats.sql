@@ -1,4 +1,6 @@
 -- Migration: Add private share token and views/downloads metrics to resumes
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 ALTER TABLE public.resumes
 ADD COLUMN IF NOT EXISTS public_share_enabled BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN IF NOT EXISTS share_token TEXT,
@@ -7,12 +9,12 @@ ADD COLUMN IF NOT EXISTS downloads INTEGER NOT NULL DEFAULT 0;
 
 -- Backfill share_token for existing resumes that do not have one
 UPDATE public.resumes
-SET share_token = encode(gen_random_bytes(16), 'hex')
+SET share_token = md5(random()::text || clock_timestamp()::text)
 WHERE share_token IS NULL;
 
 -- Default new resumes to have a generated share_token
 ALTER TABLE public.resumes
-ALTER COLUMN share_token SET DEFAULT encode(gen_random_bytes(16), 'hex');
+ALTER COLUMN share_token SET DEFAULT md5(random()::text || clock_timestamp()::text);
 
 -- Unique constraint / index on share_token
 DO $$ 
