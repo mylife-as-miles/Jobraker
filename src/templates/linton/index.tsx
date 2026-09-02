@@ -21,8 +21,8 @@ const CHARCOAL = "#2B2A27";
 const PEACH = "#EFA872";
 const MUTED_ON_DARK = "rgba(255,255,255,0.55)";
 
-const clampLevel = (value?: number) => {
-  if (typeof value !== "number" || Number.isNaN(value)) return null;
+const clampLevel = (value?: number | null) => {
+  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) return null;
   return Math.max(1, Math.min(5, Math.round(value)));
 };
 

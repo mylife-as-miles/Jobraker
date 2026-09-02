@@ -43,8 +43,8 @@ const ACCENT: Record<string, string> = {
 };
 const accentFor = (id: string) => ACCENT[id] || YELLOW;
 
-const clampLevel = (value?: number) => {
-  if (typeof value !== "number" || Number.isNaN(value)) return 3;
+const clampLevel = (value?: number | null) => {
+  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) return null;
   return Math.max(1, Math.min(5, Math.round(value)));
 };
 
@@ -345,18 +345,20 @@ function BarSection({ id }: { id: string }) {
           const name = item.name || item.title || item.label || "Untitled";
           return (
             <div key={item.id} className='flex items-center gap-3'>
-              <span className='w-[92px] shrink-0 text-[13px] font-extrabold'>
+              <span className='min-w-[92px] text-[13px] font-extrabold'>
                 {name}
               </span>
-              <span
-                className='relative h-5 flex-1 border-[3px]'
-                style={{ borderColor: BLACK, backgroundColor: WHITE }}
-              >
+              {level !== null && (
                 <span
-                  className='block h-full'
-                  style={{ width: `${level * 20}%`, backgroundColor: BLACK }}
-                />
-              </span>
+                  className='relative h-5 flex-1 border-[3px]'
+                  style={{ borderColor: BLACK, backgroundColor: WHITE }}
+                >
+                  <span
+                    className='block h-full'
+                    style={{ width: `${level * 20}%`, backgroundColor: BLACK }}
+                  />
+                </span>
+              )}
             </div>
           );
         })}

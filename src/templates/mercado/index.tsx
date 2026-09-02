@@ -38,8 +38,8 @@ const RIGHT_EXTRA_ORDER = [
   "references",
 ];
 
-const clampLevel = (value?: number) => {
-  if (typeof value !== "number" || Number.isNaN(value)) return 3;
+const clampLevel = (value?: number | null) => {
+  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) return null;
   return Math.max(1, Math.min(5, Math.round(value)));
 };
 
@@ -283,18 +283,20 @@ function SkillsCard() {
               >
                 {name}
               </span>
-              <span className='flex gap-1.5'>
-                {[1, 2, 3, 4, 5].map((dot) => (
-                  <span
-                    key={dot}
-                    className='h-[11px] w-[11px] rounded-full border-2'
-                    style={{
-                      borderColor: INK,
-                      backgroundColor: dot <= level ? color : "#FFFFFF",
-                    }}
-                  />
-                ))}
-              </span>
+              {level !== null && (
+                <span className='flex gap-1.5'>
+                  {[1, 2, 3, 4, 5].map((dot) => (
+                    <span
+                      key={dot}
+                      className='h-[11px] w-[11px] rounded-full border-2'
+                      style={{
+                        borderColor: INK,
+                        backgroundColor: dot <= level ? color : "#FFFFFF",
+                      }}
+                    />
+                  ))}
+                </span>
+              )}
             </div>
           );
         })}

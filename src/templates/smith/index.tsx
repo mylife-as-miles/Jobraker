@@ -43,8 +43,8 @@ const SECTION_ICONS: Record<
   interests: User,
 };
 
-const clampLevel = (value?: number) => {
-  if (typeof value !== "number" || Number.isNaN(value)) return 3;
+const clampLevel = (value?: number | null) => {
+  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) return null;
   return Math.max(1, Math.min(5, Math.round(value)));
 };
 
@@ -329,24 +329,28 @@ function SidebarBars({ id }: { id: string }) {
           const name = item.name || item.title || item.label || "Untitled";
           return (
             <div key={item.id} className='flex items-center gap-3'>
-              <span className='w-[104px] shrink-0 text-[11.5px] font-medium text-white'>
+              <span className='min-w-[104px] text-[11.5px] font-medium text-white'>
                 {name}
               </span>
-              <span
-                className='h-[5px] flex-1 overflow-hidden rounded-full'
-                style={{ backgroundColor: "rgba(255,255,255,0.28)" }}
-              >
-                <span
-                  className='block h-full rounded-full'
-                  style={{ width: `${pct}%`, backgroundColor: CORAL }}
-                />
-              </span>
-              <span
-                className='w-[34px] shrink-0 text-right text-[11px] font-semibold'
-                style={{ color: SIDE_MUTED }}
-              >
-                {pct}%
-              </span>
+              {level !== null && (
+                <>
+                  <span
+                    className='h-[5px] flex-1 overflow-hidden rounded-full'
+                    style={{ backgroundColor: "rgba(255,255,255,0.28)" }}
+                  >
+                    <span
+                      className='block h-full rounded-full'
+                      style={{ width: `${pct}%`, backgroundColor: CORAL }}
+                    />
+                  </span>
+                  <span
+                    className='w-[34px] shrink-0 text-right text-[11px] font-semibold'
+                    style={{ color: SIDE_MUTED }}
+                  >
+                    {pct}%
+                  </span>
+                </>
+              )}
             </div>
           );
         })}

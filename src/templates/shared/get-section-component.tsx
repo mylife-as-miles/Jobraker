@@ -12,8 +12,8 @@ const itemSurfaceClass = cn(
   'group-data-[layout=sidebar]:border-white/10 group-data-[layout=sidebar]:bg-white/10 group-data-[layout=sidebar]:shadow-none',
 );
 
-const clampLevel = (value?: number) => {
-  if (typeof value !== 'number' || Number.isNaN(value)) return null;
+const clampLevel = (value?: number | null) => {
+  if (typeof value !== 'number' || Number.isNaN(value) || value <= 0) return null;
   return Math.max(1, Math.min(5, Math.round(value)));
 };
 
@@ -105,8 +105,8 @@ function TokenSection({
     return (
       <div className="space-y-3">
         {visibleItems.map((item) => {
-          const level = clampLevel(item.level) || 3;
-          const levelLabel = getLevelLabel(sectionId, level);
+          const level = clampLevel(item.level);
+          const levelLabel = level ? getLevelLabel(sectionId, level) : '';
           const note = stripHtml(item.description);
 
           return (
@@ -122,16 +122,20 @@ function TokenSection({
                     </div>
                   )}
                 </div>
-                <div className="shrink-0 text-[0.62rem] font-bold uppercase tracking-[0.16em] text-gray-400 group-data-[layout=sidebar]:text-white/70">
-                  {levelLabel}
+                {levelLabel && (
+                  <div className="shrink-0 text-[0.62rem] font-bold uppercase tracking-[0.16em] text-gray-400 group-data-[layout=sidebar]:text-white/70">
+                    {levelLabel}
+                  </div>
+                )}
+              </div>
+              {level && (
+                <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-gray-200/90 group-data-[layout=sidebar]:bg-white/15">
+                  <div
+                    className="h-full rounded-full bg-[color:var(--page-primary-color,#3b82f6)] group-data-[layout=sidebar]:bg-white/85"
+                    style={{ width: `${level * 20}%` }}
+                  />
                 </div>
-              </div>
-              <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-gray-200/90 group-data-[layout=sidebar]:bg-white/15">
-                <div
-                  className="h-full rounded-full bg-[color:var(--page-primary-color,#3b82f6)] group-data-[layout=sidebar]:bg-white/85"
-                  style={{ width: `${level * 20}%` }}
-                />
-              </div>
+              )}
             </div>
           );
         })}

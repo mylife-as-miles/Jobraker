@@ -115,7 +115,7 @@ export function mapParsedDataToResume(parsed: ParsedProfileData, baseState: Resu
             id: nanoid(),
             hidden: false,
             name: skill,
-            level: 3, 
+            level: 0, // User-set by default; stop system/AI auto-assigning ratings
             description: '',
             keywords: [],
         }));
