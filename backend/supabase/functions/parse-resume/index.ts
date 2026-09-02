@@ -268,12 +268,17 @@ serve(async (req) => {
 
     const requestBody = (await req.json()) as ParseResumeRequest;
     const pdfBase64 = requestBody.pdfBase64;
-    let resumeText = requestBody.resumeText || "";
+    let resumeText = (requestBody.resumeText || "").trim();
     
     let parts: any[] = [];
     let promptLength = 0;
 
-    if (pdfBase64) {
+    if (resumeText.length >= 50) {
+      // Fast path: direct text tokenization in Gemini (~1.5s vs 10s+ for raw PDF multimodal OCR)
+      const prompt = buildPrompt(resumeText.slice(0, 60000));
+      parts = [{ text: prompt }];
+      promptLength = prompt.length;
+    } else if (pdfBase64) {
       const cleanBase64 = pdfBase64.replace(/^data:application\/pdf;base64,/, "").trim();
       const prompt = buildPrompt(null);
       parts = [
@@ -281,13 +286,15 @@ serve(async (req) => {
         { inlineData: { mimeType: "application/pdf", data: cleanBase64 } }
       ];
       promptLength = prompt.length + cleanBase64.length;
-    } else {
-      if (!resumeText || !resumeText.trim()) {
-        return new Response(JSON.stringify({ error: "resumeText or pdfBase64 is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
+    } else if (resumeText.length > 0) {
       const prompt = buildPrompt(resumeText.slice(0, 60000));
       parts = [{ text: prompt }];
       promptLength = prompt.length;
+    } else {
+      return new Response(
+        JSON.stringify({ error: "resumeText or pdfBase64 is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const ai = createGeminiClient();

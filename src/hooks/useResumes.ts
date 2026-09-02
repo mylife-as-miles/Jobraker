@@ -95,7 +95,11 @@ async function parseAndPersistResumeSnapshot({
 
     let aiParsedData: Awaited<ReturnType<typeof parseResumeWithAI>> | null = null;
     try {
-      const pdfBase64 = await fileToBase64(file);
+      const hasSufficientText = parsed.text && parsed.text.trim().length >= 50;
+      let pdfBase64: string | undefined = undefined;
+      if (!hasSufficientText) {
+        pdfBase64 = await fileToBase64(file);
+      }
       aiParsedData = await parseResumeWithAI({ resumeText: parsed.text, pdfBase64 });
     } catch (aiError) {
       console.warn("AI resume parsing failed during import. Using fallback snapshot.", aiError);

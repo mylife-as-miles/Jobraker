@@ -8,20 +8,37 @@ export interface ParsedPdfResult {
   pageLines: Array<{ page: number; text: string; x: number; y: number }>;
 }
 
-export async function parsePdfFile(file: File): Promise<ParsedPdfResult> {
-  const arrayBuffer = await file.arrayBuffer();
-  // pdfjs-dist v4 ESM: import API and worker URL explicitly for Vite
-  const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist');
-  try {
-    // Vite: import worker as URL so pdf.js can load it
-    // @ts-ignore - bundler query param
-    const workerSrc: string = (await import('pdfjs-dist/build/pdf.worker.mjs?url')).default;
-    if (GlobalWorkerOptions) {
-      (GlobalWorkerOptions as any).workerSrc = workerSrc;
-    }
-  } catch {
-    // If worker URL import fails, pdf.js may still work with inline worker in dev
+let workerInitialized = false;
+let pdfjsLibPromise: Promise<typeof import("pdfjs-dist")> | null = null;
+
+async function getPdfJs() {
+  if (!pdfjsLibPromise) {
+    pdfjsLibPromise = import("pdfjs-dist").then(async (pdfjs) => {
+      if (!workerInitialized) {
+        try {
+          // @ts-ignore - bundler query param
+          const workerSrc: string = (
+            await import("pdfjs-dist/build/pdf.worker.mjs?url")
+          ).default;
+          if (pdfjs.GlobalWorkerOptions) {
+            (pdfjs.GlobalWorkerOptions as any).workerSrc = workerSrc;
+          }
+        } catch {
+          // If worker URL import fails, pdf.js may still work with inline worker in dev
+        }
+        workerInitialized = true;
+      }
+      return pdfjs;
+    });
   }
+  return pdfjsLibPromise;
+}
+
+export async function parsePdfFile(file: File): Promise<ParsedPdfResult> {
+  const [arrayBuffer, { getDocument }] = await Promise.all([
+    file.arrayBuffer(),
+    getPdfJs(),
+  ]);
 
   const doc = await getDocument({
     data: arrayBuffer,
