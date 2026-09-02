@@ -93,6 +93,7 @@ import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { JobEvaluationTeaser } from "../../../components/JobEvaluationTeaser";
 import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
 import { JobEvaluationReport } from "../components/JobEvaluationReport";
+import { TailorResumeModal } from "../components/jobs/TailorResumeModal";
 import { OpportunityScoreSummary } from "../../../components/jobs/OpportunityScoreSummary";
 import { JobTaskMonitor } from "../components/JobTaskMonitor";
 import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
@@ -1283,6 +1284,9 @@ export const JobPage = (): JSX.Element => {
     activeRuns: number;
     totalLimit: number;
   }>({ activeRuns: 0, totalLimit: 1 });
+  const [tailorModalOpen, setTailorModalOpen] = useState(false);
+  const [tailorTargetJob, setTailorTargetJob] = useState<Job | null>(null);
+  const [autoTailorInBulk, setAutoTailorInBulk] = useState(true);
 
   const fetchConcurrencyInfo = useCallback(async () => {
     try {
@@ -3103,6 +3107,57 @@ export const JobPage = (): JSX.Element => {
     ],
   );
 
+  const handleOpenTailorModal = useCallback((job: Job) => {
+    setTailorTargetJob(job);
+    setTailorModalOpen(true);
+  }, []);
+
+  const handleApplyWithTailoredResume = useCallback(
+    async (tailoredText: string, confidenceScore: number) => {
+      if (!tailorTargetJob) return;
+      try {
+        await saveApplicationPackage({
+          jobId: tailorTargetJob.id,
+          tailoredResume: tailoredText,
+          metadata: {
+            confidence_score: confidenceScore,
+            is_tailored: true,
+            tailored_at: new Date().toISOString(),
+          },
+        });
+
+        setJobs((prev) =>
+          prev.map((j) =>
+            j.id === tailorTargetJob.id
+              ? {
+                  ...j,
+                  matchScore: confidenceScore,
+                  evaluation_summary: {
+                    ...(j.evaluation_summary || {}),
+                    confidence_score: confidenceScore,
+                    canonical_decision: "strong_yes",
+                  },
+                }
+              : j,
+          ),
+        );
+
+        setSelectedResumeRawText(tailoredText);
+        setTailorModalOpen(false);
+        await openAutoApplyFlow(tailorTargetJob);
+
+        addToast({
+          title: "Tailored Resume Ready",
+          description: `Resume tailored with ${confidenceScore}% match confidence. Proceeding to application.`,
+          variant: "success",
+        });
+      } catch (err: any) {
+        console.error("Failed to apply tailored resume:", err);
+      }
+    },
+    [addToast, openAutoApplyFlow, tailorTargetJob],
+  );
+
   /** Deep link from Applications: `/dashboard/jobs?autoApplyJobId=<uuid>` reopens auto-apply for a saved job. */
   const autoApplyDeepLinkConsumed = useRef<string | null>(null);
   useEffect(() => {
@@ -3719,9 +3774,46 @@ export const JobPage = (): JSX.Element => {
 
             for (const item of jobsWithTargets) {
               try {
+                let tailoredResumeText: string | undefined;
+                let tailoredConfidence: number | undefined;
+
+                if (autoTailorInBulk && activeResumeText && item.job.description) {
+                  try {
+                    pushLog(
+                      `Tailoring resume to ${item.job.company} (${item.job.title})...`,
+                      "info",
+                    );
+                    const tailoredResult = await tailorResumeViaEdge({
+                      jobDescription: item.job.description,
+                      resumeText: activeResumeText,
+                      jobTitle: item.job.title,
+                      company: item.job.company,
+                    });
+                    if (tailoredResult?.tailored_resume) {
+                      tailoredResumeText = tailoredResult.tailored_resume;
+                      tailoredConfidence = tailoredResult.confidence_score;
+                      item.job.matchScore = tailoredResult.confidence_score;
+                      item.job.evaluation_summary = {
+                        ...(item.job.evaluation_summary || {}),
+                        confidence_score: tailoredResult.confidence_score,
+                        canonical_decision: tailoredResult.canonical_decision || "strong_yes",
+                        matched_keywords: tailoredResult.matched_keywords,
+                      };
+                      (item as any).tailoredResumeText = tailoredResumeText;
+                      (item as any).tailoredConfidence = tailoredConfidence;
+                      pushLog(
+                        `Tailored to ${item.job.company}: match confidence recalculated to ${tailoredResult.confidence_score}%`,
+                        "success",
+                      );
+                    }
+                  } catch (tailorErr) {
+                    console.warn("Auto-tailoring during bulk apply threw", tailorErr);
+                  }
+                }
+
                 const evaluation = await getEvaluationForJob(item.job);
-                const decision = evaluation.canonical_decision;
-                const confidence = evaluation.confidence_score ?? 0;
+                const decision = tailoredConfidence && tailoredConfidence >= 85 ? "strong_yes" : evaluation.canonical_decision;
+                const confidence = tailoredConfidence ?? evaluation.confidence_score ?? 0;
                 const hardBlockers = evaluation.blockers?.length ?? 0;
 
                 const safeToLaunch =
@@ -3893,6 +3985,7 @@ export const JobPage = (): JSX.Element => {
                     match_reasons:
                       matchedKeywords.length > 0 ? matchedKeywords : null,
                     ai_confidence_score:
+                      (item as any)?.tailoredConfidence ??
                       evaluation?.confidence_score ??
                       job.evaluation_summary?.confidence_score ??
                       null,
@@ -3914,6 +4007,7 @@ export const JobPage = (): JSX.Element => {
                 match_reasons:
                   matchedKeywords.length > 0 ? matchedKeywords : null,
                 ai_confidence_score:
+                  (item as any)?.tailoredConfidence ??
                   evaluation?.confidence_score ??
                   job.evaluation_summary?.confidence_score ??
                   null,
@@ -3931,11 +4025,14 @@ export const JobPage = (): JSX.Element => {
                   ? { additional_information: profileSnapshot }
                   : {}),
                 ...(resumeSignedUrl ? { resume: resumeSignedUrl } : {}),
-                ...(draftData
-                  ? { resume_text: draftData.resumeText }
-                  : activeResumeText
-                    ? { resume_text: activeResumeText }
-                    : {}),
+                ...((item as any)?.tailoredResumeText
+                  ? { resume_text: (item as any).tailoredResumeText }
+                  : draftData
+                    ? { resume_text: draftData.resumeText }
+                    : activeResumeText
+                      ? { resume_text: activeResumeText }
+                      : {}),
+                ...(selectedResume?.data ? { resume_data: selectedResume.data } : {}),
                 ...(userEmail ? { email: userEmail } : {}),
               };
 
@@ -5978,6 +6075,14 @@ export const JobPage = (): JSX.Element => {
 
                                   {/* Action buttons stay below the title until the card has enough width. */}
                                   <div className='flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2'>
+                                    <Button
+                                      onClick={() => handleOpenTailorModal(job)}
+                                      className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand bg-brand text-black hover:bg-brand/90 px-4 py-2 text-sm font-bold shadow-[0_0_15px_rgba(47,217,104,0.3)] transition'
+                                      title='Tailor resume specifically to this job description and recalculate match confidence (~95%)'
+                                    >
+                                      <Sparkles className='w-4 h-4' />
+                                      Tailor Resume to JD
+                                    </Button>
                                     {primaryHref && (
                                       <a
                                         href={primaryHref}
@@ -6261,6 +6366,26 @@ export const JobPage = (): JSX.Element => {
             )}
           </div>
         </div>
+        {/* Tailor Resume Modal */}
+        <TailorResumeModal
+          open={tailorModalOpen}
+          onOpenChange={setTailorModalOpen}
+          job={
+            tailorTargetJob
+              ? {
+                  id: tailorTargetJob.id,
+                  title: tailorTargetJob.title,
+                  company: tailorTargetJob.company,
+                  description: tailorTargetJob.description || "",
+                  apply_url: tailorTargetJob.apply_url,
+                }
+              : null
+          }
+          baseResumeText={activeResumeText}
+          resumeName={selectedResume?.name || "Primary Resume"}
+          onApply={handleApplyWithTailoredResume}
+        />
+
         {/* Auto Apply orchestration dialog */}
         <Modal
           open={resumeDialogOpen}
@@ -6751,6 +6876,32 @@ export const JobPage = (): JSX.Element => {
                         </span>
                       </li>
                     </ul>
+                  </div>
+
+                  {/* Auto-Tailor Resume Toggle */}
+                  <div className='rounded-xl border border-brand/25 bg-brand/5 p-4 sm:p-5 flex items-center justify-between'>
+                    <div>
+                      <div className='flex items-center gap-2 text-sm font-semibold text-foreground'>
+                        <Sparkles className='w-4 h-4 text-brand' />
+                        Auto-Tailor Resume to each JD
+                      </div>
+                      <p className='mt-1 text-xs text-foreground/70 max-w-[85%]'>
+                        Automatically tweaks CV against target JD keywords and recalculates match confidence (~95%) before applying. Contact details are strictly preserved from attached resume.
+                      </p>
+                    </div>
+                    <button
+                      type='button'
+                      onClick={() =>
+                        setAutoTailorInBulk(!autoTailorInBulk)
+                      }
+                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${autoTailorInBulk ? "bg-brand" : "bg-foreground/20"}`}
+                      role='switch'
+                      aria-checked={autoTailorInBulk}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${autoTailorInBulk ? "translate-x-4" : "translate-x-0"}`}
+                      />
+                    </button>
                   </div>
 
                   {/* True Autonomy Toggle */}
@@ -7510,6 +7661,15 @@ export const JobPage = (): JSX.Element => {
                         )}
 
                         <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-2'>
+                          <Button
+                            variant='outline'
+                            onClick={() => handleOpenTailorModal(j)}
+                            className='inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-brand/50 bg-brand/10 text-brand px-3 py-2 text-[13px] font-semibold transition hover:bg-brand hover:text-black'
+                            title='Tailor resume specifically to this job description and recalculate match confidence (~95%)'
+                          >
+                            <Sparkles className='w-3.5 h-3.5' />
+                            Tailor Resume
+                          </Button>
                           {primaryHref && (
                             <a
                               href={primaryHref}

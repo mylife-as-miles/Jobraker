@@ -168,10 +168,11 @@ async function resolveStoredResumeForApplication(opts: {
   name: string | null;
   filePath: string;
   signedUrl: string;
+  data?: Record<string, unknown> | null;
 } | null> {
   const { data: resumeRows, error } = await opts.serviceClient
     .from("resumes")
-    .select("id,name,file_path,is_favorite,updated_at")
+    .select("id,name,file_path,data,is_favorite,updated_at")
     .eq("user_id", opts.userId)
     .limit(25);
 
@@ -206,6 +207,7 @@ async function resolveStoredResumeForApplication(opts: {
     name: typeof selected.name === "string" ? selected.name : null,
     filePath: selected.file_path,
     signedUrl: signed.signedUrl,
+    data: selected.data && typeof selected.data === "object" ? selected.data : null,
   };
 }
 
@@ -897,19 +899,48 @@ Deno.serve(async (req) => {
       ]
         .filter(Boolean)
         .join(" ")
-        .trim() || "";
+    const resumeBasics =
+      (resolvedStoredResume?.data as any)?.basics ||
+      (body?.resume_data as any)?.basics ||
+      (body?.resume_basics as any) ||
+      null;
+
     const candidateFullName =
+      (typeof resumeBasics?.name === "string" && resumeBasics.name.trim()) ||
+      (typeof userInput.full_name === "string" && userInput.full_name.trim()) ||
       (typeof candidateProfileRow?.full_name === "string" && candidateProfileRow.full_name.trim()) ||
       (typeof user?.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
-      (typeof userInput.full_name === "string" && userInput.full_name.trim()) ||
       profileFirstAndLastName ||
+      null;
+
+    const candidatePhone =
+      (typeof resumeBasics?.phone === "string" && resumeBasics.phone.trim()) ||
+      (typeof userInput.phone === "string" && userInput.phone.trim()) ||
+      (typeof profileRow?.phone === "string" && profileRow.phone.trim()) ||
+      null;
+
+    const candidateEmail =
+      (typeof resumeBasics?.email === "string" && resumeBasics.email.trim()) ||
+      email;
+
+    const candidateLocation =
+      (typeof resumeBasics?.location === "string" && resumeBasics.location.trim()) ||
+      (typeof profileRow?.location === "string" && profileRow.location.trim()) ||
+      (typeof userInput.location === "string" && userInput.location.trim()) ||
+      null;
+
+    const candidateHeadline =
+      (typeof resumeBasics?.headline === "string" && resumeBasics.headline.trim()) ||
+      (typeof profileRow?.job_title === "string" && profileRow.job_title.trim()) ||
+      (typeof userInput.job_title === "string" && userInput.job_title.trim()) ||
       null;
 
     const safeUserInput = {
       ...userInput,
       id: userId,
-      ...(email ? { email } : {}),
+      ...(candidateEmail ? { email: candidateEmail } : {}),
       ...(candidateFullName ? { full_name: candidateFullName } : {}),
+      ...(candidatePhone ? { phone: candidatePhone } : {}),
       ...(resolvedStoredResume
         ? { resume_id: resolvedStoredResume.id, resume_name: resolvedStoredResume.name }
         : {}),
@@ -926,25 +957,10 @@ Deno.serve(async (req) => {
       .slice(0, 10);
     const candidateProfile = {
       fullName: candidateFullName,
-      email,
-      phone:
-        typeof profileRow?.phone === "string"
-          ? profileRow.phone
-          : typeof userInput.phone === "string"
-            ? userInput.phone
-            : null,
-      location:
-        typeof profileRow?.location === "string"
-          ? profileRow.location
-          : typeof userInput.location === "string"
-            ? userInput.location
-            : null,
-      headline:
-        typeof profileRow?.job_title === "string"
-          ? profileRow.job_title
-          : typeof userInput.job_title === "string"
-            ? userInput.job_title
-            : null,
+      email: candidateEmail,
+      phone: candidatePhone,
+      location: candidateLocation,
+      headline: candidateHeadline,
       portfolioLinks,
       employmentHistory: Array.isArray(experienceRows) ? experienceRows : [],
       education: Array.isArray(educationRows) ? educationRows : [],
