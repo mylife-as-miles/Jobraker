@@ -62,6 +62,15 @@ function mergeParsedProfileData(
     experienceYears:
       incoming.experienceYears ?? base.experienceYears ?? null,
     about: incoming.about || base.about,
+    website: incoming.website || base.website,
+    profiles:
+      incoming.profiles && incoming.profiles.length > 0
+        ? incoming.profiles
+        : base.profiles,
+    urls:
+      incoming.urls && incoming.urls.length > 0
+        ? incoming.urls
+        : base.urls,
     skills: incoming.skills.length > 0 ? incoming.skills : base.skills,
     education:
       incoming.education.length > 0 ? incoming.education : base.education,
@@ -121,6 +130,8 @@ function snapshotToParsedProfileData(
     Boolean(profileData.firstName || profileData.lastName) ||
     Boolean(profileData.email || profileData.phone || profileData.location) ||
     Boolean(profileData.jobTitle || profileData.about) ||
+    Boolean(profileData.website) ||
+    Boolean(profileData.profiles && profileData.profiles.length > 0) ||
     profileData.skills.length > 0 ||
     profileData.education.length > 0 ||
     profileData.experience.length > 0;

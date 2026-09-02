@@ -47,6 +47,7 @@ import {
   buildCandidateProfileSnapshot,
   fillResumeFromCandidateProfile,
 } from "@/lib/candidateProfileSnapshot";
+import { getResumeSourceType } from "@/lib/resumeDocumentSchema";
 import {
   initialResumeEditorState,
   resumeEditorReducer,
@@ -234,6 +235,8 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
   useEffect(() => {
     if (!hydrationReady) return;
+    if (getResumeSourceType(resumeData) === "imported") return;
+
     const mapped = fillResumeFromCandidateProfile(
       resumeData,
       initialResumeState.data,

@@ -11,6 +11,13 @@ export interface ParsedProfileData {
   jobTitle: string;
   experienceYears: number | null;
   about: string;
+  website?: string;
+  profiles?: Array<{
+    network: string;
+    url: string;
+    username?: string;
+  }>;
+  urls?: string[];
   skills: string[];
   education: Array<{
     school: string;
@@ -38,6 +45,57 @@ export interface ParsedProfileData {
     date?: string;
     description?: string;
   }>;
+}
+
+export function inferSocialProfileFromUrl(url: string): { network: string; url: string; username: string } {
+  let cleanUrl = (url || "").trim().replace(/[.,;:)\]]+$/, "");
+  if (!cleanUrl) return { network: "Website", url: "", username: "" };
+  if (!/^https?:\/\//i.test(cleanUrl)) {
+    cleanUrl = `https://${cleanUrl}`;
+  }
+
+  let network = "Website";
+  let username = "";
+
+  try {
+    const parsed = new URL(cleanUrl);
+    const host = parsed.hostname.toLowerCase();
+    const path = parsed.pathname.replace(/^\/+|\/+$/g, "");
+    const parts = path.split("/").filter(Boolean);
+
+    if (host.includes("linkedin.com")) {
+      network = "LinkedIn";
+      username = parts.length >= 2 && (parts[0] === "in" || parts[0] === "pub") ? parts[1] : (parts[0] || "");
+    } else if (host.includes("github.com")) {
+      network = "GitHub";
+      username = parts[0] || "";
+    } else if (host.includes("twitter.com") || host.includes("x.com")) {
+      network = "X";
+      username = parts[0] || "";
+    } else if (host.includes("medium.com")) {
+      network = "Medium";
+      username = parts[0]?.replace(/^@/, "") || "";
+    } else if (host.includes("behance.net")) {
+      network = "Behance";
+      username = parts[0] || "";
+    } else if (host.includes("dribbble.com")) {
+      network = "Dribbble";
+      username = parts[0] || "";
+    } else if (host.includes("instagram.com")) {
+      network = "Instagram";
+      username = parts[0] || "";
+    } else if (host.includes("youtube.com")) {
+      network = "YouTube";
+      username = parts[0] || "";
+    } else {
+      network = "Portfolio";
+      username = parsed.hostname.replace(/^www\./, "");
+    }
+  } catch {
+    network = "Website";
+  }
+
+  return { network, url: cleanUrl, username };
 }
 
 function splitFullName(fullName: string) {
@@ -222,6 +280,9 @@ export function buildFallbackParsedProfileData(
         .filter((entry) => entry.name)
     : [];
 
+  const fallbackProfiles = (analyzed.urls || []).map(inferSocialProfileFromUrl);
+  const fallbackWebsite = fallbackProfiles.find((p) => p.network === "Portfolio" || p.network === "Website")?.url || analyzed.urls?.[0] || "";
+
   return {
     firstName: nameParts.firstName,
     lastName: nameParts.lastName,
@@ -231,6 +292,9 @@ export function buildFallbackParsedProfileData(
     jobTitle: analyzed.entities.titles[0] || "",
     experienceYears: null,
     about: summary,
+    website: fallbackWebsite,
+    profiles: fallbackProfiles,
+    urls: analyzed.urls,
     skills: analyzed.skills,
     education,
     experience,
@@ -320,6 +384,23 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
     const num = (v: any) => typeof v === 'number' ? v : null;
     const arr = (v: any) => Array.isArray(v) ? v.filter(i => typeof i === 'string') : [];
 
+    const sanitizeProfiles = (items: any): Array<{ network: string; url: string; username?: string }> => {
+      if (!Array.isArray(items)) return [];
+      return items
+        .map((it: any) => {
+          if (!it || typeof it !== "object") return null;
+          const url = str(it.url);
+          if (!url) return null;
+          const inferred = inferSocialProfileFromUrl(url);
+          return {
+            network: str(it.network) || inferred.network,
+            url: inferred.url,
+            username: str(it.username) || inferred.username,
+          };
+        })
+        .filter(Boolean) as Array<{ network: string; url: string; username?: string }>;
+    };
+
     const legacyBasics =
       record.basics && typeof record.basics === "object" ? record.basics : null;
     const legacySummary =
@@ -339,6 +420,11 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
           ? legacySections.skills.items
           : [];
 
+        const legacyProfiles = sanitizeProfiles(legacyBasics?.profiles);
+        if (legacyProfiles.length === 0 && legacyBasics?.website?.url) {
+          legacyProfiles.push(inferSocialProfileFromUrl(legacyBasics.website.url));
+        }
+
         const legacyProfile: ParsedProfileData = {
             firstName,
             lastName,
@@ -348,6 +434,9 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
             jobTitle: str(legacyBasics?.headline),
             experienceYears: null,
             about: str(legacySummary?.content),
+            website: str(legacyBasics?.website?.url),
+            profiles: legacyProfiles,
+            urls: legacyProfiles.map((p) => p.url),
             skills: legacySkills
               .map((item: any) => str(item?.name))
               .filter(Boolean),
@@ -397,6 +486,12 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
         return postProcessSectionLeakage(legacyProfile);
     }
 
+    let modernProfiles = sanitizeProfiles(raw.profiles);
+    if (modernProfiles.length === 0 && Array.isArray(raw.urls)) {
+      modernProfiles = raw.urls.map(str).filter(Boolean).map(inferSocialProfileFromUrl);
+    }
+    const modernWebsite = str(raw.website) || modernProfiles.find((p) => p.network === "Portfolio" || p.network === "Website")?.url || "";
+
     const modernProfile: ParsedProfileData = {
         firstName: str(raw.firstName || raw.first_name),
         lastName: str(raw.lastName || raw.last_name),
@@ -406,6 +501,9 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
         jobTitle: str(raw.jobTitle || raw.job_title),
         experienceYears: num(raw.experienceYears || raw.experience_years),
         about: str(raw.about),
+        website: modernWebsite,
+        profiles: modernProfiles,
+        urls: modernProfiles.map((p) => p.url),
         skills: arr(raw.skills),
         education: Array.isArray(raw.education) ? raw.education.map((e: any) => ({
             school: str(e.school),

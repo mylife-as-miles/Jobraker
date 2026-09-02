@@ -178,6 +178,14 @@ export function fillResumeFromCandidateProfile(
   defaults: ResumeData,
   snapshot: CandidateProfileSnapshot,
 ): ResumeData {
+  const currentSource = getResumeSourceType(current);
+
+  // An imported resume comes from an uploaded file; its source of truth is the parsed resume data.
+  // Never overwrite or pollute an uploaded resume with account profile settings!
+  if (currentSource === "imported") {
+    return current;
+  }
+
   const next = structuredClone(current);
   const basicFields = ["name", "headline", "email", "phone", "location"] as const;
 
@@ -234,7 +242,6 @@ export function fillResumeFromCandidateProfile(
   }
 
   const changed = JSON.stringify(next) !== JSON.stringify(current);
-  const currentSource = getResumeSourceType(current);
   return changed && (currentSource === "template" || currentSource === "legacy")
     ? withResumeSource(next, "profile")
     : next;

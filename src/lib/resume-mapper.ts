@@ -1,7 +1,7 @@
 
 import { nanoid } from 'nanoid';
 import { ResumeData } from '../store/artboard';
-import { ParsedProfileData } from '../services/ai/parseResumeProfile';
+import { ParsedProfileData, inferSocialProfileFromUrl } from '../services/ai/parseResumeProfile';
 import { withResumeSource } from './resumeDocumentSchema';
 
 function formatPeriod(start?: string, end?: string) {
@@ -25,6 +25,7 @@ export function mapParsedDataToResume(parsed: ParsedProfileData, baseState: Resu
     resume.basics.location = '';
     resume.basics.headline = '';
     resume.basics.website = { url: '', label: '' };
+    resume.basics.profiles = [];
     resume.basics.customFields = [];
     resume.summary.content = '';
     
@@ -39,6 +40,34 @@ export function mapParsedDataToResume(parsed: ParsedProfileData, baseState: Resu
     resume.basics.phone = parsed.phone || '';
     resume.basics.location = parsed.location || '';
     resume.basics.headline = parsed.jobTitle || '';
+
+    // Social Profiles & Links
+    if (parsed.profiles && parsed.profiles.length > 0) {
+        resume.basics.profiles = parsed.profiles.map(p => ({
+            network: p.network || 'Website',
+            username: p.username || '',
+            url: p.url,
+            icon: (p.network || 'website').toLowerCase(),
+        }));
+    } else if (parsed.urls && parsed.urls.length > 0) {
+        resume.basics.profiles = parsed.urls.map(inferSocialProfileFromUrl).map(p => ({
+            network: p.network,
+            username: p.username,
+            url: p.url,
+            icon: p.network.toLowerCase(),
+        }));
+    } else {
+        resume.basics.profiles = [];
+    }
+
+    if (parsed.website) {
+        resume.basics.website = { url: parsed.website, label: 'Portfolio' };
+    } else if (resume.basics.profiles.length > 0) {
+        const portfolio = resume.basics.profiles.find(p => p.network === 'Portfolio' || p.network === 'Website');
+        if (portfolio) {
+            resume.basics.website = { url: portfolio.url, label: portfolio.network };
+        }
+    }
     
     // 2. Summary
     if (parsed.about) {

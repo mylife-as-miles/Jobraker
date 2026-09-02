@@ -18,8 +18,10 @@ import {
 } from "@/lib/resumeHydration";
 import {
   initialResumeState,
+  type ResumeData,
   type ResumeState,
 } from "@/store/artboard";
+import { getResumeSourceType } from "@/lib/resumeDocumentSchema";
 import type { ResumeEditorEvent } from "@/lib/resumeEditorState";
 
 type Notify = (title: string, message: string) => void;
@@ -95,6 +97,15 @@ export function useResumeHydration({
           )
         : null;
 
+      const isImportedResume =
+        Boolean(remoteResume?.file_path) ||
+        Boolean(normalizedRemoteData && getResumeSourceType(normalizedRemoteData) === "imported");
+      const missingImportedSections =
+        Boolean(isImportedResume &&
+        normalizedRemoteData &&
+        ((normalizedRemoteData.sections?.education?.items?.length ?? 0) === 0 ||
+          (normalizedRemoteData.basics?.profiles?.length ?? 0) === 0));
+
       if (remoteResumeError || !remoteResume) {
         if (localDraft?.resume) {
           setResume(localDraft.resume);
@@ -110,7 +121,7 @@ export function useResumeHydration({
             "We couldn't load this resume. You'll be using a fresh template.",
           );
         }
-      } else if (normalizedRemoteData && !needsResumeRepair(normalizedRemoteData)) {
+      } else if (normalizedRemoteData && !needsResumeRepair(normalizedRemoteData) && !missingImportedSections) {
         const remoteState = buildHydratedResumeState(
           remoteResume,
           normalizedRemoteData,
@@ -120,67 +131,101 @@ export function useResumeHydration({
         setResume(remoteState);
         setResumeId(remoteResume.id);
       } else {
-        const canRestoreLocalDraft =
-          Boolean(localDraft?.resume) &&
-          !needsResumeRepair(localDraft?.resume?.data) &&
-          (!remoteResume.updated_at ||
-            !localDraft?.sourceUpdatedAt ||
-            localDraft.sourceUpdatedAt === remoteResume.updated_at);
-        const parsedProfile = await loadParsedResumeProfileData({
-          supabase,
-          resumeId: remoteResume.id,
-          fallbackName: remoteResume.name,
-        });
+          const canRestoreLocalDraft =
+            Boolean(localDraft?.resume) &&
+            !needsResumeRepair(localDraft?.resume?.data) &&
+            (!remoteResume.updated_at ||
+              !localDraft?.sourceUpdatedAt ||
+              localDraft.sourceUpdatedAt === remoteResume.updated_at);
+          const parsedProfile = await loadParsedResumeProfileData({
+            supabase,
+            resumeId: remoteResume.id,
+            fallbackName: remoteResume.name,
+          });
 
-        if (cancelled) return;
+          if (cancelled) return;
 
-        const hydratedData = parsedProfile
-          ? mapParsedDataToResume(
-              parsedProfile,
-              structuredClone(normalizedRemoteData ?? initialResumeState.data),
-            )
-          : (normalizedRemoteData ?? {
+          let hydratedData: ResumeData;
+          if (parsedProfile) {
+            if (normalizedRemoteData && !needsResumeRepair(normalizedRemoteData)) {
+              // Keep existing non-placeholder content, enrich missing education and social profiles from parsed resume
+              hydratedData = structuredClone(normalizedRemoteData);
+              const mappedFromParsed = mapParsedDataToResume(
+                parsedProfile,
+                structuredClone(initialResumeState.data),
+              );
+
+              if (
+                (hydratedData.sections?.education?.items?.length ?? 0) === 0 &&
+                (mappedFromParsed.sections?.education?.items?.length ?? 0) > 0
+              ) {
+                hydratedData.sections.education = mappedFromParsed.sections.education;
+              }
+
+              if (
+                (hydratedData.basics?.profiles?.length ?? 0) === 0 &&
+                (mappedFromParsed.basics?.profiles?.length ?? 0) > 0
+              ) {
+                hydratedData.basics.profiles = mappedFromParsed.basics.profiles;
+                if (!hydratedData.basics.website?.url && mappedFromParsed.basics.website?.url) {
+                  hydratedData.basics.website = mappedFromParsed.basics.website;
+                }
+              }
+            } else {
+              hydratedData = mapParsedDataToResume(
+                parsedProfile,
+                structuredClone(normalizedRemoteData ?? initialResumeState.data),
+              );
+            }
+          } else {
+            hydratedData = normalizedRemoteData ?? {
               ...structuredClone(initialResumeState.data),
               title: remoteResume.name || initialResumeState.data.title,
-            });
-        const hydratedState = buildHydratedResumeState(
-          remoteResume,
-          hydratedData,
-        );
-
-        serverUpdatedAtRef.current = remoteResume.updated_at ?? null;
-        markBaseline(hydratedState);
-        setResume(hydratedState);
-        setResumeId(remoteResume.id);
-
-        if (parsedProfile) {
-          if (normalizedRemoteData && needsResumeRepair(normalizedRemoteData)) {
-            const repairTimestamp = new Date().toISOString();
-            serverUpdatedAtRef.current = repairTimestamp;
-            const { error: repairError } = await supabase
-              .from("resumes")
-              .update({
-                data: hydratedData,
-                name: hydratedData.title || remoteResume.name,
-                updated_at: repairTimestamp,
-              })
-              .eq("id", remoteResume.id);
-
-            if (repairError) {
-              console.warn("Failed to repair placeholder resume data", repairError);
-            } else {
-              void queryClient.invalidateQueries({
-                queryKey: ["resume", remoteResume.id],
-              });
-            }
+            };
           }
 
-          info(
-            "Resume imported",
-            "We populated the resume editor with details parsed from your uploaded file.",
+          const hydratedState = buildHydratedResumeState(
+            remoteResume,
+            hydratedData,
           );
-          await clear();
-        } else if (canRestoreLocalDraft && localDraft?.resume) {
+
+          serverUpdatedAtRef.current = remoteResume.updated_at ?? null;
+          markBaseline(hydratedState);
+          setResume(hydratedState);
+          setResumeId(remoteResume.id);
+
+          if (parsedProfile) {
+            const shouldPersist =
+              Boolean(normalizedRemoteData && needsResumeRepair(normalizedRemoteData)) ||
+              missingImportedSections;
+
+            if (shouldPersist) {
+              const repairTimestamp = new Date().toISOString();
+              serverUpdatedAtRef.current = repairTimestamp;
+              const { error: repairError } = await supabase
+                .from("resumes")
+                .update({
+                  data: hydratedData,
+                  name: hydratedData.title || remoteResume.name,
+                  updated_at: repairTimestamp,
+                })
+                .eq("id", remoteResume.id);
+
+              if (repairError) {
+                console.warn("Failed to persist enriched resume data", repairError);
+              } else {
+                void queryClient.invalidateQueries({
+                  queryKey: ["resume", remoteResume.id],
+                });
+              }
+            }
+
+            info(
+              "Resume imported",
+              "We populated the resume editor with details parsed from your uploaded file.",
+            );
+            await clear();
+          } else if (canRestoreLocalDraft && localDraft?.resume) {
           serverUpdatedAtRef.current = localDraft.sourceUpdatedAt ?? null;
           setResume(localDraft.resume);
           setResumeId(localDraft.resume.id);

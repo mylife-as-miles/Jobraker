@@ -67,6 +67,19 @@ const PARSING_SCHEMA = {
         required: ["company", "title", "description"]
       }
     },
+    website: { type: "string" },
+    profiles: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          network: { type: "string" },
+          url: { type: "string" },
+          username: { type: "string" }
+        },
+        required: ["network", "url"]
+      }
+    },
     projects: {
       type: "array",
       items: {
@@ -114,13 +127,16 @@ Strict Section Segmentation Directives:
 3. SKILLS ONLY in 'skills' array:
    - Extract every technical skill, tool, programming language, framework, cloud platform, methodology, library, and domain expertise into this string array.
    - Do NOT cap skills at 20; if the resume mentions 40 skills, extract all 40.
-4. PROJECTS ONLY in 'projects' array:
+4. SOCIAL PROFILES & LINKS:
+   - Extract all social profiles, portfolio links, and web presences (LinkedIn, GitHub, Portfolio, Personal Website, Twitter/X, Medium, Behance, etc.) into the 'profiles' array with network name, full URL, and username.
+   - If a personal website or portfolio is present, also populate 'website'.
+5. PROJECTS ONLY in 'projects' array:
    - Independent projects, open-source work, portfolio items, or research projects.
-5. CERTIFICATIONS ONLY in 'certifications' array:
+6. CERTIFICATIONS ONLY in 'certifications' array:
    - Professional certifications, AWS/GCP/Azure certs, PMP, Scrum, licenses, etc.
-6. ABOUT / SUMMARY:
+7. ABOUT / SUMMARY:
    - The candidate's professional summary, profile, or objective. If not explicitly present, write a concise 2-3 sentence overview based on their background.
-7. MULTI-COLUMN & MARKDOWN HEADERS:
+8. MULTI-COLUMN & MARKDOWN HEADERS:
    - The input text may include markdown headers (such as '## Skills', '## Experience', '## Education', '## Summary').
    - Use these headers as strict boundaries. Content under '## Education' belongs exclusively in 'education'. Content under '## Skills' belongs exclusively in 'skills'. Content under '## Experience' belongs exclusively in 'experience'.
    - For bullet points in experience descriptions, preserve each bullet point separated by newlines.
