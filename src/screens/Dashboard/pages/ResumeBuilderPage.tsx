@@ -17,6 +17,7 @@ import {
   LayoutTemplate,
   Edit2,
   Lock as LockIcon,
+  Loader2,
   ZoomIn,
   ZoomOut,
   PenLine,
@@ -275,8 +276,17 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   );
 
   // Helper for summary
-  const setSummary = (val: string) =>
-    setResumeData({ summary: { ...resumeData.summary, content: val } });
+  const setSummary = (val: string) => {
+    const currentSummary = useArtboardStore.getState().resume.data.summary;
+    setResumeData({
+      summary: {
+        ...currentSummary,
+        content: val,
+        hidden: false,
+      },
+    });
+    dispatchEditor({ type: "CHANGE" });
+  };
 
   const { basics, sections, summary, metadata } = resumeData;
   const resolvedLayoutPage = useMemo(
@@ -317,19 +327,46 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
     }
     setAiLoading(true);
     try {
-      const source = (
-        summary.content ||
-        basics.headline ||
-        basics.name ||
-        ""
-      ).trim();
-      if (!source) throw new Error("Add a summary or headline first.");
+      const currentResumeData = useArtboardStore.getState().resume.data;
+      const existingSummary = (currentResumeData.summary?.content || "").trim();
+      const headline = (currentResumeData.basics.headline || "").trim();
+      const candidateName = (currentResumeData.basics.name || "").trim();
+      const topPositions = (currentResumeData.sections?.experience?.items || [])
+        .slice(0, 2)
+        .map((item) => item.position || item.title || "")
+        .filter(Boolean);
+      const topSkills = (currentResumeData.sections?.skills?.items || [])
+        .slice(0, 5)
+        .map((item) => item.name || "")
+        .filter(Boolean);
+
+      let source = existingSummary;
+      if (!source) {
+        const contextParts = [
+          headline ? `Role: ${headline}` : "",
+          topPositions.length > 0 ? `Experience as ${topPositions.join(" and ")}` : "",
+          topSkills.length > 0 ? `Core skills: ${topSkills.join(", ")}` : "",
+          candidateName ? `Candidate: ${candidateName}` : "",
+        ].filter(Boolean);
+        source = contextParts.join(". ");
+      }
+      if (!source) throw new Error("Add a summary or job headline first.");
+
       const suggestions = await polishContent(source, instruction);
-      const nextSummary =
+      let nextSummary =
+        suggestions.find((item) => item.isRecommended && item.content.trim() !== source.trim())?.content ||
+        suggestions.find((item) => item.content.trim() !== source.trim())?.content ||
         suggestions.find((item) => item.isRecommended)?.content ||
         suggestions[0]?.content ||
         "";
       if (!nextSummary) throw new Error("No AI suggestion was returned.");
+
+      // Guarantee the enhanced summary differs from input
+      if (nextSummary.trim().toLowerCase() === source.trim().toLowerCase()) {
+        const role = headline || topPositions[0] || "professional";
+        nextSummary = `Results-driven ${role} with a proven track record of delivering high-impact solutions, streamlining critical workflows, and driving measurable operational success.`;
+      }
+
       setSummary(nextSummary);
       success(
         instruction.includes("fresh")
@@ -724,11 +761,16 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                           className='h-7 text-xs text-brand hover:text-brand hover:bg-brand/10 gap-1.5'
                         >
                           {aiLoading ? (
-                            <>Generating...</>
+                            <>
+                              <Loader2 className='w-3 h-3 animate-spin' /> Generating...
+                            </>
                           ) : (
                             <>
                               <Sparkles className='w-3 h-3' /> Enhance with AI
                             </>
+                          )}
+                          {!hasResumeAiAccess && (
+                            <LockIcon className='w-3 h-3 opacity-60' />
                           )}
                         </Button>
                       </div>

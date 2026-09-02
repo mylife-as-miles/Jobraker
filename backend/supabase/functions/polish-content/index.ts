@@ -13,7 +13,11 @@ import {
   createSafeAiErrorResponse,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { parseStructuredJson } from "../_shared/structured-json.ts";
+import {
+  parseStructuredJson,
+  stripCodeFences,
+  extractJsonCandidate,
+} from "../_shared/structured-json.ts";
 import {
   SubscriptionAccessError,
   requireSubscriptionTier,
@@ -29,117 +33,16 @@ interface PolishContentRequest {
   instruction?: string;
 }
 
-type PolishSuggestion = {
-  id: string;
-  type: "enhancement" | "correction" | "professional";
-  label: string;
-  content: string;
-  isRecommended?: boolean;
-};
-
-type PolishContentResponse = {
-  suggestions: PolishSuggestion[];
-};
-
-function sanitizeInput(text: string, maxLength: number): string {
-  if (!text) return "";
-  let sanitized = text.substring(0, maxLength);
-  const injectionPatterns = [
-    /ignore all previous instructions/gi,
-    /disregard previous instructions/gi,
-    /you are now a/gi,
-    /system prompt/gi,
-    /output the following/gi,
-  ];
-  for (const pattern of injectionPatterns) {
-    sanitized = sanitized.replace(pattern, "[REDACTED]");
-  }
-  return sanitized.trim();
-}
-
-function normalizeSuggestion(
-  value: unknown,
-  index: number,
-  fallbackContent: string,
-): PolishSuggestion {
-  const record =
-    value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-  const type =
-    record.type === "professional" || record.type === "correction"
-      ? record.type
-      : "enhancement";
-  const content =
-    typeof record.content === "string" && record.content.trim()
-      ? record.content.trim()
-      : fallbackContent;
-
-  return {
-    id:
-      typeof record.id === "string" && record.id.trim()
-        ? record.id.trim()
-        : String(index + 1),
-    type,
-    label:
-      typeof record.label === "string" && record.label.trim()
-        ? record.label.trim()
-        : type === "professional"
-          ? "More Professional"
-          : "Stronger Verbs + Metrics",
-    content,
-    isRecommended:
-      typeof record.isRecommended === "boolean"
-        ? record.isRecommended
-        : index === 0,
-  };
-}
-
-function normalizePolishResponse(
-  parsed: unknown,
-  fallbackContent: string,
-): PolishContentResponse {
-  const suggestions = Array.isArray((parsed as any)?.suggestions)
-    ? (parsed as any).suggestions
-    : [];
-  const normalized = suggestions
-    .slice(0, 3)
-    .map((item, index) => normalizeSuggestion(item, index, fallbackContent))
-    .filter((item) => item.content.trim().length > 0);
-
-  if (normalized.length === 0) {
-    return buildFallbackPolishResponse(fallbackContent);
-  }
-
-  return { suggestions: normalized };
-}
-
-function ensureSentence(text: string): string {
-  const trimmed = text.trim().replace(/\s+/g, " ");
-  if (!trimmed) return trimmed;
-  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
-}
-
-function buildFallbackPolishResponse(content: string): PolishContentResponse {
-  const cleaned = ensureSentence(content);
-  const fallbackContent = cleaned || content;
-
-  return {
-    suggestions: [
-      {
-        id: "1",
-        type: "enhancement",
-        label: "Cleaned Formatting",
-        content: fallbackContent,
-        isRecommended: true,
-      },
-      {
-        id: "2",
-        type: "professional",
-        label: "Original Draft",
-        content: fallbackContent,
-      },
-    ],
-  };
-}
+import {
+  PolishSuggestion,
+  PolishContentResponse,
+  polishTextHeuristically,
+  extractSuggestionContent,
+  extractSuggestionsArray,
+  normalizeSuggestion,
+  buildFallbackPolishResponse,
+  normalizePolishResponse,
+} from "../_shared/polish-content-utils.ts";
 
 function buildPrompt(content: string, instruction?: string): string {
   return `You are a world-class executive resume writer and ATS optimization specialist.
@@ -149,11 +52,12 @@ Your task is to transform and polish the following resume content into elite, hi
 
 ${instruction ? `Target Context / Special Instruction: ${instruction}` : ''}
 
-Rules for rewriting:
-1. Use Google's XYZ formula: "Accomplished [X], as measured by [Y], by doing [Z]" whenever applicable.
-2. Lead with powerful, high-impact action verbs (e.g., Engineered, Orchestrated, Spearheaded, Accelerated, Maximized, Streamlined).
-3. Insert realistic metric place-holders or quantified impacts (e.g., "+35% efficiency", "reduced latency by 40ms", "$2.5M ARR") if exact numbers aren't specified.
-4. Keep syntax sharp, active, concise, and 100% free of fluff or passive language.
+CRITICAL RULES:
+1. Under NO circumstances should you return the input text verbatim or unchanged. The rewritten text in each suggestion MUST visibly differ from and elevate the original input.
+2. Use Google's XYZ formula: "Accomplished [X], as measured by [Y], by doing [Z]" whenever applicable.
+3. Lead with powerful, high-impact action verbs (e.g., Engineered, Orchestrated, Spearheaded, Accelerated, Maximized, Streamlined).
+4. Insert realistic metric place-holders or quantified impacts (e.g., "+35% efficiency", "reduced latency by 40ms", "$2.5M ARR") if exact numbers aren't specified.
+5. Keep syntax sharp, active, concise, and 100% free of fluff or passive language.
 
 Please provide exactly 3 distinct high-caliber suggestions:
 1. "High Impact & Metrics" (Type: enhancement): Heavily optimized with metrics, strong action verbs, and quantifiable achievements. (isRecommended: true)
@@ -165,7 +69,7 @@ Each suggestion must have:
 - id: String ("1", "2", "3")
 - type: "enhancement", "professional", or "correction"
 - label: Short descriptive label (e.g., "Metrics & Action-Driven", "Executive Leadership", "ATS Keyword Optimized")
-- content: The rewritten high-impact text
+- content: The rewritten high-impact text (MUST visibly differ from the input text)
 - isRecommended: true ONLY for suggestion "1".
 `;
 }
@@ -209,10 +113,10 @@ serve(async (req) => {
             (model) => withGeminiRetry(() => ai.models.generateContent({
               model,
               config: createGeminiConfig({ 
-                systemInstruction: "You are a resume polishing assistant. Return ONLY valid JSON matching the requested schema.",
+                systemInstruction: "You are an executive resume polishing assistant. Return ONLY valid JSON matching the requested schema. All rewritten text must significantly differ from and improve upon the input.",
                 responseMimeType: "application/json",
                 maxOutputTokens,
-              }),
+              }, model),
               contents: [{ role: 'user', parts: [{ text: prompt }] }]
             })),
             GEMINI_MODEL
@@ -227,7 +131,15 @@ serve(async (req) => {
 
       const text = extractGeminiText(metered.result);
       if (!text) throw new Error("Empty response from AI");
-      parsed = parseStructuredJson(text);
+      try {
+        parsed = parseStructuredJson(text);
+      } catch {
+        try {
+          parsed = parseStructuredJson(extractJsonCandidate(text));
+        } catch {
+          parsed = { content: stripCodeFences(text).trim() };
+        }
+      }
     } catch (error: any) {
       console.error("polish-content falling back", error);
       if (isGeminiAccessDeniedError(error)) {
