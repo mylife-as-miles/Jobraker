@@ -33,7 +33,9 @@ import { useToast } from "@/components/ui/toast";
 import { useResumeProfilePhoto } from "@/hooks/useResumeProfilePhoto";
 import { useProfileSettings } from "@/hooks/useProfileSettings";
 import { createClient } from "@/lib/supabaseClient";
+import { invokeProtectedFunction } from "@/services/supabase/invokeProtectedFunction";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { TemplateSelector } from "../components/TemplateSelector";
 import { AddSectionDialog } from "../components/resume/AddSectionDialog";
@@ -397,10 +399,101 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
     }
   };
 
-  const aiGenerateResume = async () =>
-    aiPolishSummary(
-      "Write a fresh professional resume summary in 3-4 concise sentences.",
-    );
+  const [isAiGenerateModalOpen, setIsAiGenerateModalOpen] = useState(false);
+  const [targetRoleInput, setTargetRoleInput] = useState("");
+  const [toneInput, setToneInput] = useState<"professional" | "modern" | "creative">("professional");
+  const [isGeneratingResume, setIsGeneratingResume] = useState(false);
+
+  const handleOpenAiGenerate = () => {
+    if (!hasResumeAiAccess) {
+      toastError(
+        "Upgrade required",
+        "Resume AI generation is available on Starter and above.",
+      );
+      return;
+    }
+    setTargetRoleInput(resumeData.basics.headline || "");
+    setIsAiGenerateModalOpen(true);
+  };
+
+  const handleExecuteAiGenerateResume = async () => {
+    setIsGeneratingResume(true);
+    try {
+      const response = await invokeProtectedFunction<any>("ai-generate-resume", {
+        body: {
+          targetRole: targetRoleInput.trim() || resumeData.basics.headline,
+          tone: toneInput,
+        },
+      });
+
+      if (!response) throw new Error("No response received from AI generation.");
+
+      const currentResumeData = useArtboardStore.getState().resume.data;
+      const merged: ResumeData = {
+        ...currentResumeData,
+        basics: {
+          ...currentResumeData.basics,
+          headline: response.basics?.headline || targetRoleInput.trim() || currentResumeData.basics.headline,
+          location: response.basics?.location || currentResumeData.basics.location,
+        },
+        summary: {
+          ...currentResumeData.summary,
+          content: response.summary?.content || currentResumeData.summary.content,
+          hidden: false,
+        },
+        sections: {
+          ...currentResumeData.sections,
+          experience: {
+            ...currentResumeData.sections.experience,
+            items:
+              Array.isArray(response.sections?.experience?.items) &&
+              response.sections.experience.items.length > 0
+                ? response.sections.experience.items
+                : currentResumeData.sections.experience.items,
+          },
+          education: {
+            ...currentResumeData.sections.education,
+            items:
+              Array.isArray(response.sections?.education?.items) &&
+              response.sections.education.items.length > 0
+                ? response.sections.education.items
+                : currentResumeData.sections.education.items,
+          },
+          skills: {
+            ...currentResumeData.sections.skills,
+            items:
+              Array.isArray(response.sections?.skills?.items) &&
+              response.sections.skills.items.length > 0
+                ? response.sections.skills.items
+                : currentResumeData.sections.skills.items,
+          },
+          projects: {
+            ...currentResumeData.sections.projects,
+            items:
+              Array.isArray(response.sections?.projects?.items) &&
+              response.sections.projects.items.length > 0
+                ? response.sections.projects.items
+                : currentResumeData.sections.projects.items,
+          },
+        },
+      };
+
+      setResumeData(merged);
+      dispatchEditor({ type: "CHANGE" });
+      setIsAiGenerateModalOpen(false);
+      success(
+        "Resume Generated",
+        "AI has drafted your resume sections. Review and customize them.",
+      );
+    } catch (err: any) {
+      toastError(
+        "Generation failed",
+        err?.message || "Failed to generate resume.",
+      );
+    } finally {
+      setIsGeneratingResume(false);
+    }
+  };
   const [saveAlertOpen, setSaveAlertOpen] = useState(false);
   const effectivePreviewScale = isMobile ? previewScale : zoom;
   const previewFrameWidth = PREVIEW_BASE_WIDTH * effectivePreviewScale;
@@ -480,6 +573,83 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
         </div>
       </Modal>
 
+      {/* AI Generate Resume Modal */}
+      <Modal
+        open={isAiGenerateModalOpen}
+        onClose={() => !isGeneratingResume && setIsAiGenerateModalOpen(false)}
+        title='AI Generate Resume'
+        size='md'
+        footer={
+          <div className='flex items-center justify-end gap-2'>
+            <Button
+              variant='ghost'
+              disabled={isGeneratingResume}
+              onClick={() => setIsAiGenerateModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={isGeneratingResume}
+              onClick={handleExecuteAiGenerateResume}
+              className='bg-brand text-black hover:bg-brand/90 font-bold gap-2'
+            >
+              {isGeneratingResume ? (
+                <>
+                  <Loader2 className='w-4 h-4 animate-spin' />
+                  Generating Resume...
+                </>
+              ) : (
+                <>
+                  <Wand2 className='w-4 h-4' />
+                  Generate Resume
+                </>
+              )}
+            </Button>
+          </div>
+        }
+      >
+        <div className='space-y-4 py-2 text-foreground'>
+          <p className='text-xs text-muted-foreground leading-relaxed'>
+            AI will synthesize your profile details, career background, and skills into complete, tailored resume sections with high-impact achievements.
+          </p>
+
+          <div className='space-y-1.5'>
+            <label className='text-xs font-semibold text-foreground'>
+              Target Job Title / Role
+            </label>
+            <Input
+              value={targetRoleInput}
+              onChange={(e) => setTargetRoleInput(e.target.value)}
+              placeholder='e.g. Senior Frontend Engineer, Product Manager'
+              disabled={isGeneratingResume}
+            />
+          </div>
+
+          <div className='space-y-1.5'>
+            <label className='text-xs font-semibold text-foreground'>
+              Tone & Style
+            </label>
+            <div className='grid grid-cols-3 gap-2'>
+              {(["professional", "modern", "creative"] as const).map((t) => (
+                <button
+                  key={t}
+                  type='button'
+                  onClick={() => setToneInput(t)}
+                  disabled={isGeneratingResume}
+                  className={`px-3 py-2 text-xs font-medium rounded-lg border transition-all capitalize ${
+                    toneInput === t
+                      ? "bg-brand/15 border-brand text-foreground font-semibold shadow-sm"
+                      : "border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Modal>
+
       {/* Header toolbar */}
       <header
         className={`shrink-0 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex flex-col gap-3 md:flex-row md:items-center md:justify-between z-10 transition-all duration-300 overflow-hidden ${
@@ -547,13 +717,18 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           </button>
 
           <button
-            onClick={aiGenerateResume}
-            disabled={aiLoading || loadingTier}
+            onClick={handleOpenAiGenerate}
+            disabled={isGeneratingResume || loadingTier}
             className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-brand/60 hover:bg-brand/15 dark:hover:bg-foreground/10 dark:hover:border-foreground/20'
+            title='Generate complete resume sections with AI'
           >
-            <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
+            {isGeneratingResume ? (
+              <Loader2 className='w-4 h-4 animate-spin text-brand' />
+            ) : (
+              <Wand2 className='w-4 h-4' />
+            )}
             <span className='hidden sm:inline'>
-              {aiLoading ? "Generating..." : "AI Generate"}
+              {isGeneratingResume ? "Generating..." : "AI Generate"}
             </span>
             {!hasResumeAiAccess && <LockIcon className='w-3 h-3 opacity-60' />}
           </button>

@@ -15,6 +15,7 @@ export function buildHydratedResumeState(
   return {
     id: remoteResume.id,
     is_public: remoteResume.public_share_enabled,
+    share_token: remoteResume.share_token || null,
     views: remoteResume.views || 0,
     downloads: remoteResume.downloads || 0,
     data,

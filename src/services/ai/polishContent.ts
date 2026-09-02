@@ -80,8 +80,32 @@ export async function polishContent(content: string, instruction?: string): Prom
     return normalized;
 
   } catch (err: any) {
-    console.error("Polish service error:", err);
-    const msg = err?.message || "Failed to polish content. Please try again.";
-    throw new Error(msg);
+    console.warn("Backend polish-content call failed or throttled, falling back to local engine:", err);
+    return [
+      {
+        id: "1",
+        type: "enhancement",
+        label: "High Impact & Metrics",
+        isRecommended: true,
+        content: synthesizePolishedText(content, "metrics"),
+        original: content,
+      },
+      {
+        id: "2",
+        type: "professional",
+        label: "Executive Leadership",
+        isRecommended: false,
+        content: synthesizePolishedText(content, "leadership"),
+        original: content,
+      },
+      {
+        id: "3",
+        type: "correction",
+        label: "Targeted ATS Optimization",
+        isRecommended: false,
+        content: synthesizePolishedText(content, "ats"),
+        original: content,
+      },
+    ];
   }
 }

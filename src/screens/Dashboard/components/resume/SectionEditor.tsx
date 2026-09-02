@@ -30,12 +30,19 @@ export const SectionEditor = ({ sectionId }: SectionEditorProps) => {
   if (!section) return null;
 
   const handlePolishItem = async (itemId: string, content: string) => {
-    if (!content.trim()) return;
     setPolishingItemId(itemId);
     try {
+      const item = section.items.find((i) => i.id === itemId);
+      let sourceText = content.trim();
+
+      if (!sourceText) {
+        const role = item?.position || item?.title || item?.company || (sectionId === "experience" ? "Role responsibilities and achievements" : section.title);
+        sourceText = `Key achievements and impactful contributions as ${role}`;
+      }
+
       const suggestions = await polishContent(
-        content,
-        "Make this bullet point highly impactful and action-oriented."
+        sourceText,
+        "Make this bullet point highly impactful, quantifiable, and action-oriented."
       );
       const nextContent =
         suggestions.find((item) => item.isRecommended)?.content ||
@@ -47,7 +54,10 @@ export const SectionEditor = ({ sectionId }: SectionEditorProps) => {
         description: nextContent,
         highlights: nextContent.split("\n").filter(Boolean),
       });
-      success("Bullet polished", "AI successfully enhanced your description.");
+      success(
+        content.trim() ? "Bullet polished" : "Bullet generated",
+        "AI successfully enhanced your description.",
+      );
     } catch (e: any) {
       toastError(
         "AI polish failed",
