@@ -81,9 +81,18 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Starter");
   const { save: persistResume } = useResumePersistence(resumeId);
-  const { downloadPdf, exporting } = useResumeExport((message) => {
-    toastError("PDF export failed", message);
-  });
+  const { downloadPdf, exporting } = useResumeExport(
+    (message) => {
+      toastError("PDF export failed", message);
+    },
+    downloadResumePDF,
+    () => {
+      success(
+        "PDF exported successfully",
+        "Your resume has been generated and downloaded as a PDF.",
+      );
+    },
+  );
 
   // Store actions/state
   const resumeState = useArtboardStore();
@@ -566,12 +575,15 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             onClick={() => void downloadPdf(resumeData)}
             disabled={exporting}
             className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-medium whitespace-nowrap'
+            title={exporting ? "Generating PDF..." : "Export as PDF"}
           >
-            <Download
-              className={`w-4 h-4 shrink-0 ${exporting ? "animate-pulse" : ""}`}
-            />
+            {exporting ? (
+              <Loader2 className='w-4 h-4 shrink-0 animate-spin text-brand' />
+            ) : (
+              <Download className='w-4 h-4 shrink-0' />
+            )}
             <span className='hidden sm:inline'>
-              {exporting ? "Exporting..." : "PDF export"}
+              {exporting ? "Generating PDF..." : "PDF export"}
             </span>
           </button>
         </div>

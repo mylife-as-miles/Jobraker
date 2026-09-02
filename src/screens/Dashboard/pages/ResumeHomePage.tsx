@@ -10,6 +10,7 @@ import {
   Edit2,
   Trash2,
   Download,
+  Loader2,
   MessageSquare,
 } from "lucide-react";
 import { useArtboardStore } from "../../../store/artboard";
@@ -27,10 +28,11 @@ import { Modal } from "../../../components/ui/modal";
 
 export const ResumeHomePage = () => {
   const navigate = useNavigate();
-  const { error: toastError } = useToast();
+  const { success, error: toastError } = useToast();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [downloadingResumeId, setDownloadingResumeId] = useState<string | null>(null);
   const [resumeToDelete, setResumeToDelete] = useState<{
     record: ResumeRecord;
     displayName: string;
@@ -39,6 +41,27 @@ export const ResumeHomePage = () => {
   const { resumes, loading, importResume, remove: removeResume } = useResumes();
   const [isMobile, setIsMobile] = useState(false);
   const [showGuidance, setShowGuidance] = useState(false);
+
+  const handleDownloadPdf = async (resume: ResumeRecord, displayName: string) => {
+    if (downloadingResumeId) return;
+    setDownloadingResumeId(resume.id);
+    try {
+      await downloadResumePDF(
+        normalizeResumeDataForEditor(resume.data, displayName),
+      );
+      success(
+        "Resume downloaded",
+        `"${displayName}" was exported and downloaded as a PDF.`,
+      );
+    } catch (err: any) {
+      toastError(
+        "Download failed",
+        err?.message || "Failed to download PDF resume.",
+      );
+    } finally {
+      setDownloadingResumeId(null);
+    }
+  };
 
   useEffect(() => {
     const isDismissed = sessionStorage.getItem("jobraker:resume-guidance-dismissed");
@@ -415,15 +438,16 @@ export const ResumeHomePage = () => {
                 </button>
                 <button
                   type='button'
-                  onClick={() =>
-                    void downloadResumePDF(
-                      normalizeResumeDataForEditor(resume.data, displayName),
-                    )
-                  }
-                  className='p-2 product-helper-text hover:text-foreground hover:bg-brand/10 rounded-lg transition-colors'
-                  title='Download'
+                  onClick={() => void handleDownloadPdf(resume, displayName)}
+                  disabled={downloadingResumeId === resume.id}
+                  className='p-2 product-helper-text hover:text-foreground hover:bg-brand/10 rounded-lg transition-colors disabled:opacity-50'
+                  title={downloadingResumeId === resume.id ? "Downloading PDF..." : "Download"}
                 >
-                  <Download className='w-4 h-4' />
+                  {downloadingResumeId === resume.id ? (
+                    <Loader2 className='w-4 h-4 animate-spin text-brand' />
+                  ) : (
+                    <Download className='w-4 h-4' />
+                  )}
                 </button>
                 <button
                   type='button'
