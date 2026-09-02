@@ -98,31 +98,40 @@ const PARSING_SCHEMA = {
 };
 
 function buildPrompt(resumeText: string | null): string {
-  const basePrompt = `You are a lossless resume/CV parser. Your task is to extract structured profile data while preserving the candidate's original detail.
+  const basePrompt = `You are a world-class, lossless resume/CV parser. Your primary directive is FAITHFUL, UNCORRUPTED SECTION SEGMENTATION. Resumes frequently have distinct sections such as Summary, Experience (Work History), Education, Skills, Projects, and Certifications. You must NEVER mix or merge these sections.
+
+Strict Section Segmentation Directives:
+1. WORK EXPERIENCE ONLY in 'experience' array:
+   - Contains ONLY real professional employment, jobs, internships, or contractor roles.
+   - Company name must be a company or organization (e.g. 'Google', 'Acme Corp'), NOT a degree, school, or skill name.
+   - Title must be a job title (e.g. 'Senior Software Engineer'), NOT a degree (e.g. 'B.S. in Computer Science').
+   - NEVER place Education degrees, university names, personal projects, or standalone skill lists inside 'experience'.
+   - NEVER fold Education or Skills into experience descriptions.
+2. EDUCATION ONLY in 'education' array:
+   - Contains university/college/school degrees, majors, certifications of study, and graduation dates.
+   - School must be an academic institution (e.g. 'Stanford University').
+   - Degree must be an academic degree (e.g. 'B.S. Computer Science').
+3. SKILLS ONLY in 'skills' array:
+   - Extract every technical skill, tool, programming language, framework, cloud platform, methodology, library, and domain expertise into this string array.
+   - Do NOT cap skills at 20; if the resume mentions 40 skills, extract all 40.
+4. PROJECTS ONLY in 'projects' array:
+   - Independent projects, open-source work, portfolio items, or research projects.
+5. CERTIFICATIONS ONLY in 'certifications' array:
+   - Professional certifications, AWS/GCP/Azure certs, PMP, Scrum, licenses, etc.
+6. ABOUT / SUMMARY:
+   - The candidate's professional summary, profile, or objective. If not explicitly present, write a concise 2-3 sentence overview based on their background.
+7. MULTI-COLUMN & MARKDOWN HEADERS:
+   - The input text may include markdown headers (such as '## Skills', '## Experience', '## Education', '## Summary').
+   - Use these headers as strict boundaries. Content under '## Education' belongs exclusively in 'education'. Content under '## Skills' belongs exclusively in 'skills'. Content under '## Experience' belongs exclusively in 'experience'.
+   - For bullet points in experience descriptions, preserve each bullet point separated by newlines.
 
 Extract into the following JSON structure:
-${JSON.stringify(PARSING_SCHEMA, null, 2)}
-
-Requirements:
-- Extract First Name, Last Name, Email, Phone, Location.
-- Determine the current/most recent Job Title.
-- Calculate total Years of Experience.
-- For "about": preserve the candidate's existing professional summary/profile if present. If there is no summary, write a brief 2-3 sentence overview, but do not omit concrete domains, leadership scope, metrics, certifications, or major tools found in the CV.
-- Extract all clearly stated Skills, tools, technologies, languages, certifications, and domain keywords. Do not cap the list at 20 when the CV contains more relevant skills.
-- Extract Education history (School, Degree, Start Year, End Year).
-- Extract the full Experience history in reverse chronological order.
-- Extract Projects and Certifications when present. They must be placed in their respective arrays, NEVER folded into summary text or experience descriptions.
-- For each experience.description, preserve the vital details from that role: responsibilities, achievements, metrics, customers/industries, tools, leadership scope, and named initiatives.
-- Do not compress a role to 1-2 generic sentences. Use newline-separated bullet-like lines inside the description string when the source has multiple bullets.
-- Never drop older roles, extra bullets, metrics, or technical/domain keywords merely to make the output shorter.
-- Keep dates as written when month precision is unavailable. Use End Date "Present" only when the CV indicates the role is current.
-- STRICT SEGMENTATION: Do not merge distinct sections. The 'Experience' array must ONLY contain actual employment and work history.
-- STRICT SEGMENTATION: Do NOT fold 'Projects', 'Education', 'Skills', or 'Certifications' into the 'Experience' array or its descriptions under any circumstances. They MUST be extracted to their own distinct JSON arrays.`;
+${JSON.stringify(PARSING_SCHEMA, null, 2)}`;
 
   if (resumeText) {
     return `${basePrompt}\n\nRESUME CONTENT:\n${resumeText}\n\nReturn ONLY valid JSON.`;
   }
-  return `${basePrompt}\n\nI have attached the resume PDF. Return ONLY valid JSON.`;
+  return `${basePrompt}\n\nI have attached the resume PDF. Carefully inspect the visual columns and section headings to isolate each section accurately. Return ONLY valid JSON.`;
 }
 
 function stripCodeFences(text: string): string {

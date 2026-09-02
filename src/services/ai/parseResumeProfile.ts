@@ -239,6 +239,80 @@ export function buildFallbackParsedProfileData(
   };
 }
 
+function postProcessSectionLeakage(data: ParsedProfileData): ParsedProfileData {
+  const finalSkills = new Set<string>(data.skills || []);
+  const cleanExperience: ParsedProfileData["experience"] = [];
+  const cleanEducation: ParsedProfileData["education"] = [...(data.education || [])];
+
+  const academicRegex = /\b(bachelor|master|b\.?s\.?|m\.?s\.?|b\.?a\.?|m\.?a\.?|ph\.?d|degree|university|college|polytechnic|institute of technology|school of)\b/i;
+  const facultyRoleRegex = /\b(professor|lecturer|research assistant|teaching assistant|adjunct|faculty|dean|fellow)\b/i;
+  const skillHeadingRegex = /\b(skills|technical skills|technologies|tools|competencies)\b/i;
+
+  for (const exp of data.experience || []) {
+    const comp = (exp.company || "").trim();
+    const tit = (exp.title || "").trim();
+    const desc = (exp.description || "").trim();
+
+    // Check if skills list leaked into experience
+    if (skillHeadingRegex.test(comp) || skillHeadingRegex.test(tit)) {
+      const tokens = `${tit}, ${desc}`
+        .split(/[,•|/;\n]+/)
+        .map((t) => t.replace(/^[*\-•\d.]+\s*/, "").trim())
+        .filter((t) => t.length > 1 && t.length < 40 && !skillHeadingRegex.test(t));
+      for (const t of tokens) finalSkills.add(t);
+      continue;
+    }
+
+    // Check if degree/education leaked into experience
+    const isCompAcademic = academicRegex.test(comp);
+    const isTitAcademic = academicRegex.test(tit);
+    const isFaculty = facultyRoleRegex.test(tit);
+
+    if ((isCompAcademic || isTitAcademic) && !isFaculty) {
+      const school = isCompAcademic ? comp : tit;
+      const degree = isTitAcademic && isCompAcademic ? tit : (!isCompAcademic ? comp : tit);
+      cleanEducation.push({
+        school: school || "University",
+        degree: degree || "Degree",
+        start: exp.startDate || "",
+        end: exp.endDate || "",
+      });
+      continue;
+    }
+
+    cleanExperience.push(exp);
+  }
+
+  const finalEducation: ParsedProfileData["education"] = [];
+  const jobTitleRegex = /\b(software engineer|developer|manager|director|analyst|designer|consultant|architect|lead|administrator)\b/i;
+
+  for (const edu of cleanEducation) {
+    const deg = (edu.degree || "").trim();
+    const sch = (edu.school || "").trim();
+
+    if (jobTitleRegex.test(deg) && !academicRegex.test(deg) && !academicRegex.test(sch)) {
+      cleanExperience.push({
+        company: sch,
+        title: deg,
+        location: "",
+        startDate: edu.start || "",
+        endDate: edu.end || "",
+        description: "",
+      });
+      continue;
+    }
+
+    finalEducation.push(edu);
+  }
+
+  return {
+    ...data,
+    skills: Array.from(finalSkills).filter(Boolean),
+    experience: cleanExperience,
+    education: finalEducation,
+  };
+}
+
 // Helper to ensure data matches the interface (sanitize nulls etc)
 export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
     const record = raw && typeof raw === "object" ? raw : {};
@@ -265,7 +339,7 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
           ? legacySections.skills.items
           : [];
 
-        return {
+        const legacyProfile: ParsedProfileData = {
             firstName,
             lastName,
             email: str(legacyBasics?.email),
@@ -320,9 +394,10 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
                 })).filter((item: any) => item.name)
               : [],
         };
+        return postProcessSectionLeakage(legacyProfile);
     }
 
-    return {
+    const modernProfile: ParsedProfileData = {
         firstName: str(raw.firstName || raw.first_name),
         lastName: str(raw.lastName || raw.last_name),
         email: str(raw.email),
@@ -359,4 +434,6 @@ export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
             description: str(c.description)
         })).filter((c: any) => c.name) : []
     };
+
+    return postProcessSectionLeakage(modernProfile);
 }

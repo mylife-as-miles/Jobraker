@@ -21,18 +21,34 @@ export const StructuredResumeSchema = z.object({
 }).passthrough();
 
 export const ParsedResumeSchema = z.object({
-  emails: z.array(z.string().regex(emailRegex)).max(20),
-  phones: z.array(z.string()).max(20),
-  urls: z.array(z.string().url()).max(50),
-  skills: z.array(z.string().min(1)).max(500),
-  sections: z.array(ResumeSectionSchema).max(200),
-  structured: StructuredResumeSchema,
-  entities: AnalyzedEntitiesSchema,
+  emails: z.array(z.string().min(3).max(120)).max(50).default([]),
+  phones: z.array(z.string().min(3).max(50)).max(50).default([]),
+  urls: z.array(z.string().min(1).max(500)).max(100).default([]),
+  skills: z.array(z.string().min(1).max(100)).max(500).default([]),
+  sections: z.array(ResumeSectionSchema).max(200).default([]),
+  structured: StructuredResumeSchema.default({}),
+  entities: AnalyzedEntitiesSchema.default({ companies: [], titles: [] }),
 });
 
 export type ParsedResumeValidated = z.infer<typeof ParsedResumeSchema>;
 
 export function validateParsedResume(data: unknown): ParsedResumeValidated | null {
-  const res = ParsedResumeSchema.safeParse(data);
+  if (!data || typeof data !== "object") return null;
+
+  const raw = data as Record<string, any>;
+  const cleanData = {
+    emails: Array.isArray(raw.emails) ? raw.emails.filter((e) => typeof e === "string" && e.includes("@")) : [],
+    phones: Array.isArray(raw.phones) ? raw.phones.filter((p) => typeof p === "string" && p.trim().length > 3) : [],
+    urls: Array.isArray(raw.urls) ? raw.urls.filter((u) => typeof u === "string" && u.trim().length > 3) : [],
+    skills: Array.isArray(raw.skills) ? raw.skills.filter((s) => typeof s === "string" && s.trim().length > 0) : [],
+    sections: Array.isArray(raw.sections) ? raw.sections : [],
+    structured: raw.structured && typeof raw.structured === "object" ? raw.structured : {},
+    entities: {
+      companies: Array.isArray(raw.entities?.companies) ? raw.entities.companies : [],
+      titles: Array.isArray(raw.entities?.titles) ? raw.entities.titles : [],
+    },
+  };
+
+  const res = ParsedResumeSchema.safeParse(cleanData);
   return res.success ? res.data : null;
 }
