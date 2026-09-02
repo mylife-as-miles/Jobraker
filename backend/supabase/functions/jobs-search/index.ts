@@ -125,9 +125,25 @@ Deno.serve(async (req) => {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
+  // Hoisted above the try so the emergency credit-refund path in `catch` can
+  // still read them. These used to be block-scoped to the try, so the fallback
+  // settlement threw a ReferenceError and reserved credits were never refunded.
+  let searchQuery = "";
+  let location = "";
+  let userId = "";
+  let agentRunId: string | null = null;
+  let searchSettled = false;
+  let creditsToReserve = 0;
+  // Reused by the catch below. `createServiceSupabaseClient()` was called there
+  // but never imported into this module, so the refund path threw even once the
+  // scoping was fixed; the client from requireAuthenticatedUser works fine.
+  let serviceClientRef:
+    | Awaited<ReturnType<typeof requireAuthenticatedUser>>["serviceClient"]
+    | null = null;
+
   try {
     const body = await req.json().catch(() => ({}));
-    const searchQuery = String(body?.searchQuery || body?.query || "").trim();
+    searchQuery = String(body?.searchQuery || body?.query || "").trim();
     const rawLocation = String(body?.location || "").trim();
     const locationScope = (["city", "country", "global", "remote"] as const).includes(body?.locationScope)
       ? (body.locationScope as "city" | "country" | "global" | "remote")
@@ -151,7 +167,7 @@ Deno.serve(async (req) => {
     );
 
     // The effective search location string sent to discovery tools
-    const location = (canonicalScope.location.displayName ?? rawLocation) || "Remote";
+    location = (canonicalScope.location.displayName ?? rawLocation) || "Remote";
 
     const requestedLimit = Number.isFinite(Number(body?.limit))
       ? Math.max(1, Math.floor(Number(body.limit)))
@@ -168,6 +184,8 @@ Deno.serve(async (req) => {
     }
 
     const { serviceClient, user } = await requireAuthenticatedUser(req);
+    userId = user?.id ?? "";
+    serviceClientRef = serviceClient;
     const {
       subscriptionTier,
       planCap,
@@ -194,10 +212,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    let agentRunId: string | null = null;
-    let searchSettled = false;
-
-    const creditsToReserve = Math.max(1, effectiveLimit);
+    creditsToReserve = Math.max(1, effectiveLimit);
     const idempotencyKey = crypto.randomUUID();
     const { data: reserveRaw, error: reserveError } = await serviceClient.rpc(
       "reserve_credits_for_run",
@@ -555,14 +570,13 @@ Deno.serve(async (req) => {
     );
   } catch (error: unknown) {
     console.error("jobs-search.error", error);
-    if (agentRunId && !searchSettled) {
+    if (agentRunId && !searchSettled && serviceClientRef) {
       try {
-        const serviceClient = createServiceSupabaseClient();
-        await settleJobSearchRunCredits(serviceClient, {
+        await settleJobSearchRunCredits(serviceClientRef, {
           agentRunId,
-          userId: user?.id || "",
-          searchQuery: searchQuery || "",
-          location: location || "",
+          userId,
+          searchQuery,
+          location,
           maxCredits: creditsToReserve || 0,
           searchFailed: true,
           failureReason: error instanceof Error ? error.message : "Unhandled search failure",
