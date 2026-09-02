@@ -107,7 +107,7 @@ export const coldMailSkill: JobrakerChatSkill = {
   },
   statusStates: ["queued", "running", "needs_approval", "completed", "failed"],
   execute: async (input) => {
-    COLD_MAIL_PROGRESS.forEach((step) => input.progress?.(step));
+    input.progress?.(COLD_MAIL_PROGRESS[0]);
 
     const explicitCompany =
       asString(input.args.companyName) || asString(input.args.company);
@@ -176,6 +176,8 @@ export const coldMailSkill: JobrakerChatSkill = {
         output: { error: "cold_mail_preparation_failed" },
       };
     }
+
+    COLD_MAIL_PROGRESS.slice(1).forEach((step) => input.progress?.(step));
 
     return {
       status: "needs_approval",
