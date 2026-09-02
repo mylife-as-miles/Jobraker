@@ -107,38 +107,65 @@ const PARSING_SCHEMA = {
       }
     }
   },
-  required: ["firstName", "lastName", "email", "jobTitle", "about", "skills", "education", "experience"]
+  required: [
+    "firstName",
+    "lastName",
+    "email",
+    "jobTitle",
+    "about",
+    "skills",
+    "education",
+    "experience",
+    "projects",
+    "certifications"
+  ]
 };
 
 function buildPrompt(resumeText: string | null): string {
   const basePrompt = `You are a world-class, lossless resume/CV parser. Your primary directive is FAITHFUL, UNCORRUPTED SECTION SEGMENTATION. Resumes frequently have distinct sections such as Summary, Experience (Work History), Education, Skills, Projects, and Certifications. You must NEVER mix or merge these sections.
 
+CRITICAL ANTI-ABSORPTION DIRECTIVE:
+'experience' must NEVER absorb other sections! In many resumes, Projects, Certifications, Skills, or Education appear near or after Experience. You MUST distribute them into their proper respective arrays ('projects', 'certifications', 'skills', 'education'), NEVER dumping them into 'experience'.
+
 Strict Section Segmentation Directives:
 1. WORK EXPERIENCE ONLY in 'experience' array:
-   - Contains ONLY real professional employment, jobs, internships, or contractor roles.
-   - Company name must be a company or organization (e.g. 'Google', 'Acme Corp'), NOT a degree, school, or skill name.
-   - Title must be a job title (e.g. 'Senior Software Engineer'), NOT a degree (e.g. 'B.S. in Computer Science').
-   - NEVER place Education degrees, university names, personal projects, or standalone skill lists inside 'experience'.
-   - NEVER fold Education or Skills into experience descriptions.
-2. EDUCATION ONLY in 'education' array:
-   - Contains university/college/school degrees, majors, certifications of study, and graduation dates.
+   - Contains ONLY real professional employment, jobs, internships, or contractor roles at registered companies or organizations.
+   - Company name must be an employer or organization (e.g. 'Google', 'Acme Corp'), NOT a degree, school, project, or skill name.
+   - Title must be a formal employment job title (e.g. 'Senior Software Engineer'), NOT a degree (e.g. 'B.S. in Computer Science') or certification.
+   - NEVER place independent projects, academic projects, personal side-projects, hackathons, or open-source projects inside 'experience' — they belong exclusively in 'projects'.
+   - NEVER place Education degrees, university names, or academic coursework inside 'experience' — they belong in 'education'.
+   - NEVER place certifications or licenses inside 'experience' — they belong in 'certifications'.
+   - NEVER fold or append Education, Skills, Projects, or Certifications into the description of the last work experience item! Terminate the experience description when that job's bullet points end.
+   - Each distinct job role MUST be a separate object in 'experience'. Never combine multiple jobs into one.
+
+2. PROJECTS ONLY in 'projects' array:
+   - Contains all independent projects, personal projects, academic projects, GitHub repositories, client websites, hackathon submissions, and portfolio work.
+   - Even if labeled with a role like 'Developer', 'Lead', 'Author', or 'Creator', if it is an independent or portfolio project, it MUST go in 'projects', NEVER in 'experience'.
+
+3. EDUCATION ONLY in 'education' array:
+   - Contains university/college/school degrees, majors, certifications of study, bootcamps, and graduation dates.
    - School must be an academic institution (e.g. 'Stanford University').
    - Degree must be an academic degree (e.g. 'B.S. Computer Science').
-3. SKILLS ONLY in 'skills' array:
+
+4. CERTIFICATIONS ONLY in 'certifications' array:
+   - Professional certifications, licenses, AWS/GCP/Azure certs, PMP, Scrum, CompTIA, Coursera, etc.
+   - Name must be the certification title (e.g. 'AWS Certified Solutions Architect').
+   - Issuer must be the certifying authority or organization (e.g. 'Amazon Web Services').
+
+5. SKILLS ONLY in 'skills' array:
    - Extract every technical skill, tool, programming language, framework, cloud platform, methodology, library, and domain expertise into this string array.
    - Do NOT cap skills at 20; if the resume mentions 40 skills, extract all 40.
-4. SOCIAL PROFILES & LINKS:
+
+6. SOCIAL PROFILES & LINKS in 'profiles' array:
    - Extract all social profiles, portfolio links, and web presences (LinkedIn, GitHub, Portfolio, Personal Website, Twitter/X, Medium, Behance, etc.) into the 'profiles' array with network name, full URL, and username.
    - If a personal website or portfolio is present, also populate 'website'.
-5. PROJECTS ONLY in 'projects' array:
-   - Independent projects, open-source work, portfolio items, or research projects.
-6. CERTIFICATIONS ONLY in 'certifications' array:
-   - Professional certifications, AWS/GCP/Azure certs, PMP, Scrum, licenses, etc.
+
 7. ABOUT / SUMMARY:
    - The candidate's professional summary, profile, or objective. If not explicitly present, write a concise 2-3 sentence overview based on their background.
+
 8. MULTI-COLUMN & MARKDOWN HEADERS:
-   - The input text may include markdown headers (such as '## Skills', '## Experience', '## Education', '## Summary').
-   - Use these headers as strict boundaries. Content under '## Education' belongs exclusively in 'education'. Content under '## Skills' belongs exclusively in 'skills'. Content under '## Experience' belongs exclusively in 'experience'.
+   - The input text may include markdown headers (such as '## Skills', '## Experience', '## Education', '## Summary', '## Projects', '## Certifications').
+   - Use these headers as strict boundaries. Content under '## Education' belongs exclusively in 'education'. Content under '## Skills' belongs exclusively in 'skills'. Content under '## Experience' belongs exclusively in 'experience'. Content under '## Projects' belongs exclusively in 'projects'.
    - For bullet points in experience descriptions, preserve each bullet point separated by newlines.
 
 Extract into the following JSON structure:

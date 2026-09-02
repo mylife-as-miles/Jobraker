@@ -189,11 +189,59 @@ export function extractPageLayoutLines(items: ExtractedItem[]): Array<{ text: st
           (it) => it.y < maxY - (maxY - minY) * 0.25
         );
         if (bodyCrossings.length <= 2) {
+          const leftMinX = Math.min(...leftItems.map((it) => it.x));
           const leftMaxX = Math.max(...leftItems.map((it) => it.x + (it.width || 0)));
           const rightMinX = Math.min(...rightItems.map((it) => it.x));
+          const rightMaxX = Math.max(...rightItems.map((it) => it.x + (it.width || 0)));
           const gap = rightMinX - leftMaxX;
-          if (gap >= 10) {
-            const score = gap * (leftItems.length + rightItems.length) - bodyCrossings.length * 500;
+          const leftColWidth = leftMaxX - leftMinX;
+          const rightColWidth = rightMaxX - rightMinX;
+
+          // Both columns must have substantial width (>= 18% of page width)
+          const hasSufficientWidth =
+            leftColWidth >= 0.18 * pageWidth && rightColWidth >= 0.18 * pageWidth;
+
+          // The right column must contain substantial content (>= 140 characters),
+          // not just sparse right-aligned date/city strings.
+          const rightChars = rightItems.reduce(
+            (sum, it) => sum + it.str.trim().length,
+            0
+          );
+          const hasSufficientRightVolume = rightChars >= 140;
+
+          // Check if right items are predominantly short right-aligned metadata (e.g. dates, locations)
+          const validRightItems = rightItems.filter((it) => it.str.trim());
+          const avgRightLen =
+            rightChars / (validRightItems.length || 1);
+          const dateLikeCount = validRightItems.filter((it) =>
+            /\b(?:19|20)\d{2}|present|current\b/i.test(it.str)
+          ).length;
+          const isMostlyDates =
+            validRightItems.length > 0 &&
+            dateLikeCount / validRightItems.length >= 0.4 &&
+            avgRightLen < 28;
+
+          const sharedLineCount = rightItems.filter((rit) =>
+            leftItems.some(
+              (lit) => Math.abs(lit.y - rit.y) <= Math.max(rit.height / 2, 4)
+            )
+          ).length;
+
+          const isRightAlignedMetadata =
+            isMostlyDates ||
+            (sharedLineCount / rightItems.length > 0.6 &&
+              avgRightLen < 22 &&
+              rightColWidth < 0.22 * pageWidth);
+
+          if (
+            gap >= 10 &&
+            hasSufficientWidth &&
+            hasSufficientRightVolume &&
+            !isRightAlignedMetadata
+          ) {
+            const score =
+              gap * (leftItems.length + rightItems.length) -
+              bodyCrossings.length * 500;
             if (score > bestGutterScore) {
               bestGutterScore = score;
               bestSplit = (leftMaxX + rightMinX) / 2;

@@ -262,5 +262,233 @@ During my experience at Acme I led database performance tuning.
       expect(tsIdx).toBeLessThan(reactIdx);
       expect(reactIdx).toBeLessThan(expIdx);
     });
+
+    it('does NOT falsely split a 1-column resume with right-aligned dates into columns', async () => {
+      const { extractPageLayoutLines } = await import('../utils/parsePdf');
+
+      // 1-column resume where each role has a title on the left and date on the right
+      const mock1ColItems = [
+        { str: 'Jane Doe', x: 50, y: 780, width: 100, height: 16, fontName: 'Helvetica-Bold' },
+        { str: 'Experience', x: 50, y: 740, width: 70, height: 14, fontName: 'Helvetica-Bold' },
+        
+        { str: 'Senior Software Engineer', x: 50, y: 700, width: 150, height: 11, fontName: 'Helvetica-Bold' },
+        { str: 'Google LLC', x: 210, y: 700, width: 60, height: 11, fontName: 'Helvetica' },
+        { str: '2021 – Present', x: 480, y: 700, width: 70, height: 10, fontName: 'Helvetica' },
+        { str: '- Architected distributed caching layer saving $2M annually', x: 50, y: 680, width: 300, height: 10, fontName: 'Helvetica' },
+        
+        { str: 'Software Engineer', x: 50, y: 640, width: 120, height: 11, fontName: 'Helvetica-Bold' },
+        { str: 'Stripe', x: 180, y: 640, width: 40, height: 11, fontName: 'Helvetica' },
+        { str: '2018 – 2021', x: 480, y: 640, width: 65, height: 10, fontName: 'Helvetica' },
+        { str: '- Built real-time payment dispute handling workflows', x: 50, y: 620, width: 280, height: 10, fontName: 'Helvetica' },
+
+        { str: 'Junior Developer', x: 50, y: 580, width: 100, height: 11, fontName: 'Helvetica-Bold' },
+        { str: 'Acme Corp', x: 160, y: 580, width: 50, height: 11, fontName: 'Helvetica' },
+        { str: '2016 – 2018', x: 480, y: 580, width: 65, height: 10, fontName: 'Helvetica' },
+        { str: '- Implemented frontend UI components using React', x: 50, y: 560, width: 250, height: 10, fontName: 'Helvetica' },
+
+        { str: 'Intern', x: 50, y: 520, width: 40, height: 11, fontName: 'Helvetica-Bold' },
+        { str: 'Beta Inc', x: 100, y: 520, width: 50, height: 11, fontName: 'Helvetica' },
+        { str: '2015 – 2016', x: 480, y: 520, width: 65, height: 10, fontName: 'Helvetica' },
+        { str: '- Assisted in test automation', x: 50, y: 500, width: 200, height: 10, fontName: 'Helvetica' },
+
+        { str: 'Apprentice', x: 50, y: 460, width: 60, height: 11, fontName: 'Helvetica-Bold' },
+        { str: 'TechLab', x: 120, y: 460, width: 45, height: 11, fontName: 'Helvetica' },
+        { str: '2014 – 2015', x: 480, y: 460, width: 65, height: 10, fontName: 'Helvetica' },
+        { str: '- Maintained CI scripts', x: 50, y: 440, width: 180, height: 10, fontName: 'Helvetica' },
+
+        { str: 'Trainee', x: 50, y: 400, width: 50, height: 11, fontName: 'Helvetica-Bold' },
+        { str: 'StartupX', x: 110, y: 400, width: 50, height: 11, fontName: 'Helvetica' },
+        { str: '2013 – 2014', x: 480, y: 400, width: 65, height: 10, fontName: 'Helvetica' },
+        { str: '- Built landing pages', x: 50, y: 380, width: 160, height: 10, fontName: 'Helvetica' },
+      ];
+
+      const lines = extractPageLayoutLines(mock1ColItems);
+      const renderedText = lines.map((l) => l.text).join('\n');
+
+      // The dates should stay on the SAME line as their respective roles!
+      // They should NOT be dumped at the end of the text.
+      expect(renderedText).toMatch(/Senior Software Engineer.*Google LLC.*2021 – Present/);
+      expect(renderedText).toMatch(/Software Engineer.*Stripe.*2018 – 2021/);
+      expect(renderedText).toMatch(/Junior Developer.*Acme Corp.*2016 – 2018/);
+    });
+  });
+
+  describe('Deep Anti-Absorption & Embedded Section Segmentation', () => {
+    it('extracts education, skills, projects, and certifications leaked inside experience.description', () => {
+      const contaminatedExperienceData = {
+        firstName: 'Marcus',
+        lastName: 'Vance',
+        email: 'marcus@example.com',
+        jobTitle: 'Senior Software Engineer',
+        experience: [
+          {
+            company: 'Amazon',
+            title: 'Software Development Engineer II',
+            description: `- Designed high-throughput microservices handling 50k TPS.
+- Mentored 4 junior engineers.
+
+## Education
+University of Washington
+B.S. in Computer Science, 2016 - 2020
+
+## Technical Skills
+TypeScript, React, Python, Golang, Docker, Kubernetes, AWS, DynamoDB
+
+## Projects
+CloudWatch Log Viewer
+Built full-stack React and Go web app to stream real-time AWS CloudWatch logs with 1.2k stars.
+
+## Certifications & Licenses
+AWS Certified Solutions Architect - Professional (2022)
+Certified Kubernetes Administrator (CKA)`,
+            startDate: '2020',
+            endDate: 'Present',
+          },
+        ],
+        education: [],
+        skills: [],
+        projects: [],
+        certifications: [],
+      };
+
+      const cleaned = sanitizeParsedProfileData(contaminatedExperienceData);
+
+      // 1. Experience description is truncated at the section boundary and clean
+      expect(cleaned.experience.length).toBe(1);
+      expect(cleaned.experience[0].company).toBe('Amazon');
+      expect(cleaned.experience[0].description).toContain('Designed high-throughput microservices');
+      expect(cleaned.experience[0].description).toContain('Mentored 4 junior engineers.');
+      expect(cleaned.experience[0].description).not.toContain('## Education');
+      expect(cleaned.experience[0].description).not.toContain('## Technical Skills');
+      expect(cleaned.experience[0].description).not.toContain('## Projects');
+      expect(cleaned.experience[0].description).not.toContain('## Certifications');
+
+      // 2. Education was cleanly recovered
+      expect(cleaned.education.length).toBeGreaterThan(0);
+      expect(cleaned.education[0].school).toBe('University of Washington');
+      expect(cleaned.education[0].degree).toContain('Computer Science');
+
+      // 3. Skills were cleanly recovered
+      expect(cleaned.skills).toContain('TypeScript');
+      expect(cleaned.skills).toContain('React');
+      expect(cleaned.skills).toContain('Golang');
+      expect(cleaned.skills).toContain('Docker');
+      expect(cleaned.skills).toContain('Kubernetes');
+
+      // 4. Projects were cleanly recovered
+      expect(cleaned.projects.length).toBeGreaterThan(0);
+      expect(cleaned.projects[0].name).toBe('CloudWatch Log Viewer');
+      expect(cleaned.projects[0].description).toContain('Built full-stack React and Go web app');
+
+      // 5. Certifications were cleanly recovered
+      expect(cleaned.certifications.length).toBeGreaterThan(0);
+      const certNames = cleaned.certifications.map((c) => c.name);
+      expect(certNames.some((c) => c.includes('Solutions Architect'))).toBe(true);
+    });
+
+    it('reclassifies projects and certifications mistakenly parsed as standalone experience items', () => {
+      const mixedExperienceData = {
+        firstName: 'Elena',
+        lastName: 'Rostova',
+        email: 'elena@example.com',
+        jobTitle: 'Full Stack Engineer',
+        experience: [
+          {
+            company: 'Meta',
+            title: 'Staff Software Engineer',
+            description: 'Built Instagram reel recommendations engine.',
+            startDate: '2021',
+            endDate: 'Present',
+          },
+          {
+            company: 'Crypto Portfolio Tracker App',
+            title: 'Creator & Lead Developer',
+            description: 'Mobile application built with React Native and Supabase with 10k MAU.',
+            startDate: '2023',
+            endDate: '',
+          },
+          {
+            company: 'Project: OpenSource CLI Tool',
+            title: 'Developer',
+            description: 'Rust CLI tool for developer productivity with github.com/elena/tool repository.',
+            startDate: '2022',
+            endDate: '',
+          },
+          {
+            company: 'Amazon Web Services',
+            title: 'AWS Certified Solutions Architect',
+            description: 'Validation ID: AWS-10293847',
+            startDate: '2023',
+            endDate: '',
+          },
+        ],
+        education: [],
+        skills: ['React', 'Rust'],
+        projects: [],
+        certifications: [],
+      };
+
+      const cleaned = sanitizeParsedProfileData(mixedExperienceData);
+
+      // Only the real job at Meta should remain in experience!
+      expect(cleaned.experience.length).toBe(1);
+      expect(cleaned.experience[0].company).toBe('Meta');
+      expect(cleaned.experience[0].title).toBe('Staff Software Engineer');
+
+      // The 2 projects should be in projects
+      expect(cleaned.projects.length).toBe(2);
+      const projectNames = cleaned.projects.map((p) => p.name);
+      expect(projectNames.some((n) => n.includes('Crypto Portfolio Tracker') || n.includes('Creator'))).toBe(true);
+      expect(projectNames.some((n) => n.includes('OpenSource CLI Tool') || n.includes('Developer'))).toBe(true);
+
+      // The certification should be in certifications
+      expect(cleaned.certifications.length).toBe(1);
+      expect(cleaned.certifications[0].name).toContain('AWS Certified Solutions Architect');
+      expect(cleaned.certifications[0].issuer).toBe('Amazon Web Services');
+    });
+
+    it('segments multiple jobs in fallback parsing rather than merging into a single entry', async () => {
+      const { buildFallbackParsedProfileData } = await import('../services/ai/parseResumeProfile');
+
+      const resumeText = `
+Alexander Pierce
+alexander.pierce@example.com
+
+## Summary
+Experienced engineering leader with deep expertise in distributed systems and cloud architecture.
+
+## Experience
+Senior Staff Engineer | Netflix | 2021 – Present
+- Led playback streaming optimization across EMEA region.
+- Decreased video buffering rate by 18%.
+
+Lead Systems Architect | Spotify | 2018 – 2021
+- Designed audio transcoding pipeline processing 100k tracks daily.
+- Managed team of 12 backend engineers.
+
+Senior Software Engineer | Twitter | 2015 – 2018
+- Scaled tweet fanout queue to 500k events/second.
+
+## Education
+B.S. in Computer Science | Carnegie Mellon University | 2011 – 2015
+
+## Skills
+Go, Java, Python, Kafka, Cassandra, Kubernetes, AWS
+`;
+
+      const parsed = buildFallbackParsedProfileData(resumeText, 'Alexander Pierce');
+
+      // MUST segment into 3 distinct jobs, NOT one massive blob!
+      expect(parsed.experience.length).toBe(3);
+      expect(parsed.experience[0].company).toContain('Netflix');
+      expect(parsed.experience[0].title).toContain('Senior Staff Engineer');
+      expect(parsed.experience[1].company).toContain('Spotify');
+      expect(parsed.experience[1].title).toContain('Lead Systems Architect');
+      expect(parsed.experience[2].company).toContain('Twitter');
+
+      // Education and Skills should be populated cleanly
+      expect(parsed.education.length).toBeGreaterThan(0);
+      expect(parsed.skills.length).toBeGreaterThan(3);
+    });
   });
 });
