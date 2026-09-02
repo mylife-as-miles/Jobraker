@@ -511,7 +511,20 @@ function useSessionIsolation(queryClient: QueryClient) {
 }
 
 function App() {
-  const [queryClient] = React.useState(() => new QueryClient());
+  const [queryClient] = React.useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 1000 * 60 * 3, // 3 minutes fresh cache for instant sub-page navigation
+            gcTime: 1000 * 60 * 10, // 10 minutes memory retention
+            refetchOnWindowFocus: false, // Prevents background re-fetch churn on tab switch
+            refetchOnReconnect: "always",
+            retry: 1,
+          },
+        },
+      }),
+  );
   const authScopeKey = useSessionIsolation(queryClient);
   usePostHogAuthBridge();
 

@@ -124,6 +124,89 @@ export default defineConfig({
       "file-saver": path.resolve(__dirname, "src/lib/mocks/file-saver.ts"),
     },
   },
+  build: {
+    target: "es2022",
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (
+              id.includes("three") ||
+              id.includes("@react-three") ||
+              id.includes("three-stdlib")
+            ) {
+              return "vendor-three";
+            }
+            if (
+              id.includes("recharts") ||
+              id.includes("d3-") ||
+              id.includes("victory-vendor")
+            ) {
+              return "vendor-charts";
+            }
+            if (
+              id.includes("jspdf") ||
+              id.includes("docx") ||
+              id.includes("jszip") ||
+              id.includes("pdfjs-dist")
+            ) {
+              return "vendor-pdf";
+            }
+            if (
+              id.includes("framer-motion") ||
+              id.includes("gsap") ||
+              id.includes("animejs") ||
+              id.includes("lenis")
+            ) {
+              return "vendor-motion";
+            }
+            if (
+              id.includes("@supabase/") ||
+              id.includes("@supabase/supabase-js") ||
+              id.includes("@supabase/auth-ui-react")
+            ) {
+              return "vendor-supabase";
+            }
+            if (
+              id.includes("@tanstack/react-query") ||
+              id.includes("@tanstack/react-table") ||
+              id.includes("jotai") ||
+              id.includes("immer")
+            ) {
+              return "vendor-data";
+            }
+            if (
+              id.includes("@sentry/") ||
+              id.includes("posthog-js")
+            ) {
+              return "vendor-observability";
+            }
+            if (
+              id.includes("@radix-ui/") ||
+              id.includes("lucide-react") ||
+              id.includes("class-variance-authority") ||
+              id.includes("clsx") ||
+              id.includes("tailwind-merge")
+            ) {
+              return "vendor-ui";
+            }
+            if (
+              id.includes("/react/") ||
+              id.includes("/react-dom/") ||
+              id.includes("/react-router/") ||
+              id.includes("/react-router-dom/") ||
+              id.includes("/scheduler/") ||
+              id.endsWith("/react/index.js") ||
+              id.endsWith("/react-dom/index.js")
+            ) {
+              return "vendor-react";
+            }
+          }
+        },
+      },
+    },
+  },
   server: {
     host: "127.0.0.1", // force IPv4
     port: 3000, // use your usual dev port

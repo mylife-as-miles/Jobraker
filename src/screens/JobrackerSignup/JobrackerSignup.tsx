@@ -37,8 +37,21 @@ import { persistAttributionFromSearch } from "../../lib/utmAttribution";
 import { validatePassword } from "../../utils/password";
 import { useToast } from "../../components/ui/toast-provider";
 import Modal from "../../components/ui/modal";
-import { SelfSolvingCube } from "./components/SelfSolvingCube";
 import { sanitizeTextValue } from "@/lib/inputSecurity";
+
+const SelfSolvingCube = React.lazy(() =>
+  import("./components/SelfSolvingCube").then((mod) => ({
+    default: mod.SelfSolvingCube,
+  }))
+);
+
+function CubeLoadingFallback() {
+  return (
+    <div className='w-64 h-64 rounded-2xl border border-brand/20 bg-brand/5 animate-pulse flex items-center justify-center'>
+      <div className='w-32 h-32 rounded-xl border border-brand/30 bg-brand/10 blur-[1px]' />
+    </div>
+  );
+}
 
 function isAdminHost() {
   return window.location.hostname.startsWith("admin.");
@@ -1213,7 +1226,9 @@ export const JobrackerSignup = (): JSX.Element => {
 
         {/* 3D Self-Solving Cube */}
         <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
-          <SelfSolvingCube />
+          <React.Suspense fallback={<CubeLoadingFallback />}>
+            <SelfSolvingCube />
+          </React.Suspense>
         </div>
 
         {/* Overlay Text */}
