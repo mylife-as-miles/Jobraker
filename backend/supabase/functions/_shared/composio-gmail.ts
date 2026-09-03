@@ -36,6 +36,8 @@ export const GMAIL_TOOL = {
   fetchThreadById: "GMAIL_FETCH_MESSAGE_BY_THREAD_ID",
   getAttachment: "GMAIL_GET_ATTACHMENT",
   batchModifyMessages: "GMAIL_BATCH_MODIFY_MESSAGES",
+  getProfile: "GMAIL_GET_PROFILE",
+  listThreads: "GMAIL_LIST_THREADS",
 } as const;
 
 const COMPOSIO_REST_BASE = "https://backend.composio.dev/api/v3.1";
@@ -425,6 +427,7 @@ export interface FetchEmailsOptions {
   includePayload?: boolean;
   verbose?: boolean;
   pageToken?: string;
+  labelIds?: string[];
 }
 
 export interface FetchEmailsResult {
@@ -436,13 +439,17 @@ export async function composioGmailFetchEmails(
   userId: string,
   options: FetchEmailsOptions,
 ): Promise<FetchEmailsResult> {
+  // Step 3 & Pitfall 2: metadata-first with include_payload=false and practical max_results up to 500.
+  // Setting include_payload=true can trigger oversized/offloaded responses or 413 errors.
+  const maxResults = Math.min(Math.max(1, options.maxResults || 20), 500);
   const data = await executeComposioTool(userId, GMAIL_TOOL.fetchEmails, {
     query: options.query,
-    max_results: options.maxResults,
+    max_results: maxResults,
     include_payload: Boolean(options.includePayload),
     verbose: Boolean(options.verbose),
     user_id: "me",
     ...(options.pageToken ? { page_token: options.pageToken } : {}),
+    ...(options.labelIds && options.labelIds.length > 0 ? { label_ids: options.labelIds } : {}),
   });
 
   const rawData = asRecord(data);
@@ -775,26 +782,49 @@ export async function composioGmailBatchModify(
   return { success: true, modifiedCount: args.messageIds.length };
 }
 
-export async function composioGmailResolveLabelId(
+export async function composioGmailListLabels(
   userId: string,
-  labelName: string,
-): Promise<string | null> {
+): Promise<Array<{ id: string; name: string; type: string | null }>> {
   const listed = await executeComposioTool(userId, GMAIL_TOOL.listLabels, {
     user_id: "me",
   });
 
-  const labels = Array.isArray(listed.labels)
-    ? listed.labels
-    : Array.isArray((listed as { data?: unknown }).data)
-    ? ((listed as { data: unknown[] }).data)
+  const rawData = asRecord(listed);
+  const labels = Array.isArray(rawData?.labels)
+    ? rawData.labels
+    : Array.isArray((rawData?.data as any)?.labels)
+    ? (rawData.data as any).labels
+    : Array.isArray((rawData?.data_preview as any)?.labels)
+    ? (rawData.data_preview as any).labels
+    : Array.isArray(rawData?.data)
+    ? (rawData.data as unknown[])
     : [];
 
-  for (const raw of labels) {
-    const label = asRecord(raw);
-    if (!label) continue;
-    if (firstString(label.name) === labelName) {
-      const id = firstString(label.id, label.labelId, label.label_id);
-      if (id) return id;
+  return labels
+    .map((raw) => {
+      const l = asRecord(raw);
+      if (!l) return null;
+      const id = firstString(l.id, l.labelId, l.label_id);
+      const name = firstString(l.name);
+      if (!id || !name) return null;
+      return {
+        id,
+        name,
+        type: firstString(l.type),
+      };
+    })
+    .filter((l): l is { id: string; name: string; type: string | null } => l !== null);
+}
+
+export async function composioGmailResolveLabelId(
+  userId: string,
+  labelName: string,
+): Promise<string | null> {
+  const labels = await composioGmailListLabels(userId);
+  const targetLower = labelName.toLowerCase().trim();
+  for (const label of labels) {
+    if (label.name.toLowerCase() === targetLower) {
+      return label.id;
     }
   }
 
@@ -836,3 +866,75 @@ export async function composioGmailAddLabel(
 
   return { labeled, failed };
 }
+
+export async function composioGmailGetProfile(
+  userId: string,
+): Promise<{
+  emailAddress: string | null;
+  messagesTotal: number;
+  threadsTotal: number;
+  historyId: string | null;
+}> {
+  // Pitfall 4: Always target default connected mailbox "me" to avoid 403 delegation/impersonation errors
+  const data = await executeComposioTool(userId, GMAIL_TOOL.getProfile, {
+    user_id: "me",
+  });
+
+  const profile = asRecord(data.profile) || data;
+  return {
+    emailAddress: firstString(profile.emailAddress, profile.email, (profile as any).email_address),
+    messagesTotal: Number(profile.messagesTotal ?? (profile as any).messages_total ?? 0),
+    threadsTotal: Number(profile.threadsTotal ?? (profile as any).threads_total ?? 0),
+    historyId: firstString(profile.historyId, (profile as any).history_id),
+  };
+}
+
+export async function composioGmailListThreads(
+  userId: string,
+  options: {
+    query?: string;
+    maxResults?: number;
+    pageToken?: string;
+  } = {},
+): Promise<{
+  threads: Array<{ id: string; snippet: string; historyId: string | null }>;
+  nextPageToken: string | null;
+}> {
+  const data = await executeComposioTool(userId, GMAIL_TOOL.listThreads, {
+    ...(options.query ? { query: options.query } : {}),
+    max_results: options.maxResults || 20,
+    user_id: "me",
+    ...(options.pageToken ? { page_token: options.pageToken } : {}),
+  });
+
+  const rawData = asRecord(data);
+  const rawList = Array.isArray(rawData?.threads)
+    ? rawData.threads
+    : Array.isArray((rawData?.data as any)?.threads)
+    ? (rawData.data as any).threads
+    : Array.isArray((rawData?.data_preview as any)?.threads)
+    ? (rawData.data_preview as any).threads
+    : Array.isArray(rawData?.data)
+    ? (rawData.data as unknown[])
+    : [];
+
+  const threads = rawList.map((raw: any) => {
+    const item = asRecord(raw) || {};
+    return {
+      id: firstString(item.id, item.threadId, item.thread_id) ?? "",
+      snippet: firstString(item.snippet, item.preview) ?? "",
+      historyId: firstString(item.historyId, item.history_id),
+    };
+  }).filter((t: { id: string }) => Boolean(t.id));
+
+  const rawToken = firstString(
+    rawData?.nextPageToken,
+    rawData?.next_page_token,
+    (rawData?.data as any)?.nextPageToken,
+    (rawData?.data_preview as any)?.nextPageToken,
+  );
+  const nextPageToken = rawToken && rawToken.trim().length > 0 ? rawToken.trim() : null;
+
+  return { threads, nextPageToken };
+}
+

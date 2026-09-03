@@ -10,7 +10,7 @@ const gmailAgentTools = read("backend/supabase/functions/_shared/gmail-job-agent
 
 describe("AI Chat Composio Gmail Integration", () => {
   describe("Composio Gmail Tool Slugs & Helpers", () => {
-    it("defines the full set of Composio Gmail tools including listSendAs, getDraft, sendDraft, fetchMessageById, fetchThreadById, getAttachment, batchModifyMessages", () => {
+    it("defines the full set of Composio Gmail tools including listSendAs, getDraft, sendDraft, fetchMessageById, fetchThreadById, getAttachment, batchModifyMessages, getProfile, listThreads", () => {
       expect(composioGmail).toMatch(/listSendAs:\s*"GMAIL_LIST_SEND_AS"/);
       expect(composioGmail).toMatch(/getDraft:\s*"GMAIL_GET_DRAFT"/);
       expect(composioGmail).toMatch(/sendDraft:\s*"GMAIL_SEND_DRAFT"/);
@@ -21,6 +21,8 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(composioGmail).toMatch(/fetchThreadById:\s*"GMAIL_FETCH_MESSAGE_BY_THREAD_ID"/);
       expect(composioGmail).toMatch(/getAttachment:\s*"GMAIL_GET_ATTACHMENT"/);
       expect(composioGmail).toMatch(/batchModifyMessages:\s*"GMAIL_BATCH_MODIFY_MESSAGES"/);
+      expect(composioGmail).toMatch(/getProfile:\s*"GMAIL_GET_PROFILE"/);
+      expect(composioGmail).toMatch(/listThreads:\s*"GMAIL_LIST_THREADS"/);
     });
 
     it("exports helper functions for the complete email workflow", () => {
@@ -32,6 +34,9 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(composioGmail).toMatch(/export async function composioGmailGetAttachment/);
       expect(composioGmail).toMatch(/export async function composioGmailBatchModify/);
       expect(composioGmail).toMatch(/export async function composioGmailFetchEmails/);
+      expect(composioGmail).toMatch(/export async function composioGmailGetProfile/);
+      expect(composioGmail).toMatch(/export async function composioGmailListThreads/);
+      expect(composioGmail).toMatch(/export async function composioGmailListLabels/);
       expect(composioGmail).toMatch(/export function decodeBase64Url/);
       expect(composioGmail).toMatch(/export function isMessageWithinCutoff/);
     });
@@ -62,7 +67,14 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(gmailAgentTools).toMatch(/export async function agentFetchThreadContext/);
       expect(gmailAgentTools).toMatch(/export async function agentGetEmailAttachment/);
       expect(gmailAgentTools).toMatch(/export async function agentBatchModifyEmails/);
+      expect(gmailAgentTools).toMatch(/export async function agentGetGmailProfile/);
+      expect(gmailAgentTools).toMatch(/export async function agentListGmailThreads/);
+      expect(gmailAgentTools).toMatch(/export async function agentListGmailLabels/);
       expect(gmailAgentTools).toMatch(/export function buildTimePeriodQuery/);
+    });
+
+    it("handles stale IDs with 404 in message hydration (Pitfall 5)", () => {
+      expect(gmailAgentTools).toMatch(/gmail_message_not_found/);
     });
 
     it("supports time period query construction with calendar-day and rolling window semantics", () => {
@@ -73,6 +85,7 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(gmailAgentTools).toMatch(/yesterday/);
       expect(gmailAgentTools).toMatch(/after/);
       expect(gmailAgentTools).toMatch(/before/);
+      expect(gmailAgentTools).toMatch(/category/);
     });
 
     it("performs client-side UTC cutoff filtering and deduplication", () => {
@@ -94,7 +107,7 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/\{\s*slug:\s*"gmail",\s*label:\s*"Gmail",\s*toolkitSlug:\s*"gmail"\s*\}/);
     });
 
-    it("registers all 12 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
+    it("registers all 15 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
       const toolNames = [
         "search_gmail_job_emails",
         "fetch_gmail_emails_by_period",
@@ -108,6 +121,9 @@ describe("AI Chat Composio Gmail Integration", () => {
         "get_gmail_draft",
         "send_gmail_draft",
         "fetch_gmail_message",
+        "get_gmail_profile",
+        "list_gmail_threads",
+        "list_gmail_labels",
       ];
       for (const name of toolNames) {
         expect(aiChat).toContain('"' + name + '"');
@@ -137,6 +153,25 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/3\.\s*Mailbox vs UTC timezone drift/);
       expect(aiChat).toMatch(/4\.\s*Scan 403 errors/);
       expect(aiChat).toMatch(/5\.\s*Base64url body decoding.*payload\.parts\[\]\.body\.data/);
+    });
+
+    it("documents the 6-step date range and category fetching workflow in system instructions", () => {
+      expect(aiChat).toMatch(/Standard 6-Step Workflow for Fetching Emails within a Date Range and Optional Categories/);
+      expect(aiChat).toMatch(/1\.\s*Validate access \/ identity.*GMAIL_GET_PROFILE/);
+      expect(aiChat).toMatch(/2\.\s*Resolve category \/ label IDs.*GMAIL_LIST_LABELS/);
+      expect(aiChat).toMatch(/3\.\s*List message stubs.*GMAIL_FETCH_EMAILS.*max_results up to 500/);
+      expect(aiChat).toMatch(/4\.\s*Paginate & enforce cutoffs.*page_token.*messages\[\]\.id/);
+      expect(aiChat).toMatch(/5\.\s*Hydrate shortlist & attachments.*GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.*GMAIL_GET_ATTACHMENT/);
+      expect(aiChat).toMatch(/6\.\s*Thread grouping fallback.*GMAIL_LIST_THREADS.*GMAIL_FETCH_MESSAGE_BY_THREAD_ID/);
+    });
+
+    it("documents the 5 critical pitfalls for date range and category fetching in system instructions", () => {
+      expect(aiChat).toMatch(/5 Critical Pitfalls for Date Range & Category Fetching/);
+      expect(aiChat).toMatch(/1\.\s*Falsey nextPageToken stop condition/);
+      expect(aiChat).toMatch(/2\.\s*Lightweight metadata-first.*include_payload=true.*413/);
+      expect(aiChat).toMatch(/3\.\s*Preview listing shapes.*response\.data_preview/);
+      expect(aiChat).toMatch(/4\.\s*Profile 403 scope issues/);
+      expect(aiChat).toMatch(/5\.\s*Stale ID 404 handling.*refresh IDs via fetch_gmail_emails_by_period/);
     });
 
     it("documents the 5-step sending workflow in system instructions", () => {

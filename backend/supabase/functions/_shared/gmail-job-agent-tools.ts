@@ -24,7 +24,9 @@ import {
   composioGmailFetchThreadById,
   composioGmailGetAttachment,
   composioGmailGetDraft,
+  composioGmailGetProfile,
   composioGmailListSendAs,
+  composioGmailListThreads,
   composioGmailResolveLabelId,
   composioGmailSendDraft,
   composioGmailSendEmail,
@@ -634,6 +636,15 @@ export async function agentFetchMessageMetadata(
       message,
     };
   } catch (error) {
+    // Pitfall 5: Hydration can return 404 NOT_FOUND for stale/inaccessible IDs; refresh IDs via fetch_gmail_emails_by_period
+    const msg = error instanceof Error ? error.message : String(error);
+    if (/404|not_found|not found/i.test(msg)) {
+      return {
+        success: false,
+        error: "Message not found or ID is stale. Refresh message IDs via fetch_gmail_emails_by_period before retrying.",
+        code: "gmail_message_not_found",
+      };
+    }
     return composioFailure(error, "gmail_fetch_message_failed");
   }
 }
@@ -725,11 +736,20 @@ export interface FetchEmailsByPeriodArgs {
   time_period?: string;
   after?: string;
   before?: string;
+  start_date?: string;
+  end_date?: string;
+  date_range?: { start_date?: string; end_date?: string };
   newer_than?: string;
+  category?: string;
+  categories?: string[];
+  label_name?: string;
+  label_ids?: string[];
   max_results?: number;
   page_token?: string;
   include_payload?: boolean;
   verbose?: boolean;
+  validate_profile?: boolean;
+  use_thread_fallback?: boolean;
 }
 
 export function buildTimePeriodQuery(args: FetchEmailsByPeriodArgs): {
@@ -783,18 +803,34 @@ export function buildTimePeriodQuery(args: FetchEmailsByPeriodArgs): {
     }
   }
 
-  if (args.after) {
-    const afterClean = args.after.trim().replace(/-/g, "/");
+  const afterValue = args.after || args.start_date || args.date_range?.start_date;
+  if (afterValue) {
+    const afterClean = afterValue.trim().replace(/-/g, "/");
     parts.push(`after:${afterClean}`);
-    const parsed = Date.parse(args.after);
+    const parsed = Date.parse(afterValue);
     if (!Number.isNaN(parsed)) startUtcEpochMs = parsed;
   }
 
-  if (args.before) {
-    const beforeClean = args.before.trim().replace(/-/g, "/");
+  const beforeValue = args.before || args.end_date || args.date_range?.end_date;
+  if (beforeValue) {
+    const beforeClean = beforeValue.trim().replace(/-/g, "/");
     parts.push(`before:${beforeClean}`);
-    const parsed = Date.parse(args.before);
+    const parsed = Date.parse(beforeValue);
     if (!Number.isNaN(parsed)) endUtcEpochMs = parsed;
+  }
+
+  const catList = [
+    ...(args.category ? [args.category] : []),
+    ...(Array.isArray(args.categories) ? args.categories : []),
+  ];
+  for (const cat of catList) {
+    const cleanCat = String(cat).toLowerCase().trim();
+    if (cleanCat) parts.push(`category:${cleanCat}`);
+  }
+
+  if (args.label_name && typeof args.label_name === "string") {
+    const cleanLabel = args.label_name.trim();
+    if (cleanLabel) parts.push(`label:${cleanLabel}`);
   }
 
   if (args.query && typeof args.query === "string") {
@@ -824,21 +860,44 @@ export async function agentFetchEmailsByPeriod(
   const connection = await getComposioGmailConnection(userId);
   if (!connection.connected) return gmailNotConnectedResult(connection);
 
+  // Step 1 (Optional): If mailbox identity/scopes are uncertain, validate access using GMAIL_GET_PROFILE
+  let profileInfo = null;
+  if (args.validate_profile) {
+    try {
+      profileInfo = await composioGmailGetProfile(userId);
+    } catch (profileError) {
+      console.warn("[composio-gmail] profile validation warning:", profileError);
+    }
+  }
+
+  // Step 2 (Optional): If filtering by label name and label_ids is not passed, resolve label ID
+  let resolvedLabelIds = args.label_ids ? [...args.label_ids] : [];
+  if (args.label_name && resolvedLabelIds.length === 0) {
+    try {
+      const resolvedId = await composioGmailResolveLabelId(userId, args.label_name);
+      if (resolvedId) resolvedLabelIds.push(resolvedId);
+    } catch {
+      // ignore and rely on query label:<name>
+    }
+  }
+
   const { query, startUtcEpochMs, endUtcEpochMs } = buildTimePeriodQuery(args);
-  const maxResults = Math.min(Math.max(1, Number(args.max_results || 15)), 50);
+  // Step 3: Metadata-first with include_payload=false and practical max_results up to 500
+  const maxResults = Math.min(Math.max(1, Number(args.max_results || 20)), 500);
 
   try {
-    // Step 2: Retrieve first page using GMAIL_FETCH_EMAILS (include_payload=false, verbose=false, practical max_results)
+    // Step 3 & 4: Retrieve first page using GMAIL_FETCH_EMAILS and paginate with page_token
     let fetchResult = await composioGmailFetchEmails(userId, {
       query,
       maxResults,
       includePayload: args.include_payload === true,
       verbose: args.verbose === true,
       pageToken: args.page_token,
+      labelIds: resolvedLabelIds.length > 0 ? resolvedLabelIds : undefined,
     });
 
-    // Step 7 Fallback: If results are unexpectedly empty and constraints were strict, retry with broader window
-    if (fetchResult.messages.length === 0 && (args.after || args.before || args.time_period)) {
+    // Fallback: If results are unexpectedly empty and constraints were strict, retry with broader window
+    if (fetchResult.messages.length === 0 && (args.after || args.before || args.time_period || args.start_date || args.end_date)) {
       const broaderQuery = args.query ? args.query.trim() : "newer_than:60d";
       if (broaderQuery !== query) {
         try {
@@ -857,7 +916,7 @@ export async function agentFetchEmailsByPeriod(
       }
     }
 
-    // Step 3: Deduplicate by messageId
+    // Step 4: Aggregate and deduplicate by messageId
     const seen = new Set<string>();
     const deduplicated: ComposioGmailMessage[] = [];
     for (const msg of fetchResult.messages) {
@@ -881,6 +940,19 @@ export async function agentFetchEmailsByPeriod(
       snippet: msg.snippet,
     }));
 
+    // Step 6 Fallback (Optional thread discovery): If requested or needed for conversation grouping
+    let threadsResult = null;
+    if (args.use_thread_fallback) {
+      try {
+        threadsResult = await composioGmailListThreads(userId, {
+          query,
+          maxResults: Math.min(maxResults, 50),
+        });
+      } catch (threadErr) {
+        console.warn("[composio-gmail] thread fallback listing error:", threadErr);
+      }
+    }
+
     return {
       success: true,
       messages: formattedMessages,
@@ -889,9 +961,71 @@ export async function agentFetchEmailsByPeriod(
       totalCount: formattedMessages.length,
       queryUsed: query,
       hasMore: Boolean(fetchResult.nextPageToken),
+      ...(profileInfo ? { profile: profileInfo } : {}),
+      ...(threadsResult ? { threads: threadsResult.threads } : {}),
     };
   } catch (error) {
     return composioFailure(error, "gmail_fetch_emails_failed");
+  }
+}
+
+export async function agentGetGmailProfile(
+  _serviceClient: SupabaseClient,
+  userId: string,
+) {
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  try {
+    const profile = await composioGmailGetProfile(userId);
+    return {
+      success: true,
+      profile,
+    };
+  } catch (error) {
+    return composioFailure(error, "gmail_get_profile_failed");
+  }
+}
+
+export async function agentListGmailThreads(
+  _serviceClient: SupabaseClient,
+  userId: string,
+  args: { query?: string; max_results?: number; page_token?: string } = {},
+) {
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  try {
+    const result = await composioGmailListThreads(userId, {
+      query: args.query,
+      maxResults: args.max_results,
+      pageToken: args.page_token,
+    });
+    return {
+      success: true,
+      threads: result.threads,
+      nextPageToken: result.nextPageToken,
+    };
+  } catch (error) {
+    return composioFailure(error, "gmail_list_threads_failed");
+  }
+}
+
+export async function agentListGmailLabels(
+  _serviceClient: SupabaseClient,
+  userId: string,
+) {
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  try {
+    const labels = await composioGmailListLabels(userId);
+    return {
+      success: true,
+      labels,
+    };
+  } catch (error) {
+    return composioFailure(error, "gmail_list_labels_failed");
   }
 }
 

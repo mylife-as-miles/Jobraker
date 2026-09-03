@@ -35,8 +35,11 @@ import {
   agentFetchMessageMetadata,
   agentFetchThreadContext,
   agentGetEmailAttachment,
+  agentGetGmailProfile,
   agentGetJobRelatedDraft,
   agentLabelJobRelatedEmails,
+  agentListGmailLabels,
+  agentListGmailThreads,
   agentListSendAsIdentities,
   agentSearchJobRelatedEmails,
   agentSendJobRelatedDraft,
@@ -90,6 +93,9 @@ const GMAIL_AGENT_TOOL_NAMES = new Set([
   "get_gmail_draft",
   "send_gmail_draft",
   "fetch_gmail_message",
+  "get_gmail_profile",
+  "list_gmail_threads",
+  "list_gmail_labels",
 ]);
 const APPLICATION_STATUSES = new Set([
   "Draft",
@@ -283,11 +289,18 @@ function describeAgentApprovalStep(
       kind: "email",
     };
   }
-  if (toolName === "get_gmail_draft" || toolName === "fetch_gmail_message" || toolName === "list_gmail_send_as") {
+  if (
+    toolName === "get_gmail_draft" ||
+    toolName === "fetch_gmail_message" ||
+    toolName === "list_gmail_send_as" ||
+    toolName === "get_gmail_profile" ||
+    toolName === "list_gmail_threads" ||
+    toolName === "list_gmail_labels"
+  ) {
     return {
       toolName,
       title: "Inspect Gmail correspondence",
-      detail: "Read draft, message, or sender identity metadata via Composio.",
+      detail: "Read draft, message, thread, profile, or label metadata via Composio.",
       kind: "email",
     };
   }
@@ -3519,7 +3532,7 @@ const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "fetch_gmail_emails_by_period",
     description:
-      "Fetch emails from the user's connected Gmail for a specific time period using GMAIL_FETCH_EMAILS. Supports preset time periods ('today', 'yesterday', 'last_7_days', 'last_14_days', 'last_30_days', 'last_90_days') or specific calendar dates (after, before). Automatically applies UTC cutoff validation, deduplication, and handles pagination tokens.",
+      "Fetch emails from the user's connected Gmail for a specific time period or date range and optional categories using GMAIL_FETCH_EMAILS. Supports preset time periods ('today', 'yesterday', 'last_7_days', 'last_14_days', 'last_30_days', 'last_90_days'), explicit dates (after/before, start_date/end_date), categories ('primary', 'updates', 'social', 'promotions', 'forums'), and labels. Automatically applies UTC cutoff validation, deduplication, metadata-first retrieval (max_results up to 500), and handles pagination tokens.",
     parameters: {
       type: "object",
       properties: {
@@ -3539,13 +3552,39 @@ const AGENT_FUNCTION_DECLARATIONS = [
           type: "string",
           description: "Cutoff end date in YYYY/MM/DD or ISO format (e.g. '2026/09/01').",
         },
+        start_date: {
+          type: "string",
+          description: "Synonym for cutoff start date (YYYY/MM/DD or ISO string).",
+        },
+        end_date: {
+          type: "string",
+          description: "Synonym for cutoff end date (YYYY/MM/DD or ISO string).",
+        },
         newer_than: {
           type: "string",
           description: "Relative cutoff window like '7d', '14d', '30d', or '1y'.",
         },
+        category: {
+          type: "string",
+          description: "Optional category filter: 'primary', 'updates', 'promotions', 'social', or 'forums'.",
+        },
+        categories: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional list of categories to include.",
+        },
+        label_name: {
+          type: "string",
+          description: "Optional Gmail label display name to filter by (e.g. 'INBOX' or custom label).",
+        },
+        label_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional list of raw Gmail label IDs to filter by.",
+        },
         max_results: {
           type: "number",
-          description: "Max emails to return (default 15, max 50).",
+          description: "Max emails to return (default 20, max 500).",
         },
         page_token: {
           type: "string",
@@ -3555,7 +3594,55 @@ const AGENT_FUNCTION_DECLARATIONS = [
           type: "boolean",
           description: "Whether to include full payload (defaults to false for faster retrieval).",
         },
+        validate_profile: {
+          type: "boolean",
+          description: "Whether to validate mailbox access using GMAIL_GET_PROFILE before listing.",
+        },
+        use_thread_fallback: {
+          type: "boolean",
+          description: "Whether to discover and group messages by conversation threads via GMAIL_LIST_THREADS.",
+        },
       },
+    },
+  },
+  {
+    name: "get_gmail_profile",
+    description:
+      "Validate mailbox access and fetch the user's connected Gmail profile information (email address, total messages, total threads) using GMAIL_GET_PROFILE.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "list_gmail_threads",
+    description:
+      "Discover conversation threads in Gmail using GMAIL_LIST_THREADS. Useful for thread-level conversation grouping or broad query filtering.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Search query or filter string for threads.",
+        },
+        max_results: {
+          type: "number",
+          description: "Max threads to return (default 20, max 100).",
+        },
+        page_token: {
+          type: "string",
+          description: "Optional pagination token for thread discovery.",
+        },
+      },
+    },
+  },
+  {
+    name: "list_gmail_labels",
+    description:
+      "List all Gmail labels and their IDs using GMAIL_LIST_LABELS. Useful for mapping category or label display names to label IDs.",
+    parameters: {
+      type: "object",
+      properties: {},
     },
   },
   {
@@ -3879,7 +3966,10 @@ Deno.serve(async (req) => {
 Email & Outreach via Composio / Gmail:
 - You HAVE FULL ABILITY to search, read, write, draft, verify, and send emails through the user's connected Gmail/Composio account.
 - Available tools:
-  - fetch_gmail_emails_by_period / GMAIL_FETCH_EMAILS: Retrieve emails matching time filters (e.g. today, yesterday, last_7_days, last_30_days, after/before dates).
+  - fetch_gmail_emails_by_period / GMAIL_FETCH_EMAILS: Retrieve emails matching date ranges, time periods, and optional categories (e.g. primary, updates, social) or labels.
+  - get_gmail_profile / GMAIL_GET_PROFILE: Validate mailbox access and view account profile metrics.
+  - list_gmail_labels / GMAIL_LIST_LABELS: List all mailbox labels to map display names to IDs.
+  - list_gmail_threads / GMAIL_LIST_THREADS: Discover conversation threads for broad queries or conversation grouping.
   - fetch_gmail_thread / GMAIL_FETCH_MESSAGE_BY_THREAD_ID: Get all messages in a conversation thread.
   - get_gmail_attachment / GMAIL_GET_ATTACHMENT: Download message attachments.
   - batch_modify_gmail_emails / GMAIL_BATCH_MODIFY_MESSAGES: Update labels or read/unread state in bulk.
@@ -3891,6 +3981,21 @@ Email & Outreach via Composio / Gmail:
   - get_gmail_draft / GMAIL_GET_DRAFT: Inspect draft content before sending.
   - send_gmail_draft / GMAIL_SEND_DRAFT: Send an existing draft using draft_id.
   - fetch_gmail_message / GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID: Retrieve sent/received message metadata, headers, labels, and decoded body.
+
+Standard 6-Step Workflow for Fetching Emails within a Date Range and Optional Categories:
+1. Validate access / identity (Optional): If mailbox identity/scopes are uncertain, validate access using get_gmail_profile (GMAIL_GET_PROFILE) to confirm the connected mailbox context. If access errors occur, use the default connected mailbox ("me").
+2. Resolve category / label IDs (Optional): If filtering by category or label name, resolve label IDs using list_gmail_labels (GMAIL_LIST_LABELS) to map display names to IDs for label_ids constraints.
+3. List message stubs: List message stubs in the requested window using fetch_gmail_emails_by_period (GMAIL_FETCH_EMAILS) using a time-bounded search; metadata-first with include_payload=false and practical max_results up to 500.
+4. Paginate & enforce cutoffs: Paginate using fetch_gmail_emails_by_period (repeat with page_token until missing/falsy), aggregate + dedupe by messages[].id, then enforce exact window cutoffs client-side using the returned timestamp fields.
+5. Hydrate shortlist & attachments (Optional): If full headers/body or attachments are needed, hydrate a shortlist using fetch_gmail_message (GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID) (prefer lightweight formats first); if attachment references exist, download via get_gmail_attachment (GMAIL_GET_ATTACHMENT).
+6. Thread grouping fallback (Fallback): If message listing is too broad or you need conversation grouping, discover threads using list_gmail_threads (GMAIL_LIST_THREADS) with the same query intent, then expand via fetch_gmail_thread (GMAIL_FETCH_MESSAGE_BY_THREAD_ID) and re-apply strict timestamp cutoffs client-side.
+
+5 Critical Pitfalls for Date Range & Category Fetching:
+1. Falsey nextPageToken stop condition: nextPageToken may be an empty string; treat empty/absent as end-of-pagination and do not pass page_token when falsy.
+2. Lightweight metadata-first: include_payload=true (especially with verbose output) can trigger oversized/offloaded responses or 413-like failures; list metadata first and hydrate selectively.
+3. Preview listing shapes: Results may be returned under response.data_preview instead of response.data; parsers handle both shapes to avoid missing messages.
+4. Profile 403 scope issues: Auth issues often surface as 403 (insufficient scopes or delegation/impersonation denied) when attempting non-default mailbox contexts. Always default to "me".
+5. Stale ID 404 handling: Hydration can return 404 NOT_FOUND for stale/inaccessible IDs; refresh IDs via fetch_gmail_emails_by_period (GMAIL_FETCH_EMAILS) before retrying.
 
 Standard 7-Step Workflow for Fetching Emails for a Specific Time Period:
 1. Define timezone & cutoff semantics: Define mailbox timezone and cutoff semantics (calendar-day 'after:YYYY/MM/DD before:YYYY/MM/DD' vs rolling window 'newer_than:Nd') to construct the correct time filter for GMAIL_FETCH_EMAILS / fetch_gmail_emails_by_period.
@@ -5393,6 +5498,22 @@ Evidence and failure reporting:
                             remove_label_ids?: string[];
                           },
                         )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "get_gmail_profile") {
+                    result = canUseEmailIntegrations
+                      ? await agentGetGmailProfile(serviceClient, userId)
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "list_gmail_threads") {
+                    result = canUseEmailIntegrations
+                      ? await agentListGmailThreads(
+                          serviceClient,
+                          userId,
+                          (args || {}) as { query?: string; max_results?: number; page_token?: string },
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "list_gmail_labels") {
+                    result = canUseEmailIntegrations
+                      ? await agentListGmailLabels(serviceClient, userId)
                       : { success: false, error: "Email integrations are not enabled for this account." };
                   } else if (fn.name === "label_gmail_job_emails") {
                     result = canUseEmailIntegrations
