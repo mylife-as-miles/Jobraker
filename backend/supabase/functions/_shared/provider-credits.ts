@@ -362,5 +362,6 @@ async function recordSkyvernUsageFromOutput(
 
 export {
   maybeSendProviderCreditAlert,
+  recordSkyvernUsageFromOutput,
   syncRtrvrCreditUsage,
 };

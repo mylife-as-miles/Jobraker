@@ -537,6 +537,59 @@ export async function restoreAutoApplyRunQuota(
   }
 }
 
+/**
+ * Refund one auto-apply run against the user's *current* quota period.
+ *
+ * skyvern-webhook imported this for its retry path but it was never
+ * implemented, so the import failed to resolve and the whole function crashed
+ * at module load -- meaning no provider callback was ever processed.
+ *
+ * Unlike restoreAutoApplyRunQuota, the caller here has no period bounds to pass
+ * (a webhook arrives long after the run was consumed), so this resolves the row
+ * whose period brackets now. That also stays correct if the user's subscription
+ * period rolled over between consuming the run and the callback arriving.
+ */
+export async function refundCurrentAutoApplyQuota(
+  serviceClient: any,
+  userId: string,
+  quantity = 1,
+) {
+  const nowIso = new Date().toISOString();
+  const { data: quotaRow, error: quotaError } = await serviceClient
+    .from("user_feature_quotas")
+    .select("id, used_quantity")
+    .eq("user_id", userId)
+    .eq("feature_key", "auto_apply")
+    .eq("source", "subscription")
+    .lte("period_start", nowIso)
+    .gt("period_end", nowIso)
+    .order("period_start", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (quotaError || !quotaRow) {
+    console.error("auto apply quota refund lookup failed", { userId, quotaError });
+    return;
+  }
+
+  const nextUsedQuantity = Math.max(
+    0,
+    Math.floor(Number(quotaRow.used_quantity || 0)) - Math.max(1, Math.floor(quantity)),
+  );
+
+  const { error: updateError } = await serviceClient
+    .from("user_feature_quotas")
+    .update({
+      used_quantity: nextUsedQuantity,
+      updated_at: nowIso,
+    })
+    .eq("id", quotaRow.id);
+
+  if (updateError) {
+    console.error("auto apply quota refund update failed", { userId, updateError });
+  }
+}
+
 type AutoApplyConcurrencyResult = {
   subscriptionTier: SubscriptionTier;
   baseLimit: number;

@@ -58,8 +58,15 @@ async function verifySkyvernWebhook(req: Request, rawBody: string): Promise<{ va
 
   // If dedicated secret configured, verify HMAC signature
   if (webhookSecret) {
-    const timestampHeader = req.headers.get("x-skyvern-timestamp") || req.headers.get("x-jobraker-webhook-timestamp");
-    const signatureHeader = req.headers.get("x-skyvern-signature") || req.headers.get("x-jobraker-webhook-signature");
+    // RTRVR signs callbacks with X-Rtrvr-Signature / X-Rtrvr-Timestamp
+    // (HMAC-SHA256 over the raw body). Without these, every RTRVR callback was
+    // rejected as missing_signature_header once a secret was configured.
+    const timestampHeader = req.headers.get("x-skyvern-timestamp") ||
+      req.headers.get("x-rtrvr-timestamp") ||
+      req.headers.get("x-jobraker-webhook-timestamp");
+    const signatureHeader = req.headers.get("x-skyvern-signature") ||
+      req.headers.get("x-rtrvr-signature") ||
+      req.headers.get("x-jobraker-webhook-signature");
 
     if (!signatureHeader) {
       return { valid: false, reason: "missing_signature_header" };
@@ -175,6 +182,8 @@ function extractFailureReasonFromValue(value: unknown, depth = 0): string | null
     "workflow_outputs",
     "output",
     "data",
+    // RTRVR reports failures as error: { message, code, details }.
+    "error",
   ]) {
     const nested = extractFailureReasonFromValue(record[key], depth + 1);
     if (nested) return nested;
@@ -189,6 +198,7 @@ function extractFailureReason(payload: Record<string, unknown>): string | null {
 
   return (
     cleanString(payload.message) ||
+    cleanString((payload.error as Record<string, unknown> | undefined)?.message) ||
     cleanString(payload.status_reason) ||
     null
   );
@@ -450,8 +460,31 @@ serve(async (req) => {
       });
     }
 
-    const runId = payload.id || payload.run_id;
-    const providerStatus = payload.status;
+    // RTRVR posts an event-shaped payload -- { event, requestId, success, data,
+    // metadata } -- with no `status` and no `run_id`. Read literally, every
+    // successful RTRVR callback failed the `!runId` guard with 400, and any
+    // that got through had providerStatus undefined, which the display map
+    // treats as in-progress and writes back as Pending.
+    const runId = payload.id ||
+      payload.run_id ||
+      payload.requestId ||
+      payload.request_id ||
+      payload.run?.id ||
+      payload.run?.run_id;
+
+    const normalizeProviderStatus = (raw: Record<string, any>): string | undefined => {
+      if (typeof raw.status === "string" && raw.status.trim()) return raw.status;
+      const event = typeof raw.event === "string" ? raw.event.toLowerCase() : "";
+      if (event) {
+        // "rtrvr.execution.succeeded" / "workflow.completed" and their
+        // failure counterparts, across both documented event vocabularies.
+        if (/(succeeded|completed|success)$/.test(event)) return "succeeded";
+        if (/(failed|failure|error|terminated|cancell?ed)$/.test(event)) return "failed";
+      }
+      if (typeof raw.success === "boolean") return raw.success ? "succeeded" : "failed";
+      return undefined;
+    };
+    const providerStatus = normalizeProviderStatus(payload);
     const screenshotUrls: string[] = payload.screenshot_urls || [];
     const failureReason = extractFailureReason(payload);
 

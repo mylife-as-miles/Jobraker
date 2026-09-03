@@ -94,6 +94,25 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
     const rtrvrWebhookUrl = typeof rtrvrQueueParams.rtrvrWebhookUrl === "string"
       ? rtrvrQueueParams.rtrvrWebhookUrl.trim()
       : "";
+    const rtrvrWebhookSecret = typeof rtrvrQueueParams.rtrvrWebhookSecret === "string"
+      ? rtrvrQueueParams.rtrvrWebhookSecret.trim()
+      : "";
+    // Per the RTRVR API reference, callbacks are registered with a `webhooks`
+    // array; the webhooks guide additionally documents a flat `webhookUrl`
+    // shorthand. Send both -- whichever the deployed API version ignores is
+    // simply dropped, and we cannot tell from the docs alone which is live.
+    const webhookRegistration = rtrvrWebhookUrl
+      ? {
+        webhookUrl: rtrvrWebhookUrl,
+        webhooks: [
+          {
+            url: rtrvrWebhookUrl,
+            events: ["rtrvr.execution.succeeded", "rtrvr.execution.failed"],
+            ...(rtrvrWebhookSecret ? { secret: rtrvrWebhookSecret } : {}),
+          },
+        ],
+      }
+      : {};
     const candidateData = rtrvrQueueParams.candidate || {};
     const candidateName = candidateData.fullName || candidateData.name || `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || "Candidate";
     const candidateEmail = candidateData.email || profile?.email || "";
@@ -131,7 +150,7 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
         input: prompt,
         urls: [applyUrl],
         response: { verbosity: "final" },
-        ...(rtrvrWebhookUrl ? { webhookUrl: rtrvrWebhookUrl } : {}),
+        ...webhookRegistration,
       }),
     });
 
@@ -145,9 +164,18 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
     // `runId || appRow.run_id`. Neither could ever match. Capture whatever
     // identifier the provider returns so those paths can reconcile a run whose
     // direct write-back did not land.
+    // RTRVR identifies a run as `requestId` in its webhook payload, and the
+    // agent response carries a `run` object. Check those first; the remaining
+    // names are defensive across provider/API versions.
     const providerRunId = [
+      (result as any)?.requestId,
+      (result as any)?.request_id,
+      (result as any)?.run?.id,
+      (result as any)?.run?.run_id,
+      (result as any)?.run?.requestId,
       (result as any)?.run_id,
       (result as any)?.runId,
+      (result as any)?.trajectory_id,
       (result as any)?.task_id,
       (result as any)?.taskId,
       (result as any)?.agent_run_id,

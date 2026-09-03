@@ -95,4 +95,37 @@ describe("auto-apply status sync", () => {
       expect(queue).toMatch(/provider_status: isDraftOnly \? "prepared" : "succeeded"/);
     });
   });
+
+  // Contract per RTRVR's published API reference and webhooks guide:
+  // callbacks register via a `webhooks` array, are signed with
+  // X-Rtrvr-Signature, and POST { event, requestId, success, error, ... }
+  // rather than Skyvern's { id/run_id, status } shape.
+  describe("RTRVR callback contract", () => {
+    it("registers the callback with the documented webhooks array", () => {
+      expect(queue).toMatch(/webhooks:\s*\[/);
+      expect(queue).toMatch(/rtrvr\.execution\.succeeded/);
+      expect(queue).toMatch(/rtrvr\.execution\.failed/);
+      expect(queue).toMatch(/rtrvrWebhookSecret/);
+    });
+
+    it("accepts RTRVR's signature and timestamp headers", () => {
+      expect(webhook).toMatch(/x-rtrvr-signature/);
+      expect(webhook).toMatch(/x-rtrvr-timestamp/);
+    });
+
+    it("resolves the run id from requestId as well as run_id", () => {
+      expect(webhook).toMatch(/payload\.requestId/);
+      expect(queue).toMatch(/\(result as any\)\?\.requestId/);
+    });
+
+    it("derives a provider status from event / success when status is absent", () => {
+      expect(webhook).toMatch(/normalizeProviderStatus/);
+      expect(webhook).toMatch(/raw\.success/);
+      expect(webhook).toMatch(/succeeded\|completed\|success/);
+    });
+
+    it("reads a failure reason out of RTRVR's error object", () => {
+      expect(webhook).toMatch(/payload\.error as Record/);
+    });
+  });
 });
