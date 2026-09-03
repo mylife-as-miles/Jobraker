@@ -23,6 +23,7 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(composioGmail).toMatch(/batchModifyMessages:\s*"GMAIL_BATCH_MODIFY_MESSAGES"/);
       expect(composioGmail).toMatch(/getProfile:\s*"GMAIL_GET_PROFILE"/);
       expect(composioGmail).toMatch(/listThreads:\s*"GMAIL_LIST_THREADS"/);
+      expect(composioGmail).toMatch(/settingsSendAsGet:\s*"GMAIL_SETTINGS_SEND_AS_GET"/);
     });
 
     it("exports helper functions for the complete email workflow", () => {
@@ -37,6 +38,7 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(composioGmail).toMatch(/export async function composioGmailGetProfile/);
       expect(composioGmail).toMatch(/export async function composioGmailListThreads/);
       expect(composioGmail).toMatch(/export async function composioGmailListLabels/);
+      expect(composioGmail).toMatch(/export async function composioGmailGetSendAs/);
       expect(composioGmail).toMatch(/export function decodeBase64Url/);
       expect(composioGmail).toMatch(/export function isMessageWithinCutoff/);
     });
@@ -70,6 +72,8 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(gmailAgentTools).toMatch(/export async function agentGetGmailProfile/);
       expect(gmailAgentTools).toMatch(/export async function agentListGmailThreads/);
       expect(gmailAgentTools).toMatch(/export async function agentListGmailLabels/);
+      expect(gmailAgentTools).toMatch(/export async function agentCheckGmailConnectionStatus/);
+      expect(gmailAgentTools).toMatch(/export async function agentGetGmailSettingsSendAs/);
       expect(gmailAgentTools).toMatch(/export function buildTimePeriodQuery/);
     });
 
@@ -107,7 +111,7 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/\{\s*slug:\s*"gmail",\s*label:\s*"Gmail",\s*toolkitSlug:\s*"gmail"\s*\}/);
     });
 
-    it("registers all 15 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
+    it("registers all 17 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
       const toolNames = [
         "search_gmail_job_emails",
         "fetch_gmail_emails_by_period",
@@ -124,6 +128,8 @@ describe("AI Chat Composio Gmail Integration", () => {
         "get_gmail_profile",
         "list_gmail_threads",
         "list_gmail_labels",
+        "check_gmail_connection_status",
+        "get_gmail_settings_send_as",
       ];
       for (const name of toolNames) {
         expect(aiChat).toContain('"' + name + '"');
@@ -174,6 +180,24 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/5\.\s*Stale ID 404 handling.*refresh IDs via fetch_gmail_emails_by_period/);
     });
 
+    it("documents the 5-step connection status checking workflow in system instructions", () => {
+      expect(aiChat).toMatch(/Standard 5-Step Workflow for Checking Existing Gmail Connection Status/);
+      expect(aiChat).toMatch(/1\.\s*Confirm authentication & identity.*GMAIL_GET_PROFILE/);
+      expect(aiChat).toMatch(/2\.\s*Prove read\/list access.*GMAIL_FETCH_EMAILS/);
+      expect(aiChat).toMatch(/3\.\s*Cross-check threads.*GMAIL_LIST_THREADS/);
+      expect(aiChat).toMatch(/4\.\s*Debug label visibility.*GMAIL_LIST_LABELS/);
+      expect(aiChat).toMatch(/5\.\s*Verify settings endpoints.*GMAIL_SETTINGS_SEND_AS_GET/);
+    });
+
+    it("documents the 5 critical pitfalls for checking Gmail connection status in system instructions", () => {
+      expect(aiChat).toMatch(/5 Critical Pitfalls for Checking Gmail Connection Status/);
+      expect(aiChat).toMatch(/1\.\s*Non-retryable auth\/precondition errors.*401\/403.*FAILED_PRECONDITION/);
+      expect(aiChat).toMatch(/2\.\s*Frequent polling rate limits.*userRateLimitExceeded.*429/);
+      expect(aiChat).toMatch(/3\.\s*Capped sample & payload-heavy responses.*max_results is capped/);
+      expect(aiChat).toMatch(/4\.\s*Empty string nextPageToken stop.*empty string/);
+      expect(aiChat).toMatch(/5\.\s*Missing bodies in lightweight modes.*messages=\[\]/);
+    });
+
     it("documents the 5-step sending workflow in system instructions", () => {
       expect(aiChat).toMatch(/Standard 5-Step Workflow for Sending an Email to Someone/);
       expect(aiChat).toMatch(/1\.\s*Confirm final details.*GMAIL_SEND_EMAIL/);
@@ -193,3 +217,4 @@ describe("AI Chat Composio Gmail Integration", () => {
     });
   });
 });
+

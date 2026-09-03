@@ -25,6 +25,8 @@ import {
   composioGmailGetAttachment,
   composioGmailGetDraft,
   composioGmailGetProfile,
+  composioGmailGetSendAs,
+  composioGmailListLabels,
   composioGmailListSendAs,
   composioGmailListThreads,
   composioGmailResolveLabelId,
@@ -1026,6 +1028,185 @@ export async function agentListGmailLabels(
     };
   } catch (error) {
     return composioFailure(error, "gmail_list_labels_failed");
+  }
+}
+
+export interface CheckGmailConnectionStatusArgs {
+  include_threads_crosscheck?: boolean;
+  include_labels?: boolean;
+  include_settings_send_as?: boolean;
+  sample_size?: number;
+}
+
+export async function agentCheckGmailConnectionStatus(
+  _serviceClient: SupabaseClient,
+  userId: string,
+  args: CheckGmailConnectionStatusArgs = {},
+) {
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  const sampleSize = Math.min(Math.max(1, Number(args.sample_size || 5)), 20);
+
+  // Step 1: Confirm authentication and connected mailbox context using GMAIL_GET_PROFILE
+  // Pitfall 1: 401/403 or 400 FAILED_PRECONDITION is non-retryable until connection/scopes are corrected
+  // Pitfall 2: Frequent polling can trigger 403 userRateLimitExceeded or 429 rateLimitExceeded
+  let profile: {
+    emailAddress: string | null;
+    messagesTotal: number;
+    threadsTotal: number;
+    historyId: string | null;
+  };
+  try {
+    profile = await composioGmailGetProfile(userId);
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const isAuthOrPrecondition = /401|403|FAILED_PRECONDITION|unauthorized|forbidden|scope/i.test(errorMsg);
+    const isRateLimit = /429|rateLimitExceeded|userRateLimitExceeded/i.test(errorMsg);
+    return {
+      success: false,
+      connected: false,
+      step: "get_profile",
+      error: isAuthOrPrecondition
+        ? "Gmail authentication failed or scopes are insufficient (non-retryable). Please reconnect Gmail in Settings > Integrations."
+        : isRateLimit
+        ? "Gmail rate limit exceeded. Please wait with exponential backoff before checking again."
+        : `Failed to confirm Gmail profile: ${errorMsg}`,
+      code: isAuthOrPrecondition ? "gmail_auth_failed" : isRateLimit ? "gmail_rate_limit" : "gmail_profile_failed",
+    };
+  }
+
+  // Step 2: Prove practical read/list access using GMAIL_FETCH_EMAILS
+  // Pitfall 3: max_results is capped and payload-heavy options can create oversized responses; keep health checks IDs/metadata-first
+  // Pitfall 4: nextPageToken may be returned even for tiny samples and can be empty string; treat empty/falsy as end-of-list
+  // Pitfall 5: Non-verbose/lightweight modes may omit bodies; messages=[] or missing bodies is still healthy read access
+  let readAccessVerified = false;
+  let fetchResult: { messages: ComposioGmailMessage[]; nextPageToken: string | null } | null = null;
+  let fetchError: string | null = null;
+
+  try {
+    fetchResult = await composioGmailFetchEmails(userId, {
+      maxResults: sampleSize,
+      includePayload: false,
+      verbose: false,
+    });
+    readAccessVerified = true;
+  } catch (err) {
+    fetchError = err instanceof Error ? err.message : String(err);
+  }
+
+  // Step 3 (Optional / Fallback): If GMAIL_FETCH_EMAILS fails or results look unexpectedly empty/inconsistent,
+  // cross-check list/read behavior using GMAIL_LIST_THREADS
+  let threadsCrossCheck: {
+    success: boolean;
+    threadsCount: number;
+    error?: string;
+  } | null = null;
+
+  if (args.include_threads_crosscheck || !readAccessVerified) {
+    try {
+      const threadRes = await composioGmailListThreads(userId, {
+        maxResults: sampleSize,
+      });
+      threadsCrossCheck = {
+        success: true,
+        threadsCount: threadRes.threads.length,
+      };
+      if (!readAccessVerified && threadRes.threads.length > 0) {
+        readAccessVerified = true;
+      }
+    } catch (err) {
+      threadsCrossCheck = {
+        success: false,
+        threadsCount: 0,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  // Step 4 (Optional): If label visibility/scoping needs debugging, enumerate labels using GMAIL_LIST_LABELS
+  let labelsCheck: {
+    success: boolean;
+    labelsCount: number;
+    labels?: Array<{ id: string; name: string; type: string }>;
+    error?: string;
+  } | null = null;
+
+  if (args.include_labels) {
+    try {
+      const labels = await composioGmailListLabels(userId);
+      labelsCheck = {
+        success: true,
+        labelsCount: labels.length,
+        labels: labels.slice(0, 15),
+      };
+    } catch (err) {
+      labelsCheck = {
+        success: false,
+        labelsCount: 0,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  // Step 5 (Optional): If verifying settings endpoints under current scopes, validate settings readability using GMAIL_SETTINGS_SEND_AS_GET
+  let settingsSendAsCheck: {
+    success: boolean;
+    sendAsEmail?: string | null;
+    isPrimary?: boolean;
+    error?: string;
+  } | null = null;
+
+  if (args.include_settings_send_as) {
+    try {
+      const sendAs = await composioGmailGetSendAs(userId, profile.emailAddress ?? undefined);
+      settingsSendAsCheck = {
+        success: true,
+        sendAsEmail: sendAs.sendAsEmail,
+        isPrimary: sendAs.isPrimary,
+      };
+    } catch (err) {
+      settingsSendAsCheck = {
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  return {
+    success: true,
+    connected: true,
+    account: {
+      canonicalEmail: profile.emailAddress,
+      messagesTotal: profile.messagesTotal,
+      threadsTotal: profile.threadsTotal,
+    },
+    readAccessVerified,
+    sampleMessagesCount: fetchResult ? fetchResult.messages.length : 0,
+    hasMorePages: Boolean(fetchResult?.nextPageToken),
+    ...(fetchError ? { fetchError } : {}),
+    ...(threadsCrossCheck ? { threadsCrossCheck } : {}),
+    ...(labelsCheck ? { labelsCheck } : {}),
+    ...(settingsSendAsCheck ? { settingsSendAsCheck } : {}),
+  };
+}
+
+export async function agentGetGmailSettingsSendAs(
+  _serviceClient: SupabaseClient,
+  userId: string,
+  args: { send_as_email?: string } = {},
+) {
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  try {
+    const sendAs = await composioGmailGetSendAs(userId, args.send_as_email);
+    return {
+      success: true,
+      sendAs,
+    };
+  } catch (error) {
+    return composioFailure(error, "gmail_settings_send_as_failed");
   }
 }
 

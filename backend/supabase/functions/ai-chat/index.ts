@@ -30,12 +30,14 @@ import {
 } from "../_shared/subscription.ts";
 import {
   agentBatchModifyEmails,
+  agentCheckGmailConnectionStatus,
   agentCreateJobRelatedDraft,
   agentFetchEmailsByPeriod,
   agentFetchMessageMetadata,
   agentFetchThreadContext,
   agentGetEmailAttachment,
   agentGetGmailProfile,
+  agentGetGmailSettingsSendAs,
   agentGetJobRelatedDraft,
   agentLabelJobRelatedEmails,
   agentListGmailLabels,
@@ -96,6 +98,8 @@ const GMAIL_AGENT_TOOL_NAMES = new Set([
   "get_gmail_profile",
   "list_gmail_threads",
   "list_gmail_labels",
+  "check_gmail_connection_status",
+  "get_gmail_settings_send_as",
 ]);
 const APPLICATION_STATUSES = new Set([
   "Draft",
@@ -295,12 +299,14 @@ function describeAgentApprovalStep(
     toolName === "list_gmail_send_as" ||
     toolName === "get_gmail_profile" ||
     toolName === "list_gmail_threads" ||
-    toolName === "list_gmail_labels"
+    toolName === "list_gmail_labels" ||
+    toolName === "check_gmail_connection_status" ||
+    toolName === "get_gmail_settings_send_as"
   ) {
     return {
       toolName,
       title: "Inspect Gmail correspondence",
-      detail: "Read draft, message, thread, profile, or label metadata via Composio.",
+      detail: "Read draft, message, thread, profile, label, connection status, or send-as settings via Composio.",
       kind: "email",
     };
   }
@@ -3646,6 +3652,46 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "check_gmail_connection_status",
+    description:
+      "Check the existing Gmail connection status for the user's connected account. Confirms authentication via GMAIL_GET_PROFILE, verifies read access via GMAIL_FETCH_EMAILS sample, and optionally cross-checks threads, labels, or settings send-as endpoints.",
+    parameters: {
+      type: "object",
+      properties: {
+        include_threads_crosscheck: {
+          type: "boolean",
+          description: "Optional cross-check of read/list behavior using GMAIL_LIST_THREADS.",
+        },
+        include_labels: {
+          type: "boolean",
+          description: "Optional check of label enumeration via GMAIL_LIST_LABELS.",
+        },
+        include_settings_send_as: {
+          type: "boolean",
+          description: "Optional validation of settings readability via GMAIL_SETTINGS_SEND_AS_GET.",
+        },
+        sample_size: {
+          type: "number",
+          description: "Small sample size for the metadata-first read verification (default 5, max 20).",
+        },
+      },
+    },
+  },
+  {
+    name: "get_gmail_settings_send_as",
+    description:
+      "Validate settings readability and inspect send-as configuration under current scopes using GMAIL_SETTINGS_SEND_AS_GET.",
+    parameters: {
+      type: "object",
+      properties: {
+        send_as_email: {
+          type: "string",
+          description: "Optional send-as email address to inspect.",
+        },
+      },
+    },
+  },
+  {
     name: "fetch_gmail_thread",
     description:
       "Fetch the full context and all messages of a Gmail conversation thread using GMAIL_FETCH_MESSAGE_BY_THREAD_ID. Takes thread_id.",
@@ -3966,6 +4012,8 @@ Deno.serve(async (req) => {
 Email & Outreach via Composio / Gmail:
 - You HAVE FULL ABILITY to search, read, write, draft, verify, and send emails through the user's connected Gmail/Composio account.
 - Available tools:
+  - check_gmail_connection_status: Run comprehensive health check confirming identity, read access, and optional cross-checks.
+  - get_gmail_settings_send_as / GMAIL_SETTINGS_SEND_AS_GET: Validate settings readability and inspect send-as configuration.
   - fetch_gmail_emails_by_period / GMAIL_FETCH_EMAILS: Retrieve emails matching date ranges, time periods, and optional categories (e.g. primary, updates, social) or labels.
   - get_gmail_profile / GMAIL_GET_PROFILE: Validate mailbox access and view account profile metrics.
   - list_gmail_labels / GMAIL_LIST_LABELS: List all mailbox labels to map display names to IDs.
@@ -3981,6 +4029,20 @@ Email & Outreach via Composio / Gmail:
   - get_gmail_draft / GMAIL_GET_DRAFT: Inspect draft content before sending.
   - send_gmail_draft / GMAIL_SEND_DRAFT: Send an existing draft using draft_id.
   - fetch_gmail_message / GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID: Retrieve sent/received message metadata, headers, labels, and decoded body.
+
+Standard 5-Step Workflow for Checking Existing Gmail Connection Status:
+1. Confirm authentication & identity: Confirm authentication and connected mailbox context using get_gmail_profile / check_gmail_connection_status (GMAIL_GET_PROFILE with user_id="me"; treat returned identity as canonical for this run and do not persist full payload).
+2. Prove read/list access: Prove practical read/list access using fetch_gmail_emails_by_period / check_gmail_connection_status (GMAIL_FETCH_EMAILS requesting a tiny IDs/metadata-first sample; messages=[] can still be healthy; if nextPageToken is present, paginate only a small bounded number of pages and treat empty/falsy token as end-of-list).
+3. Cross-check threads (Optional): If GMAIL_FETCH_EMAILS fails or results look unexpectedly empty/inconsistent, cross-check list/read behavior using list_gmail_threads (GMAIL_LIST_THREADS) with a minimal query/sample to distinguish listing quirks vs permission issues.
+4. Debug label visibility (Optional): If label visibility/scoping needs debugging, enumerate labels using list_gmail_labels (GMAIL_LIST_LABELS), then re-run GMAIL_FETCH_EMAILS filtered by relevant label_ids and compare to an unfiltered fetch.
+5. Verify settings endpoints (Optional): If verifying settings endpoints under current scopes, validate settings readability using get_gmail_settings_send_as (GMAIL_SETTINGS_SEND_AS_GET) to confirm configuration endpoints are visible to the connection.
+
+5 Critical Pitfalls for Checking Gmail Connection Status:
+1. Non-retryable auth/precondition errors: 401/403 or 400 FAILED_PRECONDITION on GMAIL_GET_PROFILE is typically non-retryable until the connection/scopes are corrected in Settings > Integrations.
+2. Frequent polling rate limits: Frequent polling can trigger 403 userRateLimitExceeded or 429 rateLimitExceeded; use bounded retries with exponential backoff.
+3. Capped sample & payload-heavy responses: max_results is capped (up to 500) and payload-heavy options can create oversized/offloaded responses; keep health checks IDs/metadata-first.
+4. Empty string nextPageToken stop: nextPageToken may be returned even for tiny samples and can be an empty string; treat empty/falsy as end-of-list to avoid loops.
+5. Missing bodies in lightweight modes: Non-verbose/lightweight modes may omit bodies; do not interpret missing body fields or messages=[] as a connection failure.
 
 Standard 6-Step Workflow for Fetching Emails within a Date Range and Optional Categories:
 1. Validate access / identity (Optional): If mailbox identity/scopes are uncertain, validate access using get_gmail_profile (GMAIL_GET_PROFILE) to confirm the connected mailbox context. If access errors occur, use the default connected mailbox ("me").
@@ -5514,6 +5576,22 @@ Evidence and failure reporting:
                   } else if (fn.name === "list_gmail_labels") {
                     result = canUseEmailIntegrations
                       ? await agentListGmailLabels(serviceClient, userId)
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "check_gmail_connection_status") {
+                    result = canUseEmailIntegrations
+                      ? await agentCheckGmailConnectionStatus(
+                          serviceClient,
+                          userId,
+                          (args || {}) as any,
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "get_gmail_settings_send_as") {
+                    result = canUseEmailIntegrations
+                      ? await agentGetGmailSettingsSendAs(
+                          serviceClient,
+                          userId,
+                          (args || {}) as { send_as_email?: string },
+                        )
                       : { success: false, error: "Email integrations are not enabled for this account." };
                   } else if (fn.name === "label_gmail_job_emails") {
                     result = canUseEmailIntegrations

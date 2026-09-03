@@ -38,6 +38,7 @@ export const GMAIL_TOOL = {
   batchModifyMessages: "GMAIL_BATCH_MODIFY_MESSAGES",
   getProfile: "GMAIL_GET_PROFILE",
   listThreads: "GMAIL_LIST_THREADS",
+  settingsSendAsGet: "GMAIL_SETTINGS_SEND_AS_GET",
 } as const;
 
 const COMPOSIO_REST_BASE = "https://backend.composio.dev/api/v3.1";
@@ -938,3 +939,31 @@ export async function composioGmailListThreads(
   return { threads, nextPageToken };
 }
 
+export async function composioGmailGetSendAs(
+  userId: string,
+  sendAsEmail?: string,
+): Promise<{
+  sendAsEmail: string | null;
+  displayName: string | null;
+  replyToAddress: string | null;
+  isPrimary: boolean;
+  isDefault: boolean;
+  treatAsAlias: boolean;
+  verificationStatus: string | null;
+}> {
+  const data = await executeComposioTool(userId, GMAIL_TOOL.settingsSendAsGet, {
+    user_id: "me",
+    ...(sendAsEmail ? { send_as_email: sendAsEmail, sendAsEmail } : {}),
+  });
+
+  const raw = asRecord(data) || {};
+  return {
+    sendAsEmail: firstString(raw.sendAsEmail, raw.send_as_email, raw.email),
+    displayName: firstString(raw.displayName, raw.display_name, raw.name),
+    replyToAddress: firstString(raw.replyToAddress, raw.reply_to_address),
+    isPrimary: Boolean(raw.isPrimary ?? raw.is_primary),
+    isDefault: Boolean(raw.isDefault ?? raw.is_default),
+    treatAsAlias: Boolean(raw.treatAsAlias ?? raw.treat_as_alias),
+    verificationStatus: firstString(raw.verificationStatus, raw.verification_status),
+  };
+}
