@@ -100,7 +100,7 @@ const ScrubbableInsightChart = ({ series }: { series: InsightPage["series"] }) =
 
   return (
     <div
-      className="relative mt-4 h-32 touch-none overflow-hidden rounded-lg border border-border/70 bg-background/60 px-3 pb-2 pt-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
+      className="relative mt-4 touch-none rounded-lg border border-border/70 bg-background/60 px-3 pb-2.5 pt-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
       onPointerDown={updateActive}
       onPointerMove={updateActive}
       onPointerLeave={() => setActiveIndex(null)}
@@ -124,34 +124,50 @@ const ScrubbableInsightChart = ({ series }: { series: InsightPage["series"] }) =
       <div className="pointer-events-none absolute left-3 top-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
         {active ? `${active.label}: ${active.value}` : "Drag to inspect"}
       </div>
-      <svg className="h-full w-full overflow-visible" viewBox={`0 0 ${Math.max(series.length * 62, 160)} 88`} preserveAspectRatio="none" aria-hidden="true">
-        <line x1="0" y1="72" x2="100%" y2="72" stroke="hsl(var(--border))" strokeDasharray="2 3" />
+      {/* Bars and labels share one flex track, so a column's bar always sits
+          above its own label. The previous SVG stretched a fixed 160-unit
+          viewBox to the container width with preserveAspectRatio="none", which
+          scaled x and y unequally: corner radii and strokes sheared, a small
+          value collapsed into a flat ellipse, and the bars drifted out of
+          alignment with the labels underneath them. */}
+      <div className="flex h-20 items-end gap-2 border-b border-dashed border-border/70">
         {series.map((item, index) => {
-          const width = 36;
-          const gap = 24;
-          const x = index * (width + gap) + 12;
-          const height = Math.max(4, (item.value / maximum) * 60);
-          const y = 72 - height;
           const isActive = activeIndex === index;
+          const heightPercent = Math.max(6, (item.value / maximum) * 100);
           return (
-            <g key={item.label}>
-              <rect
-                x={x}
-                y={y}
-                width={width}
-                height={height}
-                rx="4"
-                fill={tones[item.tone].fill}
-                stroke={tones[item.tone].stroke}
-                strokeWidth={isActive ? 2 : 1}
+            <div key={item.label} className="flex h-full min-w-0 flex-1 items-end justify-center">
+              <div
+                // Cap the width so a two-series comparison renders as two bars
+                // rather than two full-width slabs, where a small value reads as
+                // a stray line instead of a short bar.
+                className="w-full max-w-[54px] rounded-t-[4px] transition-opacity"
+                style={{
+                  height: `${heightPercent}%`,
+                  backgroundColor: tones[item.tone].fill,
+                  borderStyle: "solid",
+                  borderColor: tones[item.tone].stroke,
+                  // Longhand only: mixing `border` with `borderBottom` makes
+                  // React warn about conflicting shorthand on rerender.
+                  borderWidth: `${isActive ? 2 : 1}px ${isActive ? 2 : 1}px 0`,
+                  opacity: activeIndex === null || isActive ? 1 : 0.5,
+                }}
               />
-              {isActive ? <line x1={x + width / 2} y1="4" x2={x + width / 2} y2="78" stroke={tones[item.tone].stroke} strokeDasharray="2 3" /> : null}
-            </g>
+            </div>
           );
         })}
-      </svg>
-      <div className="pointer-events-none absolute inset-x-3 bottom-2 flex justify-between gap-2 text-[10px] text-muted-foreground">
-        {series.map((item) => <span key={item.label} className="min-w-0 truncate">{item.label}</span>)}
+      </div>
+      <div className="mt-1.5 flex gap-2">
+        {series.map((item, index) => (
+          <span
+            key={item.label}
+            className={`min-w-0 flex-1 truncate text-center text-[10px] ${
+              activeIndex === index ? "text-foreground" : "text-muted-foreground"
+            }`}
+            title={item.label}
+          >
+            {item.label}
+          </span>
+        ))}
       </div>
     </div>
   );
