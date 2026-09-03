@@ -30,8 +30,12 @@ import {
 } from "../_shared/subscription.ts";
 import {
   agentCreateJobRelatedDraft,
+  agentFetchMessageMetadata,
+  agentGetJobRelatedDraft,
   agentLabelJobRelatedEmails,
+  agentListSendAsIdentities,
   agentSearchJobRelatedEmails,
+  agentSendJobRelatedDraft,
   agentSendJobRelatedEmail,
 } from "../_shared/gmail-job-agent-tools.ts";
 import {
@@ -74,6 +78,10 @@ const GMAIL_AGENT_TOOL_NAMES = new Set([
   "create_gmail_job_draft",
   "send_gmail_job_email",
   "label_gmail_job_emails",
+  "list_gmail_send_as",
+  "get_gmail_draft",
+  "send_gmail_draft",
+  "fetch_gmail_message",
 ]);
 const APPLICATION_STATUSES = new Set([
   "Draft",
@@ -88,6 +96,7 @@ const APPLICATION_STATUSES = new Set([
 ]);
 
 const COMPOSIO_AGENT_INTEGRATIONS = [
+  { slug: "gmail", label: "Gmail", toolkitSlug: "gmail" },
   { slug: "github", label: "GitHub", toolkitSlug: "github" },
   { slug: "googledrive", label: "Google Drive", toolkitSlug: "googledrive" },
   { slug: "googledocs", label: "Google Docs", toolkitSlug: "googledocs" },
@@ -258,11 +267,19 @@ function describeAgentApprovalStep(
       kind: "email",
     };
   }
-  if (toolName === "send_gmail_job_email") {
+  if (toolName === "send_gmail_job_email" || toolName === "send_gmail_draft") {
     return {
       toolName,
       title: "Send a Gmail message",
-      detail: recipient ? `Send the reviewed message to ${recipient}.` : "Send the reviewed job-related Gmail message.",
+      detail: recipient ? `Send the reviewed message to ${recipient}.` : "Send the reviewed Gmail message via Composio.",
+      kind: "email",
+    };
+  }
+  if (toolName === "get_gmail_draft" || toolName === "fetch_gmail_message" || toolName === "list_gmail_send_as") {
+    return {
+      toolName,
+      title: "Inspect Gmail correspondence",
+      detail: "Read draft, message, or sender identity metadata via Composio.",
       kind: "email",
     };
   }
@@ -333,6 +350,7 @@ const ALWAYS_APPROVE_TOOLS = new Set([
   // Puts mail in, or sends mail from, the user's mailbox.
   "create_gmail_job_draft",
   "send_gmail_job_email",
+  "send_gmail_draft",
   // Destructive.
   "clear_all_jobs",
 ]);
@@ -3392,13 +3410,17 @@ const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "create_gmail_job_draft",
     description:
-      "Create a Gmail draft from the user's connected Gmail address ONLY for professional job-related communication. The server rejects non-job content. Requires Gmail connected with modify permission. Always show the user the draft before creating it.",
+      "Create a Gmail draft from the user's connected Gmail address for professional job-related communication. The server rejects non-job content. Supports optional CC, BCC, HTML formatting, and sender alias. Use this to prepare drafts for safe review before sending.",
     parameters: {
       type: "object",
       properties: {
         to: { type: "string", description: "Recipient email address" },
         subject: { type: "string", description: "Email subject line" },
-        body: { type: "string", description: "Plain-text body" },
+        body: { type: "string", description: "Plain-text or HTML body" },
+        cc: { type: "string", description: "Optional CC recipient email address" },
+        bcc: { type: "string", description: "Optional BCC recipient email address" },
+        is_html: { type: "boolean", description: "Whether the body is HTML (default false)" },
+        from: { type: "string", description: "Optional sender identity/alias from list_gmail_send_as" },
       },
       required: ["to", "subject", "body"],
     },
@@ -3406,15 +3428,64 @@ const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "send_gmail_job_email",
     description:
-      "Send an email from the user's Gmail address ONLY for professional job-related communication (recruiter follow-up, thank-you after interview, application status). The server rejects content that does not look job-related. Always confirm recipient, subject, and body with the user before calling. Requires Gmail connected with send permission.",
+      "Send an email from the user's Gmail address for professional job-related communication. GMAIL_SEND_EMAIL workflow: Always confirm final to/cc/bcc, subject, body, is_html, attachments, and send-now vs draft-first before invoking (irreversible). Non-idempotent; prefer draft-first when unsure.",
     parameters: {
       type: "object",
       properties: {
         to: { type: "string", description: "Recipient email address" },
         subject: { type: "string", description: "Email subject line" },
-        body: { type: "string", description: "Plain-text body" },
+        body: { type: "string", description: "Plain-text or HTML body" },
+        cc: { type: "string", description: "Optional CC recipient email address" },
+        bcc: { type: "string", description: "Optional BCC recipient email address" },
+        is_html: { type: "boolean", description: "Whether the body is HTML (default false)" },
+        from: { type: "string", description: "Optional sender identity/alias from list_gmail_send_as" },
       },
       required: ["to", "subject", "body"],
+    },
+  },
+  {
+    name: "list_gmail_send_as",
+    description:
+      "List permitted sender identities / aliases for the user's connected Gmail account using GMAIL_LIST_SEND_AS. Use when a non-default sender alias is needed before drafting or sending.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "get_gmail_draft",
+    description:
+      "Fetch and verify a Gmail draft's content, recipients, and subject using GMAIL_GET_DRAFT before sending. Takes draft_id.",
+    parameters: {
+      type: "object",
+      properties: {
+        draft_id: { type: "string", description: "Exact draft identifier returned by create_gmail_job_draft" },
+      },
+      required: ["draft_id"],
+    },
+  },
+  {
+    name: "send_gmail_draft",
+    description:
+      "Send a verified Gmail draft using GMAIL_SEND_DRAFT. Requires the draft identifier (draft_id). Note: draft_id differs from message_id; always pass draft_id.",
+    parameters: {
+      type: "object",
+      properties: {
+        draft_id: { type: "string", description: "Exact draft identifier (from create_gmail_job_draft or get_gmail_draft)" },
+      },
+      required: ["draft_id"],
+    },
+  },
+  {
+    name: "fetch_gmail_message",
+    description:
+      "Fetch sent message metadata and confirmed headers/labels using GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID after sending. Takes message_id.",
+    parameters: {
+      type: "object",
+      properties: {
+        message_id: { type: "string", description: "Exact message identifier returned by send_gmail_job_email or send_gmail_draft" },
+      },
+      required: ["message_id"],
     },
   },
   {
@@ -3676,13 +3747,30 @@ Deno.serve(async (req) => {
     if (mode === "agent") {
       const gmailJobRules = canUseEmailIntegrations ? `
 Email & Outreach via Composio / Gmail:
-- You HAVE FULL ABILITY to search, read, write, draft, and send emails through the user's connected Gmail/Composio account.
-- When asked to write, draft, prepare, or send an email or outreach to a recruiter, company, hiring manager, or contact:
-  1. create_gmail_job_draft: Use this tool to save a clean, professional draft directly in the user's connected Gmail account so it is ready in their drafts folder.
-  2. send_gmail_job_email: Use this tool to send the email directly after confirming the recipient (To), Subject, and Body with the user.
-  3. search_gmail_job_emails: Search recent application and recruiter correspondence.
-  4. label_gmail_job_emails: Organize and label application threads in Gmail.
-- Never state or imply that you can only read emails. You can both read and write/draft/send emails via Composio.` : "";
+- You HAVE FULL ABILITY to search, read, write, draft, verify, and send emails through the user's connected Gmail/Composio account.
+- Available tools:
+  - send_gmail_job_email / GMAIL_SEND_EMAIL: Direct email delivery.
+  - create_gmail_job_draft / GMAIL_CREATE_EMAIL_DRAFT: Create draft in user's Gmail.
+  - list_gmail_send_as / GMAIL_LIST_SEND_AS: List permitted sender aliases/identities.
+  - get_gmail_draft / GMAIL_GET_DRAFT: Inspect draft content before sending.
+  - send_gmail_draft / GMAIL_SEND_DRAFT: Send an existing draft using draft_id.
+  - fetch_gmail_message / GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID: Retrieve sent message metadata and labels.
+  - search_gmail_job_emails: Search recent application and recruiter correspondence.
+  - label_gmail_job_emails: Organize and label application threads in Gmail.
+
+Standard 5-Step Workflow for Sending an Email to Someone:
+1. Confirm final details: ALWAYS confirm recipient (to), CC/BCC (if any), subject, body, is_html, any attachments, and send-now vs draft-first before invoking send_gmail_job_email or GMAIL_SEND_EMAIL (sending is irreversible).
+2. Sender identity / Alias (Optional): If a non-default sender or alias is required, list permitted sender identities using list_gmail_send_as or GMAIL_LIST_SEND_AS and select a valid 'from' identity.
+3. Send-now execution: Send the message using send_gmail_job_email (or GMAIL_SEND_EMAIL) and store returned messageId / threadId for auditability, follow-up, and application tracking.
+4. Fallback / Draft-first flow (Safer review): If direct sending fails validation or the user prefers safer review, create a draft using create_gmail_job_draft (or GMAIL_CREATE_EMAIL_DRAFT), verify content using get_gmail_draft (or GMAIL_GET_DRAFT), and then send using send_gmail_draft (or GMAIL_SEND_DRAFT) using the draft identifier (draft_id).
+5. Post-send verification (Optional): Fetch sent message metadata using fetch_gmail_message (or GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID) to confirm headers and labels.
+
+5 Critical Pitfalls to Avoid:
+1. Non-idempotent: Retrying after transient failures can create duplicate outbound messages. Prefer the draft-first flow when unsure.
+2. 400 validation: 400 validation errors occur if recipients are missing/empty or if both subject and body are omitted. Always ensure valid email addresses and non-empty subject and body.
+3. 403 / 400 Scope errors: 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT or 400 FAILED_PRECONDITION indicates wrong connected account or missing scopes. Advise the user to reconnect Gmail in Settings > Integrations.
+4. Outbound persistence: Success responses may include only identifiers/labels (not the composed subject/body). Always persist/echo outbound content in your response and tracker.
+5. Draft identifier mismatch: In draft creation, the draft identifier (draft_id) differs from the embedded message identifier (message_id). GMAIL_SEND_DRAFT / send_gmail_draft requires the draft identifier; passing message_id or missing recipients triggers 400 INVALID_ARGUMENT.` : "";
       const agentCapabilityRules = `
 Profile, resume, and in-app data (execute directly — do not ask the user to copy-paste):
 - update_profile, list_profile_records, add_skill, remove_skill, add_experience, update_experience, delete_experience, add_education, update_education, delete_education, save_cover_letter, update_resume, create_application_tracker_entry, update_application_status, update_application, delete_application, bookmark_job, hide_job, delete_job, clear_all_jobs, get_public_profile_site, update_public_profile_site, add_answer_bank_entry, update_answer_bank_entry, delete_answer_bank_entry, and generate_answer_bank_entries write to the user's own rows via the authenticated Supabase client.
@@ -5069,6 +5157,10 @@ Evidence and failure reporting:
                             to?: string;
                             subject?: string;
                             body?: string;
+                            cc?: string;
+                            bcc?: string;
+                            is_html?: boolean;
+                            from?: string;
                           },
                         )
                       : { success: false, error: "Email integrations are not enabled for this account." };
@@ -5081,7 +5173,39 @@ Evidence and failure reporting:
                             to?: string;
                             subject?: string;
                             body?: string;
+                            cc?: string;
+                            bcc?: string;
+                            is_html?: boolean;
+                            from?: string;
                           },
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "list_gmail_send_as") {
+                    result = canUseEmailIntegrations
+                      ? await agentListSendAsIdentities(serviceClient, userId)
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "get_gmail_draft") {
+                    result = canUseEmailIntegrations
+                      ? await agentGetJobRelatedDraft(
+                          serviceClient,
+                          userId,
+                          (args || {}) as { draft_id?: string },
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "send_gmail_draft") {
+                    result = canUseEmailIntegrations
+                      ? await agentSendJobRelatedDraft(
+                          serviceClient,
+                          userId,
+                          (args || {}) as { draft_id?: string },
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "fetch_gmail_message") {
+                    result = canUseEmailIntegrations
+                      ? await agentFetchMessageMetadata(
+                          serviceClient,
+                          userId,
+                          (args || {}) as { message_id?: string },
                         )
                       : { success: false, error: "Email integrations are not enabled for this account." };
                   } else if (fn.name === "label_gmail_job_emails") {

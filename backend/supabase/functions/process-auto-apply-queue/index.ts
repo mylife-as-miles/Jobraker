@@ -86,7 +86,15 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
       .eq("id", applicationId);
 
     const applyUrl = app.app_url || "";
-    const candidateData = (app.provider_run_output as any)?.queue_parameters?.rtrvr?.candidate || {};
+    const rtrvrQueueParams = (app.provider_run_output as any)?.queue_parameters?.rtrvr || {};
+    // apply-to-jobs computes this callback URL and stores it here, but it was
+    // never actually forwarded to the provider, so no status callback could
+    // ever fire. `webhookUrl` is the field name this repo's own AgentPayload
+    // interface (rtrvr-tools/index.ts) models for the RTRVR agent API.
+    const rtrvrWebhookUrl = typeof rtrvrQueueParams.rtrvrWebhookUrl === "string"
+      ? rtrvrQueueParams.rtrvrWebhookUrl.trim()
+      : "";
+    const candidateData = rtrvrQueueParams.candidate || {};
     const candidateName = candidateData.fullName || candidateData.name || `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || "Candidate";
     const candidateEmail = candidateData.email || profile?.email || "";
     const candidatePhone = candidateData.phone || profile?.phone || "";
@@ -123,6 +131,7 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
         input: prompt,
         urls: [applyUrl],
         response: { verbosity: "final" },
+        ...(rtrvrWebhookUrl ? { webhookUrl: rtrvrWebhookUrl } : {}),
       }),
     });
 
@@ -130,11 +139,30 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
     const finishedAt = new Date().toISOString();
     const currentRetries = Number(app.retry_count || 0);
 
+    // applications.run_id was previously left null forever, which silently
+    // disabled both async fallbacks: skyvern-webhook correlates on
+    // .eq("run_id", runId) and sync-provider-status resolves
+    // `runId || appRow.run_id`. Neither could ever match. Capture whatever
+    // identifier the provider returns so those paths can reconcile a run whose
+    // direct write-back did not land.
+    const providerRunId = [
+      (result as any)?.run_id,
+      (result as any)?.runId,
+      (result as any)?.task_id,
+      (result as any)?.taskId,
+      (result as any)?.agent_run_id,
+      (result as any)?.id,
+    ].find((value) => typeof value === "string" && value.trim().length > 0) as
+      | string
+      | undefined;
+    const runIdPatch = providerRunId ? { run_id: providerRunId } : {};
+
     if (rtrvrRes.ok) {
       const isDraftOnly = !autoSubmit || result?.status === "prepared";
       await supabase
         .from("applications")
         .update({
+          ...runIdPatch,
           status: isDraftOnly ? "Draft" : "Applied",
           canonical_stage: isDraftOnly ? "draft_ready" : "submitted",
           provider_status: isDraftOnly ? "prepared" : "succeeded",
@@ -179,6 +207,7 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
       await supabase
         .from("applications")
         .update({
+          ...runIdPatch,
           status: isNonRetryable ? "Draft" : "Pending",
           canonical_stage: isNonRetryable ? "draft_ready" : "queued",
           provider_status: isNonRetryable ? "failed" : "waiting",
@@ -259,17 +288,29 @@ serve(async (req) => {
     // Trigger direct cloud execution for claimed applications
     const executionPromise = Promise.all(
       applicationIds.map((id) => executeRtrvrApplicationDirect(supabase, id, rtrvrApiKey))
-    );
+    ).catch((err) => {
+      console.error("[process-auto-apply-queue] execution batch failed", err);
+    });
 
+    // ALWAYS keep the work alive past the response. This used to be an
+    // either/or: batches of 1-2 took the early race branch and never
+    // registered waitUntil, so once the 8s race resolved we returned, the
+    // isolate was torn down, and the in-flight RTRVR call was killed before it
+    // could write back "Applied". The row stayed Pending even though the
+    // submission had succeeded -- which is why this only ever bit *single*
+    // auto-applies, never bulk runs.
+    if (typeof (globalThis as any).EdgeRuntime?.waitUntil === "function") {
+      (globalThis as any).EdgeRuntime.waitUntil(executionPromise);
+    }
+
+    // For small batches, still wait briefly so a fast run can report its final
+    // state in this response. Purely an optimization now -- the work completes
+    // either way.
     if (applicationIds.length > 0 && applicationIds.length <= 2) {
       await Promise.race([
         executionPromise,
         new Promise((resolve) => setTimeout(resolve, 8000)),
       ]);
-    } else if (typeof (globalThis as any).EdgeRuntime?.waitUntil === "function") {
-      (globalThis as any).EdgeRuntime.waitUntil(executionPromise);
-    } else {
-      void executionPromise;
     }
 
     return new Response(JSON.stringify({

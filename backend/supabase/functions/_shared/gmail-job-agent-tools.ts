@@ -19,12 +19,17 @@ import {
   composioGmailAddLabel,
   composioGmailCreateDraft,
   composioGmailFetchEmails,
+  composioGmailFetchMessageById,
+  composioGmailGetDraft,
+  composioGmailListSendAs,
   composioGmailResolveLabelId,
+  composioGmailSendDraft,
   composioGmailSendEmail,
   getComposioGmailConnection,
   gmailNotConnectedResult,
   type ComposioGmailMessage,
   type GmailPayload,
+  type GmailSendAsIdentity,
 } from "./composio-gmail.ts";
 
 const decoder = new TextDecoder();
@@ -282,19 +287,48 @@ function looksBlocked(text: string) {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validateJobEmailDraft(
-  args: { to?: string; subject?: string; body?: string },
+  args: {
+    to?: string;
+    subject?: string;
+    body?: string;
+    cc?: string;
+    bcc?: string;
+    is_html?: boolean;
+    from?: string;
+    attachment?: unknown;
+  },
 ) {
   const to = typeof args.to === "string" ? args.to.trim() : "";
+  const cc = typeof args.cc === "string" ? args.cc.trim() : undefined;
+  const bcc = typeof args.bcc === "string" ? args.bcc.trim() : undefined;
+  const from = typeof args.from === "string" ? args.from.trim() : undefined;
   const subject = typeof args.subject === "string" ? args.subject.trim() : "";
   const body = typeof args.body === "string" ? args.body.trim() : "";
+  const is_html = Boolean(args.is_html);
 
+  // Pitfall: 400 validation errors occur if recipients are missing or empty
   if (!to || !EMAIL_RE.test(to)) {
     return {
       ok: false as const,
-      error: "Invalid recipient email.",
+      error: "Invalid recipient email ('to' must be a valid email address).",
       code: "invalid_to",
     };
   }
+  if (cc && !EMAIL_RE.test(cc)) {
+    return {
+      ok: false as const,
+      error: "Invalid CC recipient email.",
+      code: "invalid_cc",
+    };
+  }
+  if (bcc && !EMAIL_RE.test(bcc)) {
+    return {
+      ok: false as const,
+      error: "Invalid BCC recipient email.",
+      code: "invalid_bcc",
+    };
+  }
+  // Pitfall: 400 validation error if both subject and body are omitted
   if (!subject || subject.length > 250) {
     return {
       ok: false as const,
@@ -328,7 +362,7 @@ function validateJobEmailDraft(
     };
   }
 
-  return { ok: true as const, to, subject, body };
+  return { ok: true as const, to, cc, bcc, from, subject, body, is_html, attachment: args.attachment };
 }
 
 function sanitizeLabelName(value: unknown) {
@@ -410,7 +444,16 @@ export async function agentSearchJobRelatedEmails(
 export async function agentCreateJobRelatedDraft(
   _serviceClient: SupabaseClient,
   userId: string,
-  args: { to?: string; subject?: string; body?: string },
+  args: {
+    to?: string;
+    subject?: string;
+    body?: string;
+    cc?: string;
+    bcc?: string;
+    is_html?: boolean;
+    from?: string;
+    attachment?: unknown;
+  },
 ) {
   const validated = validateJobEmailDraft(args);
   if (!validated.ok) {
@@ -425,6 +468,11 @@ export async function agentCreateJobRelatedDraft(
       to: validated.to,
       subject: validated.subject,
       body: validated.body,
+      cc: validated.cc,
+      bcc: validated.bcc,
+      is_html: validated.is_html,
+      from: validated.from,
+      attachment: validated.attachment,
     });
 
     return {
@@ -432,8 +480,10 @@ export async function agentCreateJobRelatedDraft(
       draftId: draft.draftId,
       messageId: draft.messageId,
       threadId: draft.threadId,
-      draftFrom: connection.identifier,
+      draftFrom: validated.from || connection.identifier,
       to: validated.to,
+      subject: validated.subject,
+      body: validated.body,
     };
   } catch (error) {
     return composioFailure(error, "gmail_draft_failed");
@@ -443,7 +493,16 @@ export async function agentCreateJobRelatedDraft(
 export async function agentSendJobRelatedEmail(
   _serviceClient: SupabaseClient,
   userId: string,
-  args: { to?: string; subject?: string; body?: string },
+  args: {
+    to?: string;
+    subject?: string;
+    body?: string;
+    cc?: string;
+    bcc?: string;
+    is_html?: boolean;
+    from?: string;
+    attachment?: unknown;
+  },
 ) {
   const validated = validateJobEmailDraft(args);
   if (!validated.ok) {
@@ -458,16 +517,118 @@ export async function agentSendJobRelatedEmail(
       to: validated.to,
       subject: validated.subject,
       body: validated.body,
+      cc: validated.cc,
+      bcc: validated.bcc,
+      is_html: validated.is_html,
+      from: validated.from,
+      attachment: validated.attachment,
     });
 
     return {
       success: true,
       messageId: sent.messageId,
-      sentFrom: connection.identifier,
+      threadId: sent.threadId,
+      sentFrom: validated.from || connection.identifier,
       to: validated.to,
+      subject: validated.subject,
+      body: validated.body,
     };
   } catch (error) {
     return composioFailure(error, "gmail_send_failed");
+  }
+}
+
+export async function agentListSendAsIdentities(
+  _serviceClient: SupabaseClient,
+  userId: string,
+) {
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  try {
+    const { sendAs } = await composioGmailListSendAs(userId);
+    return {
+      success: true,
+      connectedAs: connection.identifier,
+      identities: sendAs,
+    };
+  } catch (error) {
+    return composioFailure(error, "gmail_list_send_as_failed");
+  }
+}
+
+export async function agentGetJobRelatedDraft(
+  _serviceClient: SupabaseClient,
+  userId: string,
+  args: { draft_id?: string },
+) {
+  const draftId = typeof args.draft_id === "string" ? args.draft_id.trim() : "";
+  if (!draftId) {
+    return { success: false, error: "draft_id is required", code: "missing_draft_id" };
+  }
+
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  try {
+    const draft = await composioGmailGetDraft(userId, draftId);
+    return {
+      success: true,
+      draft,
+    };
+  } catch (error) {
+    return composioFailure(error, "gmail_get_draft_failed");
+  }
+}
+
+export async function agentSendJobRelatedDraft(
+  _serviceClient: SupabaseClient,
+  userId: string,
+  args: { draft_id?: string },
+) {
+  const draftId = typeof args.draft_id === "string" ? args.draft_id.trim() : "";
+  if (!draftId) {
+    return { success: false, error: "draft_id is required (GMAIL_SEND_DRAFT requires the draft identifier, not the message identifier).", code: "missing_draft_id" };
+  }
+
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  try {
+    const sent = await composioGmailSendDraft(userId, draftId);
+    return {
+      success: true,
+      messageId: sent.messageId,
+      threadId: sent.threadId,
+      sentFrom: connection.identifier,
+      draftId,
+    };
+  } catch (error) {
+    return composioFailure(error, "gmail_send_draft_failed");
+  }
+}
+
+export async function agentFetchMessageMetadata(
+  _serviceClient: SupabaseClient,
+  userId: string,
+  args: { message_id?: string },
+) {
+  const messageId = typeof args.message_id === "string" ? args.message_id.trim() : "";
+  if (!messageId) {
+    return { success: false, error: "message_id is required", code: "missing_message_id" };
+  }
+
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  try {
+    const message = await composioGmailFetchMessageById(userId, messageId);
+    return {
+      success: true,
+      message,
+    };
+  } catch (error) {
+    return composioFailure(error, "gmail_fetch_message_failed");
   }
 }
 

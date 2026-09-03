@@ -111,7 +111,11 @@ async function verifySkyvernWebhook(req: Request, rawBody: string): Promise<{ va
 
 const mapProviderStatusToDisplay = (status: string | null | undefined) => {
   switch ((status || "").toLowerCase()) {
+    // "succeeded" is the terminal status this system itself writes for a
+    // finished RTRVR run (see process-auto-apply-queue). It was missing here, so
+    // a successful callback fell through to the default and reported Pending.
     case "completed":
+    case "succeeded":
       return { status: "Applied", canonical_stage: "submitted" };
     case "failed":
     case "terminated":
@@ -124,6 +128,7 @@ const mapProviderStatusToDisplay = (status: string | null | undefined) => {
 const mapProviderStatusToJobState = (status: string | null | undefined) => {
   switch ((status || "").toLowerCase()) {
     case "completed":
+    case "succeeded":
       return "submitted";
     case "failed":
     case "terminated":
