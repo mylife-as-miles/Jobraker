@@ -4,8 +4,17 @@ import { resolve } from "node:path";
 
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), "utf8");
 
-const queue = read("backend/supabase/functions/process-auto-apply-queue/index.ts");
-const webhook = read("backend/supabase/functions/skyvern-webhook/index.ts");
+/** Strip comments so prose that mentions a construct cannot satisfy a
+ * structural assertion about the code. */
+const stripComments = (src: string) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+const queue = stripComments(
+  read("backend/supabase/functions/process-auto-apply-queue/index.ts"),
+);
+const webhook = stripComments(
+  read("backend/supabase/functions/skyvern-webhook/index.ts"),
+);
 
 /**
  * Regression cover for "single auto-apply stuck in Pending after success".
@@ -22,7 +31,7 @@ describe("auto-apply status sync", () => {
       // so batches of 1-2 returned after an 8s race and the isolate was torn
       // down mid-flight, killing the write-back to "Applied".
       const waitUntilIdx = queue.indexOf("EdgeRuntime?.waitUntil");
-      const raceIdx = queue.indexOf("Promise.race");
+      const raceIdx = queue.indexOf("Promise.race([");
       expect(waitUntilIdx).toBeGreaterThan(-1);
       expect(raceIdx).toBeGreaterThan(-1);
 

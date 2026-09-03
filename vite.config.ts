@@ -130,6 +130,21 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // Rollup's CommonJS interop helpers (getDefaultExportFromCjs et al.)
+          // live in a virtual module that contains no "node_modules" segment, so
+          // it used to fall through this function unassigned. Rollup then placed
+          // it in whichever vendor chunk claimed it first -- vendor-charts -- and
+          // every other chunk, vendor-react included, imported it back out of
+          // there. That single edge produced a
+          // vendor-react -> vendor-charts -> vendor-ui -> vendor-react cycle, and
+          // inside a cycle vendor-ui's module body ran before vendor-react had
+          // initialised its React export, so lucide-react's top-level
+          // `React.forwardRef(...)` threw "Cannot read properties of undefined".
+          // The helper module has no imports of its own, so giving it a dedicated
+          // leaf chunk makes the cycle structurally impossible.
+          if (id.includes("commonjsHelpers") || id.includes("commonjs-dynamic-modules")) {
+            return "vendor-cjs-helpers";
+          }
           if (id.includes("node_modules")) {
             if (
               id.includes("three") ||
