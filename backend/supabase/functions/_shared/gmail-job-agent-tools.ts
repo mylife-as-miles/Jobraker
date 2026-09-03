@@ -1584,3 +1584,252 @@ export async function agentSearchEmailsBySubjectSender(
   }
 }
 
+export interface FetchUnreadImportantEmailsArgs {
+  max_results?: number;
+  page_token?: string;
+  query?: string;
+  account_context?: string;
+  label_ids?: string[];
+  strict_filter?: boolean;
+  sort_newest?: boolean;
+  hydrate_shortlist?: boolean;
+  hydrate_count?: number;
+  get_thread_context?: boolean;
+  thread_id?: string;
+  attachment_id?: string;
+  message_id?: string;
+  mark_as_read?: boolean;
+  add_label_ids?: string[];
+  remove_label_ids?: string[];
+  max_pages?: number;
+}
+
+export async function agentFetchUnreadImportantEmails(
+  _serviceClient: SupabaseClient,
+  userId: string,
+  args: FetchUnreadImportantEmailsArgs = {},
+) {
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  // Step 1: Select intended mailbox context (avoid listing from wrong account)
+  const activeMailbox = args.account_context?.trim() || connection.identifier;
+
+  // Step 7 (Optional attachment): Download attachment if IDs are provided
+  if (args.attachment_id && args.message_id) {
+    try {
+      const attachment = await composioGmailGetAttachment(userId, {
+        messageId: args.message_id,
+        attachmentId: args.attachment_id,
+      });
+      return { success: true, connectedAs: activeMailbox, attachment };
+    } catch (attErr) {
+      return composioFailure(attErr, "gmail_get_attachment_failed");
+    }
+  }
+
+  // Step 5 (Optional thread context): Fetch conversation if thread_id is directly passed
+  if (args.thread_id && args.get_thread_context) {
+    try {
+      const threadResult = await composioGmailFetchThreadById(userId, args.thread_id);
+      return { success: true, connectedAs: activeMailbox, thread: threadResult };
+    } catch (thErr) {
+      return composioFailure(thErr, "gmail_fetch_thread_failed");
+    }
+  }
+
+  // Step 2: Fetch unread/high-priority candidates using GMAIL_FETCH_EMAILS
+  // Use focused unread+important query; start with small max_results (default 20, up to 500); keep include_payload=false and verbose=false
+  const baseQuery = args.query && args.query.trim()
+    ? `is:unread is:important ${args.query.trim()}`
+    : "is:unread is:important";
+
+  const maxResults = Math.min(Math.max(1, Number(args.max_results || 20)), 500);
+  const maxPages = Math.min(Math.max(1, Number(args.max_pages || 3)), 10);
+
+  const seenIds = new Set<string>();
+  const seenTokens = new Set<string>();
+  const accumulated: ComposioGmailMessage[] = [];
+  let currentToken: string | null = args.page_token?.trim() || null;
+  let queryUsed = baseQuery;
+  let retryBroadQuery = false;
+
+  try {
+    // Step 3: Paginate using GMAIL_FETCH_EMAILS with page_token until nextPageToken is falsy;
+    // accumulate and dedupe by messages[].id; stop if tokens or IDs stop progressing
+    let pageCount = 0;
+    while (pageCount < maxPages) {
+      pageCount++;
+      if (currentToken) {
+        if (seenTokens.has(currentToken)) {
+          // Token is repeating - stop progression
+          break;
+        }
+        seenTokens.add(currentToken);
+      }
+
+      const fetchResult = await composioGmailFetchEmails(userId, {
+        query: queryUsed,
+        maxResults,
+        includePayload: false,
+        verbose: false,
+        pageToken: currentToken || undefined,
+        labelIds: args.label_ids,
+      });
+
+      const initialCount = seenIds.size;
+      for (const msg of fetchResult.messages) {
+        if (!seenIds.has(msg.id)) {
+          seenIds.add(msg.id);
+          accumulated.push(msg);
+        }
+      }
+
+      // Stop if messageId set stops progressing
+      if (fetchResult.messages.length > 0 && seenIds.size === initialCount) {
+        break;
+      }
+
+      // Treat falsy / empty string as end-of-pages
+      if (!fetchResult.nextPageToken || !fetchResult.nextPageToken.trim()) {
+        currentToken = null;
+        break;
+      }
+
+      currentToken = fetchResult.nextPageToken.trim();
+    }
+
+    // Step 7 / Step 2 Fallback: If messages is empty (Pitfall 1: valid no-match state before widening filters),
+    // retry GMAIL_FETCH_EMAILS with a broader/simpler query (e.g. is:unread or label-checked)
+    if (accumulated.length === 0) {
+      const broaderQuery = args.query && args.query.trim()
+        ? `is:unread ${args.query.trim()}`
+        : "is:unread";
+
+      if (broaderQuery !== queryUsed) {
+        try {
+          const fallbackRes = await composioGmailFetchEmails(userId, {
+            query: broaderQuery,
+            maxResults,
+            includePayload: false,
+            verbose: false,
+            labelIds: args.label_ids,
+          });
+          for (const msg of fallbackRes.messages) {
+            if (!seenIds.has(msg.id)) {
+              seenIds.add(msg.id);
+              accumulated.push(msg);
+            }
+          }
+          if (accumulated.length > 0) {
+            queryUsed = broaderQuery;
+            retryBroadQuery = true;
+          }
+        } catch {
+          // ignore fallback error and keep empty list
+        }
+      }
+    }
+
+    // Step 4 (Optional client-side post-filter and sorting):
+    // Post-filter using labelIds (retaining UNREAD / IMPORTANT) and sort by messageTimestamp descending
+    let filteredList = accumulated;
+    if (args.strict_filter) {
+      filteredList = filteredList.filter((m) => {
+        const labels = Array.isArray(m.labelIds) ? m.labelIds.map((l) => String(l).toUpperCase()) : [];
+        const isUnread = labels.length === 0 || labels.includes("UNREAD");
+        const isImportant = labels.length === 0 || labels.includes("IMPORTANT");
+        return isUnread && isImportant;
+      });
+    }
+
+    if (args.sort_newest !== false) {
+      filteredList.sort((a, b) => getMessageEpochMs(b) - getMessageEpochMs(a));
+    }
+
+    // Step 5 (Optional shortlist hydration): Hydrate a shortlist using GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID
+    const hydrateCount = args.hydrate_shortlist
+      ? Math.min(Math.max(1, Number(args.hydrate_count || 5)), 10)
+      : Math.min(Math.max(0, Number(args.hydrate_count || 0)), 10);
+
+    const hydratedDetails = new Map<string, any>();
+    if (hydrateCount > 0 && filteredList.length > 0) {
+      const shortlist = filteredList.slice(0, hydrateCount);
+      for (const item of shortlist) {
+        try {
+          const detail = await composioGmailFetchMessageById(userId, item.id);
+          hydratedDetails.set(item.id, detail);
+        } catch (hErr) {
+          // Pitfall 4: messageId can yield HTTP 404 NOT_FOUND for inaccessible/stale IDs
+          console.warn(`[composio-gmail] hydration error for messageId ${item.id}:`, hErr);
+        }
+      }
+    }
+
+    // Optional thread context for first message
+    let threadContext = null;
+    if (args.get_thread_context && filteredList.length > 0 && filteredList[0].threadId) {
+      try {
+        threadContext = await composioGmailFetchThreadById(userId, filteredList[0].threadId);
+      } catch (thErr) {
+        console.warn("[composio-gmail] thread context error:", thErr);
+      }
+    }
+
+    // Step 6: Optional mailbox updates via GMAIL_BATCH_MODIFY_MESSAGES
+    // (after explicit confirmation for mailbox changes)
+    let batchModifyResult = null;
+    const toRemoveLabels: string[] = args.remove_label_ids ? [...args.remove_label_ids] : [];
+    if (args.mark_as_read) {
+      toRemoveLabels.push("UNREAD");
+    }
+    if ((toRemoveLabels.length > 0 || (args.add_label_ids && args.add_label_ids.length > 0)) && filteredList.length > 0) {
+      const messageIdsToModify = filteredList.map((m) => m.id);
+      try {
+        batchModifyResult = await composioGmailBatchModify(userId, {
+          messageIds: messageIdsToModify,
+          addLabelIds: args.add_label_ids,
+          removeLabelIds: toRemoveLabels,
+        });
+      } catch (bmErr) {
+        console.warn("[composio-gmail] batch modify error:", bmErr);
+      }
+    }
+
+    const formattedMessages = filteredList.map((m) => {
+      const hydrated = hydratedDetails.get(m.id);
+      return {
+        id: m.id,
+        threadId: m.threadId,
+        subject: m.subject || hydrated?.subject,
+        from: m.from || hydrated?.from,
+        to: hydrated?.to,
+        date: m.date || m.internalDate || hydrated?.date,
+        snippet: m.snippet,
+        labelIds: hydrated?.labelIds || m.labelIds,
+        ...(hydrated
+          ? {
+              body: hydrated.body,
+              html: hydrated.html,
+            }
+          : {}),
+      };
+    });
+
+    return {
+      success: true,
+      connectedAs: activeMailbox,
+      count: formattedMessages.length,
+      messages: formattedMessages,
+      queryUsed,
+      retryBroadQuery,
+      nextPageToken: currentToken,
+      hasMore: Boolean(currentToken),
+      ...(threadContext ? { thread: threadContext } : {}),
+      ...(batchModifyResult ? { batchModified: batchModifyResult } : {}),
+    };
+  } catch (error) {
+    return composioFailure(error, "gmail_fetch_unread_important_failed");
+  }
+}
+

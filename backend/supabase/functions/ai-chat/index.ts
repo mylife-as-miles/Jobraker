@@ -36,6 +36,7 @@ import {
   agentFetchEmailsByPeriod,
   agentFetchMessageMetadata,
   agentFetchThreadContext,
+  agentFetchUnreadImportantEmails,
   agentGetEmailAttachment,
   agentGetGmailProfile,
   agentGetGmailSettingsSendAs,
@@ -87,6 +88,7 @@ const ACTIVE_APPLICATION_STATUSES = new Set(["Pending", "Applied", "Interview"])
 const GMAIL_AGENT_TOOL_NAMES = new Set([
   "search_gmail_job_emails",
   "search_gmail_emails_by_subject_sender",
+  "fetch_gmail_unread_important",
   "fetch_gmail_emails",
   "fetch_gmail_emails_by_period",
   "fetch_gmail_thread",
@@ -323,6 +325,7 @@ function describeAgentApprovalStep(
     };
   }
   if (
+    toolName === "fetch_gmail_unread_important" ||
     toolName === "search_gmail_emails_by_subject_sender" ||
     toolName === "fetch_gmail_emails" ||
     toolName === "fetch_gmail_emails_by_period" ||
@@ -3613,6 +3616,87 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "fetch_gmail_unread_important",
+    description:
+      "Fetch unread and important/high-priority candidate emails from Gmail using GMAIL_FETCH_EMAILS ('is:unread is:important'). Starts lightweight (metadata only), paginates with page_token while tracking progression, supports client-side post-filtering and recency sorting, optional shortlist hydration via GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID, conversation thread expansion via GMAIL_FETCH_MESSAGE_BY_THREAD_ID, attachments via GMAIL_GET_ATTACHMENT, and optional post-confirmation batch modifications (marking as read or modifying labels) via GMAIL_BATCH_MODIFY_MESSAGES.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Optional additional keywords or filters to combine with 'is:unread is:important'.",
+        },
+        account_context: {
+          type: "string",
+          description: "Optional mailbox email or account context if multiple accounts are connected.",
+        },
+        max_results: {
+          type: "number",
+          description: "Number of candidate emails per page (default 20, max 500).",
+        },
+        page_token: {
+          type: "string",
+          description: "Optional pagination token from previous call.",
+        },
+        label_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional label IDs to filter by.",
+        },
+        strict_filter: {
+          type: "boolean",
+          description: "Whether to strictly post-filter client-side to ensure items currently retain UNREAD and IMPORTANT labels.",
+        },
+        sort_newest: {
+          type: "boolean",
+          description: "Whether to sort results newest-first by message timestamp (default true).",
+        },
+        hydrate_shortlist: {
+          type: "boolean",
+          description: "Whether to hydrate shortlisted candidates with full message headers and body.",
+        },
+        hydrate_count: {
+          type: "number",
+          description: "Number of top emails to hydrate (default 5, max 10).",
+        },
+        get_thread_context: {
+          type: "boolean",
+          description: "Whether to fetch full conversation thread context for the top matched email.",
+        },
+        thread_id: {
+          type: "string",
+          description: "Optional thread ID to expand.",
+        },
+        attachment_id: {
+          type: "string",
+          description: "Optional attachment ID to download.",
+        },
+        message_id: {
+          type: "string",
+          description: "Message ID associated with the attachment.",
+        },
+        mark_as_read: {
+          type: "boolean",
+          description: "Whether to mark the returned emails as read (removes UNREAD label via batch modify). Requires explicit user confirmation.",
+        },
+        add_label_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional label IDs to add via batch modify.",
+        },
+        remove_label_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional label IDs to remove via batch modify.",
+        },
+        max_pages: {
+          type: "number",
+          description: "Max pages to paginate (default 3, max 10).",
+        },
+      },
+    },
+  },
+  {
     name: "fetch_gmail_emails_by_period",
     description:
       "Fetch emails from the user's connected Gmail for a specific time period or date range and optional categories using GMAIL_FETCH_EMAILS. Supports preset time periods ('today', 'yesterday', 'last_7_days', 'last_14_days', 'last_30_days', 'last_90_days'), explicit dates (after/before, start_date/end_date), categories ('primary', 'updates', 'social', 'promotions', 'forums'), and labels. Automatically applies UTC cutoff validation, deduplication, metadata-first retrieval (max_results up to 500), and handles pagination tokens.",
@@ -4162,6 +4246,7 @@ Email & Outreach via Composio / Gmail:
 - Available tools:
   - check_gmail_connection_status: Run comprehensive health check confirming identity, read access, and optional cross-checks.
   - get_gmail_settings_send_as / GMAIL_SETTINGS_SEND_AS_GET: Validate settings readability and inspect send-as configuration.
+  - fetch_gmail_unread_important / GMAIL_FETCH_EMAILS: Fetch unread and important/high-priority emails with lightweight triage, pagination, progression tracking, client-side post-filtering, and optional batch modification.
   - search_gmail_emails_by_subject_sender / GMAIL_FETCH_EMAILS: Search specific emails by subject and sender with lightweight metadata-first retrieval, pagination, automatic fallback to relaxed queries, and optional shortlist hydration.
   - fetch_gmail_emails / fetch_gmail_emails_by_period / GMAIL_FETCH_EMAILS: Fetch emails from Gmail with lightweight metadata-first retrieval, pagination, optional client-side sorting by date for newest-N, label resolution, and selective hydration via GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.
   - get_gmail_profile / GMAIL_GET_PROFILE: Validate mailbox access and view account profile metrics.
@@ -4178,6 +4263,22 @@ Email & Outreach via Composio / Gmail:
   - get_gmail_draft / GMAIL_GET_DRAFT: Inspect draft content before sending.
   - send_gmail_draft / GMAIL_SEND_DRAFT: Send an existing draft using draft_id.
   - fetch_gmail_message / GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID: Retrieve sent/received message metadata, headers, labels, and decoded body.
+
+Standard 7-Step Workflow for Fetching Unread Important Emails from Gmail:
+1. Select mailbox context (Optional): If multiple accounts are connected, select the intended mailbox context before calling GMAIL_FETCH_EMAILS (avoid listing from the wrong account).
+2. Fetch unread/high-priority candidates: Call fetch_gmail_unread_important (GMAIL_FETCH_EMAILS) using a focused unread+important query ("is:unread is:important"); start with small max_results; keep include_payload=false and verbose=false for fast triage.
+3. Paginate & track progression: Paginate using GMAIL_FETCH_EMAILS with page_token until nextPageToken is falsy; accumulate and dedupe by messages[].messageId (stop if tokens or IDs stop progressing).
+4. Client-side post-filter / sort (Optional): If strict recency/order or label state matters, post-filter/sort client-side using messages[].messageTimestamp and messages[].labelIds (retain only items still marked UNREAD/IMPORTANT).
+5. Hydrate shortlist & context (Optional): If preview/messageText is empty or attachments/thread context matter, hydrate a shortlist using fetch_gmail_message (GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID); for conversation context use fetch_gmail_thread (GMAIL_FETCH_MESSAGE_BY_THREAD_ID); if attachment identifiers exist, retrieve via get_gmail_attachment (GMAIL_GET_ATTACHMENT).
+6. Mailbox batch updates (Optional): After explicit confirmation for mailbox changes, update read/archive/labels using batch_modify_gmail_emails (GMAIL_BATCH_MODIFY_MESSAGES) (send reviewed messageIds; retry smaller batches on throttling).
+7. Retry with broader query / sanity-check: Retry GMAIL_FETCH_EMAILS with a broader/simpler query (avoid unintended OR logic); if label filters are involved, validate via list_gmail_labels (GMAIL_LIST_LABELS) and optionally sanity-check via list_gmail_threads (GMAIL_LIST_THREADS), then re-run GMAIL_FETCH_EMAILS.
+
+5 Critical Pitfalls for Fetching Unread Important Emails:
+1. Valid no-results state: GMAIL_FETCH_EMAILS can return messages=[] on a successful call; treat as a valid no-results state before widening filters.
+2. Token progression stop: nextPageToken may be an empty string or may repeat/stop changing; treat falsy as end-of-pages and stop if the token or messageId set stops progressing.
+3. Defensively parse payload shapes: Large verbose/include_payload-heavy outputs may be truncated/offloaded or wrapped under data/response fields—parse defensively.
+4. Stale ID 404 NOT_FOUND: GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID messageId can yield HTTP 404 NOT_FOUND for inaccessible/stale IDs; re-list via GMAIL_FETCH_EMAILS and retry.
+5. Batch modify limits & throttling: GMAIL_BATCH_MODIFY_MESSAGES max ~1000 message IDs per request; can hit HTTP 429 or validation errors for missing/invalid IDs—retry smaller batches.
 
 Standard 7-Step Workflow for Searching Emails by Subject and Sender:
 1. Resolve labels (Optional): If label-scoped search is intended and label identifiers are unclear, resolve labels using list_gmail_labels (GMAIL_LIST_LABELS) (avoid over-restricting the query).
@@ -5650,6 +5751,14 @@ Evidence and failure reporting:
                   } else if (fn.name === "search_gmail_emails_by_subject_sender") {
                     result = canUseEmailIntegrations
                       ? await agentSearchEmailsBySubjectSender(
+                          serviceClient,
+                          userId,
+                          (args || {}) as any,
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "fetch_gmail_unread_important") {
+                    result = canUseEmailIntegrations
+                      ? await agentFetchUnreadImportantEmails(
                           serviceClient,
                           userId,
                           (args || {}) as any,

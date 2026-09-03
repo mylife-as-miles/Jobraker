@@ -62,6 +62,11 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(composioGmail).toMatch(/draftId differs from messageId/);
       expect(composioGmail).toMatch(/GMAIL_SEND_DRAFT requires/);
     });
+
+    it("chunks batch modifications to <=1000 items and retries on 429 throttling (Pitfall 5)", () => {
+      expect(composioGmail).toMatch(/maxChunk/);
+      expect(composioGmail).toMatch(/retrying smaller sub-batches/);
+    });
   });
 
   describe("Agent Tools Guardrails & API", () => {
@@ -73,6 +78,7 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(gmailAgentTools).toMatch(/export async function agentSendJobRelatedDraft/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchMessageMetadata/);
       expect(gmailAgentTools).toMatch(/export async function agentSearchEmailsBySubjectSender/);
+      expect(gmailAgentTools).toMatch(/export async function agentFetchUnreadImportantEmails/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchEmails/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchEmailsByPeriod/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchThreadContext/);
@@ -125,10 +131,11 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/\{\s*slug:\s*"gmail",\s*label:\s*"Gmail",\s*toolkitSlug:\s*"gmail"\s*\}/);
     });
 
-    it("registers all 19 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
+    it("registers all 20 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
       const toolNames = [
         "search_gmail_job_emails",
         "search_gmail_emails_by_subject_sender",
+        "fetch_gmail_unread_important",
         "fetch_gmail_emails",
         "fetch_gmail_emails_by_period",
         "fetch_gmail_thread",
@@ -271,6 +278,26 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/3\.\s*Lightweight listing.*include_payload\/verbose/);
       expect(aiChat).toMatch(/4\.\s*Message ID vs thread ID.*ID fields vary.*messageId vs id/);
       expect(aiChat).toMatch(/5\.\s*Attachment ID source.*attachment_id must come from the hydrated message’s attachment metadata/);
+    });
+
+    it("documents the 7-step unread important fetching workflow in system instructions", () => {
+      expect(aiChat).toMatch(/Standard 7-Step Workflow for Fetching Unread Important Emails from Gmail/);
+      expect(aiChat).toMatch(/1\.\s*Select mailbox context.*GMAIL_FETCH_EMAILS/);
+      expect(aiChat).toMatch(/2\.\s*Fetch unread\/high-priority candidates.*fetch_gmail_unread_important.*is:unread is:important/);
+      expect(aiChat).toMatch(/3\.\s*Paginate & track progression.*page_token.*nextPageToken is falsy/);
+      expect(aiChat).toMatch(/4\.\s*Client-side post-filter \/ sort.*messages\[\]\.messageTimestamp.*messages\[\]\.labelIds/);
+      expect(aiChat).toMatch(/5\.\s*Hydrate shortlist & context.*fetch_gmail_message.*fetch_gmail_thread.*get_gmail_attachment/);
+      expect(aiChat).toMatch(/6\.\s*Mailbox batch updates.*batch_modify_gmail_emails.*GMAIL_BATCH_MODIFY_MESSAGES/);
+      expect(aiChat).toMatch(/7\.\s*Retry with broader query \/ sanity-check.*list_gmail_labels.*list_gmail_threads.*GMAIL_FETCH_EMAILS/);
+    });
+
+    it("documents the 5 critical pitfalls for fetching unread important emails in system instructions", () => {
+      expect(aiChat).toMatch(/5 Critical Pitfalls for Fetching Unread Important Emails/);
+      expect(aiChat).toMatch(/1\.\s*Valid no-results state.*messages=\[\]/);
+      expect(aiChat).toMatch(/2\.\s*Token progression stop.*nextPageToken may be an empty string.*repeat\/stop changing/);
+      expect(aiChat).toMatch(/3\.\s*Defensively parse payload shapes.*truncated\/offloaded/);
+      expect(aiChat).toMatch(/4\.\s*Stale ID 404 NOT_FOUND.*GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.*inaccessible\/stale IDs/);
+      expect(aiChat).toMatch(/5\.\s*Batch modify limits & throttling.*max ~1000 message IDs per request.*HTTP 429/);
     });
   });
 });

@@ -877,16 +877,53 @@ export async function composioGmailBatchModify(
     messageIds: string[];
     addLabelIds?: string[];
     removeLabelIds?: string[];
+    batchSize?: number;
   },
 ): Promise<{ success: boolean; modifiedCount: number }> {
-  await executeComposioTool(userId, GMAIL_TOOL.batchModifyMessages, {
-    ids: args.messageIds,
-    add_label_ids: args.addLabelIds || [],
-    remove_label_ids: args.removeLabelIds || [],
-    user_id: "me",
-  });
+  const validIds = args.messageIds.filter(
+    (id): id is string => typeof id === "string" && id.trim().length > 0,
+  );
+  if (validIds.length === 0) {
+    return { success: true, modifiedCount: 0 };
+  }
 
-  return { success: true, modifiedCount: args.messageIds.length };
+  // Pitfall 5: Max ~1000 message IDs per request; retry smaller batches on throttling (429) or validation errors
+  const maxChunk = Math.min(Math.max(1, args.batchSize || 500), 1000);
+  let totalModified = 0;
+
+  async function processBatch(chunk: string[]): Promise<number> {
+    if (chunk.length === 0) return 0;
+    try {
+      await executeComposioTool(userId, GMAIL_TOOL.batchModifyMessages, {
+        ids: chunk,
+        add_label_ids: args.addLabelIds || [],
+        remove_label_ids: args.removeLabelIds || [],
+        user_id: "me",
+      });
+      return chunk.length;
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      // If 429 or batch validation error occurs and batch size > 1, retry smaller batches
+      if (chunk.length > 1 && (/429|rate|throttl|quota|validation/i.test(errMsg))) {
+        console.warn(`[composio-gmail] batchModify throttled on ${chunk.length} items, retrying smaller sub-batches...`);
+        const mid = Math.ceil(chunk.length / 2);
+        const firstHalf = chunk.slice(0, mid);
+        const secondHalf = chunk.slice(mid);
+        const res1 = await processBatch(firstHalf);
+        const res2 = await processBatch(secondHalf);
+        return res1 + res2;
+      }
+      throw err;
+    }
+  }
+
+  for (let i = 0; i < validIds.length; i += maxChunk) {
+    const chunk = validIds.slice(i, i + maxChunk);
+    const count = await processBatch(chunk);
+    totalModified += count;
+  }
+
+  return { success: true, modifiedCount: totalModified };
 }
 
 export async function composioGmailListLabels(
