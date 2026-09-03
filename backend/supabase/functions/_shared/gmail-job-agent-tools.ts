@@ -24,15 +24,19 @@ import {
   composioGmailFetchThreadById,
   composioGmailGetAttachment,
   composioGmailGetDraft,
+  composioGmailGetPeople,
   composioGmailGetProfile,
   composioGmailGetSendAs,
+  composioGmailListDrafts,
   composioGmailListLabels,
   composioGmailListSendAs,
   composioGmailListThreads,
   composioGmailReplyToThread,
   composioGmailResolveLabelId,
+  composioGmailSearchPeople,
   composioGmailSendDraft,
   composioGmailSendEmail,
+  composioGmailUpdateDraft,
   buildSubjectSenderQuery,
   decodeBase64Url,
   getComposioGmailConnection,
@@ -1231,6 +1235,91 @@ export async function agentCheckGmailConnectionStatus(
     }
   }
 
+  // Step 5 (Optional): If previews are truncated or headers/body/attachments are required, hydrate one candidate message
+  let hydratedSampleMessage: Record<string, unknown> | null = null;
+  let sampleAttachment: Record<string, unknown> | null = null;
+  if (args.hydrate_sample && fetchResult && fetchResult.messages.length > 0) {
+    const candidateId = fetchResult.messages[0].id;
+    if (candidateId) {
+      try {
+        const fullMsg = await composioGmailFetchMessageById(userId, candidateId);
+        hydratedSampleMessage = {
+          id: fullMsg.id,
+          subject: fullMsg.subject,
+          from: fullMsg.from,
+          hasBody: Boolean(fullMsg.body),
+          attachmentCount: fullMsg.attachments?.length ?? 0,
+        };
+        if (args.verify_attachments && fullMsg.attachments && fullMsg.attachments.length > 0) {
+          const firstAtt = fullMsg.attachments[0];
+          const att = await composioGmailGetAttachment(userId, {
+            messageId: candidateId,
+            attachmentId: firstAtt.attachmentId,
+          });
+          sampleAttachment = {
+            attachmentId: att.attachmentId,
+            size: att.size,
+            mimeType: att.mimeType,
+          };
+        }
+      } catch (hydErr) {
+        console.warn("[composio-gmail] sample hydration warning:", hydErr);
+      }
+    }
+  }
+
+  // Step 6 (Optional): If send-from identity or aliases matter, confirm permitted sending identities using GMAIL_LIST_SEND_AS
+  let sendAsCheck: {
+    success: boolean;
+    identitiesCount: number;
+    identities?: Array<{ email: string; isPrimary: boolean; isDefault: boolean }>;
+    error?: string;
+  } | null = null;
+
+  if (args.include_send_as) {
+    try {
+      const sendAsList = await composioGmailListSendAs(userId);
+      sendAsCheck = {
+        success: true,
+        identitiesCount: sendAsList.length,
+        identities: sendAsList.map((s) => ({
+          email: s.sendAsEmail,
+          isPrimary: s.isPrimary,
+          isDefault: s.isDefault,
+        })),
+      };
+    } catch (err) {
+      sendAsCheck = {
+        success: false,
+        identitiesCount: 0,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  // Step 7 Fallback: If mailbox-read calls fail but you still need an access signal, probe contacts access using GMAIL_GET_PEOPLE
+  let contactsProbe: {
+    success: boolean;
+    contactsCount: number;
+    error?: string;
+  } | null = null;
+
+  if (!readAccessVerified || args.probe_contacts) {
+    try {
+      const peopleRes = await composioGmailGetPeople(userId);
+      contactsProbe = {
+        success: true,
+        contactsCount: peopleRes.contactsCount,
+      };
+    } catch (cErr) {
+      contactsProbe = {
+        success: false,
+        contactsCount: 0,
+        error: cErr instanceof Error ? cErr.message : String(cErr),
+      };
+    }
+  }
+
   // Step 5 (Optional): If verifying settings endpoints under current scopes, validate settings readability using GMAIL_SETTINGS_SEND_AS_GET
   let settingsSendAsCheck: {
     success: boolean;
@@ -1270,7 +1359,108 @@ export async function agentCheckGmailConnectionStatus(
     ...(threadsCrossCheck ? { threadsCrossCheck } : {}),
     ...(labelsCheck ? { labelsCheck } : {}),
     ...(settingsSendAsCheck ? { settingsSendAsCheck } : {}),
+    ...(hydratedSampleMessage ? { hydratedSampleMessage } : {}),
+    ...(sampleAttachment ? { sampleAttachment } : {}),
+    ...(sendAsCheck ? { sendAsCheck } : {}),
+    ...(contactsProbe ? { contactsProbe } : {}),
   };
+}
+
+export async function agentUpdateJobRelatedDraft(
+  _serviceClient: SupabaseClient,
+  userId: string,
+  args: {
+    draft_id: string;
+    to?: string;
+    subject?: string;
+    body?: string;
+    is_html?: boolean;
+    cc?: string[];
+    bcc?: string[];
+  },
+) {
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  const draftId = typeof args.draft_id === "string" ? args.draft_id.trim() : "";
+  if (!draftId) {
+    return { success: false, error: "draft_id is required to update a draft", code: "missing_draft_id" };
+  }
+
+  try {
+    const updated = await composioGmailUpdateDraft(userId, {
+      draftId,
+      to: args.to,
+      subject: args.subject,
+      body: args.body,
+      isHtml: args.is_html,
+      cc: args.cc,
+      bcc: args.bcc,
+    });
+    return { success: true, draftId: updated.draftId };
+  } catch (error) {
+    return composioFailure(error, "gmail_update_draft_failed");
+  }
+}
+
+export async function agentListGmailDrafts(
+  _serviceClient: SupabaseClient,
+  userId: string,
+  args: { max_results?: number; page_token?: string } = {},
+) {
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  try {
+    const result = await composioGmailListDrafts(userId, {
+      maxResults: args.max_results,
+      pageToken: args.page_token,
+    });
+    return {
+      success: true,
+      drafts: result.drafts,
+      nextPageToken: result.nextPageToken,
+      hasMore: Boolean(result.nextPageToken),
+    };
+  } catch (error) {
+    return composioFailure(error, "gmail_list_drafts_failed");
+  }
+}
+
+export async function agentSearchPeople(
+  _serviceClient: SupabaseClient,
+  userId: string,
+  args: { query: string },
+) {
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  const query = typeof args.query === "string" ? args.query.trim() : "";
+  if (!query) {
+    return { success: false, error: "query is required to search contacts", code: "missing_query" };
+  }
+
+  try {
+    const contacts = await composioGmailSearchPeople(userId, query);
+    return { success: true, contacts };
+  } catch (error) {
+    return composioFailure(error, "gmail_search_people_failed");
+  }
+}
+
+export async function agentGetPeople(
+  _serviceClient: SupabaseClient,
+  userId: string,
+) {
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  try {
+    const result = await composioGmailGetPeople(userId);
+    return { success: true, contactsCount: result.contactsCount, people: result.people };
+  } catch (error) {
+    return composioFailure(error, "gmail_get_people_failed");
+  }
 }
 
 export async function agentGetGmailSettingsSendAs(

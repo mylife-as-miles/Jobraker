@@ -41,15 +41,19 @@ import {
   agentGetGmailProfile,
   agentGetGmailSettingsSendAs,
   agentGetJobRelatedDraft,
+  agentGetPeople,
   agentLabelJobRelatedEmails,
+  agentListGmailDrafts,
   agentListGmailLabels,
   agentListGmailThreads,
   agentListSendAsIdentities,
   agentReplyToThread,
   agentSearchEmailsBySubjectSender,
   agentSearchJobRelatedEmails,
+  agentSearchPeople,
   agentSendJobRelatedDraft,
   agentSendJobRelatedEmail,
+  agentUpdateJobRelatedDraft,
 } from "../_shared/gmail-job-agent-tools.ts";
 import {
   createAnswerBankEntry,
@@ -108,6 +112,10 @@ const GMAIL_AGENT_TOOL_NAMES = new Set([
   "check_gmail_connection_status",
   "get_gmail_settings_send_as",
   "reply_gmail_thread",
+  "update_gmail_draft",
+  "list_gmail_drafts",
+  "search_gmail_people",
+  "get_gmail_people",
 ]);
 const APPLICATION_STATUSES = new Set([
   "Draft",
@@ -285,11 +293,11 @@ function describeAgentApprovalStep(
       kind: "browser",
     };
   }
-  if (toolName === "create_gmail_job_draft") {
+  if (toolName === "create_gmail_job_draft" || toolName === "update_gmail_draft") {
     return {
       toolName,
-      title: "Create a Gmail draft",
-      detail: recipient ? `Create the reviewed draft addressed to ${recipient}.` : "Create the reviewed job-related Gmail draft.",
+      title: toolName === "update_gmail_draft" ? "Update a Gmail draft" : "Create a Gmail draft",
+      detail: recipient ? `${toolName === "update_gmail_draft" ? "Update" : "Create"} the reviewed draft addressed to ${recipient}.` : "Manage the reviewed job-related Gmail draft.",
       kind: "email",
     };
   }
@@ -411,6 +419,7 @@ const ALWAYS_APPROVE_TOOLS = new Set([
   "reapply_job",
   // Puts mail in, or sends mail from, the user's mailbox.
   "create_gmail_job_draft",
+  "update_gmail_draft",
   "send_gmail_job_email",
   "send_gmail_draft",
   "reply_gmail_thread",
@@ -4092,6 +4101,89 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "update_gmail_draft",
+    description:
+      "Update or replace an existing draft in Gmail using GMAIL_UPDATE_DRAFT. Re-supplies provided fields (to, subject, body, cc, bcc) and preserves unpassed fields. Requires explicit user approval.",
+    parameters: {
+      type: "object",
+      properties: {
+        draft_id: {
+          type: "string",
+          description: "Exact draft identifier to update (from create_gmail_job_draft or list_gmail_drafts).",
+        },
+        to: {
+          type: "string",
+          description: "Optional updated recipient email address.",
+        },
+        subject: {
+          type: "string",
+          description: "Optional updated subject line.",
+        },
+        body: {
+          type: "string",
+          description: "Optional updated email body text.",
+        },
+        is_html: {
+          type: "boolean",
+          description: "Whether body is HTML formatted.",
+        },
+        cc: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional list of CC email addresses.",
+        },
+        bcc: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional list of BCC email addresses.",
+        },
+      },
+      required: ["draft_id"],
+    },
+  },
+  {
+    name: "list_gmail_drafts",
+    description:
+      "List saved drafts in Gmail using GMAIL_LIST_DRAFTS. Helpful for recovering draft IDs or inspecting pending drafts.",
+    parameters: {
+      type: "object",
+      properties: {
+        max_results: {
+          type: "number",
+          description: "Maximum drafts to return (default 20, max 100).",
+        },
+        page_token: {
+          type: "string",
+          description: "Optional pagination token.",
+        },
+      },
+    },
+  },
+  {
+    name: "search_gmail_people",
+    description:
+      "Search for contacts or disambiguate email recipients in Gmail using GMAIL_SEARCH_PEOPLE.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Name or search term to look up in contacts.",
+        },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "get_gmail_people",
+    description:
+      "Probe contacts access using GMAIL_GET_PEOPLE. Useful as a fallback access signal to distinguish partial scopes vs no mailbox access.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
     name: "semantic_search",
     description: "Search user's job listings, quality gates, AI fit evaluations, candidate memories, application logs, and answer bank entries semantically using pgvector RAG.",
     parameters: {
@@ -4345,6 +4437,90 @@ Email & Outreach via Composio / Gmail:
   - send_gmail_draft / GMAIL_SEND_DRAFT: Send an existing draft using draft_id.
   - fetch_gmail_message / GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID: Retrieve sent/received message metadata, headers, labels, and decoded body.
   - reply_gmail_thread / GMAIL_REPLY_TO_THREAD: Reply in-thread to a conversation in Gmail while preserving threadId and subject.
+  - update_gmail_draft / GMAIL_UPDATE_DRAFT: Update or replace an existing draft in Gmail.
+  - list_gmail_drafts / GMAIL_LIST_DRAFTS: List saved drafts in Gmail for inspection or recovery.
+  - search_gmail_people / GMAIL_SEARCH_PEOPLE: Search contacts or disambiguate email recipients.
+  - get_gmail_people / GMAIL_GET_PEOPLE: Probe contacts access as a fallback access signal.
+
+Standard 7-Step Workflow for Connecting to Gmail:
+1. Confirm mailbox selection: Confirm you are validating the intended mailbox by running GMAIL_GET_PROFILE (avoid checking the wrong connected account).
+2. Verify mailbox identity: Verify mailbox identity and reachability using GMAIL_GET_PROFILE (use user_id='me'; stop on auth/scope/inactive-connection errors until re-authorized/active).
+3. Probe read scope: Probe basic mailbox-read scope using GMAIL_LIST_LABELS (treat connection errors as blockers, not an empty mailbox).
+4. Validate message listing: Validate message listing/search using GMAIL_FETCH_EMAILS (use a narrow query and small max_results; paginate with page_token until nextPageToken is absent/empty).
+5. Hydrate candidate & verify attachments (Optional): If previews are truncated or headers/body/attachments are required, hydrate one candidate message using GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID (use message_id from GMAIL_FETCH_EMAILS; if attachments must be verified, follow with GMAIL_GET_ATTACHMENT after extracting attachment identifiers).
+6. Confirm sending identities (Optional): If send-from identity or aliases matter, confirm permitted sending identities using GMAIL_LIST_SEND_AS (resolve from-address ambiguity).
+7. Probe contacts access (Fallback): If mailbox-read calls fail but you still need an access signal, probe contacts access using GMAIL_GET_PEOPLE (helps distinguish partial scopes vs no mailbox access).
+
+5 Critical Pitfalls for Connecting to Gmail:
+1. Connection/scope blockers: 400 ConnectedAccountNotFound, 401 Invalid Credentials, 403 insufficientPermissions/ACCESS_TOKEN_SCOPE_INSUFFICIENT, and 400 FAILED_PRECONDITION block downstream reads until connection/scopes are fixed.
+2. Delegation denied: Using a non-'me' user_id can trigger 403 delegation denied; retry with user_id='me'.
+3. Nested responses & truncation: Responses can be nested under response.data or response.data_preview and message content may be truncated; rely on messages[] plus IDs, not full text.
+4. Restrictive query no-results: Restrictive/complex queries can return messages=[] along with a hint to simplify; validate with simpler filters before adding operators.
+5. Per-user query quota: Repeated paging/search may hit 403 quota exceeded (per-user query limits); reduce reruns and avoid unnecessary queries.
+
+Standard 7-Step Workflow for Fetching and Searching Emails from Gmail:
+1. Resolve labels (Optional): If label-based filters or later label actions need stable IDs, resolve labels using GMAIL_LIST_LABELS (store id/name mapping and use IDs consistently).
+2. Search & list messages: Search/list messages using GMAIL_FETCH_EMAILS (build query from keywords/sender/labels and a bounded time window; use metadata/ids_only and a practical max_results to avoid oversized payloads; capture messageId/threadId and nextPageToken; client-side sort by timestamp if recency matters).
+3. Paginate & dedupe: Paginate using GMAIL_FETCH_EMAILS (pass page_token until nextPageToken is absent/falsy; merge/dedupe by messageId/threadId).
+4. Simplified query retry (Fallback): If results are unexpectedly empty or too small, retry once using GMAIL_FETCH_EMAILS with a simpler query (remove restrictive clauses; optionally include spam/trash).
+5. Checkpoint pages (Optional): If responses are truncated/offloaded or you need resume/merge, normalize/checkpoint pages using COMPOSIO_REMOTE_WORKBENCH (handle response.data vs response.data_preview; persist last page_token and dedupe set).
+6. Hydrate selectively (Optional): If you need readable bodies, thread context, or attachments, hydrate selectively using GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID (metadata-first, full only when needed), expand with GMAIL_FETCH_MESSAGE_BY_THREAD_ID as needed, and download via GMAIL_GET_ATTACHMENT using attachment identifiers from the hydrated payload.
+7. Bulk label changes (Optional): For mailbox changes after review, apply bulk label changes using GMAIL_BATCH_MODIFY_MESSAGES (confirm final messageIds set; verify via a follow-up GMAIL_FETCH_EMAILS search).
+
+5 Critical Pitfalls for Fetching and Searching Emails from Gmail:
+1. 500-cap & falsy token completion: Returns up to ~500 messages per page; nextPageToken can be an empty string—treat falsy tokens as completion.
+2. Large payload offloading: Large payloads may be truncated/offloaded; results can appear under response.data_preview instead of response.data.
+3. Auth & quota error handling: Common failures include 403 rateLimitExceeded/quota or restricted scope, 500 internal error (code 4340), code 10401 invalid/expired session key, and delegation denied.
+4. Batch modify schema: Some executions require camelCase fields (messageIds/removeLabelIds/addLabelIds) and may not confirm per-item outcomes—recheck via GMAIL_FETCH_EMAILS.
+5. Invalid attachment token: 400 INVALID_ARGUMENT “Invalid attachment token” can occur—rehydrate with GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID to re-derive attachment identifiers before retrying; file_name is required by some validators.
+
+Standard 7-Step Workflow for Creating Draft Email in Gmail:
+1. Determine mode & recipients: Determine new draft vs in-thread reply and gather to/cc/bcc/subject/body/is_html; for replies keep thread_id aligned to the same mailbox context and consider leaving subject unset to preserve threading, using GMAIL_SEARCH_PEOPLE (only if recipient needs disambiguation).
+2. Checkpoint inputs (Optional): If batching drafts or worried about losing IDs, checkpoint inputs and returned draft identifiers using COMPOSIO_REMOTE_WORKBENCH (persist state between runs).
+3. Create draft: Create the draft using GMAIL_CREATE_EMAIL_DRAFT (include thread_id only when intentionally replying) and save the returned draft identifier for downstream actions.
+4. Validate stored draft (Optional): For validation before edits/sending, read back the stored draft using GMAIL_GET_DRAFT (use a detailed format when validating MIME/HTML/body).
+5. Update draft (Optional): If content/recipients must change, replace the stored draft using GMAIL_UPDATE_DRAFT (re-supply all fields you want to keep).
+6. Send stored draft (Optional): Only after explicit approval to send, send the finalized stored draft using GMAIL_SEND_DRAFT (uses the saved draft identifier).
+7. Fallback recovery: If draft identifier is missing or draft calls fail, recover by paging GMAIL_LIST_DRAFTS, confirm the target via GMAIL_GET_DRAFT, then retry; if draft flow remains blocked, send a fresh email using GMAIL_SEND_EMAIL.
+
+5 Critical Pitfalls for Creating Draft Email in Gmail:
+1. Multiple identifiers: Response contains multiple identifiers—use the draft identifier at data.id for GMAIL_GET_DRAFT/GMAIL_UPDATE_DRAFT/GMAIL_SEND_DRAFT (not data.message.id).
+2. Recipient validation errors: 400 validation errors occur for malformed recipients (invalid address; cc/bcc not passed as lists/arrays).
+3. Missing scopes/precondition: 403 or 400 with FAILED_PRECONDITION can occur when authorization scopes are missing or mail access is not enabled.
+4. Full replace on update: Update behaves like a full replace; passing empty strings can trigger 400—omit fields you want preserved.
+5. Exact stored send: Sends exactly what is stored (no recipient overrides); some drafts may return FAILED_PRECONDITION—recreate via GMAIL_CREATE_EMAIL_DRAFT and retry sending.
+
+Standard 8-Step Workflow for Sending an Email via Gmail:
+1. Explicit approval & validation: Get explicit approval and validate inputs before any write using GMAIL_SEND_EMAIL (provide at least one To/Cc/Bcc value as a single string, and at least one of subject/body).
+2. Mailbox preflight (Optional): If mailbox access/scopes are uncertain, preflight the mailbox using GMAIL_GET_PROFILE (surface auth/scope issues before composing retries).
+3. Allowed sending identities (Optional): If a non-default From identity is required, inspect allowed sending identities using GMAIL_LIST_SEND_AS (choose an approved From or use default).
+4. Send within thread (Optional): If the message must stay in an existing conversation and a thread identifier is known, send within the thread using GMAIL_REPLY_TO_THREAD (avoid starting a new conversation).
+5. Create draft checkpoint (Optional): If you want a review/approval checkpoint, create a draft using GMAIL_CREATE_EMAIL_DRAFT (capture the returned draft identifier).
+6. Verify & send draft (Optional): If you created a draft and want to verify before sending, inspect draft content using GMAIL_GET_DRAFT, then send the approved draft using GMAIL_SEND_DRAFT (use the draft identifier).
+7. Deliver email: Send the email using GMAIL_SEND_EMAIL (set is_html=true only when the body contains markup) and persist returned message identifier, thread identifier, and any display link for traceability/de-duplication.
+8. Error handling & single retry: If GMAIL_SEND_EMAIL fails, fix the reported validation/auth/identity issue, honor Retry-After on 429s, then retry GMAIL_SEND_EMAIL at most once (avoid duplicate sends).
+
+5 Critical Pitfalls for Sending an Email via Gmail:
+1. Non-idempotent sends: Not idempotent—retries after an uncertain outcome can create duplicates; retry at most once after confirming the failure mode.
+2. Persistent permission denied: 403 PERMISSION_DENIED (including ACCESS_TOKEN_SCOPE_INSUFFICIENT/insufficientPermissions) will persist until authorization/scopes are corrected; repeated calls won’t help.
+3. Recipient string shape: Validation can fail if recipient fields are missing or passed with the wrong shape (e.g., recipient value provided as an array instead of a single string).
+4. Surprising identifiers: Response identifiers can be surprising: message and thread identifiers may be identical and a display link may be present; store fields exactly as returned.
+5. Draft vs message ID: Use the returned draft identifier for GMAIL_SEND_DRAFT (do not confuse with message/thread identifiers).
+
+Standard 6-Step Workflow for Fetching a Limited Number of Unread Emails from Gmail:
+1. Map label names to IDs (Optional): If filtering or updating labels by display name, map label names to label IDs using GMAIL_LIST_LABELS (reuse IDs in listing filters and GMAIL_BATCH_MODIFY_MESSAGES).
+2. Capped unread listing: Get a capped unread set using GMAIL_FETCH_EMAILS (use an unread query and/or label_ids; prefer ids_only/lightweight listing; capture messages[].messageId and data.nextPageToken).
+3. Paginate & de-dupe (Optional): If you need more than the first page or want complete coverage, loop GMAIL_FETCH_EMAILS with page_token from data.nextPageToken until it is falsy; merge and de-dupe by messageId (optionally sort client-side by message time metadata).
+4. Hydrate details (Optional): If list previews/headers are insufficient for selected items, fetch details for chosen IDs using GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID (try metadata-focused formats before requesting full content).
+5. Bulk updates after confirmation (Optional): For write operations only, after explicit confirmation, update read/archive/labels in bulk using GMAIL_BATCH_MODIFY_MESSAGES (add/remove label IDs for the selected messageIds).
+6. Sanity-check & retry (Optional): If the unread listing is empty or suspiciously small, sanity-check mailbox scope using GMAIL_LIST_THREADS, then retry GMAIL_FETCH_EMAILS with broader constraints.
+
+5 Critical Pitfalls for Fetching a Limited Number of Unread Emails:
+1. 500 cap & small page tokens: Hard per-call cap is 500 and data.nextPageToken may appear even with small max_results, so a single call can miss matches if you need completeness.
+2. Missing or empty messages: Successful responses may have data.messages missing/[] and data.nextPageToken=""; null-check before iterating and stop paginating when the token is falsy.
+3. Verbose payload truncation: Verbose/payload-heavy listings can be oversized and get truncated/offloaded; prefer lightweight listing and hydrate only what you need.
+4. Multipart payload base64url: Payloads are often multipart and base64url-encoded (may need padding); also handle possible 401 auth failures by re-establishing access and retrying the same message_id.
+5. Batch modify schema & silent skips: Requires label IDs and strict schema; invalid message IDs can be skipped without a hard failure, so validate the target set before large updates.
 
 Standard 7-Step Workflow for Fetching Email Replies or Full Threads from Gmail:
 1. Resolve thread linkage (Optional): If only message_id is known, resolve the authoritative thread linkage using fetch_gmail_message (GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID) (verify access; capture threadId plus minimal headers/ids).
@@ -6009,6 +6185,37 @@ Evidence and failure reporting:
                             max_results?: number;
                             label_name?: string;
                           },
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "update_gmail_draft") {
+                    result = canUseEmailIntegrations
+                      ? await agentUpdateJobRelatedDraft(
+                          serviceClient,
+                          userId,
+                          (args || {}) as any,
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "list_gmail_drafts") {
+                    result = canUseEmailIntegrations
+                      ? await agentListGmailDrafts(
+                          serviceClient,
+                          userId,
+                          (args || {}) as any,
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "search_gmail_people") {
+                    result = canUseEmailIntegrations
+                      ? await agentSearchPeople(
+                          serviceClient,
+                          userId,
+                          (args || {}) as any,
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "get_gmail_people") {
+                    result = canUseEmailIntegrations
+                      ? await agentGetPeople(
+                          serviceClient,
+                          userId,
                         )
                       : { success: false, error: "Email integrations are not enabled for this account." };
                   } else if (fn.name === "semantic_search") {

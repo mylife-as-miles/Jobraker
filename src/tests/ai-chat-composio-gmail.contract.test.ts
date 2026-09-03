@@ -75,6 +75,18 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(composioGmail).toMatch(/locate messages\[\] defensively/);
       expect(composioGmail).toMatch(/payload too large \(HTTP 413\)/);
     });
+
+    it("supports draft management, people search, contacts fallback, and handles attachment token errors", () => {
+      expect(composioGmail).toMatch(/updateDraft:\s*"GMAIL_UPDATE_DRAFT"/);
+      expect(composioGmail).toMatch(/listDrafts:\s*"GMAIL_LIST_DRAFTS"/);
+      expect(composioGmail).toMatch(/getPeople:\s*"GMAIL_GET_PEOPLE"/);
+      expect(composioGmail).toMatch(/searchPeople:\s*"GMAIL_SEARCH_PEOPLE"/);
+      expect(composioGmail).toMatch(/export async function composioGmailUpdateDraft/);
+      expect(composioGmail).toMatch(/export async function composioGmailListDrafts/);
+      expect(composioGmail).toMatch(/export async function composioGmailSearchPeople/);
+      expect(composioGmail).toMatch(/export async function composioGmailGetPeople/);
+      expect(composioGmail).toMatch(/Invalid attachment token/);
+    });
   });
 
   describe("Agent Tools Guardrails & API", () => {
@@ -99,6 +111,10 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(gmailAgentTools).toMatch(/export async function agentListGmailLabels/);
       expect(gmailAgentTools).toMatch(/export async function agentCheckGmailConnectionStatus/);
       expect(gmailAgentTools).toMatch(/export async function agentGetGmailSettingsSendAs/);
+      expect(gmailAgentTools).toMatch(/export async function agentUpdateJobRelatedDraft/);
+      expect(gmailAgentTools).toMatch(/export async function agentListGmailDrafts/);
+      expect(gmailAgentTools).toMatch(/export async function agentSearchPeople/);
+      expect(gmailAgentTools).toMatch(/export async function agentGetPeople/);
       expect(gmailAgentTools).toMatch(/export function buildTimePeriodQuery/);
     });
 
@@ -141,7 +157,7 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/\{\s*slug:\s*"gmail",\s*label:\s*"Gmail",\s*toolkitSlug:\s*"gmail"\s*\}/);
     });
 
-    it("registers all 21 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
+    it("registers all 25 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
       const toolNames = [
         "search_gmail_job_emails",
         "search_gmail_emails_by_subject_sender",
@@ -164,6 +180,10 @@ describe("AI Chat Composio Gmail Integration", () => {
         "check_gmail_connection_status",
         "get_gmail_settings_send_as",
         "reply_gmail_thread",
+        "update_gmail_draft",
+        "list_gmail_drafts",
+        "search_gmail_people",
+        "get_gmail_people",
       ];
       for (const name of toolNames) {
         expect(aiChat).toContain('"' + name + '"');
@@ -174,6 +194,7 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/ALWAYS_APPROVE_TOOLS[\s\S]*?"send_gmail_job_email"/);
       expect(aiChat).toMatch(/ALWAYS_APPROVE_TOOLS[\s\S]*?"send_gmail_draft"/);
       expect(aiChat).toMatch(/ALWAYS_APPROVE_TOOLS[\s\S]*?"reply_gmail_thread"/);
+      expect(aiChat).toMatch(/ALWAYS_APPROVE_TOOLS[\s\S]*?"update_gmail_draft"/);
     });
 
     it("documents the 7-step fetching workflow in system instructions", () => {
@@ -330,6 +351,96 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/3\.\s*404 NOT_FOUND mailbox mismatch/);
       expect(aiChat).toMatch(/4\.\s*Unexpected nested response shapes/);
       expect(aiChat).toMatch(/5\.\s*Large thread 413 truncation/);
+    });
+
+    it("documents the 7-step connecting workflow and 5 pitfalls in system instructions", () => {
+      expect(aiChat).toMatch(/Standard 7-Step Workflow for Connecting to Gmail/);
+      expect(aiChat).toMatch(/1\.\s*Confirm mailbox selection.*GMAIL_GET_PROFILE/);
+      expect(aiChat).toMatch(/2\.\s*Verify mailbox identity.*GMAIL_GET_PROFILE.*user_id='me'/);
+      expect(aiChat).toMatch(/3\.\s*Probe read scope.*GMAIL_LIST_LABELS/);
+      expect(aiChat).toMatch(/4\.\s*Validate message listing.*GMAIL_FETCH_EMAILS/);
+      expect(aiChat).toMatch(/5\.\s*Hydrate candidate & verify attachments.*GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.*GMAIL_GET_ATTACHMENT/);
+      expect(aiChat).toMatch(/6\.\s*Confirm sending identities.*GMAIL_LIST_SEND_AS/);
+      expect(aiChat).toMatch(/7\.\s*Probe contacts access.*GMAIL_GET_PEOPLE/);
+
+      expect(aiChat).toMatch(/5 Critical Pitfalls for Connecting to Gmail/);
+      expect(aiChat).toMatch(/1\.\s*Connection\/scope blockers.*ConnectedAccountNotFound/);
+      expect(aiChat).toMatch(/2\.\s*Delegation denied.*user_id='me'/);
+      expect(aiChat).toMatch(/3\.\s*Nested responses & truncation.*response\.data.*response\.data_preview/);
+      expect(aiChat).toMatch(/4\.\s*Restrictive query no-results.*messages=\[\]/);
+      expect(aiChat).toMatch(/5\.\s*Per-user query quota.*403 quota exceeded/);
+    });
+
+    it("documents the 7-step fetching and searching workflow and 5 pitfalls in system instructions", () => {
+      expect(aiChat).toMatch(/Standard 7-Step Workflow for Fetching and Searching Emails from Gmail/);
+      expect(aiChat).toMatch(/1\.\s*Resolve labels.*GMAIL_LIST_LABELS/);
+      expect(aiChat).toMatch(/2\.\s*Search & list messages.*GMAIL_FETCH_EMAILS/);
+      expect(aiChat).toMatch(/3\.\s*Paginate & dedupe.*GMAIL_FETCH_EMAILS/);
+      expect(aiChat).toMatch(/4\.\s*Simplified query retry.*GMAIL_FETCH_EMAILS/);
+      expect(aiChat).toMatch(/5\.\s*Checkpoint pages.*COMPOSIO_REMOTE_WORKBENCH/);
+      expect(aiChat).toMatch(/6\.\s*Hydrate selectively.*GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.*GMAIL_FETCH_MESSAGE_BY_THREAD_ID.*GMAIL_GET_ATTACHMENT/);
+      expect(aiChat).toMatch(/7\.\s*Bulk label changes.*GMAIL_BATCH_MODIFY_MESSAGES/);
+
+      expect(aiChat).toMatch(/5 Critical Pitfalls for Fetching and Searching Emails from Gmail/);
+      expect(aiChat).toMatch(/1\.\s*500-cap & falsy token completion/);
+      expect(aiChat).toMatch(/2\.\s*Large payload offloading/);
+      expect(aiChat).toMatch(/3\.\s*Auth & quota error handling/);
+      expect(aiChat).toMatch(/4\.\s*Batch modify schema/);
+      expect(aiChat).toMatch(/5\.\s*Invalid attachment token/);
+    });
+
+    it("documents the 7-step draft creation workflow and 5 pitfalls in system instructions", () => {
+      expect(aiChat).toMatch(/Standard 7-Step Workflow for Creating Draft Email in Gmail/);
+      expect(aiChat).toMatch(/1\.\s*Determine mode & recipients.*GMAIL_SEARCH_PEOPLE/);
+      expect(aiChat).toMatch(/2\.\s*Checkpoint inputs.*COMPOSIO_REMOTE_WORKBENCH/);
+      expect(aiChat).toMatch(/3\.\s*Create draft.*GMAIL_CREATE_EMAIL_DRAFT/);
+      expect(aiChat).toMatch(/4\.\s*Validate stored draft.*GMAIL_GET_DRAFT/);
+      expect(aiChat).toMatch(/5\.\s*Update draft.*GMAIL_UPDATE_DRAFT/);
+      expect(aiChat).toMatch(/6\.\s*Send stored draft.*GMAIL_SEND_DRAFT/);
+      expect(aiChat).toMatch(/7\.\s*Fallback recovery.*GMAIL_LIST_DRAFTS.*GMAIL_SEND_EMAIL/);
+
+      expect(aiChat).toMatch(/5 Critical Pitfalls for Creating Draft Email in Gmail/);
+      expect(aiChat).toMatch(/1\.\s*Multiple identifiers.*data\.id/);
+      expect(aiChat).toMatch(/2\.\s*Recipient validation errors/);
+      expect(aiChat).toMatch(/3\.\s*Missing scopes\/precondition/);
+      expect(aiChat).toMatch(/4\.\s*Full replace on update/);
+      expect(aiChat).toMatch(/5\.\s*Exact stored send/);
+    });
+
+    it("documents the 8-step sending workflow and 5 pitfalls in system instructions", () => {
+      expect(aiChat).toMatch(/Standard 8-Step Workflow for Sending an Email via Gmail/);
+      expect(aiChat).toMatch(/1\.\s*Explicit approval & validation.*GMAIL_SEND_EMAIL/);
+      expect(aiChat).toMatch(/2\.\s*Mailbox preflight.*GMAIL_GET_PROFILE/);
+      expect(aiChat).toMatch(/3\.\s*Allowed sending identities.*GMAIL_LIST_SEND_AS/);
+      expect(aiChat).toMatch(/4\.\s*Send within thread.*GMAIL_REPLY_TO_THREAD/);
+      expect(aiChat).toMatch(/5\.\s*Create draft checkpoint.*GMAIL_CREATE_EMAIL_DRAFT/);
+      expect(aiChat).toMatch(/6\.\s*Verify & send draft.*GMAIL_GET_DRAFT.*GMAIL_SEND_DRAFT/);
+      expect(aiChat).toMatch(/7\.\s*Deliver email.*GMAIL_SEND_EMAIL/);
+      expect(aiChat).toMatch(/8\.\s*Error handling & single retry.*GMAIL_SEND_EMAIL/);
+
+      expect(aiChat).toMatch(/5 Critical Pitfalls for Sending an Email via Gmail/);
+      expect(aiChat).toMatch(/1\.\s*Non-idempotent sends/);
+      expect(aiChat).toMatch(/2\.\s*Persistent permission denied/);
+      expect(aiChat).toMatch(/3\.\s*Recipient string shape/);
+      expect(aiChat).toMatch(/4\.\s*Surprising identifiers/);
+      expect(aiChat).toMatch(/5\.\s*Draft vs message ID/);
+    });
+
+    it("documents the 6-step limited unread emails workflow and 5 pitfalls in system instructions", () => {
+      expect(aiChat).toMatch(/Standard 6-Step Workflow for Fetching a Limited Number of Unread Emails from Gmail/);
+      expect(aiChat).toMatch(/1\.\s*Map label names to IDs.*GMAIL_LIST_LABELS/);
+      expect(aiChat).toMatch(/2\.\s*Capped unread listing.*GMAIL_FETCH_EMAILS/);
+      expect(aiChat).toMatch(/3\.\s*Paginate & de-dupe.*GMAIL_FETCH_EMAILS/);
+      expect(aiChat).toMatch(/4\.\s*Hydrate details.*GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID/);
+      expect(aiChat).toMatch(/5\.\s*Bulk updates after confirmation.*GMAIL_BATCH_MODIFY_MESSAGES/);
+      expect(aiChat).toMatch(/6\.\s*Sanity-check & retry.*GMAIL_LIST_THREADS.*GMAIL_FETCH_EMAILS/);
+
+      expect(aiChat).toMatch(/5 Critical Pitfalls for Fetching a Limited Number of Unread Emails/);
+      expect(aiChat).toMatch(/1\.\s*500 cap & small page tokens/);
+      expect(aiChat).toMatch(/2\.\s*Missing or empty messages/);
+      expect(aiChat).toMatch(/3\.\s*Verbose payload truncation/);
+      expect(aiChat).toMatch(/4\.\s*Multipart payload base64url/);
+      expect(aiChat).toMatch(/5\.\s*Batch modify schema & silent skips/);
     });
   });
 });

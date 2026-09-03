@@ -40,6 +40,10 @@ export const GMAIL_TOOL = {
   listThreads: "GMAIL_LIST_THREADS",
   settingsSendAsGet: "GMAIL_SETTINGS_SEND_AS_GET",
   replyToThread: "GMAIL_REPLY_TO_THREAD",
+  updateDraft: "GMAIL_UPDATE_DRAFT",
+  listDrafts: "GMAIL_LIST_DRAFTS",
+  getPeople: "GMAIL_GET_PEOPLE",
+  searchPeople: "GMAIL_SEARCH_PEOPLE",
 } as const;
 
 const COMPOSIO_REST_BASE = "https://backend.composio.dev/api/v3.1";
@@ -928,6 +932,7 @@ export async function composioGmailGetAttachment(
       message_id: args.messageId,
       attachment_id: args.attachmentId,
       id: args.attachmentId,
+      file_name: (args as any).fileName || "attachment",
       user_id: "me",
     });
 
@@ -939,6 +944,9 @@ export async function composioGmailGetAttachment(
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
+    if (/Invalid attachment token/i.test(msg)) {
+      throw new Error(`400 INVALID_ARGUMENT: Invalid attachment token. Rehydrate with GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID to re-derive attachment identifiers before retrying.`);
+    }
     if (/400|INVALID_ARGUMENT/i.test(msg)) {
       throw new Error(`Gmail API 400 INVALID_ARGUMENT: attachment_id '${args.attachmentId}' must come from the hydrated message's attachment metadata.`);
     }
@@ -963,6 +971,7 @@ export async function composioGmailBatchModify(
   }
 
   // Pitfall 5: Max ~1000 message IDs per request; retry smaller batches on throttling (429) or validation errors
+  // Pitfall 4: Support both camelCase and snake_case fields (messageIds/removeLabelIds/addLabelIds)
   const maxChunk = Math.min(Math.max(1, args.batchSize || 500), 1000);
   let totalModified = 0;
 
@@ -971,8 +980,12 @@ export async function composioGmailBatchModify(
     try {
       await executeComposioTool(userId, GMAIL_TOOL.batchModifyMessages, {
         ids: chunk,
+        messageIds: chunk,
+        message_ids: chunk,
         add_label_ids: args.addLabelIds || [],
+        addLabelIds: args.addLabelIds || [],
         remove_label_ids: args.removeLabelIds || [],
+        removeLabelIds: args.removeLabelIds || [],
         user_id: "me",
       });
       return chunk.length;
@@ -1094,18 +1107,38 @@ export async function composioGmailGetProfile(
   threadsTotal: number;
   historyId: string | null;
 }> {
-  // Pitfall 4: Always target default connected mailbox "me" to avoid 403 delegation/impersonation errors
-  const data = await executeComposioTool(userId, GMAIL_TOOL.getProfile, {
-    user_id: "me",
-  });
+  try {
+    // Pitfall 2: Using a non-'me' user_id can trigger 403 delegation denied; retry with user_id='me'
+    const data = await executeComposioTool(userId, GMAIL_TOOL.getProfile, {
+      user_id: "me",
+    });
 
-  const profile = asRecord(data.profile) || data;
-  return {
-    emailAddress: firstString(profile.emailAddress, profile.email, (profile as any).email_address),
-    messagesTotal: Number(profile.messagesTotal ?? (profile as any).messages_total ?? 0),
-    threadsTotal: Number(profile.threadsTotal ?? (profile as any).threads_total ?? 0),
-    historyId: firstString(profile.historyId, (profile as any).history_id),
-  };
+    const profile = asRecord(data.profile) || data;
+    return {
+      emailAddress: firstString(profile.emailAddress, profile.email, (profile as any).email_address),
+      messagesTotal: Number(profile.messagesTotal ?? (profile as any).messages_total ?? 0),
+      threadsTotal: Number(profile.threadsTotal ?? (profile as any).threads_total ?? 0),
+      historyId: firstString(profile.historyId, (profile as any).history_id),
+    };
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    // Pitfall 1 & 2: 400 ConnectedAccountNotFound, 401 Invalid Credentials, 403 insufficientPermissions/ACCESS_TOKEN_SCOPE_INSUFFICIENT, and 400 FAILED_PRECONDITION
+    if (/delegation denied/i.test(errMsg)) {
+      // Retry once with explicit user_id='me'
+      const retryData = await executeComposioTool(userId, GMAIL_TOOL.getProfile, { user_id: "me" });
+      const profile = asRecord(retryData.profile) || retryData;
+      return {
+        emailAddress: firstString(profile.emailAddress, profile.email, (profile as any).email_address),
+        messagesTotal: Number(profile.messagesTotal ?? (profile as any).messages_total ?? 0),
+        threadsTotal: Number(profile.threadsTotal ?? (profile as any).threads_total ?? 0),
+        historyId: firstString(profile.historyId, (profile as any).history_id),
+      };
+    }
+    if (/ConnectedAccountNotFound|Invalid Credentials|insufficientPermissions|ACCESS_TOKEN_SCOPE_INSUFFICIENT|FAILED_PRECONDITION/i.test(errMsg)) {
+      throw new Error(`Gmail profile connection blocker: ${errMsg}. Stop downstream reads until connection/scopes are re-authorized/active.`);
+    }
+    throw error;
+  }
 }
 
 export async function composioGmailListThreads(
@@ -1184,4 +1217,106 @@ export async function composioGmailGetSendAs(
     treatAsAlias: Boolean(raw.treatAsAlias ?? raw.treat_as_alias),
     verificationStatus: firstString(raw.verificationStatus, raw.verification_status),
   };
+}
+
+export async function composioGmailGetPeople(
+  userId: string,
+): Promise<{ success: boolean; contactsCount: number; people?: unknown[] }> {
+  try {
+    const data = await executeComposioTool(userId, GMAIL_TOOL.getPeople, { user_id: "me" });
+    const raw = asRecord(data) || {};
+    const connections = Array.isArray(raw.connections)
+      ? raw.connections
+      : Array.isArray((raw.data as any)?.connections)
+      ? (raw.data as any).connections
+      : [];
+    return { success: true, contactsCount: connections.length, people: connections };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    throw new Error(`GMAIL_GET_PEOPLE contacts access probe failed: ${msg}`);
+  }
+}
+
+export async function composioGmailSearchPeople(
+  userId: string,
+  query: string,
+): Promise<Array<{ email: string; name?: string }>> {
+  const data = await executeComposioTool(userId, GMAIL_TOOL.searchPeople, {
+    query: query.trim(),
+    user_id: "me",
+  });
+  const raw = asRecord(data) || {};
+  const people = Array.isArray(raw.results)
+    ? raw.results
+    : Array.isArray((raw.data as any)?.results)
+    ? (raw.data as any).results
+    : Array.isArray(raw.people)
+    ? raw.people
+    : [];
+  return people
+    .map((p: any) => ({
+      email: firstString(p.email, p.emailAddress, p.address) ?? "",
+      name: firstString(p.name, p.displayName),
+    }))
+    .filter((p: { email: string }) => Boolean(p.email));
+}
+
+export async function composioGmailUpdateDraft(
+  userId: string,
+  args: {
+    draftId: string;
+    to?: string;
+    subject?: string;
+    body?: string;
+    isHtml?: boolean;
+    cc?: string[];
+    bcc?: string[];
+  },
+): Promise<{ draftId: string }> {
+  if (!args.draftId || !args.draftId.trim()) {
+    throw new Error("draftId is required to update a draft.");
+  }
+  // Pitfall 4: Update behaves like a full replace; passing empty strings can trigger 400—omit fields you want preserved
+  const payload: Record<string, unknown> = {
+    draft_id: args.draftId.trim(),
+    id: args.draftId.trim(),
+    user_id: "me",
+  };
+  if (args.to && args.to.trim()) payload.recipient_email = args.to.trim();
+  if (args.subject !== undefined && args.subject.trim()) payload.subject = args.subject.trim();
+  if (args.body !== undefined && args.body.trim()) payload.body = args.body.trim();
+  if (args.isHtml !== undefined) payload.is_html = Boolean(args.isHtml);
+  if (Array.isArray(args.cc) && args.cc.length > 0) payload.cc = args.cc;
+  if (Array.isArray(args.bcc) && args.bcc.length > 0) payload.bcc = args.bcc;
+
+  const data = await executeComposioTool(userId, GMAIL_TOOL.updateDraft, payload);
+  const updatedId = firstString(data.draftId, data.id, (data as any).draft_id) || args.draftId;
+  return { draftId: updatedId };
+}
+
+export async function composioGmailListDrafts(
+  userId: string,
+  options: { maxResults?: number; pageToken?: string } = {},
+): Promise<{ drafts: Array<{ id: string; messageId?: string }>; nextPageToken: string | null }> {
+  const data = await executeComposioTool(userId, GMAIL_TOOL.listDrafts, {
+    max_results: Math.min(Math.max(1, options.maxResults || 20), 100),
+    user_id: "me",
+    ...(options.pageToken ? { page_token: options.pageToken } : {}),
+  });
+  const raw = asRecord(data) || {};
+  const rawList = Array.isArray(raw.drafts)
+    ? raw.drafts
+    : Array.isArray((raw.data as any)?.drafts)
+    ? (raw.data as any).drafts
+    : [];
+  const drafts = rawList
+    .map((d: any) => ({
+      id: firstString(d.id, d.draftId, d.draft_id) ?? "",
+      messageId: firstString(d.message?.id, d.messageId),
+    }))
+    .filter((d: { id: string }) => Boolean(d.id));
+
+  const rawToken = firstString(raw.nextPageToken, (raw.data as any)?.nextPageToken);
+  const nextPageToken = rawToken && rawToken.trim().length > 0 ? rawToken.trim() : null;
+  return { drafts, nextPageToken };
 }
