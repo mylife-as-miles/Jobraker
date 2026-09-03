@@ -76,4 +76,22 @@ describe("edge function imports", () => {
     expect(providerCredits).toContain("recordSkyvernUsageFromOutput");
     expect(featureLimits).toContain("refundCurrentAutoApplyQuota");
   });
+
+  it("exempts provider webhook endpoints from gateway JWT verification", () => {
+    // An external provider's callback carries no Supabase JWT. skyvern-webhook
+    // had no config.toml entry at all, so it inherited verify_jwt = true and the
+    // gateway returned 401 before the handler ever ran. Authenticity is enforced
+    // inside the function via HMAC signature verification instead.
+    const config = readFileSync(
+      resolve(process.cwd(), "backend/supabase/config.toml"),
+      "utf8",
+    );
+    for (const fn of ["skyvern-webhook", "paystack-webhook"]) {
+      const start = config.indexOf(`[functions.${fn}]`);
+      expect(start, `${fn} missing from config.toml`).toBeGreaterThan(-1);
+      const next = config.indexOf("[functions.", start + 1);
+      const block = config.slice(start, next === -1 ? undefined : next);
+      expect(block, `${fn} must not require a JWT`).toMatch(/verify_jwt\s*=\s*false/);
+    }
+  });
 });

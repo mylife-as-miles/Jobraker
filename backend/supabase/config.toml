@@ -655,6 +655,15 @@ verify_jwt = true
 import_map = "./functions/schedule-interview/deno.json"
 entrypoint = "./functions/schedule-interview/index.ts"
 
+[functions.skyvern-webhook]
+enabled = true
+# Provider status callbacks (RTRVR/Skyvern) cannot include a Supabase JWT, so the
+# gateway rejected every one with 401 before the handler ran. Authenticity is
+# enforced inside the function by verifyWebhookSignature (HMAC-SHA256 over the
+# raw body, X-Rtrvr-Signature / X-Skyvern-Signature).
+verify_jwt = false
+entrypoint = "./functions/skyvern-webhook/index.ts"
+
 [functions.sync-provider-status]
 enabled = true
 verify_jwt = true
