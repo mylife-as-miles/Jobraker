@@ -29,6 +29,7 @@ import {
   composioGmailListLabels,
   composioGmailListSendAs,
   composioGmailListThreads,
+  composioGmailReplyToThread,
   composioGmailResolveLabelId,
   composioGmailSendDraft,
   composioGmailSendEmail,
@@ -1291,27 +1292,230 @@ export async function agentGetGmailSettingsSendAs(
   }
 }
 
+export interface FetchEmailRepliesOrThreadArgs {
+  thread_id?: string;
+  message_id?: string;
+  query?: string;
+  page_token?: string;
+  max_results?: number;
+  use_thread_discovery?: boolean;
+  attachment_id?: string;
+  account_context?: string;
+}
+
 export async function agentFetchThreadContext(
   _serviceClient: SupabaseClient,
   userId: string,
-  args: { thread_id?: string },
+  args: FetchEmailRepliesOrThreadArgs = {},
 ) {
-  const threadId = typeof args.thread_id === "string" ? args.thread_id.trim() : "";
-  if (!threadId) {
-    return { success: false, error: "thread_id is required", code: "missing_thread_id" };
-  }
-
   const connection = await getComposioGmailConnection(userId);
   if (!connection.connected) return gmailNotConnectedResult(connection);
 
-  try {
-    const thread = await composioGmailFetchThreadById(userId, threadId);
+  const activeMailbox = args.account_context?.trim() || connection.identifier;
+
+  // Step 6 (Optional attachment): Download attachment if requested
+  if (args.attachment_id && args.message_id) {
+    try {
+      const attachment = await composioGmailGetAttachment(userId, {
+        messageId: args.message_id,
+        attachmentId: args.attachment_id,
+      });
+      return { success: true, connectedAs: activeMailbox, attachment };
+    } catch (attErr) {
+      return composioFailure(attErr, "gmail_get_attachment_failed");
+    }
+  }
+
+  let resolvedThreadId = args.thread_id?.trim();
+
+  // Step 1: If only message_id is known, resolve authoritative thread linkage using GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID
+  if (!resolvedThreadId && args.message_id?.trim()) {
+    try {
+      const msgMeta = await composioGmailFetchMessageById(userId, args.message_id.trim());
+      resolvedThreadId = msgMeta.threadId || undefined;
+    } catch (err) {
+      return composioFailure(err, "gmail_resolve_thread_from_message_failed");
+    }
+  }
+
+  // Step 3 (Optional thread-first discovery): If thread-first discovery is preferred
+  if (!resolvedThreadId && args.use_thread_discovery) {
+    try {
+      const threadsList = await composioGmailListThreads(userId, {
+        query: args.query,
+        maxResults: Math.min(Math.max(1, Number(args.max_results || 10)), 50),
+        pageToken: args.page_token,
+      });
+      if (threadsList.threads.length > 0) {
+        resolvedThreadId = threadsList.threads[0].id;
+      }
+    } catch (thErr) {
+      console.warn("[composio-gmail] thread discovery error:", thErr);
+    }
+  }
+
+  // Step 2: Discover candidate conversations using GMAIL_FETCH_EMAILS if thread_id still not known
+  // (metadata-first; retain messageId+threadId; de-dupe by threadId; treat messages=[] as valid no-results)
+  let candidateThreads: Array<{ threadId: string; messageId: string; subject: string; from: string; date: string; snippet: string }> = [];
+  let nextPageToken: string | null = null;
+  if (!resolvedThreadId) {
+    try {
+      const fetchResult = await composioGmailFetchEmails(userId, {
+        query: args.query || "",
+        maxResults: Math.min(Math.max(1, Number(args.max_results || 20)), 500),
+        includePayload: false,
+        verbose: false,
+        pageToken: args.page_token,
+      });
+      nextPageToken = fetchResult.nextPageToken;
+      const seenThreadIds = new Set<string>();
+      for (const m of fetchResult.messages) {
+        if (m.threadId && !seenThreadIds.has(m.threadId)) {
+          seenThreadIds.add(m.threadId);
+          candidateThreads.push({
+            threadId: m.threadId,
+            messageId: m.id,
+            subject: m.subject || "",
+            from: m.from || "",
+            date: m.date || m.internalDate || "",
+            snippet: m.snippet || "",
+          });
+        }
+      }
+      if (candidateThreads.length > 0) {
+        resolvedThreadId = candidateThreads[0].threadId;
+      }
+    } catch (fetchErr) {
+      return composioFailure(fetchErr, "gmail_discover_threads_failed");
+    }
+  }
+
+  // If no thread was identified, treat as valid no-results
+  if (!resolvedThreadId) {
     return {
       success: true,
-      thread,
+      connectedAs: activeMailbox,
+      count: 0,
+      threads: [],
+      nextPageToken,
+      hasMore: Boolean(nextPageToken),
+    };
+  }
+
+  // Step 4: Hydrate conversation using GMAIL_FETCH_MESSAGE_BY_THREAD_ID
+  // (locate data.messages[] defensively; messages sorted client-side by timestamp)
+  try {
+    const threadData = await composioGmailFetchThreadById(userId, resolvedThreadId);
+    return {
+      success: true,
+      connectedAs: activeMailbox,
+      threadId: threadData.threadId,
+      messageCount: threadData.messages.length,
+      messages: threadData.messages,
+      candidateThreads: candidateThreads.length > 1 ? candidateThreads : undefined,
+      nextPageToken,
+      hasMore: Boolean(nextPageToken),
     };
   } catch (error) {
+    // Step 5 Fallback: If thread hydration fails, is partial/too large (HTTP 413), or returns notFound due to mailbox mismatch
+    // Fall back to fetching specific messages via GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID
+    if (args.message_id?.trim()) {
+      try {
+        const fallbackMsg = await composioGmailFetchMessageById(userId, args.message_id.trim());
+        return {
+          success: true,
+          connectedAs: activeMailbox,
+          threadId: resolvedThreadId,
+          fallbackUsed: true,
+          messageCount: 1,
+          messages: [
+            {
+              id: fallbackMsg.id,
+              snippet: fallbackMsg.snippet,
+              from: fallbackMsg.from,
+              to: fallbackMsg.to,
+              subject: fallbackMsg.subject,
+              date: fallbackMsg.date,
+              body: fallbackMsg.body,
+            },
+          ],
+        };
+      } catch {
+        // Continue to return original failure
+      }
+    }
     return composioFailure(error, "gmail_fetch_thread_failed");
+  }
+}
+
+export const agentFetchEmailRepliesOrThread = agentFetchThreadContext;
+
+export interface ReplyToThreadArgs {
+  thread_id: string;
+  to: string;
+  subject: string;
+  body: string;
+  message_id?: string;
+  cc?: string;
+  bcc?: string;
+  is_html?: boolean;
+  from?: string;
+  attachment?: unknown;
+}
+
+export async function agentReplyToThread(
+  _serviceClient: SupabaseClient,
+  userId: string,
+  args: ReplyToThreadArgs,
+) {
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  const threadId = typeof args.thread_id === "string" ? args.thread_id.trim() : "";
+  const to = typeof args.to === "string" ? args.to.trim() : "";
+  const subject = typeof args.subject === "string" ? args.subject.trim() : "";
+  const body = typeof args.body === "string" ? args.body.trim() : "";
+
+  if (!threadId) {
+    return { success: false, error: "thread_id is required to reply in-thread.", code: "missing_thread_id" };
+  }
+  if (!to) {
+    return { success: false, error: "Recipient email ('to') is required to reply.", code: "missing_to" };
+  }
+  if (!body) {
+    return { success: false, error: "Email body is required to reply.", code: "missing_body" };
+  }
+
+  // Ensure professional content and check blocklist
+  if (looksBlocked(`${subject} ${body}`)) {
+    return {
+      success: false,
+      error: "This reply was blocked because it matched safety rules.",
+      code: "content_blocked",
+    };
+  }
+
+  try {
+    const result = await composioGmailReplyToThread(userId, {
+      threadId,
+      to,
+      subject,
+      body,
+      messageId: args.message_id,
+      cc: args.cc,
+      bcc: args.bcc,
+      isHtml: args.is_html,
+      from: args.from,
+      attachment: args.attachment,
+    });
+    return {
+      success: true,
+      sent: true,
+      messageId: result.messageId,
+      threadId: result.threadId,
+    };
+  } catch (error) {
+    return composioFailure(error, "gmail_reply_thread_failed");
   }
 }
 

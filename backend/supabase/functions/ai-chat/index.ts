@@ -45,6 +45,7 @@ import {
   agentListGmailLabels,
   agentListGmailThreads,
   agentListSendAsIdentities,
+  agentReplyToThread,
   agentSearchEmailsBySubjectSender,
   agentSearchJobRelatedEmails,
   agentSendJobRelatedDraft,
@@ -106,6 +107,7 @@ const GMAIL_AGENT_TOOL_NAMES = new Set([
   "list_gmail_labels",
   "check_gmail_connection_status",
   "get_gmail_settings_send_as",
+  "reply_gmail_thread",
 ]);
 const APPLICATION_STATUSES = new Set([
   "Draft",
@@ -291,7 +293,11 @@ function describeAgentApprovalStep(
       kind: "email",
     };
   }
-  if (toolName === "send_gmail_job_email" || toolName === "send_gmail_draft") {
+  if (
+    toolName === "send_gmail_job_email" ||
+    toolName === "send_gmail_draft" ||
+    toolName === "reply_gmail_thread"
+  ) {
     return {
       toolName,
       title: "Send a Gmail message",
@@ -407,6 +413,7 @@ const ALWAYS_APPROVE_TOOLS = new Set([
   "create_gmail_job_draft",
   "send_gmail_job_email",
   "send_gmail_draft",
+  "reply_gmail_thread",
   // Destructive.
   "clear_all_jobs",
 ]);
@@ -3926,7 +3933,7 @@ const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "fetch_gmail_thread",
     description:
-      "Fetch the full context and all messages of a Gmail conversation thread using GMAIL_FETCH_MESSAGE_BY_THREAD_ID. Takes thread_id.",
+      "Fetch email replies or full conversation threads from Gmail using GMAIL_FETCH_MESSAGE_BY_THREAD_ID. Supports resolving thread linkage from message_id, discovery via GMAIL_FETCH_EMAILS or GMAIL_LIST_THREADS, defensive message unpacking, client-side timestamp sorting, and graceful fallback to GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.",
     parameters: {
       type: "object",
       properties: {
@@ -3934,8 +3941,82 @@ const AGENT_FUNCTION_DECLARATIONS = [
           type: "string",
           description: "Exact Gmail thread identifier to retrieve.",
         },
+        message_id: {
+          type: "string",
+          description: "Optional message identifier to resolve thread linkage from if thread_id is unknown.",
+        },
+        query: {
+          type: "string",
+          description: "Optional search query to discover candidate conversation threads.",
+        },
+        page_token: {
+          type: "string",
+          description: "Optional pagination token for thread discovery.",
+        },
+        max_results: {
+          type: "number",
+          description: "Max candidate conversations to inspect.",
+        },
+        use_thread_discovery: {
+          type: "boolean",
+          description: "Whether to shortlist candidate thread IDs using GMAIL_LIST_THREADS first.",
+        },
+        attachment_id: {
+          type: "string",
+          description: "Optional attachment ID to download from thread.",
+        },
+        account_context: {
+          type: "string",
+          description: "Optional mailbox account context to prevent cross-account mismatch.",
+        },
       },
-      required: ["thread_id"],
+    },
+  },
+  {
+    name: "reply_gmail_thread",
+    description:
+      "Reply in-thread to a conversation in Gmail using GMAIL_REPLY_TO_THREAD. Preserves threading by maintaining threadId and subject. Requires explicit user confirmation before sending.",
+    parameters: {
+      type: "object",
+      properties: {
+        thread_id: {
+          type: "string",
+          description: "Thread ID of the conversation to reply to.",
+        },
+        to: {
+          type: "string",
+          description: "Recipient email address.",
+        },
+        subject: {
+          type: "string",
+          description: "Subject of the email (kept stable or prefixed with Re: to preserve threading).",
+        },
+        body: {
+          type: "string",
+          description: "Body text of the reply.",
+        },
+        message_id: {
+          type: "string",
+          description: "Optional message ID being replied to (for In-Reply-To header).",
+        },
+        cc: {
+          type: "string",
+          description: "Optional CC recipient email address.",
+        },
+        bcc: {
+          type: "string",
+          description: "Optional BCC recipient email address.",
+        },
+        is_html: {
+          type: "boolean",
+          description: "Whether the body is HTML formatted.",
+        },
+        from: {
+          type: "string",
+          description: "Optional sender alias to reply from.",
+        },
+      },
+      required: ["thread_id", "to", "subject", "body"],
     },
   },
   {
@@ -4263,6 +4344,23 @@ Email & Outreach via Composio / Gmail:
   - get_gmail_draft / GMAIL_GET_DRAFT: Inspect draft content before sending.
   - send_gmail_draft / GMAIL_SEND_DRAFT: Send an existing draft using draft_id.
   - fetch_gmail_message / GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID: Retrieve sent/received message metadata, headers, labels, and decoded body.
+  - reply_gmail_thread / GMAIL_REPLY_TO_THREAD: Reply in-thread to a conversation in Gmail while preserving threadId and subject.
+
+Standard 7-Step Workflow for Fetching Email Replies or Full Threads from Gmail:
+1. Resolve thread linkage (Optional): If only message_id is known, resolve the authoritative thread linkage using fetch_gmail_message (GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID) (verify access; capture threadId plus minimal headers/ids).
+2. Discover candidate conversations: Discover candidate conversations using fetch_gmail_thread / fetch_gmail_emails (GMAIL_FETCH_EMAILS) (metadata-first; retain messageId+threadId; paginate via nextPageToken/page_token; de-dupe by threadId; treat messages=[] as valid no-results).
+3. Shortlist candidate thread IDs (Optional): If thread-first discovery is preferred, shortlist candidate thread IDs using list_gmail_threads (GMAIL_LIST_THREADS with verbose=false; paginate via nextPageToken/page_token) before hydrating messages.
+4. Hydrate conversation: Hydrate the conversation using fetch_gmail_thread (GMAIL_FETCH_MESSAGE_BY_THREAD_ID) (locate data.messages[] defensively; messages may be unordered so sort client-side by timestamp/internal date field; keep only needed fields if response is offloaded/large).
+5. Fallback for failure, 413 or mailbox mismatch: If thread hydration fails, is partial/too large, or returns notFound due to mailbox mismatch, re-resolve linkage with GMAIL_FETCH_EMAILS and/or GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID in the same mailbox, then fetch only required items via GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID (handle multipart payload; prefer text/plain when present).
+6. Download attachments (Optional): If attachments are needed, download referenced files using get_gmail_attachment (GMAIL_GET_ATTACHMENT) (requires attachmentId plus the owning message_id).
+7. Reply in-thread (Optional): If continuing the conversation, reply in-thread using reply_gmail_thread (GMAIL_REPLY_TO_THREAD) (confirm recipients/content; keep subject stable to preserve threading).
+
+5 Critical Pitfalls for Fetching Email Replies or Full Threads:
+1. Valid no-results & empty nextPageToken: nextPageToken can be an empty string when pagination is exhausted; data.messages can also be an empty list as a valid no-results outcome.
+2. 429 Rate limiting during discovery: HTTP 429 can occur during broad discovery; respect server wait guidance and reduce request bursts.
+3. 404 NOT_FOUND mailbox mismatch: 404 NOT_FOUND can occur if a thread_id is hydrated against the wrong mailbox connection; ensure discovery and hydration use the same mailbox context.
+4. Unexpected nested response shapes: Returned messages can be nested or missing in unexpected shapes and the response may not echo threadId; locate messages[] defensively.
+5. Large thread 413 truncation: Large threads can be truncated/offloaded or fail with HTTP 413; reduce scope and fall back to GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID for specific messages.
 
 Standard 7-Step Workflow for Fetching Unread Important Emails from Gmail:
 1. Select mailbox context (Optional): If multiple accounts are connected, select the intended mailbox context before calling GMAIL_FETCH_EMAILS (avoid listing from the wrong account).
@@ -5837,7 +5935,15 @@ Evidence and failure reporting:
                       ? await agentFetchThreadContext(
                           serviceClient,
                           userId,
-                          (args || {}) as { thread_id?: string },
+                          (args || {}) as any,
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "reply_gmail_thread") {
+                    result = canUseEmailIntegrations
+                      ? await agentReplyToThread(
+                          serviceClient,
+                          userId,
+                          (args || {}) as any,
                         )
                       : { success: false, error: "Email integrations are not enabled for this account." };
                   } else if (fn.name === "get_gmail_attachment") {

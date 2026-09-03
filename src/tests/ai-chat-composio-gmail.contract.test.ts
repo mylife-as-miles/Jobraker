@@ -67,6 +67,14 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(composioGmail).toMatch(/maxChunk/);
       expect(composioGmail).toMatch(/retrying smaller sub-batches/);
     });
+
+    it("exports composioGmailReplyToThread and handles thread errors defensively (Pitfalls 3, 4, 5)", () => {
+      expect(composioGmail).toMatch(/replyToThread:\s*"GMAIL_REPLY_TO_THREAD"/);
+      expect(composioGmail).toMatch(/export async function composioGmailReplyToThread/);
+      expect(composioGmail).toMatch(/Ensure discovery and hydration use the same mailbox context/);
+      expect(composioGmail).toMatch(/locate messages\[\] defensively/);
+      expect(composioGmail).toMatch(/payload too large \(HTTP 413\)/);
+    });
   });
 
   describe("Agent Tools Guardrails & API", () => {
@@ -82,6 +90,8 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(gmailAgentTools).toMatch(/export async function agentFetchEmails/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchEmailsByPeriod/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchThreadContext/);
+      expect(gmailAgentTools).toMatch(/export const agentFetchEmailRepliesOrThread/);
+      expect(gmailAgentTools).toMatch(/export async function agentReplyToThread/);
       expect(gmailAgentTools).toMatch(/export async function agentGetEmailAttachment/);
       expect(gmailAgentTools).toMatch(/export async function agentBatchModifyEmails/);
       expect(gmailAgentTools).toMatch(/export async function agentGetGmailProfile/);
@@ -131,7 +141,7 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/\{\s*slug:\s*"gmail",\s*label:\s*"Gmail",\s*toolkitSlug:\s*"gmail"\s*\}/);
     });
 
-    it("registers all 20 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
+    it("registers all 21 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
       const toolNames = [
         "search_gmail_job_emails",
         "search_gmail_emails_by_subject_sender",
@@ -153,15 +163,17 @@ describe("AI Chat Composio Gmail Integration", () => {
         "list_gmail_labels",
         "check_gmail_connection_status",
         "get_gmail_settings_send_as",
+        "reply_gmail_thread",
       ];
       for (const name of toolNames) {
         expect(aiChat).toContain('"' + name + '"');
       }
     });
 
-    it("requires explicit user confirmation for sending emails and drafts", () => {
+    it("requires explicit user confirmation for sending emails, drafts, and replying to threads", () => {
       expect(aiChat).toMatch(/ALWAYS_APPROVE_TOOLS[\s\S]*?"send_gmail_job_email"/);
       expect(aiChat).toMatch(/ALWAYS_APPROVE_TOOLS[\s\S]*?"send_gmail_draft"/);
+      expect(aiChat).toMatch(/ALWAYS_APPROVE_TOOLS[\s\S]*?"reply_gmail_thread"/);
     });
 
     it("documents the 7-step fetching workflow in system instructions", () => {
@@ -298,6 +310,26 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/3\.\s*Defensively parse payload shapes.*truncated\/offloaded/);
       expect(aiChat).toMatch(/4\.\s*Stale ID 404 NOT_FOUND.*GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.*inaccessible\/stale IDs/);
       expect(aiChat).toMatch(/5\.\s*Batch modify limits & throttling.*max ~1000 message IDs per request.*HTTP 429/);
+    });
+
+    it("documents the 7-step thread and replies fetching workflow in system instructions", () => {
+      expect(aiChat).toMatch(/Standard 7-Step Workflow for Fetching Email Replies or Full Threads from Gmail/);
+      expect(aiChat).toMatch(/1\.\s*Resolve thread linkage.*GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID/);
+      expect(aiChat).toMatch(/2\.\s*Discover candidate conversations.*GMAIL_FETCH_EMAILS/);
+      expect(aiChat).toMatch(/3\.\s*Shortlist candidate thread IDs.*GMAIL_LIST_THREADS/);
+      expect(aiChat).toMatch(/4\.\s*Hydrate conversation.*GMAIL_FETCH_MESSAGE_BY_THREAD_ID/);
+      expect(aiChat).toMatch(/5\.\s*Fallback for failure, 413 or mailbox mismatch.*GMAIL_FETCH_EMAILS.*GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID/);
+      expect(aiChat).toMatch(/6\.\s*Download attachments.*GMAIL_GET_ATTACHMENT/);
+      expect(aiChat).toMatch(/7\.\s*Reply in-thread.*GMAIL_REPLY_TO_THREAD/);
+    });
+
+    it("documents the 5 critical pitfalls for fetching email replies or full threads in system instructions", () => {
+      expect(aiChat).toMatch(/5 Critical Pitfalls for Fetching Email Replies or Full Threads/);
+      expect(aiChat).toMatch(/1\.\s*Valid no-results & empty nextPageToken/);
+      expect(aiChat).toMatch(/2\.\s*429 Rate limiting during discovery/);
+      expect(aiChat).toMatch(/3\.\s*404 NOT_FOUND mailbox mismatch/);
+      expect(aiChat).toMatch(/4\.\s*Unexpected nested response shapes/);
+      expect(aiChat).toMatch(/5\.\s*Large thread 413 truncation/);
     });
   });
 });

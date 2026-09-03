@@ -39,6 +39,7 @@ export const GMAIL_TOOL = {
   getProfile: "GMAIL_GET_PROFILE",
   listThreads: "GMAIL_LIST_THREADS",
   settingsSendAsGet: "GMAIL_SETTINGS_SEND_AS_GET",
+  replyToThread: "GMAIL_REPLY_TO_THREAD",
 } as const;
 
 const COMPOSIO_REST_BASE = "https://backend.composio.dev/api/v3.1";
@@ -793,42 +794,116 @@ export async function composioGmailFetchThreadById(
     body: string | null;
   }>;
 }> {
-  const data = await executeComposioTool(userId, GMAIL_TOOL.fetchThreadById, {
-    thread_id: threadId,
-    id: threadId,
+  try {
+    const data = await executeComposioTool(userId, GMAIL_TOOL.fetchThreadById, {
+      thread_id: threadId,
+      id: threadId,
+      user_id: "me",
+    });
+
+    const rawThread = asRecord(data.thread) || data;
+    // Pitfall 4: Returned messages can be nested or missing in unexpected shapes and the response may not echo threadId; locate messages[] defensively
+    const rawList = Array.isArray(rawThread.messages)
+      ? rawThread.messages
+      : Array.isArray((data as any).messages)
+      ? (data as any).messages
+      : Array.isArray((data as any).data?.messages)
+      ? (data as any).data.messages
+      : Array.isArray((data as any).data_preview?.messages)
+      ? (data as any).data_preview.messages
+      : [];
+
+    const messages = rawList.map((rawMsg: any) => {
+      const msg = normalizeMessage(rawMsg) || rawMsg;
+      const payload = (asRecord(msg?.payload) ?? asRecord(rawMsg?.payload)) as GmailPayload | undefined;
+      const bodyInfo = extractBodyFromPayload(payload);
+      return {
+        id: firstString(msg?.id, rawMsg?.id) ?? "",
+        snippet: firstString(msg?.snippet, rawMsg?.snippet) ?? "",
+        from: (msg ? messageFrom(msg) : null) || getHeader(payload, "From"),
+        to: getHeader(payload, "To"),
+        subject: (msg ? messageSubject(msg) : null) || getHeader(payload, "Subject"),
+        date: (msg ? messageDate(msg) : null) || getHeader(payload, "Date"),
+        body: bodyInfo.text || bodyInfo.html || firstString(msg?.messageText, rawMsg?.snippet),
+      };
+    });
+
+    // Step 4: Choose messages by timestamp, not array order (sort client-side)
+    messages.sort((a, b) => {
+      const timeA = a.date ? Date.parse(a.date) || 0 : 0;
+      const timeB = b.date ? Date.parse(b.date) || 0 : 0;
+      return timeA - timeB;
+    });
+
+    const authoritativeThreadId = firstString(
+      rawThread.id,
+      rawThread.threadId,
+      data.threadId,
+      data.id,
+      threadId,
+    ) || threadId;
+
+    return { threadId: authoritativeThreadId, messages };
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    // Pitfall 3: 404 NOT_FOUND can occur if a thread_id is hydrated against the wrong mailbox connection
+    if (/404|NOT_FOUND|notFound/i.test(errMsg)) {
+      throw new Error(`Gmail thread ${threadId} not found (404 NOT_FOUND). Ensure discovery and hydration use the same mailbox context.`);
+    }
+    // Pitfall 5: Large threads can be truncated/offloaded or fail with HTTP 413
+    if (/413|PayloadTooLarge|too large/i.test(errMsg)) {
+      throw new Error(`Gmail thread ${threadId} payload too large (HTTP 413). Reduce scope and fall back to fetching specific messages via GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.`);
+    }
+    throw error;
+  }
+}
+
+export async function composioGmailReplyToThread(
+  userId: string,
+  args: {
+    threadId: string;
+    to: string;
+    subject: string;
+    body: string;
+    messageId?: string;
+    cc?: string;
+    bcc?: string;
+    isHtml?: boolean;
+    from?: string;
+    attachment?: unknown;
+  },
+): Promise<{ messageId: string | null; threadId: string | null }> {
+  // Step 7: Reply in-thread using GMAIL_REPLY_TO_THREAD (confirm recipients/content; keep subject stable to preserve threading)
+  if (!args.threadId || !args.threadId.trim()) {
+    throw new Error("thread_id is required to reply in-thread.");
+  }
+  if (!args.to || !args.to.trim()) {
+    throw new Error("Recipient email ('to') is required to reply.");
+  }
+  if (!args.body || !args.body.trim()) {
+    throw new Error("Email body is required to reply.");
+  }
+
+  const payload: Record<string, unknown> = {
+    thread_id: args.threadId.trim(),
+    recipient_email: args.to.trim(),
+    subject: args.subject?.trim() || "",
+    body: args.body.trim(),
+    is_html: Boolean(args.isHtml),
     user_id: "me",
-  });
+  };
+  if (args.messageId) payload.in_reply_to = args.messageId.trim();
+  if (args.cc) payload.cc = args.cc.trim();
+  if (args.bcc) payload.bcc = args.bcc.trim();
+  if (args.from) payload.from = args.from.trim();
+  if (args.attachment) payload.attachment = args.attachment;
 
-  const rawThread = asRecord(data.thread) || data;
-  const rawList = Array.isArray(rawThread.messages)
-    ? rawThread.messages
-    : Array.isArray((data as any).messages)
-    ? (data as any).messages
-    : [];
-
-  const messages = rawList.map((rawMsg: any) => {
-    const msg = normalizeMessage(rawMsg) || rawMsg;
-    const payload = (asRecord(msg?.payload) ?? asRecord(rawMsg?.payload)) as GmailPayload | undefined;
-    const bodyInfo = extractBodyFromPayload(payload);
-    return {
-      id: firstString(msg?.id, rawMsg?.id) ?? "",
-      snippet: firstString(msg?.snippet, rawMsg?.snippet) ?? "",
-      from: (msg ? messageFrom(msg) : null) || getHeader(payload, "From"),
-      to: getHeader(payload, "To"),
-      subject: (msg ? messageSubject(msg) : null) || getHeader(payload, "Subject"),
-      date: (msg ? messageDate(msg) : null) || getHeader(payload, "Date"),
-      body: bodyInfo.text || bodyInfo.html || firstString(msg?.messageText, rawMsg?.snippet),
-    };
-  });
-
-  // Step 6: Choose messages by timestamp, not array order
-  messages.sort((a, b) => {
-    const timeA = a.date ? Date.parse(a.date) || 0 : 0;
-    const timeB = b.date ? Date.parse(b.date) || 0 : 0;
-    return timeA - timeB;
-  });
-
-  return { threadId, messages };
+  const data = await executeComposioTool(userId, GMAIL_TOOL.replyToThread, payload);
+  const message = asRecord(data.message);
+  return {
+    messageId: firstString(data.messageId, data.id, message?.id, data.message_id),
+    threadId: firstString(data.threadId, data.thread_id, args.threadId),
+  };
 }
 
 export async function composioGmailGetAttachment(
