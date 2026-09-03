@@ -32,6 +32,7 @@ import {
   agentBatchModifyEmails,
   agentCheckGmailConnectionStatus,
   agentCreateJobRelatedDraft,
+  agentFetchEmails,
   agentFetchEmailsByPeriod,
   agentFetchMessageMetadata,
   agentFetchThreadContext,
@@ -84,6 +85,7 @@ const SKYVERN_TERMINAL_PROVIDER_STATUSES = new Set([
 const ACTIVE_APPLICATION_STATUSES = new Set(["Pending", "Applied", "Interview"]);
 const GMAIL_AGENT_TOOL_NAMES = new Set([
   "search_gmail_job_emails",
+  "fetch_gmail_emails",
   "fetch_gmail_emails_by_period",
   "fetch_gmail_thread",
   "get_gmail_attachment",
@@ -319,6 +321,7 @@ function describeAgentApprovalStep(
     };
   }
   if (
+    toolName === "fetch_gmail_emails" ||
     toolName === "fetch_gmail_emails_by_period" ||
     toolName === "fetch_gmail_thread" ||
     toolName === "get_gmail_attachment"
@@ -3608,6 +3611,77 @@ const AGENT_FUNCTION_DECLARATIONS = [
           type: "boolean",
           description: "Whether to discover and group messages by conversation threads via GMAIL_LIST_THREADS.",
         },
+        top_n: {
+          type: "number",
+          description: "Optional number of newest emails to return after client-side sorting.",
+        },
+        sort_newest: {
+          type: "boolean",
+          description: "Sort aggregated emails by internalDate/timestamp descending client-side.",
+        },
+        max_pages: {
+          type: "number",
+          description: "Max pages to paginate through (default 1, max 5).",
+        },
+        hydrate_count: {
+          type: "number",
+          description: "Number of top emails to hydrate with full headers/body via GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID (max 10).",
+        },
+      },
+    },
+  },
+  {
+    name: "fetch_gmail_emails",
+    description:
+      "Fetch emails from Gmail using GMAIL_FETCH_EMAILS with lightweight metadata-first retrieval, pagination, optional client-side sorting by date for newest-N, label resolution, and selective hydration via GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Search query or filter string (e.g. 'subject:interview' or 'newer_than:7d').",
+        },
+        max_results: {
+          type: "number",
+          description: "Max emails per page (default 20, max 500).",
+        },
+        page_token: {
+          type: "string",
+          description: "Optional pagination token to resume fetching.",
+        },
+        label_name: {
+          type: "string",
+          description: "Optional label display name to filter by.",
+        },
+        label_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional label IDs to filter by.",
+        },
+        top_n: {
+          type: "number",
+          description: "Optional number of newest emails to return after client-side sorting.",
+        },
+        sort_newest: {
+          type: "boolean",
+          description: "Sort aggregated emails by internalDate/timestamp descending client-side.",
+        },
+        max_pages: {
+          type: "number",
+          description: "Max pages to paginate through (default 1, max 5).",
+        },
+        hydrate_count: {
+          type: "number",
+          description: "Number of top emails to hydrate with full headers/body via GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID (max 10).",
+        },
+        validate_profile: {
+          type: "boolean",
+          description: "Validate mailbox access using GMAIL_GET_PROFILE before listing.",
+        },
+        use_thread_fallback: {
+          type: "boolean",
+          description: "Discover and group by conversation threads via GMAIL_LIST_THREADS.",
+        },
       },
     },
   },
@@ -4014,7 +4088,7 @@ Email & Outreach via Composio / Gmail:
 - Available tools:
   - check_gmail_connection_status: Run comprehensive health check confirming identity, read access, and optional cross-checks.
   - get_gmail_settings_send_as / GMAIL_SETTINGS_SEND_AS_GET: Validate settings readability and inspect send-as configuration.
-  - fetch_gmail_emails_by_period / GMAIL_FETCH_EMAILS: Retrieve emails matching date ranges, time periods, and optional categories (e.g. primary, updates, social) or labels.
+  - fetch_gmail_emails / fetch_gmail_emails_by_period / GMAIL_FETCH_EMAILS: Fetch emails from Gmail with lightweight metadata-first retrieval, pagination, optional client-side sorting by date for newest-N, label resolution, and selective hydration via GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.
   - get_gmail_profile / GMAIL_GET_PROFILE: Validate mailbox access and view account profile metrics.
   - list_gmail_labels / GMAIL_LIST_LABELS: List all mailbox labels to map display names to IDs.
   - list_gmail_threads / GMAIL_LIST_THREADS: Discover conversation threads for broad queries or conversation grouping.
@@ -4029,6 +4103,23 @@ Email & Outreach via Composio / Gmail:
   - get_gmail_draft / GMAIL_GET_DRAFT: Inspect draft content before sending.
   - send_gmail_draft / GMAIL_SEND_DRAFT: Send an existing draft using draft_id.
   - fetch_gmail_message / GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID: Retrieve sent/received message metadata, headers, labels, and decoded body.
+
+Standard 8-Step Workflow for Fetching Emails from Gmail:
+1. Confirm mailbox access (Optional): If access/scope is uncertain, confirm mailbox access using get_gmail_profile (GMAIL_GET_PROFILE) to fail fast on auth/scope issues.
+2. Fetch lightweight first page: Call fetch_gmail_emails / fetch_gmail_emails_by_period (GMAIL_FETCH_EMAILS) with lightweight settings (treat max_results as per-page, keep <=500; capture messageId, threadId, internalDate/messageTimestamp, nextPageToken).
+3. Paginate & de-dupe: Paginate with GMAIL_FETCH_EMAILS (page_token=nextPageToken) until nextPageToken is missing/empty or desired count reached; aggregate and deduplicate by messageId.
+4. Client-side sort for newest-N (Optional): If you must guarantee newest-N/latest, sort aggregated listings client-side by internalDate/messageTimestamp from GMAIL_FETCH_EMAILS and take the top N.
+5. Map label name to ID (Optional): If filtering by label name and label IDs are unknown, map label name->id using list_gmail_labels (GMAIL_LIST_LABELS), then re-run GMAIL_FETCH_EMAILS with label_ids.
+6. Hydrate selected items (Optional): If full headers/body are needed for selected items, hydrate chosen messages using fetch_gmail_message (GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID) (prefer metadata-like formats unless full content is required).
+7. Expand conversation context (Optional): If conversation context is needed, expand a conversation using fetch_gmail_thread (GMAIL_FETCH_MESSAGE_BY_THREAD_ID) using threadId from the listing.
+8. Fallback for empty results / errors / payload too large: If results are unexpectedly empty, query validation errors appear, or payload is too large, re-run GMAIL_FETCH_EMAILS with lighter settings (avoid verbose/include_payload), then hydrate fewer items via GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID and merge/dedupe by messageId.
+
+5 Critical Pitfalls for Fetching Emails from Gmail:
+1. Capped max_results: max_results above 500 has been observed to fail; keep <=500 and paginate.
+2. PayloadTooLarge 413: ToolRouterV2_PayloadTooLarge (HTTP 413, code 4345) can occur with verbose/include_payload; list lightly and hydrate selectively.
+3. Quota & rate limits (429): 429 quota/rate errors can occur during pagination and may include Retry-After; back off and resume from the last nextPageToken.
+4. Varying response shapes: Response shape can vary (data vs data_preview vs nested data.data); preview fields may be truncated/non-string—avoid hard-coded JSON paths.
+5. Stale ID 404 & mid-flow scope changes: 404 notFound can occur for stale/invalid IDs; only hydrate messageId values from the current GMAIL_FETCH_EMAILS listing (401/403 can also occur mid-flow if scope changes).
 
 Standard 5-Step Workflow for Checking Existing Gmail Connection Status:
 1. Confirm authentication & identity: Confirm authentication and connected mailbox context using get_gmail_profile / check_gmail_connection_status (GMAIL_GET_PROFILE with user_id="me"; treat returned identity as canonical for this run and do not persist full payload).
@@ -5525,9 +5616,9 @@ Evidence and failure reporting:
                           (args || {}) as { message_id?: string },
                         )
                       : { success: false, error: "Email integrations are not enabled for this account." };
-                  } else if (fn.name === "fetch_gmail_emails_by_period") {
+                  } else if (fn.name === "fetch_gmail_emails_by_period" || fn.name === "fetch_gmail_emails") {
                     result = canUseEmailIntegrations
-                      ? await agentFetchEmailsByPeriod(
+                      ? await agentFetchEmails(
                           serviceClient,
                           userId,
                           (args || {}) as any,

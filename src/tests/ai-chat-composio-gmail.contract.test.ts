@@ -51,6 +51,12 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(composioGmail).toMatch(/nextPageToken may be an empty string/);
     });
 
+    it("handles 413 ToolRouterV2_PayloadTooLarge and 429 Retry-After (Pitfalls 2 & 3)", () => {
+      expect(composioGmail).toMatch(/ToolRouterV2_PayloadTooLarge/);
+      expect(composioGmail).toMatch(/429 rate limit exceeded/);
+      expect(composioGmail).toMatch(/Retry-After/);
+    });
+
     it("distinguishes draftId from messageId in draft creation and sending", () => {
       expect(composioGmail).toMatch(/draftId differs from messageId/);
       expect(composioGmail).toMatch(/GMAIL_SEND_DRAFT requires/);
@@ -65,6 +71,7 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(gmailAgentTools).toMatch(/export async function agentGetJobRelatedDraft/);
       expect(gmailAgentTools).toMatch(/export async function agentSendJobRelatedDraft/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchMessageMetadata/);
+      expect(gmailAgentTools).toMatch(/export async function agentFetchEmails/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchEmailsByPeriod/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchThreadContext/);
       expect(gmailAgentTools).toMatch(/export async function agentGetEmailAttachment/);
@@ -75,6 +82,11 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(gmailAgentTools).toMatch(/export async function agentCheckGmailConnectionStatus/);
       expect(gmailAgentTools).toMatch(/export async function agentGetGmailSettingsSendAs/);
       expect(gmailAgentTools).toMatch(/export function buildTimePeriodQuery/);
+    });
+
+    it("supports client-side sorting and top-N extraction for newest-N guarantee (Step 4)", () => {
+      expect(gmailAgentTools).toMatch(/sort_newest/);
+      expect(gmailAgentTools).toMatch(/top_n/);
     });
 
     it("handles stale IDs with 404 in message hydration (Pitfall 5)", () => {
@@ -111,9 +123,10 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/\{\s*slug:\s*"gmail",\s*label:\s*"Gmail",\s*toolkitSlug:\s*"gmail"\s*\}/);
     });
 
-    it("registers all 17 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
+    it("registers all 18 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
       const toolNames = [
         "search_gmail_job_emails",
+        "fetch_gmail_emails",
         "fetch_gmail_emails_by_period",
         "fetch_gmail_thread",
         "get_gmail_attachment",
@@ -178,6 +191,27 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/3\.\s*Preview listing shapes.*response\.data_preview/);
       expect(aiChat).toMatch(/4\.\s*Profile 403 scope issues/);
       expect(aiChat).toMatch(/5\.\s*Stale ID 404 handling.*refresh IDs via fetch_gmail_emails_by_period/);
+    });
+
+    it("documents the 8-step general email fetching workflow in system instructions", () => {
+      expect(aiChat).toMatch(/Standard 8-Step Workflow for Fetching Emails from Gmail/);
+      expect(aiChat).toMatch(/1\.\s*Confirm mailbox access.*GMAIL_GET_PROFILE/);
+      expect(aiChat).toMatch(/2\.\s*Fetch lightweight first page.*GMAIL_FETCH_EMAILS/);
+      expect(aiChat).toMatch(/3\.\s*Paginate & de-dupe.*page_token/);
+      expect(aiChat).toMatch(/4\.\s*Client-side sort for newest-N.*internalDate\/messageTimestamp/);
+      expect(aiChat).toMatch(/5\.\s*Map label name to ID.*GMAIL_LIST_LABELS/);
+      expect(aiChat).toMatch(/6\.\s*Hydrate selected items.*GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID/);
+      expect(aiChat).toMatch(/7\.\s*Expand conversation context.*GMAIL_FETCH_MESSAGE_BY_THREAD_ID/);
+      expect(aiChat).toMatch(/8\.\s*Fallback for empty results.*re-run GMAIL_FETCH_EMAILS with lighter settings/);
+    });
+
+    it("documents the 5 critical pitfalls for general email fetching in system instructions", () => {
+      expect(aiChat).toMatch(/5 Critical Pitfalls for Fetching Emails from Gmail/);
+      expect(aiChat).toMatch(/1\.\s*Capped max_results.*500/);
+      expect(aiChat).toMatch(/2\.\s*PayloadTooLarge 413.*ToolRouterV2_PayloadTooLarge.*4345/);
+      expect(aiChat).toMatch(/3\.\s*Quota & rate limits \(429\).*Retry-After/);
+      expect(aiChat).toMatch(/4\.\s*Varying response shapes.*data vs data_preview/);
+      expect(aiChat).toMatch(/5\.\s*Stale ID 404 & mid-flow scope changes.*404 notFound/);
     });
 
     it("documents the 5-step connection status checking workflow in system instructions", () => {

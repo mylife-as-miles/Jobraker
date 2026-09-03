@@ -440,22 +440,48 @@ export async function composioGmailFetchEmails(
   userId: string,
   options: FetchEmailsOptions,
 ): Promise<FetchEmailsResult> {
-  // Step 3 & Pitfall 2: metadata-first with include_payload=false and practical max_results up to 500.
-  // Setting include_payload=true can trigger oversized/offloaded responses or 413 errors.
+  // Pitfall 1: max_results above 500 has been observed to fail; keep <= 500 and paginate
   const maxResults = Math.min(Math.max(1, options.maxResults || 20), 500);
-  const data = await executeComposioTool(userId, GMAIL_TOOL.fetchEmails, {
-    query: options.query,
-    max_results: maxResults,
-    include_payload: Boolean(options.includePayload),
-    verbose: Boolean(options.verbose),
-    user_id: "me",
-    ...(options.pageToken ? { page_token: options.pageToken } : {}),
-    ...(options.labelIds && options.labelIds.length > 0 ? { label_ids: options.labelIds } : {}),
-  });
+
+  let data: Record<string, any>;
+  try {
+    data = await executeComposioTool(userId, GMAIL_TOOL.fetchEmails, {
+      query: options.query,
+      max_results: maxResults,
+      include_payload: Boolean(options.includePayload),
+      verbose: Boolean(options.verbose),
+      user_id: "me",
+      ...(options.pageToken ? { page_token: options.pageToken } : {}),
+      ...(options.labelIds && options.labelIds.length > 0 ? { label_ids: options.labelIds } : {}),
+    });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    // Pitfall 2: ToolRouterV2_PayloadTooLarge (HTTP 413, code 4345) can occur with verbose/include_payload;
+    // Fallback: Re-run GMAIL_FETCH_EMAILS with lighter settings (avoid verbose/include_payload)
+    if ((options.includePayload || options.verbose) && /413|PayloadTooLarge|4345/i.test(msg)) {
+      data = await executeComposioTool(userId, GMAIL_TOOL.fetchEmails, {
+        query: options.query,
+        max_results: Math.min(maxResults, 50),
+        include_payload: false,
+        verbose: false,
+        user_id: "me",
+        ...(options.pageToken ? { page_token: options.pageToken } : {}),
+        ...(options.labelIds && options.labelIds.length > 0 ? { label_ids: options.labelIds } : {}),
+      });
+    } else if (/429|rateLimitExceeded|userRateLimitExceeded|quota/i.test(msg)) {
+      // Pitfall 3: 429 quota/rate errors can occur during pagination and may include Retry-After;
+      // back off and resume from the last nextPageToken
+      const retryAfterMatch = msg.match(/retry-after:\s*(\d+)/i);
+      const retryAfterSec = retryAfterMatch ? Number(retryAfterMatch[1]) : 5;
+      throw new Error(`Gmail API 429 rate limit exceeded. Retry-After: ${retryAfterSec}s. Resume pagination using last page_token: ${options.pageToken || "none"}`);
+    } else {
+      throw error;
+    }
+  }
 
   const rawData = asRecord(data);
-  // Pitfall 2: Large listings may be offloaded/truncated; messages can appear under
-  // response.data_preview.messages, response.data.messages, response.response_data.messages, or inline
+  // Pitfall 4: Response shape can vary (data vs data_preview vs nested data.data);
+  // preview fields may be truncated/non-string—avoid hard-coded JSON paths
   const rawList = Array.isArray(rawData?.messages)
     ? rawData.messages
     : Array.isArray((rawData?.data as any)?.messages)
@@ -464,6 +490,8 @@ export async function composioGmailFetchEmails(
     ? (rawData.data_preview as any).messages
     : Array.isArray((rawData?.response_data as any)?.messages)
     ? (rawData.response_data as any).messages
+    : Array.isArray((rawData?.data as any)?.data)
+    ? (rawData.data as any).data
     : Array.isArray(rawData?.data)
     ? (rawData.data as unknown[])
     : Array.isArray(rawData?.items)
@@ -474,7 +502,7 @@ export async function composioGmailFetchEmails(
     .map(normalizeMessage)
     .filter((m): m is ComposioGmailMessage => m !== null);
 
-  // Pitfall 1: nextPageToken may be an empty string; treat falsey tokens as null to avoid infinite loops
+  // Pitfall 1 & 4: nextPageToken may be an empty string; treat empty/falsy as end-of-list
   const rawToken = firstString(
     rawData?.nextPageToken,
     rawData?.next_page_token,
@@ -482,6 +510,7 @@ export async function composioGmailFetchEmails(
     (rawData?.data as any)?.next_page_token,
     (rawData?.data_preview as any)?.nextPageToken,
     (rawData?.data_preview as any)?.next_page_token,
+    (rawData?.data as any)?.data?.nextPageToken,
   );
   const nextPageToken = rawToken && rawToken.trim().length > 0 ? rawToken.trim() : null;
 
@@ -666,33 +695,46 @@ export async function composioGmailFetchMessageById(
   body: string | null;
   html: string | null;
 }> {
-  const data = await executeComposioTool(userId, GMAIL_TOOL.fetchMessageById, {
-    message_id: messageId,
-    id: messageId,
-    user_id: "me",
-  });
+  try {
+    const data = await executeComposioTool(userId, GMAIL_TOOL.fetchMessageById, {
+      message_id: messageId,
+      id: messageId,
+      user_id: "me",
+    });
 
-  const message = normalizeMessage(data) || normalizeMessage(data.message) || (data as any);
-  const payload = (asRecord(data.payload) ?? asRecord((data as any).message?.payload)) as GmailPayload | undefined;
-  // Pitfall 5: Body content may be base64url in payload.parts[].body.data and requires base64url decoding
-  const bodyInfo = extractBodyFromPayload(payload);
+    const message = normalizeMessage(data) || normalizeMessage(data.message) || (data as any);
+    const payload = (asRecord(data.payload) ?? asRecord((data as any).message?.payload)) as GmailPayload | undefined;
+    // Pitfall 5: Body content may be base64url in payload.parts[].body.data and requires base64url decoding
+    const bodyInfo = extractBodyFromPayload(payload);
 
-  return {
-    id: messageId,
-    threadId: firstString(message?.threadId, data.threadId, (data as any).thread_id),
-    subject: (message ? messageSubject(message) : null) || getHeader(payload, "Subject"),
-    from: (message ? messageFrom(message) : null) || getHeader(payload, "From"),
-    to: getHeader(payload, "To"),
-    date: (message ? messageDate(message) : null) || getHeader(payload, "Date"),
-    labelIds: Array.isArray(data.labelIds)
-      ? data.labelIds
-      : Array.isArray((data as any).label_ids)
-      ? (data as any).label_ids
-      : [],
-    snippet: firstString(message?.snippet, data.snippet),
-    body: bodyInfo.text || bodyInfo.html || firstString(message?.messageText, (data as any).body, (data as any).text),
-    html: bodyInfo.html || null,
-  };
+    return {
+      id: messageId,
+      threadId: firstString(message?.threadId, data.threadId, (data as any).thread_id),
+      subject: (message ? messageSubject(message) : null) || getHeader(payload, "Subject"),
+      from: (message ? messageFrom(message) : null) || getHeader(payload, "From"),
+      to: getHeader(payload, "To"),
+      date: (message ? messageDate(message) : null) || getHeader(payload, "Date"),
+      labelIds: Array.isArray(data.labelIds)
+        ? data.labelIds
+        : Array.isArray((data as any).label_ids)
+        ? (data as any).label_ids
+        : [],
+      snippet: firstString(message?.snippet, data.snippet),
+      body: bodyInfo.text || bodyInfo.html || firstString(message?.messageText, (data as any).body, (data as any).text),
+      html: bodyInfo.html || null,
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    // Pitfall 5: 404 notFound can occur for stale/invalid IDs; only hydrate messageId values from current GMAIL_FETCH_EMAILS listing
+    if (/404|notFound|not found/i.test(msg)) {
+      throw new Error(`Message ${messageId} not found or ID is stale (404 notFound). Only hydrate messageId values from the current GMAIL_FETCH_EMAILS listing.`);
+    }
+    // 401/403 can also occur mid-flow if scope changes
+    if (/401|403|scope|unauthorized|forbidden/i.test(msg)) {
+      throw new Error(`Gmail authorization error (401/403): Mailbox scope may have changed mid-flow. Please verify permissions in Settings > Integrations.`);
+    }
+    throw error;
+  }
 }
 
 export async function composioGmailFetchThreadById(

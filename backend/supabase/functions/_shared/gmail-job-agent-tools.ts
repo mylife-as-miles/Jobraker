@@ -752,6 +752,10 @@ export interface FetchEmailsByPeriodArgs {
   verbose?: boolean;
   validate_profile?: boolean;
   use_thread_fallback?: boolean;
+  top_n?: number;
+  sort_newest?: boolean;
+  max_pages?: number;
+  hydrate_count?: number;
 }
 
 export function buildTimePeriodQuery(args: FetchEmailsByPeriodArgs): {
@@ -872,7 +876,7 @@ export async function agentFetchEmailsByPeriod(
     }
   }
 
-  // Step 2 (Optional): If filtering by label name and label_ids is not passed, resolve label ID
+  // Step 2 (Optional / Step 5): If filtering by label name and label_ids is not passed, resolve label ID
   let resolvedLabelIds = args.label_ids ? [...args.label_ids] : [];
   if (args.label_name && resolvedLabelIds.length === 0) {
     try {
@@ -884,11 +888,11 @@ export async function agentFetchEmailsByPeriod(
   }
 
   const { query, startUtcEpochMs, endUtcEpochMs } = buildTimePeriodQuery(args);
-  // Step 3: Metadata-first with include_payload=false and practical max_results up to 500
+  // Step 2: Metadata-first with include_payload=false and practical max_results up to 500
   const maxResults = Math.min(Math.max(1, Number(args.max_results || 20)), 500);
 
   try {
-    // Step 3 & 4: Retrieve first page using GMAIL_FETCH_EMAILS and paginate with page_token
+    // Step 2: Fetch lightweight first page using GMAIL_FETCH_EMAILS
     let fetchResult = await composioGmailFetchEmails(userId, {
       query,
       maxResults,
@@ -898,27 +902,7 @@ export async function agentFetchEmailsByPeriod(
       labelIds: resolvedLabelIds.length > 0 ? resolvedLabelIds : undefined,
     });
 
-    // Fallback: If results are unexpectedly empty and constraints were strict, retry with broader window
-    if (fetchResult.messages.length === 0 && (args.after || args.before || args.time_period || args.start_date || args.end_date)) {
-      const broaderQuery = args.query ? args.query.trim() : "newer_than:60d";
-      if (broaderQuery !== query) {
-        try {
-          const retryResult = await composioGmailFetchEmails(userId, {
-            query: broaderQuery,
-            maxResults,
-            includePayload: args.include_payload === true,
-            verbose: false,
-          });
-          if (retryResult.messages.length > 0) {
-            fetchResult = retryResult;
-          }
-        } catch {
-          // ignore retry error and keep original result
-        }
-      }
-    }
-
-    // Step 4: Aggregate and deduplicate by messageId
+    // Step 3: Aggregate and deduplicate by messageId
     const seen = new Set<string>();
     const deduplicated: ComposioGmailMessage[] = [];
     for (const msg of fetchResult.messages) {
@@ -928,21 +912,109 @@ export async function agentFetchEmailsByPeriod(
       }
     }
 
+    // Step 3: Paginate with GMAIL_FETCH_EMAILS (page_token=nextPageToken) until nextPageToken is missing/empty or desired count reached
+    let currentPage = 1;
+    let nextToken = fetchResult.nextPageToken;
+    const maxPages = Math.min(Math.max(1, Number(args.max_pages || 1)), 5);
+    const targetCount = args.top_n ? Math.min(Math.max(1, Number(args.top_n)), 100) : 0;
+
+    while (nextToken && (currentPage < maxPages || (targetCount > 0 && deduplicated.length < targetCount))) {
+      try {
+        const nextPageResult = await composioGmailFetchEmails(userId, {
+          query,
+          maxResults,
+          includePayload: false,
+          verbose: false,
+          pageToken: nextToken,
+          labelIds: resolvedLabelIds.length > 0 ? resolvedLabelIds : undefined,
+        });
+        currentPage++;
+        for (const msg of nextPageResult.messages) {
+          if (!seen.has(msg.id)) {
+            seen.add(msg.id);
+            deduplicated.push(msg);
+          }
+        }
+        nextToken = nextPageResult.nextPageToken;
+      } catch (pageErr) {
+        console.warn("[composio-gmail] pagination warning:", pageErr);
+        break;
+      }
+    }
+
+    // Step 8 Fallback: If results are unexpectedly empty and constraints were strict, retry with broader window
+    if (deduplicated.length === 0 && (args.after || args.before || args.time_period || args.start_date || args.end_date)) {
+      const broaderQuery = args.query ? args.query.trim() : "newer_than:60d";
+      if (broaderQuery !== query) {
+        try {
+          const retryResult = await composioGmailFetchEmails(userId, {
+            query: broaderQuery,
+            maxResults,
+            includePayload: false,
+            verbose: false,
+          });
+          for (const msg of retryResult.messages) {
+            if (!seen.has(msg.id)) {
+              seen.add(msg.id);
+              deduplicated.push(msg);
+            }
+          }
+          if (retryResult.nextPageToken) nextToken = retryResult.nextPageToken;
+        } catch {
+          // ignore retry error and keep original result
+        }
+      }
+    }
+
     // Step 4: Validate/filter each item by messageTimestamp/internalDate against intended UTC cutoff
-    const filtered = deduplicated.filter((msg) =>
+    let filtered = deduplicated.filter((msg) =>
       isMessageWithinCutoff(msg, { startUtcEpochMs, endUtcEpochMs })
     );
 
-    const formattedMessages = filtered.map((msg) => ({
-      id: msg.id,
-      threadId: msg.threadId,
-      date: msg.date || msg.internalDate,
-      from: msg.from,
-      subject: msg.subject,
-      snippet: msg.snippet,
-    }));
+    // Step 4 (Optional): If you must guarantee newest-N/latest, sort aggregated listings client-side by internalDate/messageTimestamp and take top N
+    if (args.sort_newest || args.top_n) {
+      filtered.sort((a, b) => getMessageEpochMs(b) - getMessageEpochMs(a));
+      if (args.top_n) {
+        filtered = filtered.slice(0, Math.max(1, Number(args.top_n)));
+      }
+    }
 
-    // Step 6 Fallback (Optional thread discovery): If requested or needed for conversation grouping
+    // Step 6 (Optional): If full headers/body are needed for selected items, hydrate chosen messages using GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID
+    const hydrateCount = Math.min(Math.max(0, Number(args.hydrate_count || 0)), 10);
+    const hydratedMap = new Map<string, any>();
+    if (hydrateCount > 0) {
+      const toHydrate = filtered.slice(0, hydrateCount);
+      for (const item of toHydrate) {
+        try {
+          const details = await composioGmailFetchMessageById(userId, item.id);
+          hydratedMap.set(item.id, details);
+        } catch (hErr) {
+          console.warn(`[composio-gmail] hydration error for message ${item.id}:`, hErr);
+        }
+      }
+    }
+
+    const formattedMessages = filtered.map((msg) => {
+      const hydrated = hydratedMap.get(msg.id);
+      return {
+        id: msg.id,
+        threadId: msg.threadId,
+        date: msg.date || msg.internalDate,
+        from: msg.from,
+        subject: msg.subject,
+        snippet: msg.snippet,
+        ...(hydrated
+          ? {
+              body: hydrated.body,
+              html: hydrated.html,
+              to: hydrated.to,
+              labelIds: hydrated.labelIds,
+            }
+          : {}),
+      };
+    });
+
+    // Step 7 (Optional conversation context): If conversation context is needed or requested
     let threadsResult = null;
     if (args.use_thread_fallback) {
       try {
@@ -959,16 +1031,24 @@ export async function agentFetchEmailsByPeriod(
       success: true,
       messages: formattedMessages,
       // Pitfall 1: nextPageToken may be an empty string; falsey treated as null
-      nextPageToken: fetchResult.nextPageToken,
+      nextPageToken: nextToken,
       totalCount: formattedMessages.length,
       queryUsed: query,
-      hasMore: Boolean(fetchResult.nextPageToken),
+      hasMore: Boolean(nextToken),
       ...(profileInfo ? { profile: profileInfo } : {}),
       ...(threadsResult ? { threads: threadsResult.threads } : {}),
     };
   } catch (error) {
     return composioFailure(error, "gmail_fetch_emails_failed");
   }
+}
+
+export async function agentFetchEmails(
+  serviceClient: SupabaseClient,
+  userId: string,
+  args: FetchEmailsByPeriodArgs = {},
+) {
+  return agentFetchEmailsByPeriod(serviceClient, userId, args);
 }
 
 export async function agentGetGmailProfile(
