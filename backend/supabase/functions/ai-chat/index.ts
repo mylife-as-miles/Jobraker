@@ -5894,13 +5894,30 @@ Evidence and failure reporting:
                               markdown: cleanText,
                             };
                           } else {
-                            result = rtrvrRes;
+                            result = {
+                              success: true,
+                              source: "protected_page_notice",
+                              url: targetUrl,
+                              http_status: directFetchRes.status,
+                              notice: `The target webpage (${targetUrl}) is protected by Cloudflare bot verification or anti-scraping controls (HTTP ${directFetchRes.status}). Automated scraping was intercepted by the target domain's protection wall.`,
+                              guidance: "Inform the user that this specific URL is protected by Cloudflare/anti-bot security, and suggest either pasting the job details directly into the chat or using JobRaker's native job search tool to find equivalent openings.",
+                            };
                           }
-                        } catch {
-                          result = rtrvrRes;
+                        } catch (directErr) {
+                          result = {
+                            success: true,
+                            source: "protected_page_notice",
+                            url: targetUrl,
+                            notice: `Could not reach ${targetUrl} directly: ${directErr instanceof Error ? directErr.message : "network failure"}. The site may require interactive browser verification.`,
+                            guidance: "Inform the user that the site could not be reached due to network or anti-bot protection and recommend pasting the job description text or using native job search.",
+                          };
                         }
                       } else {
-                        result = rtrvrRes;
+                        result = {
+                          success: true,
+                          warning: "No valid URL was provided for scraping.",
+                          guidance: "Ask the user to provide a valid webpage URL.",
+                        };
                       }
                     } else {
                       result = rtrvrRes;

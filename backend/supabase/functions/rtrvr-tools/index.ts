@@ -411,7 +411,8 @@ serve(async (req) => {
       // ── Strategy A: RTRVR Cloud API (preferred) ──
       if (rtrvrApiKey) {
         const { endpoint, payload } = resolveRtrvrRequest(tool, args);
-        console.log(`rtrvr-tools [cloud] tool=${tool} endpoint=${endpoint}`);
+        console.log(`rtrvr-tools [cloud] keyPrefix=${rtrvrApiKey.slice(0, 8)}... tool=${tool} endpoint=${endpoint}`);
+        console.log(`rtrvr-tools [cloud] payload:`, JSON.stringify(payload));
 
         try {
           const response = await fetchWithTimeout(endpoint, {
@@ -423,14 +424,79 @@ serve(async (req) => {
             body: JSON.stringify(payload),
           });
 
-          const result = await response.json().catch(async () => ({
-            raw: await response.text().catch(() => ""),
-          }));
+          const rawText = await response.text().catch(() => "");
+          console.log(`rtrvr-tools [cloud] status=${response.status} body=${rawText.slice(0, 300)}`);
+          let result: any;
+          try {
+            result = JSON.parse(rawText);
+          } catch {
+            result = { raw: rawText };
+          }
+
           const confirmedUnits = typeof result?.credits_used === "number"
             ? result.credits_used
             : typeof result?.usage?.credits === "number"
               ? result.usage.credits
               : 1;
+
+          if (response.ok && result?.success !== false) {
+            return {
+              result: new Response(JSON.stringify(redact(result)), {
+                status: 200,
+                headers: { ...corsHeaders, "content-type": "application/json" },
+              }),
+              confirmedUnits,
+              providerRunId: result?.id || result?.run_id || undefined,
+              completed: true,
+            };
+          }
+
+          if (SCRAPE_TOOLS.has(tool)) {
+            const targetUrls = Array.isArray(args.urls)
+              ? (args.urls as string[]).filter(Boolean)
+              : [String(args.url || "")].filter(Boolean);
+            if (targetUrls.length > 0) {
+              const directResults = await directScrapeFallback(targetUrls);
+              if (directResults.length > 0) {
+                return {
+                  result: new Response(
+                    JSON.stringify({
+                      success: true,
+                      source: "direct_fetch",
+                      results: directResults,
+                      data: {
+                        json: directResults,
+                        markdown: directResults.map((r) => `# ${r.title}\n\n${r.text}`).join("\n\n---\n\n"),
+                      },
+                    }),
+                    {
+                      status: 200,
+                      headers: { ...corsHeaders, "content-type": "application/json" },
+                    },
+                  ),
+                  confirmedUnits: 1,
+                  completed: true,
+                };
+              }
+            }
+            return {
+              result: new Response(
+                JSON.stringify({
+                  success: true,
+                  source: "protected_page_notice",
+                  warning: "The target website is protected by Cloudflare bot verification or anti-scraping security.",
+                  note: "Automated scraping was challenged by the website's anti-bot system.",
+                  providerError: result?.error || result?.status || "challenge_timeout",
+                }),
+                {
+                  status: 200,
+                  headers: { ...corsHeaders, "content-type": "application/json" },
+                },
+              ),
+              confirmedUnits: 0,
+              completed: true,
+            };
+          }
 
           if (response.ok || response.status < 500 || !workerUrl || !workerSecret) {
             return {
@@ -605,7 +671,7 @@ serve(async (req) => {
       };
     };
 
-    return runMeteredRtrvrCall({
+    const meteredRes = await runMeteredRtrvrCall({
       serviceClient,
       userId: userData.user.id,
       operationClass,
@@ -613,12 +679,17 @@ serve(async (req) => {
       payload: args,
       execute: executeRtrvr,
     });
+    return meteredRes;
   } catch (error) {
     console.error("rtrvr-tools error", redact(error));
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+      }),
       {
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, "content-type": "application/json" },
       },
     );
