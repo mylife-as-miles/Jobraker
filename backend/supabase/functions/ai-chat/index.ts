@@ -29,8 +29,12 @@ import {
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
 import {
+  agentBatchModifyEmails,
   agentCreateJobRelatedDraft,
+  agentFetchEmailsByPeriod,
   agentFetchMessageMetadata,
+  agentFetchThreadContext,
+  agentGetEmailAttachment,
   agentGetJobRelatedDraft,
   agentLabelJobRelatedEmails,
   agentListSendAsIdentities,
@@ -75,6 +79,10 @@ const SKYVERN_TERMINAL_PROVIDER_STATUSES = new Set([
 const ACTIVE_APPLICATION_STATUSES = new Set(["Pending", "Applied", "Interview"]);
 const GMAIL_AGENT_TOOL_NAMES = new Set([
   "search_gmail_job_emails",
+  "fetch_gmail_emails_by_period",
+  "fetch_gmail_thread",
+  "get_gmail_attachment",
+  "batch_modify_gmail_emails",
   "create_gmail_job_draft",
   "send_gmail_job_email",
   "label_gmail_job_emails",
@@ -280,6 +288,26 @@ function describeAgentApprovalStep(
       toolName,
       title: "Inspect Gmail correspondence",
       detail: "Read draft, message, or sender identity metadata via Composio.",
+      kind: "email",
+    };
+  }
+  if (toolName === "batch_modify_gmail_emails") {
+    return {
+      toolName,
+      title: "Batch modify Gmail messages",
+      detail: "Update labels or read status on selected Gmail messages via Composio.",
+      kind: "email",
+    };
+  }
+  if (
+    toolName === "fetch_gmail_emails_by_period" ||
+    toolName === "fetch_gmail_thread" ||
+    toolName === "get_gmail_attachment"
+  ) {
+    return {
+      toolName,
+      title: "Fetch Gmail messages or attachments",
+      detail: "Retrieve emails, thread context, or attachments for a specific time period via Composio.",
       kind: "email",
     };
   }
@@ -3489,6 +3517,108 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "fetch_gmail_emails_by_period",
+    description:
+      "Fetch emails from the user's connected Gmail for a specific time period using GMAIL_FETCH_EMAILS. Supports preset time periods ('today', 'yesterday', 'last_7_days', 'last_14_days', 'last_30_days', 'last_90_days') or specific calendar dates (after, before). Automatically applies UTC cutoff validation, deduplication, and handles pagination tokens.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Optional keywords, sender, or subject filters to combine with the time filter.",
+        },
+        time_period: {
+          type: "string",
+          description: "Time range preset: 'today', 'yesterday', 'last_7_days', 'last_14_days', 'last_30_days', 'last_90_days', or 'custom'.",
+        },
+        after: {
+          type: "string",
+          description: "Cutoff start date in YYYY/MM/DD or ISO format (e.g. '2026/08/01').",
+        },
+        before: {
+          type: "string",
+          description: "Cutoff end date in YYYY/MM/DD or ISO format (e.g. '2026/09/01').",
+        },
+        newer_than: {
+          type: "string",
+          description: "Relative cutoff window like '7d', '14d', '30d', or '1y'.",
+        },
+        max_results: {
+          type: "number",
+          description: "Max emails to return (default 15, max 50).",
+        },
+        page_token: {
+          type: "string",
+          description: "Pagination token from a previous fetch_gmail_emails_by_period call.",
+        },
+        include_payload: {
+          type: "boolean",
+          description: "Whether to include full payload (defaults to false for faster retrieval).",
+        },
+      },
+    },
+  },
+  {
+    name: "fetch_gmail_thread",
+    description:
+      "Fetch the full context and all messages of a Gmail conversation thread using GMAIL_FETCH_MESSAGE_BY_THREAD_ID. Takes thread_id.",
+    parameters: {
+      type: "object",
+      properties: {
+        thread_id: {
+          type: "string",
+          description: "Exact Gmail thread identifier to retrieve.",
+        },
+      },
+      required: ["thread_id"],
+    },
+  },
+  {
+    name: "get_gmail_attachment",
+    description:
+      "Download file attachment metadata and content from an email using GMAIL_GET_ATTACHMENT. Takes message_id and attachment_id.",
+    parameters: {
+      type: "object",
+      properties: {
+        message_id: {
+          type: "string",
+          description: "Message ID containing the attachment.",
+        },
+        attachment_id: {
+          type: "string",
+          description: "Attachment identifier from message details.",
+        },
+      },
+      required: ["message_id", "attachment_id"],
+    },
+  },
+  {
+    name: "batch_modify_gmail_emails",
+    description:
+      "Apply or remove labels, or mark read/unread for multiple messages in bulk using GMAIL_BATCH_MODIFY_MESSAGES.",
+    parameters: {
+      type: "object",
+      properties: {
+        message_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of Gmail message IDs to modify.",
+        },
+        add_label_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of Gmail label IDs to add (e.g. UNREAD, INBOX, or custom label IDs).",
+        },
+        remove_label_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of Gmail label IDs to remove.",
+        },
+      },
+      required: ["message_ids"],
+    },
+  },
+  {
     name: "label_gmail_job_emails",
     description:
       "Apply a JobRaker Gmail label to job-search correspondence only. Uses either explicit Gmail message IDs from search_gmail_job_emails or the same fixed job-related server query with optional company/role refinement. Requires Gmail connected with modify permission.",
@@ -3749,14 +3879,34 @@ Deno.serve(async (req) => {
 Email & Outreach via Composio / Gmail:
 - You HAVE FULL ABILITY to search, read, write, draft, verify, and send emails through the user's connected Gmail/Composio account.
 - Available tools:
+  - fetch_gmail_emails_by_period / GMAIL_FETCH_EMAILS: Retrieve emails matching time filters (e.g. today, yesterday, last_7_days, last_30_days, after/before dates).
+  - fetch_gmail_thread / GMAIL_FETCH_MESSAGE_BY_THREAD_ID: Get all messages in a conversation thread.
+  - get_gmail_attachment / GMAIL_GET_ATTACHMENT: Download message attachments.
+  - batch_modify_gmail_emails / GMAIL_BATCH_MODIFY_MESSAGES: Update labels or read/unread state in bulk.
+  - search_gmail_job_emails: Search recent application and recruiter correspondence.
+  - label_gmail_job_emails: Organize and label application threads in Gmail.
   - send_gmail_job_email / GMAIL_SEND_EMAIL: Direct email delivery.
   - create_gmail_job_draft / GMAIL_CREATE_EMAIL_DRAFT: Create draft in user's Gmail.
   - list_gmail_send_as / GMAIL_LIST_SEND_AS: List permitted sender aliases/identities.
   - get_gmail_draft / GMAIL_GET_DRAFT: Inspect draft content before sending.
   - send_gmail_draft / GMAIL_SEND_DRAFT: Send an existing draft using draft_id.
-  - fetch_gmail_message / GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID: Retrieve sent message metadata and labels.
-  - search_gmail_job_emails: Search recent application and recruiter correspondence.
-  - label_gmail_job_emails: Organize and label application threads in Gmail.
+  - fetch_gmail_message / GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID: Retrieve sent/received message metadata, headers, labels, and decoded body.
+
+Standard 7-Step Workflow for Fetching Emails for a Specific Time Period:
+1. Define timezone & cutoff semantics: Define mailbox timezone and cutoff semantics (calendar-day 'after:YYYY/MM/DD before:YYYY/MM/DD' vs rolling window 'newer_than:Nd') to construct the correct time filter for GMAIL_FETCH_EMAILS / fetch_gmail_emails_by_period.
+2. Retrieve first page: Call fetch_gmail_emails_by_period / GMAIL_FETCH_EMAILS (prefer include_payload=false and verbose=false for fast lightweight responses; set a practical max_results) and capture messages plus nextPageToken.
+3. Paginate & de-dupe: If more results exist, paginate by re-calling GMAIL_FETCH_EMAILS with page_token until completion; aggregate and de-dupe by messages[].id (if volume is high, split the window into smaller intervals and rerun).
+4. Validate UTC cutoff: Validate and filter each item by messageTimestamp / internalDate against the intended UTC cutoff. If mailbox timezone drift is suspected, broaden query window slightly and filter strictly client-side.
+5. Hydrate content / context (Optional): Hydrate selected items using fetch_gmail_message (GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID); expand context with fetch_gmail_thread (GMAIL_FETCH_MESSAGE_BY_THREAD_ID); download files using get_gmail_attachment (GMAIL_GET_ATTACHMENT).
+6. Tag / mark processed (Optional): Resolve label IDs using listLabels / createLabel, then apply label or read-state updates using batch_modify_gmail_emails (GMAIL_BATCH_MODIFY_MESSAGES).
+7. Fallback for empty results: If results are unexpectedly empty, retry fetch_gmail_emails_by_period / GMAIL_FETCH_EMAILS with a broader time window and fewer constraints to distinguish no-matches from over-filtering or transient behavior.
+
+5 Critical Pitfalls for Fetching Emails:
+1. Stop on falsey token: nextPageToken may be an empty string ""; treat falsey tokens as the terminal stop condition to avoid extra loops.
+2. Truncated / Preview listings: Large listings may be offloaded/truncated; messages can appear under response.data_preview.messages instead of response.data.messages.
+3. Mailbox vs UTC timezone drift: Query date operators are mailbox-local while messageTimestamp/internalDate are UTC; client-side timestamp validation is required for precise cutoffs.
+4. Scan 403 errors: 403 errors can occur during scans (e.g., rateLimitExceeded or delegation constraints); retry with exponential backoff rather than changing mailbox identity via unsupported targeting.
+5. Base64url body decoding: Body content may be base64url encoded in payload.parts[].body.data and requires base64url decoding to extract text/HTML.
 
 Standard 5-Step Workflow for Sending an Email to Someone:
 1. Confirm final details: ALWAYS confirm recipient (to), CC/BCC (if any), subject, body, is_html, any attachments, and send-now vs draft-first before invoking send_gmail_job_email or GMAIL_SEND_EMAIL (sending is irreversible).
@@ -3765,7 +3915,7 @@ Standard 5-Step Workflow for Sending an Email to Someone:
 4. Fallback / Draft-first flow (Safer review): If direct sending fails validation or the user prefers safer review, create a draft using create_gmail_job_draft (or GMAIL_CREATE_EMAIL_DRAFT), verify content using get_gmail_draft (or GMAIL_GET_DRAFT), and then send using send_gmail_draft (or GMAIL_SEND_DRAFT) using the draft identifier (draft_id).
 5. Post-send verification (Optional): Fetch sent message metadata using fetch_gmail_message (or GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID) to confirm headers and labels.
 
-5 Critical Pitfalls to Avoid:
+5 Critical Pitfalls to Avoid When Sending Emails:
 1. Non-idempotent: Retrying after transient failures can create duplicate outbound messages. Prefer the draft-first flow when unsure.
 2. 400 validation: 400 validation errors occur if recipients are missing/empty or if both subject and body are omitted. Always ensure valid email addresses and non-empty subject and body.
 3. 403 / 400 Scope errors: 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT or 400 FAILED_PRECONDITION indicates wrong connected account or missing scopes. Advise the user to reconnect Gmail in Settings > Integrations.
@@ -5206,6 +5356,42 @@ Evidence and failure reporting:
                           serviceClient,
                           userId,
                           (args || {}) as { message_id?: string },
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "fetch_gmail_emails_by_period") {
+                    result = canUseEmailIntegrations
+                      ? await agentFetchEmailsByPeriod(
+                          serviceClient,
+                          userId,
+                          (args || {}) as any,
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "fetch_gmail_thread") {
+                    result = canUseEmailIntegrations
+                      ? await agentFetchThreadContext(
+                          serviceClient,
+                          userId,
+                          (args || {}) as { thread_id?: string },
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "get_gmail_attachment") {
+                    result = canUseEmailIntegrations
+                      ? await agentGetEmailAttachment(
+                          serviceClient,
+                          userId,
+                          (args || {}) as { message_id?: string; attachment_id?: string },
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "batch_modify_gmail_emails") {
+                    result = canUseEmailIntegrations
+                      ? await agentBatchModifyEmails(
+                          serviceClient,
+                          userId,
+                          (args || {}) as {
+                            message_ids?: string[];
+                            add_label_ids?: string[];
+                            remove_label_ids?: string[];
+                          },
                         )
                       : { success: false, error: "Email integrations are not enabled for this account." };
                   } else if (fn.name === "label_gmail_job_emails") {

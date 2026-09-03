@@ -10,20 +10,38 @@ const gmailAgentTools = read("backend/supabase/functions/_shared/gmail-job-agent
 
 describe("AI Chat Composio Gmail Integration", () => {
   describe("Composio Gmail Tool Slugs & Helpers", () => {
-    it("defines the full set of Composio Gmail tools including listSendAs, getDraft, sendDraft, fetchMessageById", () => {
+    it("defines the full set of Composio Gmail tools including listSendAs, getDraft, sendDraft, fetchMessageById, fetchThreadById, getAttachment, batchModifyMessages", () => {
       expect(composioGmail).toMatch(/listSendAs:\s*"GMAIL_LIST_SEND_AS"/);
       expect(composioGmail).toMatch(/getDraft:\s*"GMAIL_GET_DRAFT"/);
       expect(composioGmail).toMatch(/sendDraft:\s*"GMAIL_SEND_DRAFT"/);
       expect(composioGmail).toMatch(/fetchMessageById:\s*"GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID"/);
       expect(composioGmail).toMatch(/sendEmail:\s*"GMAIL_SEND_EMAIL"/);
       expect(composioGmail).toMatch(/createDraft:\s*"GMAIL_CREATE_EMAIL_DRAFT"/);
+      expect(composioGmail).toMatch(/fetchEmails:\s*"GMAIL_FETCH_EMAILS"/);
+      expect(composioGmail).toMatch(/fetchThreadById:\s*"GMAIL_FETCH_MESSAGE_BY_THREAD_ID"/);
+      expect(composioGmail).toMatch(/getAttachment:\s*"GMAIL_GET_ATTACHMENT"/);
+      expect(composioGmail).toMatch(/batchModifyMessages:\s*"GMAIL_BATCH_MODIFY_MESSAGES"/);
     });
 
-    it("exports helper functions for the complete workflow", () => {
+    it("exports helper functions for the complete email workflow", () => {
       expect(composioGmail).toMatch(/export async function composioGmailListSendAs/);
       expect(composioGmail).toMatch(/export async function composioGmailGetDraft/);
       expect(composioGmail).toMatch(/export async function composioGmailSendDraft/);
       expect(composioGmail).toMatch(/export async function composioGmailFetchMessageById/);
+      expect(composioGmail).toMatch(/export async function composioGmailFetchThreadById/);
+      expect(composioGmail).toMatch(/export async function composioGmailGetAttachment/);
+      expect(composioGmail).toMatch(/export async function composioGmailBatchModify/);
+      expect(composioGmail).toMatch(/export async function composioGmailFetchEmails/);
+      expect(composioGmail).toMatch(/export function decodeBase64Url/);
+      expect(composioGmail).toMatch(/export function isMessageWithinCutoff/);
+    });
+
+    it("handles large listings in data_preview.messages (Pitfall 2)", () => {
+      expect(composioGmail).toMatch(/data_preview/);
+    });
+
+    it("stops pagination on empty/falsey nextPageToken (Pitfall 1)", () => {
+      expect(composioGmail).toMatch(/nextPageToken may be an empty string/);
     });
 
     it("distinguishes draftId from messageId in draft creation and sending", () => {
@@ -33,13 +51,33 @@ describe("AI Chat Composio Gmail Integration", () => {
   });
 
   describe("Agent Tools Guardrails & API", () => {
-    it("exports agent tools for all steps of the Gmail workflow", () => {
+    it("exports agent tools for all steps of the Gmail sending and fetching workflow", () => {
       expect(gmailAgentTools).toMatch(/export async function agentCreateJobRelatedDraft/);
       expect(gmailAgentTools).toMatch(/export async function agentSendJobRelatedEmail/);
       expect(gmailAgentTools).toMatch(/export async function agentListSendAsIdentities/);
       expect(gmailAgentTools).toMatch(/export async function agentGetJobRelatedDraft/);
       expect(gmailAgentTools).toMatch(/export async function agentSendJobRelatedDraft/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchMessageMetadata/);
+      expect(gmailAgentTools).toMatch(/export async function agentFetchEmailsByPeriod/);
+      expect(gmailAgentTools).toMatch(/export async function agentFetchThreadContext/);
+      expect(gmailAgentTools).toMatch(/export async function agentGetEmailAttachment/);
+      expect(gmailAgentTools).toMatch(/export async function agentBatchModifyEmails/);
+      expect(gmailAgentTools).toMatch(/export function buildTimePeriodQuery/);
+    });
+
+    it("supports time period query construction with calendar-day and rolling window semantics", () => {
+      expect(gmailAgentTools).toMatch(/newer_than/);
+      expect(gmailAgentTools).toMatch(/last_7_days/);
+      expect(gmailAgentTools).toMatch(/last_30_days/);
+      expect(gmailAgentTools).toMatch(/today/);
+      expect(gmailAgentTools).toMatch(/yesterday/);
+      expect(gmailAgentTools).toMatch(/after/);
+      expect(gmailAgentTools).toMatch(/before/);
+    });
+
+    it("performs client-side UTC cutoff filtering and deduplication", () => {
+      expect(gmailAgentTools).toMatch(/isMessageWithinCutoff/);
+      expect(gmailAgentTools).toMatch(/seen\.has\(msg\.id\)/);
     });
 
     it("validates recipients, subjects, bodies, and handles 400 validation edge cases", () => {
@@ -56,9 +94,13 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/\{\s*slug:\s*"gmail",\s*label:\s*"Gmail",\s*toolkitSlug:\s*"gmail"\s*\}/);
     });
 
-    it("registers all 8 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
+    it("registers all 12 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
       const toolNames = [
         "search_gmail_job_emails",
+        "fetch_gmail_emails_by_period",
+        "fetch_gmail_thread",
+        "get_gmail_attachment",
+        "batch_modify_gmail_emails",
         "create_gmail_job_draft",
         "send_gmail_job_email",
         "label_gmail_job_emails",
@@ -77,7 +119,27 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/ALWAYS_APPROVE_TOOLS[\s\S]*?"send_gmail_draft"/);
     });
 
-    it("documents the 5-step workflow in system instructions", () => {
+    it("documents the 7-step fetching workflow in system instructions", () => {
+      expect(aiChat).toMatch(/Standard 7-Step Workflow for Fetching Emails for a Specific Time Period/);
+      expect(aiChat).toMatch(/1\.\s*Define timezone & cutoff semantics.*GMAIL_FETCH_EMAILS/);
+      expect(aiChat).toMatch(/2\.\s*Retrieve first page.*GMAIL_FETCH_EMAILS/);
+      expect(aiChat).toMatch(/3\.\s*Paginate & de-dupe.*page_token/);
+      expect(aiChat).toMatch(/4\.\s*Validate UTC cutoff.*internalDate/);
+      expect(aiChat).toMatch(/5\.\s*Hydrate content \/ context.*GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.*GMAIL_FETCH_MESSAGE_BY_THREAD_ID.*GMAIL_GET_ATTACHMENT/);
+      expect(aiChat).toMatch(/6\.\s*Tag \/ mark processed.*GMAIL_BATCH_MODIFY_MESSAGES/);
+      expect(aiChat).toMatch(/7\.\s*Fallback for empty results.*broader time window/);
+    });
+
+    it("documents the 5 critical pitfalls for fetching emails in system instructions", () => {
+      expect(aiChat).toMatch(/5 Critical Pitfalls for Fetching Emails/);
+      expect(aiChat).toMatch(/1\.\s*Stop on falsey token/);
+      expect(aiChat).toMatch(/2\.\s*Truncated \/ Preview listings.*response\.data_preview\.messages/);
+      expect(aiChat).toMatch(/3\.\s*Mailbox vs UTC timezone drift/);
+      expect(aiChat).toMatch(/4\.\s*Scan 403 errors/);
+      expect(aiChat).toMatch(/5\.\s*Base64url body decoding.*payload\.parts\[\]\.body\.data/);
+    });
+
+    it("documents the 5-step sending workflow in system instructions", () => {
       expect(aiChat).toMatch(/Standard 5-Step Workflow for Sending an Email to Someone/);
       expect(aiChat).toMatch(/1\.\s*Confirm final details.*GMAIL_SEND_EMAIL/);
       expect(aiChat).toMatch(/2\.\s*Sender identity \/ Alias.*GMAIL_LIST_SEND_AS/);
@@ -86,7 +148,7 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/5\.\s*Post-send verification.*GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID/);
     });
 
-    it("documents the 5 critical pitfalls in system instructions", () => {
+    it("documents the 5 critical pitfalls for sending emails in system instructions", () => {
       expect(aiChat).toMatch(/5 Critical Pitfalls to Avoid/);
       expect(aiChat).toMatch(/1\.\s*Non-idempotent/);
       expect(aiChat).toMatch(/2\.\s*400 validation/);

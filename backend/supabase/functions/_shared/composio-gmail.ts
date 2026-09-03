@@ -33,6 +33,9 @@ export const GMAIL_TOOL = {
   getDraft: "GMAIL_GET_DRAFT",
   sendDraft: "GMAIL_SEND_DRAFT",
   fetchMessageById: "GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID",
+  fetchThreadById: "GMAIL_FETCH_MESSAGE_BY_THREAD_ID",
+  getAttachment: "GMAIL_GET_ATTACHMENT",
+  batchModifyMessages: "GMAIL_BATCH_MODIFY_MESSAGES",
 } as const;
 
 const COMPOSIO_REST_BASE = "https://backend.composio.dev/api/v3.1";
@@ -339,10 +342,88 @@ function normalizeMessage(raw: unknown): ComposioGmailMessage | null {
   };
 }
 
+const textDecoder = new TextDecoder();
+
+export function decodeBase64Url(data?: string | null): string {
+  if (!data || typeof data !== "string") return "";
+  const normalized = data.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(
+    normalized.length + ((4 - (normalized.length % 4)) % 4),
+    "=",
+  );
+  try {
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return textDecoder.decode(bytes);
+  } catch {
+    return "";
+  }
+}
+
+export function extractBodyFromPayload(payload?: GmailPayload): { text: string; html: string } {
+  if (!payload) return { text: "", html: "" };
+  let text = "";
+  let html = "";
+
+  if (payload.body?.data) {
+    const decoded = decodeBase64Url(payload.body.data);
+    if (payload.mimeType?.includes("html")) {
+      html = decoded;
+    } else {
+      text = decoded;
+    }
+  }
+
+  if (Array.isArray(payload.parts)) {
+    for (const part of payload.parts) {
+      if (part.body?.data) {
+        const decoded = decodeBase64Url(part.body.data);
+        if (part.mimeType === "text/plain") {
+          text = text ? `${text}\n${decoded}` : decoded;
+        } else if (part.mimeType === "text/html") {
+          html = html ? `${html}\n${decoded}` : decoded;
+        }
+      }
+      if (Array.isArray(part.parts)) {
+        const nested = extractBodyFromPayload(part);
+        if (nested.text) text = text ? `${text}\n${nested.text}` : nested.text;
+        if (nested.html) html = html ? `${html}\n${nested.html}` : nested.html;
+      }
+    }
+  }
+
+  return { text, html };
+}
+
+export function getMessageEpochMs(message: ComposioGmailMessage): number | null {
+  if (message.internalDate) {
+    const parsed = parseInt(message.internalDate, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+  }
+  if (message.date) {
+    const parsed = Date.parse(message.date);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return null;
+}
+
+export function isMessageWithinCutoff(
+  message: ComposioGmailMessage,
+  cutoffs: { startUtcEpochMs?: number; endUtcEpochMs?: number },
+): boolean {
+  const epoch = getMessageEpochMs(message);
+  if (epoch === null) return true;
+  if (cutoffs.startUtcEpochMs != null && epoch < cutoffs.startUtcEpochMs) return false;
+  if (cutoffs.endUtcEpochMs != null && epoch > cutoffs.endUtcEpochMs) return false;
+  return true;
+}
+
 export interface FetchEmailsOptions {
   query: string;
   maxResults: number;
   includePayload?: boolean;
+  verbose?: boolean;
   pageToken?: string;
 }
 
@@ -358,24 +439,47 @@ export async function composioGmailFetchEmails(
   const data = await executeComposioTool(userId, GMAIL_TOOL.fetchEmails, {
     query: options.query,
     max_results: options.maxResults,
-    include_payload: options.includePayload !== false,
+    include_payload: Boolean(options.includePayload),
+    verbose: Boolean(options.verbose),
     user_id: "me",
     ...(options.pageToken ? { page_token: options.pageToken } : {}),
   });
 
-  const rawList = Array.isArray(data.messages)
-    ? data.messages
-    : Array.isArray((data as { data?: unknown }).data)
-    ? ((data as { data: unknown[] }).data)
+  const rawData = asRecord(data);
+  // Pitfall 2: Large listings may be offloaded/truncated; messages can appear under
+  // response.data_preview.messages, response.data.messages, response.response_data.messages, or inline
+  const rawList = Array.isArray(rawData?.messages)
+    ? rawData.messages
+    : Array.isArray((rawData?.data as any)?.messages)
+    ? (rawData.data as any).messages
+    : Array.isArray((rawData?.data_preview as any)?.messages)
+    ? (rawData.data_preview as any).messages
+    : Array.isArray((rawData?.response_data as any)?.messages)
+    ? (rawData.response_data as any).messages
+    : Array.isArray(rawData?.data)
+    ? (rawData.data as unknown[])
+    : Array.isArray(rawData?.items)
+    ? (rawData.items as unknown[])
     : [];
 
   const messages = rawList
     .map(normalizeMessage)
     .filter((m): m is ComposioGmailMessage => m !== null);
 
+  // Pitfall 1: nextPageToken may be an empty string; treat falsey tokens as null to avoid infinite loops
+  const rawToken = firstString(
+    rawData?.nextPageToken,
+    rawData?.next_page_token,
+    (rawData?.data as any)?.nextPageToken,
+    (rawData?.data as any)?.next_page_token,
+    (rawData?.data_preview as any)?.nextPageToken,
+    (rawData?.data_preview as any)?.next_page_token,
+  );
+  const nextPageToken = rawToken && rawToken.trim().length > 0 ? rawToken.trim() : null;
+
   return {
     messages,
-    nextPageToken: firstString(data.nextPageToken, data.next_page_token),
+    nextPageToken,
   };
 }
 
@@ -551,6 +655,8 @@ export async function composioGmailFetchMessageById(
   date: string | null;
   labelIds: string[];
   snippet: string | null;
+  body: string | null;
+  html: string | null;
 }> {
   const data = await executeComposioTool(userId, GMAIL_TOOL.fetchMessageById, {
     message_id: messageId,
@@ -560,6 +666,8 @@ export async function composioGmailFetchMessageById(
 
   const message = normalizeMessage(data) || normalizeMessage(data.message) || (data as any);
   const payload = (asRecord(data.payload) ?? asRecord((data as any).message?.payload)) as GmailPayload | undefined;
+  // Pitfall 5: Body content may be base64url in payload.parts[].body.data and requires base64url decoding
+  const bodyInfo = extractBodyFromPayload(payload);
 
   return {
     id: messageId,
@@ -574,7 +682,97 @@ export async function composioGmailFetchMessageById(
       ? (data as any).label_ids
       : [],
     snippet: firstString(message?.snippet, data.snippet),
+    body: bodyInfo.text || bodyInfo.html || firstString(message?.messageText, (data as any).body, (data as any).text),
+    html: bodyInfo.html || null,
   };
+}
+
+export async function composioGmailFetchThreadById(
+  userId: string,
+  threadId: string,
+): Promise<{
+  threadId: string;
+  messages: Array<{
+    id: string;
+    snippet: string;
+    from: string | null;
+    to: string | null;
+    subject: string | null;
+    date: string | null;
+    body: string | null;
+  }>;
+}> {
+  const data = await executeComposioTool(userId, GMAIL_TOOL.fetchThreadById, {
+    thread_id: threadId,
+    id: threadId,
+    user_id: "me",
+  });
+
+  const rawThread = asRecord(data.thread) || data;
+  const rawList = Array.isArray(rawThread.messages)
+    ? rawThread.messages
+    : Array.isArray((data as any).messages)
+    ? (data as any).messages
+    : [];
+
+  const messages = rawList.map((rawMsg: any) => {
+    const msg = normalizeMessage(rawMsg) || rawMsg;
+    const payload = (asRecord(msg?.payload) ?? asRecord(rawMsg?.payload)) as GmailPayload | undefined;
+    const bodyInfo = extractBodyFromPayload(payload);
+    return {
+      id: firstString(msg?.id, rawMsg?.id) ?? "",
+      snippet: firstString(msg?.snippet, rawMsg?.snippet) ?? "",
+      from: (msg ? messageFrom(msg) : null) || getHeader(payload, "From"),
+      to: getHeader(payload, "To"),
+      subject: (msg ? messageSubject(msg) : null) || getHeader(payload, "Subject"),
+      date: (msg ? messageDate(msg) : null) || getHeader(payload, "Date"),
+      body: bodyInfo.text || bodyInfo.html || firstString(msg?.messageText, rawMsg?.snippet),
+    };
+  });
+
+  return { threadId, messages };
+}
+
+export async function composioGmailGetAttachment(
+  userId: string,
+  args: { messageId: string; attachmentId: string },
+): Promise<{
+  attachmentId: string;
+  size: number;
+  data: string | null;
+  mimeType: string | null;
+}> {
+  const res = await executeComposioTool(userId, GMAIL_TOOL.getAttachment, {
+    message_id: args.messageId,
+    attachment_id: args.attachmentId,
+    id: args.attachmentId,
+    user_id: "me",
+  });
+
+  return {
+    attachmentId: args.attachmentId,
+    size: Number(res.size ?? 0),
+    data: firstString(res.data, (res as any).attachment_data),
+    mimeType: firstString(res.mimeType, (res as any).mime_type),
+  };
+}
+
+export async function composioGmailBatchModify(
+  userId: string,
+  args: {
+    messageIds: string[];
+    addLabelIds?: string[];
+    removeLabelIds?: string[];
+  },
+): Promise<{ success: boolean; modifiedCount: number }> {
+  await executeComposioTool(userId, GMAIL_TOOL.batchModifyMessages, {
+    ids: args.messageIds,
+    add_label_ids: args.addLabelIds || [],
+    remove_label_ids: args.removeLabelIds || [],
+    user_id: "me",
+  });
+
+  return { success: true, modifiedCount: args.messageIds.length };
 }
 
 export async function composioGmailResolveLabelId(
