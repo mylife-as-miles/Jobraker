@@ -39,6 +39,7 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(composioGmail).toMatch(/export async function composioGmailListThreads/);
       expect(composioGmail).toMatch(/export async function composioGmailListLabels/);
       expect(composioGmail).toMatch(/export async function composioGmailGetSendAs/);
+      expect(composioGmail).toMatch(/export function buildSubjectSenderQuery/);
       expect(composioGmail).toMatch(/export function decodeBase64Url/);
       expect(composioGmail).toMatch(/export function isMessageWithinCutoff/);
     });
@@ -71,6 +72,7 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(gmailAgentTools).toMatch(/export async function agentGetJobRelatedDraft/);
       expect(gmailAgentTools).toMatch(/export async function agentSendJobRelatedDraft/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchMessageMetadata/);
+      expect(gmailAgentTools).toMatch(/export async function agentSearchEmailsBySubjectSender/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchEmails/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchEmailsByPeriod/);
       expect(gmailAgentTools).toMatch(/export async function agentFetchThreadContext/);
@@ -123,9 +125,10 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/\{\s*slug:\s*"gmail",\s*label:\s*"Gmail",\s*toolkitSlug:\s*"gmail"\s*\}/);
     });
 
-    it("registers all 18 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
+    it("registers all 19 Gmail tools in GMAIL_AGENT_TOOL_NAMES", () => {
       const toolNames = [
         "search_gmail_job_emails",
+        "search_gmail_emails_by_subject_sender",
         "fetch_gmail_emails",
         "fetch_gmail_emails_by_period",
         "fetch_gmail_thread",
@@ -248,6 +251,26 @@ describe("AI Chat Composio Gmail Integration", () => {
       expect(aiChat).toMatch(/3\.\s*403 \/ 400 Scope errors/);
       expect(aiChat).toMatch(/4\.\s*Outbound persistence/);
       expect(aiChat).toMatch(/5\.\s*Draft identifier mismatch/);
+    });
+
+    it("documents the 7-step subject & sender search workflow in system instructions", () => {
+      expect(aiChat).toMatch(/Standard 7-Step Workflow for Searching Emails by Subject and Sender/);
+      expect(aiChat).toMatch(/1\.\s*Resolve labels.*GMAIL_LIST_LABELS/);
+      expect(aiChat).toMatch(/2\.\s*Search lightweight.*search_gmail_emails_by_subject_sender.*GMAIL_FETCH_EMAILS/);
+      expect(aiChat).toMatch(/3\.\s*Paginate.*page_token.*nextPageToken/);
+      expect(aiChat).toMatch(/4\.\s*Fallback for empty or broad results.*relaxed constraints/);
+      expect(aiChat).toMatch(/5\.\s*Hydrate hits.*GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID/);
+      expect(aiChat).toMatch(/6\.\s*Fetch thread context.*GMAIL_FETCH_MESSAGE_BY_THREAD_ID.*choose messages by timestamp/);
+      expect(aiChat).toMatch(/7\.\s*Download attachments.*GMAIL_GET_ATTACHMENT.*attachment_id/);
+    });
+
+    it("documents the 5 critical pitfalls for searching emails by subject and sender in system instructions", () => {
+      expect(aiChat).toMatch(/5 Critical Pitfalls for Searching Emails by Subject and Sender/);
+      expect(aiChat).toMatch(/1\.\s*Valid no-match state.*messages can be \[\]/);
+      expect(aiChat).toMatch(/2\.\s*Empty nextPageToken stop.*nextPageToken may be ""/);
+      expect(aiChat).toMatch(/3\.\s*Lightweight listing.*include_payload\/verbose/);
+      expect(aiChat).toMatch(/4\.\s*Message ID vs thread ID.*ID fields vary.*messageId vs id/);
+      expect(aiChat).toMatch(/5\.\s*Attachment ID source.*attachment_id must come from the hydrated message’s attachment metadata/);
     });
   });
 });

@@ -737,6 +737,47 @@ export async function composioGmailFetchMessageById(
   }
 }
 
+export interface SubjectSenderQueryOptions {
+  subject?: string;
+  sender?: string;
+  from?: string;
+  query?: string;
+  includeSpamTrash?: boolean;
+  relaxed?: boolean;
+}
+
+export function buildSubjectSenderQuery(options: SubjectSenderQueryOptions): string {
+  const parts: string[] = [];
+  const senderVal = options.sender || options.from;
+  if (senderVal && senderVal.trim()) {
+    parts.push(`from:${senderVal.trim()}`);
+  }
+
+  if (options.subject && options.subject.trim()) {
+    const cleanSub = options.subject.trim();
+    if (options.relaxed) {
+      const words = cleanSub.replace(/[^\w\s]/g, " ").trim().split(/\s+/).slice(0, 3).join(" ");
+      if (words) parts.push(`subject:(${words})`);
+    } else {
+      if (cleanSub.includes(" ")) {
+        parts.push(`subject:("${cleanSub}")`);
+      } else {
+        parts.push(`subject:${cleanSub}`);
+      }
+    }
+  }
+
+  if (options.query && options.query.trim()) {
+    parts.push(options.query.trim());
+  }
+
+  if (options.includeSpamTrash) {
+    parts.push("in:anywhere");
+  }
+
+  return parts.join(" ").trim();
+}
+
 export async function composioGmailFetchThreadById(
   userId: string,
   threadId: string,
@@ -780,6 +821,13 @@ export async function composioGmailFetchThreadById(
     };
   });
 
+  // Step 6: Choose messages by timestamp, not array order
+  messages.sort((a, b) => {
+    const timeA = a.date ? Date.parse(a.date) || 0 : 0;
+    const timeB = b.date ? Date.parse(b.date) || 0 : 0;
+    return timeA - timeB;
+  });
+
   return { threadId, messages };
 }
 
@@ -792,19 +840,35 @@ export async function composioGmailGetAttachment(
   data: string | null;
   mimeType: string | null;
 }> {
-  const res = await executeComposioTool(userId, GMAIL_TOOL.getAttachment, {
-    message_id: args.messageId,
-    attachment_id: args.attachmentId,
-    id: args.attachmentId,
-    user_id: "me",
-  });
+  // Pitfall 5: attachment_id must come from the hydrated message's attachment metadata; otherwise HTTP 400 INVALID_ARGUMENT is common
+  if (!args.attachmentId || !args.attachmentId.trim()) {
+    throw new Error("Invalid attachment_id: attachment_id must come from the hydrated message's attachment metadata.");
+  }
+  if (!args.messageId || !args.messageId.trim()) {
+    throw new Error("Invalid message_id: message_id is required to fetch an attachment (do not confuse with thread_id).");
+  }
 
-  return {
-    attachmentId: args.attachmentId,
-    size: Number(res.size ?? 0),
-    data: firstString(res.data, (res as any).attachment_data),
-    mimeType: firstString(res.mimeType, (res as any).mime_type),
-  };
+  try {
+    const res = await executeComposioTool(userId, GMAIL_TOOL.getAttachment, {
+      message_id: args.messageId,
+      attachment_id: args.attachmentId,
+      id: args.attachmentId,
+      user_id: "me",
+    });
+
+    return {
+      attachmentId: args.attachmentId,
+      size: Number(res.size ?? 0),
+      data: firstString(res.data, (res as any).attachment_data),
+      mimeType: firstString(res.mimeType, (res as any).mime_type),
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (/400|INVALID_ARGUMENT/i.test(msg)) {
+      throw new Error(`Gmail API 400 INVALID_ARGUMENT: attachment_id '${args.attachmentId}' must come from the hydrated message's attachment metadata.`);
+    }
+    throw error;
+  }
 }
 
 export async function composioGmailBatchModify(

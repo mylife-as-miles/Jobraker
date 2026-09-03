@@ -44,6 +44,7 @@ import {
   agentListGmailLabels,
   agentListGmailThreads,
   agentListSendAsIdentities,
+  agentSearchEmailsBySubjectSender,
   agentSearchJobRelatedEmails,
   agentSendJobRelatedDraft,
   agentSendJobRelatedEmail,
@@ -85,6 +86,7 @@ const SKYVERN_TERMINAL_PROVIDER_STATUSES = new Set([
 const ACTIVE_APPLICATION_STATUSES = new Set(["Pending", "Applied", "Interview"]);
 const GMAIL_AGENT_TOOL_NAMES = new Set([
   "search_gmail_job_emails",
+  "search_gmail_emails_by_subject_sender",
   "fetch_gmail_emails",
   "fetch_gmail_emails_by_period",
   "fetch_gmail_thread",
@@ -321,6 +323,7 @@ function describeAgentApprovalStep(
     };
   }
   if (
+    toolName === "search_gmail_emails_by_subject_sender" ||
     toolName === "fetch_gmail_emails" ||
     toolName === "fetch_gmail_emails_by_period" ||
     toolName === "fetch_gmail_thread" ||
@@ -3539,6 +3542,77 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "search_gmail_emails_by_subject_sender",
+    description:
+      "Search for specific emails in Gmail by subject and sender using GMAIL_FETCH_EMAILS. Starts lightweight (IDs/metadata only), supports pagination via page_token, automatic fallback to relaxed queries (simplifying subject, dropping sender, or searching spam/trash) if no matches are found, optional shortlist hydration via GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID, conversation context via GMAIL_FETCH_MESSAGE_BY_THREAD_ID, and attachment downloading via GMAIL_GET_ATTACHMENT.",
+    parameters: {
+      type: "object",
+      properties: {
+        subject: {
+          type: "string",
+          description: "Subject keywords or exact title to search for.",
+        },
+        sender: {
+          type: "string",
+          description: "Sender email address or name to search from.",
+        },
+        from: {
+          type: "string",
+          description: "Synonym for sender email address.",
+        },
+        query: {
+          type: "string",
+          description: "Optional additional search terms to combine.",
+        },
+        label_name: {
+          type: "string",
+          description: "Optional Gmail label display name to filter by.",
+        },
+        label_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional raw Gmail label IDs.",
+        },
+        max_results: {
+          type: "number",
+          description: "Max results per page (default 20, max 500).",
+        },
+        page_token: {
+          type: "string",
+          description: "Optional pagination token from a previous search.",
+        },
+        include_spam_trash: {
+          type: "boolean",
+          description: "Whether to include Spam and Trash in the search ('in:anywhere').",
+        },
+        hydrate_shortlist: {
+          type: "boolean",
+          description: "Whether to hydrate shortlisted hits with full headers and body via GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.",
+        },
+        hydrate_count: {
+          type: "number",
+          description: "Number of top hits to hydrate (default 5, max 10).",
+        },
+        thread_id: {
+          type: "string",
+          description: "Optional thread ID to fetch full conversation context for.",
+        },
+        get_thread_context: {
+          type: "boolean",
+          description: "Whether to fetch full conversation thread context for the top matched email.",
+        },
+        attachment_id: {
+          type: "string",
+          description: "Optional attachment ID to download from a hydrated email.",
+        },
+        message_id: {
+          type: "string",
+          description: "Message ID associated with the attachment to download.",
+        },
+      },
+    },
+  },
+  {
     name: "fetch_gmail_emails_by_period",
     description:
       "Fetch emails from the user's connected Gmail for a specific time period or date range and optional categories using GMAIL_FETCH_EMAILS. Supports preset time periods ('today', 'yesterday', 'last_7_days', 'last_14_days', 'last_30_days', 'last_90_days'), explicit dates (after/before, start_date/end_date), categories ('primary', 'updates', 'social', 'promotions', 'forums'), and labels. Automatically applies UTC cutoff validation, deduplication, metadata-first retrieval (max_results up to 500), and handles pagination tokens.",
@@ -4088,6 +4162,7 @@ Email & Outreach via Composio / Gmail:
 - Available tools:
   - check_gmail_connection_status: Run comprehensive health check confirming identity, read access, and optional cross-checks.
   - get_gmail_settings_send_as / GMAIL_SETTINGS_SEND_AS_GET: Validate settings readability and inspect send-as configuration.
+  - search_gmail_emails_by_subject_sender / GMAIL_FETCH_EMAILS: Search specific emails by subject and sender with lightweight metadata-first retrieval, pagination, automatic fallback to relaxed queries, and optional shortlist hydration.
   - fetch_gmail_emails / fetch_gmail_emails_by_period / GMAIL_FETCH_EMAILS: Fetch emails from Gmail with lightweight metadata-first retrieval, pagination, optional client-side sorting by date for newest-N, label resolution, and selective hydration via GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.
   - get_gmail_profile / GMAIL_GET_PROFILE: Validate mailbox access and view account profile metrics.
   - list_gmail_labels / GMAIL_LIST_LABELS: List all mailbox labels to map display names to IDs.
@@ -4103,6 +4178,22 @@ Email & Outreach via Composio / Gmail:
   - get_gmail_draft / GMAIL_GET_DRAFT: Inspect draft content before sending.
   - send_gmail_draft / GMAIL_SEND_DRAFT: Send an existing draft using draft_id.
   - fetch_gmail_message / GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID: Retrieve sent/received message metadata, headers, labels, and decoded body.
+
+Standard 7-Step Workflow for Searching Emails by Subject and Sender:
+1. Resolve labels (Optional): If label-scoped search is intended and label identifiers are unclear, resolve labels using list_gmail_labels (GMAIL_LIST_LABELS) (avoid over-restricting the query).
+2. Search lightweight: Search using search_gmail_emails_by_subject_sender (GMAIL_FETCH_EMAILS) with a query combining sender and subject terms; start lightweight (IDs/metadata only) and capture messageId/id plus threadId when present.
+3. Paginate (Optional): If nextPageToken is returned and completeness is required, paginate using GMAIL_FETCH_EMAILS with page_token until nextPageToken is falsey; merge and dedupe by messageId/id.
+4. Fallback for empty or broad results: If messages is empty or results are too broad, re-run GMAIL_FETCH_EMAILS with relaxed constraints (simplify subject, temporarily drop sender, optionally include spam/trash in:anywhere), then re-tighten once a pattern is found.
+5. Hydrate hits (Optional): If you must confirm headers/body or list output is truncated, hydrate shortlisted hits using fetch_gmail_message (GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID) (metadata first; full content only when needed).
+6. Fetch thread context (Optional): If thread context is needed, fetch the conversation using fetch_gmail_thread (GMAIL_FETCH_MESSAGE_BY_THREAD_ID) (or discover thread IDs via GMAIL_LIST_THREADS) and choose messages by timestamp, not array order.
+7. Download attachments (Optional): If attachment content is required, download attachments using get_gmail_attachment (GMAIL_GET_ATTACHMENT) with message_id and attachment_id from the hydrated message.
+
+5 Critical Pitfalls for Searching Emails by Subject and Sender:
+1. Valid no-match state: messages can be [] even on a successful call; treat as a valid no-match state (not an error) and adjust/relax the query.
+2. Empty nextPageToken stop: nextPageToken may be "" at the end; passing an empty page_token can cause loops or HTTP 400.
+3. Lightweight listing: include_payload/verbose on broad queries can produce oversized or truncated outputs; list lightly, then hydrate only a shortlist.
+4. Message ID vs thread ID: ID fields vary (messageId vs id); mixing messageId/threadId can trigger HTTP 400 INVALID_ARGUMENT or 404 NOT_FOUND; full bodies may require base64url decoding from payload parts.
+5. Attachment ID source: attachment_id must come from the hydrated message’s attachment metadata; otherwise HTTP 400 INVALID_ARGUMENT is common.
 
 Standard 8-Step Workflow for Fetching Emails from Gmail:
 1. Confirm mailbox access (Optional): If access/scope is uncertain, confirm mailbox access using get_gmail_profile (GMAIL_GET_PROFILE) to fail fast on auth/scope issues.
@@ -5554,6 +5645,14 @@ Evidence and failure reporting:
                             max_results?: number;
                             refine_query?: string;
                           },
+                        )
+                      : { success: false, error: "Email integrations are not enabled for this account." };
+                  } else if (fn.name === "search_gmail_emails_by_subject_sender") {
+                    result = canUseEmailIntegrations
+                      ? await agentSearchEmailsBySubjectSender(
+                          serviceClient,
+                          userId,
+                          (args || {}) as any,
                         )
                       : { success: false, error: "Email integrations are not enabled for this account." };
                   } else if (fn.name === "create_gmail_job_draft") {

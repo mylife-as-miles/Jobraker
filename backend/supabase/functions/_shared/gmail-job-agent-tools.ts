@@ -32,6 +32,7 @@ import {
   composioGmailResolveLabelId,
   composioGmailSendDraft,
   composioGmailSendEmail,
+  buildSubjectSenderQuery,
   decodeBase64Url,
   getComposioGmailConnection,
   getMessageEpochMs,
@@ -1385,3 +1386,201 @@ export async function agentBatchModifyEmails(
     return composioFailure(error, "gmail_batch_modify_failed");
   }
 }
+
+export interface SearchEmailsBySubjectSenderArgs {
+  subject?: string;
+  sender?: string;
+  from?: string;
+  query?: string;
+  label_name?: string;
+  label_ids?: string[];
+  max_results?: number;
+  page_token?: string;
+  include_spam_trash?: boolean;
+  hydrate_shortlist?: boolean;
+  hydrate_count?: number;
+  thread_id?: string;
+  get_thread_context?: boolean;
+  attachment_id?: string;
+  message_id?: string;
+}
+
+export async function agentSearchEmailsBySubjectSender(
+  _serviceClient: SupabaseClient,
+  userId: string,
+  args: SearchEmailsBySubjectSenderArgs = {},
+) {
+  const connection = await getComposioGmailConnection(userId);
+  if (!connection.connected) return gmailNotConnectedResult(connection);
+
+  // Step 7 (Optional attachment): If message_id and attachment_id are directly requested
+  if (args.attachment_id && args.message_id) {
+    try {
+      const attachment = await composioGmailGetAttachment(userId, {
+        messageId: args.message_id,
+        attachmentId: args.attachment_id,
+      });
+      return { success: true, attachment };
+    } catch (attErr) {
+      return composioFailure(attErr, "gmail_get_attachment_failed");
+    }
+  }
+
+  // Step 6 (Optional thread context): If thread_id is directly passed
+  if (args.thread_id && args.get_thread_context) {
+    try {
+      const threadResult = await composioGmailFetchThreadById(userId, args.thread_id);
+      return { success: true, thread: threadResult };
+    } catch (thErr) {
+      return composioFailure(thErr, "gmail_fetch_thread_failed");
+    }
+  }
+
+  // Step 1 (Optional label resolution): If label-scoped search is intended and label IDs are unclear
+  let resolvedLabelIds = args.label_ids ? [...args.label_ids] : [];
+  if (args.label_name && resolvedLabelIds.length === 0) {
+    try {
+      const resolvedId = await composioGmailResolveLabelId(userId, args.label_name);
+      if (resolvedId) resolvedLabelIds.push(resolvedId);
+    } catch {
+      // Avoid over-restricting the query
+    }
+  }
+
+  // Step 2: Search using GMAIL_FETCH_EMAILS with a query combining sender and subject terms
+  // Start lightweight (IDs/metadata only) and capture messageId/id plus threadId
+  const primaryQuery = buildSubjectSenderQuery({
+    subject: args.subject,
+    sender: args.sender || args.from,
+    query: args.query,
+    includeSpamTrash: args.include_spam_trash,
+    relaxed: false,
+  });
+
+  const maxResults = Math.min(Math.max(1, Number(args.max_results || 20)), 500);
+
+  try {
+    const fetchResult = await composioGmailFetchEmails(userId, {
+      query: primaryQuery,
+      maxResults,
+      includePayload: false,
+      verbose: false,
+      pageToken: args.page_token,
+      labelIds: resolvedLabelIds.length > 0 ? resolvedLabelIds : undefined,
+    });
+
+    const messages = fetchResult.messages;
+    let usedQuery = primaryQuery;
+    let fallbackUsed = false;
+
+    // Step 3 (Optional pagination): If page_token is passed or completeness is requested
+    const seen = new Set<string>();
+    const deduplicated: ComposioGmailMessage[] = [];
+    for (const msg of messages) {
+      if (!seen.has(msg.id)) {
+        seen.add(msg.id);
+        deduplicated.push(msg);
+      }
+    }
+
+    // Step 4 Fallback: If messages is empty or results are too broad, re-run with relaxed constraints
+    // (Pitfall 1: messages can be [] even on a successful call; treat as a valid no-match state and adjust/relax query)
+    if (deduplicated.length === 0 && (args.subject || args.sender || args.from)) {
+      const relaxedQuery = buildSubjectSenderQuery({
+        subject: args.subject,
+        sender: undefined, // temporarily drop sender or relax subject
+        query: args.query,
+        includeSpamTrash: true, // optionally include spam/trash
+        relaxed: true,
+      });
+
+      if (relaxedQuery && relaxedQuery !== primaryQuery) {
+        try {
+          const fallbackResult = await composioGmailFetchEmails(userId, {
+            query: relaxedQuery,
+            maxResults,
+            includePayload: false,
+            verbose: false,
+            labelIds: resolvedLabelIds.length > 0 ? resolvedLabelIds : undefined,
+          });
+          if (fallbackResult.messages.length > 0) {
+            for (const msg of fallbackResult.messages) {
+              if (!seen.has(msg.id)) {
+                seen.add(msg.id);
+                deduplicated.push(msg);
+              }
+            }
+            usedQuery = relaxedQuery;
+            fallbackUsed = true;
+          }
+        } catch {
+          // ignore fallback error and keep empty list
+        }
+      }
+    }
+
+    // Step 5 (Optional Hydration): Hydrate shortlisted hits using GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID
+    // (metadata first; full content only when needed; Pitfall 4: ID fields vary (messageId vs id))
+    const hydrateCount = args.hydrate_shortlist
+      ? Math.min(Math.max(1, Number(args.hydrate_count || 5)), 10)
+      : Math.min(Math.max(0, Number(args.hydrate_count || 0)), 10);
+
+    const hydratedDetails = new Map<string, any>();
+    if (hydrateCount > 0 && deduplicated.length > 0) {
+      const shortlist = deduplicated.slice(0, hydrateCount);
+      for (const item of shortlist) {
+        try {
+          const detail = await composioGmailFetchMessageById(userId, item.id);
+          hydratedDetails.set(item.id, detail);
+        } catch (hErr) {
+          console.warn(`[composio-gmail] hydration error for messageId ${item.id}:`, hErr);
+        }
+      }
+    }
+
+    // Step 6 (Optional thread context for first message if get_thread_context is requested)
+    let threadDetails = null;
+    if (args.get_thread_context && deduplicated.length > 0 && deduplicated[0].threadId) {
+      try {
+        threadDetails = await composioGmailFetchThreadById(userId, deduplicated[0].threadId);
+      } catch (thErr) {
+        console.warn("[composio-gmail] thread context error:", thErr);
+      }
+    }
+
+    const formattedList = deduplicated.map((m) => {
+      const hydrated = hydratedDetails.get(m.id);
+      return {
+        id: m.id,
+        threadId: m.threadId,
+        subject: m.subject || hydrated?.subject,
+        from: m.from || hydrated?.from,
+        to: hydrated?.to,
+        date: m.date || m.internalDate || hydrated?.date,
+        snippet: m.snippet,
+        ...(hydrated
+          ? {
+              body: hydrated.body,
+              html: hydrated.html,
+              labelIds: hydrated.labelIds,
+            }
+          : {}),
+      };
+    });
+
+    return {
+      success: true,
+      count: formattedList.length,
+      messages: formattedList,
+      queryUsed: usedQuery,
+      fallbackUsed,
+      // Pitfall 2: nextPageToken may be "" at the end; treat empty/falsy as null
+      nextPageToken: fetchResult.nextPageToken,
+      hasMore: Boolean(fetchResult.nextPageToken),
+      ...(threadDetails ? { thread: threadDetails } : {}),
+    };
+  } catch (error) {
+    return composioFailure(error, "gmail_search_emails_failed");
+  }
+}
+
