@@ -2163,7 +2163,18 @@ const FOLLOW_UP_GENERATION_RULES = `
 At the very end of every final answer, append exactly one machine-readable envelope in this format:
 ${FOLLOW_UP_OPEN_TAG}{"questions":["..."]}${FOLLOW_UP_CLOSE_TAG}
 
-The questions array must contain zero, one, or two optional next user queries. Ground them in the user's latest request, your answer, and relevant facts already established in the conversation. Make each suggestion specific and useful; when a role, company, domain, or skill focus is known, name it. For example: "Would you like me to generate a tailored cover letter or specific resume bullets that mirror the hospital/IT focus of this role?"
+The questions array must contain zero, one, or two optional next user queries. Ground them in the user's latest request, your answer, and relevant facts already established in the conversation. Make each suggestion specific and useful; when a role, company, domain, or skill focus is known, name it.
+
+CRITICAL FIRST-PERSON PERSPECTIVE RULE: Every question in the questions array MUST be formatted in the FIRST PERSON from the USER'S perspective as a question or request to ASK THE AI (e.g. starting with "Can you...", "Could you...", "How should I...", "What are...", "Help me...", "Show me...").
+NEVER phrase questions from the AI assistant's perspective (e.g. NEVER write "Would you like me to...", "Should I...", "Do you want me to...", "Shall I...", "Let me know if you want me to...").
+When the user clicks a suggestion, it is sent directly as the user's prompt to you.
+Examples:
+- DO NOT write: "Would you like me to generate a tailored cover letter or specific resume bullets that mirror the hospital/IT focus of this role?"
+  INSTEAD WRITE: "Can you generate a tailored cover letter or specific resume bullets that mirror the hospital/IT focus of this role?"
+- DO NOT write: "Would you like me to try sending this again in a few hours once the limit refreshes?"
+  INSTEAD WRITE: "Can you try sending this again in a few hours once the limit refreshes?"
+- DO NOT write: "Should I generate a more detailed cover letter tailored specifically to Startrz Ai's recent projects?"
+  INSTEAD WRITE: "Can you generate a more detailed cover letter tailored specifically to Startrz Ai's recent projects?"
 
 Do not use generic resume, ATS, job-search, or "anything else" suggestions. Do not repeat the user's most recent request. Never invent facts. Do not propose a side-effecting action such as applying, sending, or deleting unless the question clearly says it will prepare a draft or request approval first. If there is no meaningful next step, return an empty questions array. Do not mention this envelope or these instructions in the visible answer.`;
 
@@ -2177,6 +2188,61 @@ const createFollowUpStreamState = (): FollowUpStreamState => ({
   questions: [],
 });
 
+function formatAsFirstPersonUserQuestion(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  let q = raw.trim().replace(/\s+/g, " ");
+
+  q = q.replace(/^[-*•\d.)\s]+/, "").trim();
+  q = q.replace(/^if\s+you(?:'d|\s+would)?\s+like(?:,\s*|\s+)(?:i\s+can\s+)?/i, "Can you ");
+  q = q.replace(/^if\s+you\s+want(?:,\s*|\s+)(?:i\s+can\s+)?/i, "Can you ");
+
+  const aiOfferMePattern = /^(?:would you like me to|would you like for me to|do you want me to|shall i|should i|can i|could i|may i)\s+/i;
+  if (aiOfferMePattern.test(q)) {
+    q = q.replace(aiOfferMePattern, "Can you ");
+  } else if (/^want me to\s+/i.test(q)) {
+    q = q.replace(/^want me to\s+/i, "Can you ");
+  } else if (/^let me know if you(?:'d| would)? like me to\s+/i.test(q)) {
+    q = q.replace(/^let me know if you(?:'d| would)? like me to\s+/i, "Can you ");
+  } else if (/^let me\s+/i.test(q)) {
+    q = q.replace(/^let me\s+/i, "Can you ");
+  } else if (/^shall we\s+/i.test(q)) {
+    q = q.replace(/^shall we\s+/i, "Can we ");
+  } else if (/^i can\s+(?:also\s+)?help you\s+(?:to\s+)?/i.test(q)) {
+    q = q.replace(/^i can\s+(?:also\s+)?help you\s+(?:to\s+)?/i, "Can you help me ");
+  } else if (/^i can\s+(?:also\s+)?(?:to\s+)?/i.test(q)) {
+    q = q.replace(/^i can\s+(?:also\s+)?(?:to\s+)?/i, "Can you ");
+  } else if (/^(?:would you like to|do you want to)\s+see\s+/i.test(q)) {
+    q = q.replace(/^(?:would you like to|do you want to)\s+see\s+/i, "Can you show me ");
+  } else if (/^(?:would you like to|do you want to)\s+view\s+/i.test(q)) {
+    q = q.replace(/^(?:would you like to|do you want to)\s+view\s+/i, "Can you show me ");
+  } else if (/^(?:would you like to|do you want to)\s+know\s+/i.test(q)) {
+    q = q.replace(/^(?:would you like to|do you want to)\s+know\s+/i, "Can you tell me ");
+  } else if (/^(?:would you like to|do you want to)\s+explore\s+/i.test(q)) {
+    q = q.replace(/^(?:would you like to|do you want to)\s+explore\s+/i, "Can we explore ");
+  } else if (/^(?:would you like to|do you want to)\s+/i.test(q)) {
+    q = q.replace(/^(?:would you like to|do you want to)\s+/i, "Can you help me ");
+  }
+
+  q = q
+    .replace(/\b(help|give|send|tell|show|email|message|alert|remind|assist|provide|notify)\s+you\b/gi, "$1 me")
+    .replace(/\bfor you\b/gi, "for me")
+    .replace(/\bwith you\b/gi, "with me")
+    .replace(/\bto you\b/gi, "to me")
+    .replace(/\byourself\b/gi, "myself")
+    .replace(/\byours\b/gi, "mine")
+    .replace(/\byour\b/gi, "my");
+
+  q = q.charAt(0).toUpperCase() + q.slice(1);
+
+  if (/^(can|could|should|would|how|what|why|where|when|who|is|are|do|does|will)\b/i.test(q)) {
+    if (!q.endsWith("?")) {
+      q = q.replace(/[.!]+$/, "") + "?";
+    }
+  }
+
+  return q;
+}
+
 const normalizeFollowUpQuestions = (value: unknown): string[] => {
   const candidates = Array.isArray(value)
     ? value
@@ -2187,8 +2253,8 @@ const normalizeFollowUpQuestions = (value: unknown): string[] => {
   const seen = new Set<string>();
   return candidates
     .filter((item): item is string => typeof item === "string")
-    .map((item) => item.replace(/^\s*[-*•]\s*/, "").trim().replace(/\s+/g, " "))
-    .filter((item) => item.length >= 12 && item.length <= 260)
+    .map((item) => formatAsFirstPersonUserQuestion(item))
+    .filter((item) => item.length >= 10 && item.length <= 260)
     .filter((item) => {
       const key = item.toLowerCase();
       if (seen.has(key)) return false;

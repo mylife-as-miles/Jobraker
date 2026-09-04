@@ -9,6 +9,7 @@ import {
   Search,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { normalizeFollowUpQuestions } from "@/lib/chat/followUpQuestions";
 
 type StreamSource = { href: string; label: string; domain: string };
 
@@ -135,18 +136,7 @@ export function ChatFollowUpPanel({
   onFollowUp: (prompt: string) => void;
 }) {
   const followUps = useMemo(() => {
-    const seen = new Set<string>();
-    return (questions || [])
-      .filter((question): question is string => typeof question === "string")
-      .map((question) => question.replace(/\s+/g, " ").trim())
-      .filter((question) => question.length >= 12 && question.length <= 260)
-      .filter((question) => {
-        const key = question.toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, 2);
+    return normalizeFollowUpQuestions(questions, 2);
   }, [questions]);
   const isError = /^\s*error:/i.test(content);
 

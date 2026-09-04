@@ -96,6 +96,7 @@ import {
   ChatFollowUpPanel,
   StreamedAnswerFooter,
 } from "@/components/chat/StreamedAnswerFooter";
+import { normalizeFollowUpQuestions } from "@/lib/chat/followUpQuestions";
 import { AgentApprovalCard } from "@/components/chat/AgentApprovalCard";
 import { ChatSourceLauncher } from "@/components/chat/ChatSourceLauncher";
 import {
@@ -593,11 +594,7 @@ const normalizeBasicMessage = (message: any): BasicMessage => {
         ],
   streaming: legacyQueuedAssistant ? false : Boolean(message?.streaming),
   followUpQuestions: Array.isArray(message?.followUpQuestions)
-    ? message.followUpQuestions
-        .filter((question: unknown): question is string => typeof question === "string")
-        .map((question: string) => question.replace(/\s+/g, " ").trim())
-        .filter((question: string) => question.length >= 12 && question.length <= 260)
-        .slice(0, 2)
+    ? normalizeFollowUpQuestions(message.followUpQuestions, 2)
     : undefined,
   createdAt:
     typeof message?.createdAt === "number" ? message.createdAt : Date.now(),
@@ -1948,19 +1945,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 await waitForAgentProgressPaint();
               }
             } else if (currentEvent === "follow_ups") {
-              const followUpQuestions = Array.isArray(data.questions)
-                ? data.questions
-                    .filter(
-                      (question: unknown): question is string =>
-                        typeof question === "string",
-                    )
-                    .map((question: string) => question.replace(/\s+/g, " ").trim())
-                    .filter(
-                      (question: string) =>
-                        question.length >= 12 && question.length <= 260,
-                    )
-                    .slice(0, 2)
-                : [];
+              const followUpQuestions = normalizeFollowUpQuestions(data?.questions, 2);
               if (followUpQuestions.length > 0) {
                 flushSync(() => {
                   setMessages((prev) =>
