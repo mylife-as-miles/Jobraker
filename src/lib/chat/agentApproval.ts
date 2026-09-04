@@ -25,4 +25,6 @@ export type AgentApprovalRequest = {
 
 export type ApprovedToolCall = {
   approvalKey: string;
+  toolName?: string;
+  toolSlug?: string;
 };

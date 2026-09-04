@@ -263,7 +263,49 @@ function stableApprovalValue(value: unknown): string {
 function createAgentApprovalKey(toolName: string, args: Record<string, unknown>) {
   const approvalArgs = { ...args };
   delete approvalArgs.approved;
+  if (approvalArgs.tool_slug && typeof approvalArgs.tool_slug === "string") {
+    approvalArgs.tool_slug = approvalArgs.tool_slug.toUpperCase().replace(/[^A-Z0-9_]/g, "");
+  }
   return `${toolName}:${stableApprovalValue(approvalArgs)}`;
+}
+
+function isToolApproved(
+  toolName: string,
+  args: Record<string, unknown>,
+  approvedToolCallKeys: Set<string>,
+  lastUserText: string,
+): boolean {
+  const approvalKey = createAgentApprovalKey(toolName, args);
+  if (approvedToolCallKeys.has(approvalKey)) return true;
+  if (approvedToolCallKeys.has(toolName)) return true;
+
+  // Check normalized tool slug match for invoke_composio_tool
+  if (toolName === "invoke_composio_tool") {
+    const slug = asString(args.tool_slug).toUpperCase().replace(/[^A-Z0-9_]/g, "");
+    if (slug && approvedToolCallKeys.has(slug)) return true;
+    for (const key of approvedToolCallKeys) {
+      if (slug && key.toUpperCase().includes(slug)) return true;
+      if (slug.includes("BROWSER") && key.toUpperCase().includes("BROWSER")) return true;
+    }
+  }
+
+  // Check URL match for application tools
+  if (toolName === "apply_to_job" || toolName === "auto_apply_from_url" || toolName === "reapply_job") {
+    const url = asString(args.url) || asString(args.job_url);
+    for (const key of approvedToolCallKeys) {
+      if (url && key.includes(url)) return true;
+    }
+  }
+
+  // If the user's latest message is explicitly confirming or approving
+  const trimmed = lastUserText.trim().toLowerCase();
+  if (/^(approved|approve|yes|continue|proceed|go ahead|confirm)/i.test(trimmed)) {
+    if (approvedToolCallKeys.size > 0 || trimmed.includes("approve")) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function describeAgentApprovalStep(
@@ -444,7 +486,14 @@ function toolNeedsAgentApproval(
   if (toolName.startsWith("rtrvr_")) return isMutatingRtrvrTool(toolName);
   // Third-party integrations need sign-off only when they write.
   if (toolName === "invoke_composio_tool") {
-    const slug = asString(args.tool_slug).toUpperCase();
+    const slug = asString(args.tool_slug).toUpperCase().replace(/[^A-Z0-9_]/g, "");
+    // Browsing, searching, scraping, navigating, and inspecting web pages via browser tool does not need approval
+    if (slug.includes("BROWSER")) {
+      const subArgs = isRecord(args.arguments) ? args.arguments : args;
+      const instruction = (asString(subArgs.instruction) || asString(subArgs.instructions) || "").toLowerCase();
+      const isMutating = /submit|apply|login|sign in|checkout|buy|purchase|delete|password/i.test(instruction);
+      if (!isMutating) return false;
+    }
     return Boolean(slug) && !READ_ONLY_COMPOSIO_SLUG.test(slug);
   }
   return false;
@@ -614,11 +663,11 @@ function summarizeAgentToolResults(entries: AgentToolResultEntry[]) {
 
   if (!addedActionableSummary) {
     if (blockedOrIncomplete) {
-      return "I checked the available results, but I could not complete every analysis step cleanly. I did not find a new user-facing result worth showing yet. Tell me to continue and I will keep working from the last successful step.";
+      return "I checked the available results, but encountered page verification on the target source. Tell me to continue and I will search other public sources for matching roles.";
     }
     return checkedWithoutAction
-      ? "I checked the available JobRaker data, but I did not find a new actionable result to show yet. Tell me to continue and I will keep working from the last step."
-      : "I finished the tool work, but there was no user-facing result to show. Tell me to continue and I will keep working from here.";
+      ? "I checked the available sources and database records, but did not find direct openings matching those exact criteria. You can try broadening the title, location, or keywords, or tell me to continue with a wider search."
+      : "I finished the tool work. Tell me how you would like to proceed from here.";
   }
 
   lines.unshift("Here is the result:");
@@ -4247,13 +4296,19 @@ Deno.serve(async (req) => {
       webSearch = false,
       approved_tool_calls: approvedToolCallsInput = [],
     } = body;
-    const approvedToolCallKeys = new Set(
-      Array.isArray(approvedToolCallsInput)
-        ? approvedToolCallsInput
-            .map((entry) => isRecord(entry) ? asString(entry.approval_key) : null)
-            .filter((key): key is string => Boolean(key))
-        : [],
-    );
+    const approvedToolCallKeys = new Set<string>();
+    if (Array.isArray(approvedToolCallsInput)) {
+      for (const entry of approvedToolCallsInput) {
+        if (isRecord(entry)) {
+          const key = asString(entry.approval_key) || asString(entry.approvalKey);
+          if (key) approvedToolCallKeys.add(key);
+          const slug = asString(entry.tool_slug) || asString(entry.toolSlug);
+          if (slug) approvedToolCallKeys.add(slug.toUpperCase().replace(/[^A-Z0-9_]/g, ""));
+          const name = asString(entry.tool_name) || asString(entry.toolName);
+          if (name) approvedToolCallKeys.add(name);
+        }
+      }
+    }
     const backgroundUserId = req.headers
       .get("x-jobraker-background-user-id")
       ?.trim();
@@ -4958,6 +5013,8 @@ Evidence and failure reporting:
         }
       }
     }
+    const lastUserMessageText =
+      asString(normalizedMessages[normalizedMessages.length - 1]?.content) || "";
     const lastUserParts = buildGeminiUserParts(
       normalizedMessages[normalizedMessages.length - 1].content,
       normalizedMessages[normalizedMessages.length - 1].images,
@@ -5107,7 +5164,7 @@ Evidence and failure reporting:
                 const toolCharge = toolCharges[approvalIndex]?.credits ?? 0;
                 const approvalKey = createAgentApprovalKey(fn.name, args);
                 if (!toolNeedsAgentApproval(fn.name, toolCharge, args)) continue;
-                if (approvedToolCallKeys.has(approvalKey)) continue;
+                if (isToolApproved(fn.name, args, approvedToolCallKeys, lastUserMessageText)) continue;
                 // Identical calls inside one batch share a key; listing the same
                 // action twice is part of what made the card look like a loop.
                 if (seenApprovalKeys.has(approvalKey)) continue;
@@ -5138,6 +5195,11 @@ Evidence and failure reporting:
                     : "JobRaker will not take these actions until you approve them.",
                   steps: pendingApprovalSteps,
                   created_at: Date.now(),
+                });
+                await enqueueEvent("message", {
+                  delta: actionCount === 1
+                    ? "I've prepared the requested action for your review. Please approve or adjust below so JobRaker can proceed."
+                    : `I've prepared these ${actionCount} actions for your review. Please approve or adjust below so JobRaker can proceed.`,
                 });
                 streamedFinalAssistantText = true;
                 break;
@@ -6023,6 +6085,19 @@ Evidence and failure reporting:
                           : {},
                       },
                     });
+                    const resDataStr = JSON.stringify(result);
+                    if (
+                      !result.success ||
+                      result.status === 403 ||
+                      resDataStr.includes("Connected integrations require") ||
+                      resDataStr.includes("Basics plan")
+                    ) {
+                      result = {
+                        ...result,
+                        guidance:
+                          "Composio integration is not available or requires a paid tier. Do NOT try invoke_composio_tool again. Immediately fall back to JobRaker's native search tools: use run_job_search or search_public_job_sources to find jobs and extract openings directly.",
+                      };
+                    }
                   } else if (fn.name === "list_database_schema") {
                     result = await fetchDatabaseSchemaSnapshot(serviceClient, {
                       tableName: asString(args.table_name),

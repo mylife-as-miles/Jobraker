@@ -849,6 +849,9 @@ const summarizeToolResult = (entry: ToolCallEntry): string | undefined => {
 };
 
 const buildAgentFinalFallback = (message: BasicMessage): string | undefined => {
+  if (message.approvalRequest) {
+    return "I've prepared the requested action for your review. Please approve or adjust below so JobRaker can proceed.";
+  }
   const completedTools = (message.toolCalls || []).filter(
     (tool) => tool.status !== "running",
   );
@@ -994,7 +997,7 @@ const buildAgentFinalFallback = (message: BasicMessage): string | undefined => {
       })
       .filter(Boolean);
     if (!summaries.length) {
-      return "I checked the available JobRaker data, but I did not find a new actionable result to show yet. Tell me to continue and I will keep working from the last step.";
+      return "I checked the available sources and JobRaker database, but did not find direct openings matching those exact criteria. You can try adjusting the job title, location, or keywords, or tell me to continue with a broader search.";
     }
     lines.push("I found these actionable results:", "");
     summaries.forEach((summary) => lines.push(`- ${summary}`));
@@ -2850,8 +2853,15 @@ export const ChatPage = () => {
       // Approvals accumulate for the whole conversation. Sending only the keys
       // from this one card meant a later round re-asked for an action the user
       // had already approved, which read as the card looping.
-      for (const { approvalKey } of request.steps) {
-        approvedToolCallKeysRef.current.add(approvalKey);
+      for (const step of request.steps) {
+        approvedToolCallKeysRef.current.add(step.approvalKey);
+        if (step.toolName) approvedToolCallKeysRef.current.add(step.toolName);
+        const slugMatch = step.approvalKey.match(/tool_slug["']?\s*:\s*["']([^"']+)["']/i);
+        if (slugMatch?.[1]) {
+          approvedToolCallKeysRef.current.add(
+            slugMatch[1].toUpperCase().replace(/[^A-Z0-9_]/g, ""),
+          );
+        }
       }
 
       append(
@@ -2866,7 +2876,11 @@ export const ChatPage = () => {
           // Resume the same turn instead of posting a visible new request.
           hiddenUserMessage: true,
           approvedToolCalls: Array.from(approvedToolCallKeysRef.current).map(
-            (approvalKey) => ({ approvalKey }),
+            (key) => ({
+              approvalKey: key,
+              toolName: key,
+              toolSlug: key,
+            }),
           ),
         },
       );
@@ -3517,6 +3531,38 @@ export const ChatPage = () => {
       .update({ persona: mode, model })
       .eq("id", sessionId);
 
+    const userTextTrimmed = content.trim().toLowerCase();
+    const isApprovalIntent =
+      /^(approved|approve|yes|continue|proceed|confirm|go ahead)/i.test(userTextTrimmed);
+
+    if (isApprovalIntent) {
+      const lastPendingApproval = [...currentMessages]
+        .reverse()
+        .find((m) => m.approvalRequest && !m.approvalRequest.decision);
+      if (lastPendingApproval?.approvalRequest) {
+        updateApprovalDecision(lastPendingApproval.approvalRequest.id, "approved");
+        for (const step of lastPendingApproval.approvalRequest.steps) {
+          approvedToolCallKeysRef.current.add(step.approvalKey);
+          if (step.toolName) approvedToolCallKeysRef.current.add(step.toolName);
+          const slugMatch = step.approvalKey.match(/tool_slug["']?\s*:\s*["']([^"']+)["']/i);
+          if (slugMatch?.[1]) {
+            approvedToolCallKeysRef.current.add(
+              slugMatch[1].toUpperCase().replace(/[^A-Z0-9_]/g, ""),
+            );
+          }
+        }
+      }
+    }
+
+    const approvedToolCalls =
+      approvedToolCallKeysRef.current.size > 0
+        ? Array.from(approvedToolCallKeysRef.current).map((key) => ({
+            approvalKey: key,
+            toolName: key,
+            toolSlug: key,
+          }))
+        : undefined;
+
     append(
       {
         role: "user",
@@ -3528,6 +3574,7 @@ export const ChatPage = () => {
         webSearch: mode === "agent",
         system: currentMessages.length === 0 ? systemInstruction : undefined,
         mode,
+        approvedToolCalls,
       },
     );
 
