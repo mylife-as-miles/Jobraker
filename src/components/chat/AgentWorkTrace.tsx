@@ -1,3 +1,7 @@
+/**
+ * AgentWorkTrace
+ * Displays agent execution steps, safe operational context, and search queries.
+ */
 import { type ReactNode, useMemo, useState } from "react";
 import {
   AlertTriangle,
