@@ -1,5 +1,5 @@
 const AI_CAPACITY_LIMIT_MESSAGE =
-  "Your AI allowance has been used for now. It becomes available gradually as your rolling 24-hour allowance refreshes.";
+  "Your AI allowance has been used for now. You can continue with available credits, or wait as capacity becomes available gradually over your rolling 5-hour allowance.";
 
 export const getAiCapacityErrorMessage = (raw: unknown): string | null => {
   const message = typeof raw === "string" ? raw : String(raw || "");

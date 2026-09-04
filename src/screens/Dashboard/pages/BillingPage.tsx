@@ -2457,7 +2457,7 @@ export const BillingPage = () => {
                         {
                           label: "AI Chat — Ask & Agent Reasoning",
                           cost: "AI LIMITS",
-                          note: "Metered by token consumption against your plan's Rolling 24h, Weekly & Monthly limits (0 tool credits)",
+                          note: "Metered by token consumption against your plan's Rolling 5h, Weekly & Monthly limits (credit fallback available)",
                         },
                         {
                           label: "Agent Mode — External Web Automation",

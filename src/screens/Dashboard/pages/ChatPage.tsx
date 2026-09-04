@@ -2426,15 +2426,20 @@ export const ChatPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: aiLimits } = useAiUsageLimits();
+  const rollingStatus = aiLimits?.rolling5h || aiLimits?.rolling24h;
   const aiCapacityExhausted = isAiCapacityExhausted(
-    aiLimits?.rolling24h.percentLeft,
+    rollingStatus?.percentLeft,
   );
   const aiCapacityLabel = aiCapacityExhausted
-    ? "AI allowance used"
-    : `${aiLimits?.rolling24h.percentLeft ?? 0}% AI Capacity`;
+    ? (aiLimits?.creditsAvailable && aiLimits.creditsAvailable > 0
+        ? "Using Credits"
+        : "AI allowance used")
+    : `${rollingStatus?.percentLeft ?? 0}% AI Capacity`;
   const aiCapacityTitle = aiCapacityExhausted
-    ? "Your AI allowance is used for now. Capacity becomes available gradually over the next 24 hours. Open Settings for details."
-    : "AI Usage Limits (rolling 24-hour capacity). Open Settings for details.";
+    ? (aiLimits?.creditsAvailable && aiLimits.creditsAvailable > 0
+        ? "AI allowance reached. Continuing with account credits ($0.02/credit ratio). Allowance gradually refreshes over 5 hours. Open Settings for details."
+        : "Your AI allowance is used for now. You can continue using account credits, or wait as capacity refreshes gradually over the next 5 hours. Open Settings for details.")
+    : "AI Usage Limits (rolling 5-hour capacity). Open Settings for details.";
   // UI state
   const [text, setText] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -3831,7 +3836,7 @@ export const ChatPage = () => {
                 icon: <MessageSquare className='h-5 w-5' />,
                 title: "AI Conversations",
                 description:
-                  "Metered by your tier's AI Usage Limits (Rolling 24h, Weekly & Monthly allowances)",
+                  "Metered by your tier's AI Usage Limits (Rolling 5h, Weekly & Monthly allowances, credit fallback)",
               },
               {
                 icon: <Wand2 className='h-5 w-5' />,
@@ -3917,8 +3922,10 @@ export const ChatPage = () => {
                       />
                       <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
                         {aiCapacityExhausted
-                          ? "AI allowance used"
-                          : `${aiLimits.rolling24h.percentLeft}% AI Limit`}
+                          ? (aiLimits?.creditsAvailable && aiLimits.creditsAvailable > 0
+                              ? "Credits active"
+                              : "AI allowance used")
+                          : `${rollingStatus?.percentLeft ?? 0}% AI Limit`}
                       </span>
                     </button>
                   )}

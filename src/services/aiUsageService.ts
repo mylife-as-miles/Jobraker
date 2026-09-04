@@ -6,14 +6,17 @@ export interface WindowUsageStatus {
   resetsAt: string | null;
   resetsGradually: boolean;
   nextAvailabilityAt?: string | null;
+  windowHours?: number;
 }
 
 export interface AiUsageLimitsData {
   plan: string;
+  rolling5h?: WindowUsageStatus;
   rolling24h: WindowUsageStatus;
   weekly: WindowUsageStatus;
   monthly: WindowUsageStatus;
-  limitedBy: "rolling_24h" | "weekly" | "monthly" | null;
+  limitedBy: "rolling_5h" | "rolling_24h" | "weekly" | "monthly" | null;
+  creditsAvailable?: number;
 }
 
 export async function fetchAiUsageLimits(): Promise<AiUsageLimitsData> {
@@ -70,20 +73,25 @@ function normalizeWindowStatus(raw: any, isRolling = false): WindowUsageStatus {
     resetsAt: typeof raw?.resetsAt === "string" ? raw.resetsAt : null,
     resetsGradually: isRolling || Boolean(raw?.resetsGradually),
     nextAvailabilityAt: typeof raw?.nextAvailabilityAt === "string" ? raw.nextAvailabilityAt : null,
+    windowHours: typeof raw?.windowHours === "number" ? raw.windowHours : undefined,
   };
 }
 
 export function normalizeAiUsageData(raw: any): AiUsageLimitsData {
+  const rolling = normalizeWindowStatus(raw?.rolling5h ?? raw?.rolling24h, true);
   return {
     plan: typeof raw?.plan === "string" ? raw.plan : "Free",
-    rolling24h: normalizeWindowStatus(raw?.rolling24h, true),
+    rolling5h: raw?.rolling5h ? normalizeWindowStatus(raw.rolling5h, true) : rolling,
+    rolling24h: rolling,
     weekly: normalizeWindowStatus(raw?.weekly, false),
     monthly: normalizeWindowStatus(raw?.monthly, false),
     limitedBy:
+      raw?.limitedBy === "rolling_5h" ||
       raw?.limitedBy === "rolling_24h" ||
       raw?.limitedBy === "weekly" ||
       raw?.limitedBy === "monthly"
         ? raw.limitedBy
         : null,
+    creditsAvailable: typeof raw?.creditsAvailable === "number" ? raw.creditsAvailable : undefined,
   };
 }

@@ -4,7 +4,7 @@ import { getAiReservationErrorMessage } from "../../backend/supabase/functions/_
 describe("getAiReservationErrorMessage", () => {
   it("turns a limit rejection without a database message into an actionable status", () => {
     expect(getAiReservationErrorMessage("AI_USAGE_LIMIT_REACHED")).toBe(
-      "You’ve reached your AI usage limit for now. It becomes available again as your 24-hour allowance rolls forward.",
+      "You’ve reached your AI usage limit for now. You can continue with available credits, or wait as capacity refreshes gradually over your rolling 5-hour allowance.",
     );
   });
 

@@ -31,7 +31,7 @@ const faqs = [
   {
     question: "How do AI Usage Limits and Tool Credits work?",
     answer:
-      "All AI features (AI Chat, resume analysis, cover letters, resume tailoring, and polishing) consume your plan's AI Usage Limits (Rolling 24h, Weekly, and Monthly model allowances). Tool credits are reserved for external web automation tools like Skyvern tasks and web scrapers. Governed auto-apply uses separate monthly run limits on paid tiers.",
+      "All AI features (AI Chat, resume analysis, cover letters, resume tailoring, and polishing) consume your plan's AI Usage Limits (Rolling 5h, Weekly, and Monthly model allowances). If your allowance limit is reached, you can seamlessly continue using available credits at the standard dollar consumption ratio. Tool credits are also used for external web automation tools like Skyvern tasks and web scrapers. Governed auto-apply uses separate monthly run limits on paid tiers.",
   },
   {
     question: "Do you offer quarterly or annual billing?",

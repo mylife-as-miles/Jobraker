@@ -16,7 +16,7 @@ export function getAiReservationErrorMessage(
 
   switch (code) {
     case "AI_USAGE_LIMIT_REACHED":
-      return "You’ve reached your AI usage limit for now. It becomes available again as your 24-hour allowance rolls forward.";
+      return "You’ve reached your AI usage limit for now. You can continue with available credits, or wait as capacity refreshes gradually over your rolling 5-hour allowance.";
     case "AI_REQUEST_IN_PROGRESS":
       return "This AI request is already in progress. Please wait for it to finish.";
     case "AI_REQUEST_EXPIRED":
