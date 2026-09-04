@@ -254,7 +254,7 @@ export async function reserveAiUsage(
         : "rolling_5h";
       const window = rawWindow === "rolling_5h" || rawWindow === "weekly" || rawWindow === "monthly"
         ? rawWindow
-        : "rolling_24h";
+        : "rolling_5h";
       throw new MeteredAiLimitError(
         message,
         window,
@@ -433,7 +433,7 @@ export async function runMeteredAiCall<T>(
     }
     throw new MeteredAiLimitError(
       "You’ve reached your AI usage limit for this period.",
-      "rolling_24h",
+      "rolling_5h",
       null,
       true,
     );

@@ -58,7 +58,7 @@ export async function runMeteredComposioCall<T>(
     if (errorType === "AI_USAGE_LIMIT_REACHED") {
       throw new MeteredAiLimitError(
         (typeof reserveResult?.message === "string" ? reserveResult.message : "AI usage limit reached"),
-        (reserveResult?.window as any) || "rolling_24h",
+        (reserveResult?.window as any) || "rolling_5h",
         (reserveResult?.resetsAt as string) || null,
         Boolean(reserveResult?.resetsGradually),
       );
