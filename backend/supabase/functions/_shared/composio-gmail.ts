@@ -109,10 +109,7 @@ export class ComposioGmailError extends Error {
   }
 }
 
-const isReadOnlyGmailTool = (slug: string): boolean =>
-  /^(GMAIL_(FETCH|GET|LIST|SEARCH|READ)_)/.test(slug);
-
-/** Executes a Composio tool as `userId`. Writes never retry through REST after an ambiguous SDK failure. */
+/** Executes a Composio tool as `userId` via the Composio v3.1 REST API. */
 export async function executeComposioTool(
   userId: string,
   slug: string,
@@ -133,32 +130,6 @@ export async function executeComposioTool(
     toolSlug: slug,
     payload: args,
     execute: async () => {
-      let sdkError: unknown = null;
-
-      const executeFn = (client() as unknown as {
-        tools?: { execute?: (...a: unknown[]) => Promise<unknown> };
-      })?.tools?.execute;
-
-      if (typeof executeFn === "function") {
-        try {
-          const result = await executeFn.call(
-            (client() as unknown as { tools: unknown }).tools,
-            slug,
-            { userId, arguments: args },
-          );
-          return unwrapToolData(result);
-        } catch (error) {
-          sdkError = error;
-          console.warn(`[composio-gmail] SDK execute failed for ${slug}:`, error);
-          if (!isReadOnlyGmailTool(slug)) {
-            throw new ComposioGmailError(
-              `Composio ${slug} may have executed; refusing an unsafe REST retry.`,
-              "composio_ambiguous_write",
-            );
-          }
-        }
-      }
-
       const key = apiKey();
       if (!key) {
         throw new ComposioGmailError(
@@ -187,14 +158,7 @@ export async function executeComposioTool(
         );
       }
 
-      try {
-        return unwrapToolData(await response.json());
-      } catch (error) {
-        if (error instanceof Error && sdkError) {
-          throw new ComposioGmailError(error.message, "composio_gmail_error");
-        }
-        throw error;
-      }
+      return unwrapToolData(await response.json());
     },
   });
 }
