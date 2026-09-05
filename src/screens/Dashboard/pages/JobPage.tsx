@@ -3146,16 +3146,15 @@ export const JobPage = (): JSX.Element => {
         setTailorModalOpen(false);
         await openAutoApplyFlow(tailorTargetJob);
 
-        addToast({
-          title: "Tailored Resume Ready",
-          description: `Resume tailored with ${confidenceScore}% match confidence. Proceeding to application.`,
-          variant: "success",
-        });
+        success(
+          "Tailored Resume Ready",
+          `Resume tailored with ${confidenceScore}% match confidence. Proceeding to application.`,
+        );
       } catch (err: any) {
         console.error("Failed to apply tailored resume:", err);
       }
     },
-    [addToast, openAutoApplyFlow, tailorTargetJob],
+    [success, openAutoApplyFlow, tailorTargetJob],
   );
 
   /** Deep link from Applications: `/dashboard/jobs?autoApplyJobId=<uuid>` reopens auto-apply for a saved job. */
