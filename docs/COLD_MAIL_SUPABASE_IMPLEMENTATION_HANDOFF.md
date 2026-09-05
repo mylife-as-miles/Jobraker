@@ -8,12 +8,27 @@ The target outcome is specific: after an authenticated user reviews and approves
 
 This handoff does not authorize frontend redesign, unrelated schema changes, model changes, dependency upgrades, or email sending. The workflow creates Gmail drafts only.
 
+## Production Deployment Status
+
+Deployment was completed against the `Jobraker` Supabase project `yquhsllwrwfvrwolqywh` on 2026-09-05.
+
+| Component | Production state |
+| --- | --- |
+| Migration | Applied as `20260905064539_cold_mail_draft_idempotency` |
+| `public.cold_mail_drafts` | Created, RLS enabled, client table access revoked |
+| `jobs-search` | Active, version 231 |
+| `scout-company` | Active, version 80 |
+| `generate-outreach` | Active, version 82 |
+| `cold-mail` | Active, version 3 |
+
+Post-deployment schema and bundle verification passed. The authenticated Gmail test and backend/database/provider draft-ID match remain pending until a test user with an active Gmail connection runs the workflow.
+
 ## Executive Summary
 
 The application implementation is already present in the repository. Production confirmation requires the Supabase owner to:
 
 1. Confirm access to Supabase project `yquhsllwrwfvrwolqywh`.
-2. Review and apply migration `20260904222716_cold_mail_draft_idempotency.sql`.
+2. Review and apply migration `20260905064539_cold_mail_draft_idempotency.sql`.
 3. Confirm the required Edge Function secrets are configured.
 4. Deploy or verify the supporting functions used by the Cold Mail workflow.
 5. Deploy `jobs-search` and then `cold-mail`, with `cold-mail` deployed last.
@@ -29,7 +44,7 @@ The application implementation is already present in the repository. Production 
 | Supabase CLI working directory | `backend` |
 | Supabase configuration | `backend/supabase/config.toml` |
 | Supabase project reference | `yquhsllwrwfvrwolqywh` |
-| Migration | `backend/supabase/migrations/20260904222716_cold_mail_draft_idempotency.sql` |
+| Migration | `backend/supabase/migrations/20260905064539_cold_mail_draft_idempotency.sql` |
 | Main orchestration function | `backend/supabase/functions/cold-mail/index.ts` |
 | Opportunity discovery function | `backend/supabase/functions/jobs-search/index.ts` |
 | Recruiter research function | `backend/supabase/functions/scout-company/index.ts` |
@@ -149,7 +164,7 @@ The repository currently contains pre-existing migration-lint findings involving
 Inspect the migration before applying it:
 
 ```powershell
-Get-Content -Raw .\backend\supabase\migrations\20260904222716_cold_mail_draft_idempotency.sql
+Get-Content -Raw .\backend\supabase\migrations\20260905064539_cold_mail_draft_idempotency.sql
 ```
 
 ### Authenticate and Link the Correct Project
@@ -189,7 +204,7 @@ npx supabase migration list --linked
 npx supabase db push --linked --include-all --dry-run -p $env:SUPABASE_DB_PASSWORD
 ```
 
-Review the dry-run output. It must include `20260904222716_cold_mail_draft_idempotency.sql`. Investigate any unexpected pending migration before continuing; do not blindly apply unrelated schema changes.
+Review the dry-run output. It must include `20260905064539_cold_mail_draft_idempotency.sql`. Investigate any unexpected pending migration before continuing; do not blindly apply unrelated schema changes.
 
 ### Apply the Migration
 
@@ -214,7 +229,7 @@ Run these read-only checks in the Supabase SQL Editor or through an authenticate
 ```sql
 select version
 from supabase_migrations.schema_migrations
-where version = '20260904222716';
+where version = '20260905064539';
 
 select
   to_regclass('public.cold_mail_drafts') as table_name,
@@ -238,7 +253,7 @@ order by conname;
 
 Expected results:
 
-- Migration version `20260904222716` is present once.
+- Migration version `20260905064539` is present once.
 - `table_name` is `cold_mail_drafts`.
 - `rls_enabled` is `true`.
 - `anon_can_select` is `false`.
@@ -507,7 +522,7 @@ Do not delete an uncertain row merely to make a retry pass. That can create a du
 Production confirmation is complete only when every item below is checked:
 
 - [ ] Supabase project `yquhsllwrwfvrwolqywh` is the linked and deployed target.
-- [ ] Migration `20260904222716` is recorded in migration history.
+- [ ] Migration `20260905064539` is recorded in migration history.
 - [ ] `public.cold_mail_drafts` exists with RLS enabled.
 - [ ] `anon` and `authenticated` have no direct table privileges.
 - [ ] `service_role` can read and write the ledger.
@@ -682,7 +697,7 @@ Complete this section during deployment:
 
 ## Appendix A Embedded Migration File
 
-The following is the complete migration currently stored at `backend/supabase/migrations/20260904222716_cold_mail_draft_idempotency.sql`. The repository file remains the deployment source of truth.
+The following is the complete migration currently stored at `backend/supabase/migrations/20260905064539_cold_mail_draft_idempotency.sql`. The repository file remains the deployment source of truth.
 
 ````sql
 create table public.cold_mail_drafts (
@@ -3444,7 +3459,7 @@ The CLI deployment must run against the repository tree, not reconstructed code 
 backend/supabase/
 ├── config.toml
 ├── migrations/
-│   └── 20260904222716_cold_mail_draft_idempotency.sql
+│   └── 20260905064539_cold_mail_draft_idempotency.sql
 └── functions/
     ├── cold-mail/
     │   ├── index.ts

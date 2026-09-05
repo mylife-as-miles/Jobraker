@@ -166,7 +166,7 @@ describe("cold-mail Gmail draft idempotency", () => {
     const migration = readFileSync(
       resolve(
         process.cwd(),
-        "backend/supabase/migrations/20260904222716_cold_mail_draft_idempotency.sql",
+        "backend/supabase/migrations/20260905064539_cold_mail_draft_idempotency.sql",
       ),
       "utf8",
     );
