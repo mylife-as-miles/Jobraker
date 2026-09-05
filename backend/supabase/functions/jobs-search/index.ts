@@ -528,6 +528,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         status: "completed",
+        agent_run_id: agentRunId,
         requestedLimit,
         effectiveLimit,
         planCap,

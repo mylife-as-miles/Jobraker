@@ -183,6 +183,25 @@ export type ColdMailRecipient = {
   confidence: "high" | "medium";
 };
 
+export type ColdMailTarget = {
+  jobId: string;
+  searchResultId?: string;
+  jobTitle: string;
+  companyName: string;
+  applyUrl: string;
+  location?: string;
+  source?: string;
+};
+
+export type ColdMailDiscoveryOutput = {
+  success: true;
+  status: "awaiting_target_selection";
+  searchQuery: string;
+  location: string;
+  targets: ColdMailTarget[];
+  agentRunId?: string;
+};
+
 export type ColdMailOutput = {
   preparation: {
     jobId: string | null;

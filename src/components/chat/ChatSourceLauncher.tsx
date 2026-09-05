@@ -18,6 +18,7 @@ type Props = {
   triggerRef: RefObject<HTMLButtonElement>;
   onClose: () => void;
   onUpload: () => void;
+  onSkillSelect: (skillId: string) => void;
 };
 
 const DEFAULT_VISIBLE_ITEMS = 5;
@@ -28,6 +29,7 @@ export const ChatSourceLauncher = ({
   triggerRef,
   onClose,
   onUpload,
+  onSkillSelect,
 }: Props) => {
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -111,9 +113,14 @@ export const ChatSourceLauncher = ({
         {visibleSkills.length > 0 ? (
           <div className={uploadMatches ? "mt-1 border-t border-border/70 pt-1" : ""}>
             {visibleSkills.map((skill) => (
-              <div
+              <button
+                type="button"
                 key={skill.id}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5"
+                onClick={() => {
+                  onClose();
+                  onSkillSelect(skill.id);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
               >
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                   <Sparkles className="size-4" aria-hidden="true" />
@@ -123,7 +130,7 @@ export const ChatSourceLauncher = ({
                   <span className="block truncate text-xs text-muted-foreground">{skill.description}</span>
                 </span>
                 <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Skill</span>
-              </div>
+              </button>
             ))}
           </div>
         ) : (

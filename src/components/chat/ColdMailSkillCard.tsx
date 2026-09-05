@@ -166,7 +166,7 @@ export const ColdMailSkillCard = ({ output }: Props) => {
         <div aria-live="polite">
           {draftId && (
             <p className="mt-3 rounded-xl border border-green-400/20 bg-green-400/10 px-3 py-2 text-xs text-green-200">
-              Draft created in Gmail · Draft ID: {draftId}
+              Gmail drafted successfully · Draft ID: {draftId}
             </p>
           )}
           {error && (
