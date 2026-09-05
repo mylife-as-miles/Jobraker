@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   confirmGmailDraftResult,
   createColdMailPreparationToken,
@@ -6,6 +8,15 @@ import {
   verifyColdMailPreparationToken,
   type ColdMailPreparation,
 } from "../../backend/supabase/functions/_shared/cold-mail-contract";
+import {
+  buildComposioExecuteBody,
+  GMAIL_TOOLKIT_VERSION,
+  unwrapComposioToolData,
+} from "../../backend/supabase/functions/_shared/composio-tool-contract";
+import {
+  fingerprintColdMailPreparationToken,
+  resolveColdMailDraftAttempt,
+} from "../../backend/supabase/functions/_shared/cold-mail-draft-idempotency";
 
 const preparation: ColdMailPreparation = {
   userId: "user-123",
@@ -89,6 +100,117 @@ describe("confirmGmailDraftResult", () => {
       success: false,
       error: "Gmail did not return a draft ID, so draft creation could not be confirmed.",
       code: "gmail_draft_unconfirmed",
+    });
+  });
+});
+
+describe("cold-mail Gmail draft idempotency", () => {
+  it("creates a stable non-secret request fingerprint", async () => {
+    const fingerprint = await fingerprintColdMailPreparationToken(
+      "signed-preparation-token",
+    );
+
+    expect(fingerprint).toMatch(/^[a-f0-9]{64}$/);
+    expect(fingerprint).toBe(
+      await fingerprintColdMailPreparationToken("signed-preparation-token"),
+    );
+    expect(fingerprint).not.toContain("signed-preparation-token");
+  });
+
+  it("replays a previously confirmed Gmail draft without another provider write", () => {
+    expect(
+      resolveColdMailDraftAttempt({
+        id: "record-1",
+        status: "created",
+        provider_draft_id: "draft-123",
+        provider_message_id: "message-123",
+        provider_thread_id: "thread-123",
+        draft_from: "candidate@gmail.com",
+        recipient_email: "recruiter@acme.com",
+      }),
+    ).toEqual({
+      action: "replay",
+      response: {
+        success: true,
+        draftId: "draft-123",
+        messageId: "message-123",
+        threadId: "thread-123",
+        draftFrom: "candidate@gmail.com",
+        to: "recruiter@acme.com",
+        idempotentReplay: true,
+      },
+    });
+  });
+
+  it.each(["creating", "uncertain"] as const)(
+    "blocks another provider write while the stored attempt is %s",
+    (status) => {
+      expect(
+        resolveColdMailDraftAttempt({
+          id: "record-1",
+          status,
+          provider_draft_id: null,
+          provider_message_id: null,
+          provider_thread_id: null,
+          draft_from: null,
+          recipient_email: "recruiter@acme.com",
+        }),
+      ).toMatchObject({
+        action: "block",
+        response: { success: false, code: "gmail_draft_state_uncertain" },
+      });
+    },
+  );
+
+  it("ships a server-owned RLS migration for the draft ledger", () => {
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        "backend/supabase/migrations/20260904222716_cold_mail_draft_idempotency.sql",
+      ),
+      "utf8",
+    );
+
+    expect(migration).toContain("create table public.cold_mail_drafts");
+    expect(migration).toContain("unique (user_id, request_fingerprint)");
+    expect(migration).toContain(
+      "alter table public.cold_mail_drafts enable row level security",
+    );
+    expect(migration).toContain(
+      "revoke all on table public.cold_mail_drafts from public, anon, authenticated",
+    );
+    expect(migration).toContain(
+      "grant all on table public.cold_mail_drafts to service_role",
+    );
+  });
+});
+
+describe("Composio Gmail execution contract", () => {
+  it("pins the dated Gmail toolkit version for programmatic draft parsing", () => {
+    expect(
+      buildComposioExecuteBody("user-123", { subject: "Hello" }),
+    ).toEqual({
+      user_id: "user-123",
+      arguments: { subject: "Hello" },
+      version: GMAIL_TOOLKIT_VERSION,
+    });
+    expect(GMAIL_TOOLKIT_VERSION).toMatch(/^\d{8}_\d{2}$/);
+  });
+
+  it("unwraps a nested Gmail draft ID before confirmation", () => {
+    expect(
+      unwrapComposioToolData({
+        successful: true,
+        data: {
+          response_data: {
+            draft_id: "draft-123",
+            message: { id: "message-123" },
+          },
+        },
+      }),
+    ).toEqual({
+      draft_id: "draft-123",
+      message: { id: "message-123" },
     });
   });
 });

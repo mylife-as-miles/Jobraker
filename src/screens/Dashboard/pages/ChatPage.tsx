@@ -78,6 +78,8 @@ import {
   type ChatStarterSuggestion,
 } from "../../../services/ai/generateChatStarters";
 import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
+import { ColdMailSkillCard } from "@/components/chat/ColdMailSkillCard";
+import { ColdMailTargetSelectionCard } from "@/components/chat/ColdMailTargetSelectionCard";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -134,6 +136,9 @@ import {
 } from "@/lib/chatSkills/parser";
 import type {
   ChatSkillCall,
+  ColdMailDiscoveryOutput,
+  ColdMailOutput,
+  ColdMailTarget,
   ParsedSkillCall,
   SkillExecutionInput,
 } from "@/lib/chatSkills/types";
@@ -3302,6 +3307,19 @@ export const ChatPage = () => {
         sessionId === activeSessionId
           ? messages
           : sessions.find((session) => session.id === sessionId)?.messages || [];
+      const latestColdMailTargets =
+        skill.id === "cold_mail"
+          ? ([...currentMessages]
+              .reverse()
+              .find(
+                (message) =>
+                  message.skillCall?.skillId === "cold_mail" &&
+                  Array.isArray(message.skillCall.output?.targets),
+              )?.skillCall?.output?.targets as ColdMailTarget[] | undefined)
+          : undefined;
+      const executionArgs = latestColdMailTargets?.length
+        ? { ...parsed.args, coldMailTargets: latestColdMailTargets }
+        : parsed.args;
       const conversationContext: SkillExecutionInput["conversationContext"] = currentMessages
         .filter((message) => message.role !== "skill" && message.content.trim())
         .slice(-8)
@@ -3326,7 +3344,7 @@ export const ChatPage = () => {
           trigger: parsed.trigger,
           rawCommand: parsed.rawCommand,
           userInstruction: parsed.userInstruction,
-          args: parsed.args,
+          args: executionArgs,
         },
         progress: ["Queued chat skill"],
       };
@@ -3408,7 +3426,7 @@ export const ChatPage = () => {
           trigger: parsed.trigger,
           rawCommand: parsed.rawCommand,
           userInstruction: parsed.userInstruction,
-          args: parsed.args,
+          args: executionArgs,
           conversationContext,
           progress: (label) => {
             updateSkillMessage((call) => ({
@@ -3727,6 +3745,26 @@ export const ChatPage = () => {
         skillPaletteTrigger,
         alias,
       );
+      if (
+        skill.id === "cold_mail" &&
+        text.trim().toLowerCase() === skillPaletteTrigger.token.toLowerCase()
+      ) {
+        setText("");
+        setCaretPosition(0);
+        setDismissedSkillPaletteToken(null);
+        void runSkillCall(
+          {
+            detected: true,
+            skillId: skill.id,
+            trigger: skillPaletteTrigger.mode,
+            rawCommand: alias,
+            userInstruction: "",
+            args: {},
+          },
+          alias,
+        );
+        return;
+      }
       setText(nextText);
       setCaretPosition(skillPaletteTrigger.start + alias.length + 1);
       setDismissedSkillPaletteToken(null);
@@ -3738,7 +3776,35 @@ export const ChatPage = () => {
         textarea.setSelectionRange(cursor, cursor);
       });
     },
-    [skillPaletteTrigger, text],
+    [runSkillCall, skillPaletteTrigger, text],
+  );
+
+  const selectSkillFromSourceLauncher = useCallback(
+    (skillId: string) => {
+      const skill = getSkillById(skillId);
+      if (!skill) return;
+      const alias = getPrimarySkillAlias(skill, "mention");
+      if (skill.id === "cold_mail") {
+        setText("");
+        setCaretPosition(0);
+        void runSkillCall(
+          {
+            detected: true,
+            skillId: skill.id,
+            trigger: "mention",
+            rawCommand: alias,
+            userInstruction: "",
+            args: {},
+          },
+          alias,
+        );
+        return;
+      }
+      setText(`${alias} `);
+      setCaretPosition(alias.length + 1);
+      window.requestAnimationFrame(() => textareaRef.current?.focus());
+    },
+    [runSkillCall],
   );
 
   const updateScrollState = useCallback(() => {
@@ -4485,6 +4551,32 @@ export const ChatPage = () => {
                               message={m}
                               elapsedLabel={requestElapsedLabel}
                             />
+                            {m.role === "skill" &&
+                            m.skillCall?.skillId === "cold_mail" &&
+                            m.skillCall.status === "completed" &&
+                            Array.isArray(m.skillCall.output?.targets) ? (
+                              <ColdMailTargetSelectionCard
+                                output={
+                                  m.skillCall.output as unknown as ColdMailDiscoveryOutput
+                                }
+                                disabled={isChatBusy}
+                                onSelect={(target) => {
+                                  if (isChatBusy) return;
+                                  void handleSubmit({
+                                    text: `@ColdMail draft for ${target.jobTitle} at ${target.companyName}`,
+                                  });
+                                }}
+                              />
+                            ) : null}
+                            {m.role === "skill" &&
+                            m.skillCall?.skillId === "cold_mail" &&
+                            m.skillCall.status === "needs_approval" &&
+                            m.skillCall.output?.preparation &&
+                            m.skillCall.output?.preparationToken ? (
+                              <ColdMailSkillCard
+                                output={m.skillCall.output as unknown as ColdMailOutput}
+                              />
+                            ) : null}
                             <AgentResultPreview message={m} />
                             <AgentInsightPreview message={m} />
                             {(() => {
@@ -4918,6 +5010,7 @@ export const ChatPage = () => {
                     triggerRef={sourceLauncherTriggerRef}
                     onClose={() => setSourceLauncherOpen(false)}
                     onUpload={() => fileInputRef.current?.click()}
+                    onSkillSelect={selectSkillFromSourceLauncher}
                   />
                   <div className='absolute bottom-full left-0 right-0 mb-2 z-40'>
                     <ChatSkillCommandPalette

@@ -14,6 +14,10 @@ import { Composio } from "npm:@composio/core@0.13.1";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { runMeteredComposioCall } from "./metered-composio.ts";
 import {
+  buildComposioExecuteBody,
+  unwrapComposioToolData,
+} from "./composio-tool-contract.ts";
+import {
   normalizeConnectedAccount,
   resolveIntegrationConnection,
   filterConnectedAccountsForUser,
@@ -64,42 +68,6 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-/**
- * Composio wraps tool output in an envelope whose exact shape varies between
- * the SDK and the REST endpoint (`data`, `response_data`, or the payload
- * inline). Unwrap defensively rather than trusting one shape.
- */
-function unwrapToolData(result: unknown): Record<string, unknown> {
-  const root = asRecord(result);
-  if (!root) return {};
-
-  const successful = root.successful ?? root.success;
-  if (successful === false) {
-    const message = typeof root.error === "string"
-      ? root.error
-      : asRecord(root.error)?.message;
-    throw new Error(
-      typeof message === "string" && message
-        ? message
-        : "Composio reported the Gmail action as unsuccessful",
-    );
-  }
-
-  for (const key of ["data", "response_data", "result"]) {
-    const nested = asRecord(root[key]);
-    if (nested) {
-      const deeper = asRecord(nested.response_data) ?? asRecord(nested.data);
-      // Only descend when the inner object looks like the real payload.
-      if (deeper && (deeper.messages || deeper.labels || deeper.id)) {
-        return deeper;
-      }
-      return nested;
-    }
-  }
-
-  return root;
-}
-
 export class ComposioGmailError extends Error {
   code: string;
   constructor(message: string, code = "composio_gmail_error") {
@@ -143,7 +111,7 @@ export async function executeComposioTool(
         {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-api-key": key },
-          body: JSON.stringify({ user_id: userId, arguments: args }),
+          body: JSON.stringify(buildComposioExecuteBody(userId, args)),
         },
       );
 
@@ -158,7 +126,7 @@ export async function executeComposioTool(
         );
       }
 
-      return unwrapToolData(await response.json());
+      return unwrapComposioToolData(await response.json());
     },
   });
 }

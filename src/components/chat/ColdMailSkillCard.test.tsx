@@ -47,7 +47,7 @@ describe("ColdMailSkillCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create Gmail draft" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Draft created in Gmail")).toBeInTheDocument();
+      expect(screen.getByText(/Gmail drafted successfully/)).toBeInTheDocument();
     });
     expect(screen.getByText(/draft-123/)).toBeInTheDocument();
     expect(invokeProtectedFunction).toHaveBeenCalledWith("cold-mail", {
@@ -74,6 +74,6 @@ describe("ColdMailSkillCard", () => {
         ),
       ).toBeInTheDocument();
     });
-    expect(screen.queryByText("Draft created in Gmail")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Gmail drafted successfully/)).not.toBeInTheDocument();
   });
 });
