@@ -569,7 +569,7 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
                     <button
                       type="button"
                       onClick={addInstantJob}
-                      className="px-3 py-1.5 rounded-lg bg-brand text-brand-foreground text-xs font-semibold hover:bg-brand/90 transition-colors shrink-0"
+                      className="px-3 py-1.5 rounded-lg bg-brand text-black text-xs font-bold hover:bg-brand/90 transition-colors shrink-0"
                     >
                       Add
                     </button>
@@ -599,7 +599,7 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
                 type="button"
                 disabled={isScoutingBatch || selectedJobStates.length === 0}
                 onClick={handlePullRecruiterEmails}
-                className="w-full py-2.5 px-4 rounded-xl bg-brand hover:bg-brand/90 text-brand-foreground font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20 disabled:opacity-50 cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl bg-brand hover:bg-brand/90 text-black font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20 disabled:opacity-50 cursor-pointer"
               >
                 {isScoutingBatch ? (
                   <>
@@ -646,7 +646,7 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
                       }}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
                         selectedTone === tone.id
-                          ? "bg-brand text-brand-foreground font-semibold shadow-sm"
+                          ? "bg-brand text-black font-bold shadow-sm"
                           : "bg-muted/60 text-muted-foreground hover:text-foreground"
                       }`}
                     >
@@ -813,17 +813,17 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
                   type="button"
                   disabled={isCraftingBatch}
                   onClick={() => handleCraftOutreachPitches()}
-                  className="w-full py-2.5 px-4 rounded-xl bg-brand hover:bg-brand/90 text-brand-foreground font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20 disabled:opacity-50 cursor-pointer"
+                  className="w-full py-2.5 px-4 rounded-xl bg-brand hover:bg-brand/90 text-black font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20 disabled:opacity-50 cursor-pointer"
                 >
                   {isCraftingBatch ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" />
-                      <span>Crafting Tailored Pitches with Evidence...</span>
+                      <Loader2 className="size-4 animate-spin text-black" />
+                      <span className="text-black">Crafting Tailored Pitches with Evidence...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="size-4" />
-                      <span>✨ 1-Click: Craft Outreach Pitches ({selectedJobStates.length} Jobs)</span>
+                      <Sparkles className="size-4 text-black" />
+                      <span className="text-black">✨ 1-Click: Craft Outreach Pitches ({selectedJobStates.length} Jobs)</span>
                     </>
                   )}
                 </button>
@@ -835,17 +835,17 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
                     type="button"
                     disabled={isDeliveringBatch}
                     onClick={() => handleDeliverToGmail("draft")}
-                    className="py-2.5 px-4 rounded-xl bg-brand hover:bg-brand/90 text-brand-foreground font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20 disabled:opacity-50 cursor-pointer"
+                    className="py-2.5 px-4 rounded-xl bg-brand hover:bg-brand/90 text-black font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20 disabled:opacity-50 cursor-pointer"
                   >
                     {isDeliveringBatch && deliveryMode === "draft" ? (
                       <>
-                        <Loader2 className="size-4 animate-spin" />
-                        <span>Creating Gmail Drafts...</span>
+                        <Loader2 className="size-4 animate-spin text-black" />
+                        <span className="text-black">Creating Gmail Drafts...</span>
                       </>
                     ) : (
                       <>
-                        <Mail className="size-4" />
-                        <span>★ 1-Click: Create in Gmail Drafts</span>
+                        <Mail className="size-4 text-black" />
+                        <span className="text-black">★ 1-Click: Create in Gmail Drafts</span>
                       </>
                     )}
                   </button>
@@ -896,10 +896,10 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
                   href="https://mail.google.com"
                   target="_blank"
                   rel="noreferrer"
-                  className="px-4 py-2 rounded-xl bg-brand hover:bg-brand/90 text-brand-foreground font-semibold text-xs transition-all inline-flex items-center gap-1.5 shadow-md shadow-brand/20"
+                  className="px-4 py-2 rounded-xl bg-brand hover:bg-brand/90 text-black font-bold text-xs transition-all inline-flex items-center gap-1.5 shadow-md shadow-brand/20"
                 >
-                  <Mail className="size-3.5" />
-                  <span>Open in Gmail ↗</span>
+                  <Mail className="size-3.5 text-black" />
+                  <span className="text-black">Open in Gmail ↗</span>
                 </a>
 
                 <button
