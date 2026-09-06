@@ -5,7 +5,10 @@ import {
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
-import { agentCreateJobRelatedDraft } from "../_shared/gmail-job-agent-tools.ts";
+import {
+  agentCreateJobRelatedDraft,
+  agentSendJobRelatedEmail,
+} from "../_shared/gmail-job-agent-tools.ts";
 import {
   confirmGmailDraftResult,
   createColdMailPreparationToken,
@@ -38,9 +41,24 @@ type DiscoverRequest = {
 type CreateDraftRequest = {
   action: "create_gmail_draft";
   preparationToken?: string;
+  to?: string;
+  subject?: string;
+  body?: string;
 };
 
-type ColdMailRequest = DiscoverRequest | PrepareRequest | CreateDraftRequest;
+type SendEmailRequest = {
+  action: "send_gmail_email";
+  preparationToken?: string;
+  to?: string;
+  subject?: string;
+  body?: string;
+};
+
+type ColdMailRequest =
+  | DiscoverRequest
+  | PrepareRequest
+  | CreateDraftRequest
+  | SendEmailRequest;
 
 class RequestError extends Error {
   constructor(public status: number, message: string) {
@@ -736,18 +754,32 @@ serve(async (req) => {
     }
 
     if (request.action === "create_gmail_draft") {
+      let to = "";
+      let subject = "";
+      let body = "";
+
       const token = boundedString(
         request.preparationToken,
         "preparationToken",
         60_000,
       );
-      if (!token) throw new RequestError(400, "A reviewed Cold Mail draft is required.");
-      const preparation = await verifyColdMailPreparationToken(
-        token,
-        signingSecret(),
-      );
-      if (preparation.userId !== user.id) {
-        throw new RequestError(403, "This Cold Mail preparation belongs to another user.");
+      if (token) {
+        const preparation = await verifyColdMailPreparationToken(
+          token,
+          signingSecret(),
+        );
+        if (preparation.userId !== user.id) {
+          throw new RequestError(403, "This Cold Mail preparation belongs to another user.");
+        }
+        to = preparation.recipient.email;
+        subject = preparation.subject;
+        body = preparation.body;
+      } else if (request.to && request.subject && request.body) {
+        to = boundedString(request.to, "to", 320);
+        subject = boundedString(request.subject, "subject", 500);
+        body = boundedString(request.body, "body", 50000);
+      } else {
+        throw new RequestError(400, "A reviewed Cold Mail draft or preparation token is required.");
       }
 
       const reserved = await reserveColdMailDraftAttempt(
@@ -777,9 +809,9 @@ serve(async (req) => {
         serviceClient,
         user.id,
         {
-          to: preparation.recipient.email,
-          subject: preparation.subject,
-          body: preparation.body,
+          to,
+          subject,
+          body,
         },
       );
       const confirmed = confirmGmailDraftResult(providerResult);
@@ -801,6 +833,51 @@ serve(async (req) => {
       return jsonResponse(
         confirmed,
         confirmed.success ? 200 : 502,
+        corsHeaders,
+      );
+    }
+
+    if (request.action === "send_gmail_email") {
+      let to = "";
+      let subject = "";
+      let body = "";
+
+      const token = boundedString(
+        request.preparationToken,
+        "preparationToken",
+        60_000,
+      );
+      if (token) {
+        const preparation = await verifyColdMailPreparationToken(
+          token,
+          signingSecret(),
+        );
+        if (preparation.userId !== user.id) {
+          throw new RequestError(403, "This Cold Mail preparation belongs to another user.");
+        }
+        to = preparation.recipient.email;
+        subject = preparation.subject;
+        body = preparation.body;
+      } else if (request.to && request.subject && request.body) {
+        to = boundedString(request.to, "to", 320);
+        subject = boundedString(request.subject, "subject", 500);
+        body = boundedString(request.body, "body", 50000);
+      } else {
+        throw new RequestError(400, "A reviewed Cold Mail email or preparation token is required.");
+      }
+
+      const providerResult = await agentSendJobRelatedEmail(
+        serviceClient,
+        user.id,
+        {
+          to,
+          subject,
+          body,
+        },
+      );
+      return jsonResponse(
+        providerResult,
+        providerResult.success ? 200 : 502,
         corsHeaders,
       );
     }

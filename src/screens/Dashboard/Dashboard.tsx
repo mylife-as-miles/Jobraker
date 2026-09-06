@@ -783,11 +783,11 @@ export const Dashboard = (): JSX.Element => {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className='h-screen max-h-screen w-screen overflow-hidden bg-background flex'>
+      <div className='h-[calc(100vh-var(--app-banner-h,0px))] max-h-[calc(100vh-var(--app-banner-h,0px))] w-screen overflow-hidden bg-background flex'>
         {/* Sidebar - Desktop Only */}
         <div
           className={`
-        fixed inset-y-0 left-0 z-50 bg-card/95 backdrop-blur-xl border-r border-border/40 hidden lg:flex flex-col overflow-hidden transition-all duration-200
+        fixed bottom-0 top-[var(--app-banner-h,0px)] left-0 z-50 bg-card/95 backdrop-blur-xl border-r border-border/40 hidden lg:flex flex-col overflow-hidden transition-all duration-200
         ${chatFocusMode ? "!hidden" : isCollapsed && isDesktop ? "lg:w-20" : "lg:w-72"}
       `}
         >

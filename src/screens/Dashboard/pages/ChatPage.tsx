@@ -99,8 +99,9 @@ import {
   StreamedAnswerFooter,
 } from "@/components/chat/StreamedAnswerFooter";
 import { normalizeFollowUpQuestions } from "@/lib/chat/followUpQuestions";
-import { AgentApprovalCard } from "@/components/chat/AgentApprovalCard";
 import { ChatSourceLauncher } from "@/components/chat/ChatSourceLauncher";
+import { ChatPresetsBar } from "@/components/chat/ChatPresetsBar";
+import { RecruiterOutreachWorkflowCard } from "@/components/chat/RecruiterOutreachWorkflowCard";
 import {
   ApplicationStatusTable,
   type ApplicationStatusRecord,
@@ -2632,6 +2633,15 @@ export const ChatPage = () => {
     useState(true);
   const supabase = useMemo(() => createClient(), []);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const [activePresetRecipeId, setActivePresetRecipeId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.id) setCurrentUserId(data.user.id);
+    });
+  }, [supabase]);
+
   const [attachments, setAttachments] = useState<File[]>([]);
   const [sourceLauncherOpen, setSourceLauncherOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -5003,14 +5013,49 @@ export const ChatPage = () => {
                   </div>
                 )}
 
+                {activePresetRecipeId === "recruiter_cold_outreach" && (
+                  <div className="mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <RecruiterOutreachWorkflowCard
+                      userId={currentUserId}
+                      onClose={() => setActivePresetRecipeId(null)}
+                      onComplete={(summary) => {
+                        const outreachSummaryMsg: BasicMessage = {
+                          id: nanoid(),
+                          role: "assistant",
+                          content: `⚡ **1-Click Recruiter Outreach Completed!**\n\n- **Target Roles Contacted:** ${summary.total}\n- **Gmail Drafts Ready:** ${summary.drafted}\n- **Direct Emails Sent:** ${summary.sent}\n\nAll actions have been synced to your [Applications Tracker](/dashboard/applications) and your connected Gmail workspace.`,
+                          createdAt: Date.now(),
+                          parts: [
+                            {
+                              type: "text",
+                              text: `⚡ **1-Click Recruiter Outreach Completed!**\n\n- **Target Roles Contacted:** ${summary.total}\n- **Gmail Drafts Ready:** ${summary.drafted}\n- **Direct Emails Sent:** ${summary.sent}\n\nAll actions have been synced to your Applications Tracker and Gmail workspace.`,
+                            },
+                          ],
+                        };
+                        setMessages((prev) => [...prev, outreachSummaryMsg]);
+                      }}
+                    />
+                  </div>
+                )}
+
+                <ChatPresetsBar
+                  activeRecipeId={activePresetRecipeId}
+                  onSelectRecipe={(id) => {
+                    setActivePresetRecipeId((prev) => (prev === id ? null : id));
+                  }}
+                  className="mb-1.5"
+                />
+
                 <div className="relative">
                   <ChatSourceLauncher
                     open={sourceLauncherOpen}
                     skills={sourceLauncherSkills}
                     triggerRef={sourceLauncherTriggerRef}
                     onClose={() => setSourceLauncherOpen(false)}
-                    onUpload={() => fileInputRef.current?.click()}
                     onSkillSelect={selectSkillFromSourceLauncher}
+                    onSelectPreset={(id) => {
+                      setActivePresetRecipeId(id);
+                      setSourceLauncherOpen(false);
+                    }}
                   />
                   <div className='absolute bottom-full left-0 right-0 mb-2 z-40'>
                     <ChatSkillCommandPalette

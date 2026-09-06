@@ -4,6 +4,7 @@ import {
   Paperclip,
   Search,
   Sparkles,
+  Zap,
 } from "lucide-react";
 
 export type ChatSourceLauncherSkill = {
@@ -18,7 +19,8 @@ type Props = {
   triggerRef: RefObject<HTMLButtonElement>;
   onClose: () => void;
   onUpload: () => void;
-  onSkillSelect: (skillId: string) => void;
+  onSkillSelect?: (skillId: string) => void;
+  onSelectPreset?: (presetId: string) => void;
 };
 
 const DEFAULT_VISIBLE_ITEMS = 5;
@@ -30,6 +32,7 @@ export const ChatSourceLauncher = ({
   onClose,
   onUpload,
   onSkillSelect,
+  onSelectPreset,
 }: Props) => {
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -91,6 +94,32 @@ export const ChatSourceLauncher = ({
       aria-label="Add a file or choose a JobRaker skill"
     >
       <div className="max-h-[min(28rem,calc(100svh-9rem))] overflow-y-auto p-2">
+        {onSelectPreset && (!normalizedQuery || "recruiter cold outreach preset email".includes(normalizedQuery)) && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onSelectPreset("recruiter_cold_outreach");
+            }}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 mb-1 border border-brand/20 bg-brand/5"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400">
+              <Zap className="size-4 fill-amber-400/20" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                1-Click Recruiter Outreach
+                <span className="text-[10px] bg-brand/20 text-brand px-1.5 py-0.2 rounded font-bold uppercase tracking-wider">
+                  Preset
+                </span>
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
+                Pull emails, craft pitches, and create Gmail drafts in 3 clicks
+              </span>
+            </span>
+          </button>
+        )}
+
         {uploadMatches ? (
           <button
             type="button"

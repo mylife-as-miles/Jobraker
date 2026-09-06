@@ -16,6 +16,7 @@ import { AppearanceProvider } from "./providers/AppearanceProvider";
 import { TourProvider } from "./providers/TourProvider"; // Product tour context for dashboard pages
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ROUTES } from "./routes";
+import { PlanExpiredBanner } from "./components/PlanExpiredBanner";
 import { ToastEventBridge } from "./components/system/ToastEventBridge";
 import { InputSecurityGuard } from "./components/system/InputSecurityGuard";
 import { AnimatePresence } from "framer-motion";
@@ -539,6 +540,7 @@ function App() {
                 <InputSecurityGuard />
                 <ToastEventBridge />
                 <SubdomainGuard>
+                  <PlanExpiredBanner />
                   <AnimatedRoutes />
                 </SubdomainGuard>
               </AppearanceProvider>
