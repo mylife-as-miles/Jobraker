@@ -25,6 +25,7 @@ import {
 import {
   useArtboardStore,
   initialResumeState,
+  type ResumeData,
 } from "@/store/artboard";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
@@ -43,6 +44,7 @@ import { ShareDialog } from "../components/resume/ShareDialog";
 import { SectionEditor } from "../components/resume/SectionEditor";
 import { ListEditor } from "../components/resume/ListEditor";
 import { PersonalDetailsEditor } from "../components/resume/PersonalDetailsEditor";
+import { AIPolishDialog } from "../components/resume/AIPolishDialog";
 import { ResumeTemplateRenderer } from "@/templates/render-resume-template";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { resolveResumePageLayout } from "@/lib/resumeLayout";
@@ -58,6 +60,8 @@ import {
 import { useResumePersistence } from "@/hooks/useResumePersistence";
 import { useResumeExport } from "@/hooks/useResumeExport";
 import { useResumeHydration } from "@/hooks/useResumeHydration";
+import { buildSummaryEnhancementSource } from "@/lib/resumeSummaryEnhancement";
+import type { Suggestion } from "@/services/ai/polishContent";
 
 const PREVIEW_BASE_WIDTH = 794;
 
@@ -115,6 +119,12 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   );
   const saving = editorState.status === "saving";
   const [aiLoading, setAiLoading] = useState(false);
+  const [summarySuggestions, setSummarySuggestions] = useState<Suggestion[]>([]);
+  const [summaryEnhancementSource, setSummaryEnhancementSource] = useState("");
+  const [summaryEnhancementTarget, setSummaryEnhancementTarget] =
+    useState<DOMRect | null>(null);
+  const [isSummaryEnhancementOpen, setIsSummaryEnhancementOpen] =
+    useState(false);
   const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -299,7 +309,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
     dispatchEditor({ type: "CHANGE" });
   };
 
-  const { basics, sections, summary, metadata } = resumeData;
+  const { sections, summary, metadata } = resumeData;
   const resolvedLayoutPage = useMemo(
     () => resolveResumePageLayout(resumeData, 0),
     [resumeData],
@@ -328,6 +338,7 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
   const aiPolishSummary = async (
     instruction = "Polish this resume summary for clarity, confidence, and measurable impact.",
+    targetRect?: DOMRect,
   ) => {
     if (!hasResumeAiAccess) {
       toastError(
@@ -336,58 +347,25 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
       );
       return;
     }
+    const source = buildSummaryEnhancementSource(
+      useArtboardStore.getState().resume.data,
+    );
+    if (!source) {
+      toastError("AI rewrite unavailable", "Add a summary or job headline first.");
+      return;
+    }
+
+    setSummaryEnhancementSource(source);
+    setSummaryEnhancementTarget(targetRect || null);
+    setSummarySuggestions([]);
+    setIsSummaryEnhancementOpen(true);
     setAiLoading(true);
     try {
-      const currentResumeData = useArtboardStore.getState().resume.data;
-      const existingSummary = (currentResumeData.summary?.content || "").trim();
-      const headline = (currentResumeData.basics.headline || "").trim();
-      const candidateName = (currentResumeData.basics.name || "").trim();
-      const topPositions = (currentResumeData.sections?.experience?.items || [])
-        .slice(0, 2)
-        .map((item) => item.position || item.title || "")
-        .filter(Boolean);
-      const topSkills = (currentResumeData.sections?.skills?.items || [])
-        .slice(0, 5)
-        .map((item) => item.name || "")
-        .filter(Boolean);
-
-      let source = existingSummary;
-      if (!source) {
-        const contextParts = [
-          headline ? `Role: ${headline}` : "",
-          topPositions.length > 0 ? `Experience as ${topPositions.join(" and ")}` : "",
-          topSkills.length > 0 ? `Core skills: ${topSkills.join(", ")}` : "",
-          candidateName ? `Candidate: ${candidateName}` : "",
-        ].filter(Boolean);
-        source = contextParts.join(". ");
-      }
-      if (!source) throw new Error("Add a summary or job headline first.");
-
       const suggestions = await polishContent(source, instruction);
-      let nextSummary =
-        suggestions.find((item) => item.isRecommended && item.content.trim() !== source.trim())?.content ||
-        suggestions.find((item) => item.content.trim() !== source.trim())?.content ||
-        suggestions.find((item) => item.isRecommended)?.content ||
-        suggestions[0]?.content ||
-        "";
-      if (!nextSummary) throw new Error("No AI suggestion was returned.");
-
-      // Guarantee the enhanced summary differs from input
-      if (nextSummary.trim().toLowerCase() === source.trim().toLowerCase()) {
-        const role = headline || topPositions[0] || "professional";
-        nextSummary = `Results-driven ${role} with a proven track record of delivering high-impact solutions, streamlining critical workflows, and driving measurable operational success.`;
-      }
-
-      setSummary(nextSummary);
-      success(
-        instruction.includes("fresh")
-          ? "Summary generated"
-          : "Summary polished",
-        instruction.includes("fresh")
-          ? "A new AI summary has been added to your resume."
-          : "AI suggestions have been applied to your resume summary.",
-      );
+      if (suggestions.length === 0) throw new Error("No AI suggestion was returned.");
+      setSummarySuggestions(suggestions);
     } catch (e: any) {
+      setIsSummaryEnhancementOpen(false);
       toastError(
         instruction.includes("fresh")
           ? "AI generation failed"
@@ -397,6 +375,15 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
     } finally {
       setAiLoading(false);
     }
+  };
+
+  const applySummarySuggestion = (content: string) => {
+    setSummary(content);
+    setIsSummaryEnhancementOpen(false);
+    success(
+      "Summary enhanced",
+      "The selected AI suggestion has been applied to your resume.",
+    );
   };
 
   const [isAiGenerateModalOpen, setIsAiGenerateModalOpen] = useState(false);
@@ -556,6 +543,15 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
   return (
     <div className='product-page-shell flex flex-col h-full relative overflow-hidden'>
+      <AIPolishDialog
+        open={isSummaryEnhancementOpen}
+        onClose={() => !aiLoading && setIsSummaryEnhancementOpen(false)}
+        originalText={summaryEnhancementSource}
+        suggestions={summarySuggestions}
+        onApply={applySummarySuggestion}
+        loading={aiLoading}
+        targetRect={summaryEnhancementTarget}
+      />
       {/* Save Alert Modal */}
       <Modal
         open={saveAlertOpen}
@@ -943,8 +939,14 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                         <Button
                           variant='ghost'
                           size='sm'
-                          onClick={() => aiPolishSummary()}
+                          onClick={(event) =>
+                            aiPolishSummary(
+                              undefined,
+                              event.currentTarget.getBoundingClientRect(),
+                            )
+                          }
                           disabled={aiLoading}
+                          aria-label='Enhance resume summary with AI'
                           className='h-7 text-xs text-brand hover:text-brand hover:bg-brand/10 gap-1.5'
                         >
                           {aiLoading ? (

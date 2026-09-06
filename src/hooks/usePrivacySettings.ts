@@ -20,6 +20,9 @@ export interface PrivacySettings {
   allow_analytics_cookies?: boolean;
   allow_functional_cookies?: boolean;
   allow_advertising_cookies?: boolean;
+  cookie_consent_status?: 'accepted' | 'essential_only' | null;
+  cookie_consent_version?: string | null;
+  cookie_consent_updated_at?: string | null;
   gdpr_consent_given?: boolean;
   gdpr_consent_date?: string;
   allow_data_portability?: boolean;
