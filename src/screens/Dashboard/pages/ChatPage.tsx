@@ -5038,13 +5038,15 @@ export const ChatPage = () => {
                   </div>
                 )}
 
-                <ChatPresetsBar
-                  activeRecipeId={activePresetRecipeId}
-                  onSelectRecipe={(id) => {
-                    setActivePresetRecipeId((prev) => (prev === id ? null : id));
-                  }}
-                  className="mb-1.5"
-                />
+                {messages.length === 0 && (
+                  <ChatPresetsBar
+                    activeRecipeId={activePresetRecipeId}
+                    onSelectRecipe={(id) => {
+                      setActivePresetRecipeId((prev) => (prev === id ? null : id));
+                    }}
+                    className="mb-1.5"
+                  />
+                )}
 
                 <div className="relative">
                   <ChatSourceLauncher
