@@ -461,26 +461,55 @@ export async function deliverOutreachEmail(
   }
 
   try {
-    const action = mode === "send" ? "send_gmail_email" : "create_gmail_draft";
-    const { data: result, error } = await supabase.functions.invoke("cold-mail", {
+    const { data: draftResult, error: draftError } = await supabase.functions.invoke("cold-mail", {
       body: {
-        action,
+        action: "create_gmail_draft",
+        jobId: job.jobId || undefined,
+        companyName: job.company,
+        jobTitle: job.title,
+        recipientName: contact.fullName,
+        recipientTitle: contact.title,
+        recipientSource: contact.source,
+        recipientConfidence: contact.confidence,
         to: contact.email,
         subject: pitch.subject,
         body: pitch.body,
       },
     });
 
-    if (error || !result || result.success === false) {
+    if (draftError || !draftResult || draftResult.success === false || !draftResult.draftId) {
       const errMsg =
-        result?.error || error?.message || "Failed to create draft in Gmail workspace.";
+        draftResult?.error || draftError?.message || "Failed to create draft in Gmail workspace.";
       return {
         status: "failed",
         error: errMsg,
       };
     }
 
-    const draftId = result.draftId || result.messageId;
+    const draftId = draftResult.draftId;
+    let result = draftResult;
+    if (mode === "send") {
+      const { data: sendResult, error: sendError } = await supabase.functions.invoke(
+        "cold-mail",
+        {
+          body: {
+            action: "send_gmail_draft",
+            draftId,
+          },
+        },
+      );
+      if (sendError || !sendResult || sendResult.success === false || !sendResult.messageId) {
+        return {
+          status: "failed",
+          draftId,
+          error:
+            sendResult?.error || sendError?.message ||
+            "The Gmail draft was created but delivery could not be confirmed.",
+        };
+      }
+      result = sendResult;
+    }
+
     const nowIso = new Date().toISOString();
 
     // Sync into applications tracker

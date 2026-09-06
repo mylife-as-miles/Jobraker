@@ -272,12 +272,12 @@ describe("1-Click Recruiter Outreach Preset & Recipes", () => {
       expect(delivery.status).toBe("drafted");
       expect(delivery.draftId).toBe("draft-xyz123");
       expect(mockSupabase.functions.invoke).toHaveBeenCalledWith("cold-mail", {
-        body: {
+        body: expect.objectContaining({
           action: "create_gmail_draft",
           to: "david@retool.com",
           subject: "Founding Engineer - Retool",
           body: "Hi David, let's talk.",
-        },
+        }),
       });
       expect(upsertMock).toHaveBeenCalled();
     });
@@ -305,6 +305,60 @@ describe("1-Click Recruiter Outreach Preset & Recipes", () => {
       expect(delivery.status).toBe("skipped");
       expect(delivery.error).toContain("No email address available");
       expect(mockSupabase.functions.invoke).not.toHaveBeenCalled();
+    });
+
+    it("creates a reviewed Gmail draft and sends that exact draft", async () => {
+      const upsertMock = vi.fn().mockResolvedValue({ error: null });
+      const invokeMock = vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: {
+            success: true,
+            draftId: "draft-reviewed-123",
+            messageId: "draft-message-123",
+          },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            success: true,
+            draftId: "draft-reviewed-123",
+            messageId: "sent-message-123",
+          },
+          error: null,
+        });
+      const mockSupabase = {
+        functions: { invoke: invokeMock },
+        from: vi.fn().mockReturnValue({ upsert: upsertMock }),
+      } as any;
+
+      const delivery = await deliverOutreachEmail(
+        mockSupabase,
+        "user-test-id",
+        mockJob,
+        mockContact,
+        mockPitch,
+        "send",
+      );
+
+      expect(invokeMock).toHaveBeenNthCalledWith(1, "cold-mail", {
+        body: expect.objectContaining({
+          action: "create_gmail_draft",
+          jobId: "uuid-1",
+          to: "david@retool.com",
+        }),
+      });
+      expect(invokeMock).toHaveBeenNthCalledWith(2, "cold-mail", {
+        body: {
+          action: "send_gmail_draft",
+          draftId: "draft-reviewed-123",
+        },
+      });
+      expect(delivery).toMatchObject({
+        status: "sent",
+        draftId: "draft-reviewed-123",
+        messageId: "sent-message-123",
+      });
     });
   });
 
@@ -406,4 +460,3 @@ describe("1-Click Recruiter Outreach Preset & Recipes", () => {
     });
   });
 });
-

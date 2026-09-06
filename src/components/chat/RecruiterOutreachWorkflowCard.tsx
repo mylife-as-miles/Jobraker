@@ -859,12 +859,12 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
                     {isDeliveringBatch && deliveryMode === "send" ? (
                       <>
                         <Loader2 className="size-4 animate-spin" />
-                        <span>Sending via Safe Jitter...</span>
+                        <span>Sending reviewed Gmail drafts...</span>
                       </>
                     ) : (
                       <>
                         <Send className="size-3.5" />
-                        <span>Send Now via Gmail (Safe Jitter)</span>
+                        <span>Send Reviewed Emails via Gmail</span>
                       </>
                     )}
                   </button>
@@ -882,13 +882,57 @@ export const RecruiterOutreachWorkflowCard: React.FC<RecruiterOutreachWorkflowCa
 
               <div>
                 <h3 className="text-base font-bold text-foreground">
-                  Outreach Flow Completed Successfully!
+                  Outreach Delivery Results
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
                   {deliveryMode === "draft"
                     ? "Your tailored cold outreach drafts are now saved in your connected Gmail account and synced to your Application Tracker."
-                    : "Your tailored cold outreach emails have been scheduled and sent via Gmail with safe delivery jitter."}
+                    : "Each successful item below was sent from its reviewed Gmail draft and confirmed with a Gmail message ID."}
                 </p>
+              </div>
+
+              <div className="space-y-2 text-left">
+                {selectedJobStates.map((js) => (
+                  <div
+                    key={js.job.id}
+                    className="rounded-lg border border-border/70 bg-background/70 px-3 py-2"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-foreground truncate">
+                          {js.job.company} · {js.job.title}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {js.contact?.email || "No verified recruiter email"}
+                        </p>
+                      </div>
+                      <span
+                        className={`text-[10px] font-semibold uppercase tracking-wide ${
+                          js.delivery?.status === "sent" || js.delivery?.status === "drafted"
+                            ? "text-brand"
+                            : "text-amber-400"
+                        }`}
+                      >
+                        {js.delivery?.status || "not processed"}
+                      </span>
+                    </div>
+                    {js.pitch && (
+                      <p className="mt-1 text-[11px] text-muted-foreground truncate">
+                        Subject: {js.pitch.subject}
+                      </p>
+                    )}
+                    {(js.delivery?.messageId || js.delivery?.draftId) && (
+                      <p className="mt-1 text-[10px] text-muted-foreground font-mono truncate">
+                        Gmail ID: {js.delivery.messageId || js.delivery.draftId}
+                      </p>
+                    )}
+                    {js.delivery?.error && (
+                      <p className="mt-1 text-[11px] text-destructive">
+                        {js.delivery.error}
+                      </p>
+                    )}
+                  </div>
+                ))}
               </div>
 
               <div className="flex items-center justify-center gap-3">

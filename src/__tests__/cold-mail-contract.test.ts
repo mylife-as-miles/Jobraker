@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   confirmGmailDraftResult,
+  confirmGmailSendResult,
   createColdMailPreparationToken,
   selectColdMailRecipient,
   verifyColdMailPreparationToken,
@@ -16,6 +17,7 @@ import {
 import {
   fingerprintColdMailPreparationToken,
   resolveColdMailDraftAttempt,
+  resolveColdMailSendAttempt,
 } from "../../backend/supabase/functions/_shared/cold-mail-draft-idempotency";
 
 const preparation: ColdMailPreparation = {
@@ -104,6 +106,28 @@ describe("confirmGmailDraftResult", () => {
   });
 });
 
+describe("confirmGmailSendResult", () => {
+  it("confirms delivery only when Gmail returns a message ID", () => {
+    expect(
+      confirmGmailSendResult({
+        success: true,
+        messageId: "message-123",
+        threadId: "thread-123",
+        sentFrom: "candidate@gmail.com",
+        to: "ada@acme.com",
+      }),
+    ).toMatchObject({ success: true, messageId: "message-123" });
+  });
+
+  it("fails closed when the provider reports success without a message ID", () => {
+    expect(confirmGmailSendResult({ success: true, messageId: null })).toEqual({
+      success: false,
+      error: "Gmail did not return a message ID, so delivery could not be confirmed.",
+      code: "gmail_send_unconfirmed",
+    });
+  });
+});
+
 describe("cold-mail Gmail draft idempotency", () => {
   it("creates a stable non-secret request fingerprint", async () => {
     const fingerprint = await fingerprintColdMailPreparationToken(
@@ -183,6 +207,72 @@ describe("cold-mail Gmail draft idempotency", () => {
       "grant all on table public.cold_mail_drafts to service_role",
     );
   });
+
+  it("ships a migration that makes Gmail sends durable and idempotent", () => {
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        "backend/supabase/migrations/20260906161818_cold_mail_send_idempotency.sql",
+      ),
+      "utf8",
+    );
+
+    expect(migration).toContain("add column if not exists sent_at timestamptz");
+    expect(migration).toContain("'sending'");
+    expect(migration).toContain("'sent'");
+    expect(migration).toContain("'send_uncertain'");
+    expect(migration).toContain("cold_mail_drafts_user_provider_draft_unique");
+  });
+});
+
+describe("cold-mail Gmail send idempotency", () => {
+  const createdDraft = {
+    id: "record-1",
+    status: "created" as const,
+    provider_draft_id: "draft-123",
+    provider_message_id: "draft-message-123",
+    provider_thread_id: "thread-123",
+    draft_from: "candidate@gmail.com",
+    recipient_email: "recruiter@acme.com",
+  };
+
+  it("allows a confirmed owned draft to be sent", () => {
+    expect(resolveColdMailSendAttempt(createdDraft)).toEqual({
+      action: "send",
+      draftId: "draft-123",
+    });
+  });
+
+  it("replays a previously confirmed send without sending twice", () => {
+    expect(
+      resolveColdMailSendAttempt({
+        ...createdDraft,
+        status: "sent",
+        provider_message_id: "sent-message-123",
+      }),
+    ).toEqual({
+      action: "replay",
+      response: {
+        success: true,
+        draftId: "draft-123",
+        messageId: "sent-message-123",
+        threadId: "thread-123",
+        sentFrom: "candidate@gmail.com",
+        to: "recruiter@acme.com",
+        idempotentReplay: true,
+      },
+    });
+  });
+
+  it.each(["creating", "uncertain", "sending", "send_uncertain"] as const)(
+    "blocks delivery while the stored attempt is %s",
+    (status) => {
+      expect(resolveColdMailSendAttempt({ ...createdDraft, status })).toMatchObject({
+        action: "block",
+        response: { success: false, code: "gmail_send_state_uncertain" },
+      });
+    },
+  );
 });
 
 describe("Composio Gmail execution contract", () => {

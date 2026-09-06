@@ -1,5 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  buildRecruiterSearchQueries,
+  extractPublishedRecruiterContacts,
+  normalizeContactProviderContacts,
+} from "../_shared/recruiter-contact-discovery.ts";
 
 interface ScoutRequest {
   companyName: string;
@@ -514,6 +519,64 @@ async function verifyEmail(email: string, fullName: string, company: string) {
   }
 }
 
+async function searchContactProvider(
+  company: string,
+  officialDomain: string,
+  jobTitle: string,
+  teamKeywords: string[],
+  limit: number,
+): Promise<RecruiterContact[]> {
+  const providerUrl = asString(Deno.env.get("RECRUITER_CONTACT_PROVIDER_URL"));
+  if (!providerUrl || !officialDomain) return [];
+  const providerKey = asString(Deno.env.get("RECRUITER_CONTACT_PROVIDER_API_KEY"));
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort("contact_provider_timeout"), 15_000);
+  try {
+    const response = await fetch(providerUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(providerKey
+          ? { Authorization: `Bearer ${providerKey}`, "X-API-Key": providerKey }
+          : {}),
+      },
+      body: JSON.stringify({
+        company,
+        domain: officialDomain,
+        jobTitle,
+        teamKeywords,
+        roles: [
+          "recruiter",
+          "talent acquisition",
+          "hiring manager",
+          "team lead",
+          "director",
+        ],
+        limit,
+      }),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      console.warn("contact provider search failed", { status: response.status });
+      return [];
+    }
+    return normalizeContactProviderContacts(await response.json(), {
+      company,
+      officialDomain,
+      jobTitle,
+      teamKeywords,
+      providerUrl,
+    }) as RecruiterContact[];
+  } catch (error) {
+    console.warn("contact provider search failed", {
+      message: error instanceof Error ? error.message : "unknown_error",
+    });
+    return [];
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function enrichEmail(
   contact: RecruiterContact,
   officialDomain: string,
@@ -702,7 +765,7 @@ async function persistContacts(serviceClient: any, userId: string, runId: string
     discovery_run_id: runId,
     job_id: job.id,
     application_id: job.applicationId,
-    identity_key: await hash((contact.linkedinUrl || `${job.company}|${contact.fullName}|${contact.title}`).toLowerCase()),
+    identity_key: await hash((contact.linkedinUrl || contact.workEmail || `${job.company}|${contact.fullName}|${contact.title}`).toLowerCase()),
     company: job.company,
     full_name: contact.fullName,
     title: contact.title || null,
@@ -744,43 +807,94 @@ serve(async (req) => {
     const job = await resolveJob(serviceClient, context.user.id, request, companyName);
     const teamKeywords = extractTeamKeywords(job.description, job.title);
     const isYcCompany = /yc|y combinator|workatastartup|ycombinator/i.test(`${job.company} ${job.title} ${job.description} ${job.applyUrl}`);
-    const officialQuery = isYcCompany
-      ? `site:ycombinator.com/companies/ "${job.company}" OR site:workatastartup.com/companies/ "${job.company}" OR "${job.company}" official website`
-      : `"${job.company}" official website careers jobs`;
-    const recruiterQuery = `site:linkedin.com/in/ "${job.company}" (${keywordQuery}) (recruiter OR "talent acquisition" OR "talent partner" OR sourcer)`;
-    const managerQuery = `site:linkedin.com/in/ "${job.company}" (${keywordQuery}) ("hiring manager" OR founder OR CEO OR CTO OR manager OR lead OR director OR "head of")`;
+    const initialSearchPlan = buildRecruiterSearchQueries({
+      company: job.company,
+      jobTitle: job.title,
+      teamKeywords,
+      officialDomain: "",
+    });
+    const officialQuery = initialSearchPlan.officialDiscovery;
     const ycQuery = `site:ycombinator.com/companies/ "${job.company}" founder team hiring`;
-    const queries = [officialQuery, recruiterQuery, managerQuery, ...(isYcCompany ? [ycQuery] : [])];
-    runId = await createRun(serviceClient, context.user.id, job, teamKeywords, queries);
 
     const firecrawlKey = asString(Deno.env.get("FIRECRAWL_API_KEY"));
     if (!firecrawlKey) throw new Error("Search provider API key is not configured.");
-    const searchPromises = [
+    const [officialItems, ycItems] = await Promise.all([
       searchWeb(firecrawlKey, officialQuery, 7),
-      searchWeb(firecrawlKey, recruiterQuery, 8),
-      searchWeb(firecrawlKey, managerQuery, 8),
-    ];
-    if (isYcCompany) {
-      searchPromises.push(searchWeb(firecrawlKey, ycQuery, 6));
-    }
-    const searchResults = await Promise.all(searchPromises);
-    const officialItems = searchResults[0] || [];
-    const recruiterItems = searchResults[1] || [];
-    const managerItems = searchResults[2] || [];
-    const ycItems = searchResults[3] || [];
-    const allItems = dedupeSearchItems([...officialItems, ...recruiterItems, ...managerItems, ...ycItems]);
+      isYcCompany ? searchWeb(firecrawlKey, ycQuery, 6) : Promise.resolve([]),
+    ]);
     
     let officialDomain = officialDomainFrom(officialItems, job.company);
     if (!officialDomain && isYcCompany) {
       officialDomain = `${job.company.toLowerCase().replace(/[^a-z0-9]/g, "")}.com`;
     }
+    const searchPlan = buildRecruiterSearchQueries({
+      company: job.company,
+      jobTitle: job.title,
+      teamKeywords,
+      officialDomain,
+    });
+    const queries = [
+      officialQuery,
+      searchPlan.linkedInRecruiters,
+      searchPlan.linkedInManagers,
+      searchPlan.officialPeople,
+      searchPlan.publicPeople,
+      searchPlan.publicEmails,
+      ...(isYcCompany ? [ycQuery] : []),
+    ];
+    runId = await createRun(serviceClient, context.user.id, job, teamKeywords, queries);
+    const [
+      recruiterItems,
+      managerItems,
+      officialPeopleItems,
+      publicPeopleItems,
+      publicEmailItems,
+      providerContacts,
+    ] = await Promise.all([
+      searchWeb(firecrawlKey, searchPlan.linkedInRecruiters, 8),
+      searchWeb(firecrawlKey, searchPlan.linkedInManagers, 8),
+      searchWeb(firecrawlKey, searchPlan.officialPeople, 6),
+      searchWeb(firecrawlKey, searchPlan.publicPeople, 6),
+      searchWeb(firecrawlKey, searchPlan.publicEmails, 6),
+      searchContactProvider(job.company, officialDomain, job.title, teamKeywords, 8),
+    ]);
+    const publicItems = dedupeSearchItems([
+      ...officialItems,
+      ...ycItems,
+      ...officialPeopleItems,
+      ...publicPeopleItems,
+      ...publicEmailItems,
+    ]);
+    const allItems = dedupeSearchItems([
+      ...publicItems,
+      ...recruiterItems,
+      ...managerItems,
+    ]);
     const careersPageUrl = careersUrlFrom(officialItems, officialDomain) || 
       (isYcCompany ? `https://www.ycombinator.com/companies/${job.company.toLowerCase().replace(/[^a-z0-9]/g, "")}` : "");
 
-    const contactsByUrl = new Map<string, RecruiterContact>();
+    const contactsByIdentity = new Map<string, RecruiterContact>();
+    const addContact = (contact: RecruiterContact) => {
+      const key = (contact.workEmail || contact.linkedinUrl ||
+        `${contact.fullName}|${contact.title}`).toLowerCase();
+      const existing = contactsByIdentity.get(key);
+      if (!existing || (!existing.safeToContact && contact.safeToContact) ||
+        contact.relevanceScore > existing.relevanceScore) {
+        contactsByIdentity.set(key, contact);
+      }
+    };
+    for (const contact of extractPublishedRecruiterContacts(publicItems, {
+      company: job.company,
+      jobTitle: job.title,
+      teamKeywords,
+      officialDomain,
+    }) as RecruiterContact[]) {
+      addContact(contact);
+    }
+    for (const contact of providerContacts) addContact(contact);
     for (const item of allItems) {
       const linkedinUrl = normalizeLinkedInProfileUrl(item.url);
-      if (!linkedinUrl || contactsByUrl.has(linkedinUrl)) continue;
+      if (!linkedinUrl) continue;
       const parsed = parseLinkedInResult(item);
       if (!parsed) continue;
       const evidence = sourceText(item);
@@ -789,7 +903,7 @@ serve(async (req) => {
       const roleKind = inferRoleKind(parsed.title);
       const score = relevanceScore(parsed.title, roleKind, evidence, job.company, teamKeywords);
       if (roleKind === "unknown" || score < 65) continue;
-      contactsByUrl.set(linkedinUrl, {
+      addContact({
         fullName: parsed.fullName,
         title: parsed.title,
         roleKind,
@@ -811,15 +925,17 @@ serve(async (req) => {
     }
 
     const limit = clamp(request.limit, 5, 1, 8);
-    const ranked = Array.from(contactsByUrl.values())
+    const ranked = Array.from(contactsByIdentity.values())
       .sort((a, b) => b.relevanceScore - a.relevanceScore).slice(0, limit);
     const contacts: RecruiterContact[] = [];
     for (const contact of ranked) {
-      contacts.push(await enrichEmail(contact, officialDomain, firecrawlKey, job.company));
+      contacts.push(contact.safeToContact && contact.workEmail
+        ? contact
+        : await enrichEmail(contact, officialDomain, firecrawlKey, job.company));
     }
     await persistContacts(serviceClient, context.user.id, runId, job, contacts);
 
-    const genericInbox = verifiedRecruitmentInbox(officialItems, officialDomain);
+    const genericInbox = verifiedRecruitmentInbox(publicItems, officialDomain);
     const bestEmail = contacts.filter((contact) => contact.safeToContact && contact.workEmail)
       .sort((a, b) => b.relevanceScore - a.relevanceScore)[0]?.workEmail || genericInbox?.email || "";
     const safeCount = contacts.filter((contact) => contact.safeToContact).length;
@@ -827,12 +943,14 @@ serve(async (req) => {
     const publicContactChannels: string[] = [];
     if (careersPageUrl) publicContactChannels.push(`Careers page | ${careersPageUrl}`);
     for (const contact of contacts) {
-      publicContactChannels.push(`LinkedIn | ${contact.fullName} | ${contact.title || contact.roleKind} | ${contact.linkedinUrl} | relevance=${contact.relevanceScore}`);
+      if (contact.linkedinUrl) {
+        publicContactChannels.push(`LinkedIn | ${contact.fullName} | ${contact.title || contact.roleKind} | ${contact.linkedinUrl} | relevance=${contact.relevanceScore}`);
+      }
       if (contact.safeToContact && contact.workEmail) {
         publicContactChannels.push(`Verified work email | ${contact.fullName} | ${contact.workEmail} | ${contact.emailStatus} | source=${contact.emailSourceUrl}`);
       }
     }
-    if (genericInbox && genericInbox.email !== bestEmail) {
+    if (genericInbox) {
       publicContactChannels.push(`Verified recruitment inbox | ${genericInbox.email} | source=${genericInbox.sourceUrl}`);
     }
     if (!publicContactChannels.length) publicContactChannels.push("No evidence-backed recruiter contact was found.");
@@ -865,7 +983,7 @@ serve(async (req) => {
       contactEmail: bestEmail,
       publicContactChannels,
       confidence,
-      foundSource: "Public indexed web and LinkedIn profile results, ranked against the job's team keywords. Work emails are returned only when published in evidence or confirmed by a configured non-catch-all verifier.",
+      foundSource: "Official company/team pages, public indexed web results, an optional contact provider, and public LinkedIn profile results. Work emails are returned only when published in evidence or confirmed by a configured non-catch-all provider.",
       job,
       teamKeywords,
       recruiterContacts: contacts,
@@ -878,6 +996,7 @@ serve(async (req) => {
         emailAutoSendAllowed: false,
         requiresExplicitApprovalBeforeExternalSend: true,
         configuredEmailVerifier: Boolean(asString(Deno.env.get("RECRUITER_EMAIL_VERIFIER_URL"))),
+        configuredContactProvider: Boolean(asString(Deno.env.get("RECRUITER_CONTACT_PROVIDER_URL"))),
       },
       discoveryRunId: runId,
     }, 200, headers);

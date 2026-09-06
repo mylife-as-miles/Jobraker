@@ -8,9 +8,11 @@ import {
 import {
   agentCreateJobRelatedDraft,
   agentSendJobRelatedEmail,
+  agentSendJobRelatedDraft,
 } from "../_shared/gmail-job-agent-tools.ts";
 import {
   confirmGmailDraftResult,
+  confirmGmailSendResult,
   createColdMailPreparationToken,
   selectColdMailRecipient,
   verifyColdMailPreparationToken,
@@ -19,6 +21,7 @@ import {
 import {
   fingerprintColdMailPreparationToken,
   resolveColdMailDraftAttempt,
+  resolveColdMailSendAttempt,
   type ColdMailDraftAttemptRow,
 } from "../_shared/cold-mail-draft-idempotency.ts";
 
@@ -41,9 +44,21 @@ type DiscoverRequest = {
 type CreateDraftRequest = {
   action: "create_gmail_draft";
   preparationToken?: string;
+  jobId?: string;
+  companyName?: string;
+  jobTitle?: string;
+  recipientName?: string;
+  recipientTitle?: string;
+  recipientSource?: string;
+  recipientConfidence?: "high" | "medium" | "low";
   to?: string;
   subject?: string;
   body?: string;
+};
+
+type SendDraftRequest = {
+  action: "send_gmail_draft";
+  draftId?: string;
 };
 
 type SendEmailRequest = {
@@ -58,6 +73,7 @@ type ColdMailRequest =
   | DiscoverRequest
   | PrepareRequest
   | CreateDraftRequest
+  | SendDraftRequest
   | SendEmailRequest;
 
 class RequestError extends Error {
@@ -638,10 +654,10 @@ async function loadColdMailDraftAttempt(
 async function reserveColdMailDraftAttempt(
   serviceClient: any,
   userId: string,
-  token: string,
+  fingerprintSource: string,
   preparation: ColdMailPreparation,
 ) {
-  const requestFingerprint = await fingerprintColdMailPreparationToken(token);
+  const requestFingerprint = await fingerprintColdMailPreparationToken(fingerprintSource);
   const existing = await loadColdMailDraftAttempt(
     serviceClient,
     userId,
@@ -688,6 +704,72 @@ async function reserveColdMailDraftAttempt(
     message: error?.message,
   });
   throw new RequestError(500, "Cold Mail could not reserve the Gmail draft write.");
+}
+
+async function loadColdMailDraftAttemptByProviderId(
+  serviceClient: any,
+  userId: string,
+  draftId: string,
+) {
+  const { data, error } = await serviceClient
+    .from("cold_mail_drafts")
+    .select(COLD_MAIL_DRAFT_ATTEMPT_COLUMNS)
+    .eq("user_id", userId)
+    .eq("provider_draft_id", draftId)
+    .maybeSingle();
+  if (error) {
+    console.error("cold-mail send attempt lookup failed", {
+      code: error.code,
+      message: error.message,
+    });
+    throw new RequestError(500, "Cold Mail could not verify the Gmail draft.");
+  }
+  return (data as ColdMailDraftAttemptRow | null) || null;
+}
+
+async function reserveColdMailSendAttempt(
+  serviceClient: any,
+  userId: string,
+  draftId: string,
+) {
+  const existing = await loadColdMailDraftAttemptByProviderId(
+    serviceClient,
+    userId,
+    draftId,
+  );
+  const decision = resolveColdMailSendAttempt(existing);
+  if (decision.action !== "send" || !existing) {
+    return { decision, row: existing };
+  }
+
+  const { data, error } = await serviceClient
+    .from("cold_mail_drafts")
+    .update({ status: "sending", error_code: null, updated_at: new Date().toISOString() })
+    .eq("id", existing.id)
+    .eq("user_id", userId)
+    .eq("status", "created")
+    .select(COLD_MAIL_DRAFT_ATTEMPT_COLUMNS)
+    .maybeSingle();
+  if (error) {
+    console.error("cold-mail send reservation failed", {
+      code: error.code,
+      message: error.message,
+    });
+    throw new RequestError(500, "Cold Mail could not reserve the Gmail send.");
+  }
+  if (data) {
+    return {
+      decision: { action: "send" as const, draftId },
+      row: data as ColdMailDraftAttemptRow,
+    };
+  }
+
+  const concurrent = await loadColdMailDraftAttemptByProviderId(
+    serviceClient,
+    userId,
+    draftId,
+  );
+  return { decision: resolveColdMailSendAttempt(concurrent), row: concurrent };
 }
 
 async function persistColdMailDraftAttempt(
@@ -757,6 +839,7 @@ serve(async (req) => {
       let to = "";
       let subject = "";
       let body = "";
+      let preparation: ColdMailPreparation;
 
       const token = boundedString(
         request.preparationToken,
@@ -764,7 +847,7 @@ serve(async (req) => {
         60_000,
       );
       if (token) {
-        const preparation = await verifyColdMailPreparationToken(
+        preparation = await verifyColdMailPreparationToken(
           token,
           signingSecret(),
         );
@@ -778,14 +861,41 @@ serve(async (req) => {
         to = boundedString(request.to, "to", 320);
         subject = boundedString(request.subject, "subject", 500);
         body = boundedString(request.body, "body", 50000);
+        preparation = {
+          userId: user.id,
+          jobId: boundedString(request.jobId, "jobId", 100) || null,
+          companyName:
+            boundedString(request.companyName, "companyName", 200) || "Job opportunity",
+          jobTitle:
+            boundedString(request.jobTitle, "jobTitle", 200) || "Target role",
+          recipient: {
+            email: to,
+            name: boundedString(request.recipientName, "recipientName", 160) || undefined,
+            title: boundedString(request.recipientTitle, "recipientTitle", 200) || undefined,
+            source:
+              boundedString(request.recipientSource, "recipientSource", 2_048) ||
+              "Reviewed recruiter outreach workflow",
+            confidence:
+              request.recipientConfidence === "high" ? "high" : "medium",
+          },
+          subject,
+          body,
+        };
       } else {
         throw new RequestError(400, "A reviewed Cold Mail draft or preparation token is required.");
       }
 
+      const fingerprintSource = token || JSON.stringify({
+        userId: user.id,
+        jobId: preparation.jobId,
+        to,
+        subject,
+        body,
+      });
       const reserved = await reserveColdMailDraftAttempt(
         serviceClient,
         user.id,
-        token,
+        fingerprintSource,
         preparation,
       );
       if (reserved.decision.action === "replay") {
@@ -832,6 +942,61 @@ serve(async (req) => {
       }
       return jsonResponse(
         confirmed,
+        confirmed.success ? 200 : 502,
+        corsHeaders,
+      );
+    }
+
+    if (request.action === "send_gmail_draft") {
+      const draftId = boundedString(request.draftId, "draftId", 500);
+      if (!draftId) {
+        throw new RequestError(400, "A reviewed Gmail draft ID is required.");
+      }
+      const reserved = await reserveColdMailSendAttempt(
+        serviceClient,
+        user.id,
+        draftId,
+      );
+      if (reserved.decision.action === "replay") {
+        return jsonResponse(reserved.decision.response, 200, corsHeaders);
+      }
+      if (reserved.decision.action === "block" || !reserved.row) {
+        return jsonResponse(
+          reserved.decision.action === "block"
+            ? reserved.decision.response
+            : {
+                success: false,
+                code: "gmail_send_reservation_failed",
+                error: "Cold Mail could not reserve the Gmail send.",
+              },
+          409,
+          corsHeaders,
+        );
+      }
+
+      const providerResult = await agentSendJobRelatedDraft(
+        serviceClient,
+        user.id,
+        { draft_id: draftId },
+      );
+      const confirmed = confirmGmailSendResult(providerResult);
+      if (confirmed.success) {
+        await persistColdMailDraftAttempt(serviceClient, reserved.row.id, {
+          status: "sent",
+          provider_message_id: confirmed.messageId,
+          provider_thread_id: confirmed.threadId,
+          draft_from: confirmed.sentFrom || reserved.row.draft_from,
+          sent_at: new Date().toISOString(),
+          error_code: null,
+        });
+      } else {
+        await persistColdMailDraftAttempt(serviceClient, reserved.row.id, {
+          status: "send_uncertain",
+          error_code: confirmed.code,
+        });
+      }
+      return jsonResponse(
+        confirmed.success ? { ...confirmed, draftId } : confirmed,
         confirmed.success ? 200 : 502,
         corsHeaders,
       );
