@@ -362,4 +362,48 @@ describe("1-Click Recruiter Outreach Preset & Recipes", () => {
       expect(jobs[0].id).toBe("job-new-match");
     });
   });
+
+  describe("Agentic Preset Prompt Compilation", () => {
+    it("compiles structured prompt with searched and applied positions and tone preferences", () => {
+      const selectedJobs = [
+        {
+          id: "job-1",
+          company: "Anthropic",
+          title: "Research Engineer",
+          source: "searched" as const,
+          selected: true,
+        },
+        {
+          id: "app-2",
+          company: "Linear",
+          title: "Product Designer",
+          source: "applied" as const,
+          selected: true,
+        },
+      ];
+
+      const tone = "bold";
+      const toneLabel = "Executive Bold & High-Agency";
+
+      const jobLines = selectedJobs
+        .map(
+          (j, i) =>
+            `${i + 1}. **${j.company}** - ${j.title}${
+              j.source === "applied" ? " (Follow-up on submitted application)" : ""
+            }`,
+        )
+        .join("\n");
+
+      const prompt = `🎯 **1-Click Recruiter Cold Outreach Preset**\n\nPlease execute an autonomous recruiter cold outreach workflow for the following target positions:\n${jobLines}\n\n**Outreach Configuration**:\n- **Tone**: ${toneLabel}\n- **Step 1**: Pull verified recruiter, talent acquisition, and hiring manager contact emails for each company.\n- **Step 2**: Craft tailored, high-conversion outreach pitches highlighting relevant achievements from my profile and resume.\n- **Step 3**: Prepare and sync the drafts directly into my connected Gmail workspace for review before sending.`;
+
+      expect(prompt).toContain("🎯 **1-Click Recruiter Cold Outreach Preset**");
+      expect(prompt).toContain("1. **Anthropic** - Research Engineer");
+      expect(prompt).toContain("2. **Linear** - Product Designer (Follow-up on submitted application)");
+      expect(prompt).toContain("Executive Bold & High-Agency");
+      expect(prompt).toContain("**Step 1**: Pull verified recruiter");
+      expect(prompt).toContain("**Step 2**: Craft tailored");
+      expect(prompt).toContain("**Step 3**: Prepare and sync the drafts directly into my connected Gmail workspace");
+    });
+  });
 });
+

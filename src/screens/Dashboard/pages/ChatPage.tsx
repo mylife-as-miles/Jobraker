@@ -102,7 +102,7 @@ import { normalizeFollowUpQuestions } from "@/lib/chat/followUpQuestions";
 import { AgentApprovalCard } from "@/components/chat/AgentApprovalCard";
 import { ChatSourceLauncher } from "@/components/chat/ChatSourceLauncher";
 import { ChatPresetsBar } from "@/components/chat/ChatPresetsBar";
-import { RecruiterOutreachWorkflowCard } from "@/components/chat/RecruiterOutreachWorkflowCard";
+import { RecruiterOutreachPresetModal } from "@/components/chat/RecruiterOutreachPresetModal";
 import {
   ApplicationStatusTable,
   type ApplicationStatusRecord,
@@ -2635,6 +2635,7 @@ export const ChatPage = () => {
   const supabase = useMemo(() => createClient(), []);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const [activePresetRecipeId, setActivePresetRecipeId] = useState<string | null>(null);
+  const [presetModalOpen, setPresetModalOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
@@ -5014,35 +5015,26 @@ export const ChatPage = () => {
                   </div>
                 )}
 
-                {activePresetRecipeId === "recruiter_cold_outreach" && (
-                  <div className="mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <RecruiterOutreachWorkflowCard
-                      userId={currentUserId}
-                      onClose={() => setActivePresetRecipeId(null)}
-                      onComplete={(summary) => {
-                        const outreachSummaryMsg: BasicMessage = {
-                          id: nanoid(),
-                          role: "assistant",
-                          content: `⚡ **1-Click Recruiter Outreach Completed!**\n\n- **Target Roles Contacted:** ${summary.total}\n- **Gmail Drafts Ready:** ${summary.drafted}\n- **Direct Emails Sent:** ${summary.sent}\n\nAll actions have been synced to your [Applications Tracker](/dashboard/applications) and your connected Gmail workspace.`,
-                          createdAt: Date.now(),
-                          parts: [
-                            {
-                              type: "text",
-                              text: `⚡ **1-Click Recruiter Outreach Completed!**\n\n- **Target Roles Contacted:** ${summary.total}\n- **Gmail Drafts Ready:** ${summary.drafted}\n- **Direct Emails Sent:** ${summary.sent}\n\nAll actions have been synced to your Applications Tracker and Gmail workspace.`,
-                            },
-                          ],
-                        };
-                        setMessages((prev) => [...prev, outreachSummaryMsg]);
-                      }}
-                    />
-                  </div>
-                )}
+                <RecruiterOutreachPresetModal
+                  open={presetModalOpen}
+                  onOpenChange={setPresetModalOpen}
+                  userId={currentUserId}
+                  onLaunchPrompt={(prompt) => {
+                    setPresetModalOpen(false);
+                    setActivePresetRecipeId(null);
+                    void handleSubmit({ text: prompt });
+                  }}
+                />
 
                 {messages.length === 0 && (
                   <ChatPresetsBar
                     activeRecipeId={activePresetRecipeId}
                     onSelectRecipe={(id) => {
-                      setActivePresetRecipeId((prev) => (prev === id ? null : id));
+                      if (id === "recruiter_cold_outreach") {
+                        setPresetModalOpen(true);
+                      } else {
+                        setActivePresetRecipeId((prev) => (prev === id ? null : id));
+                      }
                     }}
                     className="mb-1.5"
                   />
@@ -5056,7 +5048,11 @@ export const ChatPage = () => {
                     onClose={() => setSourceLauncherOpen(false)}
                     onSkillSelect={selectSkillFromSourceLauncher}
                     onSelectPreset={(id) => {
-                      setActivePresetRecipeId(id);
+                      if (id === "recruiter_cold_outreach") {
+                        setPresetModalOpen(true);
+                      } else {
+                        setActivePresetRecipeId(id);
+                      }
                       setSourceLauncherOpen(false);
                     }}
                   />
