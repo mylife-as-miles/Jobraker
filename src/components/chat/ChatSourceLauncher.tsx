@@ -5,6 +5,7 @@ import {
   Search,
   Sparkles,
   Zap,
+  RefreshCw,
 } from "lucide-react";
 
 export type ChatSourceLauncherSkill = {
@@ -115,6 +116,58 @@ export const ChatSourceLauncher = ({
               </span>
               <span className="block truncate text-xs text-muted-foreground">
                 Pull emails, craft pitches, and create Gmail drafts in 3 clicks
+              </span>
+            </span>
+          </button>
+        )}
+
+        {onSelectPreset && (!normalizedQuery || "pitch cover letter note application preset".includes(normalizedQuery)) && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onSelectPreset("instant_job_pitch");
+            }}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 mb-1 border border-blue-500/20 bg-blue-500/5"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/15 text-blue-400">
+              <Sparkles className="size-4" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                Instant Job Pitch & Cover Letter
+                <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.2 rounded font-bold uppercase tracking-wider">
+                  Fast
+                </span>
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
+                Generate tailored pitch notes and custom cover letters
+              </span>
+            </span>
+          </button>
+        )}
+
+        {onSelectPreset && (!normalizedQuery || "follow up nudge bump application status preset".includes(normalizedQuery)) && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onSelectPreset("followup_bump");
+            }}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 mb-1 border border-purple-500/20 bg-purple-500/5"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-purple-500/15 text-purple-400">
+              <RefreshCw className="size-4" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                Application Follow-Up Bump
+                <span className="text-[10px] bg-purple-500/20 text-purple-400 px-1.5 py-0.2 rounded font-bold uppercase tracking-wider">
+                  Nudge
+                </span>
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
+                Re-engage submitted applications with polite check-ins
               </span>
             </span>
           </button>

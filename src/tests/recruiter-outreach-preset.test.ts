@@ -404,6 +404,60 @@ describe("1-Click Recruiter Outreach Preset & Recipes", () => {
       expect(prompt).toContain("**Step 2**: Craft tailored");
       expect(prompt).toContain("**Step 3**: Prepare and sync the drafts directly into my connected Gmail workspace");
     });
+
+    it("compiles structured prompt for instant_job_pitch preset", () => {
+      const selectedJobs = [
+        {
+          id: "job-1",
+          company: "Retool",
+          title: "Senior Product Manager",
+          source: "searched" as const,
+          selected: true,
+        },
+      ];
+
+      const toneLabel = "Startup Casual & Authentic";
+      const jobLines = selectedJobs
+        .map((j, i) => `${i + 1}. **${j.company}** - ${j.title}`)
+        .join("\n");
+
+      const prompt = `🎯 **Instant Job Pitch & Cover Letter Preset**\n\nPlease generate role-tailored introductory pitches and custom cover letters for the following target positions:\n${jobLines}\n\n**Configuration**:\n- **Tone**: ${toneLabel}\n- **Deliverables**:\n  1. **LinkedIn InMail / DM Pitch**: A high-impact 100-150 word note designed to start a warm conversation with the hiring team or founder.\n  2. **Tailored Cover Letter**: A focused, persuasive letter connecting my background and achievements to the specific requirements of the role.\n  3. **2-Sentence Hook**: A punchy opening hook highlighting why I am an exceptional fit.`;
+
+      expect(prompt).toContain("🎯 **Instant Job Pitch & Cover Letter Preset**");
+      expect(prompt).toContain("1. **Retool** - Senior Product Manager");
+      expect(prompt).toContain("LinkedIn InMail / DM Pitch");
+      expect(prompt).toContain("Tailored Cover Letter");
+      expect(prompt).toContain("2-Sentence Hook");
+    });
+
+    it("compiles structured prompt for followup_bump preset with applied date", () => {
+      const selectedJobs = [
+        {
+          id: "app-1",
+          company: "Figma",
+          title: "Staff Design Systems Engineer",
+          source: "applied" as const,
+          appliedDate: "9/1/2026",
+          selected: true,
+        },
+      ];
+
+      const strategyLabel = "Friendly & Professional Nudge (Courteous check-in on submitted application)";
+      const jobLines = selectedJobs
+        .map(
+          (j, i) =>
+            `${i + 1}. **${j.company}** - ${j.title} (Follow-up on submitted application) [Applied: ${j.appliedDate}]`,
+        )
+        .join("\n");
+
+      const prompt = `🎯 **Application Follow-Up Bump Preset**\n\nPlease prepare polite, strategic follow-up outreach messages for the following submitted applications:\n${jobLines}\n\n**Configuration**:\n- **Follow-Up Strategy**: ${strategyLabel}\n- **Workflow Steps**:\n  1. Reference my application submission date and confirm continued enthusiasm for the role.\n  2. Incorporate a concise value-add update highlighting relevant achievements or portfolio evidence.\n  3. Prepare and sync the follow-up email drafts directly into my connected Gmail workspace for review before sending.`;
+
+      expect(prompt).toContain("🎯 **Application Follow-Up Bump Preset**");
+      expect(prompt).toContain("1. **Figma** - Staff Design Systems Engineer");
+      expect(prompt).toContain("[Applied: 9/1/2026]");
+      expect(prompt).toContain("Friendly & Professional Nudge");
+      expect(prompt).toContain("Prepare and sync the follow-up email drafts directly into my connected Gmail workspace");
+    });
   });
 });
 

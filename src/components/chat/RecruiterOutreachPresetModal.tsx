@@ -14,6 +14,7 @@ import {
   Square,
   Plus,
   Sparkles,
+  RefreshCw,
   X,
   Mail,
   ArrowRight,
@@ -26,7 +27,7 @@ import {
   Filter,
 } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
-import type { OutreachTone } from "@/services/presets/recruiterOutreachService";
+import { ACTION_RECIPES, type ActionRecipe } from "@/lib/presets/actionRecipes";
 
 export interface PresetJobItem {
   id: string;
@@ -42,6 +43,7 @@ export interface PresetJobItem {
 interface RecruiterOutreachPresetModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  recipeId?: string;
   userId?: string;
   onLaunchPrompt: (compiledPrompt: string) => void;
 }
@@ -49,12 +51,22 @@ interface RecruiterOutreachPresetModalProps {
 export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModalProps> = ({
   open,
   onOpenChange,
+  recipeId = "recruiter_cold_outreach",
   userId,
   onLaunchPrompt,
 }) => {
   const supabase = useMemo(() => createClient(), []);
 
-  const [activeTab, setActiveTab] = useState<"searched" | "applied">("searched");
+  const activeRecipe: ActionRecipe = useMemo(() => {
+    return (
+      ACTION_RECIPES[recipeId] ||
+      ACTION_RECIPES.recruiter_cold_outreach
+    );
+  }, [recipeId]);
+
+  const [activeTab, setActiveTab] = useState<"searched" | "applied">(
+    recipeId === "followup_bump" ? "applied" : "searched",
+  );
   const [loading, setLoading] = useState(false);
   const [searchedJobs, setSearchedJobs] = useState<PresetJobItem[]>([]);
   const [appliedJobs, setAppliedJobs] = useState<PresetJobItem[]>([]);
@@ -68,8 +80,26 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
   const [customTitle, setCustomTitle] = useState("");
   const [showCustomForm, setShowCustomForm] = useState(false);
 
-  // Outreach tone
-  const [tone, setTone] = useState<OutreachTone>("casual");
+  // Outreach tone / strategy
+  const [tone, setTone] = useState<string>("casual");
+
+  // Sync tab and tone defaults when recipe or open changes
+  useEffect(() => {
+    if (open) {
+      if (recipeId === "followup_bump") {
+        setActiveTab("applied");
+        setTone("friendly");
+      } else if (recipeId === "instant_job_pitch") {
+        setActiveTab("searched");
+        setTone("casual");
+      } else {
+        setActiveTab("searched");
+        setTone("casual");
+      }
+      setSearchFilter("");
+      setShowCustomForm(false);
+    }
+  }, [open, recipeId]);
 
   // Fetch jobs and applications on open
   useEffect(() => {
@@ -105,6 +135,9 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
 
         if (!isMounted) return;
 
+        const isFollowup = recipeId === "followup_bump";
+        const limit = activeRecipe.defaultJobLimit || 3;
+
         const seenCompanies = new Set<string>();
         const mappedSearched: PresetJobItem[] = [];
 
@@ -119,11 +152,11 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
             source: "searched",
             matchScore: j.lead_quality_score ? Math.min(99, Math.max(65, j.lead_quality_score)) : 88,
             location: j.location || "Remote / Hybrid",
-            selected: index < 3, // Pre-select top 3 by default
+            selected: !isFollowup && index < limit,
           });
         });
 
-        const mappedApplied: PresetJobItem[] = (apps || []).map((a) => ({
+        const mappedApplied: PresetJobItem[] = (apps || []).map((a, index) => ({
           id: a.id,
           company: a.company,
           title: a.job_title || "Target Position",
@@ -131,7 +164,7 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
           matchScore: a.match_score || 85,
           location: a.location || "Remote",
           appliedDate: a.applied_date ? new Date(a.applied_date).toLocaleDateString() : undefined,
-          selected: false,
+          selected: isFollowup && index < limit,
         }));
 
         setSearchedJobs(mappedSearched);
@@ -147,7 +180,7 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
     return () => {
       isMounted = false;
     };
-  }, [open, supabase, userId]);
+  }, [open, supabase, userId, recipeId, activeRecipe.defaultJobLimit]);
 
   // Selected jobs across searched, applied, and custom
   const selectedJobs = useMemo(() => {
@@ -214,23 +247,64 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
   const handleLaunchAgenticOutreach = () => {
     if (selectedJobs.length === 0) return;
 
-    const toneLabel =
-      tone === "bold"
-        ? "Executive Bold & High-Agency"
-        : tone === "punchy"
-          ? "Short & Punchy (<80 words)"
-          : "Startup Casual & Authentic";
-
     const jobLines = selectedJobs
       .map(
         (j, i) =>
           `${i + 1}. **${j.company}** - ${j.title}${
             j.source === "applied" ? " (Follow-up on submitted application)" : ""
-          }`,
+          }${j.appliedDate ? ` [Applied: ${j.appliedDate}]` : ""}`,
       )
       .join("\n");
 
-    const prompt = `🎯 **1-Click Recruiter Cold Outreach Preset**
+    let prompt = "";
+
+    if (activeRecipe.id === "instant_job_pitch") {
+      const toneLabel =
+        tone === "bold"
+          ? "Executive Bold & High-Agency"
+          : tone === "technical"
+            ? "Technical, Metric-Focused & Direct"
+            : "Startup Casual & Authentic";
+
+      prompt = `🎯 **Instant Job Pitch & Cover Letter Preset**
+
+Please generate role-tailored introductory pitches and custom cover letters for the following target positions:
+${jobLines}
+
+**Configuration**:
+- **Tone**: ${toneLabel}
+- **Deliverables**:
+  1. **LinkedIn InMail / DM Pitch**: A high-impact 100-150 word note designed to start a warm conversation with the hiring team or founder.
+  2. **Tailored Cover Letter**: A focused, persuasive letter connecting my background and achievements to the specific requirements of the role.
+  3. **2-Sentence Hook**: A punchy opening hook highlighting why I am an exceptional fit.`;
+    } else if (activeRecipe.id === "followup_bump") {
+      const strategyLabel =
+        tone === "value_add"
+          ? "Value-Add Update (Highlight new relevant project/skills)"
+          : tone === "timeline"
+            ? "Decision Timeline Check (Polite inquiry about interview stages)"
+            : "Friendly & Professional Nudge (Courteous check-in on submitted application)";
+
+      prompt = `🎯 **Application Follow-Up Bump Preset**
+
+Please prepare polite, strategic follow-up outreach messages for the following submitted applications:
+${jobLines}
+
+**Configuration**:
+- **Follow-Up Strategy**: ${strategyLabel}
+- **Workflow Steps**:
+  1. Reference my application submission date and confirm continued enthusiasm for the role.
+  2. Incorporate a concise value-add update highlighting relevant achievements or portfolio evidence.
+  3. Prepare and sync the follow-up email drafts directly into my connected Gmail workspace for review before sending.`;
+    } else {
+      const toneLabel =
+        tone === "bold"
+          ? "Executive Bold & High-Agency"
+          : tone === "punchy"
+            ? "Short & Punchy (<80 words)"
+            : "Startup Casual & Authentic";
+
+      prompt = `🎯 **1-Click Recruiter Cold Outreach Preset**
 
 Please execute an autonomous recruiter cold outreach workflow for the following target positions:
 ${jobLines}
@@ -240,10 +314,44 @@ ${jobLines}
 - **Step 1**: Pull verified recruiter, talent acquisition, and hiring manager contact emails for each company.
 - **Step 2**: Craft tailored, high-conversion outreach pitches highlighting relevant achievements from my profile and resume.
 - **Step 3**: Prepare and sync the drafts directly into my connected Gmail workspace for review before sending.`;
+    }
 
     onOpenChange(false);
     onLaunchPrompt(prompt);
   };
+
+  const toneOptions = useMemo(() => {
+    if (activeRecipe.id === "followup_bump") {
+      return [
+        { id: "friendly", label: "Friendly Check-In" },
+        { id: "value_add", label: "Value-Add Update" },
+        { id: "timeline", label: "Timeline Inquiry" },
+      ];
+    }
+    if (activeRecipe.id === "instant_job_pitch") {
+      return [
+        { id: "casual", label: "Startup Casual" },
+        { id: "bold", label: "Executive Bold" },
+        { id: "technical", label: "Technical & Direct" },
+      ];
+    }
+    return [
+      { id: "casual", label: "Startup Casual" },
+      { id: "bold", label: "Executive Bold" },
+      { id: "punchy", label: "Short & Punchy" },
+    ];
+  }, [activeRecipe.id]);
+
+  const launchButtonLabel = useMemo(() => {
+    const count = selectedJobs.length;
+    if (activeRecipe.id === "instant_job_pitch") {
+      return `Generate Pitch & Cover Letter in AI Chat (${count} Position${count === 1 ? "" : "s"})`;
+    }
+    if (activeRecipe.id === "followup_bump") {
+      return `Draft Follow-Up Nudges in AI Chat (${count} Application${count === 1 ? "" : "s"})`;
+    }
+    return `Launch Recruiter Outreach in AI Chat (${count} Position${count === 1 ? "" : "s"})`;
+  }, [activeRecipe.id, selectedJobs.length]);
 
   // Filtered job list for current tab
   const currentList = activeTab === "searched" ? searchedJobs : appliedJobs;
@@ -265,19 +373,25 @@ ${jobLines}
         <DialogHeader className="p-5 pb-3 border-b border-border/80 bg-background/50">
           <div className="flex items-center gap-2.5">
             <div className="flex size-8 items-center justify-center rounded-xl bg-brand/15 text-brand border border-brand/30 shrink-0">
-              <Zap className="size-4 fill-brand/20" />
+              {activeRecipe.id === "instant_job_pitch" ? (
+                <Sparkles className="size-4 text-blue-400" />
+              ) : activeRecipe.id === "followup_bump" ? (
+                <RefreshCw className="size-4 text-purple-400" />
+              ) : (
+                <Zap className="size-4 fill-brand/20 text-brand" />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <DialogTitle className="text-base font-bold text-foreground">
-                  1-Click Recruiter Outreach Preset
+                  {activeRecipe.title}
                 </DialogTitle>
                 <span className="text-[10px] bg-brand/20 text-brand px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                  Agentic Workflow
+                  {activeRecipe.badge || "Preset"}
                 </span>
               </div>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Select target companies to preset the workflow. The AI agent will autonomously find recruiters, craft pitches, and prepare drafts in your chat.
+                {activeRecipe.description}
               </DialogDescription>
             </div>
           </div>
@@ -286,46 +400,22 @@ ${jobLines}
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Step-by-Step Flow Indicator */}
-          <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-muted/30 border border-border/60">
-            <div className="flex items-center gap-2">
-              <span className="size-5 rounded-full bg-brand/20 text-brand flex items-center justify-center text-[10px] font-bold shrink-0">
-                1
-              </span>
-              <div className="min-w-0">
-                <span className="block text-[11px] font-semibold text-foreground truncate">
-                  Pull Recruiter Emails
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-2.5 rounded-xl bg-muted/30 border border-border/60">
+            {activeRecipe.stages.map((stage) => (
+              <div key={stage.id} className="flex items-center gap-2">
+                <span className="size-5 rounded-full bg-brand/20 text-brand flex items-center justify-center text-[10px] font-bold shrink-0">
+                  {stage.stepNumber}
                 </span>
-                <span className="block text-[10px] text-muted-foreground truncate">
-                  Scout verified contacts
-                </span>
+                <div className="min-w-0">
+                  <span className="block text-[11px] font-semibold text-foreground truncate">
+                    {stage.label}
+                  </span>
+                  <span className="block text-[10px] text-muted-foreground truncate">
+                    {stage.description}
+                  </span>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="size-5 rounded-full bg-brand/20 text-brand flex items-center justify-center text-[10px] font-bold shrink-0">
-                2
-              </span>
-              <div className="min-w-0">
-                <span className="block text-[11px] font-semibold text-foreground truncate">
-                  Craft Pitches
-                </span>
-                <span className="block text-[10px] text-muted-foreground truncate">
-                  Tailored to profile
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="size-5 rounded-full bg-brand/20 text-brand flex items-center justify-center text-[10px] font-bold shrink-0">
-                3
-              </span>
-              <div className="min-w-0">
-                <span className="block text-[11px] font-semibold text-foreground truncate">
-                  Create Gmail Drafts
-                </span>
-                <span className="block text-[10px] text-muted-foreground truncate">
-                  Ready to send
-                </span>
-              </div>
-            </div>
+            ))}
           </div>
 
           {/* Active Selected Jobs Bar */}
@@ -532,16 +622,12 @@ ${jobLines}
           <div className="pt-2 border-t border-border/70 flex items-center justify-between flex-wrap gap-2">
             <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
               <Sparkles className="size-3.5 text-brand" />
-              Outreach Pitch Tone:
+              {activeRecipe.id === "followup_bump"
+                ? "Follow-Up Strategy:"
+                : "Outreach Pitch Tone:"}
             </span>
             <div className="flex items-center gap-1.5">
-              {(
-                [
-                  { id: "casual", label: "Startup Casual" },
-                  { id: "bold", label: "Executive Bold" },
-                  { id: "punchy", label: "Short & Punchy" },
-                ] as const
-              ).map((t) => (
+              {toneOptions.map((t) => (
                 <button
                   key={t.id}
                   type="button"
@@ -575,10 +661,14 @@ ${jobLines}
             onClick={handleLaunchAgenticOutreach}
             className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-brand hover:bg-brand/90 text-black font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20 disabled:opacity-50 cursor-pointer"
           >
-            <Zap className="size-4 fill-black text-black" />
-            <span className="text-black">
-              Launch Recruiter Outreach in AI Chat ({selectedJobs.length} Positions)
-            </span>
+            {activeRecipe.id === "instant_job_pitch" ? (
+              <Sparkles className="size-4 text-black" />
+            ) : activeRecipe.id === "followup_bump" ? (
+              <RefreshCw className="size-4 text-black" />
+            ) : (
+              <Zap className="size-4 fill-black text-black" />
+            )}
+            <span className="text-black">{launchButtonLabel}</span>
             <ArrowRight className="size-3.5 ml-0.5 text-black" />
           </button>
         </div>
@@ -586,3 +676,5 @@ ${jobLines}
     </Dialog>
   );
 };
+
+export { RecruiterOutreachPresetModal as ChatActionPresetModal };

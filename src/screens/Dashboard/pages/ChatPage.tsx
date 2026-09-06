@@ -2636,6 +2636,7 @@ export const ChatPage = () => {
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const [activePresetRecipeId, setActivePresetRecipeId] = useState<string | null>(null);
   const [presetModalOpen, setPresetModalOpen] = useState(false);
+  const [presetRecipeForModal, setPresetRecipeForModal] = useState<string>("recruiter_cold_outreach");
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
@@ -5018,6 +5019,7 @@ export const ChatPage = () => {
                 <RecruiterOutreachPresetModal
                   open={presetModalOpen}
                   onOpenChange={setPresetModalOpen}
+                  recipeId={presetRecipeForModal}
                   userId={currentUserId}
                   onLaunchPrompt={(prompt) => {
                     setPresetModalOpen(false);
@@ -5030,11 +5032,9 @@ export const ChatPage = () => {
                   <ChatPresetsBar
                     activeRecipeId={activePresetRecipeId}
                     onSelectRecipe={(id) => {
-                      if (id === "recruiter_cold_outreach") {
-                        setPresetModalOpen(true);
-                      } else {
-                        setActivePresetRecipeId((prev) => (prev === id ? null : id));
-                      }
+                      setActivePresetRecipeId(id);
+                      setPresetRecipeForModal(id);
+                      setPresetModalOpen(true);
                     }}
                     className="mb-1.5"
                   />
@@ -5048,11 +5048,9 @@ export const ChatPage = () => {
                     onClose={() => setSourceLauncherOpen(false)}
                     onSkillSelect={selectSkillFromSourceLauncher}
                     onSelectPreset={(id) => {
-                      if (id === "recruiter_cold_outreach") {
-                        setPresetModalOpen(true);
-                      } else {
-                        setActivePresetRecipeId(id);
-                      }
+                      setActivePresetRecipeId(id);
+                      setPresetRecipeForModal(id);
+                      setPresetModalOpen(true);
                       setSourceLauncherOpen(false);
                     }}
                   />
