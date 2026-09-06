@@ -56,6 +56,7 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { createClient } from "../../../lib/supabaseClient";
 import { useAiUsageLimits } from "@/hooks/useAiUsageLimits";
+import { useChatScrollFollow } from "@/hooks/useChatScrollFollow";
 import {
   cacheChatAttachments,
   getChatAttachment,
@@ -3699,9 +3700,14 @@ export const ChatPage = () => {
   ]);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const chatScrollRef = useRef<HTMLDivElement | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const {
+    messagesEndRef,
+    onScroll: updateScrollState,
+    scrollContainerRef: chatScrollRef,
+    scrollContentRef,
+    scrollToBottom,
+    showScrollToBottom,
+  } = useChatScrollFollow();
   const skillPaletteTrigger = useMemo(() => {
     if (!text || (!text.includes("/") && !text.includes("@"))) return null;
     const normalizedCaretPosition = Math.min(
@@ -3806,54 +3812,6 @@ export const ChatPage = () => {
     },
     [runSkillCall],
   );
-
-  const updateScrollState = useCallback(() => {
-    const container = chatScrollRef.current;
-    if (!container) return;
-    const distanceFromBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight;
-    setShowScrollToBottom(distanceFromBottom > 160);
-  }, []);
-
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
-  }, []);
-
-  const streamingUpdateKey = useMemo(
-    () =>
-      messages
-        .map(
-          (message) =>
-            [
-              message.id,
-              message.content.length,
-              message.streamFrameCount || 0,
-              message.agentEvents?.length || 0,
-              message.toolCalls?.length || 0,
-              message.streaming ? 1 : 0,
-            ].join(":"),
-        )
-        .join("|"),
-    [messages],
-  );
-
-  useEffect(() => {
-    const container = chatScrollRef.current;
-    if (!container) {
-      updateScrollState();
-      return;
-    }
-
-    const distanceFromBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight;
-    const shouldFollowStream = status === "in_progress" && distanceFromBottom < 240;
-
-    updateScrollState();
-
-    if (shouldFollowStream) {
-      window.requestAnimationFrame(() => scrollToBottom("auto"));
-    }
-  }, [scrollToBottom, status, streamingUpdateKey, updateScrollState]);
 
   const filteredSessions = useMemo(() => {
     if (!searchQuery.trim()) return sessions;
@@ -4323,7 +4281,7 @@ export const ChatPage = () => {
                 </div>
               ) : null}
               {messages.length === 0 ? (
-                <div className='flex-1 flex flex-col items-center justify-center px-6 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
+                <div ref={scrollContentRef} className='flex-1 flex flex-col items-center justify-center px-6 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
                   <div className='max-w-2xl w-full text-center space-y-4 md:space-y-6 py-6 flex flex-col items-center'>
                     <div className='flex justify-center mb-4'>
                       <div className='w-16 h-16 bg-foreground/5 rounded-2xl flex items-center justify-center border border-brand/20 relative shadow-[0_0_15px_rgba(47,217,104,0.05)]'>
@@ -4501,7 +4459,7 @@ export const ChatPage = () => {
                   </div>
                 </div>
               ) : (
-                <div className={`flex-1 w-full mx-auto p-6 space-y-6 pb-8 ${
+                <div ref={scrollContentRef} className={`flex-1 w-full mx-auto p-6 space-y-6 pb-8 ${
                   isFocusMode ? "max-w-5xl" : "max-w-4xl"
                 }`}>
                   {messages.map((m, idx) => {
