@@ -15,8 +15,7 @@ const BANNER_HEIGHT = "40px";
  * shorten itself and offset the sidebar instead.
  */
 export const PlanExpiredBanner = () => {
-  const { dismiss } = useExpiredSubscription();
-  const expired = { planName: "Pro" as const, endedAt: "2026-08-01" }; // TEMP-VERIFY
+  const { expired, dismiss } = useExpiredSubscription();
   const location = useLocation();
 
   // Redundant on the page whose whole purpose is to sell the plan back.
@@ -30,7 +29,9 @@ export const PlanExpiredBanner = () => {
     } else {
       root.style.removeProperty("--app-banner-h");
     }
-    return () => root.style.removeProperty("--app-banner-h");
+    return () => {
+      root.style.removeProperty("--app-banner-h");
+    };
   }, [visible]);
 
   if (!expired || !visible) return null;
