@@ -99,6 +99,7 @@ import {
   StreamedAnswerFooter,
 } from "@/components/chat/StreamedAnswerFooter";
 import { normalizeFollowUpQuestions } from "@/lib/chat/followUpQuestions";
+import { AgentApprovalCard } from "@/components/chat/AgentApprovalCard";
 import { ChatSourceLauncher } from "@/components/chat/ChatSourceLauncher";
 import { ChatPresetsBar } from "@/components/chat/ChatPresetsBar";
 import { RecruiterOutreachWorkflowCard } from "@/components/chat/RecruiterOutreachWorkflowCard";
