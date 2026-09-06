@@ -3112,6 +3112,23 @@ export const JobPage = (): JSX.Element => {
     setTailorModalOpen(true);
   }, []);
 
+  const tailorModalJob = useMemo(() => {
+    if (!tailorTargetJob) return null;
+    return {
+      id: tailorTargetJob.id,
+      title: tailorTargetJob.title,
+      company: tailorTargetJob.company,
+      description: tailorTargetJob.description || "",
+      apply_url: tailorTargetJob.apply_url,
+    };
+  }, [
+    tailorTargetJob?.id,
+    tailorTargetJob?.title,
+    tailorTargetJob?.company,
+    tailorTargetJob?.description,
+    tailorTargetJob?.apply_url,
+  ]);
+
   const handleApplyWithTailoredResume = useCallback(
     async (tailoredText: string, confidenceScore: number) => {
       if (!tailorTargetJob) return;
@@ -3356,7 +3373,10 @@ export const JobPage = (): JSX.Element => {
         ]);
 
         setDraftData({
-          resumeText: tailoredResume,
+          resumeText:
+            typeof tailoredResume === "string"
+              ? tailoredResume
+              : (tailoredResume as any)?.tailored_resume || resumeText,
           coverLetterText: tailoredCoverLetter,
           sourceResumeId: selectedResumeId,
           sourceResumeName: selectedResumeName,
@@ -6415,17 +6435,7 @@ function matchesJobSearchCriteria(job: Job, query: string): boolean {
         <TailorResumeModal
           open={tailorModalOpen}
           onOpenChange={setTailorModalOpen}
-          job={
-            tailorTargetJob
-              ? {
-                  id: tailorTargetJob.id,
-                  title: tailorTargetJob.title,
-                  company: tailorTargetJob.company,
-                  description: tailorTargetJob.description || "",
-                  apply_url: tailorTargetJob.apply_url,
-                }
-              : null
-          }
+          job={tailorModalJob}
           baseResumeText={activeResumeText}
           resumeName={selectedResume?.name || "Primary Resume"}
           onApply={handleApplyWithTailoredResume}
