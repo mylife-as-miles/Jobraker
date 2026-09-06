@@ -1,4 +1,11 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
+
+const jobPageSource = readFileSync(
+  resolve(process.cwd(), "src/screens/Dashboard/pages/JobPage.tsx"),
+  "utf8",
+);
 
 // Re-implemented helper matching the logic in JobPage.tsx for search query constraint
 function matchesJobSearchCriteria(
@@ -79,6 +86,15 @@ function mapProviderStatusToDisplay(status: string | null | undefined) {
 }
 
 describe("Auto-Apply Pipeline & Scope Constraints", () => {
+  describe("Per-job automation payload", () => {
+    it("keeps tailored resume data in scope while dispatching each job", () => {
+      expect(jobPageSource).toMatch(
+        /for\s*\(const item of jobsWithTargets\)\s*\{\s*const \{ job, target \} = item;/,
+      );
+      expect(jobPageSource).not.toContain("(item as any)");
+    });
+  });
+
   describe("Job Matching Scope Constraints", () => {
     it("strictly constrains target jobs to active search query", () => {
       const devopsJob = {
