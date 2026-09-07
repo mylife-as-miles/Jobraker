@@ -14,4 +14,15 @@ describe("ChatPage persona menu", () => {
       "absolute right-0 bottom-full mb-2 z-50",
     );
   });
+
+  it("places the compact presets trigger beside the agent control", () => {
+    const controlsStart = chatPageSource.indexOf("{/* Right: Controls */}");
+    const presetsTrigger = chatPageSource.indexOf("<ChatPresetsBar", controlsStart);
+    const agentMenu = chatPageSource.indexOf("<DropdownMenu>", presetsTrigger);
+
+    expect(controlsStart).toBeGreaterThan(-1);
+    expect(presetsTrigger).toBeGreaterThan(controlsStart);
+    expect(agentMenu).toBeGreaterThan(presetsTrigger);
+    expect(chatPageSource.slice(0, controlsStart)).not.toContain("<ChatPresetsBar");
+  });
 });

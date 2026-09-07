@@ -1264,7 +1264,7 @@ export const JobPage = (): JSX.Element => {
   const [autoApplyStep, setAutoApplyStep] = useState<1 | 2 | 3 | 4>(1);
   const [generatingDraft, setGeneratingDraft] = useState(false);
   const [draftData, setDraftData] = useState<ApplicationDraftData | null>(null);
-  const [trueAutonomyEnabled, setTrueAutonomyEnabled] = useState(true);
+  const [trueAutonomyEnabled, setTrueAutonomyEnabled] = useState(false);
   const [browserExecutionPreference, setBrowserExecutionPreference] = useState<
     "automatic" | "my_chrome" | "jobraker_cloud"
   >("automatic");

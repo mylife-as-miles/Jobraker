@@ -1,6 +1,12 @@
 import React from "react";
-import { Zap, Sparkles, RefreshCw, Layers } from "lucide-react";
+import { Hand, Zap, Sparkles, RefreshCw } from "lucide-react";
 import { ACTION_RECIPES, type ActionRecipe } from "@/lib/presets/actionRecipes";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ChatPresetsBarProps {
   onSelectRecipe: (recipeId: string) => void;
@@ -16,60 +22,89 @@ export const ChatPresetsBar: React.FC<ChatPresetsBarProps> = ({
   const recipes = Object.values(ACTION_RECIPES);
 
   return (
-    <div className={`w-full py-1.5 px-1 ${className}`}>
-      <div className="flex items-center justify-between gap-2 mb-1.5">
-        <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-          <Layers className="w-3.5 h-3.5 text-brand" />
-          <span>Quick 1-Click Presets:</span>
-          <span className="text-[10px] text-muted-foreground/70 hidden sm:inline">
-            Zero prompt fatigue, 1 click per action
-          </span>
-        </div>
-      </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Open quick presets"
+          title="Quick presets"
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-transparent transition-colors hover:border-brand/30 hover:bg-brand/10 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 sm:h-9 sm:w-9 ${
+            activeRecipeId
+              ? "border-brand/30 bg-brand/10 text-brand"
+              : "text-muted-foreground"
+          } ${className}`}
+        >
+          <Hand className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </DropdownMenuTrigger>
 
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar">
+      <DropdownMenuContent
+        side="top"
+        align="end"
+        sideOffset={8}
+        className="z-[70] w-[min(20rem,calc(100vw-2rem))] bg-card/95 p-2"
+        aria-label="Quick presets"
+      >
+        <div className="px-2 pb-2 pt-1">
+          <p className="text-xs font-semibold text-foreground">Quick presets</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Start a guided action without writing a prompt.
+          </p>
+        </div>
+
+        <div className="space-y-1">
         {recipes.map((recipe: ActionRecipe) => {
           const isActive = activeRecipeId === recipe.id;
           const isPrimary = recipe.id === "recruiter_cold_outreach";
 
           return (
-            <button
+            <DropdownMenuItem
               key={recipe.id}
-              type="button"
-              onClick={() => onSelectRecipe(recipe.id)}
-              className={`group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 cursor-pointer border ${
+              onSelect={() => onSelectRecipe(recipe.id)}
+              className={`group flex cursor-pointer items-start gap-3 rounded-xl border px-2.5 py-2.5 ${
                 isActive
-                  ? "bg-brand/15 border-brand text-brand ring-1 ring-brand/30 shadow-[0_0_12px_rgba(47,217,104,0.15)]"
+                  ? "border-brand/40 bg-brand/10"
                   : isPrimary
-                    ? "bg-card/90 hover:bg-card border-brand/40 text-foreground hover:border-brand shadow-sm"
-                    : "bg-card/70 hover:bg-card border-border/80 text-muted-foreground hover:text-foreground"
+                    ? "border-brand/20 bg-brand/5 focus:bg-brand/10"
+                    : "border-transparent bg-transparent focus:border-border focus:bg-foreground/5"
               }`}
             >
-              {recipe.id === "recruiter_cold_outreach" ? (
-                <Zap className={`w-3.5 h-3.5 ${isActive ? "text-brand" : "text-amber-400 fill-amber-400/20"}`} />
-              ) : recipe.id === "instant_job_pitch" ? (
-                <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-              ) : (
-                <RefreshCw className="w-3.5 h-3.5 text-purple-400" />
-              )}
-
-              <span className="font-semibold text-foreground group-hover:text-brand transition-colors">
-                {recipe.title}
+              <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                isPrimary ? "bg-amber-500/15" : "bg-foreground/5"
+              }`}>
+                {recipe.id === "recruiter_cold_outreach" ? (
+                  <Zap className="h-4 w-4 fill-amber-400/20 text-amber-400" aria-hidden="true" />
+                ) : recipe.id === "instant_job_pitch" ? (
+                  <Sparkles className="h-4 w-4 text-blue-400" aria-hidden="true" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 text-purple-400" aria-hidden="true" />
+                )}
               </span>
 
-              {recipe.badge && (
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold uppercase tracking-wider ${
-                  isPrimary
-                    ? "bg-brand/20 text-brand border border-brand/30"
-                    : "bg-muted text-muted-foreground border border-border"
-                }`}>
-                  {recipe.badge}
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="truncate text-xs font-semibold text-foreground group-focus:text-brand">
+                    {recipe.title}
+                  </span>
+                  {recipe.badge && (
+                    <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                      isPrimary
+                        ? "border-brand/30 bg-brand/15 text-brand"
+                        : "border-border bg-muted text-muted-foreground"
+                    }`}>
+                      {recipe.badge}
+                    </span>
+                  )}
                 </span>
-              )}
-            </button>
+                <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+                  {recipe.tagline}
+                </span>
+              </span>
+            </DropdownMenuItem>
           );
         })}
-      </div>
-    </div>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
