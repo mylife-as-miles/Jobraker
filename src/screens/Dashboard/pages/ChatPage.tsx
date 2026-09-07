@@ -5028,18 +5028,6 @@ export const ChatPage = () => {
                   }}
                 />
 
-                {messages.length === 0 && (
-                  <ChatPresetsBar
-                    activeRecipeId={activePresetRecipeId}
-                    onSelectRecipe={(id) => {
-                      setActivePresetRecipeId(id);
-                      setPresetRecipeForModal(id);
-                      setPresetModalOpen(true);
-                    }}
-                    className="mb-1.5"
-                  />
-                )}
-
                 <div className="relative">
                   <ChatSourceLauncher
                     open={sourceLauncherOpen}
@@ -5242,6 +5230,15 @@ export const ChatPage = () => {
                           : "row-start-2 md:row-start-1"
                       }`}
                     >
+                      <ChatPresetsBar
+                        activeRecipeId={activePresetRecipeId}
+                        onSelectRecipe={(id) => {
+                          setActivePresetRecipeId(id);
+                          setPresetRecipeForModal(id);
+                          setPresetModalOpen(true);
+                        }}
+                      />
+
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
