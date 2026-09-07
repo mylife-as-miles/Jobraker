@@ -169,6 +169,13 @@ interface Job {
   explainableOpportunity?: ExplainableJobOpportunity;
 }
 
+type AutoApplyTarget = {
+  job: Job;
+  target: string;
+  tailoredResumeText?: string;
+  tailoredConfidence?: number;
+};
+
 type MatchScoreBreakdown = {
   label: string;
   componentScore: number;
@@ -3634,7 +3641,7 @@ export const JobPage = (): JSX.Element => {
 
       const jobsWithTargets = targetJobs
         .map((job) => ({ job, target: getJobApplyTarget(job) }))
-        .filter((item): item is { job: Job; target: string } =>
+        .filter((item): item is AutoApplyTarget =>
           Boolean(item.target),
         );
 
@@ -3832,8 +3839,8 @@ export const JobPage = (): JSX.Element => {
                         canonical_decision: tailoredResult.canonical_decision || "strong_yes",
                         matched_keywords: tailoredResult.matched_keywords,
                       };
-                      (item as any).tailoredResumeText = tailoredResumeText;
-                      (item as any).tailoredConfidence = tailoredConfidence;
+                      item.tailoredResumeText = tailoredResumeText;
+                      item.tailoredConfidence = tailoredConfidence;
                       pushLog(
                         `Tailored to ${item.job.company}: match confidence recalculated to ${tailoredResult.confidence_score}%`,
                         "success",
@@ -3945,7 +3952,8 @@ export const JobPage = (): JSX.Element => {
           );
         }
 
-        for (const { job, target } of jobsWithTargets) {
+        for (const item of jobsWithTargets) {
+          const { job, target } = item;
           try {
             const isDraft = jobsToDraft.some(
               (entry) => entry.job.id === job.id,
@@ -4023,7 +4031,7 @@ export const JobPage = (): JSX.Element => {
                     match_reasons:
                       matchedKeywords.length > 0 ? matchedKeywords : null,
                     ai_confidence_score:
-                      (item as any)?.tailoredConfidence ??
+                      item.tailoredConfidence ??
                       evaluation?.confidence_score ??
                       job.evaluation_summary?.confidence_score ??
                       null,
@@ -4045,7 +4053,7 @@ export const JobPage = (): JSX.Element => {
                 match_reasons:
                   matchedKeywords.length > 0 ? matchedKeywords : null,
                 ai_confidence_score:
-                  (item as any)?.tailoredConfidence ??
+                  item.tailoredConfidence ??
                   evaluation?.confidence_score ??
                   job.evaluation_summary?.confidence_score ??
                   null,
@@ -4063,8 +4071,8 @@ export const JobPage = (): JSX.Element => {
                   ? { additional_information: profileSnapshot }
                   : {}),
                 ...(resumeSignedUrl ? { resume: resumeSignedUrl } : {}),
-                ...((item as any)?.tailoredResumeText
-                  ? { resume_text: (item as any).tailoredResumeText }
+                ...(item.tailoredResumeText
+                  ? { resume_text: item.tailoredResumeText }
                   : draftData
                     ? { resume_text: draftData.resumeText }
                     : activeResumeText

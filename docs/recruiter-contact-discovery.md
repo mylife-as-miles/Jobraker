@@ -8,12 +8,14 @@ Jobraker AI Chat now follows a job-aware, evidence-backed workflow for finding t
 2. Read the job title and description.
 3. Extract exact team, department, function, and role keywords.
 4. Resolve the company's official domain and careers page from public sources.
-5. Search publicly indexed LinkedIn profile URLs using the company plus team keywords.
-6. Rank recruiters, hiring managers, team leads, and directors by role and team relevance.
-7. Search public sources for an exact work email tied to that person and official domain.
-8. Optionally submit hidden email-pattern candidates to a configured verifier service.
-9. Store the source evidence, verification state, and `safe_to_contact` decision.
-10. Return the ranked LinkedIn profiles and only source-backed or provider-verified emails to AI Chat.
+5. Search official team/careers pages and the wider indexed public web for named recruiters and hiring leaders.
+6. Search publicly indexed LinkedIn profile URLs as one additional identity source, not the only source.
+7. Optionally query a configured contact provider for verified people and work emails.
+8. Rank recruiters, hiring managers, team leads, and directors by role and team relevance.
+9. Search public sources for an exact work email tied to that person and official domain.
+10. Optionally submit hidden email-pattern candidates to a configured verifier service.
+11. Store the source evidence, verification state, and `safe_to_contact` decision.
+12. Return ranked contacts and only source-backed or provider-verified emails to AI Chat.
 
 ## Verification policy
 
@@ -75,6 +77,15 @@ Expected verifier request:
 ```
 
 The adapter accepts common response fields such as `valid`, `deliverable`, `status`, `score`, and `catchAll`. Only an affirmative deliverability result with `catchAll !== true` is treated as provider verified.
+
+Optional contact-discovery provider adapter:
+
+```text
+RECRUITER_CONTACT_PROVIDER_URL=https://your-provider.example/people/search
+RECRUITER_CONTACT_PROVIDER_API_KEY=...
+```
+
+JobRaker sends `company`, `domain`, `jobTitle`, `teamKeywords`, `roles`, and `limit` in a JSON POST body. The adapter may return an array, or `contacts`, `people`, `results`, or `data`. Each accepted contact must include a name, relevant title, company-domain email, and an affirmative `valid`, `deliverable`, or `status` value. Catch-all and cross-domain results are rejected.
 
 ## Open-source verifier options reviewed
 
