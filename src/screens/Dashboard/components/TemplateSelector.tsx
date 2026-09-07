@@ -68,6 +68,12 @@ const availableTemplates: Array<{
     description:
       "A neo-brutalist CV with thick black strokes, squared corners, solid teal/magenta/yellow accent blocks and hard offset shadows: a window-chrome header, an accent contact bar, dot-bullet experience, black language bars, and a two-column skills grid.",
   },
+  {
+    id: "plain-text",
+    name: "Plain Text",
+    description:
+      "A clean one-column resume with text only, designed for ATS parsing and straightforward printing.",
+  },
 ];
 
 interface TemplateSelectorProps {

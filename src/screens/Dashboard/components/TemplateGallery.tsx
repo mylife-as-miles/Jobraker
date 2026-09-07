@@ -72,6 +72,12 @@ const availableTemplates: Array<{
     description: "Neo-brutalist CV with thick strokes and accent blocks.",
     category: "Creative",
   },
+  {
+    id: "plain-text",
+    name: "Plain Text",
+    description: "Text-only one-column layout optimized for ATS parsing.",
+    category: "Simple",
+  },
 ];
 
 interface TemplateGalleryProps {
