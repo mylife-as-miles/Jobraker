@@ -231,7 +231,24 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
       }
     } else {
       console.warn("[process-auto-apply-queue] RTRVR execution result:", rtrvrRes.status, result);
-      const isNonRetryable = rtrvrRes.status === 401 || rtrvrRes.status === 403 || rtrvrRes.status === 404 || currentRetries >= 2;
+      const isCreditExhausted =
+        rtrvrRes.status === 402 ||
+        /credit balance is 0|insufficient credits|add credits/i.test(
+          String(result?.error || result?.message || ""),
+        );
+      const isNonRetryable =
+        isCreditExhausted ||
+        rtrvrRes.status === 401 ||
+        rtrvrRes.status === 403 ||
+        rtrvrRes.status === 404 ||
+        currentRetries >= 2;
+
+      const failureMsg = isCreditExhausted
+        ? "Cloud browser automation credits are currently depleted on RTRVR. Saved as Draft for manual submission."
+        : isNonRetryable
+          ? `Cloud automation error (${result?.message || result?.error || `HTTP ${rtrvrRes.status}`}). Saved as Draft for manual review.`
+          : (result?.error || result?.message || "RTRVR temporary error");
+
       await supabase
         .from("applications")
         .update({
@@ -240,13 +257,44 @@ async function executeRtrvrApplicationDirect(supabase: any, applicationId: strin
           canonical_stage: isNonRetryable ? "draft_ready" : "queued",
           provider_status: isNonRetryable ? "failed" : "waiting",
           retry_count: currentRetries + 1,
-          failure_reason: isNonRetryable
-            ? `Cloud automation error (${result?.message || result?.error || `HTTP ${rtrvrRes.status}`}). Saved as Draft for manual review.`
-            : (result?.error || result?.message || "RTRVR temporary error"),
+          failure_reason: failureMsg,
           updated_at: finishedAt,
           automation_heartbeat_at: finishedAt,
         })
         .eq("id", applicationId);
+
+      if (isNonRetryable && app.agent_run_id) {
+        try {
+          await supabase.rpc("settle_run_credits", {
+            p_agent_run_id: app.agent_run_id,
+            p_actual_credits: 0,
+            p_status: "failed",
+            p_failure_reason: failureMsg,
+            p_receipt: { provider_status: "failed", error: failureMsg },
+          });
+        } catch (settleErr) {
+          console.warn("[process-auto-apply-queue] credit settlement error:", settleErr);
+        }
+      }
+
+      if (isNonRetryable) {
+        try {
+          await createNotificationRecord(supabase, {
+            userId: app.user_id,
+            type: "application",
+            title: `Application Saved as Draft: ${app.job_title}`,
+            message: `Cloud auto-apply for ${app.job_title} at ${app.company} could not complete automatically (${failureMsg}). Your application draft was preserved with full answers for manual submission.`,
+            priority: "high",
+            source: "automation",
+            sourceRecordId: applicationId,
+            sourceRecordType: "application",
+            actionUrl: "/dashboard/applications",
+            actionLabel: "Review Draft",
+          });
+        } catch (e) {
+          console.warn("[process-auto-apply-queue] failure notification failed:", e);
+        }
+      }
     }
   } catch (err: any) {
     console.error("[process-auto-apply-queue] executeRtrvrApplicationDirect error:", err);
