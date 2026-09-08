@@ -121,7 +121,10 @@ describe("Cold Mail current job-search context", () => {
     });
 
     await coldMailSkill.execute({
+      invocationId: "preset-run-123",
       args: {
+        presetId: "recruiter_cold_outreach",
+        clientRunId: "client-run-123",
         coldMailTargets: [
           {
             jobId: "job-1",
@@ -144,6 +147,8 @@ describe("Cold Mail current job-search context", () => {
     expect(invokeProtectedFunctionMock).toHaveBeenCalledWith("cold-mail", {
       body: expect.objectContaining({
         action: "prepare",
+        presetId: "recruiter_cold_outreach",
+        clientRunId: "client-run-123",
         jobId: "job-2",
         companyName: "Globex",
       }),

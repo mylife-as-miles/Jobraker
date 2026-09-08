@@ -25,6 +25,12 @@ describe("sanitizeClientAiError", () => {
     expect(sanitized).toBe("AI generation is temporarily experiencing high demand. Please try again in a few moments.");
   });
 
+  it("preserves the actionable Starter Cold Mail limit message", () => {
+    const message =
+      "The Starter Cold Mail limit of 20 runs in 24 hours has been reached.";
+    expect(sanitizeClientAiError(message, 429)).toBe(message);
+  });
+
   it("sanitizes permission denied messages", () => {
     const rawError = "Permission denied: project has been denied access to model gemini-3.6-flash";
     const sanitized = sanitizeClientAiError(rawError);

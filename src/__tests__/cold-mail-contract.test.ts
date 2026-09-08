@@ -3,8 +3,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   confirmGmailDraftResult,
+  createColdMailSpecialistCapabilityToken,
   createColdMailPreparationToken,
   selectColdMailRecipient,
+  verifyColdMailSpecialistCapabilityToken,
   verifyColdMailPreparationToken,
   type ColdMailPreparation,
 } from "../../backend/supabase/functions/_shared/cold-mail-contract";
@@ -20,6 +22,9 @@ import {
 
 const preparation: ColdMailPreparation = {
   userId: "user-123",
+  runId: "run-123",
+  presetId: "recruiter_cold_outreach",
+  allowedAction: "create_gmail_draft",
   jobId: "job-456",
   companyName: "Acme",
   jobTitle: "Backend Engineer",
@@ -78,6 +83,56 @@ describe("cold-mail preparation contract", () => {
         nowMs: 7_000,
       }),
     ).rejects.toThrow("expired");
+  });
+
+  it("binds a specialist capability to one user, run, job, and operation", async () => {
+    const token = await createColdMailSpecialistCapabilityToken(
+      {
+        userId: "user-123",
+        runId: "run-123",
+        jobId: "job-456",
+        presetId: "recruiter_cold_outreach",
+        operation: "scout_company",
+      },
+      "test-signing-secret",
+      { nowMs: 1_000, ttlMs: 60_000 },
+    );
+
+    await expect(
+      verifyColdMailSpecialistCapabilityToken(
+        token,
+        "test-signing-secret",
+        {
+          userId: "user-123",
+          operation: "scout_company",
+          nowMs: 30_000,
+        },
+      ),
+    ).resolves.toMatchObject({ runId: "run-123", jobId: "job-456" });
+
+    await expect(
+      verifyColdMailSpecialistCapabilityToken(
+        token,
+        "test-signing-secret",
+        {
+          userId: "user-999",
+          operation: "scout_company",
+          nowMs: 30_000,
+        },
+      ),
+    ).rejects.toThrow("invalid");
+
+    await expect(
+      verifyColdMailSpecialistCapabilityToken(
+        token,
+        "test-signing-secret",
+        {
+          userId: "user-123",
+          operation: "generate_outreach",
+          nowMs: 30_000,
+        },
+      ),
+    ).rejects.toThrow("invalid");
   });
 });
 

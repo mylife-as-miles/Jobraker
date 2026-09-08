@@ -21,12 +21,14 @@ type GmailDraftResponse = {
   draftFrom?: string;
   to?: string;
   error?: string;
+  quota?: ColdMailOutput["quota"];
 };
 
 export const ColdMailSkillCard = ({ output }: Props) => {
   const [creating, setCreating] = useState(false);
   const [draftId, setDraftId] = useState("");
   const [error, setError] = useState("");
+  const [quota, setQuota] = useState(output.quota);
   const { preparation } = output;
 
   const createGmailDraft = async () => {
@@ -54,6 +56,7 @@ export const ColdMailSkillCard = ({ output }: Props) => {
         );
       }
       setDraftId(confirmedDraftId);
+      if (response.quota) setQuota(response.quota);
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -80,6 +83,11 @@ export const ColdMailSkillCard = ({ output }: Props) => {
               <p className="text-xs text-muted-foreground">
                 {preparation.jobTitle} at {preparation.companyName}
               </p>
+              {quota && (
+                <p className="text-[11px] text-muted-foreground">
+                  {quota.remaining} of {quota.limit} Starter runs remaining in the rolling 24-hour window
+                </p>
+              )}
             </div>
           </div>
           <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-brand/25 bg-brand/10 px-3 py-1 text-[11px] font-semibold text-brand">

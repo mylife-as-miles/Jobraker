@@ -69,6 +69,7 @@ import { syncUserVectorChunks } from "../_shared/vector-sync.ts";
 import { embedText } from "../_shared/embeddings.ts";
 import { createNotificationRecord } from "../_shared/notification-center.ts";
 import { refundAiChatTurn, refundUserCredits } from "../_shared/refunds.ts";
+import { canUseStandaloneEmailIntegrations as resolveStandaloneEmailAccess } from "../_shared/integration-access.ts";
 
 console.log("JobRaker AI Chat Starting...");
 
@@ -4457,7 +4458,11 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
-    const canUseEmailIntegrations = typeof user.email === "string" && user.email.trim().length > 0;
+    const canUseStandaloneEmailIntegrations = resolveStandaloneEmailAccess(
+      subscriptionTier,
+      user.email,
+    );
+    const canUseEmailIntegrations = canUseStandaloneEmailIntegrations;
     const agentFunctionDeclarations = canUseEmailIntegrations
       ? AGENT_FUNCTION_DECLARATIONS
       : AGENT_FUNCTION_DECLARATIONS.filter(

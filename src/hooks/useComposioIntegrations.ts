@@ -75,8 +75,11 @@ export type UseComposioIntegrationsResult = {
 export function useComposioIntegrations(options?: {
   /** Skip network work while the integrations surface is not visible. */
   enabled?: boolean;
+  /** Purpose-scopes integration access for restricted product workflows. */
+  purpose?: "recruiter_cold_outreach";
 }): UseComposioIntegrationsResult {
   const enabled = options?.enabled ?? true;
+  const purpose = options?.purpose;
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError, info } = useToast();
 
@@ -116,6 +119,7 @@ export function useComposioIntegrations(options?: {
     const { data, error } = await supabase.functions.invoke("composio-auth", {
       body: {
         action: "status",
+        ...(purpose ? { purpose } : {}),
         integrations: COMPOSIO_INTEGRATIONS.map((integration) => ({
           slug: integration.slug,
           label: integration.name,
@@ -140,7 +144,7 @@ export function useComposioIntegrations(options?: {
       );
     }
     return next;
-  }, [supabase]);
+  }, [purpose, supabase]);
 
   const refresh = useCallback(
     async (refreshOptions?: { silent?: boolean }) => {
@@ -183,6 +187,7 @@ export function useComposioIntegrations(options?: {
       const { data, error } = await supabase.functions.invoke("composio-auth", {
         body: {
           action: "status",
+          ...(purpose ? { purpose } : {}),
           integrationSlug: integration.slug,
           toolkitSlug: integration.toolkitSlug,
           authConfigId: integration.authConfigId,
@@ -191,7 +196,7 @@ export function useComposioIntegrations(options?: {
       if (error) throw error;
       return toStatus(data as StatusResponseItem);
     },
-    [supabase],
+    [purpose, supabase],
   );
 
   const connect = useCallback(
@@ -210,6 +215,7 @@ export function useComposioIntegrations(options?: {
         const { data, error } = await supabase.functions.invoke("composio-auth", {
           body: {
             action: "initiate",
+            ...(purpose ? { purpose } : {}),
             integrationSlug: slug,
             toolkitSlug: integration.toolkitSlug,
             authConfigId: integration.authConfigId,
@@ -308,7 +314,7 @@ export function useComposioIntegrations(options?: {
         lockedRef.current.delete(slug);
       }
     },
-    [info, probe, refresh, setActivity, success, supabase, toastError],
+    [info, probe, purpose, refresh, setActivity, success, supabase, toastError],
   );
 
   const disconnect = useCallback(

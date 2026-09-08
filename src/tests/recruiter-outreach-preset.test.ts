@@ -29,10 +29,10 @@ describe("1-Click Recruiter Outreach Preset & Recipes", () => {
       expect(recipe.stages[2].actionButtonLabel).toContain("Create in Gmail Drafts");
     });
 
-    it("has sane defaults for batch sizes", () => {
+    it("enforces one job per recruiter cold-mail run", () => {
       const recipe = ACTION_RECIPES.recruiter_cold_outreach;
-      expect(recipe.defaultJobLimit).toBe(3);
-      expect(recipe.maxJobLimit).toBe(10);
+      expect(recipe.defaultJobLimit).toBe(1);
+      expect(recipe.maxJobLimit).toBe(1);
     });
   });
 
@@ -460,4 +460,3 @@ describe("1-Click Recruiter Outreach Preset & Recipes", () => {
     });
   });
 });
-

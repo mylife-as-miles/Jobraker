@@ -5021,10 +5021,24 @@ export const ChatPage = () => {
                   onOpenChange={setPresetModalOpen}
                   recipeId={presetRecipeForModal}
                   userId={currentUserId}
-                  onLaunchPrompt={(prompt) => {
+                  onLaunchPrompt={(prompt, presetContext) => {
                     setPresetModalOpen(false);
                     setActivePresetRecipeId(null);
-                    void handleSubmit({ text: prompt });
+                    if (presetContext?.presetId === "recruiter_cold_outreach") {
+                      void runSkillCall(
+                        {
+                          detected: true,
+                          skillId: "cold_mail",
+                          trigger: "mention",
+                          rawCommand: "@ColdMail",
+                          userInstruction: prompt,
+                          args: presetContext,
+                        },
+                        prompt,
+                      );
+                    } else {
+                      void handleSubmit({ text: prompt });
+                    }
                   }}
                 />
 

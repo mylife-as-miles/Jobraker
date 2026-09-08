@@ -202,7 +202,17 @@ export type ColdMailDiscoveryOutput = {
   agentRunId?: string;
 };
 
+export type ColdMailQuota = {
+  limit: number;
+  used: number;
+  remaining: number;
+  window: "rolling_24_hours";
+  resetAt: string | null;
+};
+
 export type ColdMailOutput = {
+  runId?: string;
+  quota?: ColdMailQuota;
   preparation: {
     jobId: string | null;
     companyName: string;

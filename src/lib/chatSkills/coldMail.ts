@@ -259,6 +259,9 @@ export const coldMailSkill: JobrakerChatSkill = {
       {
         body: {
           action: "prepare",
+          presetId: asString(input.args.presetId) || undefined,
+          clientRunId:
+            asString(input.args.clientRunId) || input.invocationId,
           jobId:
             asString(input.args.jobId) ||
             asString(input.args.job_id) ||
