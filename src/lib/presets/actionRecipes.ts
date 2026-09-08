@@ -30,8 +30,8 @@ export const ACTION_RECIPES: Record<string, ActionRecipe> = {
     category: "outreach",
     badge: "1-Click",
     estimatedCreditsPerJob: 5,
-    defaultJobLimit: 3,
-    maxJobLimit: 10,
+    defaultJobLimit: 1,
+    maxJobLimit: 1,
     stages: [
       {
         id: "scout_emails",

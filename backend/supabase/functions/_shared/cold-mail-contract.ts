@@ -2,6 +2,9 @@ export type ColdMailConfidence = "high" | "medium";
 
 export type ColdMailPreparation = {
   userId: string;
+  runId: string;
+  presetId: "recruiter_cold_outreach";
+  allowedAction: "create_gmail_draft";
   jobId: string | null;
   companyName: string;
   jobTitle: string;
@@ -16,7 +19,27 @@ export type ColdMailPreparation = {
   body: string;
 };
 
-type SignedColdMailPreparation = ColdMailPreparation & { exp: number };
+export type ColdMailSpecialistOperation =
+  | "scout_company"
+  | "generate_outreach";
+
+export type ColdMailSpecialistCapability = {
+  userId: string;
+  runId: string;
+  jobId: string;
+  presetId: "recruiter_cold_outreach";
+  operation: ColdMailSpecialistOperation;
+};
+
+type SignedColdMailPreparation = ColdMailPreparation & {
+  kind: "cold_mail_preparation_v2";
+  exp: number;
+};
+
+type SignedColdMailSpecialistCapability = ColdMailSpecialistCapability & {
+  kind: "cold_mail_specialist_v1";
+  exp: number;
+};
 
 type TokenOptions = {
   nowMs?: number;
@@ -67,7 +90,17 @@ const parseSignedPreparation = (value: unknown): SignedColdMailPreparation => {
   const recipient = record.recipient as Record<string, unknown> | undefined;
   const confidence = recipient?.confidence;
   const parsed: SignedColdMailPreparation = {
+    kind: record.kind === "cold_mail_preparation_v2"
+      ? record.kind
+      : "" as "cold_mail_preparation_v2",
     userId: asNonEmptyString(record.userId),
+    runId: asNonEmptyString(record.runId),
+    presetId: record.presetId === "recruiter_cold_outreach"
+      ? record.presetId
+      : "" as "recruiter_cold_outreach",
+    allowedAction: record.allowedAction === "create_gmail_draft"
+      ? record.allowedAction
+      : "" as "create_gmail_draft",
     jobId: asNonEmptyString(record.jobId) || null,
     companyName: asNonEmptyString(record.companyName),
     jobTitle: asNonEmptyString(record.jobTitle),
@@ -87,7 +120,12 @@ const parseSignedPreparation = (value: unknown): SignedColdMailPreparation => {
   };
 
   if (
+    parsed.kind !== "cold_mail_preparation_v2" ||
     !parsed.userId ||
+    !parsed.runId ||
+    parsed.presetId !== "recruiter_cold_outreach" ||
+    parsed.allowedAction !== "create_gmail_draft" ||
+    !parsed.jobId ||
     !parsed.companyName ||
     !parsed.jobTitle ||
     !parsed.recipient.email ||
@@ -111,6 +149,7 @@ export async function createColdMailPreparationToken(
   const ttlMs = options.ttlMs ?? DEFAULT_TOKEN_TTL_MS;
   const payload: SignedColdMailPreparation = {
     ...preparation,
+    kind: "cold_mail_preparation_v2",
     exp: nowMs + ttlMs,
   };
   const payloadSegment = bytesToBase64Url(
@@ -152,11 +191,114 @@ export async function verifyColdMailPreparationToken(
       throw new Error("Cold Mail preparation token has expired.");
     }
 
-    const { exp: _exp, ...preparation } = signed;
+    const { exp: _exp, kind: _kind, ...preparation } = signed;
     return preparation;
   } catch (error) {
     if (error instanceof Error && /expired/i.test(error.message)) throw error;
     throw new Error("Cold Mail preparation token is invalid.");
+  }
+}
+
+const parseSignedSpecialistCapability = (
+  value: unknown,
+): SignedColdMailSpecialistCapability => {
+  if (!value || typeof value !== "object") {
+    throw new Error("Cold Mail specialist capability is invalid.");
+  }
+  const record = value as Record<string, unknown>;
+  const operation = record.operation;
+  const parsed: SignedColdMailSpecialistCapability = {
+    kind: record.kind === "cold_mail_specialist_v1"
+      ? record.kind
+      : "" as "cold_mail_specialist_v1",
+    userId: asNonEmptyString(record.userId),
+    runId: asNonEmptyString(record.runId),
+    jobId: asNonEmptyString(record.jobId),
+    presetId: record.presetId === "recruiter_cold_outreach"
+      ? record.presetId
+      : "" as "recruiter_cold_outreach",
+    operation:
+      operation === "scout_company" || operation === "generate_outreach"
+        ? operation
+        : "" as ColdMailSpecialistOperation,
+    exp: typeof record.exp === "number" ? record.exp : 0,
+  };
+  if (
+    parsed.kind !== "cold_mail_specialist_v1" ||
+    !parsed.userId ||
+    !parsed.runId ||
+    !parsed.jobId ||
+    parsed.presetId !== "recruiter_cold_outreach" ||
+    !parsed.operation ||
+    !parsed.exp
+  ) {
+    throw new Error("Cold Mail specialist capability is invalid.");
+  }
+  return parsed;
+};
+
+export async function createColdMailSpecialistCapabilityToken(
+  capability: ColdMailSpecialistCapability,
+  secret: string,
+  options: TokenOptions = {},
+) {
+  const payload: SignedColdMailSpecialistCapability = {
+    ...capability,
+    kind: "cold_mail_specialist_v1",
+    exp: (options.nowMs ?? Date.now()) +
+      (options.ttlMs ?? DEFAULT_TOKEN_TTL_MS),
+  };
+  const payloadSegment = bytesToBase64Url(
+    encoder.encode(JSON.stringify(payload)),
+  );
+  const key = await importSigningKey(secret);
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(payloadSegment),
+  );
+  return `${payloadSegment}.${bytesToBase64Url(new Uint8Array(signature))}`;
+}
+
+export async function verifyColdMailSpecialistCapabilityToken(
+  token: string,
+  secret: string,
+  expected: {
+    userId: string;
+    operation: ColdMailSpecialistOperation;
+    nowMs?: number;
+  },
+): Promise<ColdMailSpecialistCapability> {
+  const [payloadSegment, signatureSegment, extra] = token.split(".");
+  if (!payloadSegment || !signatureSegment || extra) {
+    throw new Error("Cold Mail specialist capability is invalid.");
+  }
+  try {
+    const key = await importSigningKey(secret);
+    const valid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      base64UrlToBytes(signatureSegment),
+      encoder.encode(payloadSegment),
+    );
+    if (!valid) throw new Error("Cold Mail specialist capability is invalid.");
+    const signed = parseSignedSpecialistCapability(
+      JSON.parse(decoder.decode(base64UrlToBytes(payloadSegment))),
+    );
+    if (signed.exp <= (expected.nowMs ?? Date.now())) {
+      throw new Error("Cold Mail specialist capability has expired.");
+    }
+    if (
+      signed.userId !== expected.userId ||
+      signed.operation !== expected.operation
+    ) {
+      throw new Error("Cold Mail specialist capability is invalid.");
+    }
+    const { exp: _exp, kind: _kind, ...capability } = signed;
+    return capability;
+  } catch (error) {
+    if (error instanceof Error && /expired/i.test(error.message)) throw error;
+    throw new Error("Cold Mail specialist capability is invalid.");
   }
 }
 

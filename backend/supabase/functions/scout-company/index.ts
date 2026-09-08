@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyColdMailSpecialistCapabilityToken } from "../_shared/cold-mail-contract.ts";
 import {
   buildRecruiterSearchQueries,
   extractPublishedRecruiterContacts,
@@ -131,9 +132,10 @@ const COUNTRY_SECOND_LEVEL_SUFFIXES = new Set([
 
 const TIER_RANK: Record<string, number> = {
   Free: 0,
-  Basics: 1,
-  Pro: 2,
-  Ultimate: 3,
+  Starter: 1,
+  Basics: 2,
+  Pro: 3,
+  Ultimate: 4,
 };
 
 const SCOUT_LIMITS: Record<string, { perMinute: number; perDay: number }> = {
@@ -657,14 +659,30 @@ async function authenticate(req: Request) {
   const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: rawTier } = await serviceClient.rpc("get_user_tier", { p_user_id: user.id });
   const aliases: Record<string, string> = {
-    Basic: "Basics", Starter: "Basics", Professional: "Pro",
+    Basic: "Basics", "Starter Plan": "Starter", Professional: "Pro",
     Executive: "Ultimate", Enterprise: "Ultimate", "Ultimate Plan": "Ultimate",
   };
   const tier = aliases[asString(rawTier)] || asString(rawTier) || "Free";
-  if ((TIER_RANK[tier] || 0) < TIER_RANK.Basics) {
+  let coldMailCapability = null;
+  if (tier === "Starter") {
+    const token = asString(req.headers.get("x-cold-mail-capability"));
+    const secret = asString(Deno.env.get("COLD_MAIL_SIGNING_SECRET")) || serviceKey;
+    try {
+      coldMailCapability = await verifyColdMailSpecialistCapabilityToken(
+        token,
+        secret,
+        { userId: user.id, operation: "scout_company" },
+      );
+    } catch {
+      throw new HttpError(
+        403,
+        "Recruiter discovery is available on Starter only inside an authorized 1-Click Recruiter Cold Mail run.",
+      );
+    }
+  } else if ((TIER_RANK[tier] || 0) < TIER_RANK.Basics) {
     throw new HttpError(403, "Recruiter and hiring-team discovery requires the Basics plan or higher.");
   }
-  return { user, serviceClient, tier };
+  return { user, serviceClient, tier, coldMailCapability };
 }
 
 async function enforceRateLimit(serviceClient: any, userId: string, tier: string) {
@@ -798,9 +816,17 @@ serve(async (req) => {
   try {
     const context = await authenticate(req);
     serviceClient = context.serviceClient;
-    await enforceRateLimit(serviceClient, context.user.id, context.tier);
+    if (!context.coldMailCapability) {
+      await enforceRateLimit(serviceClient, context.user.id, context.tier);
+    }
 
     const request = (await req.json()) as ScoutRequest;
+    if (
+      context.coldMailCapability &&
+      asString(request.jobId) !== context.coldMailCapability.jobId
+    ) {
+      throw new HttpError(403, "The Cold Mail capability does not authorize this job.");
+    }
     const companyName = sanitizeInput(request.companyName, 200);
     if (!companyName) throw new HttpError(400, "companyName is required");
 
@@ -967,15 +993,17 @@ serve(async (req) => {
       },
       error: null,
     });
-    await recordUsage(serviceClient, context.user.id, context.tier, {
-      company_name: job.company,
-      job_id: job.id,
-      confidence,
-      contacts: contacts.length,
-      safe_contacts: safeCount,
-      has_email: Boolean(bestEmail),
-      source: "public_indexed_recruiter_discovery_v2",
-    });
+    if (!context.coldMailCapability) {
+      await recordUsage(serviceClient, context.user.id, context.tier, {
+        company_name: job.company,
+        job_id: job.id,
+        confidence,
+        contacts: contacts.length,
+        safe_contacts: safeCount,
+        has_email: Boolean(bestEmail),
+        source: "public_indexed_recruiter_discovery_v2",
+      });
+    }
 
     return jsonResponse({
       domain: officialDomain,

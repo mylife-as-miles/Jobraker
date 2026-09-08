@@ -54,6 +54,12 @@ export function sanitizeClientAiError(message: string, status?: number): string 
 
   const lower = message.toLowerCase();
   if (
+    lower.includes("starter cold mail limit") &&
+    lower.includes("20 runs in 24 hours")
+  ) {
+    return message;
+  }
+  if (
     status === 429 ||
     lower.includes("429") ||
     lower.includes("resource_exhausted") ||

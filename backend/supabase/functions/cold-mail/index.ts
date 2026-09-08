@@ -12,12 +12,14 @@ import {
 } from "../_shared/gmail-job-agent-tools.ts";
 import {
   confirmGmailDraftResult,
+  createColdMailSpecialistCapabilityToken,
   confirmGmailSendResult,
   createColdMailPreparationToken,
   selectColdMailRecipient,
   verifyColdMailPreparationToken,
   type ColdMailPreparation,
 } from "../_shared/cold-mail-contract.ts";
+import { getComposioGmailConnection } from "../_shared/composio-gmail.ts";
 import {
   fingerprintColdMailPreparationToken,
   resolveColdMailDraftAttempt,
@@ -27,6 +29,8 @@ import {
 
 type PrepareRequest = {
   action: "prepare";
+  presetId?: string;
+  clientRunId?: string;
   jobId?: string;
   companyName?: string;
   jobTitle?: string;
@@ -39,6 +43,10 @@ type DiscoverRequest = {
   searchQuery?: string;
   location?: string;
   limit?: number;
+};
+
+type QuotaStatusRequest = {
+  action: "quota_status";
 };
 
 type CreateDraftRequest = {
@@ -70,6 +78,7 @@ type SendEmailRequest = {
 };
 
 type ColdMailRequest =
+  | QuotaStatusRequest
   | DiscoverRequest
   | PrepareRequest
   | CreateDraftRequest
@@ -77,7 +86,12 @@ type ColdMailRequest =
   | SendEmailRequest;
 
 class RequestError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+    public code?: string,
+    public details?: Record<string, unknown>,
+  ) {
     super(message);
     this.name = "RequestError";
   }
@@ -120,6 +134,7 @@ async function invokeSpecialist(
   req: Request,
   functionName: string,
   payload: Record<string, unknown>,
+  capabilityToken?: string,
 ) {
   const supabaseUrl = asString(Deno.env.get("SUPABASE_URL")).replace(/\/$/, "");
   const apiKey = asString(Deno.env.get("SUPABASE_ANON_KEY"));
@@ -135,6 +150,9 @@ async function invokeSpecialist(
       apikey: apiKey,
       "Content-Type": "application/json",
       Accept: "application/json",
+      ...(capabilityToken
+        ? { "X-Cold-Mail-Capability": capabilityToken }
+        : {}),
     },
     body: JSON.stringify(payload),
   });
@@ -158,6 +176,148 @@ async function invokeSpecialist(
     );
   }
   return data;
+}
+
+async function transitionStarterRun(
+  serviceClient: any,
+  userId: string,
+  agentRunId: string,
+  status: string,
+  lastStage: string,
+  externalWorkStarted = false,
+  failureClass?: string,
+) {
+  const { data, error } = await serviceClient.rpc(
+    "transition_starter_cold_mail_run",
+    {
+      p_user_id: userId,
+      p_agent_run_id: agentRunId,
+      p_status: status,
+      p_last_stage: lastStage,
+      p_external_work_started: externalWorkStarted,
+      p_failure_class: failureClass || null,
+    },
+  );
+  if (error || data?.success === false) {
+    console.warn("cold-mail run transition failed", {
+      agentRunId,
+      status,
+      code: error?.code || data?.code,
+      message: error?.message,
+    });
+  }
+  return data;
+}
+
+async function getStarterQuotaStatus(serviceClient: any, userId: string) {
+  const { data, error } = await serviceClient.rpc(
+    "get_starter_cold_mail_quota_status",
+    { p_user_id: userId },
+  );
+  if (error) {
+    console.error("cold-mail quota status failed", {
+      code: error.code,
+      message: error.message,
+    });
+    throw new RequestError(
+      500,
+      "Cold Mail could not verify the Starter run limit.",
+      "cold_mail_quota_unavailable",
+    );
+  }
+  return data as Record<string, unknown>;
+}
+
+const PREPARATION_AGENTS = [
+  { id: "job_context", status: "completed" },
+  { id: "recruiter_scout", status: "completed" },
+  { id: "candidate_evidence", status: "completed" },
+  { id: "outreach_writer", status: "completed" },
+  { id: "gmail_draft", status: "awaiting_approval" },
+] as const;
+
+function asStoredPreparation(
+  value: unknown,
+  userId: string,
+  runId: string,
+): ColdMailPreparation | null {
+  if (!value || typeof value !== "object") return null;
+  const preparation = value as ColdMailPreparation;
+  if (
+    preparation.userId !== userId ||
+    preparation.runId !== runId ||
+    preparation.presetId !== "recruiter_cold_outreach" ||
+    preparation.allowedAction !== "create_gmail_draft" ||
+    !preparation.jobId ||
+    !preparation.recipient?.email ||
+    !preparation.subject ||
+    !preparation.body
+  ) return null;
+  return preparation;
+}
+
+async function loadStoredPreparation(
+  serviceClient: any,
+  userId: string,
+  runId: string,
+) {
+  const { data, error } = await serviceClient
+    .from("agent_runs")
+    .select("receipt")
+    .eq("id", runId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) {
+    throw new RequestError(
+      500,
+      "Cold Mail could not restore this run.",
+      "cold_mail_run_restore_failed",
+    );
+  }
+  const receipt = data?.receipt && typeof data.receipt === "object"
+    ? data.receipt as Record<string, unknown>
+    : {};
+  return asStoredPreparation(receipt.cold_mail_preparation, userId, runId);
+}
+
+async function storePreparation(
+  serviceClient: any,
+  userId: string,
+  preparation: ColdMailPreparation,
+) {
+  const { data, error: loadError } = await serviceClient
+    .from("agent_runs")
+    .select("receipt")
+    .eq("id", preparation.runId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (loadError) {
+    throw new RequestError(
+      500,
+      "Cold Mail could not persist this preparation.",
+      "cold_mail_preparation_persist_failed",
+    );
+  }
+  const currentReceipt = data?.receipt && typeof data.receipt === "object"
+    ? data.receipt as Record<string, unknown>
+    : {};
+  const { error } = await serviceClient
+    .from("agent_runs")
+    .update({
+      receipt: {
+        ...currentReceipt,
+        cold_mail_preparation: preparation,
+      },
+    })
+    .eq("id", preparation.runId)
+    .eq("user_id", userId);
+  if (error) {
+    throw new RequestError(
+      500,
+      "Cold Mail could not persist this preparation.",
+      "cold_mail_preparation_persist_failed",
+    );
+  }
 }
 
 async function resolveJob(
@@ -533,10 +693,15 @@ async function prepareColdMail(
   req: Request,
   serviceClient: any,
   userId: string,
+  subscriptionTier: string,
   request: PrepareRequest,
 ) {
+  const isStarter = subscriptionTier === "Starter";
   const safeRequest: PrepareRequest = {
     action: "prepare",
+    presetId: boundedString(request.presetId, "presetId", 100) || undefined,
+    clientRunId:
+      boundedString(request.clientRunId, "clientRunId", 200) || undefined,
     jobId: boundedString(request.jobId, "jobId", 100) || undefined,
     companyName:
       boundedString(request.companyName, "companyName", 200) || undefined,
@@ -545,6 +710,29 @@ async function prepareColdMail(
     instructions:
       boundedString(request.instructions, "instructions", 2_000) || undefined,
   };
+  if (isStarter) {
+    if (safeRequest.presetId !== "recruiter_cold_outreach") {
+      throw new RequestError(
+        403,
+        "Starter Cold Mail is available only through the 1-Click Recruiter Cold Mail preset.",
+        "cold_mail_preset_required",
+      );
+    }
+    if (!safeRequest.jobId) {
+      throw new RequestError(
+        400,
+        "Select exactly one saved job before starting Cold Mail.",
+        "cold_mail_job_required",
+      );
+    }
+    if (!safeRequest.clientRunId) {
+      throw new RequestError(
+        400,
+        "A Cold Mail run key is required.",
+        "cold_mail_run_key_required",
+      );
+    }
+  }
   const job = await resolveJob(serviceClient, userId, safeRequest);
   const companyName = asString(job.company);
   const jobTitle = asString(job.title) || asString(request.jobTitle);
@@ -553,78 +741,240 @@ async function prepareColdMail(
     throw new RequestError(422, "The selected job is missing its company or title.");
   }
 
-  const scout = await invokeSpecialist(req, "scout-company", {
-    companyName,
-    jobId: asString(job.id) || undefined,
-    jobTitle,
-    jobDescription,
-    applyUrl: asString(job.apply_url) || undefined,
-    limit: 5,
-  });
-  const recipient = selectColdMailRecipient(scout);
-  if (!recipient) {
-    throw new RequestError(
-      422,
-      "No evidence-backed recruiter or public recruitment email was found for this job. No Gmail draft was created.",
+  let runId: string = crypto.randomUUID();
+  let quota: Record<string, unknown> | undefined;
+  if (isStarter) {
+    const gmailConnection = await getComposioGmailConnection(userId);
+    if (!gmailConnection.connected) {
+      throw new RequestError(
+        409,
+        "Connect Gmail before starting a Starter Cold Mail run.",
+        "gmail_not_connected",
+      );
+    }
+    const { data, error } = await serviceClient.rpc(
+      "reserve_starter_cold_mail_run",
+      {
+        p_user_id: userId,
+        p_job_id: asString(job.id),
+        p_idempotency_key: safeRequest.clientRunId,
+      },
     );
+    if (error) {
+      console.error("cold-mail run reservation failed", {
+        code: error.code,
+        message: error.message,
+      });
+      throw new RequestError(
+        500,
+        "Cold Mail could not reserve this run.",
+        "cold_mail_run_reservation_failed",
+      );
+    }
+    const reservation = data as Record<string, unknown>;
+    if (reservation?.success !== true) {
+      const code = asString(reservation?.code) ||
+        "cold_mail_run_reservation_failed";
+      throw new RequestError(
+        code === "cold_mail_daily_limit_reached" ? 429 : 400,
+        asString(reservation?.error) || "Cold Mail could not reserve this run.",
+        code,
+        reservation?.quota && typeof reservation.quota === "object"
+          ? { quota: reservation.quota as Record<string, unknown> }
+          : undefined,
+      );
+    }
+    runId = asString(reservation.agentRunId);
+    quota = reservation.quota && typeof reservation.quota === "object"
+      ? reservation.quota as Record<string, unknown>
+      : undefined;
+    if (!runId) {
+      throw new RequestError(
+        500,
+        "Cold Mail did not receive a valid run ID.",
+        "cold_mail_run_reservation_failed",
+      );
+    }
+    if (reservation.idempotentReplay === true) {
+      const storedPreparation = await loadStoredPreparation(
+        serviceClient,
+        userId,
+        runId,
+      );
+      if (!storedPreparation) {
+        throw new RequestError(
+          409,
+          "This Cold Mail run is already in progress. Wait for it to finish before retrying.",
+          "cold_mail_run_in_progress",
+          quota ? { quota } : undefined,
+        );
+      }
+      return {
+        success: true,
+        status: "needs_approval",
+        runId,
+        quota,
+        preparation: {
+          jobId: storedPreparation.jobId,
+          companyName: storedPreparation.companyName,
+          jobTitle: storedPreparation.jobTitle,
+          recipient: storedPreparation.recipient,
+          subject: storedPreparation.subject,
+          body: storedPreparation.body,
+        },
+        preparationToken: await createColdMailPreparationToken(
+          storedPreparation,
+          signingSecret(),
+        ),
+        agents: PREPARATION_AGENTS,
+      };
+    }
   }
 
-  const [resumeText, publicProfileUrl] = await Promise.all([
-    loadCandidateEvidence(serviceClient, userId),
-    loadPublicProfileUrl(serviceClient, userId),
-  ]);
-  const generated = await invokeSpecialist(req, "generate-outreach", {
-    companyName,
-    role: jobTitle,
-    resumeText,
-    publicProfileUrl: publicProfileUrl || undefined,
-    jobDescription: jobDescription || undefined,
-    instructions: safeRequest.instructions,
-  });
-  const generatedRecord =
-    generated && typeof generated === "object"
-      ? (generated as Record<string, unknown>)
-      : {};
-  const subject = asString(generatedRecord.subject);
-  const body = asString(generatedRecord.body);
-  if (!subject || subject.length > 250 || body.length < 5 || body.length > 25_000) {
-    throw new RequestError(502, "The outreach writer did not return a complete draft.");
-  }
+  try {
+    if (isStarter) {
+      await transitionStarterRun(
+        serviceClient,
+        userId,
+        runId,
+        "researching",
+        "recruiter_scout",
+        true,
+      );
+    }
+    const scoutCapability = isStarter
+      ? await createColdMailSpecialistCapabilityToken(
+          {
+            userId,
+            runId,
+            jobId: asString(job.id),
+            presetId: "recruiter_cold_outreach",
+            operation: "scout_company",
+          },
+          signingSecret(),
+        )
+      : undefined;
+    const scout = await invokeSpecialist(req, "scout-company", {
+      companyName,
+      jobId: asString(job.id) || undefined,
+      jobTitle,
+      jobDescription,
+      applyUrl: asString(job.apply_url) || undefined,
+      limit: 5,
+    }, scoutCapability);
+    const recipient = selectColdMailRecipient(scout);
+    if (!recipient) {
+      throw new RequestError(
+        422,
+        "No evidence-backed recruiter or public recruitment email was found for this job. No Gmail draft was created.",
+        "cold_mail_recipient_not_found",
+      );
+    }
 
-  const preparation: ColdMailPreparation = {
-    userId,
-    jobId: asString(job.id) || null,
-    companyName,
-    jobTitle,
-    recipient,
-    subject,
-    body,
-  };
-  const preparationToken = await createColdMailPreparationToken(
-    preparation,
-    signingSecret(),
-  );
+    const [resumeText, publicProfileUrl] = await Promise.all([
+      loadCandidateEvidence(serviceClient, userId),
+      loadPublicProfileUrl(serviceClient, userId),
+    ]);
+    if (isStarter) {
+      await transitionStarterRun(
+        serviceClient,
+        userId,
+        runId,
+        "generating",
+        "outreach_writer",
+      );
+    }
+    const outreachCapability = isStarter
+      ? await createColdMailSpecialistCapabilityToken(
+          {
+            userId,
+            runId,
+            jobId: asString(job.id),
+            presetId: "recruiter_cold_outreach",
+            operation: "generate_outreach",
+          },
+          signingSecret(),
+        )
+      : undefined;
+    const generated = await invokeSpecialist(req, "generate-outreach", {
+      jobId: asString(job.id),
+      companyName,
+      role: jobTitle,
+      resumeText,
+      publicProfileUrl: publicProfileUrl || undefined,
+      jobDescription: jobDescription || undefined,
+      instructions: safeRequest.instructions,
+    }, outreachCapability);
+    const generatedRecord =
+      generated && typeof generated === "object"
+        ? (generated as Record<string, unknown>)
+        : {};
+    const subject = asString(generatedRecord.subject);
+    const body = asString(generatedRecord.body);
+    if (!subject || subject.length > 250 || body.length < 5 || body.length > 25_000) {
+      throw new RequestError(502, "The outreach writer did not return a complete draft.");
+    }
 
-  return {
-    success: true,
-    status: "needs_approval",
-    preparation: {
-      jobId: preparation.jobId,
+    const preparation: ColdMailPreparation = {
+      userId,
+      runId,
+      presetId: "recruiter_cold_outreach",
+      allowedAction: "create_gmail_draft",
+      jobId: asString(job.id) || null,
       companyName,
       jobTitle,
       recipient,
       subject,
       body,
-    },
-    preparationToken,
-    agents: [
-      { id: "job_context", status: "completed" },
-      { id: "recruiter_scout", status: "completed" },
-      { id: "candidate_evidence", status: "completed" },
-      { id: "outreach_writer", status: "completed" },
-      { id: "gmail_draft", status: "awaiting_approval" },
-    ],
-  };
+    };
+    const preparationToken = await createColdMailPreparationToken(
+      preparation,
+      signingSecret(),
+    );
+    if (isStarter) {
+      await storePreparation(serviceClient, userId, preparation);
+      const transition = await transitionStarterRun(
+        serviceClient,
+        userId,
+        runId,
+        "needs_approval",
+        "gmail_draft_approval",
+      );
+      if (transition?.quota && typeof transition.quota === "object") {
+        quota = transition.quota as Record<string, unknown>;
+      }
+    }
+
+    return {
+      success: true,
+      status: "needs_approval",
+      runId,
+      quota,
+      preparation: {
+        jobId: preparation.jobId,
+        companyName,
+        jobTitle,
+        recipient,
+        subject,
+        body,
+      },
+      preparationToken,
+      agents: PREPARATION_AGENTS,
+    };
+  } catch (error) {
+    if (isStarter && runId) {
+      await transitionStarterRun(
+        serviceClient,
+        userId,
+        runId,
+        "failed_consumed",
+        "preparation_failed",
+        false,
+        error instanceof Error ? error.name : "unknown_error",
+      );
+    }
+    throw error;
+  }
 }
 
 const COLD_MAIL_DRAFT_ATTEMPT_COLUMNS =
@@ -656,6 +1006,7 @@ async function reserveColdMailDraftAttempt(
   userId: string,
   fingerprintSource: string,
   preparation: ColdMailPreparation,
+  coldMailRunId?: string,
 ) {
   const requestFingerprint = await fingerprintColdMailPreparationToken(fingerprintSource);
   const existing = await loadColdMailDraftAttempt(
@@ -673,6 +1024,7 @@ async function reserveColdMailDraftAttempt(
     .insert({
       user_id: userId,
       job_id: preparation.jobId,
+      cold_mail_run_id: coldMailRunId || null,
       request_fingerprint: requestFingerprint,
       recipient_email: preparation.recipient.email,
       subject: preparation.subject,
@@ -804,9 +1156,9 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient } = await requireSubscriptionTier(
+    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(
       req,
-      "Basics",
+      "Starter",
       "Cold Mail",
     );
     const parsedRequest = await req.json();
@@ -814,6 +1166,21 @@ serve(async (req) => {
       throw new RequestError(400, "Cold Mail request is invalid.");
     }
     const request = parsedRequest as ColdMailRequest;
+
+    if (request.action === "quota_status") {
+      if (subscriptionTier !== "Starter") {
+        return jsonResponse({
+          success: true,
+          quota: null,
+          plan: subscriptionTier,
+        }, 200, corsHeaders);
+      }
+      return jsonResponse({
+        success: true,
+        quota: await getStarterQuotaStatus(serviceClient, user.id),
+        plan: subscriptionTier,
+      }, 200, corsHeaders);
+    }
 
     if (request.action === "discover") {
       const result = await discoverColdMailTargets(
@@ -830,6 +1197,7 @@ serve(async (req) => {
         req,
         serviceClient,
         user.id,
+        subscriptionTier,
         request,
       );
       return jsonResponse(result, 200, corsHeaders);
@@ -839,7 +1207,8 @@ serve(async (req) => {
       let to = "";
       let subject = "";
       let body = "";
-      let preparation: ColdMailPreparation;
+      let preparation: ColdMailPreparation | null = null;
+      let responseQuota: Record<string, unknown> | undefined;
 
       const token = boundedString(
         request.preparationToken,
@@ -857,7 +1226,12 @@ serve(async (req) => {
         to = preparation.recipient.email;
         subject = preparation.subject;
         body = preparation.body;
-      } else if (request.to && request.subject && request.body) {
+      } else if (
+        subscriptionTier !== "Starter" &&
+        request.to &&
+        request.subject &&
+        request.body
+      ) {
         to = boundedString(request.to, "to", 320);
         subject = boundedString(request.subject, "subject", 500);
         body = boundedString(request.body, "body", 50000);
@@ -897,9 +1271,13 @@ serve(async (req) => {
         user.id,
         fingerprintSource,
         preparation,
+        subscriptionTier === "Starter" ? preparation.runId : undefined,
       );
       if (reserved.decision.action === "replay") {
-        return jsonResponse(reserved.decision.response, 200, corsHeaders);
+        return jsonResponse({
+          ...reserved.decision.response,
+          ...(preparation.runId ? { runId: preparation.runId } : {}),
+        }, 200, corsHeaders);
       }
       if (reserved.decision.action === "block" || !reserved.row) {
         return jsonResponse(
@@ -914,18 +1292,58 @@ serve(async (req) => {
           corsHeaders,
         );
       }
+      if (subscriptionTier === "Starter") {
+        const transition = await transitionStarterRun(
+          serviceClient,
+          user.id,
+          preparation.runId,
+          "creating_draft",
+          "gmail_draft",
+        );
+        if (transition?.quota && typeof transition.quota === "object") {
+          responseQuota = transition.quota as Record<string, unknown>;
+        }
+      }
 
-      const providerResult = await agentCreateJobRelatedDraft(
-        serviceClient,
-        user.id,
-        {
-          to,
-          subject,
-          body,
-        },
-      );
+      let providerResult: Record<string, unknown>;
+      try {
+        providerResult = await agentCreateJobRelatedDraft(
+          serviceClient,
+          user.id,
+          {
+            to,
+            subject,
+            body,
+          },
+        );
+      } catch (error) {
+        const errorCode = "gmail_draft_provider_error";
+        if (reserved?.row) {
+          await persistColdMailDraftAttempt(serviceClient, reserved.row.id, {
+            status: "uncertain",
+            error_code: errorCode,
+          });
+        }
+        if (subscriptionTier === "Starter" && preparation) {
+          await transitionStarterRun(
+            serviceClient,
+            user.id,
+            preparation.runId,
+            "uncertain",
+            "gmail_draft_uncertain",
+            false,
+            errorCode,
+          );
+        }
+        console.error("Cold Mail Gmail draft provider failure", error);
+        throw new RequestError(
+          502,
+          "Gmail draft creation could not be confirmed. Check Gmail before retrying.",
+          errorCode,
+        );
+      }
       const confirmed = confirmGmailDraftResult(providerResult);
-      if (confirmed.success) {
+      if (confirmed.success && reserved?.row) {
         await persistColdMailDraftAttempt(serviceClient, reserved.row.id, {
           status: "created",
           provider_draft_id: confirmed.draftId,
@@ -934,20 +1352,45 @@ serve(async (req) => {
           draft_from: confirmed.draftFrom || null,
           error_code: null,
         });
-      } else {
+      } else if (!confirmed.success && reserved?.row) {
         await persistColdMailDraftAttempt(serviceClient, reserved.row.id, {
           status: "uncertain",
           error_code: confirmed.code,
         });
       }
+      if (subscriptionTier === "Starter" && preparation) {
+        const transition = await transitionStarterRun(
+          serviceClient,
+          user.id,
+          preparation.runId,
+          confirmed.success ? "drafted" : "uncertain",
+          confirmed.success ? "gmail_draft_created" : "gmail_draft_uncertain",
+          false,
+          confirmed.success ? undefined : confirmed.code,
+        );
+        if (transition?.quota && typeof transition.quota === "object") {
+          responseQuota = transition.quota as Record<string, unknown>;
+        }
+      }
       return jsonResponse(
-        confirmed,
+        {
+          ...confirmed,
+          ...(preparation ? { runId: preparation.runId } : {}),
+          ...(responseQuota ? { quota: responseQuota } : {}),
+        },
         confirmed.success ? 200 : 502,
         corsHeaders,
       );
     }
 
     if (request.action === "send_gmail_draft") {
+      if (subscriptionTier === "Starter") {
+        throw new RequestError(
+          403,
+          "Starter Cold Mail creates Gmail drafts for review; direct sending is not available.",
+          "cold_mail_send_not_available",
+        );
+      }
       const draftId = boundedString(request.draftId, "draftId", 500);
       if (!draftId) {
         throw new RequestError(400, "A reviewed Gmail draft ID is required.");
@@ -1003,6 +1446,13 @@ serve(async (req) => {
     }
 
     if (request.action === "send_gmail_email") {
+      if (subscriptionTier === "Starter") {
+        throw new RequestError(
+          403,
+          "Starter Cold Mail creates Gmail drafts for review; direct sending is not available.",
+          "cold_mail_send_not_available",
+        );
+      }
       let to = "";
       let subject = "";
       let body = "";
@@ -1058,6 +1508,15 @@ serve(async (req) => {
         ? error.message
         : "Cold Mail failed. Please try again.";
     console.error("cold-mail failed", error);
-    return jsonResponse({ success: false, error: message }, status, corsHeaders);
+    return jsonResponse({
+      success: false,
+      error: message,
+      ...(error instanceof RequestError && error.code
+        ? { code: error.code }
+        : {}),
+      ...(error instanceof RequestError && error.details
+        ? error.details
+        : {}),
+    }, status, corsHeaders);
   }
 });

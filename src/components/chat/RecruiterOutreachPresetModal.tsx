@@ -9,25 +9,24 @@ import {
 import {
   Zap,
   Building2,
-  Check,
   CheckSquare,
   Square,
   Plus,
   Sparkles,
   RefreshCw,
   X,
-  Mail,
   ArrowRight,
   Search,
   Briefcase,
   History,
-  Send,
   Loader2,
-  ShieldCheck,
-  Filter,
 } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
 import { ACTION_RECIPES, type ActionRecipe } from "@/lib/presets/actionRecipes";
+import { useComposioIntegrations } from "@/hooks/useComposioIntegrations";
+import { GMAIL_INTEGRATION } from "@/lib/composioIntegrations";
+import { invokeProtectedFunction } from "@/services/supabase/invokeProtectedFunction";
+import type { ColdMailQuota } from "@/lib/chatSkills/types";
 
 export interface PresetJobItem {
   id: string;
@@ -45,7 +44,16 @@ interface RecruiterOutreachPresetModalProps {
   onOpenChange: (open: boolean) => void;
   recipeId?: string;
   userId?: string;
-  onLaunchPrompt: (compiledPrompt: string) => void;
+  onLaunchPrompt: (
+    compiledPrompt: string,
+    context?: {
+      presetId: "recruiter_cold_outreach";
+      jobId: string;
+      companyName: string;
+      jobTitle: string;
+      clientRunId: string;
+    },
+  ) => void;
 }
 
 export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModalProps> = ({
@@ -63,6 +71,13 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
       ACTION_RECIPES.recruiter_cold_outreach
     );
   }, [recipeId]);
+  const isColdMailPreset = activeRecipe.id === "recruiter_cold_outreach";
+  const coldMailGmail = useComposioIntegrations({
+    enabled: open && isColdMailPreset,
+    purpose: "recruiter_cold_outreach",
+  });
+  const gmailStatus = coldMailGmail.getStatus("gmail");
+  const gmailConnected = gmailStatus?.state === "active";
 
   const [activeTab, setActiveTab] = useState<"searched" | "applied">(
     recipeId === "followup_bump" ? "applied" : "searched",
@@ -82,6 +97,28 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
 
   // Outreach tone / strategy
   const [tone, setTone] = useState<string>("casual");
+  const [coldMailQuota, setColdMailQuota] = useState<ColdMailQuota | null>(null);
+
+  useEffect(() => {
+    if (!open || !isColdMailPreset) {
+      setColdMailQuota(null);
+      return;
+    }
+    let active = true;
+    void invokeProtectedFunction<{
+      success: boolean;
+      quota?: ColdMailQuota | null;
+    }>("cold-mail", { body: { action: "quota_status" } })
+      .then((response) => {
+        if (active) setColdMailQuota(response.quota || null);
+      })
+      .catch(() => {
+        if (active) setColdMailQuota(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isColdMailPreset, open]);
 
   // Sync tab and tone defaults when recipe or open changes
   useEffect(() => {
@@ -98,6 +135,7 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
       }
       setSearchFilter("");
       setShowCustomForm(false);
+      if (recipeId === "recruiter_cold_outreach") setCustomJobs([]);
     }
   }, [open, recipeId]);
 
@@ -141,7 +179,7 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
         const seenCompanies = new Set<string>();
         const mappedSearched: PresetJobItem[] = [];
 
-        (jobs || []).forEach((j, index) => {
+        (jobs || []).forEach((j) => {
           const norm = (j.company || "").toLowerCase().trim();
           if (!norm || seenCompanies.has(norm)) return;
           seenCompanies.add(norm);
@@ -152,7 +190,7 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
             source: "searched",
             matchScore: j.lead_quality_score ? Math.min(99, Math.max(65, j.lead_quality_score)) : 88,
             location: j.location || "Remote / Hybrid",
-            selected: !isFollowup && index < limit,
+            selected: !isFollowup && mappedSearched.length < limit,
           });
         });
 
@@ -192,6 +230,14 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
   }, [searchedJobs, appliedJobs, customJobs]);
 
   const toggleJob = (id: string, source: "searched" | "applied" | "custom") => {
+    if (isColdMailPreset) {
+      setSearchedJobs((prev) =>
+        prev.map((job) => ({ ...job, selected: source === "searched" && job.id === id })),
+      );
+      setAppliedJobs((prev) => prev.map((job) => ({ ...job, selected: false })));
+      setCustomJobs([]);
+      return;
+    }
     if (source === "searched") {
       setSearchedJobs((prev) =>
         prev.map((j) => (j.id === id ? { ...j, selected: !j.selected } : j)),
@@ -246,6 +292,10 @@ export const RecruiterOutreachPresetModal: React.FC<RecruiterOutreachPresetModal
   // Compile structured agentic prompt and dispatch to AI Chat
   const handleLaunchAgenticOutreach = () => {
     if (selectedJobs.length === 0) return;
+    if (
+      isColdMailPreset &&
+      (selectedJobs.length !== 1 || selectedJobs[0].source !== "searched")
+    ) return;
 
     const jobLines = selectedJobs
       .map(
@@ -317,7 +367,18 @@ ${jobLines}
     }
 
     onOpenChange(false);
-    onLaunchPrompt(prompt);
+    if (isColdMailPreset) {
+      const selectedJob = selectedJobs[0];
+      onLaunchPrompt(prompt, {
+        presetId: "recruiter_cold_outreach",
+        jobId: selectedJob.id,
+        companyName: selectedJob.company,
+        jobTitle: selectedJob.title,
+        clientRunId: crypto.randomUUID(),
+      });
+    } else {
+      onLaunchPrompt(prompt);
+    }
   };
 
   const toneOptions = useMemo(() => {
@@ -425,11 +486,15 @@ ${jobLines}
                 <Briefcase className="size-3.5 text-brand" />
                 Selected Roles ({selectedJobs.length}):
               </span>
-              {selectedJobs.length > 0 && (
+              {isColdMailPreset && coldMailQuota ? (
+                <span className="text-[11px] text-muted-foreground">
+                  {coldMailQuota.remaining} / {coldMailQuota.limit} runs remaining
+                </span>
+              ) : selectedJobs.length > 0 ? (
                 <span className="text-[11px] text-muted-foreground">
                   Est. ~{selectedJobs.length * 5} credits
                 </span>
-              )}
+              ) : null}
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5 min-h-[32px] p-2 rounded-xl border border-border/60 bg-muted/20">
@@ -462,7 +527,7 @@ ${jobLines}
           </div>
 
           {/* Quick Add Custom Job Drawer */}
-          <div className="rounded-xl border border-border/70 bg-background/50 p-3 space-y-2">
+          {!isColdMailPreset && <div className="rounded-xl border border-border/70 bg-background/50 p-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Plus className="size-3.5 text-brand" />
@@ -505,7 +570,30 @@ ${jobLines}
                 </div>
               </div>
             )}
-          </div>
+          </div>}
+
+          {isColdMailPreset && (
+            <div className="rounded-xl border border-border/70 bg-background/50 p-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground">Gmail draft connection</p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {gmailConnected
+                    ? `Connected${gmailStatus?.identifier ? ` as ${gmailStatus.identifier}` : ""}`
+                    : "Connect Gmail before starting the recruiter search."}
+                </p>
+              </div>
+              {!gmailConnected && GMAIL_INTEGRATION && (
+                <button
+                  type="button"
+                  onClick={() => void coldMailGmail.connect(GMAIL_INTEGRATION)}
+                  disabled={coldMailGmail.isBusy}
+                  className="px-3 py-1.5 rounded-lg bg-muted text-xs font-semibold text-foreground hover:bg-muted/80 disabled:opacity-50"
+                >
+                  {coldMailGmail.isBusy ? "Connecting…" : "Connect Gmail"}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Tab Selection: Searched Jobs vs Applied Jobs */}
           <div className="space-y-2.5">
@@ -523,7 +611,7 @@ ${jobLines}
                   <Search className="size-3" />
                   <span>Searched Jobs ({searchedJobs.length})</span>
                 </button>
-                <button
+                {!isColdMailPreset && <button
                   type="button"
                   onClick={() => setActiveTab("applied")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -534,16 +622,16 @@ ${jobLines}
                 >
                   <History className="size-3" />
                   <span>Applied Jobs Follow-up ({appliedJobs.length})</span>
-                </button>
+                </button>}
               </div>
 
-              <button
+              {!isColdMailPreset && <button
                 type="button"
                 onClick={handleSelectAllCurrentTab}
                 className="text-[11px] text-muted-foreground hover:text-foreground font-medium flex items-center gap-1"
               >
                 <span>Select / Deselect All</span>
-              </button>
+              </button>}
             </div>
 
             {/* Filter Search Box */}
@@ -657,7 +745,10 @@ ${jobLines}
 
           <button
             type="button"
-            disabled={selectedJobs.length === 0}
+            disabled={
+              selectedJobs.length === 0 ||
+              (isColdMailPreset && (!gmailConnected || selectedJobs.length !== 1))
+            }
             onClick={handleLaunchAgenticOutreach}
             className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-brand hover:bg-brand/90 text-black font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20 disabled:opacity-50 cursor-pointer"
           >

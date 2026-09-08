@@ -15,19 +15,14 @@ import {
   resolveIntegrationConnection,
 } from "../_shared/composio-connected-account.ts";
 import { runMeteredComposioCall } from "../_shared/metered-composio.ts";
+import { canUseComposioAction } from "../_shared/integration-access.ts";
 
 const composio = new Composio({
   apiKey: Deno.env.get("COMPOSIO_API_KEY") || "",
 });
 
-const PAID_ACTIONS = new Set(["initiate", "execute", "debug-configs"]);
-
 function asString(val: unknown): string {
   return typeof val === "string" ? val : "";
-}
-
-function requiresPaidPlan(action: unknown): boolean {
-  return typeof action === "string" && PAID_ACTIONS.has(action);
 }
 
 const normalizeSlug = normalizeComposioSlug;
@@ -263,17 +258,24 @@ Deno.serve(async (req) => {
       args,
     } = body as Record<string, unknown>;
 
-    if (requiresPaidPlan(action)) {
-      const subscriptionTier = await resolveSubscriptionTier(userId, serviceClient);
-      if (subscriptionTier === "Free") {
-        throw new SubscriptionAccessError(
-          403,
-          "Connected integrations require the Basics plan or higher.",
-        );
-      }
+    const reqSlug = normalizeSlug((body.toolkitSlug as string) || (body.integrationSlug as string) || (body.slug as string));
+    const purpose = asString(body.purpose).trim();
+
+    const subscriptionTier = await resolveSubscriptionTier(userId, serviceClient);
+    if (!canUseComposioAction({
+      tier: subscriptionTier,
+      action,
+      integrationSlug: reqSlug,
+      purpose,
+    })) {
+      throw new SubscriptionAccessError(
+        403,
+        subscriptionTier === "Starter"
+          ? "Starter integration access is available only for Gmail connection inside the 1-Click Recruiter Cold Mail preset."
+          : "Connected integrations require the Basics plan or higher.",
+      );
     }
 
-    const reqSlug = normalizeSlug((body.toolkitSlug as string) || (body.integrationSlug as string) || (body.slug as string));
     const authConfigId = resolveAuthConfigId(body as Record<string, unknown>);
 
     // 3. Handle Actions
