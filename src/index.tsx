@@ -34,6 +34,7 @@ import {
 
 import { lazyWithRetry } from "./utils/lazyWithRetry";
 import { RouteLoadingFallback } from "./components/system/RouteLoadingFallback";
+import { CookieConsentBanner } from "./components/CookieConsentBanner";
 
 const LandingPage = lazyWithRetry(() => import("./screens/LandingPage"), "LandingPage");
 const WaitlistPage = lazyWithRetry(() => import("./screens/Waitlist/WaitlistPage"), "WaitlistPage");
@@ -539,6 +540,7 @@ function App() {
               <AppearanceProvider>
                 <InputSecurityGuard />
                 <ToastEventBridge />
+                <CookieConsentBanner />
                 <SubdomainGuard>
                   <PlanExpiredBanner />
                   <AnimatedRoutes />

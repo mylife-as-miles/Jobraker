@@ -29,7 +29,9 @@ describe("Starter Cold Mail authorization contracts", () => {
     expect(outreach).toContain("verifyColdMailSpecialistCapabilityToken");
     expect(scout).toContain("request.jobId) !== context.coldMailCapability.jobId");
     expect(outreach).toContain("jobId !== coldMailCapability.jobId");
-    expect(scout).toContain("const keywordQuery =");
+    expect(scout).toContain("buildRecruiterSearchQueries");
+    expect(scout).toContain("searchPlan.linkedInRecruiters");
+    expect(scout).toContain("searchPlan.linkedInManagers");
     expect(scout).not.toMatch(/Starter:\s*"Basics"/);
   });
 
@@ -83,6 +85,7 @@ describe("Starter Cold Mail authorization contracts", () => {
     expect(coldMail).toContain('"reserve_starter_cold_mail_run"');
     expect(coldMail).toContain('subscriptionTier !== "Starter"');
     expect(coldMail).toContain('"cold_mail_send_not_available"');
+    expect(coldMail.match(/cold_mail_send_not_available/g)).toHaveLength(2);
     expect(coldMail).toContain("jobId: asString(job.id)");
     expect(coldMail).toContain("reservation.idempotentReplay === true");
     expect(coldMail).toContain("cold_mail_preparation: preparation");

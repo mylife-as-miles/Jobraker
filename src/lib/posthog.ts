@@ -1,15 +1,16 @@
 import posthog from "posthog-js";
 import { persistAttributionFromSearch } from "@/lib/utmAttribution";
+import { hasAnalyticsConsent } from "@/lib/cookieConsent";
 
 let initialized = false;
 
 export function initPostHog() {
-  persistAttributionFromSearch();
-
   const apiKey = import.meta.env.VITE_POSTHOG_KEY?.trim();
-  if (!apiKey || initialized) {
+  if (!apiKey || initialized || !hasAnalyticsConsent()) {
     return;
   }
+
+  persistAttributionFromSearch();
 
   const apiHost =
     import.meta.env.VITE_POSTHOG_HOST?.trim() || "https://us.i.posthog.com";

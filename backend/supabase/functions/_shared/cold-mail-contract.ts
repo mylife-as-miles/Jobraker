@@ -333,6 +333,36 @@ export function confirmGmailDraftResult(result: unknown) {
   };
 }
 
+export function confirmGmailSendResult(result: unknown) {
+  const record =
+    result && typeof result === "object"
+      ? (result as Record<string, unknown>)
+      : {};
+  const messageId = asNonEmptyString(record.messageId);
+
+  if (record.success !== true || !messageId) {
+    return {
+      success: false as const,
+      error:
+        record.success === true
+          ? "Gmail did not return a message ID, so delivery could not be confirmed."
+          : asNonEmptyString(record.error) || "Gmail delivery failed.",
+      code:
+        record.success === true
+          ? "gmail_send_unconfirmed"
+          : asNonEmptyString(record.code) || "gmail_send_failed",
+    };
+  }
+
+  return {
+    success: true as const,
+    messageId,
+    threadId: asNonEmptyString(record.threadId) || null,
+    sentFrom: asNonEmptyString(record.sentFrom),
+    to: asNonEmptyString(record.to),
+  };
+}
+
 const isEmailAddress = (value: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 

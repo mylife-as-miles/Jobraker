@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles, Wand2, Check } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { Suggestion } from "../../../../services/ai/polishContent";
 
@@ -26,21 +26,32 @@ export const AIPolishDialog = ({
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(
     null,
   );
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setSelectedSuggestion(null);
+    closeButtonRef.current?.focus();
+  }, [open]);
 
   if (!open) return null;
 
   // Calculate position
-  let style = {};
-  if (targetRect) {
-    // Position to the right of the target if space permits, otherwise below
-    // For this demo, let's assume valid desktop space as per the image
-    const top = targetRect.top + window.scrollY;
-    const left = targetRect.right + 20 + window.scrollX; // 20px gap
+  let style: CSSProperties = {};
+  const useAnchoredPosition = Boolean(targetRect && window.innerWidth >= 768);
+  if (targetRect && useAnchoredPosition) {
+    const dialogWidth = Math.min(450, window.innerWidth - 32);
+    const preferredLeft = targetRect.right + 16;
+    const left =
+      preferredLeft + dialogWidth <= window.innerWidth - 16
+        ? preferredLeft
+        : Math.max(16, targetRect.left - dialogWidth - 16);
 
     style = {
-      position: "absolute",
-      top: top,
-      left: left,
+      position: "fixed",
+      top: Math.max(16, Math.min(targetRect.top, window.innerHeight - 96)),
+      left,
+      width: dialogWidth,
       margin: 0,
     };
   }
@@ -50,15 +61,24 @@ export const AIPolishDialog = ({
       {/* Overlay - clear/none to allow clicking outside but maybe capturing clicks?
                 Actually for this "popover" style, we usually want a transparent overlay to close on click outside.
             */}
-      <div className='fixed inset-0 z-50' onClick={onClose}>
+      <div
+        className='fixed inset-0 z-50 flex items-center justify-center p-4'
+        onClick={onClose}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") onClose();
+        }}
+      >
         {/* Pointer events none wrapper */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95, x: -10 }}
           animate={{ opacity: 1, scale: 1, x: 0 }}
           exit={{ opacity: 0, scale: 0.95, x: -10 }}
-          className='absolute z-50 pointer-events-auto flex flex-col w-[450px]'
+          className={`${useAnchoredPosition ? "fixed" : "relative"} z-50 pointer-events-auto flex w-full max-w-[450px] flex-col`}
           style={style}
           onClick={(e) => e.stopPropagation()}
+          role='dialog'
+          aria-modal='true'
+          aria-label='AI summary suggestions'
         >
           {/* Connector Line/Dot */}
           {targetRect && (
@@ -79,8 +99,10 @@ export const AIPolishDialog = ({
                 <span>AI Polish Suggestions</span>
               </div>
               <button
+                ref={closeButtonRef}
                 onClick={onClose}
                 className='text-muted-foreground hover:text-foreground transition-colors'
+                aria-label='Close AI suggestions'
               >
                 <X className='w-5 h-5' />
               </button>
