@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildStarterFirecrawlSearchBody,
   buildRecruiterSearchQueries,
+  extractStarterFirecrawlWebRows,
   extractPublishedRecruiterContacts,
   normalizeContactProviderContacts,
 } from "../../backend/supabase/functions/_shared/recruiter-contact-discovery";
@@ -20,6 +22,51 @@ describe("recruiter contact discovery", () => {
     expect(queries.officialPeople).toContain("site:acme.com");
     expect(queries.publicPeople).toContain("-site:linkedin.com");
     expect(queries.publicEmails).toContain('"@acme.com"');
+  });
+
+  it("reads Firecrawl v2 web results for Starter cold-mail discovery", () => {
+    const rows = extractStarterFirecrawlWebRows({
+      success: true,
+      data: {
+        web: [{
+          url: "https://acme.com/company/people",
+          title: "Maya Chen - Technical Recruiter | Acme Labs",
+          description: "Contact maya.chen@acme.com about engineering roles.",
+          markdown: "Maya Chen is a Technical Recruiter at Acme Labs.",
+        }],
+      },
+    });
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        url: "https://acme.com/company/people",
+        title: "Maya Chen - Technical Recruiter | Acme Labs",
+      }),
+    ]);
+  });
+
+  it("keeps legacy Firecrawl rows compatible for Starter discovery", () => {
+    const legacyRows = [{ url: "https://acme.com/careers" }];
+
+    expect(extractStarterFirecrawlWebRows({ data: legacyRows })).toEqual(legacyRows);
+    expect(extractStarterFirecrawlWebRows({ data: { web: "invalid" } })).toEqual([]);
+    expect(extractStarterFirecrawlWebRows(null)).toEqual([]);
+  });
+
+  it("scrapes public Starter email sources but never LinkedIn results", () => {
+    expect(buildStarterFirecrawlSearchBody(
+      '"Acme Labs" recruiter "@acme.com" -site:linkedin.com',
+      6,
+      true,
+    )).toEqual(expect.objectContaining({
+      scrapeOptions: { formats: [{ type: "markdown" }] },
+    }));
+
+    expect(buildStarterFirecrawlSearchBody(
+      'site:linkedin.com/in/ "Acme Labs" recruiter',
+      8,
+      true,
+    )).not.toHaveProperty("scrapeOptions");
   });
 
   it("extracts an individually published recruiter email from an official team page", () => {

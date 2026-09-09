@@ -3,6 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyColdMailSpecialistCapabilityToken } from "../_shared/cold-mail-contract.ts";
 import {
   buildRecruiterSearchQueries,
+  buildStarterFirecrawlSearchBody,
+  extractStarterFirecrawlWebRows,
   extractPublishedRecruiterContacts,
   normalizeContactProviderContacts,
 } from "../_shared/recruiter-contact-discovery.ts";
@@ -479,6 +481,48 @@ async function searchWeb(apiKey: string, query: string, limit: number): Promise<
   }
 }
 
+async function searchStarterColdMailWeb(
+  apiKey: string,
+  query: string,
+  limit: number,
+  includeMarkdown = false,
+): Promise<SearchItem[]> {
+  try {
+    return await withRetry(async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort("firecrawl_timeout"), 25_000);
+      try {
+        const response = await fetch("https://api.firecrawl.dev/v2/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify(
+            buildStarterFirecrawlSearchBody(query, limit, includeMarkdown),
+          ),
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeout));
+        if (!response.ok) throw new Error(`Search provider failed: ${response.status}`);
+        const rows = extractStarterFirecrawlWebRows(await response.json());
+        return rows.map((row) => ({
+          url: normalizeUrl(row.url),
+          title: compactText(row.title, 500),
+          description: compactText(row.description, 1800),
+          markdown: compactText(row.markdown, 2400),
+          sourceQuery: query,
+        })).filter((item) => Boolean(item.url));
+      } catch (err) {
+        clearTimeout(timeout);
+        throw err;
+      }
+    }, 3);
+  } catch (error) {
+    console.warn(
+      `[searchStarterColdMailWeb] Search provider connectivity error for query "${query}":`,
+      error,
+    );
+    return [];
+  }
+}
+
 function parseVerifierResponse(payload: any) {
   const value = payload?.data && typeof payload.data === "object" ? payload.data : payload;
   const status = asString(value?.status || value?.result || value?.verdict).toLowerCase();
@@ -584,10 +628,11 @@ async function enrichEmail(
   officialDomain: string,
   firecrawlKey: string,
   company: string,
+  search: (apiKey: string, query: string, limit: number) => Promise<SearchItem[]> = searchWeb,
 ): Promise<RecruiterContact> {
   if (!officialDomain) return contact;
   try {
-    const items = await searchWeb(firecrawlKey, `"${contact.fullName}" "${company}" "@${officialDomain}"`, 5);
+    const items = await search(firecrawlKey, `"${contact.fullName}" "${company}" "@${officialDomain}"`, 5);
     for (const item of items) {
       const text = sourceText(item);
       if (!personAppearsInText(contact.fullName, text)) continue;
@@ -844,9 +889,17 @@ serve(async (req) => {
 
     const firecrawlKey = asString(Deno.env.get("FIRECRAWL_API_KEY"));
     if (!firecrawlKey) throw new Error("Search provider API key is not configured.");
+    const isStarterColdMailRun = Boolean(context.coldMailCapability);
+    const searchForRun = (
+      query: string,
+      limit: number,
+      includeMarkdown = false,
+    ) => isStarterColdMailRun
+      ? searchStarterColdMailWeb(firecrawlKey, query, limit, includeMarkdown)
+      : searchWeb(firecrawlKey, query, limit);
     const [officialItems, ycItems] = await Promise.all([
-      searchWeb(firecrawlKey, officialQuery, 7),
-      isYcCompany ? searchWeb(firecrawlKey, ycQuery, 6) : Promise.resolve([]),
+      searchForRun(officialQuery, 7),
+      isYcCompany ? searchForRun(ycQuery, 6) : Promise.resolve([]),
     ]);
     
     let officialDomain = officialDomainFrom(officialItems, job.company);
@@ -877,11 +930,11 @@ serve(async (req) => {
       publicEmailItems,
       providerContacts,
     ] = await Promise.all([
-      searchWeb(firecrawlKey, searchPlan.linkedInRecruiters, 8),
-      searchWeb(firecrawlKey, searchPlan.linkedInManagers, 8),
-      searchWeb(firecrawlKey, searchPlan.officialPeople, 6),
-      searchWeb(firecrawlKey, searchPlan.publicPeople, 6),
-      searchWeb(firecrawlKey, searchPlan.publicEmails, 6),
+      searchForRun(searchPlan.linkedInRecruiters, 8),
+      searchForRun(searchPlan.linkedInManagers, 8),
+      searchForRun(searchPlan.officialPeople, 6),
+      searchForRun(searchPlan.publicPeople, 6),
+      searchForRun(searchPlan.publicEmails, 6, true),
       searchContactProvider(job.company, officialDomain, job.title, teamKeywords, 8),
     ]);
     const publicItems = dedupeSearchItems([
@@ -957,7 +1010,16 @@ serve(async (req) => {
     for (const contact of ranked) {
       contacts.push(contact.safeToContact && contact.workEmail
         ? contact
-        : await enrichEmail(contact, officialDomain, firecrawlKey, job.company));
+        : await enrichEmail(
+          contact,
+          officialDomain,
+          firecrawlKey,
+          job.company,
+          isStarterColdMailRun
+            ? (apiKey, query, limit) =>
+              searchStarterColdMailWeb(apiKey, query, limit, true)
+            : searchWeb,
+        ));
     }
     await persistContacts(serviceClient, context.user.id, runId, job, contacts);
 

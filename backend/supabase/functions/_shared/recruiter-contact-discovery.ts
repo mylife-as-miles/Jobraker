@@ -36,6 +36,34 @@ export interface NormalizedRecruiterContact {
   safeToContact: true;
 }
 
+export function extractStarterFirecrawlWebRows(
+  payload: unknown,
+): Array<Record<string, unknown>> {
+  if (!payload || typeof payload !== "object") return [];
+  const data = (payload as Record<string, unknown>).data;
+  const rows = Array.isArray(data)
+    ? data
+    : data && typeof data === "object" &&
+        Array.isArray((data as Record<string, unknown>).web)
+    ? (data as Record<string, unknown>).web as unknown[]
+    : [];
+  return rows.filter((row): row is Record<string, unknown> =>
+    Boolean(row) && typeof row === "object"
+  );
+}
+
+export function buildStarterFirecrawlSearchBody(
+  query: string,
+  limit: number,
+  includeMarkdown: boolean,
+): Record<string, unknown> {
+  const body: Record<string, unknown> = { query, limit, sources: ["web"] };
+  if (includeMarkdown && !/(^|\s)site:linkedin\.com/i.test(query)) {
+    body.scrapeOptions = { formats: [{ type: "markdown" }] };
+  }
+  return body;
+}
+
 const asString = (value: unknown) =>
   typeof value === "string" ? value.trim() : "";
 
