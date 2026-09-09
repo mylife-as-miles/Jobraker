@@ -32,6 +32,12 @@ describe("Starter Cold Mail authorization contracts", () => {
     expect(scout).toContain("buildRecruiterSearchQueries");
     expect(scout).toContain("searchPlan.linkedInRecruiters");
     expect(scout).toContain("searchPlan.linkedInManagers");
+    expect(scout).toContain(
+      "const isStarterColdMailRun = Boolean(context.coldMailCapability)",
+    );
+    expect(scout).toMatch(
+      /isStarterColdMailRun\s*\? searchStarterColdMailWeb[\s\S]*?: searchWeb\(firecrawlKey, query, limit\)/,
+    );
     expect(scout).not.toMatch(/Starter:\s*"Basics"/);
   });
 
