@@ -79,4 +79,34 @@ describe("candidate profile document mapping", () => {
       address: "London",
     });
   });
+
+  it("does not pollute or overwrite imported resumes with candidate profile data", () => {
+    const importedResume = structuredClone(initialResumeState.data);
+    importedResume.metadata = {
+      ...importedResume.metadata,
+      sourceType: "imported",
+    };
+    importedResume.basics.name = "Parsed Name";
+    importedResume.basics.profiles = [
+      { network: "LinkedIn", username: "parseduser", url: "https://linkedin.com/in/parseduser" },
+    ];
+    importedResume.sections.education.items = [
+      { id: "edu-1", school: "MIT", degree: "B.S.", period: "2018 - 2022", date: "2018 - 2022", location: "", website: { url: "", label: "" }, columns: 1, hidden: false },
+    ];
+
+    const result = fillResumeFromCandidateProfile(
+      importedResume,
+      initialResumeState.data,
+      snapshot,
+    );
+
+    // Education, profiles, and basic fields remain 100% from the imported resume
+    expect(result.basics.name).toBe("Parsed Name");
+    expect(result.basics.profiles).toEqual([
+      { network: "LinkedIn", username: "parseduser", url: "https://linkedin.com/in/parseduser" },
+    ]);
+    expect(result.sections.education.items).toHaveLength(1);
+    expect(result.sections.education.items[0].school).toBe("MIT");
+    expect(result.metadata.sourceType).toBe("imported");
+  });
 });

@@ -138,6 +138,11 @@ export const TemplateDetailPreview = ({
         description:
           "A neo-brutalist CV: a paper-beige page with thick black strokes, squared corners, solid teal/magenta/yellow accent blocks and hard offset shadows, a window-chrome header, an accent contact bar, dot-bullet experience and education, black language bars, and a two-column skills grid.",
       },
+      "plain-text": {
+        name: "Plain Text",
+        description:
+          "A clean, text-only, one-column resume without images, icons, tables, or decorative elements. Built for reliable ATS parsing and straightforward printing.",
+      },
     } as Record<string, { name: string; description: string }>
   )[templateId] || {
     name: "Template",

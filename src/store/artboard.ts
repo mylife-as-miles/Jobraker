@@ -128,6 +128,7 @@ export interface ResumeData {
 export interface ResumeState {
   id: string; // Database ID
   is_public?: boolean;
+  share_token?: string | null;
   views?: number;
   downloads?: number;
   data: ResumeData;
@@ -212,6 +213,7 @@ export type ArtboardStore = {
   toggleSectionVisibility: (sectionId: string) => void;
   reorderSection: (sectionId: string, direction: "up" | "down") => void;
   togglePublicSharing: (enabled: boolean) => void;
+  updateResumeStats: (stats: { views?: number; downloads?: number; share_token?: string | null }) => void;
 
   // Basics Actions
   updateBasics: (basics: Partial<ResumeBasics>) => void;
@@ -242,6 +244,7 @@ export type ArtboardStore = {
 export const initialResumeState: ResumeState = {
   id: "",
   is_public: false,
+  share_token: null,
   views: 0,
   downloads: 0,
   data: {
@@ -835,6 +838,14 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
       resume: {
         ...state.resume,
         is_public: enabled,
+      },
+    })),
+
+  updateResumeStats: (stats) =>
+    set((state) => ({
+      resume: {
+        ...state.resume,
+        ...stats,
       },
     })),
 

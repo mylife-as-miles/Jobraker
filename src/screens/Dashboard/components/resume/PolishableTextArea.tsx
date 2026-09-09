@@ -24,9 +24,10 @@ export const PolishableTextArea = ({
   const handlePolishClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (containerRef.current && typeof value === "string") {
+    if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      onPolish(rect, value);
+      const stringValue = typeof value === "string" ? value : String(value ?? "");
+      onPolish(rect, stringValue);
     }
   };
 

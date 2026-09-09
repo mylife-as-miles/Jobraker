@@ -16,6 +16,7 @@ import { AppearanceProvider } from "./providers/AppearanceProvider";
 import { TourProvider } from "./providers/TourProvider"; // Product tour context for dashboard pages
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ROUTES } from "./routes";
+import { PlanExpiredBanner } from "./components/PlanExpiredBanner";
 import { ToastEventBridge } from "./components/system/ToastEventBridge";
 import { InputSecurityGuard } from "./components/system/InputSecurityGuard";
 import { AnimatePresence } from "framer-motion";
@@ -25,9 +26,15 @@ import { initSentry, Sentry } from "./lib/sentry";
 import { PostHogProvider } from "posthog-js/react";
 import { HelmetProvider } from "react-helmet-async";
 import { usePostHogAuthBridge } from "./hooks/usePostHogAuthBridge";
+import { supabase } from "./lib/supabaseClient";
+import {
+  cacheAuthenticatedUser,
+  clearCachedAuthSnapshot,
+} from "./lib/offlineAppCache";
 
 import { lazyWithRetry } from "./utils/lazyWithRetry";
 import { RouteLoadingFallback } from "./components/system/RouteLoadingFallback";
+import { CookieConsentBanner } from "./components/CookieConsentBanner";
 
 const LandingPage = lazyWithRetry(() => import("./screens/LandingPage"), "LandingPage");
 const WaitlistPage = lazyWithRetry(() => import("./screens/Waitlist/WaitlistPage"), "WaitlistPage");
@@ -437,21 +444,105 @@ function SubdomainGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function useSessionIsolation(queryClient: QueryClient) {
+  const [authScopeKey, setAuthScopeKey] = React.useState("auth:boot");
+  const currentUserIdRef = React.useRef<string | null | undefined>(undefined);
+  const revisionRef = React.useRef(0);
+
+  React.useEffect(() => {
+    let mounted = true;
+
+    const applySession = async (session: any) => {
+      const nextUser = session?.user
+        ? { id: session.user.id, email: session.user.email }
+        : null;
+      const nextUserId = nextUser?.id ?? null;
+      const previousUserId = currentUserIdRef.current;
+
+      if (nextUser) {
+        await cacheAuthenticatedUser(nextUser);
+      } else if (
+        typeof navigator === "undefined" ||
+        navigator.onLine !== false
+      ) {
+        await clearCachedAuthSnapshot();
+      }
+
+      if (!mounted) return;
+
+      if (previousUserId === undefined) {
+        currentUserIdRef.current = nextUserId;
+        setAuthScopeKey(`auth:${nextUserId ?? "anonymous"}:0`);
+        return;
+      }
+
+      if (previousUserId === nextUserId) return;
+
+      currentUserIdRef.current = nextUserId;
+      revisionRef.current += 1;
+
+      await queryClient.cancelQueries();
+      queryClient.clear();
+
+      if (!mounted) return;
+      setAuthScopeKey(
+        `auth:${nextUserId ?? "anonymous"}:${revisionRef.current}`,
+      );
+    };
+
+    void supabase.auth
+      .getSession()
+      .then(({ data }) => applySession(data.session))
+      .catch((error) => {
+        console.error("[auth] Failed to initialize session isolation:", error);
+      });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      void applySession(session);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [queryClient]);
+
+  return authScopeKey;
+}
+
 function App() {
-  const [queryClient] = React.useState(() => new QueryClient());
+  const [queryClient] = React.useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 1000 * 60 * 3, // 3 minutes fresh cache for instant sub-page navigation
+            gcTime: 1000 * 60 * 10, // 10 minutes memory retention
+            refetchOnWindowFocus: false, // Prevents background re-fetch churn on tab switch
+            refetchOnReconnect: "always",
+            retry: 1,
+          },
+        },
+      }),
+  );
+  const authScopeKey = useSessionIsolation(queryClient);
   usePostHogAuthBridge();
 
   return (
     <HelmetProvider>
       <PostHogProvider client={posthog}>
         <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
+          <BrowserRouter key={authScopeKey}>
             {/* Global providers */}
             <ToastProvider>
               <AppearanceProvider>
                 <InputSecurityGuard />
                 <ToastEventBridge />
+                <CookieConsentBanner />
                 <SubdomainGuard>
+                  <PlanExpiredBanner />
                   <AnimatedRoutes />
                 </SubdomainGuard>
               </AppearanceProvider>

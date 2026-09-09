@@ -1,4 +1,4 @@
-import { createJobrakerRtrvrClient, isRtrvrEnabled, parseEnvBoolean } from "./rtrvrClient.js";
+import { createJobrakerRtrvrClient, isRtrvrEnabled } from "./rtrvrClient.js";
 import { fileURLToPath } from "node:url";
 import { hostname } from "node:os";
 import {
@@ -12,7 +12,6 @@ import {
   updateApplicationWithAutomationResult,
 } from "./database.js";
 import { RtrvrApplicationProvider } from "./providers/RtrvrApplicationProvider.js";
-import { SkyvernApplicationProvider } from "./providers/SkyvernApplicationProvider.js";
 import { ApplicationAutomationRouter } from "./providers/ApplicationAutomationRouter.js";
 import { redactSensitiveValue } from "./logRedaction.js";
 
@@ -82,11 +81,7 @@ export async function processNextBatch(): Promise<number> {
   const supabase = createServiceSupabaseClientFromEnv();
   const rtrvrClient = createJobrakerRtrvrClient();
   const rtrvr = new RtrvrApplicationProvider(rtrvrClient);
-  const skyvernKey = process.env.SKYVERN_API_KEY?.trim();
-  const skyvern = skyvernKey && parseEnvBoolean(process.env.RTRVR_ALLOW_SKYVERN_FALLBACK, true)
-    ? new SkyvernApplicationProvider({ apiKey: skyvernKey })
-    : undefined;
-  const router = new ApplicationAutomationRouter(rtrvr, skyvern);
+  const router = new ApplicationAutomationRouter(rtrvr);
   const workerId = workerIdFromEnv();
   const leaseSeconds = numericEnv("AUTOMATION_WORKER_LEASE_SECONDS", 900);
 
@@ -162,26 +157,10 @@ export async function processNextBatch(): Promise<number> {
         throw new Error("Lost rtrvr application lease before terminal update.");
       }
 
-      if (result.provider === "skyvern") {
-        const skyvernAttemptId = await insertAutomationAttempt(
-          supabase,
-          input,
-          "skyvern",
-          result.status,
-        );
-        await finishAutomationAttempt(supabase, skyvernAttemptId, result);
-      }
-
       await finishAutomationAttempt(
         supabase,
         attemptId,
-        result.provider === "rtrvr" ? result : {
-          ...result,
-          provider: "rtrvr",
-          status: "failed",
-          failureCode: "fallback_to_skyvern",
-          failureMessage: result.fallbackReason || "Fallback to Skyvern started.",
-        },
+        result,
         fence,
       );
       await updateApplicationWithAutomationResult(supabase, applicationId, result, fence);

@@ -17,6 +17,7 @@ import {
   LayoutTemplate,
   Edit2,
   Lock as LockIcon,
+  Loader2,
   ZoomIn,
   ZoomOut,
   PenLine,
@@ -24,6 +25,7 @@ import {
 import {
   useArtboardStore,
   initialResumeState,
+  type ResumeData,
 } from "@/store/artboard";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
@@ -32,7 +34,9 @@ import { useToast } from "@/components/ui/toast";
 import { useResumeProfilePhoto } from "@/hooks/useResumeProfilePhoto";
 import { useProfileSettings } from "@/hooks/useProfileSettings";
 import { createClient } from "@/lib/supabaseClient";
+import { invokeProtectedFunction } from "@/services/supabase/invokeProtectedFunction";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { TemplateSelector } from "../components/TemplateSelector";
 import { AddSectionDialog } from "../components/resume/AddSectionDialog";
@@ -40,6 +44,7 @@ import { ShareDialog } from "../components/resume/ShareDialog";
 import { SectionEditor } from "../components/resume/SectionEditor";
 import { ListEditor } from "../components/resume/ListEditor";
 import { PersonalDetailsEditor } from "../components/resume/PersonalDetailsEditor";
+import { AIPolishDialog } from "../components/resume/AIPolishDialog";
 import { ResumeTemplateRenderer } from "@/templates/render-resume-template";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { resolveResumePageLayout } from "@/lib/resumeLayout";
@@ -47,6 +52,7 @@ import {
   buildCandidateProfileSnapshot,
   fillResumeFromCandidateProfile,
 } from "@/lib/candidateProfileSnapshot";
+import { getResumeSourceType } from "@/lib/resumeDocumentSchema";
 import {
   initialResumeEditorState,
   resumeEditorReducer,
@@ -54,6 +60,8 @@ import {
 import { useResumePersistence } from "@/hooks/useResumePersistence";
 import { useResumeExport } from "@/hooks/useResumeExport";
 import { useResumeHydration } from "@/hooks/useResumeHydration";
+import { buildSummaryEnhancementSource } from "@/lib/resumeSummaryEnhancement";
+import type { Suggestion } from "@/services/ai/polishContent";
 
 const PREVIEW_BASE_WIDTH = 794;
 
@@ -77,11 +85,20 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   const navigate = useNavigate();
   const { success, error: toastError, info } = useToast();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
-  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Free");
+  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Starter");
   const { save: persistResume } = useResumePersistence(resumeId);
-  const { downloadPdf, exporting } = useResumeExport((message) => {
-    toastError("PDF export failed", message);
-  });
+  const { downloadPdf, exporting } = useResumeExport(
+    (message) => {
+      toastError("PDF export failed", message);
+    },
+    downloadResumePDF,
+    () => {
+      success(
+        "PDF exported successfully",
+        "Your resume has been generated and downloaded as a PDF.",
+      );
+    },
+  );
 
   // Store actions/state
   const resumeState = useArtboardStore();
@@ -102,6 +119,12 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   );
   const saving = editorState.status === "saving";
   const [aiLoading, setAiLoading] = useState(false);
+  const [summarySuggestions, setSummarySuggestions] = useState<Suggestion[]>([]);
+  const [summaryEnhancementSource, setSummaryEnhancementSource] = useState("");
+  const [summaryEnhancementTarget, setSummaryEnhancementTarget] =
+    useState<DOMRect | null>(null);
+  const [isSummaryEnhancementOpen, setIsSummaryEnhancementOpen] =
+    useState(false);
   const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -281,6 +304,8 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
   useEffect(() => {
     if (!hydrationReady) return;
+    if (getResumeSourceType(resumeData) === "imported") return;
+
     const mapped = fillResumeFromCandidateProfile(
       resumeData,
       initialResumeState.data,
@@ -319,10 +344,19 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
   );
 
   // Helper for summary
-  const setSummary = (val: string) =>
-    setResumeData({ summary: { ...resumeData.summary, content: val } });
+  const setSummary = (val: string) => {
+    const currentSummary = useArtboardStore.getState().resume.data.summary;
+    setResumeData({
+      summary: {
+        ...currentSummary,
+        content: val,
+        hidden: false,
+      },
+    });
+    dispatchEditor({ type: "CHANGE" });
+  };
 
-  const { basics, sections, summary, metadata } = resumeData;
+  const { sections, summary, metadata } = resumeData;
   const resolvedLayoutPage = useMemo(
     () => resolveResumePageLayout(resumeData, 0),
     [resumeData],
@@ -351,39 +385,34 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
   const aiPolishSummary = async (
     instruction = "Polish this resume summary for clarity, confidence, and measurable impact.",
+    targetRect?: DOMRect,
   ) => {
     if (!hasResumeAiAccess) {
       toastError(
         "Upgrade required",
-        "Resume AI tools are available on Basics and above.",
+        "Resume AI tools are available on Starter and above.",
       );
       return;
     }
+    const source = buildSummaryEnhancementSource(
+      useArtboardStore.getState().resume.data,
+    );
+    if (!source) {
+      toastError("AI rewrite unavailable", "Add a summary or job headline first.");
+      return;
+    }
+
+    setSummaryEnhancementSource(source);
+    setSummaryEnhancementTarget(targetRect || null);
+    setSummarySuggestions([]);
+    setIsSummaryEnhancementOpen(true);
     setAiLoading(true);
     try {
-      const source = (
-        summary.content ||
-        basics.headline ||
-        basics.name ||
-        ""
-      ).trim();
-      if (!source) throw new Error("Add a summary or headline first.");
       const suggestions = await polishContent(source, instruction);
-      const nextSummary =
-        suggestions.find((item) => item.isRecommended)?.content ||
-        suggestions[0]?.content ||
-        "";
-      if (!nextSummary) throw new Error("No AI suggestion was returned.");
-      setSummary(nextSummary);
-      success(
-        instruction.includes("fresh")
-          ? "Summary generated"
-          : "Summary polished",
-        instruction.includes("fresh")
-          ? "A new AI summary has been added to your resume."
-          : "AI suggestions have been applied to your resume summary.",
-      );
+      if (suggestions.length === 0) throw new Error("No AI suggestion was returned.");
+      setSummarySuggestions(suggestions);
     } catch (e: any) {
+      setIsSummaryEnhancementOpen(false);
       toastError(
         instruction.includes("fresh")
           ? "AI generation failed"
@@ -395,10 +424,110 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
     }
   };
 
-  const aiGenerateResume = async () =>
-    aiPolishSummary(
-      "Write a fresh professional resume summary in 3-4 concise sentences.",
+  const applySummarySuggestion = (content: string) => {
+    setSummary(content);
+    setIsSummaryEnhancementOpen(false);
+    success(
+      "Summary enhanced",
+      "The selected AI suggestion has been applied to your resume.",
     );
+  };
+
+  const [isAiGenerateModalOpen, setIsAiGenerateModalOpen] = useState(false);
+  const [targetRoleInput, setTargetRoleInput] = useState("");
+  const [toneInput, setToneInput] = useState<"professional" | "modern" | "creative">("professional");
+  const [isGeneratingResume, setIsGeneratingResume] = useState(false);
+
+  const handleOpenAiGenerate = () => {
+    if (!hasResumeAiAccess) {
+      toastError(
+        "Upgrade required",
+        "Resume AI generation is available on Starter and above.",
+      );
+      return;
+    }
+    setTargetRoleInput(resumeData.basics.headline || "");
+    setIsAiGenerateModalOpen(true);
+  };
+
+  const handleExecuteAiGenerateResume = async () => {
+    setIsGeneratingResume(true);
+    try {
+      const response = await invokeProtectedFunction<any>("ai-generate-resume", {
+        body: {
+          targetRole: targetRoleInput.trim() || resumeData.basics.headline,
+          tone: toneInput,
+        },
+      });
+
+      if (!response) throw new Error("No response received from AI generation.");
+
+      const currentResumeData = useArtboardStore.getState().resume.data;
+      const merged: ResumeData = {
+        ...currentResumeData,
+        basics: {
+          ...currentResumeData.basics,
+          headline: response.basics?.headline || targetRoleInput.trim() || currentResumeData.basics.headline,
+          location: response.basics?.location || currentResumeData.basics.location,
+        },
+        summary: {
+          ...currentResumeData.summary,
+          content: response.summary?.content || currentResumeData.summary.content,
+          hidden: false,
+        },
+        sections: {
+          ...currentResumeData.sections,
+          experience: {
+            ...currentResumeData.sections.experience,
+            items:
+              Array.isArray(response.sections?.experience?.items) &&
+              response.sections.experience.items.length > 0
+                ? response.sections.experience.items
+                : currentResumeData.sections.experience.items,
+          },
+          education: {
+            ...currentResumeData.sections.education,
+            items:
+              Array.isArray(response.sections?.education?.items) &&
+              response.sections.education.items.length > 0
+                ? response.sections.education.items
+                : currentResumeData.sections.education.items,
+          },
+          skills: {
+            ...currentResumeData.sections.skills,
+            items:
+              Array.isArray(response.sections?.skills?.items) &&
+              response.sections.skills.items.length > 0
+                ? response.sections.skills.items
+                : currentResumeData.sections.skills.items,
+          },
+          projects: {
+            ...currentResumeData.sections.projects,
+            items:
+              Array.isArray(response.sections?.projects?.items) &&
+              response.sections.projects.items.length > 0
+                ? response.sections.projects.items
+                : currentResumeData.sections.projects.items,
+          },
+        },
+      };
+
+      setResumeData(merged);
+      dispatchEditor({ type: "CHANGE" });
+      setIsAiGenerateModalOpen(false);
+      success(
+        "Resume Generated",
+        "AI has drafted your resume sections. Review and customize them.",
+      );
+    } catch (err: any) {
+      toastError(
+        "Generation failed",
+        err?.message || "Failed to generate resume.",
+      );
+    } finally {
+      setIsGeneratingResume(false);
+    }
+  };
   const [saveAlertOpen, setSaveAlertOpen] = useState(false);
   const effectivePreviewScale = isMobile ? previewScale : zoom;
   const previewFrameWidth = PREVIEW_BASE_WIDTH * effectivePreviewScale;
@@ -461,6 +590,15 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
 
   return (
     <div className='product-page-shell flex flex-col h-full relative overflow-hidden'>
+      <AIPolishDialog
+        open={isSummaryEnhancementOpen}
+        onClose={() => !aiLoading && setIsSummaryEnhancementOpen(false)}
+        originalText={summaryEnhancementSource}
+        suggestions={summarySuggestions}
+        onApply={applySummarySuggestion}
+        loading={aiLoading}
+        targetRect={summaryEnhancementTarget}
+      />
       {/* Save Alert Modal */}
       <Modal
         open={saveAlertOpen}
@@ -475,6 +613,83 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
       >
         <div className='text-foreground/80 py-4'>
           Your resume has been saved successfully.
+        </div>
+      </Modal>
+
+      {/* AI Generate Resume Modal */}
+      <Modal
+        open={isAiGenerateModalOpen}
+        onClose={() => !isGeneratingResume && setIsAiGenerateModalOpen(false)}
+        title='AI Generate Resume'
+        size='md'
+        footer={
+          <div className='flex items-center justify-end gap-2'>
+            <Button
+              variant='ghost'
+              disabled={isGeneratingResume}
+              onClick={() => setIsAiGenerateModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={isGeneratingResume}
+              onClick={handleExecuteAiGenerateResume}
+              className='bg-brand text-black hover:bg-brand/90 font-bold gap-2'
+            >
+              {isGeneratingResume ? (
+                <>
+                  <Loader2 className='w-4 h-4 animate-spin' />
+                  Generating Resume...
+                </>
+              ) : (
+                <>
+                  <Wand2 className='w-4 h-4' />
+                  Generate Resume
+                </>
+              )}
+            </Button>
+          </div>
+        }
+      >
+        <div className='space-y-4 py-2 text-foreground'>
+          <p className='text-xs text-muted-foreground leading-relaxed'>
+            AI will synthesize your profile details, career background, and skills into complete, tailored resume sections with high-impact achievements.
+          </p>
+
+          <div className='space-y-1.5'>
+            <label className='text-xs font-semibold text-foreground'>
+              Target Job Title / Role
+            </label>
+            <Input
+              value={targetRoleInput}
+              onChange={(e) => setTargetRoleInput(e.target.value)}
+              placeholder='e.g. Senior Frontend Engineer, Product Manager'
+              disabled={isGeneratingResume}
+            />
+          </div>
+
+          <div className='space-y-1.5'>
+            <label className='text-xs font-semibold text-foreground'>
+              Tone & Style
+            </label>
+            <div className='grid grid-cols-3 gap-2'>
+              {(["professional", "modern", "creative"] as const).map((t) => (
+                <button
+                  key={t}
+                  type='button'
+                  onClick={() => setToneInput(t)}
+                  disabled={isGeneratingResume}
+                  className={`px-3 py-2 text-xs font-medium rounded-lg border transition-all capitalize ${
+                    toneInput === t
+                      ? "bg-brand/15 border-brand text-foreground font-semibold shadow-sm"
+                      : "border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </Modal>
 
@@ -547,13 +762,14 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
           </button>
 
           <button
-            onClick={aiGenerateResume}
-            disabled={aiLoading || loadingTier}
+            onClick={handleOpenAiGenerate}
+            disabled={isGeneratingResume || loadingTier}
             className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-brand/60 hover:bg-brand/15 dark:hover:bg-foreground/10 dark:hover:border-foreground/20'
+            title='Generate complete resume sections with AI'
           >
             <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-pulse" : ""}`} />
             <span className='hidden sm:inline'>
-              {aiLoading ? "Generating..." : "AI Generate"}
+              {isGeneratingResume ? "Generating..." : "AI Generate"}
             </span>
             {!hasResumeAiAccess && <LockIcon className='w-3 h-3 opacity-60' />}
           </button>
@@ -575,12 +791,15 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
             onClick={() => void downloadPdf(resumeData)}
             disabled={exporting}
             className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-medium whitespace-nowrap'
+            title={exporting ? "Generating PDF..." : "Export as PDF"}
           >
-            <Download
-              className={`w-4 h-4 shrink-0 ${exporting ? "animate-pulse" : ""}`}
-            />
+            {exporting ? (
+              <Loader2 className='w-4 h-4 shrink-0 animate-spin text-brand' />
+            ) : (
+              <Download className='w-4 h-4 shrink-0' />
+            )}
             <span className='hidden sm:inline'>
-              {exporting ? "Exporting..." : "PDF export"}
+              {exporting ? "Generating PDF..." : "PDF export"}
             </span>
           </button>
         </div>
@@ -765,16 +984,27 @@ const ResumeBuilderPage = ({ resumeId }: ResumeBuilderPageProps) => {
                         <Button
                           variant='ghost'
                           size='sm'
-                          onClick={() => aiPolishSummary()}
+                          onClick={(event) =>
+                            aiPolishSummary(
+                              undefined,
+                              event.currentTarget.getBoundingClientRect(),
+                            )
+                          }
                           disabled={aiLoading}
+                          aria-label='Enhance resume summary with AI'
                           className='h-7 text-xs text-brand hover:text-brand hover:bg-brand/10 gap-1.5'
                         >
                           {aiLoading ? (
-                            <>Generating...</>
+                            <>
+                              <Loader2 className='w-3 h-3 animate-spin' /> Generating...
+                            </>
                           ) : (
                             <>
                               <Sparkles className='w-3 h-3' /> Enhance with AI
                             </>
+                          )}
+                          {!hasResumeAiAccess && (
+                            <LockIcon className='w-3 h-3 opacity-60' />
                           )}
                         </Button>
                       </div>

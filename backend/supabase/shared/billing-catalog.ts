@@ -49,7 +49,7 @@ export const SHARED_SUBSCRIPTION_PLANS: SharedSubscriptionPlanDefinition[] = [
       "Taste the machine: build your profile, save jobs, try AI chat, and run a couple of governed automation tests.",
     isPopular: false,
     marketingFeatures: [
-      "AI Usage Limits (Rolling 24h, Weekly & Monthly model allowances)",
+      "AI Usage Limits (Rolling 5h, Weekly & Monthly model allowances)",
       "10 web automation tool credits each month",
       "Basic match score and job saving",
       "Manual job feedback labels",

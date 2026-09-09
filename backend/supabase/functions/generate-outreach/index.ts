@@ -7,20 +7,24 @@ import {
   isGeminiAccessDeniedError,
   withModelFallback,
   runMeteredAiCall,
+  createSafeAiErrorResponse,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
 import {
   SubscriptionAccessError,
-  requireSubscriptionTier,
+  requireAuthenticatedUser,
+  resolveSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import { verifyColdMailSpecialistCapabilityToken } from "../_shared/cold-mail-contract.ts";
 import {
   enforceFeatureRateLimit,
   recordFeatureUsage,
 } from "../_shared/feature-limits.ts";
 
 interface OutreachRequest {
+  jobId?: string;
   companyName: string;
   role: string;
   resumeText: string;
@@ -33,6 +37,39 @@ type OutreachResponse = {
   subject: string;
   body: string;
 };
+
+async function authorizeOutreach(req: Request) {
+  const context = await requireAuthenticatedUser(req);
+  const subscriptionTier = await resolveSubscriptionTier(
+    context.user.id,
+    context.serviceClient,
+  );
+  if (["Basics", "Pro", "Ultimate"].includes(subscriptionTier)) {
+    return { ...context, subscriptionTier, coldMailCapability: null };
+  }
+  if (subscriptionTier !== "Starter") {
+    throw new SubscriptionAccessError(
+      403,
+      "AI outreach generation requires the Basics plan or higher.",
+    );
+  }
+  const token = (req.headers.get("x-cold-mail-capability") || "").trim();
+  const secret = (Deno.env.get("COLD_MAIL_SIGNING_SECRET") ||
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "").trim();
+  try {
+    const coldMailCapability = await verifyColdMailSpecialistCapabilityToken(
+      token,
+      secret,
+      { userId: context.user.id, operation: "generate_outreach" },
+    );
+    return { ...context, subscriptionTier, coldMailCapability };
+  } catch {
+    throw new SubscriptionAccessError(
+      403,
+      "AI outreach generation is available on Starter only inside an authorized 1-Click Recruiter Cold Mail run.",
+    );
+  }
+}
 
 function sanitizeInput(text: string, maxLength: number): string {
   if (!text) return "";
@@ -109,21 +146,21 @@ serve(async (req) => {
   }
 
   try {
-    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(
-      req,
-      "Basics",
-      "AI outreach generation",
-    );
+    const { user, serviceClient, subscriptionTier, coldMailCapability } =
+      await authorizeOutreach(req);
 
     // Use the outreach feature limits / billing key
-    await enforceFeatureRateLimit({
-      userId: user.id,
-      featureKey: "generate_outreach",
-      serviceClient,
-      subscriptionTier,
-    });
+    if (!coldMailCapability) {
+      await enforceFeatureRateLimit({
+        userId: user.id,
+        featureKey: "generate_outreach",
+        serviceClient,
+        subscriptionTier,
+      });
+    }
 
     const {
+      jobId,
       companyName,
       role,
       resumeText,
@@ -131,6 +168,13 @@ serve(async (req) => {
       jobDescription,
       instructions,
     } = (await req.json()) as OutreachRequest;
+
+    if (coldMailCapability && jobId !== coldMailCapability.jobId) {
+      throw new SubscriptionAccessError(
+        403,
+        "The Cold Mail capability does not authorize this job.",
+      );
+    }
 
     if (!companyName || !role || !resumeText) {
       return new Response(
@@ -205,17 +249,19 @@ serve(async (req) => {
       );
     }
 
-    await recordFeatureUsage({
-      userId: user.id,
-      featureKey: "generate_outreach",
-      serviceClient,
-      subscriptionTier,
-      metadata: {
-        company_name: safeCompanyName,
-        role: safeRole,
-        has_public_profile: Boolean(safePublicProfileUrl),
-      },
-    });
+    if (!coldMailCapability) {
+      await recordFeatureUsage({
+        userId: user.id,
+        featureKey: "generate_outreach",
+        serviceClient,
+        subscriptionTier,
+        metadata: {
+          company_name: safeCompanyName,
+          role: safeRole,
+          has_public_profile: Boolean(safePublicProfileUrl),
+        },
+      });
+    }
 
     return new Response(JSON.stringify(outreach), {
       status: 200,
@@ -226,9 +272,6 @@ serve(async (req) => {
       return subscriptionErrorResponse(error, corsHeaders);
     }
     console.error("Error in generate-outreach:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createSafeAiErrorResponse(error, corsHeaders);
   }
 });

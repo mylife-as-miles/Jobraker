@@ -31,7 +31,7 @@ For each section the user wants to include, gather specific details. Never inven
 
 **Education**: school, degree, area of study, grade (optional), location, period
 
-**Skills**: name, proficiency level (Beginner/Intermediate/Advanced/Expert), keywords
+**Skills**: name, proficiency level (only if explicitly stated, otherwise omit or use 0), keywords
 
 **Projects**: name, period, website (optional), description
 

@@ -109,6 +109,119 @@ Return only a valid JSON object matching this schema:
   return { title, description };
 }
 
+export const formatJobTitleAndDescriptionWithAi = cleanJobDescriptionWithAI;
+
+/* ------------------------- deferred AI job formatting ----------------------- */
+
+/** Formatting is cosmetic, so a slow model must never hold up job visibility. */
+const JOB_FORMAT_TIMEOUT_MS = 20_000;
+/** Bounded so a batch cannot fire N concurrent Gemini calls and self-inflict 429s. */
+const JOB_FORMAT_CONCURRENCY = 3;
+
+type PendingJobFormat = {
+  jobId: string;
+  title: string;
+  description: string;
+};
+
+/**
+ * Cheap gate: a posting that already looks like clean markdown gains little
+ * from a model round trip, so skip it entirely.
+ */
+function alreadyLooksFormatted(title: string, description: string): boolean {
+  const desc = description.trim();
+  if (desc.length < 200) return true; // nothing meaningful to restructure
+  const hasMarkdownHeadings = /^#{2,4}\s+\S/m.test(desc);
+  const hasBullets = /^[-*]\s+\S/m.test(desc);
+  const hasHtmlArtifacts = /<[a-z][^>]*>/i.test(desc);
+  const titleIsNoisy = /[\[\]{}|]|\b(remote|hybrid|onsite|full[- ]time|part[- ]time)\b/i
+    .test(title);
+  return hasMarkdownHeadings && hasBullets && !hasHtmlArtifacts && !titleIsNoisy;
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: number | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`job formatting timed out after ${ms}ms`)),
+          ms,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
+ * Reformat already-persisted jobs and update them in place.
+ *
+ * Runs OFF the discovery critical path: jobs are saved with their scraped text
+ * first so they appear immediately, then this tidies them up. Never throws —
+ * a formatting failure must not fail a search.
+ */
+export async function formatPersistedJobs(
+  serviceClient: any,
+  userId: string,
+  pending: PendingJobFormat[],
+): Promise<void> {
+  const work = pending.filter(
+    (entry) =>
+      entry.jobId &&
+      !alreadyLooksFormatted(entry.title, entry.description || ""),
+  );
+  if (!work.length) return;
+
+  let cursor = 0;
+  const runWorker = async () => {
+    while (cursor < work.length) {
+      const entry = work[cursor];
+      cursor += 1;
+      try {
+        const formatted = await withTimeout(
+          formatJobTitleAndDescriptionWithAi(entry.title, entry.description || ""),
+          JOB_FORMAT_TIMEOUT_MS,
+        );
+        const nextTitle = formatted.title?.trim() || entry.title;
+        const nextDescription = formatted.description?.trim() ||
+          entry.description;
+        if (
+          nextTitle === entry.title && nextDescription === entry.description
+        ) {
+          continue;
+        }
+        const { error } = await serviceClient
+          .from("jobs")
+          .update({ title: nextTitle, description: nextDescription })
+          .eq("id", entry.jobId)
+          .eq("user_id", userId);
+        if (error) {
+          console.warn("[formatPersistedJobs] update failed", {
+            jobId: entry.jobId,
+            error,
+          });
+        }
+      } catch (error) {
+        // Cosmetic step: leave the scraped text in place and move on.
+        console.warn("[formatPersistedJobs] formatting skipped", {
+          jobId: entry.jobId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  };
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(JOB_FORMAT_CONCURRENCY, work.length) },
+      () => runWorker(),
+    ),
+  );
+}
+
 type JobRowInput = Record<string, unknown> & {
   id?: string;
   user_id: string;
@@ -213,19 +326,11 @@ export async function persistDiscoveredJobs(
     options.userId,
   );
 
-  const formattedJobs = await Promise.all(
-    jobs.map(async (job) => {
-      const formatted = await formatJobTitleAndDescriptionWithAi(job.title, job.description || "");
-      return {
-        ...job,
-        title: formatted.title,
-        description: formatted.description,
-      };
-    })
-  );
-
+  // AI formatting used to run here, one Gemini call per job, blocking the batch
+  // before anything could be shown. Jobs are now persisted with their scraped
+  // text immediately and tidied up afterwards by formatPersistedJobs().
   const results = await Promise.all(
-    formattedJobs.map(async (job) => {
+    jobs.map(async (job) => {
       const rawData = toRecord(job.raw_data);
       const discovery = toRecord(rawData.discovery);
       const baseLeadQuality = scoreDiscoveredJobQuality(job, {
@@ -409,12 +514,35 @@ export async function persistDiscoveredJobs(
     } satisfies JobRowInput;
   });
 
+  // Kick off cosmetic reformatting without awaiting it, so the caller can show
+  // these jobs now. `waitUntil` keeps it alive past a short-lived response;
+  // long-running workers can also await `formattingTask` before exiting.
+  const formattingTask = formatPersistedJobs(
+    serviceClient,
+    options.userId,
+    results.map((res) => ({
+      jobId: res.job_id,
+      title: res.job.title,
+      description: res.job.description || "",
+    })),
+  ).catch((error) => {
+    console.warn("[persistDiscoveredJobs] deferred formatting failed", error);
+  });
+
+  const runtime = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } })
+    .EdgeRuntime;
+  if (typeof runtime?.waitUntil === "function") {
+    runtime.waitUntil(formattingTask);
+  }
+
   return {
     jobsInserted: newResultCount,
     jobsProcessed: results.length,
     duplicateCount: duplicateResultCount,
     displayableCount: newResultCount,
     rows,
+    /** Resolves when deferred AI formatting has finished. Safe to ignore. */
+    formattingTask,
   };
 }
 
@@ -495,6 +623,52 @@ export async function settleJobSearchRunCredits(
     settlementIdempotencyKey?: string;
   },
 ): Promise<{ displayableJobCount: number; creditsCharged: number; currentBalance?: number }> {
+  const settlementKey =
+    options.settlementIdempotencyKey ||
+    `settle:${options.agentRunId}:${Date.now()}`;
+
+  // ── V2 settlement path (Primary) ─────────────────────────────────────────
+  // settle_search_run_v2 calculates the actual cost itself by counting billable rows
+  // from job_search_results. If 0 jobs found or failed -> actual_cost = 0, 100% refunded.
+  // If partial results (e.g. 30/50) -> actual_cost = 30, remaining 20 refunded.
+  const { data: v2Raw, error: v2Error } = await serviceClient.rpc(
+    "settle_search_run_v2",
+    {
+      p_agent_run_id:               options.agentRunId,
+      p_settlement_idempotency_key: settlementKey,
+      p_status:                     options.searchFailed ? "failed" : "completed",
+      p_metadata: {
+        jobs_inserted:   options.jobsInserted ?? null,
+        jobs_discovered: options.jobsDiscovered ?? null,
+        failure_reason:  options.failureReason ?? null,
+      },
+    },
+  );
+
+  if (!v2Error && v2Raw) {
+    const v2Data = v2Raw as Record<string, unknown>;
+    const v2Cost = typeof v2Data?.actual_cost === "number"
+      ? (options.searchFailed ? 0 : v2Data.actual_cost)
+      : (options.searchFailed ? 0 : (typeof v2Data?.charged === "number" ? v2Data.charged : 0));
+    const v2Count = typeof v2Data?.billable_results === "number"
+      ? v2Data.billable_results
+      : (options.jobsInserted ?? 0);
+    const availableBalance = typeof v2Data?.available === "number"
+      ? v2Data.available
+      : undefined;
+
+    return {
+      displayableJobCount: v2Count,
+      creditsCharged: v2Cost,
+      currentBalance: availableBalance,
+    };
+  }
+
+  if (v2Error) {
+    console.warn("[settleJobSearchRunCredits] V2 settlement RPC error, attempting legacy fallback:", v2Error);
+  }
+
+  // ── Legacy settlement path (fallback) ────────────────────────────────────
   const displayableJobCount = options.searchFailed
     ? 0
     : await countDisplayableJobsForSearch(serviceClient, {
@@ -504,57 +678,10 @@ export async function settleJobSearchRunCredits(
       searchStartedAt: options.searchStartedAt,
     });
 
-  const firecrawlMeteringMode = (Deno.env.get("FIRECRAWL_CREDIT_METERING_MODE") || "enforce").toLowerCase().trim();
-  if (firecrawlMeteringMode === "enforce") {
-    console.log("[settleJobSearchRunCredits] Firecrawl credit metering is enforce mode. Skipping legacy flat job-search deduction.");
-    return {
-      displayableJobCount: 0,
-      creditsCharged: 0,
-      currentBalance: undefined,
-    };
-  }
-
   const creditsCharged = options.searchFailed
     ? 0
     : resolveJobSearchCreditsToCharge(displayableJobCount, options.maxCredits);
 
-  // ── V2 settlement path ────────────────────────────────────────────────────
-  // When a settlementIdempotencyKey is provided the database RPC
-  // settle_search_run_v2 calculates the actual cost itself by counting rows
-  // from job_search_results. This is more accurate than countDisplayableJobsForSearch.
-  if (options.settlementIdempotencyKey) {
-    const { data: v2Raw, error: v2Error } = await serviceClient.rpc(
-      "settle_search_run_v2",
-      {
-        p_agent_run_id:               options.agentRunId,
-        p_settlement_idempotency_key: options.settlementIdempotencyKey,
-        p_status:                     options.searchFailed ? "failed" : "completed",
-        p_metadata: {
-          jobs_inserted:   options.jobsInserted ?? null,
-          jobs_discovered: options.jobsDiscovered ?? null,
-          failure_reason:  options.failureReason ?? null,
-        },
-      }
-    );
-
-    if (v2Error) {
-      console.error("[settleJobSearchRunCredits] V2 settlement failed", v2Error);
-      // Fall through to legacy path below
-    } else {
-      const v2Data = v2Raw as Record<string, unknown> | null;
-      const v2Cost = typeof v2Data?.actual_cost === "number" ? v2Data.actual_cost : creditsCharged;
-      const v2Count = typeof v2Data?.billable_results === "number"
-        ? v2Data.billable_results
-        : displayableJobCount;
-      return {
-        displayableJobCount: v2Count,
-        creditsCharged: v2Cost,
-        currentBalance: undefined,
-      };
-    }
-  }
-
-  // ── Legacy settlement path (fallback) ────────────────────────────────────
   const { data: settleRaw, error: settleError } = await serviceClient.rpc("settle_run_credits", {
     p_agent_run_id: options.agentRunId,
     p_actual_credits: creditsCharged,
@@ -568,10 +695,11 @@ export async function settleJobSearchRunCredits(
       location: options.location,
       search_started_at: options.searchStartedAt ?? null,
     },
+    p_settlement_idempotency_key: settlementKey,
   });
 
   if (settleError) {
-    console.error("[settleJobSearchRunCredits] settlement failed", settleError);
+    console.error("[settleJobSearchRunCredits] Legacy settlement failed", settleError);
   }
 
   const settleData = settleRaw as Record<string, unknown> | null;

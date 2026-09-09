@@ -38,8 +38,8 @@ const WHITE_CARD_SECTIONS = new Set([
 ]);
 const BAR_SECTIONS = new Set(["skills", "languages"]);
 
-const clampLevel = (value?: number) => {
-  if (typeof value !== "number" || Number.isNaN(value)) return 3;
+const clampLevel = (value?: number | null) => {
+  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) return null;
   return Math.max(1, Math.min(5, Math.round(value)));
 };
 
@@ -428,21 +428,23 @@ function BarSection({
           const name = item.name || item.title || item.label || "Untitled";
           return (
             <div key={item.id} className='flex items-center gap-3'>
-              <span className='w-[84px] shrink-0 text-[11px] text-white/90'>
+              <span className='min-w-[84px] text-[11px] text-white/90'>
                 {name}
               </span>
-              <span
-                className='h-[5px] flex-1 overflow-hidden rounded-[2px]'
-                style={{ backgroundColor: "rgba(255,255,255,0.30)" }}
-              >
+              {level !== null && (
                 <span
-                  className='block h-full rounded-[2px]'
-                  style={{
-                    width: `${level * 20}%`,
-                    backgroundColor: GOLD,
-                  }}
-                />
-              </span>
+                  className='h-[5px] flex-1 overflow-hidden rounded-[2px]'
+                  style={{ backgroundColor: "rgba(255,255,255,0.30)" }}
+                >
+                  <span
+                    className='block h-full rounded-[2px]'
+                    style={{
+                      width: `${level * 20}%`,
+                      backgroundColor: GOLD,
+                    }}
+                  />
+                </span>
+              )}
             </div>
           );
         })}

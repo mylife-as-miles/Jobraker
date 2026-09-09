@@ -1,7 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { discoverJobsFirecrawl, type PublicJobSource } from "../_shared/discovery-hybrid.ts";
+import { discoverJobsHybrid, type PublicJobSource } from "../_shared/discovery-hybrid.ts";
 import { persistDiscoveredJobs, settleJobSearchRunCredits } from "../_shared/jobs.ts";
-import { syncFirecrawlCreditUsage } from "../_shared/provider-credits.ts";
+import { syncRtrvrCreditUsage } from "../_shared/provider-credits.ts";
 import { normalizeSearchScope } from "../_shared/search-normalization.ts";
 import {
   requireAuthenticatedUser,
@@ -119,15 +119,31 @@ function extractTargetDomains(value: unknown): string[] {
 Deno.serve(async (req) => {
   const startedAt = Date.now();
   const origin = req.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
+  const corsHeaders = getCorsHeaders(origin, req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
+  // Hoisted above the try so the emergency credit-refund path in `catch` can
+  // still read them. These used to be block-scoped to the try, so the fallback
+  // settlement threw a ReferenceError and reserved credits were never refunded.
+  let searchQuery = "";
+  let location = "";
+  let userId = "";
+  let agentRunId: string | null = null;
+  let searchSettled = false;
+  let creditsToReserve = 0;
+  // Reused by the catch below. `createServiceSupabaseClient()` was called there
+  // but never imported into this module, so the refund path threw even once the
+  // scoping was fixed; the client from requireAuthenticatedUser works fine.
+  let serviceClientRef:
+    | Awaited<ReturnType<typeof requireAuthenticatedUser>>["serviceClient"]
+    | null = null;
+
   try {
     const body = await req.json().catch(() => ({}));
-    const searchQuery = String(body?.searchQuery || body?.query || "").trim();
+    searchQuery = String(body?.searchQuery || body?.query || "").trim();
     const rawLocation = String(body?.location || "").trim();
     const locationScope = (["city", "country", "global", "remote"] as const).includes(body?.locationScope)
       ? (body.locationScope as "city" | "country" | "global" | "remote")
@@ -151,7 +167,7 @@ Deno.serve(async (req) => {
     );
 
     // The effective search location string sent to discovery tools
-    const location = (canonicalScope.location.displayName ?? rawLocation) || "Remote";
+    location = (canonicalScope.location.displayName ?? rawLocation) || "Remote";
 
     const requestedLimit = Number.isFinite(Number(body?.limit))
       ? Math.max(1, Math.floor(Number(body.limit)))
@@ -168,6 +184,8 @@ Deno.serve(async (req) => {
     }
 
     const { serviceClient, user } = await requireAuthenticatedUser(req);
+    userId = user?.id ?? "";
+    serviceClientRef = serviceClient;
     const {
       subscriptionTier,
       planCap,
@@ -194,7 +212,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const creditsToReserve = Math.max(1, effectiveLimit);
+    creditsToReserve = Math.max(1, effectiveLimit);
     const idempotencyKey = crypto.randomUUID();
     const { data: reserveRaw, error: reserveError } = await serviceClient.rpc(
       "reserve_credits_for_run",
@@ -232,7 +250,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const agentRunId = reserve.agent_run_id as string;
+    agentRunId = reserve.agent_run_id as string;
     const holdId = (reserve.hold_id as string | undefined) ?? null;
 
     // ── Persist canonical search run record ───────────────────────────────────
@@ -369,7 +387,7 @@ Deno.serve(async (req) => {
     let totalInserted = 0;
 
     try {
-      console.log("[jobs-search] Firecrawl-led discovery", {
+      console.log("[jobs-search] RTRVR-led discovery", {
         userId: user.id,
         searchQuery,
         location,
@@ -380,7 +398,8 @@ Deno.serve(async (req) => {
         subscriptionTier,
       });
 
-      const result = await discoverJobsFirecrawl(
+      const pendingFormatting: Promise<unknown>[] = [];
+      const result = await discoverJobsHybrid(
         {
           serviceClient,
           userId: user.id,
@@ -392,7 +411,7 @@ Deno.serve(async (req) => {
           freshnessDays,
         },
         async (batch) => {
-          const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
+          const { jobsInserted: batchInserted, formattingTask } = await persistDiscoveredJobs(
             serviceClient,
             batch,
             {
@@ -407,12 +426,18 @@ Deno.serve(async (req) => {
               agentRunId,
             },
           );
+          if (formattingTask) pendingFormatting.push(formattingTask);
           totalInserted += batchInserted;
         },
       );
       
       discoveredJobs = result.jobs;
       warnings = result.warnings;
+
+      // Deferred cosmetic formatting must land before this request returns.
+      if (pendingFormatting.length > 0) {
+        await Promise.allSettled(pendingFormatting);
+      }
 
     } catch (err: any) {
       console.error("[jobs-search] Search failed", err);
@@ -442,12 +467,16 @@ Deno.serve(async (req) => {
       },
     );
 
+    searchSettled = true;
+
     if (searchFailed) {
       return new Response(
         JSON.stringify({
           error: "Search failed. Your credits have been refunded.",
           code: "search_failed",
-          details: failureReason
+          details: failureReason,
+          creditsCharged: 0,
+          current_balance: currentBalance,
         }),
         {
           status: 500,
@@ -462,7 +491,7 @@ Deno.serve(async (req) => {
     let providerCreditSync: Record<string, unknown> | null = null;
 
     try {
-      const syncResult = await syncFirecrawlCreditUsage(serviceClient, {
+      const syncResult = await syncRtrvrCreditUsage(serviceClient, {
         source: "jobs-search",
         userId: user.id,
         requestedLimit,
@@ -478,7 +507,7 @@ Deno.serve(async (req) => {
         alert: syncResult.alert,
       };
     } catch (providerCreditError) {
-      console.warn("[jobs-search] Firecrawl credit sync failed", providerCreditError);
+      console.warn("[jobs-search] RTRVR credit ledger sync failed", providerCreditError);
     }
 
     console.info("[jobs-search] Completed", {
@@ -499,6 +528,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         status: "completed",
+        agent_run_id: agentRunId,
         requestedLimit,
         effectiveLimit,
         planCap,
@@ -541,6 +571,21 @@ Deno.serve(async (req) => {
     );
   } catch (error: unknown) {
     console.error("jobs-search.error", error);
+    if (agentRunId && !searchSettled && serviceClientRef) {
+      try {
+        await settleJobSearchRunCredits(serviceClientRef, {
+          agentRunId,
+          userId,
+          searchQuery,
+          location,
+          maxCredits: creditsToReserve || 0,
+          searchFailed: true,
+          failureReason: error instanceof Error ? error.message : "Unhandled search failure",
+        });
+      } catch (fallbackSettleErr) {
+        console.error("[jobs-search] Emergency fallback settlement failed:", fallbackSettleErr);
+      }
+    }
     return subscriptionErrorResponse(error, corsHeaders);
   }
 });

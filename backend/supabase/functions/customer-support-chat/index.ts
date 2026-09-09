@@ -10,6 +10,7 @@ import {
   withGeminiRetry,
   withModelFallback,
   runMeteredAiCall,
+  createSafeAiErrorResponse,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -605,11 +606,7 @@ The array should be shaped like: { "label": string, "route": string | null, "kin
     if (error instanceof SubscriptionAccessError) {
       return subscriptionErrorResponse(error, corsHeaders);
     }
-    const message = error instanceof Error ? error.message : "Internal server error";
     console.error("customer-support-chat failed", error);
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createSafeAiErrorResponse(error, corsHeaders);
   }
 });

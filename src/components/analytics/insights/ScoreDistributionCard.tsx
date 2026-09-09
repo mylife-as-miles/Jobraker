@@ -16,7 +16,7 @@ import { Card } from "../../ui/card";
 import type { ScoreDistributionBucket } from "../../../hooks/insightsComputations";
 
 interface ScoreDistributionCardProps {
-  scoreDistribution: ScoreDistributionBucket[];
+  scoreDistribution?: ScoreDistributionBucket[];
   period: string;
   loading: boolean;
 }
@@ -26,7 +26,11 @@ export function ScoreDistributionCard({
   period,
   loading,
 }: ScoreDistributionCardProps) {
-  const hasData = scoreDistribution.some((b) => b.count > 0);
+  const safeScoreDistribution = (scoreDistribution ?? []).filter(
+    (bucket): bucket is ScoreDistributionBucket =>
+      Boolean(bucket) && typeof bucket.count === "number",
+  );
+  const hasData = safeScoreDistribution.some((bucket) => bucket.count > 0);
 
   return (
     <motion.div
@@ -60,7 +64,7 @@ export function ScoreDistributionCard({
             {hasData ? (
               <ResponsiveContainer width='100%' height='100%'>
                 <BarChart
-                  data={scoreDistribution}
+                  data={safeScoreDistribution}
                   margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
                 >
                   <CartesianGrid
@@ -109,7 +113,7 @@ export function ScoreDistributionCard({
                     name='Applications'
                     radius={[6, 6, 0, 0]}
                   >
-                    {scoreDistribution.map((bucket, index) => (
+                    {safeScoreDistribution.map((bucket, index) => (
                       <Cell key={`cell-${index}`} fill={bucket.color} />
                     ))}
                   </Bar>

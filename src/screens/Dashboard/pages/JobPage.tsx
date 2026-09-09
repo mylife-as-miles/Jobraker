@@ -13,6 +13,7 @@ import {
   Clock3,
   FileText,
   AlertTriangle,
+  AlertCircle,
   UserCheck,
   UserX,
   FileCheck2,
@@ -25,6 +26,8 @@ import {
   Zap,
   Crown,
   X,
+  Pencil,
+  Globe,
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -49,7 +52,7 @@ import {
 } from "../../../hooks/useJobsQueue";
 import { useResumes } from "../../../hooks/useResumes";
 import { Card } from "../../../components/ui/card";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import useMediaQuery from "../../../hooks/use-media-query";
 import { createClient } from "../../../lib/supabaseClient";
 import {
@@ -76,6 +79,10 @@ import {
   fetchJobEvaluationReport,
   type JobEvaluationReport as JobEvaluationReportData,
 } from "../../../services/jobs/jobEvaluation";
+import {
+  fetchAiSuggestedRoles,
+  fetchAiSuggestedLocations,
+} from "../../../services/ai/suggestRoles";
 
 import { applyMicro1ReferralToUrl } from "../../../utils/micro1Referral";
 import { useGamification } from "../../../hooks/useGamification";
@@ -86,6 +93,7 @@ import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { JobEvaluationTeaser } from "../../../components/JobEvaluationTeaser";
 import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
 import { JobEvaluationReport } from "../components/JobEvaluationReport";
+import { TailorResumeModal } from "../components/jobs/TailorResumeModal";
 import { OpportunityScoreSummary } from "../../../components/jobs/OpportunityScoreSummary";
 import { JobTaskMonitor } from "../components/JobTaskMonitor";
 import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
@@ -159,6 +167,13 @@ interface Job {
   matchSummary?: string;
   explainableOpportunity?: ExplainableJobOpportunity;
 }
+
+type AutoApplyTarget = {
+  job: Job;
+  target: string;
+  tailoredResumeText?: string;
+  tailoredConfidence?: number;
+};
 
 type MatchScoreBreakdown = {
   label: string;
@@ -1275,7 +1290,7 @@ export const JobPage = (): JSX.Element => {
   const [autoApplyStep, setAutoApplyStep] = useState<1 | 2 | 3 | 4>(1);
   const [generatingDraft, setGeneratingDraft] = useState(false);
   const [draftData, setDraftData] = useState<ApplicationDraftData | null>(null);
-  const [trueAutonomyEnabled, setTrueAutonomyEnabled] = useState(true);
+  const [trueAutonomyEnabled, setTrueAutonomyEnabled] = useState(false);
   const [browserExecutionPreference, setBrowserExecutionPreference] = useState<
     "automatic" | "my_chrome" | "jobraker_cloud"
   >("automatic");
@@ -1295,6 +1310,9 @@ export const JobPage = (): JSX.Element => {
     activeRuns: number;
     totalLimit: number;
   }>({ activeRuns: 0, totalLimit: 1 });
+  const [tailorModalOpen, setTailorModalOpen] = useState(false);
+  const [tailorTargetJob, setTailorTargetJob] = useState<Job | null>(null);
+  const [autoTailorInBulk, setAutoTailorInBulk] = useState(true);
 
   const fetchConcurrencyInfo = useCallback(async () => {
     try {
@@ -1393,6 +1411,38 @@ export const JobPage = (): JSX.Element => {
   // Debug payload capture for in-app panel
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
   const [dbgSearchRes, setDbgSearchRes] = useState<any>(null);
+  const [searchFeedbackModal, setSearchFeedbackModal] = useState<{
+    open: boolean;
+    title: string;
+    type: "warning" | "error" | "info";
+    message: string;
+    creditsRefunded?: boolean;
+  } | null>(null);
+  const [editSearchModal, setEditSearchModal] = useState<"title" | "location" | null>(null);
+  const [tempSearchQuery, setTempSearchQuery] = useState("");
+  const [tempLocation, setTempLocation] = useState("");
+  const [tempLocationScope, setTempLocationScope] = useState<"city" | "country" | "global">("city");
+  const [isSavingProfilePreference, setIsSavingProfilePreference] = useState(false);
+  const [aiSuggestedRoles, setAiSuggestedRoles] = useState<string[]>([
+    "Senior AI & Backend Developer",
+    "Full Stack Engineer",
+    "AI Engineer",
+    "Backend Developer",
+    "Frontend Developer",
+    "Machine Learning Engineer",
+    "DevOps Engineer",
+  ]);
+  const [isLoadingAiRoles, setIsLoadingAiRoles] = useState(false);
+  const [aiSuggestedLocations, setAiSuggestedLocations] = useState<string[]>([
+    "Remote",
+    "Enugu, Nigeria",
+    "Lagos, Nigeria",
+    "United States",
+    "United Kingdom",
+    "Canada",
+    "Germany",
+  ]);
+  const [isLoadingAiLocations, setIsLoadingAiLocations] = useState(false);
   const backgroundEvaluationFailedRef = useRef<Set<string>>(new Set());
   const activeTaskIdRef = useRef<string | null>(null);
   const canceledTaskIdsRef = useRef<Set<string>>(new Set());
@@ -1407,7 +1457,7 @@ export const JobPage = (): JSX.Element => {
   } = useProfileSettings();
   // Load user resumes for selection (used by the Auto Apply -> "Choose a resume" dialog)
   const { resumes, loading: resumesLoading } = useResumes();
-  const { info, error: toastError } = useToast();
+  const { info, error: toastError, success } = useToast();
 
   useEffect(() => {
     if (!profile) return;
@@ -2723,6 +2773,134 @@ export const JobPage = (): JSX.Element => {
     ],
   );
 
+  const handleFetchAiRoles = useCallback(async () => {
+    setIsLoadingAiRoles(true);
+    try {
+      const roles = await fetchAiSuggestedRoles({
+        currentRole: tempSearchQuery || searchQuery || profile?.job_title || undefined,
+        skills: profileSkills.data.map((s) => s.name),
+        experiences: profileExperiences.data.map((e) => ({
+          title: e.title,
+          company: e.company,
+          description: e.description,
+        })),
+        location: selectedLocation,
+      });
+      if (roles.length > 0) {
+        setAiSuggestedRoles(roles);
+      }
+    } catch (err) {
+      console.warn("[handleFetchAiRoles] Error:", err);
+    } finally {
+      setIsLoadingAiRoles(false);
+    }
+  }, [tempSearchQuery, searchQuery, profile?.job_title, profileSkills.data, profileExperiences.data, selectedLocation]);
+
+  const handleFetchAiLocations = useCallback(async () => {
+    setIsLoadingAiLocations(true);
+    try {
+      const locs = await fetchAiSuggestedLocations({
+        currentRole: searchQuery || profile?.job_title || undefined,
+        currentLocation: tempLocation || selectedLocation || profile?.location || undefined,
+        experiences: profileExperiences.data.map((e) => ({
+          title: e.title,
+          company: e.company,
+          location: e.location,
+        })),
+      });
+      if (locs.length > 0) {
+        setAiSuggestedLocations(locs);
+      }
+    } catch (err) {
+      console.warn("[handleFetchAiLocations] Error:", err);
+    } finally {
+      setIsLoadingAiLocations(false);
+    }
+  }, [searchQuery, profile?.job_title, tempLocation, selectedLocation, profile?.location, profileExperiences.data]);
+
+  const handleOpenEditTitle = useCallback(() => {
+    const current = searchQuery || profile?.job_title || "";
+    setTempSearchQuery(current);
+    setEditSearchModal("title");
+    if (profileSkills.data.length > 0 || profileExperiences.data.length > 0 || profile?.job_title) {
+      void fetchAiSuggestedRoles({
+        currentRole: current || undefined,
+        skills: profileSkills.data.map((s) => s.name),
+        experiences: profileExperiences.data.map((e) => ({
+          title: e.title,
+          company: e.company,
+        })),
+      }).then((roles) => {
+        if (roles.length > 0) setAiSuggestedRoles(roles);
+      });
+    }
+  }, [searchQuery, profile?.job_title, profileSkills.data, profileExperiences.data]);
+
+  const handleOpenEditLocation = useCallback(() => {
+    const currentLoc = selectedLocation || profile?.location || "Remote";
+    setTempLocation(currentLoc);
+    setTempLocationScope(locationScope || profile?.location_scope || "city");
+    setEditSearchModal("location");
+    void fetchAiSuggestedLocations({
+      currentRole: searchQuery || profile?.job_title || undefined,
+      currentLocation: currentLoc,
+      experiences: profileExperiences.data.map((e) => ({
+        title: e.title,
+        company: e.company,
+        location: e.location,
+      })),
+    }).then((locs) => {
+      if (locs.length > 0) setAiSuggestedLocations(locs);
+    });
+  }, [selectedLocation, locationScope, profile?.location, profile?.location_scope, searchQuery, profile?.job_title, profileExperiences.data]);
+
+  const handleSaveTitle = useCallback(
+    async (triggerSearch = false) => {
+      const trimmed = tempSearchQuery.trim();
+      if (!trimmed) return;
+      setIsSavingProfilePreference(true);
+      try {
+        setSearchQuery(trimmed);
+        await updateProfile({ job_title: trimmed } as Partial<Profile>);
+        success("Target Role Updated", "Saved target job title to your profile.");
+        setEditSearchModal(null);
+        if (triggerSearch) {
+          void populateQueue(trimmed, selectedLocation);
+        }
+      } catch (err: any) {
+        toastError("Failed to save", err.message || "Could not update target role");
+      } finally {
+        setIsSavingProfilePreference(false);
+      }
+    },
+    [tempSearchQuery, updateProfile, success, toastError, selectedLocation, populateQueue],
+  );
+
+  const handleSaveLocation = useCallback(
+    async (triggerSearch = false) => {
+      const trimmed = tempLocation.trim() || "Remote";
+      setIsSavingProfilePreference(true);
+      try {
+        setSelectedLocation(trimmed);
+        setLocationScope(tempLocationScope);
+        await updateProfile({
+          location: trimmed,
+          location_scope: tempLocationScope,
+        } as Partial<Profile>);
+        success("Location Updated", "Saved location preference to your profile.");
+        setEditSearchModal(null);
+        if (triggerSearch) {
+          void populateQueue(searchQuery, trimmed);
+        }
+      } catch (err: any) {
+        toastError("Failed to save", err.message || "Could not update location");
+      } finally {
+        setIsSavingProfilePreference(false);
+      }
+    },
+    [tempLocation, tempLocationScope, updateProfile, success, toastError, searchQuery, populateQueue],
+  );
+
   // Listen for background task changes via real-time subscription
   useEffect(() => {
     const activeTaskId = activeTaskIdRef.current;
@@ -2835,7 +3013,15 @@ export const JobPage = (): JSX.Element => {
         setQueueStatus(jobs.length > 0 ? "ready" : "empty");
         setCurrentSource(null);
         if (activeTask.status === "failed") {
-          setError({ message: activeTask.message || "Search task failed." });
+          const errorMsg = activeTask.message || "Search task failed.";
+          setError({ message: errorMsg });
+          setSearchFeedbackModal({
+            open: true,
+            title: "Search Task Failed",
+            type: "error",
+            message: `${errorMsg}\n\nAll reserved credits have been fully refunded to your available balance.`,
+            creditsRefunded: true,
+          });
         }
         if (activeTaskIdRef.current === activeTaskId) {
           activeTaskIdRef.current = null;
@@ -2997,6 +3183,73 @@ export const JobPage = (): JSX.Element => {
       safeInfo,
       selectedResumeId,
     ],
+  );
+
+  const handleOpenTailorModal = useCallback((job: Job) => {
+    setTailorTargetJob(job);
+    setTailorModalOpen(true);
+  }, []);
+
+  const tailorModalJob = useMemo(() => {
+    if (!tailorTargetJob) return null;
+    return {
+      id: tailorTargetJob.id,
+      title: tailorTargetJob.title,
+      company: tailorTargetJob.company,
+      description: tailorTargetJob.description || "",
+      apply_url: tailorTargetJob.apply_url,
+    };
+  }, [
+    tailorTargetJob?.id,
+    tailorTargetJob?.title,
+    tailorTargetJob?.company,
+    tailorTargetJob?.description,
+    tailorTargetJob?.apply_url,
+  ]);
+
+  const handleApplyWithTailoredResume = useCallback(
+    async (tailoredText: string, confidenceScore: number) => {
+      if (!tailorTargetJob) return;
+      try {
+        await saveApplicationPackage({
+          jobId: tailorTargetJob.id,
+          tailoredResume: tailoredText,
+          metadata: {
+            confidence_score: confidenceScore,
+            is_tailored: true,
+            tailored_at: new Date().toISOString(),
+          },
+        });
+
+        setJobs((prev) =>
+          prev.map((j) =>
+            j.id === tailorTargetJob.id
+              ? {
+                  ...j,
+                  matchScore: confidenceScore,
+                  evaluation_summary: {
+                    ...(j.evaluation_summary || {}),
+                    confidence_score: confidenceScore,
+                    canonical_decision: "strong_yes",
+                  },
+                }
+              : j,
+          ),
+        );
+
+        setSelectedResumeRawText(tailoredText);
+        setTailorModalOpen(false);
+        await openAutoApplyFlow(tailorTargetJob);
+
+        success(
+          "Tailored Resume Ready",
+          `Resume tailored with ${confidenceScore}% match confidence. Proceeding to application.`,
+        );
+      } catch (err: any) {
+        console.error("Failed to apply tailored resume:", err);
+      }
+    },
+    [success, openAutoApplyFlow, tailorTargetJob],
   );
 
   /** Deep link from Applications: `/dashboard/jobs?autoApplyJobId=<uuid>` reopens auto-apply for a saved job. */
@@ -3201,7 +3454,10 @@ export const JobPage = (): JSX.Element => {
         ]);
 
         setDraftData({
-          resumeText: tailoredResume,
+          resumeText:
+            typeof tailoredResume === "string"
+              ? tailoredResume
+              : (tailoredResume as any)?.tailored_resume || resumeText,
           coverLetterText: tailoredCoverLetter,
           sourceResumeId: selectedResumeId,
           sourceResumeName: selectedResumeName,
@@ -3313,8 +3569,22 @@ export const JobPage = (): JSX.Element => {
         }
       }
 
-      const targetJobs = jobToAutoApply ? [jobToAutoApply] : jobs;
-      if (!targetJobs.length) return;
+      const activeSearchCriteria = (activeSearchScope?.searchQuery || searchQuery || "").trim();
+      const baseCandidateJobs = jobToAutoApply ? [jobToAutoApply] : sortedJobs;
+      const targetJobs = jobToAutoApply
+        ? baseCandidateJobs
+        : activeSearchCriteria
+          ? baseCandidateJobs.filter((job) => matchesJobSearchCriteria(job, activeSearchCriteria))
+          : baseCandidateJobs;
+      if (!targetJobs.length) {
+        safeInfo(
+          "No matching jobs",
+          activeSearchCriteria
+            ? `No jobs match "${activeSearchCriteria}". Try searching for jobs before running auto-apply.`
+            : "No jobs available to apply to.",
+        );
+        return;
+      }
 
       if (saveAsDraftOnly) {
         setApplyingAll(true);
@@ -3457,7 +3727,7 @@ export const JobPage = (): JSX.Element => {
 
       const jobsWithTargets = targetJobs
         .map((job) => ({ job, target: getJobApplyTarget(job) }))
-        .filter((item): item is { job: Job; target: string } =>
+        .filter((item): item is AutoApplyTarget =>
           Boolean(item.target),
         );
 
@@ -3630,15 +3900,57 @@ export const JobPage = (): JSX.Element => {
 
             for (const item of jobsWithTargets) {
               try {
+                let tailoredResumeText: string | undefined;
+                let tailoredConfidence: number | undefined;
+
+                if (autoTailorInBulk && activeResumeText && item.job.description) {
+                  try {
+                    pushLog(
+                      `Tailoring resume to ${item.job.company} (${item.job.title})...`,
+                      "info",
+                    );
+                    const tailoredResult = await tailorResumeViaEdge({
+                      jobDescription: item.job.description,
+                      resumeText: activeResumeText,
+                      jobTitle: item.job.title,
+                      company: item.job.company,
+                    });
+                    if (tailoredResult?.tailored_resume) {
+                      tailoredResumeText = tailoredResult.tailored_resume;
+                      tailoredConfidence = tailoredResult.confidence_score;
+                      item.job.matchScore = tailoredResult.confidence_score;
+                      item.job.evaluation_summary = {
+                        ...(item.job.evaluation_summary || {}),
+                        confidence_score: tailoredResult.confidence_score,
+                        canonical_decision: tailoredResult.canonical_decision || "strong_yes",
+                        matched_keywords: tailoredResult.matched_keywords,
+                      };
+                      item.tailoredResumeText = tailoredResumeText;
+                      item.tailoredConfidence = tailoredConfidence;
+                      pushLog(
+                        `Tailored to ${item.job.company}: match confidence recalculated to ${tailoredResult.confidence_score}%`,
+                        "success",
+                      );
+                    }
+                  } catch (tailorErr) {
+                    console.warn("Auto-tailoring during bulk apply threw", tailorErr);
+                  }
+                }
+
                 const evaluation = await getEvaluationForJob(item.job);
-                const decision = evaluation.canonical_decision;
-                const confidence = evaluation.confidence_score ?? 0;
+                const decision = tailoredConfidence && tailoredConfidence >= 85 ? "strong_yes" : evaluation.canonical_decision;
+                const confidence = tailoredConfidence ?? evaluation.confidence_score ?? 0;
                 const hardBlockers = evaluation.blockers?.length ?? 0;
 
+                // When user launches Auto Apply, allow jobs to proceed if tailored (~95%),
+                // or if confidence is acceptable, reserving draft only for genuine hard blockers
                 const safeToLaunch =
-                  (decision === "strong_yes" || decision === "draft_first") &&
-                  confidence >= 65 &&
-                  hardBlockers === 0;
+                  !saveAsDraftOnly && (
+                    (tailoredConfidence && tailoredConfidence >= 70) ||
+                    decision === "strong_yes" ||
+                    decision === "draft_first" ||
+                    confidence >= 50
+                  ) && hardBlockers === 0;
 
                 if (safeToLaunch) {
                   jobsToAutoApply.push(item);
@@ -3726,7 +4038,8 @@ export const JobPage = (): JSX.Element => {
           );
         }
 
-        for (const { job, target } of jobsWithTargets) {
+        for (const item of jobsWithTargets) {
+          const { job, target } = item;
           try {
             const isDraft = jobsToDraft.some(
               (entry) => entry.job.id === job.id,
@@ -3804,6 +4117,7 @@ export const JobPage = (): JSX.Element => {
                     match_reasons:
                       matchedKeywords.length > 0 ? matchedKeywords : null,
                     ai_confidence_score:
+                      item.tailoredConfidence ??
                       evaluation?.confidence_score ??
                       job.evaluation_summary?.confidence_score ??
                       null,
@@ -3825,6 +4139,7 @@ export const JobPage = (): JSX.Element => {
                 match_reasons:
                   matchedKeywords.length > 0 ? matchedKeywords : null,
                 ai_confidence_score:
+                  item.tailoredConfidence ??
                   evaluation?.confidence_score ??
                   job.evaluation_summary?.confidence_score ??
                   null,
@@ -3843,11 +4158,14 @@ export const JobPage = (): JSX.Element => {
                   ? { additional_information: profileSnapshot }
                   : {}),
                 ...(resumeSignedUrl ? { resume: resumeSignedUrl } : {}),
-                ...(draftData
-                  ? { resume_text: draftData.resumeText }
-                  : activeResumeText
-                    ? { resume_text: activeResumeText }
-                    : {}),
+                ...(item.tailoredResumeText
+                  ? { resume_text: item.tailoredResumeText }
+                  : draftData
+                    ? { resume_text: draftData.resumeText }
+                    : activeResumeText
+                      ? { resume_text: activeResumeText }
+                      : {}),
+                ...(selectedResume?.data ? { resume_data: selectedResume.data } : {}),
                 ...(userEmail ? { email: userEmail } : {}),
               };
 
@@ -4073,7 +4391,34 @@ export const JobPage = (): JSX.Element => {
     }
   }, [profile, searchQuery]);
 
-  const visibleJobs = useMemo(() => jobs, [jobs]);
+function matchesJobSearchCriteria(job: Job, query: string): boolean {
+  if (!query || !query.trim()) return true;
+  const terms = query.toLowerCase().trim().split(/\s+/).filter((t) => t.length > 1);
+  if (terms.length === 0) return true;
+  const haystack = [
+    job.title,
+    job.company,
+    job.description,
+    job.location,
+    ...(job.matchKeywords || []),
+    ...(job.evaluation_summary?.matched_keywords || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    terms.every((term) => haystack.includes(term)) ||
+    haystack.includes(query.toLowerCase().trim())
+  );
+}
+
+  const visibleJobs = useMemo(() => {
+    const activeQuery = (activeSearchScope?.searchQuery || searchQuery || "").trim();
+    if (!activeQuery) return jobs;
+    const filtered = jobs.filter((job) => matchesJobSearchCriteria(job, activeQuery));
+    return filtered.length > 0 ? filtered : jobs;
+  }, [jobs, activeSearchScope?.searchQuery, searchQuery]);
 
   const sortedJobs = useMemo(() => {
     const arr = [...visibleJobs];
@@ -4753,20 +5098,32 @@ export const JobPage = (): JSX.Element => {
           data-tour='jobs-search-filters'
         >
           <div className='relative z-10 flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-stretch'>
-            <div className='relative min-w-0 flex-1'>
-              <div
+            <div className='relative min-w-0 flex-1 group'>
+              <motion.div
+                layoutId='morph-search-title-card'
                 id='jobs-search'
                 data-tour='jobs-search'
-                aria-label={`Search query ${searchQuery || "No query"}`}
-                role='status'
-                className='flex h-12 w-full items-center rounded-xl border border-foreground/10 pl-4 pr-[8.25rem] sm:pr-36 text-base font-medium text-foreground'
+                onClick={handleOpenEditTitle}
+                aria-label={`Click to edit target job title. Current: ${searchQuery || "No query"}`}
+                role='button'
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleOpenEditTitle();
+                  }
+                }}
+                className='flex h-12 w-full cursor-pointer items-center rounded-xl border border-foreground/10 bg-background/50 pl-4 pr-[8.25rem] sm:pr-36 text-base font-medium text-foreground shadow-sm transition-all duration-200 hover:border-brand/50 hover:bg-brand/[0.03] focus:outline-none focus:ring-2 focus:ring-brand/50'
               >
                 <span
                   className={`min-w-0 truncate ${!searchQuery ? "text-foreground/40" : ""}`}
                 >
                   {searchQuery || "Search jobs, companies, keywords..."}
                 </span>
-              </div>
+                <span className='ml-2 inline-flex items-center text-xs text-foreground/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100'>
+                  <Pencil className='h-3.5 w-3.5 text-brand/80' />
+                </span>
+              </motion.div>
               <div className='pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 h-10 items-center justify-center gap-2'>
                 <span className='text-[10px] font-medium text-brand/90 bg-gradient-to-br from-brand/15 to-brand/5 px-2.5 py-1 rounded-lg border border-brand/30 whitespace-nowrap shadow-sm'>
                   {subscriptionTier === "Ultimate"
@@ -4782,26 +5139,41 @@ export const JobPage = (): JSX.Element => {
               </div>
             </div>
             <div className='flex basis-full xl:basis-1/2 xl:justify-end xl:flex-row flex-col gap-2 lg:shrink-0 '>
-              <div className='relative w-full'>
+              <div className='relative w-full group'>
                 <MapPin className='pointer-events-none absolute right-3 top-1/2 z-[1] w-5 -translate-y-1/2 text-brand/60' />
-                <div
+                <motion.div
+                  layoutId='morph-search-location-card'
                   id='jobs-location'
                   data-tour='jobs-location'
-                  aria-label={`Selected location ${selectedLocation || "Remote"}`}
-                  role='status'
-                  className='flex h-12 items-center rounded-xl border border-foreground/10 pl-4 pr-11 text-base font-medium text-foreground'
+                  onClick={handleOpenEditLocation}
+                  aria-label={`Click to edit target location. Current: ${selectedLocation || "Remote"}`}
+                  role='button'
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleOpenEditLocation();
+                    }
+                  }}
+                  className='flex h-12 w-full cursor-pointer items-center rounded-xl border border-foreground/10 bg-background/50 pl-4 pr-11 text-base font-medium text-foreground shadow-sm transition-all duration-200 hover:border-brand/50 hover:bg-brand/[0.03] focus:outline-none focus:ring-2 focus:ring-brand/50'
                 >
                   <span className='min-w-0 truncate'>
                     {selectedLocation || "Remote"}
                   </span>
-                </div>
+                  <span className='ml-2 inline-flex items-center text-xs text-foreground/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100'>
+                    <Pencil className='h-3.5 w-3.5 text-brand/80' />
+                  </span>
+                </motion.div>
               </div>
               <div className='flex w-full gap-0.5 rounded-lg border border-foreground/10 p-0.5'>
                 {(["city", "country", "global"] as const).map((scope) => (
                   <button
                     key={scope}
                     type='button'
-                    onClick={() => setLocationScope(scope)}
+                    onClick={() => {
+                      setLocationScope(scope);
+                      void updateProfile({ location_scope: scope } as Partial<Profile>);
+                    }}
                     className={`min-h-[2rem] flex-1 px-1.5 py-1.5 text-[10px] font-semibold leading-tight rounded-md transition-all duration-200 sm:px-2.5 ${
                       locationScope === scope
                         ? "bg-brand/15 text-brand border border-brand/30"
@@ -5893,6 +6265,14 @@ export const JobPage = (): JSX.Element => {
 
                                   {/* Action buttons stay below the title until the card has enough width. */}
                                   <div className='flex w-full flex-col sm:flex-row items-stretch sm:items-center gap-2'>
+                                    <Button
+                                      onClick={() => handleOpenTailorModal(job)}
+                                      className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand bg-brand text-black hover:bg-brand/90 px-4 py-2 text-sm font-bold shadow-[0_0_15px_rgba(47,217,104,0.3)] transition'
+                                      title='Tailor resume specifically to this job description and recalculate match confidence (~95%)'
+                                    >
+                                      <Sparkles className='w-4 h-4' />
+                                      Tailor Resume to JD
+                                    </Button>
                                     {primaryHref && (
                                       <a
                                         href={primaryHref}
@@ -6176,6 +6556,16 @@ export const JobPage = (): JSX.Element => {
             )}
           </div>
         </div>
+        {/* Tailor Resume Modal */}
+        <TailorResumeModal
+          open={tailorModalOpen}
+          onOpenChange={setTailorModalOpen}
+          job={tailorModalJob}
+          baseResumeText={activeResumeText}
+          resumeName={selectedResume?.name || "Primary Resume"}
+          onApply={handleApplyWithTailoredResume}
+        />
+
         {/* Auto Apply orchestration dialog */}
         <Modal
           open={resumeDialogOpen}
@@ -6666,6 +7056,32 @@ export const JobPage = (): JSX.Element => {
                         </span>
                       </li>
                     </ul>
+                  </div>
+
+                  {/* Auto-Tailor Resume Toggle */}
+                  <div className='rounded-xl border border-brand/25 bg-brand/5 p-4 sm:p-5 flex items-center justify-between'>
+                    <div>
+                      <div className='flex items-center gap-2 text-sm font-semibold text-foreground'>
+                        <Sparkles className='w-4 h-4 text-brand' />
+                        Auto-Tailor Resume to each JD
+                      </div>
+                      <p className='mt-1 text-xs text-foreground/70 max-w-[85%]'>
+                        Automatically tweaks CV against target JD keywords and recalculates match confidence (~95%) before applying. Contact details are strictly preserved from attached resume.
+                      </p>
+                    </div>
+                    <button
+                      type='button'
+                      onClick={() =>
+                        setAutoTailorInBulk(!autoTailorInBulk)
+                      }
+                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${autoTailorInBulk ? "bg-brand" : "bg-foreground/20"}`}
+                      role='switch'
+                      aria-checked={autoTailorInBulk}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${autoTailorInBulk ? "translate-x-4" : "translate-x-0"}`}
+                      />
+                    </button>
                   </div>
 
                   {/* True Autonomy Toggle */}
@@ -7441,6 +7857,15 @@ export const JobPage = (): JSX.Element => {
                         )}
 
                         <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-2'>
+                          <Button
+                            variant='outline'
+                            onClick={() => handleOpenTailorModal(j)}
+                            className='inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-brand/50 bg-brand/10 text-brand px-3 py-2 text-[13px] font-semibold transition hover:bg-brand hover:text-black'
+                            title='Tailor resume specifically to this job description and recalculate match confidence (~95%)'
+                          >
+                            <Sparkles className='w-3.5 h-3.5' />
+                            Tailor Resume
+                          </Button>
                           {primaryHref && (
                             <a
                               href={primaryHref}
@@ -7681,6 +8106,379 @@ export const JobPage = (): JSX.Element => {
         confirmText='Delete All'
         cancelText='Cancel'
       />
+      <Modal
+        open={Boolean(searchFeedbackModal?.open)}
+        onOpenChange={(open) => !open && setSearchFeedbackModal(null)}
+        title={searchFeedbackModal?.title || "Search Notice"}
+      >
+        <div className="space-y-4 p-4">
+          <div className="flex items-start gap-3">
+            <div
+              className={cn(
+                "rounded-full p-2 shrink-0 mt-0.5",
+                searchFeedbackModal?.type === "error"
+                  ? "bg-red-500/10 text-red-400"
+                  : "bg-amber-500/10 text-amber-400",
+              )}
+            >
+              {searchFeedbackModal?.type === "error" ? (
+                <AlertTriangle className="h-5 w-5" />
+              ) : (
+                <AlertCircle className="h-5 w-5" />
+              )}
+            </div>
+            <div className="space-y-2 text-sm text-neutral-300">
+              <p className="leading-relaxed whitespace-pre-line">
+                {searchFeedbackModal?.message}
+              </p>
+              {searchFeedbackModal?.creditsRefunded && (
+                <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-400 border border-emerald-500/20">
+                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  <span>0 credits charged. 100% of reserved credits remain in your balance.</span>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setSearchFeedbackModal(null)}
+              className="px-4"
+            >
+              Got it
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Seamless Morphing Edit Modal for Target Role / Title and Location */}
+      <AnimatePresence>
+        {editSearchModal && (
+          <div className='fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6'>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => !isSavingProfilePreference && setEditSearchModal(null)}
+              className='fixed inset-0 bg-black/80 backdrop-blur-md'
+            />
+
+            {/* Morphing Modal Card */}
+            <motion.div
+              layoutId={
+                editSearchModal === "title"
+                  ? "morph-search-title-card"
+                  : "morph-search-location-card"
+              }
+              initial={{ opacity: 0, scale: 0.93, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.93, y: 12 }}
+              transition={{ type: "spring", damping: 26, stiffness: 360 }}
+              className='relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-foreground/15 bg-neutral-950 p-6 shadow-2xl text-foreground sm:p-7'
+            >
+              <div className='flex items-center justify-between border-b border-foreground/10 pb-4'>
+                <div className='flex items-center gap-2.5'>
+                  <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-brand/10 border border-brand/20 text-brand'>
+                    {editSearchModal === "title" ? (
+                      <Search className='h-5 w-5' />
+                    ) : (
+                      <MapPin className='h-5 w-5' />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className='text-base font-semibold text-foreground'>
+                      {editSearchModal === "title"
+                        ? "Edit Target Job Title"
+                        : "Edit Job Location & Scope"}
+                    </h3>
+                    <p className='text-xs text-foreground/60'>
+                      {editSearchModal === "title"
+                        ? "Updates your target role in the database for auto-discovery and matching."
+                        : "Updates your geographic search boundary in your user profile."}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type='button'
+                  onClick={() => !isSavingProfilePreference && setEditSearchModal(null)}
+                  className='rounded-lg p-1.5 text-foreground/50 hover:bg-foreground/10 hover:text-foreground transition-colors'
+                  aria-label='Close modal'
+                >
+                  <X className='h-4 w-4' />
+                </button>
+              </div>
+
+              {editSearchModal === "title" ? (
+                <div className='mt-5 space-y-4'>
+                  <div className='space-y-1.5'>
+                    <label className='text-xs font-medium text-foreground/80'>
+                      Target Role / Job Title
+                    </label>
+                    <input
+                      type='text'
+                      value={tempSearchQuery}
+                      onChange={(e) => setTempSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleSaveTitle(true);
+                        }
+                      }}
+                      placeholder='e.g. Senior AI & Backend Developer'
+                      autoFocus
+                      className='w-full rounded-xl border border-foreground/15 bg-neutral-900 px-3.5 py-2.5 text-sm text-foreground placeholder:text-foreground/30 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand'
+                    />
+                  </div>
+
+                  {/* AI-Powered Role suggestions */}
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <div className='flex items-center gap-1.5 text-[11px] font-medium text-foreground/70'>
+                        <Sparkles className='h-3.5 w-3.5 text-brand' />
+                        <span>AI Suggested Target Roles:</span>
+                      </div>
+                      <button
+                        type='button'
+                        disabled={isLoadingAiRoles}
+                        onClick={() => void handleFetchAiRoles()}
+                        className='flex items-center gap-1 text-[11px] font-medium text-brand hover:text-brand/80 transition-colors disabled:opacity-50'
+                      >
+                        {isLoadingAiRoles ? (
+                          <>
+                            <Loader2 className='h-3 w-3 animate-spin' />
+                            <span>Analyzing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className='h-3 w-3' />
+                            <span>AI Re-generate</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className='flex flex-wrap gap-1.5 min-h-[3rem] items-start'>
+                      {isLoadingAiRoles ? (
+                        <div className='flex w-full items-center justify-center py-3 text-xs text-foreground/50 gap-2'>
+                          <Loader2 className='h-3.5 w-3.5 animate-spin text-brand' />
+                          <span>Generating roles tailored to your skills & history...</span>
+                        </div>
+                      ) : (
+                        aiSuggestedRoles.map((role) => (
+                          <button
+                            key={role}
+                            type='button'
+                            onClick={() => setTempSearchQuery(role)}
+                            className={`rounded-lg px-2.5 py-1 text-xs transition-all ${
+                              tempSearchQuery.toLowerCase() === role.toLowerCase()
+                                ? "bg-brand/20 text-brand border border-brand/40 font-medium shadow-sm"
+                                : "bg-neutral-900 border border-foreground/10 text-foreground/70 hover:border-foreground/20 hover:text-foreground"
+                            }`}
+                          >
+                            {role}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className='flex items-center justify-between pt-4 border-t border-foreground/10'>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='sm'
+                      disabled={isSavingProfilePreference}
+                      onClick={() => setEditSearchModal(null)}
+                      className='text-foreground/70 hover:text-foreground'
+                    >
+                      Cancel
+                    </Button>
+                    <div className='flex items-center gap-2'>
+                      <Button
+                        type='button'
+                        variant='secondary'
+                        size='sm'
+                        disabled={isSavingProfilePreference || !tempSearchQuery.trim()}
+                        onClick={() => void handleSaveTitle(false)}
+                      >
+                        {isSavingProfilePreference ? (
+                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                        ) : (
+                          <Check className='mr-2 h-4 w-4 text-emerald-400' />
+                        )}
+                        Save to Profile
+                      </Button>
+                      <Button
+                        type='button'
+                        variant='default'
+                        size='sm'
+                        disabled={isSavingProfilePreference || !tempSearchQuery.trim()}
+                        onClick={() => void handleSaveTitle(true)}
+                        className='bg-brand text-brand-foreground hover:bg-brand/90 shadow-md'
+                      >
+                        {isSavingProfilePreference ? (
+                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                        ) : (
+                          <Search className='mr-2 h-4 w-4' />
+                        )}
+                        Save & Search
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className='mt-5 space-y-4'>
+                  <div className='space-y-1.5'>
+                    <label className='text-xs font-medium text-foreground/80'>
+                      Location Preference
+                    </label>
+                    <input
+                      type='text'
+                      value={tempLocation}
+                      onChange={(e) => setTempLocation(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleSaveLocation(true);
+                        }
+                      }}
+                      placeholder='e.g. Enugu, Nigeria or Remote'
+                      autoFocus
+                      className='w-full rounded-xl border border-foreground/15 bg-neutral-900 px-3.5 py-2.5 text-sm text-foreground placeholder:text-foreground/30 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand'
+                    />
+                  </div>
+
+                  {/* Scope Selector */}
+                  <div className='space-y-1.5'>
+                    <label className='text-xs font-medium text-foreground/80'>
+                      Geographic Scope
+                    </label>
+                    <div className='grid grid-cols-3 gap-1.5 rounded-xl border border-foreground/10 bg-neutral-900/80 p-1'>
+                      {(["city", "country", "global"] as const).map((scope) => (
+                        <button
+                          key={scope}
+                          type='button'
+                          onClick={() => setTempLocationScope(scope)}
+                          className={`rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                            tempLocationScope === scope
+                              ? "bg-brand/20 text-brand border border-brand/30 shadow-sm"
+                              : "text-foreground/60 hover:text-foreground border border-transparent"
+                          }`}
+                        >
+                          {scope === "city"
+                            ? "City Scope"
+                            : scope === "country"
+                              ? "Country Scope"
+                              : "Global / Remote"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* AI-Powered Location suggestions */}
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <div className='flex items-center gap-1.5 text-[11px] font-medium text-foreground/70'>
+                        <Sparkles className='h-3.5 w-3.5 text-brand' />
+                        <span>AI Suggested Locations:</span>
+                      </div>
+                      <button
+                        type='button'
+                        disabled={isLoadingAiLocations}
+                        onClick={() => void handleFetchAiLocations()}
+                        className='flex items-center gap-1 text-[11px] font-medium text-brand hover:text-brand/80 transition-colors disabled:opacity-50'
+                      >
+                        {isLoadingAiLocations ? (
+                          <>
+                            <Loader2 className='h-3 w-3 animate-spin' />
+                            <span>Analyzing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className='h-3 w-3' />
+                            <span>AI Re-generate</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className='flex flex-wrap gap-1.5 min-h-[3rem] items-start'>
+                      {isLoadingAiLocations ? (
+                        <div className='flex w-full items-center justify-center py-3 text-xs text-foreground/50 gap-2'>
+                          <Loader2 className='h-3.5 w-3.5 animate-spin text-brand' />
+                          <span>Generating high-demand hubs & remote markets...</span>
+                        </div>
+                      ) : (
+                        aiSuggestedLocations.map((loc) => (
+                          <button
+                            key={loc}
+                            type='button'
+                            onClick={() => setTempLocation(loc)}
+                            className={`rounded-lg px-2.5 py-1 text-xs transition-all ${
+                              tempLocation.toLowerCase() === loc.toLowerCase()
+                                ? "bg-brand/20 text-brand border border-brand/40 font-medium shadow-sm"
+                                : "bg-neutral-900 border border-foreground/10 text-foreground/70 hover:border-foreground/20 hover:text-foreground"
+                            }`}
+                          >
+                            {loc}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className='flex items-center justify-between pt-4 border-t border-foreground/10'>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='sm'
+                      disabled={isSavingProfilePreference}
+                      onClick={() => setEditSearchModal(null)}
+                      className='text-foreground/70 hover:text-foreground'
+                    >
+                      Cancel
+                    </Button>
+                    <div className='flex items-center gap-2'>
+                      <Button
+                        type='button'
+                        variant='secondary'
+                        size='sm'
+                        disabled={isSavingProfilePreference}
+                        onClick={() => void handleSaveLocation(false)}
+                      >
+                        {isSavingProfilePreference ? (
+                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                        ) : (
+                          <Check className='mr-2 h-4 w-4 text-emerald-400' />
+                        )}
+                        Save to Profile
+                      </Button>
+                      <Button
+                        type='button'
+                        variant='default'
+                        size='sm'
+                        disabled={isSavingProfilePreference}
+                        onClick={() => void handleSaveLocation(true)}
+                        className='bg-brand text-brand-foreground hover:bg-brand/90 shadow-md'
+                      >
+                        {isSavingProfilePreference ? (
+                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                        ) : (
+                          <Search className='mr-2 h-4 w-4' />
+                        )}
+                        Save & Search
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

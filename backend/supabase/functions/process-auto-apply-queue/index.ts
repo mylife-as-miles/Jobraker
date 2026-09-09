@@ -1,605 +1,403 @@
-// backend/supabase/functions/process-auto-apply-queue/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { restoreAutoApplyRunQuota } from "../_shared/feature-limits.ts";
-import { refundUserCredits } from "../_shared/refunds.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { createNotificationRecord } from "../_shared/notification-center.ts";
 
-const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
-const AUTO_APPLY_CREDIT_COST = 5;
-
-function startOfCurrentMonth(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-}
-
-function startOfNextMonth(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-}
-
-async function resolveAutoApplyConcurrencyPeriod(
-  userId: string,
-  serviceClient: any,
-  tier: string,
-) {
-  let periodStart = startOfCurrentMonth().toISOString();
-  let periodEnd = startOfNextMonth().toISOString();
-
-  if (tier !== "Free") {
-    const { data: subscription } = await serviceClient
-      .from("user_subscriptions")
-      .select("current_period_start, current_period_end")
-      .eq("user_id", userId)
-      .eq("status", "active")
-      .gt("current_period_end", new Date().toISOString())
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const subscriptionStart = subscription?.current_period_start;
-    const subscriptionEnd = subscription?.current_period_end;
-    if (subscriptionStart && subscriptionEnd) {
-      periodStart = subscriptionStart;
-      periodEnd = subscriptionEnd;
-    }
-  }
-
-  return { periodStart, periodEnd };
-}
-
-async function refundQueuedAutoApplyLaunch(
-  supabase: any,
-  appRow: { user_id: string; job_id?: string | null; agent_run_id?: string | null },
-  appId: string,
-  reason: string,
-) {
-  try {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("subscription_tier")
-      .eq("id", appRow.user_id)
-      .maybeSingle();
-
-    const tier = profile?.subscription_tier || "Free";
-    const { periodStart, periodEnd } = await resolveAutoApplyConcurrencyPeriod(
-      appRow.user_id,
-      supabase,
-      tier,
-    );
-
-    await restoreAutoApplyRunQuota(supabase, appRow.user_id, periodStart, periodEnd, 1);
-
-    if (appRow.agent_run_id) {
-      try {
-        const { error: settleError } = await supabase.rpc(
-          "check_and_settle_agent_run",
-          { p_agent_run_id: appRow.agent_run_id }
-        );
-        if (settleError) {
-          console.error("Failed to check and settle agent run:", settleError);
-        }
-      } catch (err) {
-        console.error("Error invoking check_and_settle_agent_run:", err);
-      }
-    } else {
-      await refundUserCredits({
-        serviceClient: supabase,
-        userId: appRow.user_id,
-        amount: AUTO_APPLY_CREDIT_COST,
-        description: `Refund: Auto-apply failed to start (${appId})`,
-        referenceType: "refund",
-        referenceId: appId,
-        metadata: {
-          refund_key: `process-auto-apply-queue:${appId}`,
-          application_id: appId,
-          job_id: appRow.job_id,
-          source: "process-auto-apply-queue",
-          reason,
-        },
-      });
-    }
-
-    console.log(`[process-auto-apply-queue] Refunded credits and run quota for user ${appRow.user_id}`);
-  } catch (refundErr) {
-    console.error("[process-auto-apply-queue] Refund failed", refundErr);
-  }
-}
-
-async function recoverStaleAutoApplyRows(supabase: any): Promise<{
-  requeued: number;
-  failed: number;
-}> {
-  const launchingCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-  const workerCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-  const { data: staleRows, error } = await supabase
+async function recoverStaleRtrvrRows(serviceClient: any) {
+  const staleBefore = new Date(Date.now() - 10 * 60_000).toISOString();
+  const { data: rows, error } = await serviceClient
     .from("applications")
-    .select(
-      "id, user_id, job_id, agent_run_id, provider_status, retry_count, updated_at, automation_heartbeat_at",
-    )
+    .select("id, user_id, job_title, company, provider_status, automation_heartbeat_at, retry_count")
     .eq("canonical_stage", "queued")
-    .in("provider_status", ["launching", "waiting_worker", "waiting"])
-    .order("updated_at", { ascending: true })
+    .in("provider_status", ["rtrvr_running", "waiting", "launching", "retrying", "waiting_worker"])
+    .lt("updated_at", staleBefore)
     .limit(200);
+  if (error) throw error;
 
-  if (error) {
-    console.error("[process-auto-apply-queue] stale recovery query failed", error);
-    return { requeued: 0, failed: 0 };
-  }
-
-  let requeued = 0;
-  let failed = 0;
-  for (const row of staleRows ?? []) {
-    const staleCutoff = row.provider_status === "launching"
-      ? new Date(launchingCutoff).getTime()
-      : new Date(workerCutoff).getTime();
-    const updatedAt = new Date(row.updated_at).getTime();
-    if (!Number.isFinite(updatedAt) || updatedAt >= staleCutoff) {
-      continue;
-    }
-    const heartbeatAt = row.automation_heartbeat_at
+  let recovered = 0;
+  for (const row of rows || []) {
+    const heartbeat = row.automation_heartbeat_at
       ? new Date(row.automation_heartbeat_at).getTime()
       : 0;
-    if (heartbeatAt > Date.now() - 10 * 60 * 1000) {
-      continue;
-    }
+    if (heartbeat > Date.now() - 10 * 60_000) continue;
 
-    const nextRetry = Number(row.retry_count || 0) + 1;
-    if (nextRetry <= 3) {
-      const { error: requeueError } = await supabase
+    const retryCount = Number(row.retry_count || 0);
+    if (retryCount >= 2) {
+      await serviceClient
         .from("applications")
         .update({
-          provider_status: "waiting",
-          retry_count: nextRetry,
-          failure_reason: `Recovered stale ${row.provider_status} queue state; retrying (${nextRetry}/3).`,
+          status: "Draft",
+          canonical_stage: "draft_ready",
+          provider_status: "failed",
           automation_claimed_by: null,
           automation_lease_token: null,
           automation_lease_expires_at: null,
-          automation_heartbeat_at: null,
+          failure_reason: "Automation timed out after retries; saved as Draft for manual submission.",
           updated_at: new Date().toISOString(),
         })
-        .eq("id", row.id)
-        .eq("canonical_stage", "queued")
-        .eq("provider_status", row.provider_status);
-      if (!requeueError) requeued += 1;
-      continue;
+        .eq("id", row.id);
+    } else {
+      await serviceClient
+        .from("applications")
+        .update({
+          provider_status: "waiting",
+          automation_claimed_by: null,
+          automation_lease_token: null,
+          automation_lease_expires_at: null,
+          retry_count: retryCount + 1,
+          failure_reason: "Recovered stale runner lease; retrying.",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.id);
+    }
+    recovered += 1;
+  }
+  return { recovered };
+}
+
+async function executeRtrvrApplicationDirect(supabase: any, applicationId: string, rtrvrApiKey: string) {
+  try {
+    const { data: app, error } = await supabase
+      .from("applications")
+      .select("*")
+      .eq("id", applicationId)
+      .single();
+
+    if (error || !app) {
+      console.warn("[process-auto-apply-queue] Application not found:", applicationId);
+      return;
     }
 
-    const reason = `Automation did not leave ${row.provider_status} after 3 recovery attempts.`;
-    const { error: failError } = await supabase
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", app.user_id)
+      .maybeSingle();
+
+    const nowIso = new Date().toISOString();
+    await supabase
       .from("applications")
       .update({
-        canonical_stage: "failed",
-        status: "Failed",
+        provider_status: "rtrvr_running",
+        canonical_stage: "queued",
+        automation_heartbeat_at: nowIso,
+        updated_at: nowIso,
+      })
+      .eq("id", applicationId);
+
+    const applyUrl = app.app_url || "";
+    const rtrvrQueueParams = (app.provider_run_output as any)?.queue_parameters?.rtrvr || {};
+    // apply-to-jobs computes this callback URL and stores it here, but it was
+    // never actually forwarded to the provider, so no status callback could
+    // ever fire. `webhookUrl` is the field name this repo's own AgentPayload
+    // interface (rtrvr-tools/index.ts) models for the RTRVR agent API.
+    const rtrvrWebhookUrl = typeof rtrvrQueueParams.rtrvrWebhookUrl === "string"
+      ? rtrvrQueueParams.rtrvrWebhookUrl.trim()
+      : "";
+    const rtrvrWebhookSecret = typeof rtrvrQueueParams.rtrvrWebhookSecret === "string"
+      ? rtrvrQueueParams.rtrvrWebhookSecret.trim()
+      : "";
+    // Per the RTRVR API reference, callbacks are registered with a `webhooks`
+    // array; the webhooks guide additionally documents a flat `webhookUrl`
+    // shorthand. Send both -- whichever the deployed API version ignores is
+    // simply dropped, and we cannot tell from the docs alone which is live.
+    const webhookRegistration = rtrvrWebhookUrl
+      ? {
+        webhookUrl: rtrvrWebhookUrl,
+        webhooks: [
+          {
+            url: rtrvrWebhookUrl,
+            events: ["rtrvr.execution.succeeded", "rtrvr.execution.failed"],
+            ...(rtrvrWebhookSecret ? { secret: rtrvrWebhookSecret } : {}),
+          },
+        ],
+      }
+      : {};
+    const candidateData = rtrvrQueueParams.candidate || {};
+    const candidateName = candidateData.fullName || candidateData.name || `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || "Candidate";
+    const candidateEmail = candidateData.email || profile?.email || "";
+    const candidatePhone = candidateData.phone || profile?.phone || "";
+    const candidateLocation = candidateData.location || profile?.location || "";
+    const candidateLinkedIn = candidateData.linkedinUrl || profile?.linkedin_url || "";
+    const candidateGithub = candidateData.githubUrl || profile?.github_url || "";
+    const autoSubmit = Boolean(app.auto_apply_auto_submit ?? true);
+
+    const prompt = [
+      `You are JobRaker's governed auto-apply agent for role "${app.job_title}" at "${app.company}".`,
+      `Target Application URL: ${applyUrl}`,
+      `Candidate Verified Details:`,
+      `- Full Name: ${candidateName}`,
+      `- Email: ${candidateEmail}`,
+      `- Phone: ${candidatePhone}`,
+      `- Location: ${candidateLocation}`,
+      `- LinkedIn: ${candidateLinkedIn}`,
+      `- GitHub: ${candidateGithub}`,
+      `Instructions:`,
+      `- Navigate to the job application URL.`,
+      `- Fill in the application fields accurately using the candidate's verified information.`,
+      `- If resume upload is present, attach the candidate's resume.`,
+      `- If 2FA, CAPTCHA, or custom account login is required, report waiting_for_user.`,
+      autoSubmit ? `- Complete and submit the application.` : `- Fill and prepare the form, but do not click final submit (save draft).`,
+    ].join("\n");
+
+    const rtrvrRes = await fetch("https://api.rtrvr.ai/agent", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${rtrvrApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        input: prompt,
+        urls: [applyUrl],
+        response: { verbosity: "final" },
+        ...webhookRegistration,
+      }),
+    });
+
+    const result = await rtrvrRes.json().catch(() => ({}));
+    const finishedAt = new Date().toISOString();
+    const currentRetries = Number(app.retry_count || 0);
+
+    // applications.run_id was previously left null forever, which silently
+    // disabled both async fallbacks: skyvern-webhook correlates on
+    // .eq("run_id", runId) and sync-provider-status resolves
+    // `runId || appRow.run_id`. Neither could ever match. Capture whatever
+    // identifier the provider returns so those paths can reconcile a run whose
+    // direct write-back did not land.
+    // RTRVR identifies a run as `requestId` in its webhook payload, and the
+    // agent response carries a `run` object. Check those first; the remaining
+    // names are defensive across provider/API versions.
+    const providerRunId = [
+      (result as any)?.requestId,
+      (result as any)?.request_id,
+      (result as any)?.run?.id,
+      (result as any)?.run?.run_id,
+      (result as any)?.run?.requestId,
+      (result as any)?.run_id,
+      (result as any)?.runId,
+      (result as any)?.trajectory_id,
+      (result as any)?.task_id,
+      (result as any)?.taskId,
+      (result as any)?.agent_run_id,
+      (result as any)?.id,
+    ].find((value) => typeof value === "string" && value.trim().length > 0) as
+      | string
+      | undefined;
+    const runIdPatch = providerRunId ? { run_id: providerRunId } : {};
+
+    if (rtrvrRes.ok) {
+      const isDraftOnly = !autoSubmit || result?.status === "prepared";
+      await supabase
+        .from("applications")
+        .update({
+          ...runIdPatch,
+          status: isDraftOnly ? "Draft" : "Applied",
+          canonical_stage: isDraftOnly ? "draft_ready" : "submitted",
+          provider_status: isDraftOnly ? "prepared" : "succeeded",
+          applied_date: finishedAt,
+          updated_at: finishedAt,
+          automation_heartbeat_at: finishedAt,
+        })
+        .eq("id", applicationId);
+
+      if (app.job_id) {
+        await supabase
+          .from("jobs")
+          .update({
+            canonical_status: isDraftOnly ? "draft_ready" : "submitted",
+            updated_at: finishedAt,
+          })
+          .eq("id", app.job_id)
+          .eq("user_id", app.user_id);
+      }
+
+      try {
+        await createNotificationRecord(supabase, {
+          userId: app.user_id,
+          type: "application",
+          title: isDraftOnly ? `Draft Prepared: ${app.job_title}` : `Application Submitted: ${app.job_title}`,
+          message: isDraftOnly
+            ? `Your application for ${app.job_title} at ${app.company} is filled and ready for your final review.`
+            : `Your application for ${app.job_title} at ${app.company} was submitted successfully via cloud automation.`,
+          priority: "medium",
+          source: "automation",
+          sourceRecordId: applicationId,
+          sourceRecordType: "application",
+          actionUrl: "/dashboard/applications",
+          actionLabel: "View Application",
+        });
+      } catch (e) {
+        console.warn("[process-auto-apply-queue] notification failed:", e);
+      }
+    } else {
+      console.warn("[process-auto-apply-queue] RTRVR execution result:", rtrvrRes.status, result);
+      const isCreditExhausted =
+        rtrvrRes.status === 402 ||
+        /credit balance is 0|insufficient credits|add credits/i.test(
+          String(result?.error || result?.message || ""),
+        );
+      const isNonRetryable =
+        isCreditExhausted ||
+        rtrvrRes.status === 401 ||
+        rtrvrRes.status === 403 ||
+        rtrvrRes.status === 404 ||
+        currentRetries >= 2;
+
+      const failureMsg = isCreditExhausted
+        ? "Cloud browser automation credits are currently depleted on RTRVR. Saved as Draft for manual submission."
+        : isNonRetryable
+          ? `Cloud automation error (${result?.message || result?.error || `HTTP ${rtrvrRes.status}`}). Saved as Draft for manual review.`
+          : (result?.error || result?.message || "RTRVR temporary error");
+
+      await supabase
+        .from("applications")
+        .update({
+          ...runIdPatch,
+          status: isNonRetryable ? "Draft" : "Pending",
+          canonical_stage: isNonRetryable ? "draft_ready" : "queued",
+          provider_status: isNonRetryable ? "failed" : "waiting",
+          retry_count: currentRetries + 1,
+          failure_reason: failureMsg,
+          updated_at: finishedAt,
+          automation_heartbeat_at: finishedAt,
+        })
+        .eq("id", applicationId);
+
+      if (isNonRetryable && app.agent_run_id) {
+        try {
+          await supabase.rpc("settle_run_credits", {
+            p_agent_run_id: app.agent_run_id,
+            p_actual_credits: 0,
+            p_status: "failed",
+            p_failure_reason: failureMsg,
+            p_receipt: { provider_status: "failed", error: failureMsg },
+          });
+        } catch (settleErr) {
+          console.warn("[process-auto-apply-queue] credit settlement error:", settleErr);
+        }
+      }
+
+      if (isNonRetryable) {
+        try {
+          await createNotificationRecord(supabase, {
+            userId: app.user_id,
+            type: "application",
+            title: `Application Saved as Draft: ${app.job_title}`,
+            message: `Cloud auto-apply for ${app.job_title} at ${app.company} could not complete automatically (${failureMsg}). Your application draft was preserved with full answers for manual submission.`,
+            priority: "high",
+            source: "automation",
+            sourceRecordId: applicationId,
+            sourceRecordType: "application",
+            actionUrl: "/dashboard/applications",
+            actionLabel: "Review Draft",
+          });
+        } catch (e) {
+          console.warn("[process-auto-apply-queue] failure notification failed:", e);
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error("[process-auto-apply-queue] executeRtrvrApplicationDirect error:", err);
+    await supabase
+      .from("applications")
+      .update({
+        status: "Draft",
+        canonical_stage: "draft_ready",
         provider_status: "failed",
-        retry_count: nextRetry,
-        failure_reason: reason,
-        automation_claimed_by: null,
-        automation_lease_token: null,
-        automation_lease_expires_at: null,
-        automation_heartbeat_at: null,
+        failure_reason: `Automation error: ${err?.message || "Unexpected exception"}. Saved as Draft.`,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", row.id)
-      .eq("canonical_stage", "queued")
-      .eq("provider_status", row.provider_status);
-    if (failError) continue;
-
-    if (row.job_id) {
-      await supabase
-        .from("jobs")
-        .update({ canonical_status: "failed", updated_at: new Date().toISOString() })
-        .eq("id", row.job_id);
-    }
-    await refundQueuedAutoApplyLaunch(supabase, row, row.id, reason);
-    failed += 1;
+      .eq("id", applicationId);
   }
-
-  return { requeued, failed };
 }
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+  if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
 
   try {
-    // 1. Verify authorization
-    const authHeader = req.headers.get("authorization");
-    const token = authHeader?.replace(/^Bearer\s+/i, "");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!serviceRoleKey) {
-      console.error("[process-auto-apply-queue] SUPABASE_SERVICE_ROLE_KEY is not configured");
-      return new Response(
-        JSON.stringify({ error: "Queue service configuration is unavailable.", code: "SERVICE_ROLE_CONFIGURATION_MISSING" }),
-        { status: 500, headers: corsHeaders },
-      );
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+    
+    let isAuthorized = Boolean(serviceRoleKey && token === serviceRoleKey);
+    if (!isAuthorized && token) {
+      const authClient = createClient(Deno.env.get("SUPABASE_URL") || "", anonKey || serviceRoleKey, {
+        auth: { persistSession: false },
+      });
+      const { data: userData } = await authClient.auth.getUser(token);
+      if (userData?.user) {
+        isAuthorized = true;
+      }
     }
 
-    if (!token || token !== serviceRoleKey) {
+    if (!isAuthorized) {
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
+    const rtrvrApiKey = (
+      Deno.env.get("RTRVR_API_KEY") ||
+      Deno.env.get("FIRECRAWL_API_KEY") ||
+      ""
+    ).trim();
+    if (!rtrvrApiKey) {
+      return new Response(JSON.stringify({ error: "RTRVR is not configured", code: "rtrvr_not_configured" }), {
+        status: 503, headers: { ...corsHeaders, "content-type": "application/json" },
+      });
+    }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey!, {
+    const supabase = createClient(Deno.env.get("SUPABASE_URL") || "", serviceRoleKey, {
       auth: { persistSession: false },
     });
+    const recovery = await recoverStaleRtrvrRows(supabase);
+    const platformLimit = Math.max(1, Number(Deno.env.get("AUTO_APPLY_MAX_CONCURRENCY") || 10));
+    const { data, error } = await supabase.rpc("acquire_next_auto_apply_jobs", {
+      p_platform_max_concurrency: platformLimit,
+    });
+    if (error) throw error;
 
-    const skyvernKey = Deno.env.get("SKYVERN_API_KEY");
-
-    const recovery = await recoverStaleAutoApplyRows(supabase);
-    if (recovery.requeued > 0 || recovery.failed > 0) {
-      console.info("[process-auto-apply-queue] stale recovery complete", recovery);
-    }
-
-    // 2. Resolve platform-wide concurrency limit
-    const rawLimit = Deno.env.get("AUTO_APPLY_MAX_CONCURRENCY") || "10";
-    const platformConcurrencyLimit = parseInt(rawLimit, 10) || 10;
-
-    // 3. Acquire candidate applications to run
-    const { data: candidateIds, error: acquireError } = await supabase.rpc(
-      "acquire_next_auto_apply_jobs",
-      { p_platform_max_concurrency: platformConcurrencyLimit }
-    );
-
-    if (acquireError) {
-      console.error("[process-auto-apply-queue] acquire Candidates RPC error:", acquireError);
-      return new Response(
-        JSON.stringify({ error: "Unable to acquire queued applications.", code: "QUEUE_ACQUISITION_FAILED" }),
-        { status: 500, headers: corsHeaders },
-      );
-    }
-
-    const ids = Array.isArray(candidateIds)
-      ? candidateIds
-          .map((row: any) => (typeof row === "string" ? row : row?.application_id))
-          .filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
+    const applicationIds = Array.isArray(data)
+      ? data.map((row: unknown) => typeof row === "string" ? row : (row as { application_id?: string })?.application_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
       : [];
-    if (ids.length === 0) {
-      return new Response(JSON.stringify({ success: true, launched: 0, recovery }), { status: 200, headers: corsHeaders });
-    }
 
-    console.log(`[process-auto-apply-queue] Found ${ids.length} candidates to process.`);
-
-    // 4. Launch each candidate application run sequentially
-    let launchedCount = 0;
-    for (const appId of ids) {
-      const { data: appRow, error: fetchError } = await supabase
-        .from("applications")
-        .select("user_id, job_id, provider_run_output, retry_count, agent_run_id")
-        .eq("id", appId)
-        .single();
-
-      if (fetchError || !appRow) {
-        console.error(`[process-auto-apply-queue] Failed to load application ${appId}`, fetchError);
-        continue;
-      }
-
-      const previousRunOutput =
-        appRow.provider_run_output && typeof appRow.provider_run_output === "object"
-          ? appRow.provider_run_output
-          : {};
-      const queueParams = appRow.provider_run_output?.queue_parameters;
-      if (!queueParams) {
-        console.error(`[process-auto-apply-queue] No queue parameters found for application ${appId}`);
-        // Mark failed permanently
-        await supabase
-          .from("applications")
-          .update({
-            canonical_stage: "failed",
-            status: "Failed",
-            provider_status: "failed",
-            failure_reason: "Invalid queue parameters configuration",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", appId);
-        await refundQueuedAutoApplyLaunch(
-          supabase,
-          appRow,
-          appId,
-          "Invalid queue parameters configuration",
-        );
-        continue;
-      }
-
-      const queueProvider =
-        typeof queueParams.provider === "string" ? queueParams.provider : "skyvern";
-
-      if (queueProvider === "rtrvr") {
-        const rtrvrKey = Deno.env.get("RTRVR_API_KEY");
-        const rtrvrParams = queueParams.rtrvr && typeof queueParams.rtrvr === "object"
-          ? queueParams.rtrvr as Record<string, unknown>
-          : null;
-
-        if (rtrvrKey && rtrvrParams) {
-          const appUrl = String(rtrvrParams.applicationUrl || appRow.job_url || "");
-          const candidate = rtrvrParams.candidate || {};
-          const job = rtrvrParams.job || {};
-          const resume = rtrvrParams.resume || {};
-          const coverLetter = rtrvrParams.coverLetter || "";
-
-          const baseSupabaseUrl = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
-          const webhookSecret = Deno.env.get("RTRVR_WEBHOOK_SECRET") || "";
-          const rtrvrWebhookUrl = baseSupabaseUrl
-            ? `${baseSupabaseUrl}/functions/v1/skyvern-webhook` + (webhookSecret ? `?token=${encodeURIComponent(webhookSecret)}` : "")
-            : undefined;
-
-          const promptInput = `Navigate to ${appUrl} and apply for the position of "${(job as any).title || appRow.job_title || 'Job'}" at "${(job as any).company || appRow.company || 'Company'}". ` +
-            `Fill out all required form fields using candidate information: ${JSON.stringify(candidate)}. ` +
-            `${(resume as any)?.signedUrl ? `Resume download URL: ${(resume as any).signedUrl}. ` : ""}` +
-            `${coverLetter ? `Cover letter: ${coverLetter}. ` : ""}` +
-            `Submit the application form when complete.`;
-
-          console.log(`[process-auto-apply-queue] Launching RTRVR Cloud API task for application ${appId}`);
-
-          try {
-            const rtrvrRes = await fetch("https://api.rtrvr.ai/agent", {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${rtrvrKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                input: promptInput,
-                urls: appUrl ? [appUrl] : [],
-                ...(rtrvrWebhookUrl ? {
-                  webhooks: [
-                    {
-                      url: rtrvrWebhookUrl,
-                      events: ["rtrvr.execution.succeeded", "rtrvr.execution.failed"],
-                    },
-                  ],
-                } : {}),
-                response: { verbosity: "final" },
-              }),
-            });
-
-            const rtrvrData = await rtrvrRes.json().catch(() => ({}));
-
-            if (rtrvrRes.ok) {
-              const runId = String(rtrvrData.id || rtrvrData.run_id || rtrvrData.taskId || crypto.randomUUID());
-              await supabase
-                .from("applications")
-                .update({
-                  run_id: runId,
-                  status: "Applied",
-                  provider_status: "running",
-                  canonical_stage: "submitted",
-                  automation_provider: "rtrvr",
-                  provider_run_output: {
-                    ...previousRunOutput,
-                    rtrvr_response: rtrvrData,
-                    launched_at: new Date().toISOString(),
-                  },
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", appId);
-
-              console.log(`[process-auto-apply-queue] Successfully launched RTRVR task for application ${appId} (run_id: ${runId})`);
-              continue;
-            } else {
-              console.warn(`[process-auto-apply-queue] RTRVR Cloud API returned ${rtrvrRes.status}: ${JSON.stringify(rtrvrData)}. Falling back to Skyvern if available.`);
-            }
-          } catch (rtrvrErr) {
-            console.error(`[process-auto-apply-queue] Failed to call RTRVR Cloud API for ${appId}:`, rtrvrErr);
-          }
-        }
-
-        // If RTRVR Cloud API was not configured or failed, check if Skyvern is configured as fallback
-        const hasSkyvernFallback = Boolean(skyvernKey && (queueParams.skyvern || (workflowId && parameters)));
-        if (!hasSkyvernFallback) {
-          const reason = "RTRVR API key not configured or execution failed, and no Skyvern fallback available.";
-          console.error(`[process-auto-apply-queue] ${reason} for application ${appId}`);
-          await supabase
-            .from("applications")
-            .update({
-              canonical_stage: "failed",
-              status: "Failed",
-              provider_status: "failed",
-              failure_reason: reason,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", appId);
-          await refundQueuedAutoApplyLaunch(supabase, appRow, appId, reason);
-          continue;
-        }
-        console.log(`[process-auto-apply-queue] RTRVR direct launch unavailable, falling through to Skyvern for ${appId}`);
-      }
-
-      const skyvernQueue =
-        queueParams.skyvern && typeof queueParams.skyvern === "object"
-          ? queueParams.skyvern
-          : queueParams;
-      const { workflow_id, parameters, proxy_location, webhook_url, title, max_steps_override } = skyvernQueue;
-
-      if (!skyvernKey || !workflow_id) {
-        const reason = !skyvernKey
-          ? "SKYVERN_API_KEY is not configured"
-          : "Skyvern workflow_id is not configured";
-        console.error(`[process-auto-apply-queue] ${reason} for application ${appId}`);
-        await supabase
-          .from("applications")
-          .update({
-            canonical_stage: "failed",
-            status: "Failed",
-            provider_status: "failed",
-            failure_reason: reason,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", appId);
-        await refundQueuedAutoApplyLaunch(supabase, appRow, appId, reason);
-        continue;
-      }
-
-      const skyvernRun: Record<string, unknown> = {
-        workflow_id,
-        parameters,
-      };
-      if (proxy_location) skyvernRun.proxy_location = proxy_location;
-      if (webhook_url) skyvernRun.webhook_url = webhook_url;
-      if (title) skyvernRun.title = title;
-
-      const skyvernHeaders: Record<string, string> = {
-        "content-type": "application/json",
-        "x-api-key": skyvernKey,
-        "x-max-steps-override": String(max_steps_override || 200),
-      };
-
-      try {
-        console.log(`[process-auto-apply-queue] Launching Skyvern run for application ${appId}`);
-        const response = await fetch(SKYVERN_ENDPOINT, {
-          method: "POST",
-          headers: skyvernHeaders,
-          body: JSON.stringify(skyvernRun),
-        });
-
-        const text = await response.text();
-        let data: any = null;
-        try {
-          data = JSON.parse(text);
-        } catch {
-          data = { raw: text };
-        }
-
-        if (!response.ok) {
-          const skyvernMessage = data?.detail || data?.message || data?.error || data?.raw || "";
-          const isRateLimitOrServerErr = response.status === 429 || response.status >= 500;
-
-          if (isRateLimitOrServerErr) {
-            // Temporary error: increment retry counter and leave as waiting
-            const nextRetries = (appRow.retry_count || 0) + 1;
-            if (nextRetries <= 3) {
-              console.warn(`[process-auto-apply-queue] Temporary error ${response.status} from Skyvern. Retrying later (${nextRetries}/3).`);
-              await supabase
-                .from("applications")
-                .update({
-                  provider_status: "waiting",
-                  retry_count: nextRetries,
-                  failure_reason: `Temporary automation launch error ${response.status}; retrying shortly.`,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", appId);
-              continue;
-            }
-          }
-
-          // Permanent error (or exceeded retries)
-          const reason =
-            response.status === 401 || response.status === 403
-              ? "Automation service API key is invalid or expired. Please contact support."
-              : response.status === 404
-                ? "Automation template not found. Please contact support."
-                : response.status === 422
-                  ? `Automation service rejected the request: ${skyvernMessage}`
-                  : `Automation service returned error ${response.status}: ${skyvernMessage}`;
-
-          console.error(`[process-auto-apply-queue] Skyvern permanent error ${response.status}: ${reason}`);
-
-          // Mark application failed
-          await supabase
-            .from("applications")
-            .update({
-              canonical_stage: "failed",
-              status: "Failed",
-              provider_status: "failed",
-              failure_reason: reason,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", appId);
-
-          if (appRow.job_id) {
-            await supabase
-              .from("jobs")
-              .update({
-                canonical_status: "failed",
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", appRow.job_id);
-          }
-
-          await refundQueuedAutoApplyLaunch(supabase, appRow, appId, reason);
-          continue;
-        }
-
-        // Success: update application with the launched Skyvern run_id
-        const runId = data?.run_id || data?.id;
-        if (runId) {
-          await supabase
-            .from("applications")
-            .update({
-              run_id: runId,
-              provider_status: data.status || "pending",
-              provider_run_output: {
-                ...previousRunOutput,
-                launch_response: data,
-                queue_parameters: queueParams,
-              },
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", appId);
-
-          launchedCount++;
-          console.log(`[process-auto-apply-queue] Successfully launched application ${appId} with run_id ${runId}`);
-        } else {
-          const reason = "Automation service did not return a run ID.";
-          await supabase
-            .from("applications")
-            .update({
-              canonical_stage: "failed",
-              status: "Failed",
-              provider_status: "failed",
-              failure_reason: reason,
-              provider_run_output: {
-                ...previousRunOutput,
-                launch_response: data,
-                queue_parameters: queueParams,
-              },
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", appId);
-          await refundQueuedAutoApplyLaunch(supabase, appRow, appId, reason);
-        }
-
-      } catch (err) {
-        console.error(`[process-auto-apply-queue] Unexpected error launching application ${appId}`, err);
-        const nextRetries = (appRow.retry_count || 0) + 1;
-        await supabase
-          .from("applications")
-          .update({
-            provider_status: nextRetries <= 3 ? "waiting" : "failed",
-            canonical_stage: nextRetries <= 3 ? "queued" : "failed",
-            status: nextRetries <= 3 ? "Pending" : "Failed",
-            retry_count: nextRetries,
-            failure_reason:
-              nextRetries <= 3
-                ? "Temporary automation launch error; retrying shortly."
-                : "Automation failed to launch after multiple attempts.",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", appId);
-        if (nextRetries > 3) {
-          await refundQueuedAutoApplyLaunch(
-            supabase,
-            appRow,
-            appId,
-            "Automation failed to launch after multiple attempts.",
-          );
-        }
-      }
-    }
-
-    return new Response(JSON.stringify({ success: true, launched: launchedCount, recovery }), {
-      status: 200,
-      headers: corsHeaders,
+    // Trigger direct cloud execution for claimed applications
+    const executionPromise = Promise.all(
+      applicationIds.map((id) => executeRtrvrApplicationDirect(supabase, id, rtrvrApiKey))
+    ).catch((err) => {
+      console.error("[process-auto-apply-queue] execution batch failed", err);
     });
 
-  } catch (error: any) {
-    console.error("[process-auto-apply-queue] Server error:", error);
-    return new Response(JSON.stringify({ error: "Unable to process the Auto Apply queue.", code: "AUTO_APPLY_QUEUE_FAILED" }), {
-      status: 500,
-      headers: corsHeaders,
+    // ALWAYS keep the work alive past the response. This used to be an
+    // either/or: batches of 1-2 took the early race branch and never
+    // registered waitUntil, so once the 8s race resolved we returned, the
+    // isolate was torn down, and the in-flight RTRVR call was killed before it
+    // could write back "Applied". The row stayed Pending even though the
+    // submission had succeeded -- which is why this only ever bit *single*
+    // auto-applies, never bulk runs.
+    if (typeof (globalThis as any).EdgeRuntime?.waitUntil === "function") {
+      (globalThis as any).EdgeRuntime.waitUntil(executionPromise);
+    }
+
+    // For small batches, still wait briefly so a fast run can report its final
+    // state in this response. Purely an optimization now -- the work completes
+    // either way.
+    if (applicationIds.length > 0 && applicationIds.length <= 2) {
+      await Promise.race([
+        executionPromise,
+        new Promise((resolve) => setTimeout(resolve, 8000)),
+      ]);
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      acquired_and_running: applicationIds.length,
+      recovery,
+    }), { status: 200, headers: { ...corsHeaders, "content-type": "application/json" } });
+  } catch (error) {
+    console.error("rtrvr_queue_failed", error);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unable to queue RTRVR automation" }), {
+      status: 500, headers: { ...corsHeaders, "content-type": "application/json" },
     });
   }
 });

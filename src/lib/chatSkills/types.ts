@@ -174,3 +174,56 @@ export type DirectApplyOutput = {
     detail: string;
   };
 };
+
+export type ColdMailRecipient = {
+  email: string;
+  name?: string;
+  title?: string;
+  source: string;
+  confidence: "high" | "medium";
+};
+
+export type ColdMailTarget = {
+  jobId: string;
+  searchResultId?: string;
+  jobTitle: string;
+  companyName: string;
+  applyUrl: string;
+  location?: string;
+  source?: string;
+};
+
+export type ColdMailDiscoveryOutput = {
+  success: true;
+  status: "awaiting_target_selection";
+  searchQuery: string;
+  location: string;
+  targets: ColdMailTarget[];
+  agentRunId?: string;
+};
+
+export type ColdMailQuota = {
+  limit: number;
+  used: number;
+  remaining: number;
+  window: "rolling_24_hours";
+  resetAt: string | null;
+};
+
+export type ColdMailOutput = {
+  runId?: string;
+  quota?: ColdMailQuota;
+  preparation: {
+    jobId: string | null;
+    companyName: string;
+    jobTitle: string;
+    recipient: ColdMailRecipient;
+    subject: string;
+    body: string;
+  };
+  preparationToken: string;
+  agents: Array<{
+    id: string;
+    status: "completed" | "awaiting_approval";
+  }>;
+};

@@ -3,9 +3,15 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 
 type SendEmailPayload = {
   to?: string | string[];
+  recipients?: string | string[];
+  recipient?: string;
+  email?: string;
   subject?: string;
   html?: string;
   text?: string;
+  body?: string;
+  message?: string;
+  content?: string;
   from?: string;
   reply_to?: string;
   replyTo?: string;
@@ -61,16 +67,39 @@ serve(async (req) => {
     return new Response("Invalid JSON payload", { status: 400, headers: corsHeaders });
   }
 
-  const to = normalizeRecipients(payload.to);
+  const recipientInput =
+    payload.to ?? payload.recipients ?? payload.recipient ?? payload.email;
+  const to = normalizeRecipients(recipientInput);
   const subject = String(payload.subject || "").trim();
-  const html = typeof payload.html === "string" ? payload.html : undefined;
-  const text = typeof payload.text === "string" ? payload.text : undefined;
+  const html =
+    typeof payload.html === "string" && payload.html.trim()
+      ? payload.html
+      : undefined;
+  const textCandidate =
+    payload.text ?? payload.body ?? payload.message ?? payload.content;
+  const text =
+    typeof textCandidate === "string" && textCandidate.trim()
+      ? textCandidate
+      : undefined;
 
-  if (to.length === 0 || !subject || (!html && !text)) {
-    return new Response("Missing to, subject, and html or text", {
-      status: 400,
-      headers: corsHeaders,
-    });
+  const missing = [
+    ...(to.length === 0 ? ["to"] : []),
+    ...(!subject ? ["subject"] : []),
+    ...(!html && !text ? ["html_or_text"] : []),
+  ];
+  if (missing.length > 0) {
+    console.warn("send-email rejected incomplete payload", { missing });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Missing required email fields.",
+        missing,
+      }),
+      {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 
   const response = await fetch("https://api.resend.com/emails", {

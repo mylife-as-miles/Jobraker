@@ -8,18 +8,27 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => (
 // Back-compat wrapper to support existing calls like `const { addToast } = useToast()`
 export function useToast() {
 	const core = useCoreToast();
-	return {
-		addToast: (opts: { title?: string; description?: React.ReactNode; variant?: string; duration?: number }) => {
+	const addToast = React.useCallback(
+		(opts: { title?: string; description?: React.ReactNode; variant?: string; duration?: number }) => {
 			const mapped = opts.variant === "destructive" ? "error" : (opts.variant as any);
 			core.notify({ title: opts.title, description: opts.description, variant: mapped, duration: opts.duration });
 		},
-		// Also expose the richer API if needed downstream
-		notify: core.notify,
-		success: core.success,
-		error: core.error,
-		info: core.info,
-		warning: core.warning,
-	} as const;
+		[core.notify],
+	);
+
+	return React.useMemo(
+		() =>
+			({
+				addToast,
+				// Also expose the richer API if needed downstream
+				notify: core.notify,
+				success: core.success,
+				error: core.error,
+				info: core.info,
+				warning: core.warning,
+			} as const),
+		[addToast, core.notify, core.success, core.error, core.info, core.warning],
+	);
 }
 
 export default ToastProvider;

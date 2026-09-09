@@ -4,17 +4,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/types.ts";
 import {
   maybeSendProviderCreditAlert,
-  syncFirecrawlCreditUsage,
 } from "../_shared/provider-credits.ts";
 
-const PROVIDERS = new Set(["firecrawl", "rtrvr", "skyvern"]);
+const PROVIDERS = new Set(["rtrvr"]);
 
-function asProvider(value: unknown): "firecrawl" | "rtrvr" | "skyvern" {
+function asProvider(value: unknown): "rtrvr" {
   const provider = String(value || "").trim().toLowerCase();
   if (!PROVIDERS.has(provider)) {
     throw new Error("Unsupported provider");
   }
-  return provider as "firecrawl" | "rtrvr" | "skyvern";
+  return provider as "rtrvr";
 }
 
 function asNonNegativeInteger(value: unknown, fallback = 0): number {
@@ -99,55 +98,6 @@ async function listProviderCredits(serviceClient: any) {
   };
 }
 
-function findFirecrawlBalance(balances: any[]) {
-  return balances.find((balance) => balance?.provider === "firecrawl") || null;
-}
-
-function shouldRefreshSeededFirecrawlBalance(balance: any) {
-  if (!balance) return true;
-
-  const totalCredits = Number(balance.total_credits || 0);
-  const remainingCredits = Number(balance.remaining_credits || 0);
-
-  return (
-    !balance.last_checked_at ||
-    balance.source === "seed" ||
-    remainingCredits > totalCredits ||
-    (totalCredits === 0 && remainingCredits === 0)
-  );
-}
-
-async function listProviderCreditsWithSeedRefresh(serviceClient: any, userId: string) {
-  let list = await listProviderCredits(serviceClient);
-  const firecrawlBalance = findFirecrawlBalance(list.balances);
-
-  if (!shouldRefreshSeededFirecrawlBalance(firecrawlBalance)) {
-    return list;
-  }
-
-  try {
-    const refresh = await syncFirecrawlCreditUsage(serviceClient, {
-      source: "admin_list_auto_refresh",
-      userId,
-    });
-    list = await listProviderCredits(serviceClient);
-    return { ...list, refresh };
-  } catch (error) {
-    console.error("provider-credits.firecrawl_auto_refresh_failed", error);
-    return {
-      ...list,
-      warnings: [
-        {
-          provider: "firecrawl",
-          code: "firecrawl_refresh_failed",
-          message:
-            error instanceof Error ? error.message : "Firecrawl refresh failed",
-        },
-      ],
-    };
-  }
-}
-
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin") || undefined);
 
@@ -174,7 +124,7 @@ serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const action = String(body?.action || "list");
 
-    if (action === "update_balance" || action === "refresh_firecrawl") {
+    if (action === "update_balance") {
       const { data: isEditor, error: editorErr } = await auth.serviceClient.rpc("is_admin_editor", {
         user_id: auth.user.id,
       });
@@ -184,18 +134,6 @@ serve(async (req) => {
           headers: { ...corsHeaders, "content-type": "application/json" },
         });
       }
-    }
-
-    if (action === "refresh_firecrawl") {
-      const refresh = await syncFirecrawlCreditUsage(auth.serviceClient, {
-        source: "admin_refresh",
-        userId: auth.user.id,
-      });
-      const list = await listProviderCredits(auth.serviceClient);
-      return new Response(JSON.stringify({ success: true, refresh, ...list }), {
-        status: 200,
-        headers: { ...corsHeaders, "content-type": "application/json" },
-      });
     }
 
     if (action === "update_balance") {
@@ -232,10 +170,7 @@ serve(async (req) => {
       });
     }
 
-    const list = await listProviderCreditsWithSeedRefresh(
-      auth.serviceClient,
-      auth.user.id,
-    );
+    const list = await listProviderCredits(auth.serviceClient);
     return new Response(JSON.stringify({ success: true, ...list }), {
       status: 200,
       headers: { ...corsHeaders, "content-type": "application/json" },

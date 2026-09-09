@@ -8,6 +8,7 @@ import {
   isGeminiAccessDeniedError,
   withModelFallback,
   runMeteredAiCall,
+  createSafeAiErrorResponse,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import {
@@ -128,7 +129,7 @@ function buildFallbackCoverLetter(
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"), req);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -246,9 +247,6 @@ serve(async (req) => {
       return subscriptionErrorResponse(error, corsHeaders);
     }
     console.error("Error in generate-cover-letter:", error);
-    return new Response(JSON.stringify({ error: error.message }), { 
-      status: 500, 
-      headers: { ...corsHeaders, "Content-Type": "application/json" } 
-    });
+    return createSafeAiErrorResponse(error, corsHeaders);
   }
 });

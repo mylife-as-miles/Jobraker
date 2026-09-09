@@ -1,11 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/types.ts";
-import { discoverJobsFirecrawl } from "../_shared/discovery-hybrid.ts";
+import { discoverJobsHybrid } from "../_shared/discovery-hybrid.ts";
 import {
   countDisplayableJobsForSearch,
   persistDiscoveredJobs,
 } from "../_shared/jobs.ts";
-import { syncFirecrawlCreditUsage } from "../_shared/provider-credits.ts";
+import { syncRtrvrCreditUsage } from "../_shared/provider-credits.ts";
 import {
   requireAuthenticatedUser,
   resolveJobSearchExecutionLimits,
@@ -96,7 +96,8 @@ async function runDiscoveryForUser(
 
   const searchStartedAt = new Date().toISOString();
   let totalInserted = 0;
-  const { jobs: discoveredJobs } = await discoverJobsFirecrawl(
+  const pendingFormatting: Promise<unknown>[] = [];
+  const { jobs: discoveredJobs } = await discoverJobsHybrid(
     {
       serviceClient,
       userId,
@@ -105,22 +106,29 @@ async function runDiscoveryForUser(
       limit: effectiveLimit,
     },
     async (batch) => {
-      const { jobsInserted: batchInserted } = await persistDiscoveredJobs(
-        serviceClient,
-        batch,
-        {
-          userId,
-          searchQuery,
-          location,
-          trigger,
-          requestedLimit,
-          effectiveLimit,
-          subscriptionTier,
-        },
-      );
+      const { jobsInserted: batchInserted, formattingTask } =
+        await persistDiscoveredJobs(
+          serviceClient,
+          batch,
+          {
+            userId,
+            searchQuery,
+            location,
+            trigger,
+            requestedLimit,
+            effectiveLimit,
+            subscriptionTier,
+          },
+        );
+      if (formattingTask) pendingFormatting.push(formattingTask);
       totalInserted += batchInserted;
     },
   );
+
+  // Deferred cosmetic formatting must finish before this run exits.
+  if (pendingFormatting.length > 0) {
+    await Promise.allSettled(pendingFormatting);
+  }
 
   let creditDeduction: unknown = null;
   const displayableJobCount = await countDisplayableJobsForSearch(serviceClient, {
@@ -140,7 +148,7 @@ async function runDiscoveryForUser(
 
   let providerCreditSync: unknown = null;
   try {
-    const syncResult = await syncFirecrawlCreditUsage(serviceClient, {
+    const syncResult = await syncRtrvrCreditUsage(serviceClient, {
       source: "jobs-cron",
       userId,
       trigger,
@@ -158,7 +166,7 @@ async function runDiscoveryForUser(
       alert: syncResult.alert,
     };
   } catch (providerCreditError) {
-    console.warn("jobs-cron Firecrawl credit sync failed", providerCreditError);
+    console.warn("jobs-cron RTRVR credit ledger sync failed", providerCreditError);
   }
 
   return {

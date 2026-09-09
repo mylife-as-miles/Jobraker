@@ -9,6 +9,7 @@ import {
   CreditsExhaustedUpgradeDialog,
   readExhaustedCreditsSnoozeUntil,
 } from "@/components/CreditsExhaustedUpgradeDialog";
+import { OutOfCreditsModal } from "@/components/OutOfCreditsModal";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import {
@@ -85,6 +86,32 @@ const ReferralsPage = lazyWithRetry(() => import("./pages/ReferralsPage"), "Refe
 const AccountLibraryPage = lazyWithRetry(() => import("./pages/AccountLibraryPage"), "AccountLibraryPage");
 const HelpCenterPage = lazyWithRetry(() => import("./pages/HelpCenterPage"), "HelpCenterPage");
 
+const pageImporters: Record<string, () => Promise<unknown>> = {
+  overview: () => import("./pages/OverviewPage"),
+  analytics: () => import("./pages/AnalyticsPage"),
+  jobs: () => import("./pages/JobPage"),
+  application: () => import("./pages/ApplicationPage"),
+  settings: () => import("./pages/SettingsPage"),
+  notifications: () => import("./pages/NotificationPage"),
+  profile: () => import("./pages/ProfilePage"),
+  chat: () => import("./pages/ChatPage"),
+  pricing: () => import("../Pricing"),
+  billing: () => import("./pages/BillingPage"),
+  "interview-studio": () => import("./pages/InterviewStudioPage"),
+  resume: () => import("./pages/ResumePage"),
+  "cover-letter": () => import("./pages/CoverLetterPage"),
+  referrals: () => import("./pages/ReferralsPage"),
+  account: () => import("./pages/AccountLibraryPage"),
+  help: () => import("./pages/HelpCenterPage"),
+};
+
+export function prefetchDashboardPage(page: string) {
+  const importer = pageImporters[page];
+  if (importer) {
+    void importer();
+  }
+}
+
 function DashboardPageFallback() {
   return null;
 }
@@ -119,31 +146,22 @@ type SubscriptionTier = "Free" | "Starter" | "Basics" | "Pro" | "Ultimate";
 function SidebarPlanCardSkeleton({ isCollapsed }: { isCollapsed?: boolean }) {
   return (
     <div
-      className={`group relative overflow-hidden rounded-xl border border-border/60 bg-gradient-to-b from-card to-background ${
-        isCollapsed ? "p-2 flex justify-center" : "p-4"
+      className={`rounded-2xl border border-foreground/10 bg-card/60 backdrop-blur-xl p-3 sm:p-3.5 space-y-2.5 animate-pulse ${
+        isCollapsed ? "hidden" : "block"
       }`}
-      aria-hidden='true'
     >
-      <div
-        className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} relative z-10`}
-      >
-        {!isCollapsed && (
-          <div className='space-y-2'>
-            <Skeleton className='h-5 w-28 rounded-md bg-foreground/[0.06]' />
-            <Skeleton className='h-3 w-36 rounded-md bg-foreground/[0.04]' />
-          </div>
-        )}
-        <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-[#0b2508] ring-1 ring-[#123f10]'>
-          <Skeleton className='h-4 w-4 rounded-sm border-0 bg-[#2aff00]/50' />
+      <div className='flex items-center justify-between gap-2'>
+        <div className='flex items-center gap-2 min-w-0'>
+          <Skeleton className='h-4 w-4 rounded-full flex-shrink-0' />
+          <Skeleton className='h-3.5 w-16 rounded-md' />
         </div>
+        <Skeleton className='h-4 w-12 rounded-full flex-shrink-0' />
       </div>
-
-      {!isCollapsed && (
-        <div className='mt-4 flex items-center gap-2'>
-          <Skeleton className='h-3 w-20 rounded-md bg-foreground/[0.04]' />
-          <Skeleton className='h-3 w-3 rounded-sm bg-foreground/[0.04]' />
-        </div>
-      )}
+      <div className='space-y-1'>
+        <Skeleton className='h-2.5 w-24 rounded-md' />
+        <Skeleton className='h-2.5 w-32 rounded-md' />
+      </div>
+      <Skeleton className='h-7 w-full rounded-xl' />
     </div>
   );
 }
@@ -163,6 +181,8 @@ const SidebarItem = ({
     <Button
       variant='ghost'
       onClick={onClick}
+      onMouseEnter={() => prefetchDashboardPage(item.id)}
+      onFocus={() => prefetchDashboardPage(item.id)}
       className={`w-full justify-start rounded-xl mb-1 transition-all duration-0 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${
         isActive
           ? "text-foreground bg-brand/10 border border-brand/20 hover:bg-brand/10"
@@ -376,14 +396,30 @@ export const Dashboard = (): JSX.Element => {
   const [lowCreditModalOpen, setLowCreditModalOpen] = useState(false);
   const [creditsExhaustedModalOpen, setCreditsExhaustedModalOpen] =
     useState(false);
+  const [outOfCreditsModalOpen, setOutOfCreditsModalOpen] = useState(false);
+  const [outOfCreditsThreshold, setOutOfCreditsThreshold] = useState(300);
   const [sidebarSubscriptionTier, setSidebarSubscriptionTier] =
     useState<SubscriptionTier | null>(null);
+
+  useEffect(() => {
+    const handleOpenOutOfCredits = (e: Event) => {
+      const customEvent = e as CustomEvent<{ threshold?: number }>;
+      if (customEvent.detail?.threshold) {
+        setOutOfCreditsThreshold(customEvent.detail.threshold);
+      }
+      setOutOfCreditsModalOpen(true);
+    };
+    window.addEventListener("jobraker:open-out-of-credits", handleOpenOutOfCredits);
+    return () =>
+      window.removeEventListener("jobraker:open-out-of-credits", handleOpenOutOfCredits);
+  }, []);
 
   useEffect(() => {
     if (creditsLoading) return;
     if (currentPage === "billing") {
       setLowCreditModalOpen(false);
       setCreditsExhaustedModalOpen(false);
+      setOutOfCreditsModalOpen(false);
       return;
     }
     if (!creditBalance) return;
@@ -391,6 +427,7 @@ export const Dashboard = (): JSX.Element => {
     if (!creditPressure.shouldAlert) {
       setLowCreditModalOpen(false);
       setCreditsExhaustedModalOpen(false);
+      setOutOfCreditsModalOpen(false);
       return;
     }
     const creditsExhausted = Math.max(0, Number(creditBalance.balance) || 0) <= 0;
@@ -398,10 +435,11 @@ export const Dashboard = (): JSX.Element => {
       setLowCreditModalOpen(false);
       const snoozeUntil = readExhaustedCreditsSnoozeUntil();
       if (!snoozeUntil || Date.now() >= snoozeUntil) {
-        setCreditsExhaustedModalOpen(true);
+        setOutOfCreditsModalOpen(true);
       }
       return;
     }
+    setOutOfCreditsModalOpen(false);
     setCreditsExhaustedModalOpen(false);
     const snoozeUntil = readSnoozeUntil();
     if (snoozeUntil && Date.now() < snoozeUntil) return;
@@ -745,11 +783,11 @@ export const Dashboard = (): JSX.Element => {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className='h-screen max-h-screen w-screen overflow-hidden bg-background flex'>
+      <div className='h-[calc(100vh-var(--app-banner-h,0px))] max-h-[calc(100vh-var(--app-banner-h,0px))] w-screen overflow-hidden bg-background flex'>
         {/* Sidebar - Desktop Only */}
         <div
           className={`
-        fixed inset-y-0 left-0 z-50 bg-card/95 backdrop-blur-xl border-r border-border/40 hidden lg:flex flex-col overflow-hidden transition-all duration-200
+        fixed bottom-0 top-[var(--app-banner-h,0px)] left-0 z-50 bg-card/95 backdrop-blur-xl border-r border-border/40 hidden lg:flex flex-col overflow-hidden transition-all duration-200
         ${chatFocusMode ? "!hidden" : isCollapsed && isDesktop ? "lg:w-20" : "lg:w-72"}
       `}
         >
@@ -1315,6 +1353,12 @@ export const Dashboard = (): JSX.Element => {
           currentPlan={sidebarSubscriptionTier}
           onExplorePlans={() => navigate("/dashboard/billing?tab=subscription")}
           onExplorePacks={() => navigate("/dashboard/billing?tab=packs")}
+        />
+        <OutOfCreditsModal
+          open={outOfCreditsModalOpen}
+          onOpenChange={setOutOfCreditsModalOpen}
+          threshold={outOfCreditsThreshold}
+          onBuyPacks={() => navigate("/dashboard/billing?tab=packs")}
         />
         {currentPage === "overview" && (
           <OnboardingChecklist

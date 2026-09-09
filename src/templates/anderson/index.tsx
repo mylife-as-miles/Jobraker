@@ -47,8 +47,8 @@ const RIGHT_EXTRA_ORDER = [
   "volunteer",
 ];
 
-const clampLevel = (value?: number) => {
-  if (typeof value !== "number" || Number.isNaN(value)) return 4;
+const clampLevel = (value?: number | null) => {
+  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) return null;
   return Math.max(1, Math.min(5, Math.round(value)));
 };
 
@@ -305,17 +305,19 @@ function DotWindow({ id, tail }: { id: string; tail?: boolean }) {
           return (
             <div key={item.id} className='flex items-center justify-between gap-3'>
               <span className='text-[12.5px] font-bold'>{name}</span>
-              <span className='flex gap-1'>
-                {[1, 2, 3, 4, 5].map((dot) => (
-                  <span
-                    key={dot}
-                    className='h-[9px] w-[9px] rounded-full'
-                    style={{
-                      backgroundColor: dot <= level ? GREEN_DOT : DOT_EMPTY,
-                    }}
-                  />
-                ))}
-              </span>
+              {level !== null && (
+                <span className='flex gap-1'>
+                  {[1, 2, 3, 4, 5].map((dot) => (
+                    <span
+                      key={dot}
+                      className='h-[9px] w-[9px] rounded-full'
+                      style={{
+                        backgroundColor: dot <= level ? GREEN_DOT : DOT_EMPTY,
+                      }}
+                    />
+                  ))}
+                </span>
+              )}
             </div>
           );
         })}

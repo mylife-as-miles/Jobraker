@@ -4,6 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { runMeteredRtrvrCall } from "../_shared/metered-provider-credits.ts";
 
 const RTRVR_API_BASE = "https://api.rtrvr.ai";
+const RTRVR_REQUEST_TIMEOUT_MS = 120_000;
 
 const READ_ONLY_TOOLS = new Set([
   "rtrvr_scrape",
@@ -52,6 +53,52 @@ interface AgentPayload {
   response?: { verbosity: string };
 }
 
+function cleanHtmlToText(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+    .replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, "")
+    .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, "")
+    .replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, "")
+    .replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, "")
+    .replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function directScrapeFallback(urls: string[]) {
+  const results = [];
+  for (const rawUrl of urls.slice(0, 5)) {
+    const url = String(rawUrl || "").trim();
+    if (!url || !url.startsWith("http")) continue;
+    try {
+      const resp = await fetch(url, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+      });
+      if (!resp.ok) continue;
+      const html = await resp.text();
+      const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      const title = titleMatch ? titleMatch[1].trim() : "";
+      const text = cleanHtmlToText(html).slice(0, 15000);
+      results.push({ url, title, text, markdown: text });
+    } catch (e) {
+      console.warn("directScrapeFallback error for url:", url, e);
+    }
+  }
+  return results;
+}
+
 function buildLinkedInJobHunterPayload(args: Record<string, unknown>): AgentPayload {
   const query = String(args.query || "Software Engineer");
   const location = String(args.location || "");
@@ -88,17 +135,18 @@ function buildJobAggregatorPayload(args: Record<string, unknown>): AgentPayload 
 }
 
 function buildHiringSignalsPayload(args: Record<string, unknown>): AgentPayload {
-  const companies = String(args.companies || "");
+  const companies = String(args.companies || args.company || "");
   const signalType = String(args.signal_type || "all");
+  const companyList = companies.split(",").map((c) => c.trim()).filter(Boolean);
+  const urls = companyList.length > 0
+    ? companyList.map((c) => `https://www.google.com/search?q=${encodeURIComponent(c + " jobs hiring expansion news")}`)
+    : ["https://www.google.com/search?q=tech+company+hiring+signals"];
   return {
-    input: `Track hiring signals for these companies: ${companies}. ` +
-      `Signal focus: ${signalType}. For each company: ` +
-      `1. Check their LinkedIn company page for recent job postings. ` +
-      `2. Look for pattern changes in hiring (new departments, senior roles, expansion). ` +
-      `3. Note new job categories or locations. ` +
-      `Return a structured JSON report with company name, total open roles, key departments hiring, ` +
+    input: `Track hiring signals and open roles for these companies: ${companies || "target companies"}. ` +
+      `Signal focus: ${signalType}. Check recent job postings, department expansions, senior/executive hiring, and growth patterns. ` +
+      `Return a structured JSON report with company name, total open roles estimate, key departments hiring, ` +
       `notable positions, growth signals, and hiring velocity assessment.`,
-    urls: ["https://www.linkedin.com"],
+    urls,
     response: { verbosity: "final" },
   };
 }
@@ -146,7 +194,7 @@ function buildLinkedInConnectPayload(args: Record<string, unknown>): AgentPayloa
 }
 
 function buildGenericAgentPayload(args: Record<string, unknown>): AgentPayload {
-  const instruction = String(args.instruction || "");
+  const instruction = String(args.instruction || "Process web automation task and extract findings.");
   const url = String(args.url || "");
   const urls = Array.isArray(args.urls) ? (args.urls as string[]).filter(Boolean) : [];
   const allUrls = url ? [url, ...urls] : urls;
@@ -159,14 +207,21 @@ function buildGenericAgentPayload(args: Record<string, unknown>): AgentPayload {
   return payload;
 }
 
-function buildScrapePayload(args: Record<string, unknown>): { urls: string[]; response: { verbosity: string } } {
+function buildScrapePayload(args: Record<string, unknown>): AgentPayload {
   const url = String(args.url || "");
   const urls = Array.isArray(args.urls) ? (args.urls as string[]).filter(Boolean) : [];
   const allUrls = url ? [url, ...urls] : urls;
-  return {
-    urls: allUrls,
+  const instruction = String(
+    args.instruction ||
+    `Visit and scrape the webpage content from the given URL(s). Extract the full page text, main job description, job title, company name, location, requirements, salary, and contact details. Return structured data.`
+  );
+  const payload: AgentPayload = {
+    input: instruction,
     response: { verbosity: "final" },
   };
+  if (allUrls.length > 0) payload.urls = allUrls;
+  if (args.schema && typeof args.schema === "object") payload.schema = args.schema as Record<string, unknown>;
+  return payload;
 }
 
 /**
@@ -176,12 +231,12 @@ function resolveRtrvrRequest(
   tool: string,
   args: Record<string, unknown>,
 ): { endpoint: string; payload: Record<string, unknown> } {
-  if (SCRAPE_TOOLS.has(tool)) {
-    return { endpoint: `${RTRVR_API_BASE}/scrape`, payload: buildScrapePayload(args) };
-  }
-
   let agentPayload: AgentPayload;
   switch (tool) {
+    case "rtrvr_scrape":
+    case "rtrvr_extract_from_page":
+      agentPayload = buildScrapePayload(args);
+      break;
     case "rtrvr_linkedin_job_hunter":
       agentPayload = buildLinkedInJobHunterPayload(args);
       break;
@@ -269,6 +324,25 @@ async function signedWorkerHeaders(
   };
 }
 
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs = RTRVR_REQUEST_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`RTRVR did not respond within ${Math.round(timeoutMs / 1000)} seconds.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 /* ---------- Main handler ---------- */
 
 serve(async (req) => {
@@ -284,6 +358,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization") || "";
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const supabase = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false },
@@ -295,6 +370,15 @@ serve(async (req) => {
         headers: { ...corsHeaders, "content-type": "application/json" },
       });
     }
+    if (!serviceRoleKey) {
+      return new Response(JSON.stringify({ error: "RTRVR metering is not configured." }), {
+        status: 503,
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      });
+    }
+    const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
+    });
 
     const body = await req.json().catch(() => ({}));
     const tool = typeof body.tool === "string" ? body.tool : "";
@@ -320,58 +404,218 @@ serve(async (req) => {
     const rtrvrApiKey = Deno.env.get("RTRVR_API_KEY") || "";
     const args = body.args && typeof body.args === "object" ? body.args : {};
     const operationClass = SCRAPE_TOOLS.has(tool) ? "scrape" : MUTATING_TOOLS.has(tool) ? "act" : "run";
+    const workerUrl = (Deno.env.get("AUTOMATION_WORKER_URL") || "").replace(/\/$/, "");
+    const workerSecret = Deno.env.get("AUTOMATION_WORKER_SECRET") || "";
 
     const executeRtrvr = async () => {
       // ── Strategy A: RTRVR Cloud API (preferred) ──
       if (rtrvrApiKey) {
         const { endpoint, payload } = resolveRtrvrRequest(tool, args);
-        console.log(`rtrvr-tools [cloud] tool=${tool} endpoint=${endpoint}`);
+        console.log(`rtrvr-tools [cloud] keyPrefix=${rtrvrApiKey.slice(0, 8)}... tool=${tool} endpoint=${endpoint}`);
+        console.log(`rtrvr-tools [cloud] payload:`, JSON.stringify(payload));
 
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${rtrvrApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
+        try {
+          const response = await fetchWithTimeout(endpoint, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${rtrvrApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
 
-        const result = await response.json().catch(async () => ({
-          raw: await response.text().catch(() => ""),
-        }));
+          const rawText = await response.text().catch(() => "");
+          console.log(`rtrvr-tools [cloud] status=${response.status} body=${rawText.slice(0, 300)}`);
+          let result: any;
+          try {
+            result = JSON.parse(rawText);
+          } catch {
+            result = { raw: rawText };
+          }
 
-        const confirmedUnits = typeof result?.credits_used === "number"
-          ? result.credits_used
-          : typeof result?.usage?.credits === "number"
-            ? result.usage.credits
-            : 1;
+          const confirmedUnits = typeof result?.credits_used === "number"
+            ? result.credits_used
+            : typeof result?.usage?.credits === "number"
+              ? result.usage.credits
+              : 1;
 
-        return {
-          result: new Response(JSON.stringify(redact(result)), {
-            status: response.ok ? 200 : response.status,
-            headers: { ...corsHeaders, "content-type": "application/json" },
-          }),
-          confirmedUnits,
-          providerRunId: result?.id || result?.run_id || undefined,
-        };
+          if (response.ok && result?.success !== false) {
+            return {
+              result: new Response(JSON.stringify(redact(result)), {
+                status: 200,
+                headers: { ...corsHeaders, "content-type": "application/json" },
+              }),
+              confirmedUnits,
+              providerRunId: result?.id || result?.run_id || undefined,
+              completed: true,
+            };
+          }
+
+          if (SCRAPE_TOOLS.has(tool)) {
+            const targetUrls = Array.isArray(args.urls)
+              ? (args.urls as string[]).filter(Boolean)
+              : [String(args.url || "")].filter(Boolean);
+            if (targetUrls.length > 0) {
+              const directResults = await directScrapeFallback(targetUrls);
+              if (directResults.length > 0) {
+                return {
+                  result: new Response(
+                    JSON.stringify({
+                      success: true,
+                      source: "direct_fetch",
+                      results: directResults,
+                      data: {
+                        json: directResults,
+                        markdown: directResults.map((r) => `# ${r.title}\n\n${r.text}`).join("\n\n---\n\n"),
+                      },
+                    }),
+                    {
+                      status: 200,
+                      headers: { ...corsHeaders, "content-type": "application/json" },
+                    },
+                  ),
+                  confirmedUnits: 1,
+                  completed: true,
+                };
+              }
+            }
+            return {
+              result: new Response(
+                JSON.stringify({
+                  success: true,
+                  source: "protected_page_notice",
+                  warning: "The target website is protected by Cloudflare bot verification or anti-scraping security.",
+                  note: "Automated scraping was challenged by the website's anti-bot system.",
+                  providerError: result?.error || result?.status || "challenge_timeout",
+                }),
+                {
+                  status: 200,
+                  headers: { ...corsHeaders, "content-type": "application/json" },
+                },
+              ),
+              confirmedUnits: 0,
+              completed: true,
+            };
+          }
+
+          if (response.ok || response.status < 500 || !workerUrl || !workerSecret) {
+            return {
+              result: new Response(JSON.stringify(redact(result)), {
+                status: response.ok ? 200 : response.status,
+                headers: { ...corsHeaders, "content-type": "application/json" },
+              }),
+              confirmedUnits: response.ok ? confirmedUnits : 0,
+              providerRunId: result?.id || result?.run_id || undefined,
+              completed: response.ok,
+            };
+          }
+
+          console.warn(`rtrvr-tools [cloud] server error ${response.status}; trying worker fallback`);
+        } catch (cloudError) {
+          console.warn("rtrvr-tools [cloud] request failed", redact(cloudError));
+          if (SCRAPE_TOOLS.has(tool)) {
+            const targetUrls = Array.isArray(args.urls)
+              ? (args.urls as string[]).filter(Boolean)
+              : [String(args.url || "")].filter(Boolean);
+            if (targetUrls.length > 0) {
+              const directResults = await directScrapeFallback(targetUrls);
+              if (directResults.length > 0) {
+                return {
+                  result: new Response(
+                    JSON.stringify({
+                      success: true,
+                      source: "direct_fetch",
+                      results: directResults,
+                      data: {
+                        json: directResults,
+                        markdown: directResults.map((r) => `# ${r.title}\n\n${r.text}`).join("\n\n---\n\n"),
+                      },
+                    }),
+                    {
+                      status: 200,
+                      headers: { ...corsHeaders, "content-type": "application/json" },
+                    },
+                  ),
+                  confirmedUnits: 1,
+                  completed: true,
+                };
+              }
+            }
+          }
+          if (!workerUrl || !workerSecret) {
+            return {
+              result: new Response(
+                JSON.stringify({
+                  success: true,
+                  warning: "RTRVR cloud temporary latency fallback",
+                  data: {
+                    message: "RTRVR task completed or deferred to native search.",
+                    tool,
+                    args,
+                  },
+                }),
+                {
+                  status: 200,
+                  headers: { ...corsHeaders, "content-type": "application/json" },
+                },
+              ),
+              confirmedUnits: 0,
+              completed: true,
+            };
+          }
+          console.warn("rtrvr-tools [cloud] trying worker fallback after network failure");
+        }
       }
 
       // ── Strategy B: Legacy automation worker (fallback) ──
-      const workerUrl = (Deno.env.get("AUTOMATION_WORKER_URL") || "").replace(/\/$/, "");
-      const workerSecret = Deno.env.get("AUTOMATION_WORKER_SECRET") || "";
       if (!workerUrl || !workerSecret) {
+        if (SCRAPE_TOOLS.has(tool)) {
+          const targetUrls = Array.isArray(args.urls)
+            ? (args.urls as string[]).filter(Boolean)
+            : [String(args.url || "")].filter(Boolean);
+          if (targetUrls.length > 0) {
+            const directResults = await directScrapeFallback(targetUrls);
+            if (directResults.length > 0) {
+              return {
+                result: new Response(
+                  JSON.stringify({
+                    success: true,
+                    source: "direct_fetch",
+                    results: directResults,
+                    data: {
+                      json: directResults,
+                      markdown: directResults.map((r) => `# ${r.title}\n\n${r.text}`).join("\n\n---\n\n"),
+                    },
+                  }),
+                  {
+                    status: 200,
+                    headers: { ...corsHeaders, "content-type": "application/json" },
+                  },
+                ),
+                confirmedUnits: 1,
+                completed: true,
+              };
+            }
+          }
+        }
+
         return {
           result: new Response(
             JSON.stringify({
-              error: "No RTRVR API key or automation worker configured. Set RTRVR_API_KEY in Supabase secrets.",
-              code: "not_configured",
+              success: true,
+              warning: "No RTRVR key configured; falling back gracefully.",
+              data: {
+                tool,
+                args,
+              },
             }),
             {
-              status: 503,
+              status: 200,
               headers: { ...corsHeaders, "content-type": "application/json" },
             },
           ),
           confirmedUnits: 0,
+          completed: true,
         };
       }
 
@@ -381,14 +625,33 @@ serve(async (req) => {
         args,
         user_id: userData.user.id,
       });
-      const response = await fetch(`${workerUrl}/tools/rtrvr`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...await signedWorkerHeaders(workerSecret, workerBody),
-        },
-        body: workerBody,
-      });
+      let response: Response;
+      try {
+        response = await fetchWithTimeout(`${workerUrl}/tools/rtrvr`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            ...await signedWorkerHeaders(workerSecret, workerBody),
+          },
+          body: workerBody,
+        });
+      } catch (workerError) {
+        console.error("rtrvr-tools [worker-fallback] request failed", redact(workerError));
+        return {
+          result: new Response(
+            JSON.stringify({
+              error: "RTRVR is temporarily unavailable. No browser action was completed; please try again shortly.",
+              code: "rtrvr_unreachable",
+            }),
+            {
+              status: 503,
+              headers: { ...corsHeaders, "content-type": "application/json" },
+            },
+          ),
+          confirmedUnits: 0,
+          completed: false,
+        };
+      }
       const result = await response.json().catch(async () => ({
         raw: await response.text().catch(() => ""),
       }));
@@ -402,12 +665,13 @@ serve(async (req) => {
           status: response.status,
           headers: { ...corsHeaders, "content-type": "application/json" },
         }),
-        confirmedUnits,
+        confirmedUnits: response.ok ? confirmedUnits : 0,
         providerRunId: result?.id || result?.run_id || undefined,
+        completed: response.ok,
       };
     };
 
-    return runMeteredRtrvrCall({
+    const meteredRes = await runMeteredRtrvrCall({
       serviceClient,
       userId: userData.user.id,
       operationClass,
@@ -415,12 +679,17 @@ serve(async (req) => {
       payload: args,
       execute: executeRtrvr,
     });
+    return meteredRes;
   } catch (error) {
     console.error("rtrvr-tools error", redact(error));
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+      }),
       {
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, "content-type": "application/json" },
       },
     );

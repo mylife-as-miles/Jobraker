@@ -1,4 +1,4 @@
-export type AutomationProviderName = "rtrvr" | "skyvern";
+export type AutomationProviderName = "rtrvr";
 
 export type BrowserExecutionPreference =
   | "automatic"
@@ -66,14 +66,6 @@ export interface StartApplicationInput {
   selectedDeviceId?: string | null;
   rtrvrWebhookUrl?: string | null;
   rtrvrWebhookSecret?: string | null;
-  skyvern?: {
-    workflowId?: string | null;
-    parameters?: Record<string, unknown>;
-    proxyLocation?: string | null;
-    webhookUrl?: string | null;
-    title?: string | null;
-    maxStepsOverride?: number | null;
-  };
   metadata?: Record<string, unknown>;
 }
 

@@ -37,8 +37,21 @@ import { persistAttributionFromSearch } from "../../lib/utmAttribution";
 import { validatePassword } from "../../utils/password";
 import { useToast } from "../../components/ui/toast-provider";
 import Modal from "../../components/ui/modal";
-import { SelfSolvingCube } from "./components/SelfSolvingCube";
 import { sanitizeTextValue } from "@/lib/inputSecurity";
+
+const SelfSolvingCube = React.lazy(() =>
+  import("./components/SelfSolvingCube").then((mod) => ({
+    default: mod.SelfSolvingCube,
+  }))
+);
+
+function CubeLoadingFallback() {
+  return (
+    <div className='w-64 h-64 rounded-2xl border border-brand/20 bg-brand/5 animate-pulse flex items-center justify-center'>
+      <div className='w-32 h-32 rounded-xl border border-brand/30 bg-brand/10 blur-[1px]' />
+    </div>
+  );
+}
 
 function isAdminHost() {
   return window.location.hostname.startsWith("admin.");
@@ -253,6 +266,7 @@ export const JobrackerSignup = (): JSX.Element => {
   const [mfaCode, setMfaCode] = useState("");
   const [mfaError, setMfaError] = useState<string | null>(null);
   const [mfaVerifying, setMfaVerifying] = useState(false);
+  const mfaVerifyingRef = useRef(false);
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [backupCodeInput, setBackupCodeInput] = useState("");
   const [pendingAuthSession, setPendingAuthSession] = useState<{
@@ -349,9 +363,27 @@ export const JobrackerSignup = (): JSX.Element => {
     })();
   }, [supabase]);
 
+  const formatMfaErrorMessage = (err: any): string => {
+    const raw = String(err?.message || err || "").toLowerCase();
+    if (raw.includes("invalid") || raw.includes("totp") || raw.includes("code") || raw.includes("invalid_grant")) {
+      return "Invalid 2FA code. Please check your authenticator app and try again.";
+    }
+    if (raw.includes("expired")) {
+      return "The 2FA code has expired. Please enter the current code from your authenticator app.";
+    }
+    if (raw.includes("too long") || raw.includes("timeout") || raw.includes("timed out")) {
+      return "Verification request timed out. Please check your connection and try again.";
+    }
+    if (raw.includes("rate") || raw.includes("429") || raw.includes("too many")) {
+      return "Too many attempts. Please wait a few moments before trying again.";
+    }
+    return err?.message || "Verification failed. Check your 2FA code and try again.";
+  };
+
   const handleVerifyMfaChallenge = async (codeToVerify?: string) => {
     const code = (useBackupCode ? backupCodeInput : (codeToVerify || mfaCode)).trim();
-    if (!code || !pendingAuthSession) return;
+    if (!code || !pendingAuthSession || mfaVerifyingRef.current) return;
+    mfaVerifyingRef.current = true;
     setMfaVerifying(true);
     setMfaError(null);
     try {
@@ -377,28 +409,61 @@ export const JobrackerSignup = (): JSX.Element => {
           .update({ used: true, used_at: new Date().toISOString() })
           .eq("id", codeMatch.id);
       } else {
-        if (!mfaFactorId) {
-          throw new Error("2FA Factor ID missing. Please sign in again.");
+        let factorId = mfaFactorId;
+        if (!factorId) {
+          const { data: mfaFactors, error: factorsError } = await (supabase as any).auth.mfa.listFactors();
+          if (factorsError) throw factorsError;
+          const verifiedTotp = ((mfaFactors?.totp ?? []) as Array<{ id: string; status: string }>).find(
+            (factor) => factor.status === "verified",
+          );
+          if (!verifiedTotp) {
+            throw new Error("Two-factor authentication factor not found. Please sign in again.");
+          }
+          factorId = verifiedTotp.id;
+          setMfaFactorId(factorId);
         }
-        const { error } = await withTimeout(
-          (supabase as any).auth.mfa.challengeAndVerify({
-            factorId: mfaFactorId,
-            code,
-          }),
-          15_000,
-          "Verification is taking too long. Please check your connection and try again.",
-        );
-        if (error) throw error;
+
+        let verifyResult: any = null;
+        try {
+          verifyResult = await withTimeout(
+            (supabase as any).auth.mfa.challengeAndVerify({
+              factorId,
+              code,
+            }),
+            20_000,
+            "Verification request timed out. Please check your connection and try again.",
+          );
+        } catch (challengeErr) {
+          try {
+            const { data: challengeData, error: chalErr } = await (supabase as any).auth.mfa.challenge({ factorId });
+            if (chalErr) throw chalErr;
+            verifyResult = await (supabase as any).auth.mfa.verify({
+              factorId,
+              challengeId: challengeData.id,
+              code,
+            });
+          } catch {
+            throw challengeErr;
+          }
+        }
+
+        if (verifyResult?.error) throw verifyResult.error;
       }
 
-      const {
-        data: { session: elevatedSession },
-      } = await withTimeout(
-        supabase.auth.getSession(),
-        5_000,
-        "Your verified session could not be refreshed. Please try again.",
-      );
-      const verifiedSession = elevatedSession ?? pendingAuthSession.session;
+      let verifiedSession = pendingAuthSession.session;
+      try {
+        const { data: sessionData } = await withTimeout(
+          supabase.auth.getSession(),
+          6_000,
+          "session_get_timeout",
+        );
+        if (sessionData?.session?.access_token) {
+          verifiedSession = sessionData.session;
+        }
+      } catch {
+        // Fall back gracefully to current pending session
+      }
+
       if (!verifiedSession?.access_token) {
         throw new Error("Your verified session could not be refreshed. Please sign in again.");
       }
@@ -408,13 +473,15 @@ export const JobrackerSignup = (): JSX.Element => {
       navigate(getPostSignInPath());
     } catch (err: any) {
       console.error("MFA challenge verification error:", err);
-      setMfaError(err?.message || "Verification failed. Check your 2FA code.");
+      setMfaError(formatMfaErrorMessage(err));
     } finally {
+      mfaVerifyingRef.current = false;
       setMfaVerifying(false);
     }
   };
 
   const handleCancelMfa = async () => {
+    mfaVerifyingRef.current = false;
     setShowMfaModal(false);
     setPendingAuthSession(null);
     setMfaCode("");
@@ -549,7 +616,7 @@ export const JobrackerSignup = (): JSX.Element => {
           selected_plan: selectedPlan,
           billing_interval: selectedBilling,
         });
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email: sanitizedEmail,
           password: formData.password,
           options: {
@@ -564,8 +631,24 @@ export const JobrackerSignup = (): JSX.Element => {
           selected_plan: selectedPlan,
           billing_interval: selectedBilling,
         });
-        // Always require email verification; route to login
-        // Show centered success modal with actions
+
+        // If email was autoconfirmed and session is returned, proceed directly into the app
+        if (signUpData?.session && signUpData?.user) {
+          success("Account created successfully", "Welcome to JobRaker!");
+          const { createActiveSession } = await import("../../utils/sessionManagement");
+          const expiresAt = signUpData.session.expires_at
+            ? new Date(signUpData.session.expires_at * 1000)
+            : undefined;
+          await createActiveSession(
+            signUpData.user.id,
+            signUpData.session.access_token,
+            expiresAt,
+          );
+          navigate(getPostSignInPath());
+          return;
+        }
+
+        // Otherwise show verification modal
         success(
           "Sign up successful",
           "We sent a verification link to your email.",
@@ -703,19 +786,31 @@ export const JobrackerSignup = (): JSX.Element => {
           captchaToken: captchaToken ?? undefined,
         },
       });
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes("already confirmed") || error.message?.includes("verified")) {
+          success("Email already verified", "Your email is already verified. You can now sign in.");
+          setShowVerifyModal(false);
+          setIsSignUp(false);
+          return;
+        }
+        throw error;
+      }
       success("Verification email resent");
     } catch (e: any) {
       const rawMessage = e?.message || String(e);
       let userFriendlyMessage = "Failed to resend verification link. Please try again.";
-      if (rawMessage.includes("rate limit") || rawMessage.includes("too many requests")) {
+      if (rawMessage.includes("already confirmed") || rawMessage.includes("verified")) {
+        userFriendlyMessage = "Your email is already verified. Please sign in.";
+        setShowVerifyModal(false);
+        setIsSignUp(false);
+      } else if (rawMessage.includes("rate limit") || rawMessage.includes("too many requests")) {
         userFriendlyMessage = "Too many requests. Please wait a few minutes before requesting another link.";
       } else if (rawMessage.includes("CAPTCHA") || rawMessage.includes("captcha")) {
         userFriendlyMessage = "Security verification expired. Please complete the CAPTCHA again.";
       } else if (rawMessage.length < 80) {
         userFriendlyMessage = rawMessage;
       }
-      toastError("Resend failed", userFriendlyMessage);
+      toastError("Resend info", userFriendlyMessage);
     } finally {
       setResending(false);
       if (turnstileEnabled) {
@@ -1159,7 +1254,9 @@ export const JobrackerSignup = (): JSX.Element => {
 
         {/* 3D Self-Solving Cube */}
         <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
-          <SelfSolvingCube />
+          <React.Suspense fallback={<CubeLoadingFallback />}>
+            <SelfSolvingCube />
+          </React.Suspense>
         </div>
 
         {/* Overlay Text */}

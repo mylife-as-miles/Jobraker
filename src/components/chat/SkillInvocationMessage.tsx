@@ -4,8 +4,10 @@ import { DirectApplySkillCard } from "./DirectApplySkillCard";
 import { OutreachWriterSkillCard } from "./OutreachWriterSkillCard";
 import { CompanyScoutSkillCard } from "./CompanyScoutSkillCard";
 import { HeartbeatSkillCard } from "./HeartbeatSkillCard";
+import { ColdMailSkillCard } from "./ColdMailSkillCard";
 import type {
   ChatSkillCall,
+  ColdMailOutput,
   DirectApplyOutput,
   DirectApplyResult,
 } from "@/lib/chatSkills/types";
@@ -103,6 +105,8 @@ export const SkillInvocationMessage = ({ skillCall, onRunPrompt }: Props) => {
 
       {skillCall.skillId === "direct_apply" && directApplyOutput ? (
         <DirectApplySkillCard output={directApplyOutput} onRunPrompt={onRunPrompt} />
+      ) : skillCall.skillId === "cold_mail" && skillCall.output ? (
+        <ColdMailSkillCard output={skillCall.output as unknown as ColdMailOutput} />
       ) : skillCall.skillId === "outreach_writer" && skillCall.output ? (
         <OutreachWriterSkillCard output={skillCall.output as any} onRunPrompt={onRunPrompt} />
       ) : skillCall.skillId === "company_scout" && skillCall.output ? (

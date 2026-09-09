@@ -1,5 +1,6 @@
 // Clean AI-elements only Chat Page implementation
 import {
+  Fragment,
   useState,
   useCallback,
   useEffect,
@@ -55,6 +56,7 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { createClient } from "../../../lib/supabaseClient";
 import { useAiUsageLimits } from "@/hooks/useAiUsageLimits";
+import { useChatScrollFollow } from "@/hooks/useChatScrollFollow";
 import {
   cacheChatAttachments,
   getChatAttachment,
@@ -77,6 +79,8 @@ import {
   type ChatStarterSuggestion,
 } from "../../../services/ai/generateChatStarters";
 import { ChatSkillCommandPalette } from "@/components/chat/ChatSkillCommandPalette";
+import { ColdMailSkillCard } from "@/components/chat/ColdMailSkillCard";
+import { ColdMailTargetSelectionCard } from "@/components/chat/ColdMailTargetSelectionCard";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,12 +89,48 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { ThinkingOrb } from "thinking-orbs";
+import {
+  AgentWorkTrace,
+  type AgentTraceRow,
+  type AgentTraceSource,
+} from "@/components/chat/AgentWorkTrace";
 import { TokenStream } from "@/components/chat/TokenStream";
+import {
+  ChatFollowUpPanel,
+  StreamedAnswerFooter,
+} from "@/components/chat/StreamedAnswerFooter";
+import { normalizeFollowUpQuestions } from "@/lib/chat/followUpQuestions";
+import { AgentApprovalCard } from "@/components/chat/AgentApprovalCard";
+import { ChatSourceLauncher } from "@/components/chat/ChatSourceLauncher";
+import { ChatPresetsBar } from "@/components/chat/ChatPresetsBar";
+import { RecruiterOutreachPresetModal } from "@/components/chat/RecruiterOutreachPresetModal";
+import {
+  ApplicationStatusTable,
+  type ApplicationStatusRecord,
+} from "@/components/chat/ApplicationStatusTable";
+import {
+  AgentInsightCards,
+  type AgentAnalyticsSnapshot,
+} from "@/components/chat/AgentInsightCards";
+import {
+  AgentRecommendationCard,
+  type AgentRecommendation,
+} from "@/components/chat/AgentRecommendationCard";
+import {
+  AgentTaskRows,
+  type AgentTaskRow,
+} from "@/components/chat/AgentTaskRows";
+import type {
+  AgentApprovalRequest,
+  ApprovedToolCall,
+} from "@/lib/chat/agentApproval";
+import { LiveAgentTaskCard } from "@/screens/Dashboard/components/LiveAgentTaskCard";
 import {
   executeChatSkill,
   getPrimarySkillAlias,
   getSkillById,
   getSkillSuggestions,
+  jobrakerChatSkills,
 } from "@/lib/chatSkills/registry";
 import {
   detectSkillPaletteTrigger,
@@ -99,20 +139,12 @@ import {
 } from "@/lib/chatSkills/parser";
 import type {
   ChatSkillCall,
+  ColdMailDiscoveryOutput,
+  ColdMailOutput,
+  ColdMailTarget,
   ParsedSkillCall,
   SkillExecutionInput,
 } from "@/lib/chatSkills/types";
-import {
-  IntegrationPermissionModal,
-  type PendingPermissionRequest,
-} from "@/components/chat/IntegrationPermissionModal";
-import {
-  fetchUserPermissions,
-  saveUserPermission,
-  resolveIntegrationFromTool,
-  getLocalPermissions,
-  type PermissionScope,
-} from "@/lib/integrationPermissions";
 import {
   MessageSquare,
   Wand2,
@@ -134,8 +166,6 @@ import {
   X,
   Coins,
   History,
-  ReceiptText,
-  AlertTriangle,
   ListChecks,
   ChevronDown,
   ChevronLeft,
@@ -154,6 +184,18 @@ import Seo from "@/components/seo/Seo";
 
 // Custom styles for the new design
 const customStyles = `
+  @keyframes jobraker-stream-resolve {
+    from { opacity: 0; filter: blur(5px); transform: translateY(2px); }
+    to { opacity: 1; filter: blur(0); transform: translateY(0); }
+  }
+  .token-stream-active .token {
+    display: inline-block;
+    animation: jobraker-stream-resolve 360ms cubic-bezier(0.22, 0.61, 0.25, 1) both;
+    will-change: filter, opacity, transform;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .token-stream-active .token { animation: none; }
+  }
   .glass-panel {
     background: hsl(var(--card) / 0.72);
     backdrop-filter: blur(12px);
@@ -176,7 +218,29 @@ const customStyles = `
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--foreground) / 0.2);
   }
+  .chat-scroll-hidden,
+  [data-ai-message="true"],
+  [data-ai-message="true"] * {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .chat-scroll-hidden::-webkit-scrollbar,
+  [data-ai-message="true"]::-webkit-scrollbar,
+  [data-ai-message="true"] *::-webkit-scrollbar {
+    display: none;
+    height: 0;
+    width: 0;
+  }
 `;
+
+const externalSourceDomain = (href?: string) => {
+  if (!href?.startsWith("http") || href.includes(window.location.host)) return null;
+  try {
+    return new URL(href).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+};
 
 const waitForAgentProgressPaint = () =>
   new Promise<void>((resolve) => {
@@ -269,6 +333,12 @@ type ChatRequestOptions = {
   webSearch?: boolean;
   system?: string;
   mode?: ChatMode;
+  approvedToolCalls?: ApprovedToolCall[];
+  /**
+   * Resume the current turn without showing another user bubble. Approving an
+   * action continues the same conversation; it is not a new request.
+   */
+  hiddenUserMessage?: boolean;
 };
 type ChatUiAction = {
   type?: string;
@@ -309,11 +379,16 @@ interface BasicMessage {
   meta?: { persona?: Persona; parent?: string };
   toolCalls?: ToolCallEntry[];
   agentEvents?: AgentActivityEntry[];
+  approvalRequest?: AgentApprovalRequest;
   streamFrameCount?: number;
   skillCall?: ChatSkillCall;
+  /** Sent to the model for context but not rendered (e.g. approval resume). */
+  hiddenFromUi?: boolean;
   /** Persisted: user message included an image (bytes live in IndexedDB). */
   hasPastedImage?: boolean;
   attachmentCount?: number;
+  /** AI-generated next questions for the most recent completed assistant turn. */
+  followUpQuestions?: string[];
 }
 
 type ChatUserPayload = {
@@ -420,10 +495,89 @@ const isLegacyQueuedAssistant = (message: any) =>
       String(event?.detail || "").includes("continue chatting while this request runs"),
   );
 
+export function parseCustomApproveActionTag(rawContent: string): {
+  cleanContent: string;
+  approvalRequest?: AgentApprovalRequest;
+} {
+  if (typeof rawContent !== "string") return { cleanContent: "" };
+
+  const tagRegex = /<jobraker-approve-action>([\s\S]*?)<\/jobraker-approve-action>/i;
+  const match = rawContent.match(tagRegex);
+  if (!match) {
+    return { cleanContent: rawContent };
+  }
+
+  // The tag is stripped from display only. Approval cards must come from the
+  // backend `approval_request` event: keys minted here are not the server's
+  // approval keys, so approving them re-prompted forever.
+  const cleanContent = rawContent.replace(tagRegex, "").trim();
+  return { cleanContent };
+}
+
 const normalizeBasicMessage = (message: any): BasicMessage => {
   const legacyQueuedAssistant = isLegacyQueuedAssistant(message);
   const legacyQueueMessage =
     "This request did not complete. Send it again to receive a streamed response.";
+
+  const rawContent = legacyQueuedAssistant
+    ? legacyQueueMessage
+    : typeof message?.content === "string"
+      ? message.content
+      : "";
+
+  const { cleanContent } =
+    parseCustomApproveActionTag(rawContent);
+
+  const existingApproval =
+    message?.approvalRequest && typeof message.approvalRequest === "object"
+      ? {
+          id:
+            typeof message.approvalRequest.id === "string"
+              ? message.approvalRequest.id
+              : nanoid(),
+          title:
+            typeof message.approvalRequest.title === "string"
+              ? message.approvalRequest.title
+              : "Approve this action?",
+          description:
+            typeof message.approvalRequest.description === "string"
+              ? message.approvalRequest.description
+              : "Review the proposed action before JobRaker continues.",
+          steps: Array.isArray(message.approvalRequest.steps)
+            ? message.approvalRequest.steps
+                .filter(
+                  (step: any) =>
+                    step &&
+                    typeof step.approvalKey === "string" &&
+                    typeof step.toolName === "string" &&
+                    typeof step.title === "string",
+                )
+                .map((step: any) => ({
+                  approvalKey: step.approvalKey,
+                  toolName: step.toolName,
+                  title: step.title,
+                  detail: typeof step.detail === "string" ? step.detail : "",
+                  kind:
+                    step.kind === "browser" ||
+                    step.kind === "application" ||
+                    step.kind === "email" ||
+                    step.kind === "data" ||
+                    step.kind === "credits"
+                      ? step.kind
+                      : "plan",
+                }))
+            : [],
+          createdAt:
+            typeof message.approvalRequest.createdAt === "number"
+              ? message.approvalRequest.createdAt
+              : Date.now(),
+          decision:
+            message.approvalRequest.decision === "approved" ||
+            message.approvalRequest.decision === "declined"
+              ? message.approvalRequest.decision
+              : undefined,
+        }
+      : undefined;
 
   return {
   id: typeof message?.id === "string" ? message.id : nanoid(),
@@ -431,23 +585,26 @@ const normalizeBasicMessage = (message: any): BasicMessage => {
     message?.role === "assistant" || message?.role === "skill"
       ? message.role
       : "user",
-  content: legacyQueuedAssistant
-    ? legacyQueueMessage
-    : typeof message?.content === "string"
-      ? message.content
-      : "",
+  content: cleanContent,
   parts:
     legacyQueuedAssistant
       ? [{ type: "text" as const, text: legacyQueueMessage }]
       : Array.isArray(message?.parts) && message.parts.length > 0
-      ? message.parts
+      ? message.parts.map((p: any) =>
+          p.type === "text" && typeof p.text === "string"
+            ? { ...p, text: parseCustomApproveActionTag(p.text).cleanContent }
+            : p,
+        )
       : [
           {
             type: "text" as const,
-            text: typeof message?.content === "string" ? message.content : "",
+            text: cleanContent,
           },
         ],
   streaming: legacyQueuedAssistant ? false : Boolean(message?.streaming),
+  followUpQuestions: Array.isArray(message?.followUpQuestions)
+    ? normalizeFollowUpQuestions(message.followUpQuestions, 2)
+    : undefined,
   createdAt:
     typeof message?.createdAt === "number" ? message.createdAt : Date.now(),
   meta:
@@ -529,6 +686,7 @@ const normalizeBasicMessage = (message: any): BasicMessage => {
             typeof entry.toolCount === "number" ? entry.toolCount : undefined,
         }))
     : undefined,
+  approvalRequest: existingApproval,
   skillCall:
     message?.skillCall && typeof message.skillCall === "object"
       ? (message.skillCall as ChatSkillCall)
@@ -697,6 +855,9 @@ const summarizeToolResult = (entry: ToolCallEntry): string | undefined => {
 };
 
 const buildAgentFinalFallback = (message: BasicMessage): string | undefined => {
+  if (message.approvalRequest) {
+    return "I've prepared the requested action for your review. Please approve or adjust below so JobRaker can proceed.";
+  }
   const completedTools = (message.toolCalls || []).filter(
     (tool) => tool.status !== "running",
   );
@@ -842,7 +1003,7 @@ const buildAgentFinalFallback = (message: BasicMessage): string | undefined => {
       })
       .filter(Boolean);
     if (!summaries.length) {
-      return "I checked the available JobRaker data, but I did not find a new actionable result to show yet. Tell me to continue and I will keep working from the last step.";
+      return "I checked the available sources and JobRaker database, but did not find direct openings matching those exact criteria. You can try adjusting the job title, location, or keywords, or tell me to continue with a broader search.";
     }
     lines.push("I found these actionable results:", "");
     summaries.forEach((summary) => lines.push(`- ${summary}`));
@@ -863,6 +1024,119 @@ const estimateAgentTimeSavedMinutes = (message: BasicMessage): number => {
   return workUnits > 0 ? Math.min(180, Math.max(8, workUnits * 8)) : 0;
 };
 
+const isSearchTool = (name: string) =>
+  /search|find_company|semantic_search|research|browse/i.test(name);
+
+const isLongRunningAgentTool = (name: string) =>
+  name === "apply_to_job" ||
+  name === "auto_apply_from_url" ||
+  name === "reapply_job" ||
+  name === "run_job_search" ||
+  name === "invoke_composio_tool" ||
+  name.startsWith("rtrvr_");
+
+const finishRunningToolCalls = (message: BasicMessage, reason: string): BasicMessage => ({
+  ...message,
+  toolCalls: (message.toolCalls || []).map((tool) =>
+    tool.status === "running"
+      ? {
+          ...tool,
+          status: "error",
+          result: { success: false, error: reason },
+          finishedAt: Date.now(),
+        }
+      : tool,
+  ),
+});
+
+const buildAgentTaskRows = (message: BasicMessage): AgentTaskRow[] => {
+  const skillCall = message.skillCall;
+  if (skillCall) {
+    const progress = skillCall.progress || [];
+    return progress.slice(-4).map((label, index, rows) => ({
+      id: `skill-task-${skillCall.id}-${index}-${label}`,
+      label,
+      status:
+        index === rows.length - 1 &&
+        (skillCall.status === "running" || skillCall.status === "queued")
+          ? "running"
+          : index === rows.length - 1 && skillCall.status === "failed"
+            ? "failed"
+            : "completed",
+      detail:
+        index === rows.length - 1 && skillCall.error ? skillCall.error : undefined,
+    }));
+  }
+
+  const tools = (message.toolCalls || []).slice(-5);
+  if (tools.length > 0) {
+    return tools.map((tool) => ({
+      id: tool.id || `${tool.name}-${tool.startedAt || tool.finishedAt || "task"}`,
+      label: toolDisplayName(tool.name, tool.args),
+      status:
+        tool.status === "running"
+          ? "running"
+          : tool.status === "error"
+            ? "failed"
+            : "completed",
+      detail: summarizeToolResult(tool),
+    }));
+  }
+
+  return (message.agentEvents || [])
+    .filter((event) => event.kind !== "billing")
+    .slice(-3)
+    .map((event) => ({
+      id: `activity-task-${event.id}`,
+      label: event.title,
+      detail: event.detail,
+      status:
+        event.status === "error"
+          ? "failed"
+          : event.status === "running"
+            ? "running"
+            : "completed",
+    }));
+};
+
+const traceSourcesFromTool = (tool: ToolCallEntry): AgentTraceSource[] => {
+  const found = new Map<string, AgentTraceSource>();
+  const visit = (value: unknown, depth = 0) => {
+    if (depth > 4 || found.size >= 4 || value == null) return;
+    if (typeof value === "string") {
+      if (!/^https?:\/\//i.test(value)) return;
+      try {
+        const url = new URL(value);
+        if (url.protocol === "http:" || url.protocol === "https:") {
+          found.set(url.href, {
+            href: url.href,
+            label: url.hostname.replace(/^www\./, ""),
+          });
+        }
+      } catch {
+        // Ignore malformed source URLs returned by a tool.
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.slice(0, 12).forEach((entry) => visit(entry, depth + 1));
+      return;
+    }
+    if (typeof value === "object") {
+      const record = value as Record<string, unknown>;
+      ["url", "href", "link", "source_url", "sourceUrl"].forEach((key) =>
+        visit(record[key], depth + 1),
+      );
+      ["results", "jobs", "sources", "items"].forEach((key) =>
+        visit(record[key], depth + 1),
+      );
+    }
+  };
+
+  visit(getToolResultPayload(tool.result));
+  return [...found.values()];
+};
+
 const AgentWorkTimeline = ({
   message,
   elapsedLabel,
@@ -870,8 +1144,6 @@ const AgentWorkTimeline = ({
   message: BasicMessage;
   elapsedLabel: string;
 }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const toolCalls = message.toolCalls || [];
   const agentEvents = message.agentEvents || [];
 
@@ -882,13 +1154,7 @@ const AgentWorkTimeline = ({
     (isSkillCall &&
       (skillCall.status === "running" || skillCall.status === "queued"));
 
-  const skillRows: {
-    id: string;
-    at: number;
-    kind: string;
-    status: "running" | "done" | "error";
-    label: string;
-  }[] = [];
+  const skillRows: (AgentTraceRow & { at: number })[] = [];
 
   if (skillCall) {
     const progressList = skillCall.progress || [];
@@ -932,60 +1198,49 @@ const AgentWorkTimeline = ({
     }
   }
 
-  const timelineRows = isSkillCall
+  const operationalRows: (AgentTraceRow & { at: number })[] = agentEvents
+    .filter((event) =>
+      ["status", "tool_batch", "tool_result", "billing", "limit", "error"].includes(event.kind),
+    )
+    .map((event) => ({
+      id: event.id,
+      at: event.createdAt,
+      kind: event.kind,
+      status: event.status,
+      label: event.title,
+      detail: event.detail,
+    }));
+
+  const toolRows: (AgentTraceRow & { at: number })[] = toolCalls
+    .filter((tool) => !isInternalToolFailure(tool))
+    .map((tool) => {
+      const resultSummary = summarizeToolResult(tool);
+      const prefix =
+        tool.status === "running"
+          ? "Running"
+          : tool.status === "error"
+            ? "Failed"
+            : "Finished";
+      return {
+        id: tool.id || `${tool.name}-${tool.startedAt || ""}`,
+        at: tool.startedAt || tool.finishedAt || 0,
+        kind: "tool",
+        status: tool.status,
+        label: `${prefix} ${toolDisplayName(tool.name, tool.args)}`,
+        detail: resultSummary,
+        sources: isSearchTool(tool.name) ? traceSourcesFromTool(tool) : undefined,
+      };
+    });
+
+  const timelineRows: AgentTraceRow[] = (isSkillCall
     ? skillRows
-    : [
-        ...agentEvents
-          .filter((event) =>
-            ["status", "billing", "limit", "error"].includes(event.kind),
-          )
-          .map((event) => ({
-            id: event.id,
-            at: event.createdAt,
-            kind: event.kind,
-            status: event.status,
-            label:
-              event.kind === "billing"
-                ? [event.title, event.detail].filter(Boolean).join(" - ")
-                : event.detail
-                  ? `${event.title} - ${event.detail}`
-                  : event.title,
-          })),
-        ...toolCalls
-          .filter((tool) => !isInternalToolFailure(tool))
-          .map((tool) => {
-            const resultSummary = summarizeToolResult(tool);
-            const prefix =
-              tool.status === "running"
-                ? "Running"
-                : tool.status === "error"
-                  ? "Failed"
-                  : "Finished";
-            return {
-              id: tool.id || `${tool.name}-${tool.startedAt || ""}`,
-              at: tool.startedAt || tool.finishedAt || 0,
-              kind: "tool",
-              status: tool.status,
-              label: [
-                `${prefix} ${toolDisplayName(tool.name, tool.args)}`,
-                resultSummary,
-              ]
-                .filter(Boolean)
-                .join(" - "),
-            };
-          }),
-      ]
-        .sort((a, b) => a.at - b.at)
-        .slice(-50);
+    : [...operationalRows, ...toolRows])
+    .sort((a, b) => a.at - b.at)
+    .slice(-50);
 
   const hiddenStepCount = isSkillCall
     ? 0
     : Math.max(0, agentEvents.length + toolCalls.length - timelineRows.length);
-  const liveTimelineRows = isStreaming
-    ? timelineRows.slice(-3).reverse()
-    : timelineRows;
-  const displayedHiddenStepCount =
-    hiddenStepCount + Math.max(0, timelineRows.length - liveTimelineRows.length);
   const totalStepCount = isSkillCall
     ? timelineRows.length
     : agentEvents.length + toolCalls.length;
@@ -996,145 +1251,40 @@ const AgentWorkTimeline = ({
   const fallbackLabel = elapsedLabel
     ? `Connecting to JobRaker agent (${elapsedLabel})`
     : "Connecting to JobRaker agent";
-  const summaryLabel = latestRow?.label || fallbackLabel;
-  const timelineOrbState = timelineRows.length ? "working" : "connecting";
+  const summaryLabel = latestRow
+    ? [latestRow.label, latestRow.detail].filter(Boolean).join(" - ")
+    : fallbackLabel;
   const stepLabel =
     totalStepCount > 0
       ? `${totalStepCount} step${totalStepCount === 1 ? "" : "s"}`
       : "Waiting";
+  const reasoningRows = isSkillCall
+    ? skillRows.slice(-4)
+    : operationalRows
+        .filter((row) => ["status", "tool_batch", "tool_result"].includes(row.kind))
+        .slice(-4);
+  const searchRows = toolRows.filter((row) => {
+    const sourceTool = toolCalls.find(
+      (tool) => (tool.id || `${tool.name}-${tool.startedAt || ""}`) === row.id,
+    );
+    return Boolean(sourceTool && isSearchTool(sourceTool.name));
+  });
 
   if (!timelineRows.length && !isStreaming) return null;
 
-  const rowClass =
-    "flex max-w-full items-center gap-2 rounded-lg border border-brand/20 bg-brand/[0.06] px-3 py-2 text-[13px] leading-5 text-muted-foreground";
-  const iconForRow = (row: { kind: string; status: string }) => {
-    if (row.status === "error") {
-      return <AlertTriangle className='h-3.5 w-3.5 shrink-0 text-red-400' />;
-    }
-    if (row.status === "running") {
-      return (
-        <ThinkingOrb
-          state={row.kind === "tool" ? "searching" : "working"}
-          size={20}
-          className='shrink-0'
-          aria-label='JobRaker is working'
-        />
-      );
-    }
-    if (row.kind === "billing") {
-      return <ReceiptText className='h-3.5 w-3.5 shrink-0 text-brand' />;
-    }
-    if (row.kind === "limit") {
-      return <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />;
-    }
-    return <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-brand' />;
-  };
-
   return (
-    <div className='mb-3 space-y-2'>
-      <button
-        type='button'
-        onClick={() => setExpanded((value) => !value)}
-        className={`${rowClass} w-full text-left transition-colors hover:bg-brand/[0.09]`}
-        aria-expanded={expanded}
-      >
-        {isStreaming ? (
-          <ThinkingOrb
-            state={timelineOrbState}
-            size={20}
-            className='shrink-0'
-            aria-label='JobRaker is working'
-          />
-        ) : (
-          <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
-        )}
-        <span className='shrink-0 font-medium text-foreground/80'>
-          Working process
-        </span>
-        <span className='shrink-0 text-muted-foreground/70'>-</span>
-        <span className='shrink-0'>{stepLabel}</span>
-        {estimatedTimeSaved > 0 ? (
-          <>
-            <span className='hidden shrink-0 text-muted-foreground/70 md:inline'>
-              -
-            </span>
-            <span className='hidden shrink-0 text-brand/90 md:inline'>
-              ~{estimatedTimeSaved} min saved
-            </span>
-          </>
-        ) : null}
-        <span className='hidden shrink-0 text-muted-foreground/70 sm:inline'>
-          -
-        </span>
-        <span className='min-w-0 flex-1 truncate text-muted-foreground/80'>
-          {summaryLabel}
-        </span>
-        <ChevronDown
-          className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${
-            expanded ? "rotate-180" : ""
-          }`}
-        />
-      </button>
-
-      {expanded && (
-        <div className={`space-y-2 ledger ${isStreaming ? "ledger-live" : "ledger-static"}`}>
-          {liveTimelineRows.map((row) => {
-            const isRowExpanded = !!expandedRows[row.id];
-            return (
-              <div
-                key={row.id}
-                onClick={() => {
-                  setExpandedRows((prev) => ({
-                    ...prev,
-                    [row.id]: !prev[row.id],
-                  }));
-                }}
-                className={`${rowClass} ledger-row relative cursor-pointer hover:bg-brand/[0.09] transition-colors ${
-                  isRowExpanded ? "items-start" : "items-center"
-                }`}
-                title={row.label}
-              >
-                {isStreaming ? (
-                  <span className='ledger-edge-dot' aria-hidden='true' />
-                ) : null}
-                {iconForRow(row)}
-                <span
-                  className={
-                    isRowExpanded
-                      ? "break-words whitespace-pre-wrap flex-1 text-left"
-                      : "truncate flex-1 text-left"
-                  }
-                >
-                  {row.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {expanded && displayedHiddenStepCount > 0 && (
-        <div className={rowClass}>
-          <ListChecks className='h-3.5 w-3.5 shrink-0 text-brand' />
-          <span className='truncate'>
-            +{displayedHiddenStepCount} earlier working step
-            {displayedHiddenStepCount === 1 ? "" : "s"}
-          </span>
-        </div>
-      )}
-
-      {expanded && isStreaming && timelineRows.length === 0 && (
-        <div className={rowClass}>
-          <ThinkingOrb
-            state='connecting'
-            size={20}
-            className='shrink-0'
-            aria-label='Connecting to JobRaker'
-          />
-          <span className='truncate'>{fallbackLabel}</span>
-        </div>
-      )}
-    </div>
+    <AgentWorkTrace
+      rows={timelineRows}
+      reasoningRows={reasoningRows}
+      searchRows={searchRows}
+      isStreaming={isStreaming}
+      stepLabel={stepLabel}
+      summaryLabel={summaryLabel}
+      estimatedTimeSaved={estimatedTimeSaved}
+      hiddenStepCount={hiddenStepCount}
+      fallbackLabel={fallbackLabel}
+      traceId={`agent-work-trace-${message.id}`}
+    />
   );
 };
 
@@ -1235,6 +1385,245 @@ const AgentResultPreview = ({ message }: { message: BasicMessage }) => {
         ))}
       </div>
     </div>
+  );
+};
+
+const applicationStatusRecordsFromMessage = (
+  message: BasicMessage,
+): ApplicationStatusRecord[] => {
+  const toText = (value: unknown) =>
+    typeof value === "string" && value.trim() ? value.trim() : undefined;
+  const toMatchScore = (record: Record<string, unknown>) => {
+    const rawScore = [record.match_score, record.ai_confidence_score].find(
+      (value) => typeof value === "number" || typeof value === "string",
+    );
+    const numericScore = typeof rawScore === "number" ? rawScore : Number(rawScore);
+    if (!Number.isFinite(numericScore)) return null;
+    const normalizedScore = numericScore <= 1 ? numericScore * 100 : numericScore;
+    return Math.max(0, Math.min(100, Math.round(normalizedScore)));
+  };
+
+  const records = (message.toolCalls || [])
+    .filter((tool) => tool.status === "done" && tool.name === "list_applications")
+    .flatMap((tool) => {
+      const payload = getToolResultPayload(tool.result);
+      return Array.isArray(payload.applications) ? payload.applications : [];
+    })
+    .filter(
+      (application): application is Record<string, unknown> =>
+        Boolean(application) && typeof application === "object" && !Array.isArray(application),
+    )
+    .map((application) => {
+      const recentEvents = Array.isArray(application.recent_events)
+        ? application.recent_events
+            .filter(
+              (event): event is Record<string, unknown> =>
+                Boolean(event) && typeof event === "object" && !Array.isArray(event),
+            )
+            .map((event) => ({
+              subject: toText(event.subject),
+              receivedAt: toText(event.received_at) || toText(event.processed_at),
+              status: toText(event.status),
+            }))
+        : [];
+
+      return {
+        id:
+          toText(application.id) ||
+          `${toText(application.company) || "unknown"}-${toText(application.job_title) || "role"}`,
+        company: toText(application.company) || "Unknown company",
+        role: toText(application.job_title) || "Untitled role",
+        status: toText(application.status) || "Pending",
+        location: toText(application.location),
+        match: toMatchScore(application),
+        appliedAt: toText(application.applied_date),
+        updatedAt: toText(application.updated_at),
+        nextStep: toText(application.next_step),
+        runId: toText(application.run_id),
+        recentEvents,
+      } satisfies ApplicationStatusRecord;
+    });
+
+  return Array.from(new Map(records.map((record) => [record.id, record])).values());
+};
+
+const isApplicationListRequest = (message?: BasicMessage) => {
+  if (!message || message.role !== "user") return false;
+
+  const request = message.content.replace(/\s+/g, " ").trim().toLowerCase();
+  if (!request) return false;
+
+  const mentionsApplications = /\b(applications?|jobs?|roles?)\b/.test(request);
+  const asksForAList = /\b(list|show|view|display|see|give me|what(?:'s| is| are)|which|check|track(?:ed|ing)?|status)\b/.test(request);
+  return mentionsApplications && asksForAList;
+};
+
+const ApplicationStatusPreview = ({
+  message,
+  requested,
+}: {
+  message: BasicMessage;
+  requested: boolean;
+}) => {
+  if (message.role !== "assistant") return null;
+  const applications = applicationStatusRecordsFromMessage(message);
+  return requested && applications.length > 0 ? (
+    <ApplicationStatusTable applications={applications} />
+  ) : null;
+};
+
+const analyticsSnapshotFromMessage = (
+  message: BasicMessage,
+): AgentAnalyticsSnapshot | null => {
+  const asNumber = (value: unknown, fallback = 0) => {
+    const numeric = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(numeric) ? numeric : fallback;
+  };
+  const asCountMap = (value: unknown): Record<string, number> => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .map(([key, count]) => [key, asNumber(count)] as const)
+        .filter(([, count]) => count >= 0),
+    );
+  };
+
+  const tool = [...(message.toolCalls || [])]
+    .reverse()
+    .find((entry) => entry.status === "done" && entry.name === "get_application_analytics");
+  if (!tool) return null;
+  const payload = getToolResultPayload(tool.result);
+  if (payload.success === false) return null;
+  const metrics = payload.metrics;
+  if (!metrics || typeof metrics !== "object" || Array.isArray(metrics)) return null;
+  const metricRecord = metrics as Record<string, unknown>;
+  const jobs = payload.jobs;
+  const jobRecord = jobs && typeof jobs === "object" && !Array.isArray(jobs)
+    ? jobs as Record<string, unknown>
+    : {};
+
+  return {
+    periodDays: Math.max(1, asNumber(payload.period_days, 30)),
+    applications: asNumber(metricRecord.applications),
+    previousApplications: asNumber(metricRecord.previous_applications),
+    applicationsDelta: asNumber(metricRecord.applications_delta),
+    interviews: asNumber(metricRecord.interviews),
+    offers: asNumber(metricRecord.offers),
+    offerRate: asNumber(metricRecord.offer_rate),
+    interviewOrOfferRate: asNumber(metricRecord.interview_or_offer_rate),
+    statusBreakdown: asCountMap(payload.status_breakdown),
+    jobSources: asCountMap(jobRecord.sources),
+    jobsFound: asNumber(jobRecord.found),
+  };
+};
+
+const AgentInsightPreview = ({ message }: { message: BasicMessage }) => {
+  if (message.role !== "assistant") return null;
+  const snapshot = analyticsSnapshotFromMessage(message);
+  return snapshot ? <AgentInsightCards snapshot={snapshot} /> : null;
+};
+
+const recommendationConfidence = (job: Record<string, unknown>) => {
+  const score = [
+    job.match_score,
+    job.ai_match_score,
+    job.ai_confidence_score,
+    job.confidence_score,
+  ].find((value) => typeof value === "number" || typeof value === "string");
+  const numericScore = typeof score === "number" ? score : Number(score);
+  if (Number.isFinite(numericScore)) {
+    const normalized = numericScore <= 1 ? numericScore * 100 : numericScore;
+    return {
+      confidence: Math.max(0, Math.min(100, Math.round(normalized))),
+      confidenceLabel: "fit confidence",
+    };
+  }
+
+  const sourceConfidence =
+    typeof job.source_confidence === "string"
+      ? job.source_confidence.toLowerCase()
+      : typeof job.confidence === "string"
+        ? job.confidence.toLowerCase()
+        : "";
+  const sourceScores: Record<string, number> = { high: 85, medium: 65, low: 35 };
+  if (sourceConfidence in sourceScores) {
+    return {
+      confidence: sourceScores[sourceConfidence],
+      confidenceLabel: "source confidence",
+    };
+  }
+
+  return null;
+};
+
+const agentRecommendationsFromMessage = (message: BasicMessage): AgentRecommendation[] => {
+  const recommendations = (message.toolCalls || [])
+    .filter(
+      (tool) =>
+        tool.status !== "running" &&
+        (tool.name === "run_job_search" || tool.name === "search_public_job_sources"),
+    )
+    .flatMap((tool) => {
+      const payload = getToolResultPayload(tool.result);
+      const jobs = Array.isArray(payload.jobs)
+        ? payload.jobs
+        : Array.isArray(payload.results)
+          ? payload.results
+          : [];
+      return jobs
+        .filter(
+          (job): job is Record<string, unknown> =>
+            Boolean(job) && typeof job === "object" && !Array.isArray(job),
+        )
+        .map((job) => {
+          const confidence = recommendationConfidence(job);
+          if (!confidence) return null;
+          const title = typeof job.title === "string" && job.title.trim() ? job.title.trim() : "Untitled role";
+          const company = typeof job.company === "string" && job.company.trim() ? job.company.trim() : "Unknown company";
+          const url = typeof job.url === "string" && job.url.trim() ? job.url.trim() : "";
+          const detail = [
+            typeof job.location === "string" ? job.location : "",
+            typeof job.source_kind === "string" ? job.source_kind : "",
+            typeof job.verification_status === "string" ? job.verification_status : "",
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          return {
+            id: `${title}|${company}|${url}`,
+            title: `${title} at ${company}`,
+            description: "JobRaker suggests reviewing this role before moving to an application.",
+            detail: detail || undefined,
+            ...confidence,
+            actionPrompt: `Assess my fit for ${title} at ${company}${url ? ` (${url})` : ""}. Explain the evidence for the recommendation and do not apply yet.`,
+          } satisfies AgentRecommendation;
+        })
+        .filter((recommendation): recommendation is AgentRecommendation => Boolean(recommendation));
+    });
+
+  return Array.from(
+    new Map(recommendations.map((recommendation) => [recommendation.id, recommendation])).values(),
+  )
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 4);
+};
+
+const AgentRecommendationPreview = ({
+  message,
+  onRunPrompt,
+}: {
+  message: BasicMessage;
+  onRunPrompt: (prompt: string) => void;
+}) => {
+  if (message.role !== "assistant") return null;
+  const recommendations = agentRecommendationsFromMessage(message);
+  const primary = recommendations[0];
+  if (!primary) return null;
+  return (
+    <AgentRecommendationCard
+      recommendation={primary}
+      alternatives={recommendations.slice(1)}
+      onRunPrompt={onRunPrompt}
+    />
   );
 };
 
@@ -1391,6 +1780,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         id: nanoid(),
         role: "user",
         content: textContent,
+        hiddenFromUi: chatOpts?.hiddenUserMessage === true,
         hasPastedImage: Boolean(m.images?.length),
         attachmentCount: m.images?.length || 0,
         createdAt: Date.now(),
@@ -1482,6 +1872,9 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             webSearch: chatOpts?.webSearch ?? false,
             system: chatOpts?.system,
             previous_response_id: previousResponseId ?? responseId,
+            approved_tool_calls: chatOpts?.approvedToolCalls?.map(({ approvalKey }) => ({
+              approval_key: approvalKey,
+            })),
           }),
           signal: abortControllerRef.current.signal,
         });
@@ -1492,6 +1885,13 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           try {
             const parsed = JSON.parse(errorBody);
             if (parsed.code === "insufficient_credits") {
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(
+                  new CustomEvent("jobraker:open-out-of-credits", {
+                    detail: { threshold: 300 },
+                  }),
+                );
+              }
               errorMessage =
                 parsed.error ||
                 "Your Career Command Center has used its included capacity. Upgrade to Pro or add credits to keep Agent Mode searching, evaluating, and drafting for you.";
@@ -1555,6 +1955,20 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 });
                 await waitForAgentProgressPaint();
               }
+            } else if (currentEvent === "follow_ups") {
+              const followUpQuestions = normalizeFollowUpQuestions(data?.questions, 2);
+              if (followUpQuestions.length > 0) {
+                flushSync(() => {
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? { ...markStreamFrame(msg), followUpQuestions }
+                        : msg,
+                    ),
+                  );
+                });
+                await waitForAgentProgressPaint();
+              }
             } else if (currentEvent === "response_id") {
               if (data.response_id) {
                 setResponseId(data.response_id);
@@ -1565,12 +1979,12 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === assistantId
-                      ? {
+                      ? finishRunningToolCalls({
                           ...markStreamFrame(msg),
                           content: errorText,
                           parts: [{ type: "text", text: errorText }],
                           streaming: false,
-                        }
+                        }, cleanErrorMessage(data.error))
                       : msg,
                   ),
                 );
@@ -1623,37 +2037,57 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 );
               });
               await waitForAgentProgressPaint();
+            } else if (currentEvent === "approval_request") {
+              const approvalRequest: AgentApprovalRequest = {
+                id: typeof data.id === "string" ? data.id : nanoid(),
+                title:
+                  typeof data.title === "string"
+                    ? data.title
+                    : "Approve this action?",
+                description:
+                  typeof data.description === "string"
+                    ? data.description
+                    : "Review the proposed action before JobRaker continues.",
+                steps: Array.isArray(data.steps)
+                  ? data.steps
+                      .filter(
+                        (step: any) =>
+                          step &&
+                          typeof step.approvalKey === "string" &&
+                          typeof step.toolName === "string" &&
+                          typeof step.title === "string",
+                      )
+                      .map((step: any) => ({
+                        approvalKey: step.approvalKey,
+                        toolName: step.toolName,
+                        title: step.title,
+                        detail: typeof step.detail === "string" ? step.detail : "",
+                        kind:
+                          step.kind === "browser" ||
+                          step.kind === "application" ||
+                          step.kind === "email" ||
+                          step.kind === "data" ||
+                          step.kind === "credits"
+                            ? step.kind
+                            : "plan",
+                      }))
+                  : [],
+                createdAt:
+                  typeof data.created_at === "number"
+                    ? data.created_at
+                    : Date.now(),
+              };
+              flushSync(() => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantId
+                      ? { ...markStreamFrame(msg), approvalRequest }
+                      : msg,
+                  ),
+                );
+              });
+              await waitForAgentProgressPaint();
             } else if (currentEvent === "tool_start") {
-              const integration = resolveIntegrationFromTool(data.name, data.args);
-              if (integration) {
-                const currentGrant =
-                  permissionGrantsRef.current[integration.slug] ||
-                  getLocalPermissions()[integration.slug];
-                if (!currentGrant) {
-                  const decision = await new Promise<PermissionScope>((resolve) => {
-                    setPendingPermissionRequest({
-                      integrationSlug: integration.slug,
-                      integrationName: integration.name,
-                      toolName: data.name,
-                      toolSummary: data.name.replace(/_/g, " "),
-                      resolve,
-                    });
-                  });
-
-                  setPendingPermissionRequest(null);
-                  if (decision !== "deny") {
-                    const { data: userData } = await supabase.auth.getUser();
-                    if (userData.user?.id) {
-                      await saveUserPermission(supabase, userData.user.id, integration.slug, decision);
-                    }
-                    setPermissionGrants((prev) => ({
-                      ...prev,
-                      [integration.slug]: decision,
-                    }));
-                  }
-                }
-              }
-
               const toolEntry: ToolCallEntry = {
                 id: data.id || nanoid(),
                 name: data.name,
@@ -1813,7 +2247,10 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                 ? msg.content
                 : buildAgentFinalFallback(msg) || "";
               finalAssistantMessage = {
-                ...msg,
+                ...finishRunningToolCalls(
+                  msg,
+                  "The chat stream ended before this step reported a result.",
+                ),
                 content: fallbackContent,
                 parts: [{ type: "text", text: fallbackContent }],
                 streaming: false,
@@ -1838,7 +2275,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             prev.map((msg) =>
               msg.id === assistantId
                 ? {
-                    ...msg,
+                    ...finishRunningToolCalls(msg, stoppedText),
                     content: msg.content.trim() ? msg.content : stoppedText,
                     parts: [
                       {
@@ -1860,7 +2297,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           prev.map((msg) =>
             msg.id === assistantId
               ? {
-                  ...msg,
+                  ...finishRunningToolCalls(msg, errorText),
                   content: errorText,
                   parts: [{ type: "text", text: errorText }],
                   streaming: false,
@@ -1985,15 +2422,20 @@ export const ChatPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: aiLimits } = useAiUsageLimits();
+  const rollingStatus = aiLimits?.rolling5h || aiLimits?.rolling24h;
   const aiCapacityExhausted = isAiCapacityExhausted(
-    aiLimits?.rolling24h.percentLeft,
+    rollingStatus?.percentLeft,
   );
   const aiCapacityLabel = aiCapacityExhausted
-    ? "AI allowance used"
-    : `${aiLimits?.rolling24h.percentLeft ?? 0}% AI Capacity`;
+    ? (aiLimits?.creditsAvailable && aiLimits.creditsAvailable > 0
+        ? "Using Credits"
+        : "AI allowance used")
+    : `${rollingStatus?.percentLeft ?? 0}% AI Capacity`;
   const aiCapacityTitle = aiCapacityExhausted
-    ? "Your AI allowance is used for now. Capacity becomes available gradually over the next 24 hours. Open Settings for details."
-    : "AI Usage Limits (rolling 24-hour capacity). Open Settings for details.";
+    ? (aiLimits?.creditsAvailable && aiLimits.creditsAvailable > 0
+        ? "AI allowance reached. Continuing with account credits ($0.02/credit ratio). Allowance gradually refreshes over 5 hours. Open Settings for details."
+        : "Your AI allowance is used for now. You can continue using account credits, or wait as capacity refreshes gradually over the next 5 hours. Open Settings for details.")
+    : "AI Usage Limits (rolling 5-hour capacity). Open Settings for details.";
   // UI state
   const [text, setText] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -2196,8 +2638,30 @@ export const ChatPage = () => {
     useState(true);
   const supabase = useMemo(() => createClient(), []);
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const [activePresetRecipeId, setActivePresetRecipeId] = useState<string | null>(null);
+  const [presetModalOpen, setPresetModalOpen] = useState(false);
+  const [presetRecipeForModal, setPresetRecipeForModal] = useState<string>("recruiter_cold_outreach");
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.id) setCurrentUserId(data.user.id);
+    });
+  }, [supabase]);
+
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [sourceLauncherOpen, setSourceLauncherOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sourceLauncherTriggerRef = useRef<HTMLButtonElement>(null);
+  const sourceLauncherSkills = useMemo(
+    () =>
+      jobrakerChatSkills.map((skill) => ({
+        id: skill.id,
+        name: skill.name,
+        description: skill.description,
+      })),
+    [],
+  );
   const attachmentPreviewUrls = useMemo(
     () =>
       attachments.map((attachment) =>
@@ -2340,17 +2804,118 @@ export const ChatPage = () => {
     return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
   }, [requestElapsedMs]);
   const isChatBusy = status === "in_progress" || skillStatus === "in_progress";
-  const [proTipIndex, setProTipIndex] = useState(0);
-  const [permissionGrants, setPermissionGrants] = useState<Record<string, PermissionScope>>({});
-  const [pendingPermissionRequest, setPendingPermissionRequest] = useState<PendingPermissionRequest | null>(null);
+  const liveTaskMessage = useMemo(() => {
+    return [...messages]
+      .reverse()
+      .find(
+        (message) =>
+          message.streaming ||
+          message.skillCall?.status === "running" ||
+          message.skillCall?.status === "queued",
+      );
+  }, [messages]);
+  const liveTaskRows = useMemo(
+    () => (liveTaskMessage ? buildAgentTaskRows(liveTaskMessage) : []),
+    [liveTaskMessage],
+  );
+  const hasKnownLongRunningTask = Boolean(
+    liveTaskMessage?.toolCalls?.some((tool) => isLongRunningAgentTool(tool.name)),
+  );
+  const isBackgroundTask = liveTaskMessage?.skillCall?.status === "queued";
+  const shouldShowTaskRows =
+    liveTaskRows.length > 0 &&
+    (showExtendedWait || hasKnownLongRunningTask || isBackgroundTask);
 
+  /**
+   * Approval keys the user has already granted in this conversation. Kept in a
+   * ref so every later request replays them and the agent never re-asks for an
+   * action that was already approved.
+   */
+  const approvedToolCallKeysRef = useRef<Set<string>>(new Set());
+
+  // Approvals are scoped to one conversation, never carried into another.
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.id) {
-        fetchUserPermissions(supabase, data.user.id).then(setPermissionGrants);
+    approvedToolCallKeysRef.current = new Set();
+  }, [activeSessionId]);
+
+  const updateApprovalDecision = useCallback(
+    (requestId: string, decision: "approved" | "declined") => {
+      setMessages((previous) =>
+        previous.map((message) =>
+          message.approvalRequest?.id === requestId
+            ? {
+                ...message,
+                approvalRequest: {
+                  ...message.approvalRequest,
+                  decision,
+                },
+              }
+            : message,
+        ),
+      );
+    },
+    [setMessages],
+  );
+
+  const handleApprovalApprove = useCallback(
+    (request: AgentApprovalRequest) => {
+      if (isChatBusy || request.steps.length === 0) return;
+      updateApprovalDecision(request.id, "approved");
+
+      // Approvals accumulate for the whole conversation. Sending only the keys
+      // from this one card meant a later round re-asked for an action the user
+      // had already approved, which read as the card looping.
+      for (const step of request.steps) {
+        approvedToolCallKeysRef.current.add(step.approvalKey);
+        if (step.toolName) approvedToolCallKeysRef.current.add(step.toolName);
+        const slugMatch = step.approvalKey.match(/tool_slug["']?\s*:\s*["']([^"']+)["']/i);
+        if (slugMatch?.[1]) {
+          approvedToolCallKeysRef.current.add(
+            slugMatch[1].toUpperCase().replace(/[^A-Z0-9_]/g, ""),
+          );
+        }
       }
-    });
-  }, [supabase]);
+
+      append(
+        {
+          role: "user",
+          content: "Approved. Continue with the approved actions.",
+        },
+        {
+          model: DEFAULT_CHAT_MODEL,
+          mode: "agent",
+          webSearch: true,
+          // Resume the same turn instead of posting a visible new request.
+          hiddenUserMessage: true,
+          approvedToolCalls: Array.from(approvedToolCallKeysRef.current).map(
+            (key) => ({
+              approvalKey: key,
+              toolName: key,
+              toolSlug: key,
+            }),
+          ),
+        },
+      );
+    },
+    [append, isChatBusy, updateApprovalDecision],
+  );
+
+  const handleApprovalAdjust = useCallback(
+    (_request: AgentApprovalRequest) => {
+      if (isChatBusy) return;
+      setText("Please adjust the plan: ");
+      window.setTimeout(() => textareaRef.current?.focus(), 0);
+    },
+    [isChatBusy],
+  );
+
+  const handleApprovalDecline = useCallback(
+    (request: AgentApprovalRequest) => {
+      updateApprovalDecision(request.id, "declined");
+    },
+    [updateApprovalDecision],
+  );
+  const [proTipIndex, setProTipIndex] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -2372,9 +2937,6 @@ export const ChatPage = () => {
 
   const personaRef = useRef(persona);
   personaRef.current = persona;
-
-  const permissionGrantsRef = useRef(permissionGrants);
-  permissionGrantsRef.current = permissionGrants;
 
   const createSession = useCallback(
     async (activate = true) => {
@@ -2762,6 +3324,19 @@ export const ChatPage = () => {
         sessionId === activeSessionId
           ? messages
           : sessions.find((session) => session.id === sessionId)?.messages || [];
+      const latestColdMailTargets =
+        skill.id === "cold_mail"
+          ? ([...currentMessages]
+              .reverse()
+              .find(
+                (message) =>
+                  message.skillCall?.skillId === "cold_mail" &&
+                  Array.isArray(message.skillCall.output?.targets),
+              )?.skillCall?.output?.targets as ColdMailTarget[] | undefined)
+          : undefined;
+      const executionArgs = latestColdMailTargets?.length
+        ? { ...parsed.args, coldMailTargets: latestColdMailTargets }
+        : parsed.args;
       const conversationContext: SkillExecutionInput["conversationContext"] = currentMessages
         .filter((message) => message.role !== "skill" && message.content.trim())
         .slice(-8)
@@ -2786,7 +3361,7 @@ export const ChatPage = () => {
           trigger: parsed.trigger,
           rawCommand: parsed.rawCommand,
           userInstruction: parsed.userInstruction,
-          args: parsed.args,
+          args: executionArgs,
         },
         progress: ["Queued chat skill"],
       };
@@ -2868,7 +3443,7 @@ export const ChatPage = () => {
           trigger: parsed.trigger,
           rawCommand: parsed.rawCommand,
           userInstruction: parsed.userInstruction,
-          args: parsed.args,
+          args: executionArgs,
           conversationContext,
           progress: (label) => {
             updateSkillMessage((call) => ({
@@ -2981,6 +3556,38 @@ export const ChatPage = () => {
       .update({ persona: mode, model })
       .eq("id", sessionId);
 
+    const userTextTrimmed = content.trim().toLowerCase();
+    const isApprovalIntent =
+      /^(approved|approve|yes|continue|proceed|confirm|go ahead)/i.test(userTextTrimmed);
+
+    if (isApprovalIntent) {
+      const lastPendingApproval = [...currentMessages]
+        .reverse()
+        .find((m) => m.approvalRequest && !m.approvalRequest.decision);
+      if (lastPendingApproval?.approvalRequest) {
+        updateApprovalDecision(lastPendingApproval.approvalRequest.id, "approved");
+        for (const step of lastPendingApproval.approvalRequest.steps) {
+          approvedToolCallKeysRef.current.add(step.approvalKey);
+          if (step.toolName) approvedToolCallKeysRef.current.add(step.toolName);
+          const slugMatch = step.approvalKey.match(/tool_slug["']?\s*:\s*["']([^"']+)["']/i);
+          if (slugMatch?.[1]) {
+            approvedToolCallKeysRef.current.add(
+              slugMatch[1].toUpperCase().replace(/[^A-Z0-9_]/g, ""),
+            );
+          }
+        }
+      }
+    }
+
+    const approvedToolCalls =
+      approvedToolCallKeysRef.current.size > 0
+        ? Array.from(approvedToolCallKeysRef.current).map((key) => ({
+            approvalKey: key,
+            toolName: key,
+            toolSlug: key,
+          }))
+        : undefined;
+
     append(
       {
         role: "user",
@@ -2992,6 +3599,7 @@ export const ChatPage = () => {
         webSearch: mode === "agent",
         system: currentMessages.length === 0 ? systemInstruction : undefined,
         mode,
+        approvedToolCalls,
       },
     );
 
@@ -3059,6 +3667,32 @@ export const ChatPage = () => {
   // real data instead of dropping them into a blank chat.
   const handleSubmitRef = useRef(handleSubmit);
   handleSubmitRef.current = handleSubmit;
+  useEffect(() => {
+    const handleRewriteSelection = (event: Event) => {
+      const selectedText = (
+        event as CustomEvent<{ text?: string }>
+      ).detail?.text?.trim();
+      if (!selectedText) return;
+
+      const prompt = [
+        "Rewrite the selected passage for clarity, impact, and natural professional tone.",
+        "Preserve its meaning and factual claims. Do not add experience, results, or facts that are not in the passage.",
+        "",
+        "> " + selectedText.replace(/\n/g, "\n> "),
+      ].join("\n");
+
+      if (isChatBusy || text.trim()) {
+        setText((current) => (current ? `${current}\n\n${prompt}` : prompt));
+        window.requestAnimationFrame(() => textareaRef.current?.focus());
+        return;
+      }
+
+      void handleSubmitRef.current({ text: prompt });
+    };
+
+    window.addEventListener("jobraker:rewrite-selection", handleRewriteSelection);
+    return () => window.removeEventListener("jobraker:rewrite-selection", handleRewriteSelection);
+  }, [isChatBusy, text]);
   const autoInvokeFiredRef = useRef(false);
   useEffect(() => {
     const state = location.state as { autoPrompt?: string } | null;
@@ -3082,9 +3716,14 @@ export const ChatPage = () => {
   ]);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const chatScrollRef = useRef<HTMLDivElement | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const {
+    messagesEndRef,
+    onScroll: updateScrollState,
+    scrollContainerRef: chatScrollRef,
+    scrollContentRef,
+    scrollToBottom,
+    showScrollToBottom,
+  } = useChatScrollFollow();
   const skillPaletteTrigger = useMemo(() => {
     if (!text || (!text.includes("/") && !text.includes("@"))) return null;
     const normalizedCaretPosition = Math.min(
@@ -3128,6 +3767,26 @@ export const ChatPage = () => {
         skillPaletteTrigger,
         alias,
       );
+      if (
+        skill.id === "cold_mail" &&
+        text.trim().toLowerCase() === skillPaletteTrigger.token.toLowerCase()
+      ) {
+        setText("");
+        setCaretPosition(0);
+        setDismissedSkillPaletteToken(null);
+        void runSkillCall(
+          {
+            detected: true,
+            skillId: skill.id,
+            trigger: skillPaletteTrigger.mode,
+            rawCommand: alias,
+            userInstruction: "",
+            args: {},
+          },
+          alias,
+        );
+        return;
+      }
       setText(nextText);
       setCaretPosition(skillPaletteTrigger.start + alias.length + 1);
       setDismissedSkillPaletteToken(null);
@@ -3139,56 +3798,36 @@ export const ChatPage = () => {
         textarea.setSelectionRange(cursor, cursor);
       });
     },
-    [skillPaletteTrigger, text],
+    [runSkillCall, skillPaletteTrigger, text],
   );
 
-  const updateScrollState = useCallback(() => {
-    const container = chatScrollRef.current;
-    if (!container) return;
-    const distanceFromBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight;
-    setShowScrollToBottom(distanceFromBottom > 160);
-  }, []);
-
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
-  }, []);
-
-  const streamingUpdateKey = useMemo(
-    () =>
-      messages
-        .map(
-          (message) =>
-            [
-              message.id,
-              message.content.length,
-              message.streamFrameCount || 0,
-              message.agentEvents?.length || 0,
-              message.toolCalls?.length || 0,
-              message.streaming ? 1 : 0,
-            ].join(":"),
-        )
-        .join("|"),
-    [messages],
+  const selectSkillFromSourceLauncher = useCallback(
+    (skillId: string) => {
+      const skill = getSkillById(skillId);
+      if (!skill) return;
+      const alias = getPrimarySkillAlias(skill, "mention");
+      if (skill.id === "cold_mail") {
+        setText("");
+        setCaretPosition(0);
+        void runSkillCall(
+          {
+            detected: true,
+            skillId: skill.id,
+            trigger: "mention",
+            rawCommand: alias,
+            userInstruction: "",
+            args: {},
+          },
+          alias,
+        );
+        return;
+      }
+      setText(`${alias} `);
+      setCaretPosition(alias.length + 1);
+      window.requestAnimationFrame(() => textareaRef.current?.focus());
+    },
+    [runSkillCall],
   );
-
-  useEffect(() => {
-    const container = chatScrollRef.current;
-    if (!container) {
-      updateScrollState();
-      return;
-    }
-
-    const distanceFromBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight;
-    const shouldFollowStream = status === "in_progress" && distanceFromBottom < 240;
-
-    updateScrollState();
-
-    if (shouldFollowStream) {
-      window.requestAnimationFrame(() => scrollToBottom("auto"));
-    }
-  }, [scrollToBottom, status, streamingUpdateKey, updateScrollState]);
 
   const filteredSessions = useMemo(() => {
     if (!searchQuery.trim()) return sessions;
@@ -3199,6 +3838,10 @@ export const ChatPage = () => {
         s.messages.some((m) => m.content.toLowerCase().includes(query)),
     );
   }, [sessions, searchQuery]);
+
+  const latestAssistantMessageId = [...messages]
+    .reverse()
+    .find((message) => message.role === "assistant")?.id;
 
   return (
     <div className='relative flex flex-col md:flex-row h-full w-full font-sans bg-background overflow-hidden text-foreground'>
@@ -3218,7 +3861,7 @@ export const ChatPage = () => {
                 icon: <MessageSquare className='h-5 w-5' />,
                 title: "AI Conversations",
                 description:
-                  "Metered by your tier's AI Usage Limits (Rolling 24h, Weekly & Monthly allowances)",
+                  "Metered by your tier's AI Usage Limits (Rolling 5h, Weekly & Monthly allowances, credit fallback)",
               },
               {
                 icon: <Wand2 className='h-5 w-5' />,
@@ -3304,8 +3947,10 @@ export const ChatPage = () => {
                       />
                       <span className="text-[10px] font-medium text-foreground whitespace-nowrap">
                         {aiCapacityExhausted
-                          ? "AI allowance used"
-                          : `${aiLimits.rolling24h.percentLeft}% AI Limit`}
+                          ? (aiLimits?.creditsAvailable && aiLimits.creditsAvailable > 0
+                              ? "Credits active"
+                              : "AI allowance used")
+                          : `${rollingStatus?.percentLeft ?? 0}% AI Limit`}
                       </span>
                     </button>
                   )}
@@ -3642,28 +4287,17 @@ export const ChatPage = () => {
               onScroll={updateScrollState}
               className='min-h-0 flex-1 overflow-y-auto flex flex-col relative custom-scrollbar'
             >
-              {showExtendedWait && (
-                <div className='sticky top-3 z-20 mx-auto mt-3 flex max-w-xl items-center justify-between gap-4 rounded-xl border border-brand/25 bg-card/95 px-4 py-3 text-sm shadow-lg shadow-black/10 backdrop-blur'>
-                  <div>
-                    <p className='font-medium text-foreground'>
-                      JobRaker is still working
-                    </p>
-                    <p className='text-xs text-muted-foreground'>
-                      This has been running for {requestElapsedLabel}. You can
-                      wait, or stop and try a shorter request.
-                    </p>
-                  </div>
-                  <button
-                    type='button'
-                    onClick={stop}
-                    className='shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent'
-                  >
-                    Stop
-                  </button>
+              {shouldShowTaskRows ? (
+                <div className="sticky top-3 z-20 px-3">
+                  <AgentTaskRows
+                    tasks={liveTaskRows}
+                    elapsedLabel={requestElapsedLabel}
+                    onStop={stop}
+                  />
                 </div>
-              )}
+              ) : null}
               {messages.length === 0 ? (
-                <div className='flex-1 flex flex-col items-center justify-center px-6 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
+                <div ref={scrollContentRef} className='flex-1 flex flex-col items-center justify-center px-6 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full'>
                   <div className='max-w-2xl w-full text-center space-y-4 md:space-y-6 py-6 flex flex-col items-center'>
                     <div className='flex justify-center mb-4'>
                       <div className='w-16 h-16 bg-foreground/5 rounded-2xl flex items-center justify-center border border-brand/20 relative shadow-[0_0_15px_rgba(47,217,104,0.05)]'>
@@ -3841,12 +4475,23 @@ export const ChatPage = () => {
                   </div>
                 </div>
               ) : (
-                <div className={`flex-1 w-full mx-auto p-6 space-y-6 pb-8 ${
+                <div ref={scrollContentRef} className={`flex-1 w-full mx-auto p-6 space-y-6 pb-8 ${
                   isFocusMode ? "max-w-5xl" : "max-w-4xl"
                 }`}>
-                  {messages.map((m, idx) => (
-                    <div
-                      key={m.id}
+                  {messages.map((m, idx) => {
+                    // Approval resumes are sent for model context only; showing
+                    // them would make continuing look like a brand-new request.
+                    if (m.hiddenFromUi) return null;
+                    const applicationListRequested = isApplicationListRequest(
+                      messages
+                        .slice(0, idx)
+                        .reverse()
+                        .find((message) => message.role === "user"),
+                    );
+
+                    return (
+                    <Fragment key={m.id}>
+                      <div
                       className={`flex gap-4 ${m.role === "user" ? "justify-end" : "justify-start"}`}
                     >
                       {m.role !== "user" && (
@@ -3880,11 +4525,66 @@ export const ChatPage = () => {
                               message={m}
                               elapsedLabel={requestElapsedLabel}
                             />
+                            {m.role === "skill" &&
+                            m.skillCall?.skillId === "cold_mail" &&
+                            m.skillCall.status === "completed" &&
+                            Array.isArray(m.skillCall.output?.targets) ? (
+                              <ColdMailTargetSelectionCard
+                                output={
+                                  m.skillCall.output as unknown as ColdMailDiscoveryOutput
+                                }
+                                disabled={isChatBusy}
+                                onSelect={(target) => {
+                                  if (isChatBusy) return;
+                                  void handleSubmit({
+                                    text: `@ColdMail draft for ${target.jobTitle} at ${target.companyName}`,
+                                  });
+                                }}
+                              />
+                            ) : null}
+                            {m.role === "skill" &&
+                            m.skillCall?.skillId === "cold_mail" &&
+                            m.skillCall.status === "needs_approval" &&
+                            m.skillCall.output?.preparation &&
+                            m.skillCall.output?.preparationToken ? (
+                              <ColdMailSkillCard
+                                output={m.skillCall.output as unknown as ColdMailOutput}
+                              />
+                            ) : null}
                             <AgentResultPreview message={m} />
+                            <AgentInsightPreview message={m} />
+                            {(() => {
+                              const spawnedTaskId =
+                                (m.meta as any)?.task_id ||
+                                (m as any)?.metadata?.task_id ||
+                                m.toolCalls?.find((tc: any) => (tc.result as any)?.task_id)?.result?.task_id;
+                              if (spawnedTaskId) {
+                                return (
+                                  <LiveAgentTaskCard
+                                    taskId={String(spawnedTaskId)}
+                                    initialTitle={(m.meta as any)?.task_title || "Autonomous Cloud Agent"}
+                                    initialType={(m.meta as any)?.task_type}
+                                  />
+                                );
+                              }
+                              return null;
+                            })()}
+                            {m.role === "assistant" && m.streaming && m.content ? (
+                              <TokenStream
+                                text={parseCustomApproveActionTag(m.content).cleanContent}
+                                isStreaming
+                                className="leading-relaxed text-muted-foreground"
+                                staggerDelay={0.012}
+                              />
+                            ) : (
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
-                                a: ({ node: _node, href, children, ...props }) => (
+                                a: ({ node: _node, href, children, ...props }) => {
+                                  const sourceDomain = externalSourceDomain(href);
+                                  const isExternal = Boolean(sourceDomain);
+                                  return (
+                                  <span className="inline">
                                   <a
                                     {...props}
                                     href={href}
@@ -3909,21 +4609,27 @@ export const ChatPage = () => {
                                         navigate(targetRoute);
                                       }
                                     }}
-                                    target={
-                                      href?.startsWith("http") && !href.includes(window.location.host)
-                                        ? "_blank"
-                                        : undefined
-                                    }
-                                    rel={
-                                      href?.startsWith("http") && !href.includes(window.location.host)
-                                        ? "noopener noreferrer"
-                                        : undefined
-                                    }
+                                    target={isExternal ? "_blank" : undefined}
+                                    rel={isExternal ? "noopener noreferrer" : undefined}
                                     className="font-semibold text-brand underline underline-offset-2 hover:text-[#6bff4d] transition-colors cursor-pointer"
                                   >
                                     {children}
                                   </a>
-                                ),
+                                  {sourceDomain && (
+                                    <a
+                                      href={href}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="ml-1 inline-flex translate-y-[-1px] items-center gap-1 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium no-underline transition-colors hover:bg-brand/20"
+                                      aria-label={`Open source: ${sourceDomain}`}
+                                    >
+                                      <BookOpen size={10} aria-hidden />
+                                      {sourceDomain}
+                                    </a>
+                                  )}
+                                  </span>
+                                  );
+                                },
                                 table: ({ node, ...props }) => (
                                   <div className='my-6 overflow-x-auto rounded-xl border border-border'>
                                     <table
@@ -4169,17 +4875,58 @@ export const ChatPage = () => {
                                 ),
                               }}
                             >
-                              {m.content}
+                              {parseCustomApproveActionTag(m.content).cleanContent}
                             </ReactMarkdown>
+                            )}
+                            <ApplicationStatusPreview
+                              message={m}
+                              requested={applicationListRequested}
+                            />
+                            {m.role === "assistant" && m.approvalRequest ? (
+                              <AgentApprovalCard
+                                request={m.approvalRequest}
+                                disabled={isChatBusy}
+                                onApprove={handleApprovalApprove}
+                                onAdjust={handleApprovalAdjust}
+                                onDecline={handleApprovalDecline}
+                              />
+                            ) : null}
                             {m.streaming &&
                               (m.content ? (
                                 <span className='inline-block w-1.5 h-4 ml-1 align-middle bg-brand animate-pulse' />
                               ) : null)}
+                            {m.role === "assistant" && (
+                              <StreamedAnswerFooter
+                                content={m.content}
+                                isStreaming={Boolean(m.streaming)}
+                                onRegenerate={regenerate}
+                              />
+                            )}
                           </div>
                         )}
                       </div>
-                    </div>
-                  ))}
+                      </div>
+                      {m.id === latestAssistantMessageId ? (
+                        <div className="ml-12 max-w-[85%] space-y-3">
+                          <AgentRecommendationPreview
+                            message={m}
+                            onRunPrompt={(prompt) => {
+                              if (!isChatBusy) void handleSubmit({ text: prompt });
+                            }}
+                          />
+                          <ChatFollowUpPanel
+                            content={m.content}
+                            isStreaming={Boolean(m.streaming)}
+                            questions={m.followUpQuestions}
+                            onFollowUp={(prompt) => {
+                              if (!isChatBusy) void handleSubmit({ text: prompt });
+                            }}
+                          />
+                        </div>
+                      ) : null}
+                    </Fragment>
+                    );
+                  })}
                   <div ref={messagesEndRef} />
                 </div>
               )}
@@ -4230,15 +4977,64 @@ export const ChatPage = () => {
                   </div>
                 )}
 
-                <div
-                  className={`beam relative rounded-[32px] shadow-2xl transition-all duration-300 ${
+                <RecruiterOutreachPresetModal
+                  open={presetModalOpen}
+                  onOpenChange={setPresetModalOpen}
+                  recipeId={presetRecipeForModal}
+                  userId={currentUserId}
+                  onLaunchPrompt={(prompt, presetContext) => {
+                    setPresetModalOpen(false);
+                    setActivePresetRecipeId(null);
+                    if (presetContext?.presetId === "recruiter_cold_outreach") {
+                      void runSkillCall(
+                        {
+                          detected: true,
+                          skillId: "cold_mail",
+                          trigger: "mention",
+                          rawCommand: "@ColdMail",
+                          userInstruction: prompt,
+                          args: presetContext,
+                        },
+                        prompt,
+                      );
+                    } else {
+                      void handleSubmit({ text: prompt });
+                    }
+                  }}
+                />
+
+                <div className="relative">
+                  <ChatSourceLauncher
+                    open={sourceLauncherOpen}
+                    skills={sourceLauncherSkills}
+                    triggerRef={sourceLauncherTriggerRef}
+                    onClose={() => setSourceLauncherOpen(false)}
+                    onSkillSelect={selectSkillFromSourceLauncher}
+                    onSelectPreset={(id) => {
+                      setActivePresetRecipeId(id);
+                      setPresetRecipeForModal(id);
+                      setPresetModalOpen(true);
+                      setSourceLauncherOpen(false);
+                    }}
+                  />
+                  <div className='absolute bottom-full left-0 right-0 mb-2 z-40'>
+                    <ChatSkillCommandPalette
+                      open={skillPaletteOpen && !sourceLauncherOpen}
+                      mode={skillPaletteTrigger?.mode || "slash"}
+                      skills={skillPaletteSkills}
+                      activeIndex={skillPaletteActiveIndex}
+                      onSelect={selectSkillFromPalette}
+                    />
+                  </div>
+                  <div
+                    className={`beam relative rounded-[32px] shadow-2xl transition-all duration-300 ${
                     isListening
                       ? "border border-[#2fd968]/60 ring-2 ring-[#2fd968]/40 shadow-black"
                       : isChatBusy || text.trim()
                         ? "beam-amber shadow-[0_0_25px_rgba(47,217,104,0.15)]"
                         : "border border-border bg-card/85 backdrop-blur-xl"
-                  }`}
-                >
+                    }`}
+                  >
                   <div className="beam-inner rounded-[30.5px]">
                   <input
                     type='file'
@@ -4290,7 +5086,7 @@ export const ChatPage = () => {
                   )}
 
                   <div
-                    className={`grid gap-x-2 transition-all duration-300 px-4 py-3 min-h-[56px] ${
+                    className={`relative grid gap-x-2 gap-y-1.5 transition-all duration-300 px-3 py-3 min-h-[56px] sm:px-4 ${
                       isMultiline
                         ? "grid-cols-[auto_1fr_auto] grid-rows-[auto_auto] items-end"
                         : "grid-cols-[auto_1fr_auto] grid-rows-[auto_auto] items-end md:grid-cols-[auto_1fr_auto] md:grid-rows-[1fr] md:items-center"
@@ -4364,7 +5160,7 @@ export const ChatPage = () => {
                               handleSubmit({ text } as any);
                           }
                         }}
-                        className='w-full bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 py-1.5 px-1.5 resize-none max-h-36 text-base outline-none leading-normal scrollbar-hide'
+                        className='w-full bg-transparent border-none focus:ring-0 text-sm text-foreground placeholder:text-muted-foreground/60 py-1.5 px-0.5 resize-none max-h-36 outline-none leading-normal scrollbar-hide sm:px-1.5 sm:text-base'
                         placeholder='Ask your Career Command Center...'
                         style={{ height: "auto", minHeight: "24px" }}
                         onInput={(e) => {
@@ -4377,46 +5173,53 @@ export const ChatPage = () => {
                       />
                     </div>
 
-                    <div className='absolute bottom-full left-0 right-0 mb-2'>
-                      <ChatSkillCommandPalette
-                        open={skillPaletteOpen}
-                        mode={skillPaletteTrigger?.mode || "slash"}
-                        skills={skillPaletteSkills}
-                        activeIndex={skillPaletteActiveIndex}
-                        onSelect={selectSkillFromPalette}
-                      />
-                    </div>
-
                     {/* Left: Plus button */}
                     <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-foreground/5 transition-colors col-start-1 ${
+                      ref={sourceLauncherTriggerRef}
+                      type="button"
+                      aria-label="Add a file or browse skills"
+                      aria-haspopup="dialog"
+                      aria-expanded={sourceLauncherOpen}
+                      onClick={() => setSourceLauncherOpen((open) => !open)}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-foreground/5 transition-colors sm:h-10 sm:w-10 col-start-1 ${
                         isMultiline
                           ? "row-start-2"
                           : "row-start-2 md:row-start-1"
                       } ${
-                        attachments.length ? "text-brand" : "text-muted-foreground hover:text-foreground"
+                        attachments.length || sourceLauncherOpen ? "text-brand" : "text-muted-foreground hover:text-foreground"
                       }`}
-                      title="Upload files"
+                      title="Add a file or browse skills"
                     >
-                      <Plus size={20} />
+                      <Plus
+                        size={18}
+                        className={`transition-transform ${sourceLauncherOpen ? "rotate-45" : ""}`}
+                      />
                     </button>
 
                     {/* Right: Controls */}
                     <div
-                      className={`flex items-center gap-2 shrink-0 col-start-3 ${
+                      className={`flex min-w-0 items-center gap-1.5 shrink-0 sm:gap-2 col-start-3 ${
                         isMultiline
                           ? "row-start-2"
                           : "row-start-2 md:row-start-1"
                       }`}
                     >
+                      <ChatPresetsBar
+                        activeRecipeId={activePresetRecipeId}
+                        onSelectRecipe={(id) => {
+                          setActivePresetRecipeId(id);
+                          setPresetRecipeForModal(id);
+                          setPresetModalOpen(true);
+                        }}
+                      />
+
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
                             type="button"
-                            className="group flex items-center gap-1 rounded-full border border-border bg-foreground/5 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
+                            className="group flex max-w-[8.75rem] items-center gap-1 rounded-full border border-border bg-foreground/5 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground sm:max-w-none sm:px-3"
                           >
-                            <span>
+                            <span className="truncate">
                               {persona === "concise" ? "Ask: plan" : "Agent: do work"}
                             </span>
                             <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
@@ -4455,7 +5258,7 @@ export const ChatPage = () => {
                       <button
                         type="button"
                         onClick={toggleListening}
-                        className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
+                        className={`flex h-8 w-8 items-center justify-center rounded-full transition-all sm:h-9 sm:w-9 ${
                           isListening
                             ? "bg-[#2fd968]/20 text-[#2fd968] ring-2 ring-[#2fd968]/40 hover:bg-[#2fd968]/30"
                             : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
@@ -4463,9 +5266,9 @@ export const ChatPage = () => {
                         title={isListening ? "Listening... Click to stop" : "Voice input"}
                       >
                         {isListening ? (
-                          <ThinkingOrb state="listening" size={20} theme="dark" />
+                          <ThinkingOrb state="listening" size={18} theme="dark" />
                         ) : (
-                          <Mic size={18} />
+                          <Mic size={17} />
                         )}
                       </button>
 
@@ -4479,18 +5282,19 @@ export const ChatPage = () => {
                           (!text.trim() && attachments.length === 0) ||
                           isChatBusy
                         }
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all ${
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all sm:h-10 sm:w-10 ${
                           text.trim() || attachments.length
                             ? "bg-white text-black shadow-lg hover:bg-neutral-100"
                             : "bg-muted text-muted-foreground/60 cursor-not-allowed"
                         }`}
                         title="Send message"
                       >
-                        <ArrowUp size={18} className="font-semibold" />
+                        <ArrowUp size={17} className="font-semibold" />
                       </button>
                     </div>
                   </div>
                   </div>{/* beam-inner */}
+                  </div>
                 </div>
                 <p className='text-center text-[10px] text-muted-foreground mt-3 uppercase tracking-widest font-medium'>
                   JobRaker AI can make mistakes. Check important information.
@@ -4501,13 +5305,6 @@ export const ChatPage = () => {
             <div className='fixed -bottom-48 -right-48 w-96 h-96 bg-brand/5 rounded-full blur-[120px] pointer-events-none'></div>
             <div className='fixed top-24 left-96 w-64 h-64 bg-brand/5 rounded-full blur-[100px] pointer-events-none'></div>
           </main>
-
-          <IntegrationPermissionModal
-            request={pendingPermissionRequest}
-            onRespond={(decision) => {
-              pendingPermissionRequest?.resolve(decision);
-            }}
-          />
 
         </>
       )}

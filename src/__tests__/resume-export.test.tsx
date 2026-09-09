@@ -19,9 +19,10 @@ describe("useResumeExport", () => {
     expect(result.current.exporting).toBe(false);
   });
 
-  it("returns success after the exporter completes", async () => {
+  it("returns success after the exporter completes and calls onSuccess callback", async () => {
     const exporter = vi.fn().mockResolvedValue(undefined);
-    const { result } = renderHook(() => useResumeExport(undefined, exporter));
+    const onSuccess = vi.fn();
+    const { result } = renderHook(() => useResumeExport(undefined, exporter, onSuccess));
 
     let exported = false;
     await act(async () => {
@@ -30,5 +31,6 @@ describe("useResumeExport", () => {
 
     expect(exported).toBe(true);
     expect(exporter).toHaveBeenCalledWith(initialResumeState.data);
+    expect(onSuccess).toHaveBeenCalledTimes(1);
   });
 });

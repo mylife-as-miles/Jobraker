@@ -371,8 +371,9 @@ export const Onboarding = (): JSX.Element => {
         const analyzed = analyzeResumeText(rawText);
         let aiParsedData: ParsedProfileData | null = null;
         try {
+          const hasSufficientText = rawText && rawText.trim().length >= 50;
           let pdfBase64: string | undefined = undefined;
-          if (ext === "pdf") {
+          if (!hasSufficientText && ext === "pdf") {
             try {
               pdfBase64 = await fileToBase64(file);
             } catch (b64Err) {

@@ -88,13 +88,13 @@ export class AiUsageIdempotencyError extends Error {
 }
 
 export class MeteredAiLimitError extends Error {
-  public window: "rolling_24h" | "weekly" | "monthly";
+  public window: "rolling_5h" | "rolling_24h" | "weekly" | "monthly";
   public resetsAt: string | null;
   public resetsGradually: boolean;
 
   constructor(
     message: string,
-    window: "rolling_24h" | "weekly" | "monthly",
+    window: "rolling_5h" | "rolling_24h" | "weekly" | "monthly",
     resetsAt: string | null,
     resetsGradually: boolean,
   ) {
@@ -251,10 +251,10 @@ export async function reserveAiUsage(
     if (code === "AI_USAGE_LIMIT_REACHED") {
       const rawWindow = typeof result?.window === "string"
         ? result.window
-        : "rolling_24h";
-      const window = rawWindow === "weekly" || rawWindow === "monthly"
+        : "rolling_5h";
+      const window = rawWindow === "rolling_5h" || rawWindow === "weekly" || rawWindow === "monthly"
         ? rawWindow
-        : "rolling_24h";
+        : "rolling_5h";
       throw new MeteredAiLimitError(
         message,
         window,
@@ -433,7 +433,7 @@ export async function runMeteredAiCall<T>(
     }
     throw new MeteredAiLimitError(
       "You’ve reached your AI usage limit for this period.",
-      "rolling_24h",
+      "rolling_5h",
       null,
       true,
     );

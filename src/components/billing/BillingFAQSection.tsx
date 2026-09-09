@@ -15,12 +15,12 @@ const BILLING_FAQ_ITEMS: { question: string; answer: string }[] = [
   {
     question: "How do AI Usage Limits work?",
     answer:
-      "All AI-powered features—including AI Chat (Ask and Agent modes), Resume Analysis, Cover Letter Generation, Resume Tailoring, and AI Content Polishing—are metered strictly by model token consumption against your subscription tier's AI Usage Limits. You receive Rolling 24-hour, Weekly, and Monthly usage allowances that automatically refresh based on your plan.",
+      "All AI-powered features—including AI Chat (Ask and Agent modes), Resume Analysis, Cover Letter Generation, Resume Tailoring, and AI Content Polishing—are metered strictly by model token consumption against your subscription tier's AI Usage Limits. You receive Rolling 5-hour, Weekly, and Monthly usage allowances that automatically refresh based on your plan, with seamless pay-as-you-go credit fallback if your allowance is exhausted.",
   },
   {
     question: "What are Credits and what uses them?",
     answer:
-      "Tool credits are used for non-AI and external web automation tools (such as Skyvern browser tasks and Firecrawl web scrapers). AI Chat turns and model generations consume your plan's AI Usage Limits instead of deducting credits.",
+      "Tool credits are used for non-AI web automation tools (such as Skyvern browser tasks and Firecrawl web scrapers), and as seamless pay-as-you-go fallback when your AI Usage Limits are exhausted at the standard dollar consumption ratio ($0.02 per credit).",
   },
   {
     question:

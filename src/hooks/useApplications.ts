@@ -53,6 +53,8 @@ export interface ApplicationRecord {
   automation_fallback_reason?: string | null;
   automation_device_id?: string | null;
   automation_idempotency_key?: string | null;
+  automation_heartbeat_at?: string | null;
+  retry_count?: number | null;
   /** Full Skyvern webhook / run payload (workflow block outputs). */
   provider_run_output?: Record<string, unknown> | null;
 }
@@ -756,7 +758,7 @@ export function useApplications() {
 
   const syncPendingStatus = useCallback(async () => {
     const pending = applications.filter(
-      (a) => a.status === "Pending" && a.run_id,
+      (a) => a.status === "Pending" || a.canonical_stage === "queued",
     );
     if (pending.length === 0) return 0;
 
@@ -765,14 +767,14 @@ export function useApplications() {
       try {
         const { data, error: invokeErr } = await (supabase as any).functions.invoke(
           "sync-provider-status",
-          { body: { run_id: app.run_id } },
+          { body: { application_id: app.id, run_id: app.run_id } },
         );
         if (invokeErr) {
-          console.warn("sync-status invoke error", app.run_id, invokeErr);
+          console.warn("sync-status invoke error", app.id, invokeErr);
           continue;
         }
         const result = typeof data === "string" ? JSON.parse(data) : data;
-        if (result?.app_status && result.app_status !== "Pending") {
+        if (result?.app_status && (result.app_status !== app.status || result.canonical_stage !== app.canonical_stage)) {
           setApplications((prev) =>
             prev.map((a) =>
               a.id === app.id
@@ -789,7 +791,7 @@ export function useApplications() {
           synced++;
         }
       } catch (e) {
-        console.warn("sync-status error for", app.run_id, e);
+        console.warn("sync-status error for", app.id, e);
       }
     }
     return synced;
@@ -797,11 +799,11 @@ export function useApplications() {
 
   useEffect(() => {
     if (!userId || applications.length === 0) return;
-    const hasPending = applications.some((a) => a.status === "Pending" && a.run_id);
+    const hasPending = applications.some((a) => a.status === "Pending" || a.canonical_stage === "queued");
     if (!hasPending) return;
     const timer = setTimeout(() => {
       syncPendingStatus();
-    }, 2000);
+    }, 4000);
     return () => clearTimeout(timer);
   }, [userId, applications, syncPendingStatus]);
 

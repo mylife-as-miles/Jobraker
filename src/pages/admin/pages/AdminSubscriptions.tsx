@@ -189,17 +189,42 @@ export default function AdminSubscriptions() {
       const periodEnd = new Date();
       periodEnd.setMonth(periodEnd.getMonth() + 1);
 
-      const { error } = await supabase
+      // Deactivate current active subscriptions
+      await supabase
         .from("user_subscriptions")
-        .update({
-          subscription_plan_id: newPlanId,
-          current_period_start: new Date().toISOString(),
-          current_period_end: periodEnd.toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", subscriber.id);
+        .update({ status: "canceled", updated_at: new Date().toISOString() })
+        .eq("user_id", subscriber.user_id)
+        .eq("status", "active");
 
-      if (error) throw error;
+      // Insert new active subscription if plan ID is valid
+      if (newPlanId && !newPlanId.startsWith("plan-")) {
+        await supabase
+          .from("user_subscriptions")
+          .insert({
+            user_id: subscriber.user_id,
+            subscription_plan_id: newPlanId,
+            status: "active",
+            current_period_start: new Date().toISOString(),
+            current_period_end: periodEnd.toISOString(),
+          });
+      } else {
+        await supabase
+          .from("user_subscriptions")
+          .update({
+            status: "active",
+            current_period_start: new Date().toISOString(),
+            current_period_end: periodEnd.toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", subscriber.id);
+      }
+
+      // Update profiles table subscription_tier
+      await supabase
+        .from("profiles")
+        .update({ subscription_tier: newPlanName, updated_at: new Date().toISOString() })
+        .eq("id", subscriber.user_id);
+
       success(`Subscriber moved to ${newPlanName}`);
       setShowChangePlanDialog(false);
       setSelectedSubscriber(null);

@@ -27,6 +27,20 @@ export function calculateUserCreditCost(
   return Math.max(minimumUserCredits, rawCredits);
 }
 
+async function safeRpc(
+  serviceClient: any,
+  fnName: string,
+  params: Record<string, unknown>,
+): Promise<{ data: any; error: any }> {
+  try {
+    const res = await serviceClient.rpc(fnName, params);
+    return res || { data: null, error: null };
+  } catch (err) {
+    console.warn(`[metered-provider-credits] rpc ${fnName} threw exception:`, err);
+    return { data: null, error: err };
+  }
+}
+
 export interface MeteredFirecrawlOptions<T> {
   serviceClient: any;
   userId: string;
@@ -81,11 +95,11 @@ export async function runMeteredFirecrawlCall<T>(opts: MeteredFirecrawlOptions<T
   } catch (err) {
     executionError = err;
     if (mode === "enforce") {
-      await opts.serviceClient.rpc("release_external_provider_credits", {
+      await safeRpc(opts.serviceClient, "release_external_provider_credits", {
         p_request_id: requestId,
         p_reason: "execution_error",
         p_failure_owner: "firecrawl",
-      }).catch(() => {});
+      });
     }
     throw err;
   }
@@ -93,12 +107,12 @@ export async function runMeteredFirecrawlCall<T>(opts: MeteredFirecrawlOptions<T
   // 2. Settle
   const confirmedUnits = executionResult.confirmedUnits || estimatedUnits;
   if (mode === "enforce" || mode === "shadow") {
-    const { error: settleErr } = await opts.serviceClient.rpc("settle_external_provider_credits", {
+    const { error: settleErr } = await safeRpc(opts.serviceClient, "settle_external_provider_credits", {
       p_request_id: requestId,
       p_confirmed_units: confirmedUnits,
       p_provider_request_id: executionResult.providerRequestId,
       p_status: "completed",
-    }).catch(() => {});
+    });
 
     if (settleErr) {
       console.warn("[metered-firecrawl] Settlement logged warning", settleErr);
@@ -119,7 +133,13 @@ export interface MeteredRtrvrOptions<T> {
   featureKey?: string;
   payload?: unknown;
   estimatedUnits?: number;
-  execute: () => Promise<{ result: T; confirmedUnits?: number; providerRunId?: string }>;
+  execute: () => Promise<{
+    result: T;
+    confirmedUnits?: number;
+    providerRunId?: string;
+    /** False means the provider rejected or could not complete the request. */
+    completed?: boolean;
+  }>;
 }
 
 export async function runMeteredRtrvrCall<T>(opts: MeteredRtrvrOptions<T>): Promise<T> {
@@ -152,27 +172,43 @@ export async function runMeteredRtrvrCall<T>(opts: MeteredRtrvrOptions<T>): Prom
     }
   }
 
-  let executionResult: { result: T; confirmedUnits?: number; providerRunId?: string };
+  let executionResult: {
+    result: T;
+    confirmedUnits?: number;
+    providerRunId?: string;
+    completed?: boolean;
+  };
   try {
     executionResult = await opts.execute();
   } catch (err) {
     if (mode === "enforce") {
-      await opts.serviceClient.rpc("release_external_provider_credits", {
+      await safeRpc(opts.serviceClient, "release_external_provider_credits", {
         p_request_id: requestId,
         p_reason: "execution_error",
         p_failure_owner: "rtrvr",
-      }).catch(() => {});
+      });
     }
     throw err;
   }
 
-  const confirmedUnits = executionResult.confirmedUnits || estimatedUnits;
-  await opts.serviceClient.rpc("settle_external_provider_credits", {
+  if (executionResult.completed === false) {
+    if (mode === "enforce") {
+      await safeRpc(opts.serviceClient, "release_external_provider_credits", {
+        p_request_id: requestId,
+        p_reason: "provider_request_failed",
+        p_failure_owner: "rtrvr",
+      });
+    }
+    return executionResult.result;
+  }
+
+  const confirmedUnits = executionResult.confirmedUnits ?? estimatedUnits;
+  await safeRpc(opts.serviceClient, "settle_external_provider_credits", {
     p_request_id: requestId,
     p_confirmed_units: confirmedUnits,
     p_provider_run_id: executionResult.providerRunId,
     p_status: "completed",
-  }).catch(() => {});
+  });
 
   return executionResult.result;
 }
@@ -226,22 +262,22 @@ export async function runMeteredSkyvernCall<T>(opts: MeteredSkyvernOptions<T>): 
     executionResult = await opts.execute();
   } catch (err) {
     if (mode === "enforce") {
-      await opts.serviceClient.rpc("release_external_provider_credits", {
+      await safeRpc(opts.serviceClient, "release_external_provider_credits", {
         p_request_id: requestId,
         p_reason: "execution_error",
         p_failure_owner: "skyvern",
-      }).catch(() => {});
+      });
     }
     throw err;
   }
 
   const confirmedUnits = executionResult.confirmedUnits || estimatedUnits;
-  await opts.serviceClient.rpc("settle_external_provider_credits", {
+  await safeRpc(opts.serviceClient, "settle_external_provider_credits", {
     p_request_id: requestId,
     p_confirmed_units: confirmedUnits,
     p_provider_run_id: executionResult.providerRunId,
     p_status: "completed",
-  }).catch(() => {});
+  });
 
   return executionResult.result;
 }

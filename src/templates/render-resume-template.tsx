@@ -9,6 +9,7 @@ import { MercadoTemplate } from "./mercado";
 import { MicahTemplate } from "./micah";
 import { RoscaTemplate } from "./rosca";
 import { SmithTemplate } from "./smith";
+import { PlainTextTemplate } from "./plain-text";
 import type { TemplateProps } from "./types";
 import type { ResumeData } from "@/store/artboard";
 import {
@@ -44,6 +45,7 @@ const TEMPLATE_REGISTRY: Record<string, TemplateComponent> = {
   rosca: RoscaTemplate,
   laurent: LaurentTemplate,
   dian: DianTemplate,
+  "plain-text": PlainTextTemplate,
 };
 
 // Resumes created before this batch (or by AI) may carry an old / deleted template id.
@@ -132,4 +134,3 @@ function ResumeTemplateShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

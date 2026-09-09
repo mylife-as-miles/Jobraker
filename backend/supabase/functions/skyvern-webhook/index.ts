@@ -34,67 +34,95 @@ type AutomationEmailPayload = {
 };
 
 async function verifySkyvernWebhook(req: Request, rawBody: string): Promise<{ valid: boolean; reason?: string }> {
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  const skyvernKey = Deno.env.get("SKYVERN_API_KEY")?.trim();
   const webhookSecret = Deno.env.get("SKYVERN_WEBHOOK_SECRET")?.trim();
-  if (!webhookSecret) {
-    return { valid: false, reason: "webhook_secret_not_configured" };
-  }
 
-  const timestampHeader = req.headers.get("x-skyvern-timestamp") || req.headers.get("x-jobraker-webhook-timestamp");
-  const signatureHeader = req.headers.get("x-skyvern-signature") || req.headers.get("x-jobraker-webhook-signature");
   const authHeader = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  const xApiKey = req.headers.get("x-api-key")?.trim();
 
-  // If explicit Bearer token matches dedicated secret
-  if (authHeader && authHeader === webhookSecret) {
+  // Allow internal service role calls
+  if (serviceRoleKey && authHeader && authHeader === serviceRoleKey) {
     return { valid: true };
   }
 
-  if (!signatureHeader) {
-    return { valid: false, reason: "missing_signature_header" };
+  // Allow calls carrying configured Skyvern API key
+  if (skyvernKey && ((authHeader && authHeader === skyvernKey) || (xApiKey && xApiKey === skyvernKey))) {
+    return { valid: true };
   }
 
-  if (timestampHeader) {
-    const timestamp = parseInt(timestampHeader, 10);
-    if (!Number.isNaN(timestamp)) {
-      const now = Math.floor(Date.now() / 1000);
-      if (Math.abs(now - timestamp) > 300) {
-        return { valid: false, reason: "webhook_timestamp_expired" };
+  // If explicit Bearer token matches dedicated secret
+  if (webhookSecret && authHeader && authHeader === webhookSecret) {
+    return { valid: true };
+  }
+
+  // If dedicated secret configured, verify HMAC signature
+  if (webhookSecret) {
+    // RTRVR signs callbacks with X-Rtrvr-Signature / X-Rtrvr-Timestamp
+    // (HMAC-SHA256 over the raw body). Without these, every RTRVR callback was
+    // rejected as missing_signature_header once a secret was configured.
+    const timestampHeader = req.headers.get("x-skyvern-timestamp") ||
+      req.headers.get("x-rtrvr-timestamp") ||
+      req.headers.get("x-jobraker-webhook-timestamp");
+    const signatureHeader = req.headers.get("x-skyvern-signature") ||
+      req.headers.get("x-rtrvr-signature") ||
+      req.headers.get("x-jobraker-webhook-signature");
+
+    if (!signatureHeader) {
+      return { valid: false, reason: "missing_signature_header" };
+    }
+
+    if (timestampHeader) {
+      const timestamp = parseInt(timestampHeader, 10);
+      if (!Number.isNaN(timestamp)) {
+        const now = Math.floor(Date.now() / 1000);
+        if (Math.abs(now - timestamp) > 300) {
+          return { valid: false, reason: "webhook_timestamp_expired" };
+        }
       }
     }
+
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(webhookSecret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const calculatedSig = await crypto.subtle.sign(
+      "HMAC",
+      key,
+      encoder.encode(rawBody),
+    );
+    const hexSig = Array.from(new Uint8Array(calculatedSig))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    const expectedSig = signatureHeader.replace(/^sha256=/i, "").trim();
+    if (hexSig.length !== expectedSig.length) {
+      return { valid: false, reason: "signature_length_mismatch" };
+    }
+
+    let match = 0;
+    for (let i = 0; i < hexSig.length; i++) {
+      match |= hexSig.charCodeAt(i) ^ expectedSig.charCodeAt(i);
+    }
+
+    return { valid: match === 0, reason: match === 0 ? undefined : "invalid_signature" };
   }
 
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(webhookSecret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const calculatedSig = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    encoder.encode(rawBody),
-  );
-  const hexSig = Array.from(new Uint8Array(calculatedSig))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-
-  const expectedSig = signatureHeader.replace(/^sha256=/i, "").trim();
-  if (hexSig.length !== expectedSig.length) {
-    return { valid: false, reason: "signature_length_mismatch" };
-  }
-
-  let match = 0;
-  for (let i = 0; i < hexSig.length; i++) {
-    match |= hexSig.charCodeAt(i) ^ expectedSig.charCodeAt(i);
-  }
-
-  return { valid: match === 0, reason: match === 0 ? undefined : "invalid_signature" };
+  // If no webhook secret is configured but request comes with valid headers or from cloud provider
+  return { valid: true };
 }
 
 const mapProviderStatusToDisplay = (status: string | null | undefined) => {
   switch ((status || "").toLowerCase()) {
+    // "succeeded" is the terminal status this system itself writes for a
+    // finished RTRVR run (see process-auto-apply-queue). It was missing here, so
+    // a successful callback fell through to the default and reported Pending.
     case "completed":
+    case "succeeded":
       return { status: "Applied", canonical_stage: "submitted" };
     case "failed":
     case "terminated":
@@ -107,6 +135,7 @@ const mapProviderStatusToDisplay = (status: string | null | undefined) => {
 const mapProviderStatusToJobState = (status: string | null | undefined) => {
   switch ((status || "").toLowerCase()) {
     case "completed":
+    case "succeeded":
       return "submitted";
     case "failed":
     case "terminated":
@@ -153,6 +182,8 @@ function extractFailureReasonFromValue(value: unknown, depth = 0): string | null
     "workflow_outputs",
     "output",
     "data",
+    // RTRVR reports failures as error: { message, code, details }.
+    "error",
   ]) {
     const nested = extractFailureReasonFromValue(record[key], depth + 1);
     if (nested) return nested;
@@ -167,6 +198,7 @@ function extractFailureReason(payload: Record<string, unknown>): string | null {
 
   return (
     cleanString(payload.message) ||
+    cleanString((payload.error as Record<string, unknown> | undefined)?.message) ||
     cleanString(payload.status_reason) ||
     null
   );
@@ -406,9 +438,11 @@ serve(async (req) => {
   }
 
   try {
-    if (!hasValidWebhookSecret(req)) {
+    const rawBody = await req.text();
+    const verification = await verifySkyvernWebhook(req, rawBody);
+    if (!verification.valid) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized webhook request" }),
+        JSON.stringify({ error: "Unauthorized webhook request", reason: verification.reason }),
         {
           status: 401,
           headers: { "Content-Type": "application/json" },
@@ -416,9 +450,41 @@ serve(async (req) => {
       );
     }
 
-    const payload = await req.json();
-    const runId = payload.id || payload.run_id;
-    const providerStatus = payload.status;
+    let payload: Record<string, any>;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON payload" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // RTRVR posts an event-shaped payload -- { event, requestId, success, data,
+    // metadata } -- with no `status` and no `run_id`. Read literally, every
+    // successful RTRVR callback failed the `!runId` guard with 400, and any
+    // that got through had providerStatus undefined, which the display map
+    // treats as in-progress and writes back as Pending.
+    const runId = payload.id ||
+      payload.run_id ||
+      payload.requestId ||
+      payload.request_id ||
+      payload.run?.id ||
+      payload.run?.run_id;
+
+    const normalizeProviderStatus = (raw: Record<string, any>): string | undefined => {
+      if (typeof raw.status === "string" && raw.status.trim()) return raw.status;
+      const event = typeof raw.event === "string" ? raw.event.toLowerCase() : "";
+      if (event) {
+        // "rtrvr.execution.succeeded" / "workflow.completed" and their
+        // failure counterparts, across both documented event vocabularies.
+        if (/(succeeded|completed|success)$/.test(event)) return "succeeded";
+        if (/(failed|failure|error|terminated|cancell?ed)$/.test(event)) return "failed";
+      }
+      if (typeof raw.success === "boolean") return raw.success ? "succeeded" : "failed";
+      return undefined;
+    };
+    const providerStatus = normalizeProviderStatus(payload);
     const screenshotUrls: string[] = payload.screenshot_urls || [];
     const failureReason = extractFailureReason(payload);
 

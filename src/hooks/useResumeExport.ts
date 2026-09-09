@@ -13,6 +13,7 @@ function exportErrorMessage(error: unknown) {
 export function useResumeExport(
   onError?: (message: string) => void,
   exporter: ResumeExporter = downloadResumePDF,
+  onSuccess?: () => void,
 ) {
   const [exporting, setExporting] = useState(false);
   const exportInFlightRef = useRef(false);
@@ -24,6 +25,7 @@ export function useResumeExport(
     setExporting(true);
     try {
       await exporter(data);
+      onSuccess?.();
       return true;
     } catch (error) {
       onError?.(exportErrorMessage(error));
@@ -32,7 +34,7 @@ export function useResumeExport(
       exportInFlightRef.current = false;
       setExporting(false);
     }
-  }, [exporter, onError]);
+  }, [exporter, onError, onSuccess]);
 
   return { downloadPdf, exporting } as const;
 }

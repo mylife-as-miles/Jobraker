@@ -365,11 +365,6 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
 
-[functions.skyvern-webhook]
-enabled = true
-verify_jwt = false
-entrypoint = "./functions/skyvern-webhook/index.ts"
-
 [functions.proxy-resume]
 enabled = true
 verify_jwt = false
@@ -472,6 +467,13 @@ verify_jwt = false
 import_map = "./functions/generate-outreach/deno.json"
 entrypoint = "./functions/generate-outreach/index.ts"
 
+[functions.cold-mail]
+enabled = true
+# Browser OPTIONS preflight must reach the handler; auth is enforced in requireSubscriptionTier.
+verify_jwt = false
+import_map = "./functions/cold-mail/deno.json"
+entrypoint = "./functions/cold-mail/index.ts"
+
 [functions.scout-company]
 enabled = true
 verify_jwt = false
@@ -555,11 +557,6 @@ entrypoint = "./functions/composio-auth/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/enrich-jobs/index.ts"
-
-[functions.firecrawl-health]
-enabled = true
-verify_jwt = true
-entrypoint = "./functions/firecrawl-health/index.ts"
 
 [functions.generate-chat-starters]
 enabled = true
@@ -657,6 +654,15 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/schedule-interview/deno.json"
 entrypoint = "./functions/schedule-interview/index.ts"
+
+[functions.skyvern-webhook]
+enabled = true
+# Provider status callbacks (RTRVR/Skyvern) cannot include a Supabase JWT, so the
+# gateway rejected every one with 401 before the handler ran. Authenticity is
+# enforced inside the function by verifyWebhookSignature (HMAC-SHA256 over the
+# raw body, X-Rtrvr-Signature / X-Skyvern-Signature).
+verify_jwt = false
+entrypoint = "./functions/skyvern-webhook/index.ts"
 
 [functions.sync-provider-status]
 enabled = true

@@ -64,7 +64,7 @@ export function getCorsHeaders(origin?: string | null, req?: Request): Record<st
   const matched = resolveAllowedOrigin(raw) ?? ALLOWED_ORIGINS[0];
 
   const requested = req?.headers.get("access-control-request-headers");
-  const allowHeaders = mergeAllowHeaders(BASE_ALLOW_HEADERS, requested);
+  const allowHeaders = mergeAllowHeaders(BASE_ALLOW_HEADERS, requested ?? null);
 
   return {
     "Access-Control-Allow-Origin": matched,

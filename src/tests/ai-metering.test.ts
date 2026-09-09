@@ -11,10 +11,12 @@ const ONE_USD_NANOS = 1_000_000_000n;
 
 const ALLOWLISTED_ROOT_KEYS = new Set([
   "plan",
+  "rolling5h",
   "rolling24h",
   "weekly",
   "monthly",
   "limitedBy",
+  "creditsAvailable",
 ]);
 
 const ALLOWLISTED_WINDOW_KEYS = new Set([
@@ -23,6 +25,7 @@ const ALLOWLISTED_WINDOW_KEYS = new Set([
   "resetsAt",
   "resetsGradually",
   "nextAvailabilityAt",
+  "windowHours",
 ]);
 
 function calculateCostNanos(inputTokens: number | bigint, outputTokens: number | bigint): bigint {

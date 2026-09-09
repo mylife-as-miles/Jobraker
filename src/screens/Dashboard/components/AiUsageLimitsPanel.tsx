@@ -70,7 +70,7 @@ export const AiUsageLimitsPanel: React.FC = () => {
     );
   }
 
-  const rolling = data?.rolling24h || {
+  const rolling = data?.rolling5h || data?.rolling24h || {
     percentUsed: 0,
     percentLeft: 100,
     resetsAt: null,
@@ -105,7 +105,7 @@ export const AiUsageLimitsPanel: React.FC = () => {
 
       <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm divide-y divide-border/40">
         <UsageLimitRow
-          label="24-hour usage limit"
+          label="5-hour usage limit"
           status={rolling}
         />
         <UsageLimitRow
@@ -118,12 +118,23 @@ export const AiUsageLimitsPanel: React.FC = () => {
         />
       </div>
 
+      {data?.creditsAvailable !== undefined && (
+        <div className="flex items-center justify-between text-xs px-1 text-muted-foreground">
+          <span>Pay-as-you-go Credit Fallback:</span>
+          <span className="font-medium text-foreground">
+            {data.creditsAvailable > 0
+              ? `${data.creditsAvailable.toLocaleString()} credits available`
+              : "0 credits available"}
+          </span>
+        </div>
+      )}
+
       {isAnyExhausted && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200 text-xs leading-relaxed space-y-1">
-          <p className="font-semibold">Limit Reached</p>
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200 text-xs leading-relaxed space-y-1.5">
+          <p className="font-semibold">AI Plan Allowance Exhausted</p>
           {rolling.percentLeft === 0 && (
             <p>
-              Your 24-hour rolling usage limit is currently exhausted. Capacity becomes available gradually ({formatResetDate(rolling.resetsAt, true, rolling.nextAvailabilityAt).toLowerCase()}).
+              Your 5-hour rolling usage limit is currently exhausted. Capacity becomes available gradually ({formatResetDate(rolling.resetsAt, true, rolling.nextAvailabilityAt).toLowerCase()}).
             </p>
           )}
           {weekly.percentLeft === 0 && (
@@ -136,6 +147,11 @@ export const AiUsageLimitsPanel: React.FC = () => {
               Your monthly usage limit is exhausted. Usage will reset at the start of your next monthly billing cycle ({formatResetDate(monthly.resetsAt, false).toLowerCase()}).
             </p>
           )}
+          <p className="pt-1 text-[11px] text-amber-700 dark:text-amber-300 font-medium border-t border-amber-500/20">
+            {data?.creditsAvailable && data.creditsAvailable > 0
+              ? `You have ${data.creditsAvailable.toLocaleString()} credits available. AI requests will seamlessly switch to pay-as-you-go credit consumption ($0.02/credit ratio) without interruption.`
+              : "When your plan allowance is exhausted, you can continue immediately using credits at the standard $0.02/credit consumption ratio."}
+          </p>
         </div>
       )}
     </div>

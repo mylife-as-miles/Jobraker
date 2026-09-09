@@ -82,7 +82,12 @@ export function buildRtrvrApplicationRequest(
       ? [
           {
             url: input.rtrvrWebhookUrl,
-            events: ["tool_complete", "workflow_complete"],
+            events: [
+              "rtrvr.execution.succeeded",
+              "rtrvr.execution.failed",
+              "rtrvr.execution.cancelled",
+              "rtrvr.execution.requires_input",
+            ],
             auth: { type: "bearer" as const, token: input.rtrvrWebhookSecret },
           },
         ]
@@ -119,7 +124,7 @@ export function buildRtrvrApplicationRequest(
     phase: input.attemptNumber,
     recordingContext,
     options: {
-      ui: { emitEvents: true },
+      ui: { emitEvents: true, enableVnc: true },
     },
   };
 }

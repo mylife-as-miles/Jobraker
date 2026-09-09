@@ -1,9 +1,23 @@
+import React, { Suspense, lazy } from "react";
 import { Button } from "../../../components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { EarthOrb } from "./EarthOrb";
 import { captureClientEvent } from "@/lib/analytics";
 import { ROUTES } from "@/routes";
+
+const EarthOrb = lazy(() =>
+  import("./EarthOrb").then((mod) => ({ default: mod.EarthOrb }))
+);
+
+function EarthOrbFallback() {
+  return (
+    <div className='w-full h-full flex items-center justify-center pointer-events-none'>
+      <div className='w-48 h-48 sm:w-64 sm:h-64 rounded-full border border-brand/20 bg-brand/5 animate-pulse flex items-center justify-center'>
+        <div className='w-32 h-32 rounded-full border border-brand/40 bg-brand/10 blur-[2px]' />
+      </div>
+    </div>
+  );
+}
 
 export const HeroSection = () => {
   const navigate = useNavigate();
@@ -72,7 +86,9 @@ export const HeroSection = () => {
         <div className='flex-1 w-full relative h-[400px] sm:h-[500px] lg:h-[600px] flex items-center justify-center perspective-1000 -mt-10 lg:mt-0'>
           {/* Glow effect behind orb */}
           <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-brand rounded-full blur-[150px] opacity-15 pointer-events-none' />
-          <EarthOrb />
+          <Suspense fallback={<EarthOrbFallback />}>
+            <EarthOrb />
+          </Suspense>
         </div>
       </div>
     </div>

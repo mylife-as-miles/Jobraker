@@ -27,7 +27,7 @@ export const ListEditor = ({ sectionId }: ListEditorProps) => {
       id: crypto.randomUUID(),
       hidden: false,
       name: newItemName.trim(),
-      level: 3, // Default
+      level: 0, // Unrated by default: user sets rating if desired
     };
     addSectionItem(sectionId, newItem);
     setNewItemName("");

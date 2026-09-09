@@ -78,10 +78,17 @@ export const isGeminiQuotaError = (error: unknown): boolean => {
 
   return (
     status === 429 ||
+    status === 402 ||
     message.includes("resource_exhausted") ||
+    message.includes("resource has been exhausted") ||
     message.includes("rate limit") ||
+    message.includes("rate_limit") ||
     message.includes("too many requests") ||
-    message.includes("quota")
+    message.includes("quota") ||
+    message.includes("exhausted your capacity") ||
+    message.includes("prepaid credits") ||
+    message.includes("check quota") ||
+    message.includes("429")
   );
 };
 
@@ -136,6 +143,17 @@ export const formatGeminiErrorMessage = (error: unknown): string => {
       : (error as any)?.message || String(error || "Unknown error");
   }
 
+  const lower = rawMsg.toLowerCase();
+  if (
+    lower.includes("googlegenerativeai") ||
+    lower.includes("generativelanguage.googleapis.com") ||
+    lower.includes("resource_exhausted") ||
+    lower.includes("quota") ||
+    lower.includes("429")
+  ) {
+    return "The AI provider is temporarily rate-limiting this request. Please try again shortly.";
+  }
+
   if (rawMsg.includes("{") && rawMsg.includes("}")) {
     try {
       const match = rawMsg.match(/\{[\s\S]*\}/);
@@ -151,7 +169,51 @@ export const formatGeminiErrorMessage = (error: unknown): string => {
     }
   }
 
-  return rawMsg.replace(/^Error:\s*/i, "").trim();
+  if (rawMsg.includes("\n    at ") || rawMsg.includes("    at ")) {
+    rawMsg = rawMsg.split(/\n\s*at\s+/)[0].trim();
+  }
+
+  return rawMsg.replace(/^Error:\s*/i, "").trim() || "The AI provider is temporarily having trouble responding. Please try again shortly.";
+};
+
+export const createSafeAiErrorResponse = (
+  error: unknown,
+  corsHeaders: Record<string, string>,
+  defaultStatus = 500,
+): Response => {
+  const isQuota = isGeminiQuotaError(error);
+  const isDenied = isGeminiAccessDeniedError(error);
+  const isTransient = isGeminiTransientProviderError(error);
+
+  const message = formatGeminiErrorMessage(error);
+  let code = "ai_provider_error";
+  let status = defaultStatus;
+
+  if (isQuota) {
+    code = "provider_capacity_exhausted";
+    status = 429;
+  } else if (isDenied) {
+    code = "provider_access_denied";
+    status = 403;
+  } else if (isTransient) {
+    code = "provider_temporarily_unavailable";
+    status = 503;
+  }
+
+  return new Response(
+    JSON.stringify({
+      error: message,
+      code,
+      retryable: isQuota || isTransient,
+    }),
+    {
+      status,
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+      },
+    },
+  );
 };
 
 function parseRetryDelay(error: unknown): number | null {

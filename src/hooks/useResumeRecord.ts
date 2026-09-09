@@ -10,6 +10,7 @@ export interface ResumeRecordDetail {
   template?: string | null;
   updated_at?: string | null;
   public_share_enabled?: boolean | null;
+  share_token?: string | null;
   views?: number | null;
   downloads?: number | null;
   data?: Record<string, unknown> | null;

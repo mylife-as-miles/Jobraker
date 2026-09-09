@@ -19,10 +19,6 @@ const AUTOMATION_RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_AUTOMATIONS_PER_WINDOW = 20;
 const DEFAULT_RTRVR_TIMEOUT_MS = 300_000;
 
-/** Default above Skyvern’s typical 50-step cap (iCIMS / long ATS). Override via body.max_steps_override or SKYVERN_MAX_STEPS_OVERRIDE. */
-const DEFAULT_MAX_STEPS_OVERRIDE = 200;
-const MAX_MAX_STEPS_OVERRIDE = 500;
-
 async function dispatchAutoApplyQueue(applicationId: string): Promise<{
   dispatched: boolean;
   status?: number;
@@ -66,25 +62,6 @@ const APPLY_AUTOMATION_HINTS = `[JobRaker automation — prioritize these]
 2) Resume required: Parameters include a resume file URL (resume). On iCIMS and similar ATS, use device upload (“My Computer”, “Upload”, “Choose file”) and attach that file; prefer PDF; wait until the upload succeeds and validation clears before Next/Continue.
 3) Breezy forms: click “Upload Resume” (not Indeed/LinkedIn), attach the resume file from the resume URL, then wait for a visible filename/upload success state before submitting.
 4) Avoid burning steps only on overlays; complete resume upload, then remaining required fields.`;
-
-function resolveMaxStepsOverride(body: Record<string, unknown>): number {
-  const fromBody = body?.max_steps_override ?? body?.maxStepsOverride;
-  let n: number | null = null;
-  if (typeof fromBody === "number" && Number.isFinite(fromBody) && fromBody > 0) {
-    n = Math.floor(fromBody);
-  } else if (typeof fromBody === "string" && /^\d+$/.test(fromBody.trim())) {
-    const parsed = parseInt(fromBody.trim(), 10);
-    if (parsed > 0) n = parsed;
-  } else {
-    const envRaw = Deno.env.get("SKYVERN_MAX_STEPS_OVERRIDE");
-    if (envRaw && /^\d+$/.test(envRaw.trim())) {
-      const parsed = parseInt(envRaw.trim(), 10);
-      if (parsed > 0) n = parsed;
-    }
-  }
-  if (n == null) n = DEFAULT_MAX_STEPS_OVERRIDE;
-  return Math.min(MAX_MAX_STEPS_OVERRIDE, Math.max(1, n));
-}
 
 function appendAutomationHints(base: string): string {
   const trimmed = (base || "").trim();
@@ -191,10 +168,11 @@ async function resolveStoredResumeForApplication(opts: {
   name: string | null;
   filePath: string;
   signedUrl: string;
+  data?: Record<string, unknown> | null;
 } | null> {
   const { data: resumeRows, error } = await opts.serviceClient
     .from("resumes")
-    .select("id,name,file_path,is_favorite,updated_at")
+    .select("id,name,file_path,data,is_favorite,updated_at")
     .eq("user_id", opts.userId)
     .limit(25);
 
@@ -229,6 +207,7 @@ async function resolveStoredResumeForApplication(opts: {
     name: typeof selected.name === "string" ? selected.name : null,
     filePath: selected.file_path,
     signedUrl: signed.signedUrl,
+    data: selected.data && typeof selected.data === "object" ? selected.data : null,
   };
 }
 
@@ -483,17 +462,45 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { user, serviceClient, subscriptionTier } = await requireSubscriptionTier(
-      req,
-      "Free",
-      "Auto apply",
-    );
+    
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.replace(/^Bearer\\s+/i, "").trim();
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const isSystemTrigger = token && serviceRoleKey && token === serviceRoleKey;
 
-    const userId = user.id;
-    const email =
-      typeof body?.email === "string" && body.email.trim()
-        ? body.email.trim()
-        : user.email || "";
+    let userId: string;
+    let subscriptionTier: string;
+    let serviceClient: any;
+    let email = "";
+
+    if (isSystemTrigger) {
+      if (!body?.user_id) {
+         return new Response(JSON.stringify({ error: "user_id required for system calls" }), {
+           status: 400,
+           headers: { ...corsHeaders, "content-type": "application/json" }
+         });
+      }
+      userId = body.user_id;
+      
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+      serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        { auth: { persistSession: false } }
+      );
+      
+      const { resolveSubscriptionTier } = await import("../_shared/subscription.ts");
+      subscriptionTier = await resolveSubscriptionTier(userId, serviceClient);
+      
+      const { data: userProfile } = await serviceClient.from("profiles").select("email").eq("id", userId).maybeSingle();
+      email = typeof body?.email === "string" && body.email.trim() ? body.email.trim() : (userProfile?.email || "");
+    } else {
+      const authCtx = await requireSubscriptionTier(req, "Free", "Auto apply");
+      userId = authCtx.user.id;
+      subscriptionTier = authCtx.subscriptionTier;
+      serviceClient = authCtx.serviceClient;
+      email = typeof body?.email === "string" && body.email.trim() ? body.email.trim() : (authCtx.user.email || "");
+    }
     const jobUrlsFromJobUrls = extractJobUrls(body?.job_urls);
     const jobUrlsFromJobs = extractJobUrls(body?.jobs);
     const jobUrls = (
@@ -653,13 +660,28 @@ Deno.serve(async (req) => {
       );
     }
 
-    const workflowId =
-      typeof body?.workflow_id === "string" && body.workflow_id
-        ? body.workflow_id
-        : Deno.env.get("SKYVERN_WORKFLOW_ID") || "";
-    if (!workflowId) {
-      console.warn(
-        "apply-to-jobs: SKYVERN_WORKFLOW_ID is not configured; rtrvr will run without Skyvern fallback.",
+    const rtrvrApiKey = (
+      Deno.env.get("RTRVR_API_KEY") ||
+      Deno.env.get("FIRECRAWL_API_KEY") ||
+      ""
+    ).trim();
+    const rtrvrEnabled = parseBoolean(Deno.env.get("RTRVR_ENABLED"), true);
+    if (!rtrvrEnabled || !rtrvrApiKey) {
+      console.warn("[apply-to-jobs] RTRVR not configured:", {
+        rtrvrEnabled,
+        hasRtrvrApiKey: Boolean(Deno.env.get("RTRVR_API_KEY")?.trim()),
+        hasFirecrawlApiKey: Boolean(Deno.env.get("FIRECRAWL_API_KEY")?.trim()),
+      });
+      return new Response(
+        JSON.stringify({
+          error: "Application automation is temporarily unavailable. RTRVR is not configured.",
+          code: "rtrvr_not_configured",
+          details: {
+            rtrvr_enabled: rtrvrEnabled,
+            has_api_key: Boolean(rtrvrApiKey),
+          },
+        }),
+        { status: 503, headers: { ...corsHeaders, "content-type": "application/json" } },
       );
     }
 
@@ -710,10 +732,7 @@ Deno.serve(async (req) => {
             name: existingAutomation.automation_provider || "rtrvr",
             status: existingAutomation.provider_status || "waiting",
           },
-          submitted: {
-            workflow_id: workflowId,
-            count: jobUrls.length,
-          },
+          submitted: { provider: "rtrvr", count: jobUrls.length },
         }),
         {
           headers: { ...corsHeaders, "content-type": "application/json" },
@@ -842,7 +861,6 @@ Deno.serve(async (req) => {
         ? body.additional_information
         : "";
     const providedResume = resumeUrlFromRequest;
-    let skyvernResume = providedResume;
     let rtrvrResumeFile: {
       signedUrl: string;
       fileName: string;
@@ -863,26 +881,10 @@ Deno.serve(async (req) => {
       } catch (error: any) {
         console.warn("apply-to-jobs: resumeUrlForRtrvr", error?.message);
       }
-      try {
-        skyvernResume = await refreshResumeSignedUrlIfPossible(
-          providedResume,
-          userId,
-          serviceClient,
-        );
-      } catch (error: any) {
-        console.warn("apply-to-jobs: refreshResumeSignedUrlIfPossible", error?.message);
-      }
-      try {
-        skyvernResume = await resumeUrlForSkyvern(skyvernResume, userId);
-      } catch (error: any) {
-        console.warn("apply-to-jobs: resumeUrlForSkyvern", error?.message);
-      }
     }
     const coverLetter =
       typeof body?.cover_letter === "string" ? body.cover_letter : "";
     const title = typeof body?.title === "string" ? body.title : undefined;
-    const proxyLocation =
-      typeof body?.proxy_location === "string" ? body.proxy_location : undefined;
 
     const { data: candidateProfileRow } = await serviceClient
       .from("candidate_profiles")
@@ -897,19 +899,48 @@ Deno.serve(async (req) => {
       ]
         .filter(Boolean)
         .join(" ")
-        .trim() || "";
+    const resumeBasics =
+      (resolvedStoredResume?.data as any)?.basics ||
+      (body?.resume_data as any)?.basics ||
+      (body?.resume_basics as any) ||
+      null;
+
     const candidateFullName =
+      (typeof resumeBasics?.name === "string" && resumeBasics.name.trim()) ||
+      (typeof userInput.full_name === "string" && userInput.full_name.trim()) ||
       (typeof candidateProfileRow?.full_name === "string" && candidateProfileRow.full_name.trim()) ||
       (typeof user?.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
-      (typeof userInput.full_name === "string" && userInput.full_name.trim()) ||
       profileFirstAndLastName ||
+      null;
+
+    const candidatePhone =
+      (typeof resumeBasics?.phone === "string" && resumeBasics.phone.trim()) ||
+      (typeof userInput.phone === "string" && userInput.phone.trim()) ||
+      (typeof profileRow?.phone === "string" && profileRow.phone.trim()) ||
+      null;
+
+    const candidateEmail =
+      (typeof resumeBasics?.email === "string" && resumeBasics.email.trim()) ||
+      email;
+
+    const candidateLocation =
+      (typeof resumeBasics?.location === "string" && resumeBasics.location.trim()) ||
+      (typeof profileRow?.location === "string" && profileRow.location.trim()) ||
+      (typeof userInput.location === "string" && userInput.location.trim()) ||
+      null;
+
+    const candidateHeadline =
+      (typeof resumeBasics?.headline === "string" && resumeBasics.headline.trim()) ||
+      (typeof profileRow?.job_title === "string" && profileRow.job_title.trim()) ||
+      (typeof userInput.job_title === "string" && userInput.job_title.trim()) ||
       null;
 
     const safeUserInput = {
       ...userInput,
       id: userId,
-      ...(email ? { email } : {}),
+      ...(candidateEmail ? { email: candidateEmail } : {}),
       ...(candidateFullName ? { full_name: candidateFullName } : {}),
+      ...(candidatePhone ? { phone: candidatePhone } : {}),
       ...(resolvedStoredResume
         ? { resume_id: resolvedStoredResume.id, resume_name: resolvedStoredResume.name }
         : {}),
@@ -926,25 +957,10 @@ Deno.serve(async (req) => {
       .slice(0, 10);
     const candidateProfile = {
       fullName: candidateFullName,
-      email,
-      phone:
-        typeof profileRow?.phone === "string"
-          ? profileRow.phone
-          : typeof userInput.phone === "string"
-            ? userInput.phone
-            : null,
-      location:
-        typeof profileRow?.location === "string"
-          ? profileRow.location
-          : typeof userInput.location === "string"
-            ? userInput.location
-            : null,
-      headline:
-        typeof profileRow?.job_title === "string"
-          ? profileRow.job_title
-          : typeof userInput.job_title === "string"
-            ? userInput.job_title
-            : null,
+      email: candidateEmail,
+      phone: candidatePhone,
+      location: candidateLocation,
+      headline: candidateHeadline,
       portfolioLinks,
       employmentHistory: Array.isArray(experienceRows) ? experienceRows : [],
       education: Array.isArray(educationRows) ? educationRows : [],
@@ -985,42 +1001,7 @@ Deno.serve(async (req) => {
       additionalInformation = appendAutomationHints(additionalInformation);
     }
 
-    const isSkyvernResumeUrl =
-      skyvernResume.startsWith("http://") || skyvernResume.startsWith("https://");
-    const parameters: Record<string, unknown> = {
-      job_urls: stringifyArrayForSkyvern(jobUrls),
-      additional_information: additionalInformation,
-      resume: isSkyvernResumeUrl ? skyvernResume : "",
-      resume_text: resumeText || (!isSkyvernResumeUrl && skyvernResume ? skyvernResume : ""),
-      user_input: JSON.stringify(safeUserInput),
-      email,
-      cover_letter: coverLetter,
-    };
-
-    let webhookUrl: string | undefined;
-    try {
-      const url = new URL(req.url);
-      const webhookSecret =
-        Deno.env.get("SKYVERN_WEBHOOK_SECRET") ||
-        Deno.env.get("SKYVERN_API_KEY") ||
-        "";
-      if (url.hostname.endsWith(".functions.supabase.co")) {
-        webhookUrl = `${url.origin}/skyvern-webhook` +
-          (webhookSecret ? `?token=${encodeURIComponent(webhookSecret)}` : "");
-      } else {
-        const base = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
-        if (base) {
-          webhookUrl = `${base}/functions/v1/skyvern-webhook` +
-            (webhookSecret ? `?token=${encodeURIComponent(webhookSecret)}` : "");
-        }
-      }
-    } catch {
-      // Use empty webhook fallback.
-    }
-
-    const maxSteps = resolveMaxStepsOverride(body as Record<string, unknown>);
     const applyUrl = jobUrls[0] || null;
-    const rtrvrEnabled = parseBoolean(Deno.env.get("RTRVR_ENABLED"), false);
     const rtrvrRecordingContext = configuredRtrvrRecordingContextForUrl(applyUrl);
     const nowIso = new Date().toISOString();
     const applicationId = crypto.randomUUID();
@@ -1064,14 +1045,6 @@ Deno.serve(async (req) => {
       selectedDeviceId: selectedRtrvrDeviceId,
       rtrvrWebhookUrl,
       rtrvrWebhookSecret: Deno.env.get("RTRVR_WEBHOOK_SECRET") || null,
-      skyvern: {
-        workflowId,
-        parameters,
-        proxyLocation,
-        webhookUrl,
-        title,
-        maxStepsOverride: maxSteps,
-      },
       metadata: {
         source: "apply-to-jobs",
         jobId: jobContext.job_id,
@@ -1080,20 +1053,12 @@ Deno.serve(async (req) => {
       },
     };
     const queueParameters = {
-      provider: rtrvrEnabled ? "rtrvr" : "skyvern",
+      provider: "rtrvr",
       rtrvr: rtrvrStartInput,
-      skyvern: {
-        workflow_id: workflowId,
-        parameters,
-        proxy_location: proxyLocation,
-        webhook_url: webhookUrl,
-        title,
-        max_steps_override: maxSteps,
-      },
     };
 
     const data = {
-      provider: rtrvrEnabled ? "rtrvr" : "skyvern",
+      provider: "rtrvr",
       status: "waiting",
       run_id: null,
       requested_mode: requestedBrowserPreference,
@@ -1119,9 +1084,9 @@ Deno.serve(async (req) => {
       next_step: null,
       interview_date: null,
       logo: null,
-      workflow_id: workflowId,
+      workflow_id: null,
       app_url: applyUrl,
-      automation_provider: rtrvrEnabled ? "rtrvr" : "skyvern",
+      automation_provider: "rtrvr",
       automation_idempotency_key: automationIdempotencyKey,
       automation_requested_mode: requestedBrowserPreference,
       automation_selected_mode: null,
@@ -1291,11 +1256,7 @@ Deno.serve(async (req) => {
           available_runs: concurrencyResult.availableRuns,
           period_end: concurrencyResult.periodEnd,
         },
-        submitted: {
-          workflow_id: workflowId,
-          count: jobUrls.length,
-          max_steps_override: maxSteps,
-        },
+        submitted: { provider: "rtrvr", count: jobUrls.length },
       }),
       {
         headers: { ...corsHeaders, "content-type": "application/json" },

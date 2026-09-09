@@ -964,10 +964,10 @@ function ResetAiUsageDialog({
   user: any;
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (window: "daily" | "weekly" | "monthly" | "all") => void;
+  onConfirm: (window: "5h" | "daily" | "weekly" | "monthly" | "all") => void;
   loading: boolean;
 }) {
-  const [selectedWindow, setSelectedWindow] = useState<"daily" | "weekly" | "monthly" | "all">("daily");
+  const [selectedWindow, setSelectedWindow] = useState<"5h" | "daily" | "weekly" | "monthly" | "all">("5h");
 
   if (!isOpen || !user) return null;
 
@@ -1007,7 +1007,7 @@ function ResetAiUsageDialog({
             </p>
             <div className='grid grid-cols-2 gap-3'>
               {[
-                { id: "daily", label: "24-Hour Rolling", desc: "Reset 24h limit" },
+                { id: "5h", label: "5-Hour Rolling", desc: "Reset 5h limit" },
                 { id: "weekly", label: "Weekly Window", desc: "Reset week limit" },
                 { id: "monthly", label: "Monthly Period", desc: "Reset month limit" },
                 { id: "all", label: "Reset All", desc: "Reset all windows" },

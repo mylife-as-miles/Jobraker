@@ -8,6 +8,7 @@ import {
   withGeminiRetry,
   withModelFallback,
   runMeteredAiCall,
+  createSafeAiErrorResponse,
 } from "../_shared/gemini.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { parseStructuredJson } from "../_shared/structured-json.ts";
@@ -66,6 +67,19 @@ const PARSING_SCHEMA = {
         required: ["company", "title", "description"]
       }
     },
+    website: { type: "string" },
+    profiles: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          network: { type: "string" },
+          url: { type: "string" },
+          username: { type: "string" }
+        },
+        required: ["network", "url"]
+      }
+    },
     projects: {
       type: "array",
       items: {
@@ -93,33 +107,74 @@ const PARSING_SCHEMA = {
       }
     }
   },
-  required: ["firstName", "lastName", "email", "jobTitle", "about", "skills", "education", "experience"]
+  required: [
+    "firstName",
+    "lastName",
+    "email",
+    "jobTitle",
+    "about",
+    "skills",
+    "education",
+    "experience",
+    "projects",
+    "certifications"
+  ]
 };
 
-function buildPrompt(resumeText: string): string {
-  return `You are a lossless resume/CV parser. Your task is to extract structured profile data while preserving the candidate's original detail.
+function buildPrompt(resumeText: string | null): string {
+  const basePrompt = `You are a world-class, lossless resume/CV parser. Your primary directive is FAITHFUL, UNCORRUPTED SECTION SEGMENTATION. Resumes frequently have distinct sections such as Summary, Experience (Work History), Education, Skills, Projects, and Certifications. You must NEVER mix or merge these sections.
+
+CRITICAL ANTI-ABSORPTION DIRECTIVE:
+'experience' must NEVER absorb other sections! In many resumes, Projects, Certifications, Skills, or Education appear near or after Experience. You MUST distribute them into their proper respective arrays ('projects', 'certifications', 'skills', 'education'), NEVER dumping them into 'experience'.
+
+Strict Section Segmentation Directives:
+1. WORK EXPERIENCE ONLY in 'experience' array:
+   - Contains ONLY real professional employment, jobs, internships, or contractor roles at registered companies or organizations.
+   - Company name must be an employer or organization (e.g. 'Google', 'Acme Corp'), NOT a degree, school, project, or skill name.
+   - Title must be a formal employment job title (e.g. 'Senior Software Engineer'), NOT a degree (e.g. 'B.S. in Computer Science') or certification.
+   - NEVER place independent projects, academic projects, personal side-projects, hackathons, or open-source projects inside 'experience' — they belong exclusively in 'projects'.
+   - NEVER place Education degrees, university names, or academic coursework inside 'experience' — they belong in 'education'.
+   - NEVER place certifications or licenses inside 'experience' — they belong in 'certifications'.
+   - NEVER fold or append Education, Skills, Projects, or Certifications into the description of the last work experience item! Terminate the experience description when that job's bullet points end.
+   - Each distinct job role MUST be a separate object in 'experience'. Never combine multiple jobs into one.
+
+2. PROJECTS ONLY in 'projects' array:
+   - Contains all independent projects, personal projects, academic projects, GitHub repositories, client websites, hackathon submissions, and portfolio work.
+   - Even if labeled with a role like 'Developer', 'Lead', 'Author', or 'Creator', if it is an independent or portfolio project, it MUST go in 'projects', NEVER in 'experience'.
+
+3. EDUCATION ONLY in 'education' array:
+   - Contains university/college/school degrees, majors, certifications of study, bootcamps, and graduation dates.
+   - School must be an academic institution (e.g. 'Stanford University').
+   - Degree must be an academic degree (e.g. 'B.S. Computer Science').
+
+4. CERTIFICATIONS ONLY in 'certifications' array:
+   - Professional certifications, licenses, AWS/GCP/Azure certs, PMP, Scrum, CompTIA, Coursera, etc.
+   - Name must be the certification title (e.g. 'AWS Certified Solutions Architect').
+   - Issuer must be the certifying authority or organization (e.g. 'Amazon Web Services').
+
+5. SKILLS ONLY in 'skills' array:
+   - Extract every technical skill, tool, programming language, framework, cloud platform, methodology, library, and domain expertise into this string array.
+   - Do NOT cap skills at 20; if the resume mentions 40 skills, extract all 40.
+
+6. SOCIAL PROFILES & LINKS in 'profiles' array:
+   - Extract all social profiles, portfolio links, and web presences (LinkedIn, GitHub, Portfolio, Personal Website, Twitter/X, Medium, Behance, etc.) into the 'profiles' array with network name, full URL, and username.
+   - If a personal website or portfolio is present, also populate 'website'.
+
+7. ABOUT / SUMMARY:
+   - The candidate's professional summary, profile, or objective. If not explicitly present, write a concise 2-3 sentence overview based on their background.
+
+8. MULTI-COLUMN & MARKDOWN HEADERS:
+   - The input text may include markdown headers (such as '## Skills', '## Experience', '## Education', '## Summary', '## Projects', '## Certifications').
+   - Use these headers as strict boundaries. Content under '## Education' belongs exclusively in 'education'. Content under '## Skills' belongs exclusively in 'skills'. Content under '## Experience' belongs exclusively in 'experience'. Content under '## Projects' belongs exclusively in 'projects'.
+   - For bullet points in experience descriptions, preserve each bullet point separated by newlines.
 
 Extract into the following JSON structure:
-${JSON.stringify(PARSING_SCHEMA, null, 2)}
+${JSON.stringify(PARSING_SCHEMA, null, 2)}`;
 
-Requirements:
-- Extract First Name, Last Name, Email, Phone, Location.
-- Determine the current/most recent Job Title.
-- Calculate total Years of Experience.
-- For "about": preserve the candidate's existing professional summary/profile if present. If there is no summary, write a brief 2-3 sentence overview, but do not omit concrete domains, leadership scope, metrics, certifications, or major tools found in the CV.
-- Extract all clearly stated Skills, tools, technologies, languages, certifications, and domain keywords. Do not cap the list at 20 when the CV contains more relevant skills.
-- Extract Education history (School, Degree, Start Year, End Year).
-- Extract the full Experience history in reverse chronological order.
-- Extract Projects and Certifications when present instead of folding them into summary text.
-- For each experience.description, preserve the vital details from that role: responsibilities, achievements, metrics, customers/industries, tools, leadership scope, and named initiatives.
-- Do not compress a role to 1-2 generic sentences. Use newline-separated bullet-like lines inside the description string when the source has multiple bullets.
-- Never drop older roles, extra bullets, metrics, or technical/domain keywords merely to make the output shorter.
-- Keep dates as written when month precision is unavailable. Use End Date "Present" only when the CV indicates the role is current.
-
-RESUME CONTENT:
-${resumeText}
-
-Return ONLY valid JSON.`;
+  if (resumeText) {
+    return `${basePrompt}\n\nRESUME CONTENT:\n${resumeText}\n\nReturn ONLY valid JSON.`;
+  }
+  return `${basePrompt}\n\nI have attached the resume PDF. Carefully inspect the visual columns and section headings to isolate each section accurately. Return ONLY valid JSON.`;
 }
 
 function stripCodeFences(text: string): string {
@@ -265,37 +320,42 @@ serve(async (req) => {
 
     const requestBody = (await req.json()) as ParseResumeRequest;
     const pdfBase64 = requestBody.pdfBase64;
-    let resumeText = "";
+    let resumeText = (requestBody.resumeText || "").trim();
     
-    if (pdfBase64) {
-      try {
-        const cleanBase64 = pdfBase64.replace(/^data:application\/pdf;base64,/, "").trim();
-        const pdfBytes = Uint8Array.from(atob(cleanBase64), c => c.charCodeAt(0));
-        resumeText = await extractTextFromPdf(pdfBytes);
-      } catch (extractError: any) {
-        console.error("Server-side PDF text extraction failed:", extractError);
-        if (requestBody.resumeText) {
-          resumeText = requestBody.resumeText;
-        } else {
-          return new Response(JSON.stringify({ error: `Failed to extract text from PDF: ${extractError.message}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-      }
-    } else {
-      resumeText = requestBody.resumeText || "";
-    }
+    let parts: any[] = [];
+    let promptLength = 0;
 
-    if (!resumeText || !resumeText.trim()) {
-      return new Response(JSON.stringify({ error: "resumeText or pdfBase64 is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (resumeText.length >= 50) {
+      // Fast path: direct text tokenization in Gemini (~1.5s vs 10s+ for raw PDF multimodal OCR)
+      const prompt = buildPrompt(resumeText.slice(0, 60000));
+      parts = [{ text: prompt }];
+      promptLength = prompt.length;
+    } else if (pdfBase64) {
+      const cleanBase64 = pdfBase64.replace(/^data:application\/pdf;base64,/, "").trim();
+      const prompt = buildPrompt(null);
+      parts = [
+        { text: prompt },
+        { inlineData: { mimeType: "application/pdf", data: cleanBase64 } }
+      ];
+      promptLength = prompt.length + cleanBase64.length;
+    } else if (resumeText.length > 0) {
+      const prompt = buildPrompt(resumeText.slice(0, 60000));
+      parts = [{ text: prompt }];
+      promptLength = prompt.length;
+    } else {
+      return new Response(
+        JSON.stringify({ error: "resumeText or pdfBase64 is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const ai = createGeminiClient();
-    const prompt = buildPrompt(resumeText.slice(0, 60000));
 
     const metered = await runMeteredAiCall({
       userId: user.id,
       featureKey: "parse_resume",
       model: GEMINI_MODEL,
-      promptTextLength: prompt.length,
+      promptTextLength: promptLength,
       execute: async () => {
         const { result: rawResponse, modelUsed } = await withModelFallback(
           (model) => withGeminiRetry(() => ai.models.generateContent({
@@ -306,7 +366,7 @@ serve(async (req) => {
                 includeTools: false,
                 thinkingLevel: "LOW",
               }, model),
-              contents: [{ role: 'user', parts: [{ text: prompt }] }]
+              contents: [{ role: 'user', parts }]
           })),
         );
         return {
@@ -335,7 +395,7 @@ serve(async (req) => {
       serviceClient,
       subscriptionTier,
       metadata: {
-        resume_length: resumeText.length,
+        resume_length: resumeText.length || (pdfBase64 ? pdfBase64.length : 0),
       },
     });
 
@@ -346,6 +406,6 @@ serve(async (req) => {
       return subscriptionErrorResponse(error, corsHeaders);
     }
     console.error("Error in parse-resume:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return createSafeAiErrorResponse(error, corsHeaders);
   }
 });

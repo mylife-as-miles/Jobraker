@@ -124,6 +124,104 @@ export default defineConfig({
       "file-saver": path.resolve(__dirname, "src/lib/mocks/file-saver.ts"),
     },
   },
+  build: {
+    target: "es2022",
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Rollup's CommonJS interop helpers (getDefaultExportFromCjs et al.)
+          // live in a virtual module that contains no "node_modules" segment, so
+          // it used to fall through this function unassigned. Rollup then placed
+          // it in whichever vendor chunk claimed it first -- vendor-charts -- and
+          // every other chunk, vendor-react included, imported it back out of
+          // there. That single edge produced a
+          // vendor-react -> vendor-charts -> vendor-ui -> vendor-react cycle, and
+          // inside a cycle vendor-ui's module body ran before vendor-react had
+          // initialised its React export, so lucide-react's top-level
+          // `React.forwardRef(...)` threw "Cannot read properties of undefined".
+          // The helper module has no imports of its own, so giving it a dedicated
+          // leaf chunk makes the cycle structurally impossible.
+          if (id.includes("commonjsHelpers") || id.includes("commonjs-dynamic-modules")) {
+            return "vendor-cjs-helpers";
+          }
+          if (id.includes("node_modules")) {
+            if (
+              id.includes("three") ||
+              id.includes("@react-three") ||
+              id.includes("three-stdlib")
+            ) {
+              return "vendor-three";
+            }
+            if (
+              id.includes("recharts") ||
+              id.includes("d3-") ||
+              id.includes("victory-vendor")
+            ) {
+              return "vendor-charts";
+            }
+            if (
+              id.includes("jspdf") ||
+              id.includes("docx") ||
+              id.includes("jszip") ||
+              id.includes("pdfjs-dist")
+            ) {
+              return "vendor-pdf";
+            }
+            if (
+              id.includes("framer-motion") ||
+              id.includes("gsap") ||
+              id.includes("animejs") ||
+              id.includes("lenis")
+            ) {
+              return "vendor-motion";
+            }
+            if (
+              id.includes("@supabase/") ||
+              id.includes("@supabase/supabase-js") ||
+              id.includes("@supabase/auth-ui-react")
+            ) {
+              return "vendor-supabase";
+            }
+            if (
+              id.includes("@tanstack/react-query") ||
+              id.includes("@tanstack/react-table") ||
+              id.includes("jotai") ||
+              id.includes("immer")
+            ) {
+              return "vendor-data";
+            }
+            if (
+              id.includes("@sentry/") ||
+              id.includes("posthog-js")
+            ) {
+              return "vendor-observability";
+            }
+            if (
+              id.includes("@radix-ui/") ||
+              id.includes("lucide-react") ||
+              id.includes("class-variance-authority") ||
+              id.includes("clsx") ||
+              id.includes("tailwind-merge")
+            ) {
+              return "vendor-ui";
+            }
+            if (
+              id.includes("/react/") ||
+              id.includes("/react-dom/") ||
+              id.includes("/react-router/") ||
+              id.includes("/react-router-dom/") ||
+              id.includes("/scheduler/") ||
+              id.endsWith("/react/index.js") ||
+              id.endsWith("/react-dom/index.js")
+            ) {
+              return "vendor-react";
+            }
+          }
+        },
+      },
+    },
+  },
   server: {
     host: "127.0.0.1", // force IPv4
     port: 3000, // use your usual dev port

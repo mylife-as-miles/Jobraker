@@ -3355,6 +3355,9 @@ export async function discoverJobsFirecrawl(
 
 export async function discoverJobsHybrid(
   args: FirecrawlDiscoveryArgs,
+  // Callers pass a per-batch persistence callback. It used to be dropped here,
+  // so jobs-search (sync) and jobs-cron discovered jobs but never saved them.
+  onBatch?: (jobs: DiscoveryJob[]) => Promise<void>,
 ): Promise<DiscoveryResult> {
-  return discoverJobsFirecrawl(args);
+  return discoverJobsFirecrawl(args, onBatch);
 }
