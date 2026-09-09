@@ -326,7 +326,7 @@ export function ProfileAvailabilitySection({
         {/* Ambient Corner Glow */}
         <div className='absolute -top-12 -right-12 h-48 w-48 bg-brand/10 rounded-full blur-3xl pointer-events-none' />
 
-        <div className='grid grid-cols-1 lg:grid-cols-[minmax(0,260px)_1fr] gap-8 lg:gap-10 border-t border-b border-border/40 py-8 -mt-2 -mb-2 relative z-10'>
+        <div className='grid grid-cols-1 gap-8 lg:gap-10 border-t border-b border-border/40 py-8 -mt-2 -mb-2 relative z-10'>
           {/* Left Summary Column */}
           <div className='space-y-5 lg:pr-4'>
             <div className='space-y-1.5'>

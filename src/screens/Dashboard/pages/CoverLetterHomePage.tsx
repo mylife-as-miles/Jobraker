@@ -19,6 +19,7 @@ import { CoverLetterPreviewCard } from "../components/CoverLetterPreviewCard";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { Modal } from "../../../components/ui/modal";
+import Seo from "@/components/seo/Seo";
 
 const supabase = createClient();
 
@@ -186,6 +187,7 @@ export const CoverLetterHomePage = () => {
 
   return (
     <div className={`product-page-shell flex flex-col h-full bg-background text-foreground overflow-y-auto ${isMobile ? "p-4 pb-20" : "p-8"}`}>
+      <Seo title='Jobraker | Cover Letters' />
       {/* Header */}
       <div className='flex items-center justify-between mb-8'>
         <div>

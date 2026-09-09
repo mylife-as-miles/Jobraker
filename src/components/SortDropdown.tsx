@@ -60,10 +60,10 @@ export default function SortDropdown({ value, onChange, className }: SortDropdow
         aria-expanded={isOpen}
         onClick={toggleOpen}
         className={[
-          "inline-flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm",
-          "bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] text-foreground",
+          "inline-flex w-full items-center cursor-pointer justify-between rounded-xl border px-4 py-3 text-left text-sm",
+          " text-foreground",
           "border-[#2fd968]/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-sm",
-          "transition-all duration-200 hover:border-[#2fd968]/35 hover:bg-[#111722]",
+          "transition-all duration-200 hover:border-[#2fd968]/35",
           isOpen ? "border-[#2fd968]/40 ring-1 ring-[#2fd968]/20" : "",
         ].join(" ")}
       >
@@ -74,7 +74,7 @@ export default function SortDropdown({ value, onChange, className }: SortDropdow
       </button>
 
       {isOpen && (
-        <div className="absolute top-full z-50 mt-2 w-full min-w-[180px] overflow-hidden rounded-2xl border border-[#2fd968]/18 bg-[#0d131c]/96 shadow-[0_18px_48px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+        <div className="absolute top-full z-50 mt-2 w-full min-w-[180px] overflow-hidden rounded-2xl border border-[#2fd968]/18 bg-background backdrop-blur-xl">
           <div
             role="listbox"
             aria-label="Sort options"
@@ -86,7 +86,7 @@ export default function SortDropdown({ value, onChange, className }: SortDropdow
                 type="button"
                 onClick={() => handleSelect(opt)}
                 className={[
-                  "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-colors duration-150",
+                  "flex w-full items-center cursor-pointer justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-colors duration-150",
                   value === opt.value
                     ? "bg-[#2fd968]/10 text-[#d8ffe2]"
                     : "text-foreground/72 hover:bg-foreground/[0.04] hover:text-foreground",

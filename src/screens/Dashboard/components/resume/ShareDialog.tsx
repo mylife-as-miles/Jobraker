@@ -223,58 +223,53 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[540px] bg-white dark:bg-[#09090b] border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-50 rounded-3xl shadow-2xl p-0 overflow-visible'>
-        <div className='p-6 md:p-8 space-y-6'>
-          <DialogHeader className='space-y-1.5'>
-            <DialogTitle className='text-xl font-bold tracking-tight flex items-center justify-between'>
-              <span>Share Resume</span>
-              {loadingStats && (
-                <Loader2 className='w-4 h-4 animate-spin text-muted-foreground' />
-              )}
+      <DialogContent className=' max-w-fit max-h-[90vh] overflow-y-auto bg-white dark:bg-[#09090b] border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-50 rounded-3xl shadow-2xl p-4'>
+          <DialogHeader className='mb-6'>
+            <DialogTitle className='text-xl font-bold tracking-tight'>
+              Share Resume
             </DialogTitle>
             <DialogDescription className='text-xs text-muted-foreground dark:text-muted-foreground'>
               Share your resume privately with recruiters or publish it publicly. Track live view and download performance.
             </DialogDescription>
           </DialogHeader>
 
-          {/* 1. Private Share Link Section (Always Available for Saved Resumes) */}
-          <div className='p-4 bg-zinc-50 dark:bg-foreground/5 rounded-2xl border border-zinc-200 dark:border-foreground/10 space-y-3'>
-            <div className='flex items-center justify-between'>
-              <div className='flex items-center gap-2'>
-                <div className='w-7 h-7 rounded-lg bg-brand/15 flex items-center justify-center text-brand'>
-                  <Lock className='w-3.5 h-3.5' />
-                </div>
-                <div>
-                  <span className='font-bold text-xs tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5'>
-                    Private Share Link
-                    <span className='px-1.5 py-0.5 text-[9px] font-semibold rounded bg-brand/20 text-brand border border-brand/30 uppercase tracking-wider'>
-                      Secret
-                    </span>
-                  </span>
-                </div>
-              </div>
-              <Button
-                size='sm'
-                variant='ghost'
-                disabled={isRegenerating || !canShare}
-                onClick={handleRegenerateToken}
-                className='h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground gap-1'
-                title='Regenerate token to revoke older links'
-              >
-                <RotateCw className={`w-3 h-3 ${isRegenerating ? "animate-spin" : ""}`} />
-                Revoke & New
-              </Button>
+          <div className='flex w-fit items-center justify-between p-5 bg-zinc-50 dark:bg-foreground/5 rounded-2xl border border-zinc-200 dark:border-foreground/10 mb-8'>
+            <div className='flex flex-col gap-1'>
+              <span className='font-bold text-sm tracking-tight text-zinc-900 dark:text-zinc-100'>
+                Public Access
+              </span>
+              <p className='text-xs text-muted-foreground dark:text-muted-foreground leading-relaxed max-w-[240px]'>
+                {canShare
+                  ? "Visible to anyone with the link. Track performance."
+                  : "Save this resume first to generate a public link."}
+              </p>
             </div>
 
-            <p className='text-[11px] text-muted-foreground dark:text-muted-foreground leading-relaxed'>
-              Anyone with this secret link can view your resume, even when Public Access is turned off.
-            </p>
-
-            <div className='flex items-center gap-2 p-2.5 bg-background dark:bg-zinc-900/80 border border-border/60 rounded-xl'>
-              <div className='flex-1 min-w-0'>
-                <p className='text-xs font-mono text-muted-foreground dark:text-muted-foreground truncate select-all'>
-                  {canShare ? privateUrl : "Save resume to generate link"}
-                </p>
+          {canShare && isPublic && (
+            <div className='space-y-6 w-fit animate-in fade-in slide-in-from-bottom-2 duration-300'>
+              <div className='space-y-3'>
+                <label className='text-[10px] font-bold text-muted-foreground dark:text-muted-foreground uppercase tracking-[0.2em] ml-1'>
+                  Share Link
+                </label>
+                <div className='flex items-center gap-3 p-4 bg-zinc-100/50 dark:bg-foreground/5 border border-zinc-200 dark:border-foreground/10 rounded-2xl group transition-all hover:border-zinc-300 dark:hover:border-foreground/20'>
+                  <div className='w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center shrink-0'>
+                    <Globe className='w-4 h-4 text-brand' />
+                  </div>
+                  <div className='flex-1 min-w-0'>
+                    <p className='text-xs font-mono text-muted-foreground dark:text-muted-foreground truncate'>
+                      {publicUrl}
+                    </p>
+                  </div>
+                  <Button
+                    size='sm'
+                    variant='ghost'
+                    className='h-9 px-4 text-xs font-bold gap-2 hover:bg-zinc-200 dark:hover:bg-foreground/10 transition-all rounded-xl border border-transparent dark:border-zinc-800'
+                    onClick={copyToClipboard}
+                  >
+                    <Copy className='w-3.5 h-3.5' />
+                    Copy
+                  </Button>
+                </div>
               </div>
               <Button
                 size='sm'
@@ -364,32 +359,8 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
                 Live tracking enabled
               </span>
             </div>
-
-            <div className='grid grid-cols-2 gap-3'>
-              <div className='relative overflow-hidden group p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center gap-1 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/80'>
-                <div className='absolute -right-2 -top-2 w-16 h-16 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all' />
-                <Eye className='w-4 h-4 text-blue-500 mb-0.5' />
-                <span className='text-2xl font-bold tabular-nums text-foreground'>
-                  {views}
-                </span>
-                <span className='text-[9px] text-muted-foreground dark:text-muted-foreground font-bold uppercase tracking-widest'>
-                  Total Views
-                </span>
-              </div>
-
-              <div className='relative overflow-hidden group p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center gap-1 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/80'>
-                <div className='absolute -right-2 -top-2 w-16 h-16 bg-brand/10 rounded-full blur-2xl group-hover:bg-brand/20 transition-all' />
-                <Download className='w-4 h-4 text-brand mb-0.5' />
-                <span className='text-2xl font-bold tabular-nums text-foreground'>
-                  {downloads}
-                </span>
-                <span className='text-[9px] text-muted-foreground dark:text-muted-foreground font-bold uppercase tracking-widest'>
-                  Downloads
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+          )}
+        
       </DialogContent>
     </Dialog>
   );

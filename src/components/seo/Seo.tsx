@@ -5,7 +5,7 @@ const DEFAULT_OG_IMAGE = `${APP_ORIGIN}/logo/logo.jpeg`;
 
 type SeoProps = {
   title: string;
-  description: string;
+  description?: string;
   path?: string;
   image?: string;
   noindex?: boolean;

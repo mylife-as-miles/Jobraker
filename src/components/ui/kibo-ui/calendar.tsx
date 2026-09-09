@@ -109,7 +109,23 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
 
   const effectiveDensityMode = isMobile ? "compact" : densityMode;
   const today = new Date();
-  const viewMonth = startOfMonth(month || today);
+  const [internalMonth, setInternalMonth] = useState<Date>(startOfMonth(month || today));
+
+  useEffect(() => {
+    if (month) {
+      setInternalMonth(startOfMonth(month));
+    }
+  }, [month]);
+
+  const viewMonth = month ? startOfMonth(month) : internalMonth;
+
+  const handleMonthChange = (newMonth: Date) => {
+    if (!month) {
+      setInternalMonth(newMonth);
+    }
+    onMonthChange?.(newMonth);
+  };
+
   const usedLocale =
     locale ||
     (typeof navigator !== "undefined" ? navigator.language : undefined);
@@ -484,7 +500,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
             <button
               type='button'
               aria-label='Previous month'
-              onClick={() => onMonthChange?.(addMonths(viewMonth, -1))}
+              onClick={() => handleMonthChange(addMonths(viewMonth, -1))}
               className='inline-flex h-9 w-9 items-center justify-center rounded-xl border border-transparent bg-foreground/[0.02] text-foreground/70 transition hover:border-brand/25 hover:bg-brand/10 hover:text-brand'
             >
               <ChevronLeft className='h-4 w-4' />
@@ -512,7 +528,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
             <button
               type='button'
               aria-label='Next month'
-              onClick={() => onMonthChange?.(addMonths(viewMonth, 1))}
+              onClick={() => handleMonthChange(addMonths(viewMonth, 1))}
               className='inline-flex h-9 w-9 items-center justify-center rounded-xl border border-transparent bg-foreground/[0.02] text-foreground/70 transition hover:border-brand/25 hover:bg-brand/10 hover:text-brand'
             >
               <ChevronRight className='h-4 w-4' />
@@ -521,7 +537,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
           <div className='flex flex-wrap items-center justify-center sm:justify-end gap-1 sm:gap-1.5 rounded-2xl border border-foreground/8 bg-foreground/[0.02] p-1.5 w-full sm:w-auto shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'>
             <button
               type='button'
-              onClick={() => onMonthChange?.(startOfMonth(new Date()))}
+              onClick={() => handleMonthChange(startOfMonth(new Date()))}
               className='rounded-xl border border-foreground/8 bg-transparent px-2.5 py-1 text-[10px] sm:text-xs sm:px-3 sm:py-1.5 text-foreground/80 transition hover:border-brand/25 hover:bg-brand/10 hover:text-brand'
             >
               Today

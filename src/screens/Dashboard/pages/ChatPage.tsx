@@ -180,6 +180,7 @@ import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 import { motion } from "framer-motion";
 import { RouteLoadingFallback } from "@/components/system/RouteLoadingFallback";
+import Seo from "@/components/seo/Seo";
 
 // Custom styles for the new design
 const customStyles = `
@@ -1351,6 +1352,8 @@ const AgentResultPreview = ({ message }: { message: BasicMessage }) => {
 
   return (
     <div className='mb-3 rounded-xl border border-brand/20 bg-brand/[0.04] p-3 text-[13px] text-muted-foreground'>
+    <Seo title='Jobraker | Chat' />
+
       <div className='mb-2 flex items-center gap-2 font-medium text-foreground/85'>
         <ListChecks className='h-3.5 w-3.5 text-brand' />
         Live results while JobRaker keeps working - {uniqueJobs.length} job
@@ -5159,7 +5162,6 @@ export const ChatPage = () => {
                         }}
                         className='w-full bg-transparent border-none focus:ring-0 text-sm text-foreground placeholder:text-muted-foreground/60 py-1.5 px-0.5 resize-none max-h-36 outline-none leading-normal scrollbar-hide sm:px-1.5 sm:text-base'
                         placeholder='Ask your Career Command Center...'
-                        rows={1}
                         style={{ height: "auto", minHeight: "24px" }}
                         onInput={(e) => {
                           const target = e.target as HTMLTextAreaElement;

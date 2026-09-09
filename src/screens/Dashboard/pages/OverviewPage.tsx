@@ -32,6 +32,7 @@ import { useGamification } from "../../../hooks/useGamification";
 import { AuroraDrift } from "../../../components/ui/AuroraDrift";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import type { Profile } from "../../../hooks/useProfileSettings";
+import Seo from "@/components/seo/Seo";
 
 interface OverviewPageProps {
   profile?: Profile | null;
@@ -146,7 +147,11 @@ const StatCard = ({
             viewBox='0 0 220 124'
             preserveAspectRatio='none'
           >
-            <g fill='none' stroke='rgba(119, 255, 183, 0.25)' strokeWidth='0.85'>
+            <g
+              fill='none'
+              stroke='rgba(119, 255, 183, 0.25)'
+              strokeWidth='0.85'
+            >
               <path d='M69 132C94 93 115 112 140 99S181 65 226 71' />
               <path d='M75 136C98 101 118 119 145 105S184 72 226 77' />
               <path d='M82 140C104 109 122 126 150 112S188 79 226 83' />
@@ -193,9 +198,7 @@ const StatCard = ({
         }`}
       >
         {loading ? (
-          <Skeleton
-            className={`h-9 w-16 ${highlight ? "bg-black/10" : ""}`}
-          />
+          <Skeleton className={`h-9 w-16 ${highlight ? "bg-black/10" : ""}`} />
         ) : (
           <NumberFlow
             value={value}
@@ -294,7 +297,8 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
       const age = now - new Date(a.created_at).getTime();
       return age > 7 * 86400000 && age <= 14 * 86400000;
     }).length;
-    const deltaPct = prev7 > 0 ? ((last7 - prev7) / prev7) * 100 : last7 > 0 ? 100 : 0;
+    const deltaPct =
+      prev7 > 0 ? ((last7 - prev7) / prev7) * 100 : last7 > 0 ? 100 : 0;
     return { count, deltaPct };
   }, [applications]);
 
@@ -314,7 +318,11 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
 
     if (chartRange === "7d") {
       for (let i = 6; i >= 0; i--) {
-        const s = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+        const s = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - i,
+        );
         const e = new Date(s.getFullYear(), s.getMonth(), s.getDate() + 1);
         add(s.toLocaleDateString(undefined, { weekday: "narrow" }), s, e);
       }
@@ -389,8 +397,10 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
       (a) => a.status === "Interview" || a.status === "Offer",
     ).length;
     const total = applied + inReview + interview;
-    const pct = total > 0 ? Math.round(((applied + interview) / total) * 100) : 0;
-    const share = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
+    const pct =
+      total > 0 ? Math.round(((applied + interview) / total) * 100) : 0;
+    const share = (n: number) =>
+      total > 0 ? Math.round((n / total) * 100) : 0;
     const weekCount = applications.filter(
       (a) => Date.now() - new Date(a.applied_date).getTime() <= 7 * 86400000,
     ).length;
@@ -399,9 +409,24 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
       total,
       weekCount,
       legend: [
-        { label: "Applied", count: applied, share: share(applied), dot: "bg-brand" },
-        { label: "In Review", count: inReview, share: share(inReview), dot: "bg-yellow-400" },
-        { label: "Interview", count: interview, share: share(interview), dot: "bg-[#56c2ff]" },
+        {
+          label: "Applied",
+          count: applied,
+          share: share(applied),
+          dot: "bg-brand",
+        },
+        {
+          label: "In Review",
+          count: inReview,
+          share: share(inReview),
+          dot: "bg-yellow-400",
+        },
+        {
+          label: "Interview",
+          count: interview,
+          share: share(interview),
+          dot: "bg-[#56c2ff]",
+        },
       ],
     };
   }, [applications]);
@@ -418,7 +443,10 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
   const { tasks: intelligenceTasks } = useJobIntelligenceTasks(6);
 
   const activeTask = useMemo(
-    () => intelligenceTasks.find((t) => t.status === "queued" || t.status === "running"),
+    () =>
+      intelligenceTasks.find(
+        (t) => t.status === "queued" || t.status === "running",
+      ),
     [intelligenceTasks],
   );
 
@@ -439,7 +467,9 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
     if (autoApplySaving || !liveProfile) return;
     setAutoApplySaving(true);
     try {
-      await updateProfile({ auto_apply_auto_submit: enabled } as Partial<Profile>);
+      await updateProfile({
+        auto_apply_auto_submit: enabled,
+      } as Partial<Profile>);
     } catch {
       // updateProfile surfaces its own error handling
     } finally {
@@ -534,6 +564,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
 
   return (
     <div className='product-page-shell min-h-full'>
+      <Seo title='Jobraker | Overview' />
       <div className='w-full max-w-7xl mx-auto p-3 sm:p-4 lg:p-6 xl:p-8 space-y-4 sm:space-y-6'>
         {/* Row 1 — Stat cards */}
         <div
@@ -605,9 +636,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
               {/* Y axis */}
               <div className='flex flex-col justify-between text-[9px] text-foreground/40 font-medium pb-5 shrink-0 text-right'>
                 {[4, 3, 2, 1, 0].map((t) => (
-                  <span key={t}>
-                    {Math.round((chartBars.axisMax / 4) * t)}
-                  </span>
+                  <span key={t}>{Math.round((chartBars.axisMax / 4) * t)}</span>
                 ))}
               </div>
               {/* Bars */}
@@ -627,8 +656,14 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                       <div className='w-full flex-1 flex items-end justify-center'>
                         <motion.div
                           initial={{ height: 0 }}
-                          animate={{ height: `${Math.max(h, bar.value > 0 ? 6 : 2)}%` }}
-                          transition={{ duration: 0.6, delay: i * 0.05, ease: "easeOut" }}
+                          animate={{
+                            height: `${Math.max(h, bar.value > 0 ? 6 : 2)}%`,
+                          }}
+                          transition={{
+                            duration: 0.6,
+                            delay: i * 0.05,
+                            ease: "easeOut",
+                          }}
                           title={`${bar.value} application${bar.value === 1 ? "" : "s"}`}
                           className={`w-2/3 max-w-[26px] rounded-full ${
                             bar.value === 0
@@ -762,7 +797,10 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
             {appsLoading ? (
               <div className='space-y-2.5'>
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className='flex items-center gap-3 p-2 rounded-xl'>
+                  <div
+                    key={i}
+                    className='flex items-center gap-3 p-2 rounded-xl'
+                  >
                     <Skeleton className='w-9 h-9 rounded-xl' />
                     <div className='flex-1 space-y-1.5'>
                       <Skeleton className='h-3 w-2/3' />
@@ -874,8 +912,7 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                     strokeDasharray={GAUGE_LEN}
                     initial={{ strokeDashoffset: GAUGE_LEN }}
                     animate={{
-                      strokeDashoffset:
-                        GAUGE_LEN * (1 - progress.pct / 100),
+                      strokeDashoffset: GAUGE_LEN * (1 - progress.pct / 100),
                     }}
                     transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
                     style={{
@@ -900,7 +937,9 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                 {progress.legend.map((item) => (
                   <div key={item.label} className='text-center'>
                     <div className='flex items-center justify-center gap-1'>
-                      <span className={`w-1.5 h-1.5 rounded-full ${item.dot}`} />
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${item.dot}`}
+                      />
                       <span className='text-[9px] text-foreground/50 font-medium uppercase tracking-wide'>
                         {item.label}
                       </span>
@@ -979,11 +1018,14 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                   {activeTask.params?.company && (
                     <div className='text-xs font-medium text-foreground'>
                       🏢 {String(activeTask.params.company)}{" "}
-                      {activeTask.params.role ? `· ${String(activeTask.params.role)}` : ""}
+                      {activeTask.params.role
+                        ? `· ${String(activeTask.params.role)}`
+                        : ""}
                     </div>
                   )}
                   <p className='text-[11px] leading-relaxed text-muted-foreground'>
-                    {formatTaskMessage(activeTask.message) || "Running background scout & recruitment search..."}
+                    {formatTaskMessage(activeTask.message) ||
+                      "Running background scout & recruitment search..."}
                   </p>
                   <div className='flex items-center gap-1.5 text-[10px] font-semibold text-brand pt-0.5'>
                     <span className='h-1.5 w-1.5 rounded-full bg-brand animate-ping' />
@@ -1040,7 +1082,9 @@ export const OverviewPage = (_props: OverviewPageProps): JSX.Element => {
                 </button>
                 <button
                   type='button'
-                  disabled={autoApplySaving || !liveProfile || !autoApplyEnabled}
+                  disabled={
+                    autoApplySaving || !liveProfile || !autoApplyEnabled
+                  }
                   onClick={() => setAutoApply(false)}
                   aria-label='Stop Auto Apply'
                   className='w-11 h-11 rounded-full bg-red-500/90 border border-red-500 flex items-center justify-center text-white hover:bg-red-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed'

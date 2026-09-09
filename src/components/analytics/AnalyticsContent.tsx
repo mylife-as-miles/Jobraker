@@ -103,8 +103,10 @@ export function AnalyticsContent({
 
   return (
     <div className='space-y-4 sm:space-y-6 lg:space-y-8'>
+      {/* Deeper Insights Section */}
+      {insights && <InsightsSection period={period} insights={insights} />}
       <AIAnalyticsIntelligenceCard />
-      <PipelineEarningsProjectionCard period={period} />
+      {/* <PipelineEarningsProjectionCard period={period} /> */}
 
       <div className='grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4'>
         <button
@@ -205,9 +207,6 @@ export function AnalyticsContent({
           <ResumeVersionSuccess period={period} data={data} />
         </div>
       </div>
-
-      {/* Deeper Insights Section */}
-      {insights && <InsightsSection period={period} insights={insights} />}
     </div>
   );
 }
